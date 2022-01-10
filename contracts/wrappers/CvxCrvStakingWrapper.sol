@@ -53,7 +53,10 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
     address public collateralVault;
 
     //rewards
-    RewardType[] public rewards;
+    //https://ethereum.stackexchange.com/a/97883
+    //See: https://docs.soliditylang.org/en/v0.7.0/types.html?highlight=struct#structs
+    uint256 numRewards = 0;
+    mapping(uint256 => RewardType) rewards;
 
     //management
     bool public isShutdown;
@@ -125,29 +128,28 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
     }
 
     function addRewards() public {
-        if (rewards.length == 0) {
-            rewards.push(
-                RewardType({ reward_token: crv, reward_pool: cvxCrvStaking, reward_integral: 0, reward_remaining: 0 })
-            );
+        if (numRewards == 0) {
+            RewardType storage r = rewards[numRewards++];
+            r.reward_token = crv;
+            r.reward_pool = cvxCrvStaking;
+            r.reward_integral = 0;
+            r.reward_remaining = 0;
         }
 
         uint256 extraCount = IRewardStaking(cvxCrvStaking).extraRewardsLength();
-        uint256 startIndex = rewards.length - 1;
+        uint256 startIndex = numRewards - 1;
         for (uint256 i = startIndex; i < extraCount; i++) {
             address extraPool = IRewardStaking(cvxCrvStaking).extraRewards(i);
-            rewards.push(
-                RewardType({
-                    reward_token: IRewardStaking(extraPool).rewardToken(),
-                    reward_pool: extraPool,
-                    reward_integral: 0,
-                    reward_remaining: 0
-                })
-            );
+            RewardType storage r = rewards[numRewards++];
+            r.reward_token = IRewardStaking(extraPool).rewardToken();
+            r.reward_pool = extraPool;
+            r.reward_integral = 0;
+            r.reward_remaining = 0;
         }
     }
 
     function rewardLength() external view returns (uint256) {
-        return rewards.length;
+        return numRewards;
     }
 
     function _getDepositedBalance(address _account) internal view virtual returns (uint256) {
@@ -272,7 +274,7 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
 
         IRewardStaking(cvxCrvStaking).getReward(address(this), true);
 
-        uint256 rewardCount = rewards.length;
+        uint256 rewardCount = numRewards;
         for (uint256 i = 0; i < rewardCount; i++) {
             _calcRewardIntegral(i, _accounts, depositedBalance, supply, false);
         }
@@ -286,7 +288,7 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
 
         IRewardStaking(cvxCrvStaking).getReward(address(this), true);
 
-        uint256 rewardCount = rewards.length;
+        uint256 rewardCount = numRewards;
         for (uint256 i = 0; i < rewardCount; i++) {
             _calcRewardIntegral(i, _accounts, depositedBalance, supply, true);
         }
@@ -305,7 +307,7 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
     function earned(address _account) external view returns (EarnedData[] memory claimable) {
         uint256 supply = _getTotalSupply();
         // uint256 depositedBalance = _getDepositedBalance(_account);
-        uint256 rewardCount = rewards.length;
+        uint256 rewardCount = numRewards;
         claimable = new EarnedData[](rewardCount + 1);
 
         for (uint256 i = 0; i < rewardCount; i++) {

@@ -147,9 +147,6 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
             r.reward_pool = mainPool;
             r.reward_integral = 0;
             r.reward_remaining = 0;
-            // rewards.push(
-            //     RewardType({ reward_token: crv, reward_pool: mainPool, reward_integral: 0, reward_remaining: 0 })
-            // );
         }
 
         uint256 extraCount = IRewardStaking(mainPool).extraRewardsLength();
