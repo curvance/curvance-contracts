@@ -62,6 +62,7 @@ contract VirtualBalanceWrapper {
 }
 
 contract VirtualBalanceRewardPool is VirtualBalanceWrapper {
+    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public rewardToken;
