@@ -119,9 +119,9 @@ contract CvxCrvStakingWrapper is ERC20, ReentrancyGuard {
 
     function setApprovals() public {
         IERC20(crv).safeApprove(crvDepositor, 0);
-        IERC20(crv).safeApprove(crvDepositor, uint256(-1));
+        IERC20(crv).safeApprove(crvDepositor, type(uint128).max);
         IERC20(cvxCrv).safeApprove(cvxCrvStaking, 0);
-        IERC20(cvxCrv).safeApprove(cvxCrvStaking, uint256(-1));
+        IERC20(cvxCrv).safeApprove(cvxCrvStaking, type(uint128).max);
     }
 
     function addRewards() public {

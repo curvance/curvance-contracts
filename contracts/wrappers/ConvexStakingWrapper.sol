@@ -130,9 +130,9 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
 
     function setApprovals() public {
         IERC20(curveToken).safeApprove(convexBooster, 0);
-        IERC20(curveToken).safeApprove(convexBooster, uint256(-1));
+        IERC20(curveToken).safeApprove(convexBooster, type(uint128).max);
         IERC20(convexToken).safeApprove(convexPool, 0);
-        IERC20(convexToken).safeApprove(convexPool, uint256(-1));
+        IERC20(convexToken).safeApprove(convexPool, type(uint128).max);
     }
 
     function addRewards() public {

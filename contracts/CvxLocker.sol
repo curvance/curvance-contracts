@@ -208,10 +208,10 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     //set approvals for staking cvx and cvxcrv
     function setApprovals() external {
         IERC20(cvxCrv).safeApprove(cvxcrvStaking, 0);
-        IERC20(cvxCrv).safeApprove(cvxcrvStaking, uint256(-1));
+        IERC20(cvxCrv).safeApprove(cvxcrvStaking, type(uint128).max);
 
         IERC20(stakingToken).safeApprove(stakingProxy, 0);
-        IERC20(stakingToken).safeApprove(stakingProxy, uint256(-1));
+        IERC20(stakingToken).safeApprove(stakingProxy, type(uint128).max);
     }
 
     /* ========== VIEWS ========== */

@@ -87,18 +87,18 @@ contract ClaimZap {
     function setApprovals() external {
         require(msg.sender == owner, "!auth");
         IERC20(crv).safeApprove(crvDeposit, 0);
-        IERC20(crv).safeApprove(crvDeposit, uint256(-1));
+        IERC20(crv).safeApprove(crvDeposit, type(uint128).max);
         IERC20(crv).safeApprove(exchange, 0);
-        IERC20(crv).safeApprove(exchange, uint256(-1));
+        IERC20(crv).safeApprove(exchange, type(uint128).max);
 
         IERC20(cvx).safeApprove(cvxRewards, 0);
-        IERC20(cvx).safeApprove(cvxRewards, uint256(-1));
+        IERC20(cvx).safeApprove(cvxRewards, type(uint128).max);
 
         IERC20(cvxCrv).safeApprove(cvxCrvRewards, 0);
-        IERC20(cvxCrv).safeApprove(cvxCrvRewards, uint256(-1));
+        IERC20(cvxCrv).safeApprove(cvxCrvRewards, type(uint128).max);
 
         IERC20(cvx).safeApprove(locker, 0);
-        IERC20(cvx).safeApprove(locker, uint256(-1));
+        IERC20(cvx).safeApprove(locker, type(uint128).max);
     }
 
     function CheckOption(uint256 _mask, uint256 _flag) internal pure returns (bool) {
