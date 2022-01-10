@@ -9,8 +9,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //Distribute various rewards to locked cvx holders
 // - Rewards added are assigned to the previous epoch (it was the previous epoch lockers who deserve today's rewards)
 // - As soon as claiming for a token at an epoch is eligibe, no more tokens should be allowed to be added
-// - To allow multiple txs to add to the same token, rewards added during the current epoch (and assigned to previous) will not
-//     be claimable until the beginning of the next epoch. The "reward assigning phase" must be complete first
+// - To allow multiple txs to add to the same token, rewards added during the current epoch (and assigned to previous)
+//   will not be claimable until the beginning of the next epoch. The "reward assigning phase" must be complete first
 //example:
 //Current epoch: 10
 //During this week all addReward() calls are assigned to users in epoch 9
