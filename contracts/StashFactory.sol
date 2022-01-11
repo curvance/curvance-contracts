@@ -35,6 +35,12 @@ contract StashFactory {
     ) external returns (address) {
         require(msg.sender == operator, "!authorized");
 
+        //dummy references
+        _pid;
+        _gauge;
+        _staker;
+        _stashVersion;
+
         // if(_stashVersion == uint256(3) && IsV3(_gauge)){
         //     //v3
         //     ExtraRewardStashV3 stash = new ExtraRewardStashV3(_pid,operator,_staker,_gauge,rewardFactory);

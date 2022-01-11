@@ -23,7 +23,7 @@ contract CvxCrvRari is CvxCrvStakingWrapper {
     using Address for address;
     using SafeMath for uint256;
 
-    constructor() public {}
+    constructor() {}
 
     function initialize(address _vault) external override {
         require(!isInit, "already init");

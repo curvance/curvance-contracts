@@ -41,27 +41,27 @@ contract MerkleAirdrop {
     }
 
     function setOwner(address _owner) external {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "!owner");
         owner = _owner;
     }
 
     function setRewardContract(address _rewardContract) external {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "!owner");
         rewardContract = _rewardContract;
     }
 
     function setRewardToken(address _rewardToken) external {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "!owner");
         rewardToken = _rewardToken;
     }
 
     function setMintToken(address _mintToken) external {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "!owner");
         mintToken = _mintToken;
     }
 
     function setRoot(bytes32 _merkleRoot) external {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "!owner");
         merkleRoot = _merkleRoot;
     }
 
@@ -117,7 +117,7 @@ contract MerkleAirdrop {
         uint256 _amount
     ) public returns (bool) {
         require(hasClaimed[_who] != true, "already claimed");
-        require(_amount > 0);
+        require(_amount > 0, "_amount <= 0");
         require(checkProof(_proof, getLeaf(_who, _amount)), "failed proof check");
 
         hasClaimed[_who] = true;

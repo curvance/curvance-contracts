@@ -56,8 +56,8 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
     //rewards
     //https://ethereum.stackexchange.com/a/97883
     //See: https://docs.soliditylang.org/en/v0.7.0/types.html?highlight=struct#structs
-    uint256 numRewards = 0;
-    mapping(uint256 => RewardType) rewards;
+    uint256 internal numRewards = 0;
+    mapping(uint256 => RewardType) internal rewards;
 
     //management
     bool public isShutdown;
@@ -71,7 +71,7 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
     event Withdrawn(address indexed _user, uint256 _amount, bool _unwrapped);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    constructor() public ERC20("StakedConvexToken", "stkCvx") {}
+    constructor() ERC20("StakedConvexToken", "stkCvx") {}
 
     function initialize(
         address _curveToken,
@@ -107,7 +107,7 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
         return _tokensymbol;
     }
 
-    function decimals() public view override returns (uint8) {
+    function decimals() public pure override returns (uint8) {
         return 18;
     }
 
@@ -330,13 +330,13 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
             uint256 d_reward = bal.sub(reward.reward_remaining);
             d_reward = d_reward.add(IRewardStaking(reward.reward_pool).earned(address(this)));
 
-            uint256 I = reward.reward_integral;
+            uint256 integral = reward.reward_integral;
             if (supply > 0) {
-                I = I + d_reward.mul(1e20).div(supply);
+                integral = integral + d_reward.mul(1e20).div(supply);
             }
 
             uint256 newlyClaimable = _getDepositedBalance(_account)
-                .mul(I.sub(reward.reward_integral_for[_account]))
+                .mul(integral.sub(reward.reward_integral_for[_account]))
                 .div(1e20);
             claimable[i].amount = reward.claimable_reward[_account].add(newlyClaimable);
             claimable[i].token = reward.reward_token;
@@ -419,6 +419,8 @@ contract ConvexStakingWrapper is ERC20, ReentrancyGuard {
         address _to,
         uint256 _amount
     ) internal override {
+        // dummy references
+        _amount;
         _checkpoint([_from, _to]);
     }
 }

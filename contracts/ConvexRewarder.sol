@@ -352,7 +352,10 @@ contract ConvexRewarder is ISushiRewarder {
         uint256 sushiAmount,
         uint256 newLpAmount
     ) external override updateReward(user) {
-        require(msg.sender == sushiMasterChef);
+        require(msg.sender == sushiMasterChef, "msg.sender != sushiMasterChef");
+
+        //dummy references because we can not change signature
+        recipient;
 
         // On the first call, validate that the pid correctly maps to our stakingToken
         // Sushi MasterChef does not allow modifying a pid after it has been set, so we can trust
@@ -360,10 +363,10 @@ contract ConvexRewarder is ISushiRewarder {
         // could be an attack vector by setting this contract as rewardContract on a 2nd pid
         uint256 _sushiPid = sushiPid;
         if (_sushiPid == 0) {
-            require(IMasterChefV2(msg.sender).lpToken(pid) == stakingToken);
+            require(IMasterChefV2(msg.sender).lpToken(pid) == stakingToken, "lpToken is not stakingToken");
             sushiPid = pid;
         } else {
-            require(pid == _sushiPid);
+            require(pid == _sushiPid, "pid != _sushiPid");
         }
 
         if (sushiAmount > 0) {
@@ -401,6 +404,9 @@ contract ConvexRewarder is ISushiRewarder {
         address user,
         uint256 sushiAmount
     ) external view override returns (IERC20[] memory, uint256[] memory) {
+        //dummy references because we can not change signature
+        pid;
+        sushiAmount;
         //extra rewards length
         uint256 length = extraRewards.length;
 
