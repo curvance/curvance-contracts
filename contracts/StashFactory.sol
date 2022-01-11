@@ -32,7 +32,7 @@ contract StashFactory {
         address _gauge,
         address _staker,
         uint256 _stashVersion
-    ) external returns (address) {
+    ) external view returns (address) {
         require(msg.sender == operator, "!authorized");
 
         //dummy references

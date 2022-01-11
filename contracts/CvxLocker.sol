@@ -110,7 +110,7 @@ contract CvxLocker is ReentrancyGuard, Ownable {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor() Ownable() {
+    constructor() {
         _name = "Vote Locked Convex Token";
         _symbol = "vlCVX";
         _decimals = 18;
@@ -208,6 +208,7 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     //set approvals for staking cvx and cvxcrv
     function setApprovals() external {
         IERC20(cvxCrv).safeApprove(cvxcrvStaking, 0);
+        //TODO:  probably better to use SafeERC20.safeIncreaseAllowance in these instances
         IERC20(cvxCrv).safeApprove(cvxcrvStaking, type(uint128).max);
 
         IERC20(stakingToken).safeApprove(stakingProxy, 0);

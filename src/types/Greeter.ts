@@ -18,17 +18,12 @@ import { TypedEventFilter, TypedEvent, TypedListener, OnEvent } from "./common";
 
 export interface GreeterInterface extends utils.Interface {
   functions: {
-    "c_0x6bb93657(bytes32)": FunctionFragment;
     "greet()": FunctionFragment;
     "greeting()": FunctionFragment;
     "setGreeting(string)": FunctionFragment;
     "throwError()": FunctionFragment;
   };
 
-  encodeFunctionData(
-    functionFragment: "c_0x6bb93657",
-    values: [BytesLike]
-  ): string;
   encodeFunctionData(functionFragment: "greet", values?: undefined): string;
   encodeFunctionData(functionFragment: "greeting", values?: undefined): string;
   encodeFunctionData(functionFragment: "setGreeting", values: [string]): string;
@@ -37,10 +32,6 @@ export interface GreeterInterface extends utils.Interface {
     values?: undefined
   ): string;
 
-  decodeFunctionResult(
-    functionFragment: "c_0x6bb93657",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "greet", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "greeting", data: BytesLike): Result;
   decodeFunctionResult(
@@ -79,11 +70,6 @@ export interface Greeter extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
-    c_0x6bb93657(
-      c__0x6bb93657: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<[void]>;
-
     greet(overrides?: CallOverrides): Promise<[string]>;
 
     greeting(overrides?: CallOverrides): Promise<[string]>;
@@ -95,11 +81,6 @@ export interface Greeter extends BaseContract {
 
     throwError(overrides?: CallOverrides): Promise<[void]>;
   };
-
-  c_0x6bb93657(
-    c__0x6bb93657: BytesLike,
-    overrides?: CallOverrides
-  ): Promise<void>;
 
   greet(overrides?: CallOverrides): Promise<string>;
 
@@ -113,11 +94,6 @@ export interface Greeter extends BaseContract {
   throwError(overrides?: CallOverrides): Promise<void>;
 
   callStatic: {
-    c_0x6bb93657(
-      c__0x6bb93657: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
     greet(overrides?: CallOverrides): Promise<string>;
 
     greeting(overrides?: CallOverrides): Promise<string>;
@@ -130,11 +106,6 @@ export interface Greeter extends BaseContract {
   filters: {};
 
   estimateGas: {
-    c_0x6bb93657(
-      c__0x6bb93657: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
     greet(overrides?: CallOverrides): Promise<BigNumber>;
 
     greeting(overrides?: CallOverrides): Promise<BigNumber>;
@@ -148,11 +119,6 @@ export interface Greeter extends BaseContract {
   };
 
   populateTransaction: {
-    c_0x6bb93657(
-      c__0x6bb93657: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
     greet(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     greeting(overrides?: CallOverrides): Promise<PopulatedTransaction>;
