@@ -114,3 +114,16 @@ compiler version is to add the following fields to your VSCode user settings:
 ### Linting
 
 See: https://github.com/conventional-changelog/commitlint#what-is-commitlint
+
+## Code Reviews
+
+Reviews are a very imporant part of our development process. 2 approvals are required to merge a pull request.
+
+For certain topics that come up again and again during review discussions, this document is the source of truth if it covers the topic (e.g. best practices in Solidity).
+
+If you think something needs to be changed in the code please require changes. Often times reviewers just mention something they feel should maybe look different, but they approve anyways. Your input is important and it is not a negative thing to discuss it with the pull request author before merging.
+
+### Assignmet
+
+Github will automatically assign 2 developers in round robin manner, counted against to how many pull request reviews
+they are allready assigned to.
