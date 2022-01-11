@@ -123,7 +123,7 @@ For certain topics that come up again and again during review discussions, this 
 
 If you think something needs to be changed in the code please require changes. Often times reviewers just mention something they feel should maybe look different, but they approve anyways. Your input is important and it is not a negative thing to discuss it with the pull request author before merging.
 
-### Assignmet
+### Assignment
 
 Github will automatically assign 2 developers in round robin manner, counted against to how many pull request reviews
 they are allready assigned to.
