@@ -1,3 +1,5 @@
+![image](https://user-images.githubusercontent.com/77558763/148957584-f899138a-f547-42bc-b639-9687f5e071f9.png)
+
 # Solidity Template
 
 My favorite setup for writing Solidity smart contracts.
