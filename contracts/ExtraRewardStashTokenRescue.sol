@@ -36,7 +36,7 @@ contract ExtraRewardStashTokenRescue {
         SendToTreasury
     }
 
-    constructor() public {}
+    constructor() {}
 
     function initialize(
         uint256 _pid,

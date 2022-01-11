@@ -51,7 +51,7 @@ contract CvxStakingProxy {
 
     event RewardsDistributed(address indexed token, uint256 amount);
 
-    constructor(address _rewards) public {
+    constructor(address _rewards) {
         rewards = _rewards;
         owner = msg.sender;
     }

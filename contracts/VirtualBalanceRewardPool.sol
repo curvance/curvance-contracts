@@ -90,7 +90,7 @@ contract VirtualBalanceRewardPool is VirtualBalanceWrapper {
         address deposit_,
         address reward_,
         address op_
-    ) public {
+    ) {
         deposits = IDeposit(deposit_);
         rewardToken = IERC20(reward_);
         operator = op_;

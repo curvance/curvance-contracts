@@ -36,7 +36,7 @@ contract MerkleAirdrop {
     mapping(address => bool) public hasClaimed;
     event Claim(address addr, uint256 num);
 
-    constructor(address _owner) public {
+    constructor(address _owner) {
         owner = _owner;
     }
 

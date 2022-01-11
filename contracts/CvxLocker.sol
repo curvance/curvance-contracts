@@ -110,7 +110,7 @@ contract CvxLocker is ReentrancyGuard, Ownable {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor() public Ownable() {
+    constructor() Ownable() {
         _name = "Vote Locked Convex Token";
         _symbol = "vlCVX";
         _decimals = 18;

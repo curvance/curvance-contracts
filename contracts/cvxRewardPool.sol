@@ -89,7 +89,7 @@ contract cvxRewardPool {
         address cvxCrvToken_,
         address operator_,
         address rewardManager_
-    ) public {
+    ) {
         stakingToken = IERC20(stakingToken_);
         rewardToken = IERC20(rewardToken_);
         operator = operator_;

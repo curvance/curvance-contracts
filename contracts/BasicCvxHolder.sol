@@ -23,7 +23,7 @@ contract BasicCvxHolder {
     address public operator;
     ILockedCvx public immutable cvxlocker;
 
-    constructor(address _cvxlocker) public {
+    constructor(address _cvxlocker) {
         cvxlocker = ILockedCvx(_cvxlocker);
         operator = msg.sender;
     }

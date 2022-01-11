@@ -18,7 +18,7 @@ contract VotingBalance is Ownable {
     event changeBlock(address indexed _account, bool _state);
     event changeAllow(address indexed _account, bool _state);
 
-    constructor() public {}
+    constructor() {}
 
     function setUseBlock(bool _b) external onlyOwner {
         useBlock = _b;

@@ -20,7 +20,7 @@ contract StashFactory {
     address public operator;
     address public rewardFactory;
 
-    constructor(address _operator, address _rewardFactory) public {
+    constructor(address _operator, address _rewardFactory) {
         operator = _operator;
         rewardFactory = _rewardFactory;
     }

@@ -99,7 +99,7 @@ contract ConvexRewarder is ISushiRewarder {
         address sushiMasterChef_,
         address convexMasterChef_,
         uint256 chefPid_
-    ) public {
+    ) {
         stakingToken = IERC20(stakingToken_);
         rewardToken = IERC20(rewardToken_);
         rewardManager = rewardManager_;

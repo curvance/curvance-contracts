@@ -11,7 +11,7 @@ contract RedirectableGauge {
 
     mapping(address => address) public redirectMap;
 
-    constructor() public {}
+    constructor() {}
 
     function deposit(uint256 _amount) external {}
 
