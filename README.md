@@ -1,8 +1,7 @@
-![image](https://user-images.githubusercontent.com/77558763/148957584-f899138a-f547-42bc-b639-9687f5e071f9.png)
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1633536472/1500x500"/></p>
 
-# Solidity Template
-
-My favorite setup for writing Solidity smart contracts.
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+Main dependencies:
 
 - [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
 - [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
@@ -12,10 +11,7 @@ My favorite setup for writing Solidity smart contracts.
 - [Solcover](https://github.com/sc-forks/solidity-coverage): code coverage
 - [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
 
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
-
-## Usage
+## Yarn scripts
 
 ### Pre Requisites
 
@@ -113,4 +109,8 @@ compiler version is to add the following fields to your VSCode user settings:
 }
 ```
 
-Where of course `v0.8.4+commit.c7e474f2` can be replaced with any other version.
+## Git Commits
+
+### Linting
+
+See: https://github.com/conventional-changelog/commitlint#what-is-commitlint
