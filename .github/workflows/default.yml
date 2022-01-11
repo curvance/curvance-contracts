@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   pull_request:
 
+env:
+  INFURA_API_KEY: ${{secrets.INFURA_API_KEY}}
+  MNEMONIC: ${{secrets.MNEMONIC}}
+
 jobs:
   lint:
     name: Lint
