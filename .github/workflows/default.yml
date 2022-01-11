@@ -7,7 +7,7 @@ on:
 
 jobs:
   lint:
-    name: Lint and test
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,7 +19,7 @@ jobs:
         run: yarn --frozen-lockfile
       - run: yarn lint
   coverage:
-    name: Lint and test
+    name: Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
