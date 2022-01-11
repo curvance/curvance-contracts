@@ -11,7 +11,7 @@ env:
 
 jobs:
   lint:
-    name: Lint
+    name: Contracts - Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
         run: yarn --frozen-lockfile
       - run: yarn lint
   coverage:
-    name: Coverage
+    name: Contracts - Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
