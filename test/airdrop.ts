@@ -25,7 +25,6 @@ describe("CVE Merkle Airdrop", async () => {
   let owner: Signer;
   let michael: Signer;
   let alice: Signer;
-  let bob: Signer;
   let tree: BalanceTree;
   let dummyAirdrop: MerkleAirdrop;
   let airdrop: MerkleAirdrop;

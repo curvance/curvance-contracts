@@ -84,7 +84,7 @@ if (typeof json !== "object") throw new Error("Invalid JSON");
 const merkleRootHex = json.merkleRoot;
 const merkleRoot = Buffer.from(merkleRootHex.slice(2), "hex");
 
-let balances: { index: number; account: string; amount: BigNumber }[] = [];
+const balances: { index: number; account: string; amount: BigNumber }[] = [];
 let valid = true;
 
 Object.keys(json.claims).forEach(address => {
