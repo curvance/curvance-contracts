@@ -27,10 +27,6 @@ interface IMerkleDistributor {
     event Claimed(uint256 index, address account, uint256 amount);
 }
 
-interface IMerkleAirdropClone {
-    function operator() external returns (address);
-}
-
 contract MerkleAirdrop is IMerkleDistributor {
     using SafeERC20 for IERC20;
     using Address for address;
