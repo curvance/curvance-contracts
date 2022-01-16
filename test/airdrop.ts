@@ -37,7 +37,7 @@ describe("CVE Merkle Airdrop", async () => {
   const elements: { account: string; amount: BigNumber }[] = [];
 
   beforeEach(async () => {
-    [owner, michael, alice, bob] = await ethers.getSigners();
+    [owner, michael, alice] = await ethers.getSigners();
 
     for (let i = 0; i < NUM_LEAVES; i++) {
       const node = { account: await michael.getAddress(), amount: BigNumber.from(100) };
