@@ -159,7 +159,6 @@ describe("CVE Merkle Airdrop", async () => {
   });
 
   it("can rescue funds", async () => {
-    //const mock = await new MockCve__factory(owner).deploy("Cve Token", "CVE");
     // send eth then rescue eth and mock cve
     const ethBalanceBefore = await airdrop.provider.getBalance(airdrop.address);
     const cveBalanceBefore = await mockCve.balanceOf(airdrop.address);
