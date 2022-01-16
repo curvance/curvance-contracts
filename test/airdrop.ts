@@ -4,12 +4,13 @@ import { BigNumber, Signer } from "ethers";
 import {
   MerkleAirdrop,
   MerkleAirdrop__factory,
-  MerkleAirdropFactory,
-  MerkleAirdropFactory__factory,
+  MerkleAirdropManager,
+  MerkleAirdropManager__factory,
   MockCve,
   MockCve__factory,
 } from "../src/types";
 import BalanceTree from "../src/scripts/merkle/balance-tree";
+import { zeroAddress } from "ethereumjs-util";
 
 const timestamp = async () => {
   return (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp;
@@ -26,11 +27,12 @@ describe("CVE Merkle Airdrop", async () => {
   let alice: Signer;
   let bob: Signer;
   let tree: BalanceTree;
+  let dummyAirdrop: MerkleAirdrop;
   let airdrop: MerkleAirdrop;
   let mockCve: MockCve;
-  let airdropFactory: MerkleAirdropFactory;
+  let airdropManager: MerkleAirdropManager;
 
-  const NUM_LEAVES = 10000; //100_000;
+  const NUM_LEAVES = 10000;
   const NUM_SAMPLES = 25;
   const elements: { account: string; amount: BigNumber }[] = [];
 
@@ -43,43 +45,50 @@ describe("CVE Merkle Airdrop", async () => {
     }
     tree = new BalanceTree(elements);
 
+    // dummy airdrop contract
+    dummyAirdrop = await new MerkleAirdrop__factory(owner).deploy();
     mockCve = await new MockCve__factory(owner).deploy("Cve Token", "CVE");
-    airdropFactory = await new MerkleAirdropFactory__factory(owner).deploy();
-    await airdropFactory.CreateMerkleAirdrop(
+    airdropManager = await new MerkleAirdropManager__factory(owner).deploy(dummyAirdrop.address);
+    const tx = await airdropManager.cloneAndInit(
       mockCve.address,
       await timestamp(),
       (await timestamp()) + 1000,
       tree.getHexRoot(),
     );
-
-    const airdropAddress = await airdropFactory.airdrop();
-    airdrop = MerkleAirdrop__factory.connect(airdropAddress, owner);
-
-    // set time to start claim
-    await airdrop.setClaimEndTimestamp((await timestamp()) + 1000);
+    const receipt = await tx.wait();
+    const clonedAirdropAddress = ethers.utils.defaultAbiCoder.decode(["address"], receipt.logs[0].data).toString();
+    airdrop = MerkleAirdrop__factory.connect(clonedAirdropAddress, owner);
 
     // ensure airdrop contract has enough tokens to give
     await mockCve.mint(airdrop.address, 10000);
   });
 
   it("admin tests", async () => {
-    // only admin can set owner
-    await expect(airdrop.connect(michael).setOwner(await michael.getAddress())).to.be.revertedWith("!owner");
-    await airdrop.setOwner(await alice.getAddress());
-    expect(await airdrop.owner()).to.eq(await alice.getAddress());
+    // only admin can set owner of factory
+    await expect(airdropManager.connect(michael).transferOwnership(await michael.getAddress())).to.be.revertedWith(
+      "Ownable: caller is not the owner",
+    );
+    await airdropManager.transferOwnership(await alice.getAddress());
+    expect(await airdropManager.owner()).to.eq(await alice.getAddress());
 
     // only admin can set time to end airdrop
     const timeNow = await timestamp();
-    await expect(airdrop.connect(michael).setClaimEndTimestamp(timeNow + 1000)).to.be.revertedWith("!owner");
-    await airdrop.connect(alice).setClaimEndTimestamp(timeNow + 1000);
+    await expect(
+      airdropManager.connect(michael).setClaimEndTimestamp(airdrop.address, timeNow + 1000),
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+    await airdropManager.connect(alice).setClaimEndTimestamp(airdrop.address, timeNow + 1000);
+    // can't do it directly either if not admin/manager
+    await expect(airdrop.connect(alice).setClaimEndTimestamp((await timestamp()) + 1000)).to.be.revertedWith("!auth");
   });
 
   it("sets time correctly", async () => {
     const timeNow = (await timestamp()) + 1;
 
     // end time
-    await expect(airdrop.setClaimEndTimestamp(timeNow - 10)).to.be.revertedWith("!valid");
-    await airdrop.setClaimEndTimestamp(timeNow + 100);
+    await expect(airdrop.setClaimEndTimestamp(timeNow - 10)).to.be.revertedWith("!auth");
+    await expect(airdropManager.setClaimEndTimestamp(airdropManager.address, timeNow)).to.be.revertedWith("!instance");
+    await expect(airdropManager.setClaimEndTimestamp(airdrop.address, timeNow - 10)).to.be.revertedWith("!valid");
+    await airdropManager.setClaimEndTimestamp(airdrop.address, timeNow + 100);
     const end = await airdrop.endClaimTimestamp();
     expect(end).to.eq(timeNow + 100);
   });
@@ -148,6 +157,29 @@ describe("CVE Merkle Airdrop", async () => {
     await mineToFuture(fastForward);
     const proof1 = tree.getProof(1, await michael.getAddress(), BigNumber.from(100));
     await expect(airdrop.claim(1, await michael.getAddress(), 100, proof1)).to.be.revertedWith("!valid time");
+  });
+
+  it("can rescue funds", async () => {
+    //const mock = await new MockCve__factory(owner).deploy("Cve Token", "CVE");
+    // send eth then rescue eth and mock cve
+    const ethBalanceBefore = await airdrop.provider.getBalance(airdrop.address);
+    const cveBalanceBefore = await mockCve.balanceOf(airdrop.address);
+    await owner.sendTransaction({ to: airdrop.address, value: ethers.utils.parseEther("1") });
+    const ethBalanceAfter = await airdrop.provider.getBalance(airdrop.address);
+    expect(ethBalanceAfter).to.eq(ethBalanceBefore.add(ethers.utils.parseEther("1")));
+
+    // rescue and confirm
+    const ownerAddress = await owner.getAddress();
+    const ownerCveBalanceBefore = await mockCve.balanceOf(ownerAddress);
+    await expect(airdrop.rescueToken(mockCve.address, ownerAddress)).to.be.revertedWith("!auth");
+    await expect(airdropManager.rescueToken(airdropManager.address, mockCve.address, ownerAddress)).to.be.revertedWith(
+      "!instance",
+    );
+    await airdropManager.rescueToken(airdrop.address, zeroAddress(), ownerAddress);
+    await airdropManager.rescueToken(airdrop.address, mockCve.address, ownerAddress);
+    expect(await mockCve.balanceOf(ownerAddress)).to.eq(ownerCveBalanceBefore.add(cveBalanceBefore));
+    expect(await airdrop.provider.getBalance(airdrop.address)).to.eq(0);
+    expect(await mockCve.balanceOf(airdrop.address)).to.eq(0);
   });
 
   it("proof verification works", async () => {

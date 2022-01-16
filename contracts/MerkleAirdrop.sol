@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 // Allows anyone to claim a token if they exist in a merkle root.
 interface IMerkleDistributor {
@@ -26,50 +27,77 @@ interface IMerkleDistributor {
     event Claimed(uint256 index, address account, uint256 amount);
 }
 
+interface IMerkleAirdropClone {
+    function operator() external returns (address);
+}
+
 contract MerkleAirdrop is IMerkleDistributor {
     using SafeERC20 for IERC20;
     using Address for address;
 
+    bool private initialized;
     address public owner;
     address public token;
 
     uint256 public startClaimTimestamp;
     uint256 public endClaimTimestamp;
-    bytes32 public immutable override merkleRoot;
+    bytes32 public override merkleRoot;
 
     // This is a packed array of booleans.
     mapping(uint256 => uint256) private claimedBitMap;
 
-    constructor(
-        address _owner,
+    modifier onlyOwner() {
+        require(msg.sender == owner, "!auth");
+        _;
+    }
+
+    constructor() {}
+
+    receive() external payable {}
+
+    /**
+     * @dev initialize contract variables
+     * @param _token airdrop token
+     * @param _startTime time to start claiming airdrop
+     * @param _merkleRoot merkle root hash of merkleroot implementation
+     */
+    function init(
         address _token,
         uint256 _startTime,
         uint256 _endTime,
         bytes32 _merkleRoot
-    ) {
-        owner = _owner;
+    ) external {
+        require(!initialized, "initialized");
+        require(_token != address(0), "!valid token");
+        require(block.timestamp >= _startTime && block.timestamp < _endTime, "!valid time");
+        initialized = true;
+        owner = msg.sender;
         token = _token;
-        merkleRoot = _merkleRoot;
         startClaimTimestamp = _startTime;
         endClaimTimestamp = _endTime;
+        merkleRoot = _merkleRoot;
     }
 
     /**
-     * @dev Set new contract owner.
-     * @param _newOwner The new owner to set.
+     * @dev rescue any token sent by mistake
+     * @param _token token to rescue
+     * @param _recipient address to receive token
      */
-    function setOwner(address _newOwner) external {
-        require(owner == msg.sender, "!owner");
-        require(_newOwner != address(0), "!valid");
-        owner = _newOwner;
+    function rescueToken(address _token, address _recipient) external onlyOwner {
+        require(_recipient != address(0), "!valid recipient");
+        if (_token == address(0)) {
+            (bool success, ) = payable(_recipient).call{ value: address(this).balance }("");
+            require(success, "!successful");
+        } else {
+            SafeERC20.safeTransfer(IERC20(_token), _recipient, IERC20(_token).balanceOf(address(this)));
+        }
     }
 
     /**
      * @dev Set time to end claim.
      * @param _endTime new timestamp.
      */
-    function setClaimEndTimestamp(uint256 _endTime) external {
-        require(msg.sender == owner, "!owner");
+    function setClaimEndTimestamp(uint256 _endTime) external onlyOwner {
         require(_endTime > block.timestamp && _endTime > startClaimTimestamp, "!valid");
         endClaimTimestamp = _endTime;
     }
