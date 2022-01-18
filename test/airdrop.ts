@@ -4,8 +4,8 @@ import { BigNumber, Signer } from "ethers";
 import {
   MerkleAirdrop,
   MerkleAirdrop__factory,
-  MerkleAirdropManager,
-  MerkleAirdropManager__factory,
+  MerkleAirdropFactory,
+  MerkleAirdropFactory__factory,
   MockCve,
   MockCve__factory,
 } from "../src/types";
@@ -29,7 +29,7 @@ describe("CVE Merkle Airdrop", async () => {
   let dummyAirdrop: MerkleAirdrop;
   let airdrop: MerkleAirdrop;
   let mockCve: MockCve;
-  let airdropManager: MerkleAirdropManager;
+  let airdropFactory: MerkleAirdropFactory;
 
   const NUM_LEAVES = 10000;
   const NUM_SAMPLES = 25;
@@ -47,8 +47,8 @@ describe("CVE Merkle Airdrop", async () => {
     // dummy airdrop contract
     dummyAirdrop = await new MerkleAirdrop__factory(owner).deploy();
     mockCve = await new MockCve__factory(owner).deploy("Cve Token", "CVE");
-    airdropManager = await new MerkleAirdropManager__factory(owner).deploy(dummyAirdrop.address);
-    const tx = await airdropManager.cloneAndInit(
+    airdropFactory = await new MerkleAirdropFactory__factory(owner).deploy(dummyAirdrop.address);
+    const tx = await airdropFactory.cloneAndInit(
       mockCve.address,
       await timestamp(),
       (await timestamp()) + 1000,
@@ -64,30 +64,36 @@ describe("CVE Merkle Airdrop", async () => {
 
   it("admin tests", async () => {
     // only admin can set owner of factory
-    await expect(airdropManager.connect(michael).transferOwnership(await michael.getAddress())).to.be.revertedWith(
+    await expect(airdropFactory.connect(michael).transferOwnership(await michael.getAddress())).to.be.revertedWith(
       "Ownable: caller is not the owner",
     );
-    await airdropManager.transferOwnership(await alice.getAddress());
-    expect(await airdropManager.owner()).to.eq(await alice.getAddress());
+    await airdropFactory.transferOwnership(await alice.getAddress());
+    expect(await airdropFactory.owner()).to.eq(await alice.getAddress());
 
     // only admin can set time to end airdrop
     const timeNow = await timestamp();
+    await expect(airdrop.connect(michael).setClaimEndTimestamp(timeNow + 1000)).to.be.revertedWith("!auth");
+    await airdrop.connect(alice).setClaimEndTimestamp(timeNow + 1000);
+  });
+
+  it("can be initialized once", async () => {
     await expect(
-      airdropManager.connect(michael).setClaimEndTimestamp(airdrop.address, timeNow + 1000),
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-    await airdropManager.connect(alice).setClaimEndTimestamp(airdrop.address, timeNow + 1000);
-    // can't do it directly either if not admin/manager
-    await expect(airdrop.connect(alice).setClaimEndTimestamp((await timestamp()) + 1000)).to.be.revertedWith("!auth");
+      airdrop.init(
+        mockCve.address,
+        await timestamp(),
+        (await timestamp()) + 100,
+        "0x1fd0e658b38730e84d7e07882c82e25dcfca1bb2e20ca21986202ba740eb31bd",
+      ),
+    ).to.be.revertedWith("Initializable: contract is already initialized");
   });
 
   it("sets time correctly", async () => {
     const timeNow = (await timestamp()) + 1;
 
     // end time
-    await expect(airdrop.setClaimEndTimestamp(timeNow - 10)).to.be.revertedWith("!auth");
-    await expect(airdropManager.setClaimEndTimestamp(airdropManager.address, timeNow)).to.be.revertedWith("!instance");
-    await expect(airdropManager.setClaimEndTimestamp(airdrop.address, timeNow - 10)).to.be.revertedWith("!valid");
-    await airdropManager.setClaimEndTimestamp(airdrop.address, timeNow + 100);
+    await expect(airdrop.connect(alice).setClaimEndTimestamp(timeNow - 10)).to.be.revertedWith("!auth");
+    await expect(airdrop.setClaimEndTimestamp(timeNow - 10)).to.be.revertedWith("!valid");
+    await airdrop.setClaimEndTimestamp(timeNow + 100);
     const end = await airdrop.endClaimTimestamp();
     expect(end).to.eq(timeNow + 100);
   });
@@ -169,12 +175,14 @@ describe("CVE Merkle Airdrop", async () => {
     // rescue and confirm
     const ownerAddress = await owner.getAddress();
     const ownerCveBalanceBefore = await mockCve.balanceOf(ownerAddress);
-    await expect(airdrop.rescueToken(mockCve.address, ownerAddress)).to.be.revertedWith("!auth");
-    await expect(airdropManager.rescueToken(airdropManager.address, mockCve.address, ownerAddress)).to.be.revertedWith(
-      "!instance",
+    await expect(airdrop.connect(alice).rescueToken(mockCve.address, ownerAddress, 100)).to.be.revertedWith("!auth");
+    // try to take more than available
+    await expect(airdrop.rescueToken(mockCve.address, ownerAddress, 999999099)).to.be.revertedWith("!amount");
+    await expect(airdrop.rescueToken(zeroAddress(), ownerAddress, ethers.utils.parseEther("11"))).to.be.revertedWith(
+      "!amount",
     );
-    await airdropManager.rescueToken(airdrop.address, zeroAddress(), ownerAddress);
-    await airdropManager.rescueToken(airdrop.address, mockCve.address, ownerAddress);
+    await airdrop.rescueToken(zeroAddress(), ownerAddress, ethers.utils.parseEther("1"));
+    await airdrop.rescueToken(mockCve.address, ownerAddress, cveBalanceBefore);
     expect(await mockCve.balanceOf(ownerAddress)).to.eq(ownerCveBalanceBefore.add(cveBalanceBefore));
     expect(await airdrop.provider.getBalance(airdrop.address)).to.eq(0);
     expect(await mockCve.balanceOf(airdrop.address)).to.eq(0);

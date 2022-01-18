@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 // Allows anyone to claim a token if they exist in a merkle root.
 interface IMerkleDistributor {
@@ -27,12 +28,15 @@ interface IMerkleDistributor {
     event Claimed(uint256 index, address account, uint256 amount);
 }
 
-contract MerkleAirdrop is IMerkleDistributor {
+interface IMerkleAirdropFactory {
+    function owner() external returns (address);
+}
+
+contract MerkleAirdrop is IMerkleDistributor, Initializable {
     using SafeERC20 for IERC20;
     using Address for address;
 
-    bool private initialized;
-    address public owner;
+    address public factory;
     address public token;
 
     uint256 public startClaimTimestamp;
@@ -43,7 +47,7 @@ contract MerkleAirdrop is IMerkleDistributor {
     mapping(uint256 => uint256) private claimedBitMap;
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "!auth");
+        require(msg.sender == IMerkleAirdropFactory(factory).owner(), "!auth");
         _;
     }
 
@@ -62,12 +66,10 @@ contract MerkleAirdrop is IMerkleDistributor {
         uint256 _startTime,
         uint256 _endTime,
         bytes32 _merkleRoot
-    ) external {
-        require(!initialized, "initialized");
+    ) external initializer {
         require(_token != address(0), "!valid token");
         require(block.timestamp >= _startTime && block.timestamp < _endTime, "!valid time");
-        initialized = true;
-        owner = msg.sender;
+        factory = msg.sender;
         token = _token;
         startClaimTimestamp = _startTime;
         endClaimTimestamp = _endTime;
@@ -79,13 +81,19 @@ contract MerkleAirdrop is IMerkleDistributor {
      * @param _token token to rescue
      * @param _recipient address to receive token
      */
-    function rescueToken(address _token, address _recipient) external onlyOwner {
+    function rescueToken(
+        address _token,
+        address _recipient,
+        uint256 _amount
+    ) external onlyOwner {
         require(_recipient != address(0), "!valid recipient");
         if (_token == address(0)) {
-            (bool success, ) = payable(_recipient).call{ value: address(this).balance }("");
+            require(address(this).balance >= _amount, "!amount");
+            (bool success, ) = payable(_recipient).call{ value: _amount }("");
             require(success, "!successful");
         } else {
-            SafeERC20.safeTransfer(IERC20(_token), _recipient, IERC20(_token).balanceOf(address(this)));
+            require(IERC20(_token).balanceOf(address(this)) >= _amount, "!amount");
+            SafeERC20.safeTransfer(IERC20(_token), _recipient, _amount);
         }
     }
 
