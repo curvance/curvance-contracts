@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, Signer, utils } from "ethers";
+import { Signer, utils } from "ethers";
 import { CurvanceToken, CurvanceToken__factory } from "../src/types";
 
 describe("Curvance Token - CVE", () => {
