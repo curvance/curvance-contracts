@@ -151,12 +151,12 @@ contract VestedEscrow is ReentrancyGuard {
     function claim(address _recipient) public nonReentrant {
         uint256 vested = vestedOf(_recipient);
         uint256 claimable = vested - totalClaimed[_recipient];
-        require(claimable > 0, "nothing to claim");
+        if (claimable > 0) {
+            totalClaimed[_recipient] = totalClaimed[_recipient] + claimable;
+            token.safeTransfer(_recipient, claimable);
 
-        totalClaimed[_recipient] = totalClaimed[_recipient] + claimable;
-        token.safeTransfer(_recipient, claimable);
-
-        emit Claim(msg.sender, claimable);
+            emit Claim(msg.sender, claimable);
+        }
     }
 
     /// @notice Claim tokens which have vested for caller's address

@@ -32,6 +32,7 @@ contract VestedEscrowFactory is Ownable {
     }
 
     /// @notice view escrows listed
+    /// @return address
     function getEscrows() external view returns (address[] memory) {
         return escrows;
     }
