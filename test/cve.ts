@@ -1,24 +1,38 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer, utils } from "ethers";
-import { CurvanceToken, CurvanceToken__factory } from "../src/types";
+import { CurvanceToken, CurvanceToken__factory, MockICve__factory } from "../src/types";
 
 describe("Curvance Token - CVE", () => {
   let owner: Signer;
-  let operator: Signer;
+  let minter: Signer;
+  let notMinter: Signer;
   let curvanceToken: CurvanceToken;
 
   const initialSupply = utils.parseEther("1000");
 
+  const minterRole = utils.keccak256(utils.toUtf8Bytes("MINTER"));
+
   beforeEach(async () => {
     // Get owner and operator
-    [owner, operator] = await ethers.getSigners();
+    [owner, minter, notMinter] = await ethers.getSigners();
 
     // Deploy contracts
     curvanceToken = await new CurvanceToken__factory(owner).deploy();
 
+    // Give owner the minter role
+    await curvanceToken.grantRole(minterRole, await owner.getAddress());
+
     // Mint initial supply with owner
     await curvanceToken.mint(await owner.getAddress(), initialSupply);
+  });
+
+  it("ICve interface should be compatible with CVE contract", async () => {
+    // Deploy ICve mock contract to get it's interface id
+    const mockICve = await new MockICve__factory(owner).deploy();
+
+    // Assert compatibility
+    expect(await curvanceToken.supportsInterface(await mockICve.interfaceId()));
   });
 
   it("Balance of owner and total supply should be equal to `initialSupply`", async () => {
@@ -43,36 +57,33 @@ describe("Curvance Token - CVE", () => {
     );
   });
 
-  describe("Change operator", () => {
+  describe("Add another minter", () => {
     // Amount of tokens to mint
     const tokensToMint = 1000;
 
     beforeEach(async () => {
-      // Resign to `operator`
-      await curvanceToken.updateOperator(await operator.getAddress());
+      // Add minter
+      await curvanceToken.grantRole(minterRole, await minter.getAddress());
+
+      // Revoke minter role from owner
+      await curvanceToken.revokeRole(minterRole, await owner.getAddress());
     });
 
-    it("New operator should be `operator`", async () => {
-      // Check if new operator address is equal to `operator` address
-      expect(await curvanceToken.operator()).to.be.equal(await operator.getAddress());
-    });
-
-    it("Only operator should be able to mint tokens", async () => {
+    it("Only minter should be able to mint tokens", async () => {
+      // Sanity check
+      expect(await curvanceToken.hasRole(minterRole, await minter.getAddress())).to.be.true;
       // Former operator trying to mint tokens should not change contract state
-      const oldBalance = await curvanceToken.balanceOf(await owner.getAddress());
-      await curvanceToken.mint(await owner.getAddress(), tokensToMint);
-      expect(await curvanceToken.balanceOf(await owner.getAddress())).to.be.equal(oldBalance);
+      const oldBalance = await curvanceToken.balanceOf(await notMinter.getAddress());
+      await curvanceToken.connect(notMinter).mint(await notMinter.getAddress(), tokensToMint);
+      expect(await curvanceToken.balanceOf(await notMinter.getAddress())).to.be.equal(oldBalance);
     });
 
-    it("New operator should be able to mint tokens", async () => {
+    it("Minter should be able to mint tokens", async () => {
+      // Sanity check
+      expect(await curvanceToken.hasRole(minterRole, await minter.getAddress())).to.be.true;
       // New operator should be able to mint tokens
-      await curvanceToken.connect(operator).mint(await operator.getAddress(), tokensToMint);
-      expect(await curvanceToken.balanceOf(await operator.getAddress())).to.be.equal(tokensToMint);
-    });
-
-    it("Only operator should be able to select a new one", async () => {
-      // Try to get operator role back
-      await expect(curvanceToken.updateOperator(await owner.getAddress())).to.be.revertedWith("!operator");
+      await curvanceToken.connect(minter).mint(await minter.getAddress(), tokensToMint);
+      expect(await curvanceToken.balanceOf(await minter.getAddress())).to.be.equal(tokensToMint);
     });
   });
 });
