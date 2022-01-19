@@ -85,6 +85,7 @@ contract VestedEscrow is ReentrancyGuard {
         }
 
         initialLockedSupply += totalAmount;
+        require(unallocatedSupply >= totalAmount, "total funding more than unallocated");
         unallocatedSupply -= totalAmount;
         return true;
     }
@@ -150,8 +151,9 @@ contract VestedEscrow is ReentrancyGuard {
     function claim(address _recipient) public nonReentrant {
         uint256 vested = vestedOf(_recipient);
         uint256 claimable = vested - totalClaimed[_recipient];
+        require(claimable > 0, "nothing to claim");
 
-        totalClaimed[_recipient] = totalClaimed[_recipient] - claimable;
+        totalClaimed[_recipient] = totalClaimed[_recipient] + claimable;
         token.safeTransfer(_recipient, claimable);
 
         emit Claim(msg.sender, claimable);
