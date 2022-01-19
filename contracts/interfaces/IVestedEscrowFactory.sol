@@ -10,4 +10,6 @@ interface IVestedEscrowFactory {
     ) external;
 
     function getEscrows() external view returns (address[] memory);
+
+    function owner() external returns (address);
 }

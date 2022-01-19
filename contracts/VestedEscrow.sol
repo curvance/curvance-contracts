@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./interfaces/IVestedEscrowFactory.sol";
 
 /// @title Vesting Escrow
 /// @author Convex Finance, Curvance
@@ -14,7 +15,7 @@ contract VestedEscrow is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public token;
-    address public admin;
+    address public factory;
     address public stakeContract;
     uint256 public startTime;
     uint256 public endTime;
@@ -29,6 +30,11 @@ contract VestedEscrow is ReentrancyGuard {
 
     event Fund(address indexed recipient, uint256 reward);
     event Claim(address indexed user, uint256 amount);
+
+    modifier onlyOwner() {
+        require(msg.sender == IVestedEscrowFactory(factory).owner(), "!auth");
+        _;
+    }
 
     /// @notice Initialize the contract.
     /// @param _token Address of the ERC20 token being distributed
@@ -48,16 +54,14 @@ contract VestedEscrow is ReentrancyGuard {
         startTime = _startTime;
         endTime = _endTime;
         totalTime = endTime - startTime;
-        admin = msg.sender; // Will be `VestedEscrowFactory`
+        factory = msg.sender; // Will be `VestedEscrowFactory`
         stakeContract = _stakeContract;
     }
 
     /// @notice Transfer vestable tokens into the contract
     /// @dev Handled separate from `fund` to reduce transaction count when using funding admins
     /// @param _amount Number of tokens to transfer
-    function addTokens(uint256 _amount) external returns (bool) {
-        require(msg.sender == admin, "!auth");
-
+    function addTokens(uint256 _amount) external onlyOwner returns (bool) {
         token.safeTransferFrom(msg.sender, address(this), _amount);
         unallocatedSupply += _amount;
         return true;
@@ -66,9 +70,12 @@ contract VestedEscrow is ReentrancyGuard {
     /// @notice Vest tokens for multiple recipients
     /// @param _recipients List of addresses to fund
     /// @param _amounts Amount of vested tokens for each address
-    function fund(address[] calldata _recipients, uint256[] calldata _amounts) external nonReentrant returns (bool) {
-        require(msg.sender == admin, "!auth");
-
+    function fund(address[] calldata _recipients, uint256[] calldata _amounts)
+        external
+        onlyOwner
+        nonReentrant
+        returns (bool)
+    {
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < _recipients.length; i++) {
             uint256 amount = _amounts[i];
