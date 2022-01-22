@@ -16,7 +16,7 @@ contract VestedEscrow is ReentrancyGuard {
 
     IERC20 public token;
     address public factory;
-    address public stakeContract;
+    address public lockingContract;
     uint256 public startTime;
     uint256 public endTime;
     uint256 public totalTime;
@@ -40,12 +40,12 @@ contract VestedEscrow is ReentrancyGuard {
     /// @param _token Address of the ERC20 token being distributed
     /// @param _startTime Timestamp at which the distribution starts
     /// @param _endTime Timestamp at which everything should be vested
-    /// @param _stakeContract Contract to stake in when `claimAndStake` is called
+    /// @param _lockingContract Contract to lock in when `claimAndLock` is called
     constructor(
         address _token,
         uint256 _startTime,
         uint256 _endTime,
-        address _stakeContract
+        address _lockingContract
     ) {
         require(_startTime >= block.timestamp, "start must be future");
         require(_endTime > _startTime, "end must be greater");
@@ -55,7 +55,7 @@ contract VestedEscrow is ReentrancyGuard {
         endTime = _endTime;
         totalTime = endTime - startTime;
         factory = msg.sender; // Will be `VestedEscrowFactory`
-        stakeContract = _stakeContract;
+        lockingContract = _lockingContract;
     }
 
     /// @notice Transfer vestable tokens into the contract
@@ -164,24 +164,23 @@ contract VestedEscrow is ReentrancyGuard {
         claim(msg.sender);
     }
 
-    /// @dev Change this to `claimAndLock` using `CveLocker.sol` when ready
-    // function claimAndStake(address _recipient) internal nonReentrant {
-    //     require(stakeContract != address(0), "no staking contract");
-    //     require(cveRewardPool(stakeContract).stakingToken() == address(token), "stake token mismatch");
+    /// @notice Claim tokens and lock as vlCVE
+    /// @dev Commented out until `CveLocker` is implemented
+    /// @dev `CveLocker` will not have boost payment params or `spendRatio_`
+    // function claimAndLock() public nonReentrant {
+    //     require(lockingContract != address(0), "no locking contract");
+    //     require(CveLocker(lockingContract).stakingToken() == address(token), "stake token mismatch");
 
-    //     uint256 vested = vestedOf(_recipient);
-    //     uint256 claimable = vested.sub(totalClaimed[_recipient]);
+    //     uint256 vested = vestedOf(msg.sender);
+    //     uint256 claimable = vested.sub(totalClaimed[msg.sender]);
 
-    //     totalClaimed[_recipient] = totalClaimed[_recipient].add(claimable);
+    //     totalClaimed[msg.sender] = totalClaimed[msg.sender].add(claimable);
 
-    //     token.safeApprove(stakeContract, 0);
-    //     token.safeApprove(stakeContract, claimable);
-    //     cveRewardPool(stakeContract).stakeFor(_recipient, claimable);
+    //     token.safeApprove(lockingContract, 0);
+    //     token.safeApprove(lockingContract, claimable);
 
-    //     emit Claim(_recipient, claimable);
-    // }
+    //     CveLocker(lockingContract).lock(msg.sender, claimable);
 
-    // function claimAndStake() external {
-    //     claimAndStake(msg.sender);
+    //     emit Claim(msg.sender, claimable);
     // }
 }
