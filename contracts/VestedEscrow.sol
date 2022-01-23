@@ -165,9 +165,10 @@ contract VestedEscrow is ReentrancyGuard {
     }
 
     /// @notice Claim tokens and lock as vlCVE
+    /// @param _duration Lock duration for tokens
     /// @dev Commented out until `CveLocker` is implemented
     /// @dev `CveLocker` will not have boost payment params or `spendRatio_`
-    // function claimAndLock() public nonReentrant {
+    // function claimAndLock(uint256 _duration) public nonReentrant {
     //     require(lockingContract != address(0), "no locking contract");
     //     require(CveLocker(lockingContract).stakingToken() == address(token), "stake token mismatch");
 
@@ -179,7 +180,7 @@ contract VestedEscrow is ReentrancyGuard {
     //     token.safeApprove(lockingContract, 0);
     //     token.safeApprove(lockingContract, claimable);
 
-    //     CveLocker(lockingContract).lock(msg.sender, claimable);
+    //     CveLocker(lockingContract).lock(msg.sender, claimable, _duration);
 
     //     emit Claim(msg.sender, claimable);
     // }
