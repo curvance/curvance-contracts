@@ -4,6 +4,9 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "./interfaces/ITreasuryFunds.sol";
 
 /**
  * @title Treasury Funds
@@ -16,7 +19,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  *
  * @dev Multisig can be implemented by assigning an admin address, so it can add other addresses as treasurers.
  */
-contract TreasuryFunds {
+contract TreasuryFunds is Ownable, ERC165 {
     using SafeERC20 for IERC20;
     using Address for address;
 
@@ -26,26 +29,20 @@ contract TreasuryFunds {
     /// @dev Emit when funds are withdrawn
     event WithdrawTo(IERC20 indexed asset, address indexed to, address indexed receiver, uint256 amount);
 
-    /// @dev Emit when the admin role is changed
-    event changedAdmin(address indexed from, address indexed to);
+    /// @dev Emit when contract ownership is changed
+    event ownerChanged(address indexed from, address indexed to);
 
     /// @dev Emit when a new treasurer is nominated
     event newTreasurer(address indexed admin, address indexed nominee);
 
     /// @dev Emit when a treasurer is removed from the role
-    event removeTreasurer(address indexed admin, address indexed treasurer);
+    event removedTreasurer(address indexed admin, address indexed treasurer);
 
-    /// @dev Emit when a treasurer resigns
-    event resignTreasurer(address indexed resignee);
+    /// @dev Emit when a treasurer renounces
+    event renouncedTreasurer(address indexed resignee);
 
     /// @dev Emit when making external calls
-    event externalCall(address indexed treasurer, address indexed to, uint256 amount);
-
-    /// @dev Only admins can execute functions with this modifier
-    modifier adminOnly() {
-        require(msg.sender == treasuryAdmin, "!treasuryAdmin");
-        _;
-    }
+    event externalCall(address indexed treasurer, address indexed to, uint256 amount, bytes data);
 
     /// @dev Only treasurers can execute functions with this modifier
     modifier treasurerOnly() {
@@ -64,38 +61,55 @@ contract TreasuryFunds {
      *
      * @param _admin treasuryAdmin to be nominated
      */
-    constructor(address _admin) notZeroAddress(_admin) {
-        treasuryAdmin = _admin;
+    constructor(address _admin) {
         isTreasurer[_admin] = true;
     }
 
-    function resignAdminRoleTo(address _to) external adminOnly notZeroAddress(_to) {
+    /**
+     * @dev Transfer contract ownership
+     *
+     * @param _newOwner New owner of the contract
+     */
+    function transferOwnership(address _newOwner) public virtual override {
+        // check if msg.sender is the owner and change contract ownership
+        super.transferOwnership(_newOwner);
+
+        // also transfer minter role
         isTreasurer[msg.sender] = false;
+        isTreasurer[_newOwner] = true;
 
-        treasuryAdmin = _to;
-        isTreasurer[_to] = true;
-
-        emit changedAdmin(msg.sender, _to);
+        emit ownerChanged(msg.sender, _newOwner);
     }
 
-    function nominateTreasurer(address _nominee) external adminOnly notZeroAddress(_nominee) {
+    /**
+     * @dev Nominate a new treasurer, only executable by owner
+     *
+     * @param _nominee New treasurer to be nominated
+     */
+    function nominateTreasurer(address _nominee) external onlyOwner notZeroAddress(_nominee) {
         require(!isTreasurer[_nominee], "Already nominated");
         isTreasurer[_nominee] = true;
 
         emit newTreasurer(msg.sender, _nominee);
     }
 
-    function revokeTreasurer(address _treasurer) external adminOnly {
+    /**
+     * @dev Remove treasurer from role, only executable by owner
+     *
+     * @param _treasurer Treasurer to be removed
+     */
+    function removeTreasurer(address _treasurer) external onlyOwner {
         require(isTreasurer[_treasurer], "!treasurer");
         isTreasurer[_treasurer] = false;
 
-        emit removeTreasurer(msg.sender, _treasurer);
+        emit removedTreasurer(msg.sender, _treasurer);
     }
 
-    function resignTreasury() external treasurerOnly {
+    /// @dev Renounce minter role, must be a minter
+    function renounceTreasurerRole() external treasurerOnly {
         isTreasurer[msg.sender] = false;
 
-        emit resignTreasurer(msg.sender);
+        emit renouncedTreasurer(msg.sender);
     }
 
     /**
@@ -129,6 +143,16 @@ contract TreasuryFunds {
     ) external treasurerOnly {
         _to.functionCallWithValue(_data, _value);
 
-        emit externalCall(msg.sender, _to, _value);
+        emit externalCall(msg.sender, _to, _value, _data);
+    }
+
+    /**
+     * Check if interfaceId is supported by the contract
+     *
+     * @param _interfaceId The interfaceId to be checked
+     * @return True, if the interface is supported, false otherwise
+     */
+    function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+        return type(ITreasuryFunds).interfaceId == _interfaceId || super.supportsInterface(_interfaceId);
     }
 }
