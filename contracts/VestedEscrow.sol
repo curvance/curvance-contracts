@@ -4,14 +4,15 @@ pragma solidity 0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IVestedEscrowFactory.sol";
 
-/// @title Vesting Escrow
-/// @author Convex Finance, Curvance
-/// @notice Vest CVkkkE with a set schedule
-/// @dev Intended to be deployed many times for each vesting schedule via `VestedEscrowFactory`
-contract VestedEscrow is ReentrancyGuard {
+/**
+ * @title Vesting Escrow
+ * @author Convex Finance, Curvance
+ * @notice Vest CVkkkE with a set schedule
+ * @dev Intended to be deployed many times for each vesting schedule via `VestedEscrowFactory`
+ */
+contract VestedEscrow {
     using SafeERC20 for IERC20;
 
     IERC20 public token;
@@ -36,11 +37,13 @@ contract VestedEscrow is ReentrancyGuard {
         _;
     }
 
-    /// @notice Initialize the contract.
-    /// @param _token Address of the ERC20 token being distributed
-    /// @param _startTime Timestamp at which the distribution starts
-    /// @param _endTime Timestamp at which everything should be vested
-    /// @param _lockingContract Contract to lock in when `claimAndLock` is called
+    /**
+     * @notice Initialize the contract.
+     * @param _token Address of the ERC20 token being distributed
+     * @param _startTime Timestamp at which the distribution starts
+     * @param _endTime Timestamp at which everything should be vested
+     * @param _lockingContract Contract to lock in when `claimAndLock` is called
+     */
     constructor(
         address _token,
         uint256 _startTime,
@@ -58,24 +61,30 @@ contract VestedEscrow is ReentrancyGuard {
         lockingContract = _lockingContract;
     }
 
-    /// @notice Transfer vestable tokens into the contract
-    /// @dev Handled separate from `fund` to reduce transaction count when using funding admins
-    /// @param _amount Number of tokens to transfer
+    /** @notice Claim tokens which have vested for caller's address */
+    function claim() external {
+        claim(msg.sender);
+    }
+
+    /**
+     * @notice Transfer vestable tokens into the contract
+     * @dev Handled separate from `fund` to reduce transaction count when using funding admins
+     * @param _amount Number of tokens to transfer
+     * @return Whether or not the token was succesfully added
+     */
     function addTokens(uint256 _amount) external onlyOwner returns (bool) {
         token.safeTransferFrom(msg.sender, address(this), _amount);
         unallocatedSupply += _amount;
         return true;
     }
 
-    /// @notice Vest tokens for multiple recipients
-    /// @param _recipients List of addresses to fund
-    /// @param _amounts Amount of vested tokens for each address
-    function fund(address[] calldata _recipients, uint256[] calldata _amounts)
-        external
-        onlyOwner
-        nonReentrant
-        returns (bool)
-    {
+    /**
+     * @notice Vest tokens for multiple recipients
+     * @param _recipients List of addresses to fund
+     * @param _amounts Amount of vested tokens for each address
+     * @return Whether or not the tokens have been vested to recipients
+     */
+    function fund(address[] calldata _recipients, uint256[] calldata _amounts) external onlyOwner returns (bool) {
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < _recipients.length; i++) {
             uint256 amount = _amounts[i];
@@ -90,65 +99,40 @@ contract VestedEscrow is ReentrancyGuard {
         return true;
     }
 
-    /// @notice Get the number of tokens which have vested for a given address at a given time
-    /// @param _recipient Address to check
-    /// @param _time Timestamp at which to check
-    function vestedOf(address _recipient, uint256 _time) public view returns (uint256) {
-        if (_time < startTime) {
-            return 0;
-        }
-        uint256 locked = initialLocked[_recipient];
-        uint256 elapsed = _time - startTime;
-
-        /// @dev Prevents the total vested amount of the recipient being greater than total allocated to them
-        uint256 total = ((locked * elapsed) / totalTime) < locked ? ((locked * elapsed) / totalTime) : locked;
-        return total;
-    }
-
-    /// @notice Get the number of tokens which have vested for a given address
-    /// @param _recipient Address to check
-    function vestedOf(address _recipient) public view returns (uint256) {
-        return vestedOf(_recipient, block.timestamp);
-    }
-
-    /// @notice Get the total number of tokens which have vested, that are held by this contract
-    function vestedSupply() public view returns (uint256) {
-        uint256 _time = block.timestamp;
-        if (_time < startTime) {
-            return 0;
-        }
-        uint256 locked = initialLockedSupply;
-        uint256 elapsed = _time - startTime;
-
-        /// @dev Prevents the total vested amount being greater than total allocated supply
-        uint256 total = ((locked * elapsed) / totalTime) < locked ? ((locked * elapsed) / totalTime) : locked;
-
-        return total;
-    }
-
-    /// @notice Get the total number of tokens which are still locked (have not yet vested)
+    /**
+     * @notice Get the total number of tokens which are still locked (have not yet vested)
+     * @return Total amount of locked tokens
+     */
     function lockedSupply() external view returns (uint256) {
         uint256 totalVested = vestedSupply();
         return initialLockedSupply - totalVested;
     }
 
-    /// @notice Get the number of unclaimed vested tokens for a given address
-    /// @param _recipient Address to check
+    /**
+     * @notice Get the number of unclaimed vested tokens for a given address
+     * @param _recipient Address to check
+     * @return Total amount of unclaimed vested tokens
+     */
     function balanceOf(address _recipient) external view returns (uint256) {
         uint256 vested = vestedOf(_recipient);
         return vested - totalClaimed[_recipient];
     }
 
-    /// @notice Get the number of locked tokens for a given address
-    /// @param _recipient Address to check
+    /**
+     * @notice Get the number of locked tokens for a given address
+     * @param _recipient Address to check
+     * @return Total amount of unvested tokens
+     */
     function lockedOf(address _recipient) external view returns (uint256) {
         uint256 vested = vestedOf(_recipient);
         return initialLocked[_recipient] - vested;
     }
 
-    /// @notice Claim tokens which have vested
-    /// @param _recipient Address to claim tokens for
-    function claim(address _recipient) public nonReentrant {
+    /**
+     * @notice Claim tokens which have vested
+     * @param _recipient Address to claim tokens for
+     */
+    function claim(address _recipient) public {
         uint256 vested = vestedOf(_recipient);
         uint256 claimable = vested - totalClaimed[_recipient];
         if (claimable > 0) {
@@ -159,16 +143,13 @@ contract VestedEscrow is ReentrancyGuard {
         }
     }
 
-    /// @notice Claim tokens which have vested for caller's address
-    function claim() external {
-        claim(msg.sender);
-    }
-
-    /// @notice Claim tokens and lock as vlCVE
-    /// @param _duration Lock duration for tokens
-    /// @dev Commented out until `CveLocker` is implemented
-    /// @dev `CveLocker` will not have boost payment params or `spendRatio_`
-    // function claimAndLock(uint256 _duration) public nonReentrant {
+    /**
+     * @notice Claim tokens and lock as vlCVE
+     * @param _duration Lock duration for tokens
+     * @dev Commented out until `CveLocker` is implemented
+     * @dev `CveLocker` will not have boost payment params or `spendRatio_`
+     */
+    // function claimAndLock(uint256 _duration) public {
     //     require(lockingContract != address(0), "no locking contract");
     //     require(CveLocker(lockingContract).stakingToken() == address(token), "stake token mismatch");
 
@@ -184,4 +165,39 @@ contract VestedEscrow is ReentrancyGuard {
 
     //     emit Claim(msg.sender, claimable);
     // }
+
+    /**
+     * @notice Get the number of tokens which have vested for a given address at a given time
+     * @param _recipient Address to check
+     * @param _time Timestamp at which to check
+     * @return Total amount of tokens vested to an address
+     */
+    function vestedOf(address _recipient, uint256 _time) public view returns (uint256) {
+        if (_time < startTime) {
+            return 0;
+        }
+        uint256 locked = _recipient != address(0) ? initialLocked[_recipient] : initialLockedSupply;
+        uint256 elapsed = _time - startTime;
+
+        // Prevents the total vested amount being greater than total allocated supply
+        uint256 total = ((locked * elapsed) / totalTime) < locked ? ((locked * elapsed) / totalTime) : locked;
+        return total;
+    }
+
+    /**
+     * @notice Get the number of tokens which have vested for a given address
+     * @param _recipient Address to check
+     * @return Total amount of tokens vested to an address
+     */
+    function vestedOf(address _recipient) public view returns (uint256) {
+        return vestedOf(_recipient, block.timestamp);
+    }
+
+    /**
+     * @notice Get the total number of tokens which have vested, that are held by this contract
+     * @return Total amount of vested tokens
+     */
+    function vestedSupply() public view returns (uint256) {
+        return vestedOf(address(0), block.timestamp);
+    }
 }
