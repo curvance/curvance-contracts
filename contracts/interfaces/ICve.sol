@@ -26,6 +26,14 @@ interface ICve {
     /// @dev Renounce minter role, must be a minter
     function renounceMinterRole() external;
 
+    /**
+     * @dev Check if address has minter rights
+     *
+     * @param _addr Address to be checked for minter rights
+     * @return True, if `_addr` is a minter, false otherwise
+     */
+    function isMinter(address _addr) external view returns (bool);
+
     /// @dev Get max token supply
     function maxSupply() external view returns (uint256);
 

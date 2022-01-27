@@ -36,6 +36,28 @@ contract CurvanceToken is ERC20, Ownable, AccessControl {
     constructor() ERC20("Curvance Token", "CVE") {
         // Grant DEFAULT_ADMIN_ROLE for contract deployer and emit {RoleGranted}
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
+    }
+
+    /// @dev Disable grantRole
+    function grantRole(bytes32 role, address account) public virtual override {
+        // Access to disable warnings
+        role;
+        account;
+    }
+
+    /// @dev Disable revokeRole
+    function revokeRole(bytes32 role, address account) public virtual override {
+        // Access to disable warnings
+        role;
+        account;
+    }
+
+    /// @dev Disable renounceRole
+    function renounceRole(bytes32 role, address account) public virtual override {
+        // Access to disable warnings
+        role;
+        account;
     }
 
     /**
@@ -47,19 +69,16 @@ contract CurvanceToken is ERC20, Ownable, AccessControl {
         // Check if msg.sender is the owner and change contract ownership
         super.transferOwnership(_newOwner);
 
+        // Transfer minter rights to new owner and emit {RoleGranted} and {RoleRevoked}
+        _grantRole(MINTER_ROLE, _newOwner);
+        _revokeRole(MINTER_ROLE, msg.sender);
+
         // Transfer ownership and emit {RoleGranted} and {RoleRevoked}
-        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DEFAULT_ADMIN_ROLE, _newOwner);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+        emit OwnerChanged(msg.sender, _newOwner);
     }
-
-    /// @dev Disable grantRole
-    function grantRole(bytes32 role, address account) public virtual override {}
-
-    /// @dev Disable revokeRole
-    function revokeRole(bytes32 role, address account) public virtual override {}
-
-    /// @dev Disable renounceRole
-    function renounceRole(bytes32 role, address account) public virtual override {}
 
     /**
      * @dev Nominate a new minter, only executable by owner
@@ -85,6 +104,16 @@ contract CurvanceToken is ERC20, Ownable, AccessControl {
     function renounceMinterRole() external onlyMinter {
         // Reverts if `msg.sender` is not a minter and emit {RoleRevoked}
         _revokeRole(MINTER_ROLE, msg.sender);
+    }
+
+    /**
+     * @dev Check if address has minter rights
+     *
+     * @param _addr Address to be checked for minter rights
+     * @return True, if `_addr` is a minter, false otherwise
+     */
+    function isMinter(address _addr) public view returns (bool) {
+        return hasRole(MINTER_ROLE, _addr);
     }
 
     /**
