@@ -176,7 +176,7 @@ contract VestedEscrow {
         if (_time < startTime) {
             return 0;
         }
-        uint256 locked = _recipient != address(0) ? initialLocked[_recipient] : initialLockedSupply;
+        uint256 locked = _recipient == address(this) ? initialLockedSupply : initialLocked[_recipient];
         uint256 elapsed = _time - startTime;
 
         // Prevents the total vested amount being greater than total allocated supply
@@ -198,6 +198,6 @@ contract VestedEscrow {
      * @return Total amount of vested tokens
      */
     function vestedSupply() public view returns (uint256) {
-        return vestedOf(address(0), block.timestamp);
+        return vestedOf(address(this), block.timestamp);
     }
 }
