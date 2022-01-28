@@ -62,6 +62,13 @@ describe("Curvance Token - CVE", () => {
     expect(ownerBalance).to.be.equal(await curvanceToken.totalSupply());
   });
 
+  it("Owner cannot renounce minter role", async () => {
+    // Try to renounce
+    const tx = curvanceToken.renounceMinterRole();
+    // Should revert
+    await expect(tx).to.be.revertedWith("Admin cannot renounce minter role");
+  });
+
   it("Should not be able to mint more than `maxSupply`", async () => {
     // Get how many tokens are left to mint
     const maxSupply = await curvanceToken.maxSupply();

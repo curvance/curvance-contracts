@@ -102,6 +102,8 @@ contract CurvanceToken is ERC20, Ownable, AccessControl {
 
     /// @dev Renounce minter role, must be a minter
     function renounceMinterRole() external onlyMinter {
+        // Check if msg.sender is the owner and change contract ownership
+        require(owner() != msg.sender, "Admin cannot renounce minter role");
         // Reverts if `msg.sender` is not a minter and emit {RoleRevoked}
         _revokeRole(MINTER_ROLE, msg.sender);
     }
