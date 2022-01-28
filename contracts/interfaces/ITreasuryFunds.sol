@@ -25,7 +25,7 @@ interface ITreasuryFunds {
      */
     function removeTreasurer(address _treasurer) external;
 
-    /// @dev Renounce minter role, must be a minter
+    /// @dev Renounce treasurer role, must be a treasurer but not the contract admin
     function renounceTreasurerRole() external;
 
     /**
