@@ -4,6 +4,7 @@ pragma solidity 0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./interfaces/IVestedEscrowFactory.sol";
 
 /**
@@ -12,7 +13,7 @@ import "./interfaces/IVestedEscrowFactory.sol";
  * @notice Vest CVkkkE with a set schedule
  * @dev Intended to be deployed many times for each vesting schedule via `VestedEscrowFactory`
  */
-contract VestedEscrow {
+contract VestedEscrow is Initializable {
     using SafeERC20 for IERC20;
 
     IERC20 public token;
@@ -44,12 +45,12 @@ contract VestedEscrow {
      * @param _endTime Timestamp at which everything should be vested
      * @param _lockingContract Contract to lock in when `claimAndLock` is called
      */
-    constructor(
+    function init(
         address _token,
         uint256 _startTime,
         uint256 _endTime,
         address _lockingContract
-    ) {
+    ) external initializer {
         require(_startTime >= block.timestamp, "start must be future");
         require(_endTime > _startTime, "end must be greater");
 
