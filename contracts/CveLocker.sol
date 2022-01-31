@@ -66,7 +66,6 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     uint256 public constant longLockDuration = rewardsDuration * 52; // 1 year
 
     // reward token -> distributor -> is approved to add rewards
-    //mapping(address => mapping(address => bool)) public rewardDistributors;
     mapping(address => bool) public rewardDistributors;
 
     // user -> amount
