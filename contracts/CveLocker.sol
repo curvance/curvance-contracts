@@ -54,8 +54,8 @@ contract CvxLocker is ReentrancyGuard, Ownable {
 
     //rewards
     address[] public rewardTokens;
-    Reward public rewardData;
     //mapping(address => Reward) public rewardData;
+    mapping(address => Reward) public rewardData;
 
     // Duration that rewards are streamed over
     uint256 public constant rewardsDuration = 86400 * 7;
@@ -66,11 +66,11 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     uint256 public constant longLockDuration = rewardsDuration * 52; // 1 year
 
     // reward token -> distributor -> is approved to add rewards
-    mapping(address => bool) public rewardDistributors;
+    mapping(address => mapping(address => bool)) public rewardDistributors;
 
-    // user -> amount
-    mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public rewards;
+    // user -> reward token -> amount
+    mapping(address => mapping(address => uint256)) public userRewardPerTokenPaid;
+    mapping(address => mapping(address => uint256)) public rewards;
 
     //supplies and epochs
     uint256 public lockedSupply;
@@ -144,21 +144,23 @@ contract CvxLocker is ReentrancyGuard, Ownable {
         address _distributor,
         bool _useBoost
     ) public onlyOwner {
-        require(rewardData.lastUpdateTime == 0, "invalid lastUpdateTime");
-        require(_rewardToken != address(0), "address zero");
-        require(_rewardToken != address(stakingToken), "rewardtoken is stakingtoken");
-        rewardData.lastUpdateTime = uint40(block.timestamp);
-        rewardData.periodFinish = uint40(block.timestamp);
-        rewardData.useBoost = _useBoost;
-        rewardDistributors[_distributor] = true;
-        rewardToken = _rewardToken;
+        require(rewardData[_rewardToken].lastUpdateTime == 0, "exist");
+        require(_rewardToken != address(stakingToken), "exist");
+        rewardTokens.push(_rewardToken);
+        rewardData[_rewardToken].lastUpdateTime = uint40(block.timestamp);
+        rewardData[_rewardToken].periodFinish = uint40(block.timestamp);
+        rewardData[_rewardToken].useBoost = _useBoost;
+        rewardDistributors[_rewardToken][_distributor] = true;
     }
 
     // Modify approval for an address to call notifyRewardAmount
-    function approveRewardDistributor(address _distributor, bool _approved) external onlyOwner {
-        require(rewardData.lastUpdateTime > 0, "invalid lastUpdateTime");
-        require(_distributor != address(0), "address 0");
-        rewardDistributors[_distributor] = _approved;
+    function approveRewardDistributor(
+        address _rewardsToken,
+        address _distributor,
+        bool _approved
+    ) external onlyOwner {
+        require(rewardData[_rewardsToken].lastUpdateTime > 0, "!exist");
+        rewardDistributors[_rewardsToken][_distributor] = _approved;
     }
 
     //Set the staking contract for the underlying cvx. only allow change if nothing is currently staked
@@ -220,36 +222,43 @@ contract CvxLocker is ReentrancyGuard, Ownable {
         return balances[_account].shortLocked + balances[_account].longLocked;
     }
 
-    function _rewardPerToken() internal view returns (uint256) {
+    function _rewardPerToken(address _rewardToken) internal view returns (uint256) {
         if (lockedSupply == 0) {
-            return rewardData.rewardPerTokenStored;
+            return rewardData[_rewardToken].rewardPerTokenStored;
         }
         return
-            ((uint256(rewardData.rewardPerTokenStored) +
-                _lastTimeRewardApplicable(rewardData.periodFinish) -
-                rewardData.lastUpdateTime) *
-                rewardData.rewardRate *
+            ((uint256(rewardData[_rewardToken].rewardPerTokenStored) +
+                _lastTimeRewardApplicable(rewardData[_rewardToken].periodFinish) -
+                rewardData[_rewardToken].lastUpdateTime) *
+                rewardData[_rewardToken].rewardRate *
                 1e18) / lockedSupply;
     }
 
-    function _earned(address _user, uint256 _balance) internal view returns (uint256) {
-        return ((_balance * (_rewardPerToken() - userRewardPerTokenPaid[_user])) / 1e18) + _userRewards(_user);
+    function _earned(
+        address _user,
+        address _rewardToken,
+        uint256 _balance
+    ) internal view returns (uint256) {
+        // solhint-disable-next-line max-line-length
+        return
+            ((_balance * (_rewardPerToken(_rewardToken) - userRewardPerTokenPaid[_user][_rewardToken])) / 1e18) +
+            _userRewards(_user);
     }
 
     function _lastTimeRewardApplicable(uint256 _finishTime) internal view returns (uint256) {
         return Math.min(block.timestamp, _finishTime);
     }
 
-    function lastTimeRewardApplicable() public view returns (uint256) {
-        return _lastTimeRewardApplicable(rewardData.periodFinish);
+    function lastTimeRewardApplicable(address _rewardToken) public view returns (uint256) {
+        return _lastTimeRewardApplicable(rewardData[_rewardToken].periodFinish);
     }
 
-    function rewardPerToken() external view returns (uint256) {
-        return _rewardPerToken();
+    function rewardPerToken(address _rewardToken) external view returns (uint256) {
+        return _rewardPerToken(_rewardToken);
     }
 
-    function getRewardForDuration() external view returns (uint256) {
-        return uint256(rewardData.rewardRate) * rewardsDuration;
+    function getRewardForDuration(address _rewardToken) external view returns (uint256) {
+        return uint256(rewardData[_rewardToken].rewardRate) * rewardsDuration;
     }
 
     function getLockDuration(uint8 _type) public pure returns (uint256 duration) {
@@ -261,9 +270,18 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     }
 
     // Address and claimable amount of all reward tokens for the given account
-    function claimableRewards(address _account) external view returns (uint256 userRewards) {
-        userRewards = _earned(_account, _userLockedBalance(_account));
+    // function claimableRewards(address _account) external view returns (uint256 userRewards) {
+    //     userRewards = _earned(_account, _userLockedBalance(_account));
 
+    //     return userRewards;
+    // }
+    function claimableRewards(address _account) external view returns (EarnedData[] memory userRewards) {
+        userRewards = new EarnedData[](rewardTokens.length);
+        for (uint256 i = 0; i < userRewards.length; i++) {
+            address token = rewardTokens[i];
+            userRewards[i].token = token;
+            userRewards[i].amount = _earned(_account, token, _userLockedBalance(_account));
+        }
         return userRewards;
     }
 
@@ -377,6 +395,7 @@ contract CvxLocker is ReentrancyGuard, Ownable {
         require(_amount > 0, "Cannot stake 0");
         require(!isShutdown, "shutdown");
         uint256 accountLockDuration = getLockDuration(_lockPeriodType);
+        // TODO: Unnecessary?
         require(accountLockDuration > 0, "invalid lock duration");
 
         LockDuration lockD;
@@ -597,18 +616,25 @@ contract CvxLocker is ReentrancyGuard, Ownable {
 
     // Claim all pending rewards
     function getReward(address _account) public updateReward(_account) {
-        uint256 reward = rewards[_account];
-        if (reward > 0) {
-            rewards[_account] = 0;
-            IERC20(rewardToken).safeTransfer(_account, reward);
-            emit RewardPaid(_account, rewardToken, reward);
+        for (uint256 i; i < rewardTokens.length; i++) {
+            address _rewardsToken = rewardTokens[i];
+            uint256 reward = rewards[_account][_rewardsToken];
+            if (reward > 0) {
+                rewards[_account][_rewardsToken] = 0;
+                IERC20(_rewardsToken).safeTransfer(_account, reward);
+                emit RewardPaid(_account, _rewardsToken, reward);
+            }
         }
+    }
+
+    function getReward() external {
+        getReward(msg.sender);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function _notifyReward(uint256 _reward) internal {
-        Reward storage rdata = rewardData;
+    function _notifyReward(address _rewardToken, uint256 _reward) internal {
+        Reward storage rdata = rewardData[_rewardToken];
 
         if (block.timestamp >= rdata.periodFinish) {
             rdata.rewardRate = uint208(_reward / rewardsDuration);
@@ -622,23 +648,23 @@ contract CvxLocker is ReentrancyGuard, Ownable {
         rdata.periodFinish = uint40(block.timestamp + rewardsDuration);
     }
 
-    function notifyRewardAmount(uint256 _reward) external updateReward(address(0)) {
-        require(rewardDistributors[msg.sender], "not distributor");
-        require(_reward > 0, "No reward");
+    function notifyRewardAmount(address _rewardsToken, uint256 _reward) external updateReward(address(0)) {
+        require(rewardDistributors[_rewardsToken][msg.sender], "!auth");
+        require(_reward > 0, "no reward");
 
-        _notifyReward(_reward);
+        _notifyReward(_rewardsToken, _reward);
 
         // handle the transfer of reward tokens via `transferFrom` to reduce the number
         // of transactions required and ensure correctness of the _reward amount
-        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), _reward);
+        IERC20(_rewardsToken).safeTransferFrom(msg.sender, address(this), _reward);
 
-        emit RewardAdded(rewardToken, _reward);
+        emit RewardAdded(_rewardsToken, _reward);
     }
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
     function recoverERC20(address _tokenAddress, uint256 _tokenAmount) external onlyOwner {
-        require(_tokenAddress != address(stakingToken), "Cannot withdraw staking token");
-        require(_tokenAddress != address(rewardToken), "Cannot withdraw reward token");
+        require(_tokenAddress != address(stakingToken), "cannot withdraw staking token");
+        require(_tokenAddress != address(rewardToken), "cannot withdraw reward token");
         IERC20(_tokenAddress).safeTransfer(owner(), _tokenAmount);
         emit Recovered(_tokenAddress, _tokenAmount);
     }
@@ -648,12 +674,16 @@ contract CvxLocker is ReentrancyGuard, Ownable {
     modifier updateReward(address _account) {
         {
             //stack too deep
-            rewardData.rewardPerTokenStored = uint208(_rewardPerToken());
-            rewardData.lastUpdateTime = uint40(_lastTimeRewardApplicable(rewardData.periodFinish));
-            if (_account != address(0)) {
-                //check if reward is boostable or not. use boosted or locked balance accordingly
-                rewards[_account] = _earned(_account, _userLockedBalance(_account));
-                userRewardPerTokenPaid[_account] = rewardData.rewardPerTokenStored;
+            Balances storage userBalance = balances[_account];
+            for (uint256 i = 0; i < rewardTokens.length; i++) {
+                address token = rewardTokens[i];
+                rewardData[token].rewardPerTokenStored = uint208(_rewardPerToken(token));
+                rewardData[token].lastUpdateTime = uint40(_lastTimeRewardApplicable(rewardData[token].periodFinish));
+                if (_account != address(0)) {
+                    //check if reward is boostable or not. use boosted or locked balance accordingly
+                    rewards[_account][token] = _earned(_account, token, _userLockedBalance(_account));
+                    userRewardPerTokenPaid[_account][token] = rewardData[token].rewardPerTokenStored;
+                }
             }
         }
         _;
