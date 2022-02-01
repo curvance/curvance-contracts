@@ -28,13 +28,16 @@ describe("CVE Vested Escrow", async () => {
   let alice: Signer;
   let mockCve: MockCve;
   let vestedEscrow: VestedEscrow;
+  let implementation: VestedEscrow;
   let vestedEscrowFactory: VestedEscrowFactory;
 
   beforeEach(async () => {
     [owner, michael, alice] = await ethers.getSigners();
 
     mockCve = await new MockCve__factory(owner).deploy("Curvance Token", "CVE");
-    vestedEscrowFactory = await new VestedEscrowFactory__factory(owner).deploy();
+    // implementation contract
+    implementation = await new VestedEscrow__factory(owner).deploy();
+    vestedEscrowFactory = await new VestedEscrowFactory__factory(owner).deploy(implementation.address);
     // staking contract address as placeholder
     const tx = await vestedEscrowFactory.createEscrow(
       mockCve.address,
@@ -85,9 +88,8 @@ describe("CVE Vested Escrow", async () => {
     await vestedEscrow.fund([await michael.getAddress(), await alice.getAddress()], [100, 100]);
   });
 
-  it("creates escrows with correct params", async () => {
+  it("creates escrows with correct params/initialization", async () => {
     const timeNow = await timestamp();
-    const sizeBefore = (await vestedEscrowFactory.getEscrows()).length;
 
     await expect(
       vestedEscrowFactory.createEscrow(mockCve.address, timeNow - 1, timeNow + ONE_YEAR, await owner.getAddress()),
@@ -99,8 +101,10 @@ describe("CVE Vested Escrow", async () => {
     await vestedEscrowFactory.createEscrow(mockCve.address, timeNow + 10, timeNow + ONE_YEAR, await owner.getAddress());
     await vestedEscrowFactory.createEscrow(mockCve.address, timeNow + 10, timeNow + ONE_YEAR, await owner.getAddress());
 
-    const escrows = await vestedEscrowFactory.getEscrows();
-    expect(escrows.length).to.be.eq(sizeBefore + 2);
+    // check params
+    expect(await vestedEscrow.factory()).to.eq(vestedEscrowFactory.address);
+    expect(await vestedEscrow.token()).to.eq(mockCve.address);
+    expect(await vestedEscrow.lockingContract()).to.eq(await owner.getAddress());
   });
 
   it("adds tokens", async () => {
