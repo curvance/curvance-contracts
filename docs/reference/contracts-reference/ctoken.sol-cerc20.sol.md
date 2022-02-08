@@ -1,4 +1,4 @@
-# CToken.sol / CErc20.sol / CEther.sol
+# CToken.sol / CErc20.sol
 
 * Each asset market is represented by a cToken contract, which is an ERC-20 compliant representation of balances supplied to the protocol
 * By minting cTokens, users (1) earn interest through the cToken's exchange rate, which increases in value relative to the underlying asset, and (2) gain the ability to use cTokens as collateral
