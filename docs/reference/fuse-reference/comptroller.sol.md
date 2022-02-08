@@ -4,6 +4,10 @@ description: Defines logic for interacting with and setting parameters for marke
 
 # Comptroller.sol
 
+* Defines logic for interacting with and setting parameters for asset markets in a pool
+* Determines how much collateral a user is required to maintain, and whether (and by how much) a user can be liquidated
+* Each time a user interacts with an asset market, the Comptroller is asked to approve or deny the transaction (eg. if the user tries to withdraw collateral while having an outstanding balance, their transaction will be denied)
+
 ### Functions
 
 * `enterMarkets(address[] memory cTokens) returns (uint256[])`
