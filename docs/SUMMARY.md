@@ -8,6 +8,7 @@
 * [Contracts Reference](reference/contracts-reference/README.md)
   * [Cve.sol](reference/contracts-reference/cve.sol.md)
   * [CveLocker.sol](reference/contracts-reference/cvelocker.sol.md)
+* [CvlCve.sol](reference/cvlcve.sol.md)
 * [Fuse Reference](reference/fuse-reference/README.md)
   * [Unitroller.sol](reference/fuse-reference/unitroller.sol.md)
   * [Comptroller.sol](reference/fuse-reference/comptroller.sol.md)
