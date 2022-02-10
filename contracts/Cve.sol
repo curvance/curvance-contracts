@@ -2,8 +2,8 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "./interfaces/ICve.sol";
 
@@ -13,110 +13,15 @@ import "./interfaces/ICve.sol";
  * @notice CVE token contract
  * @dev Addresses with MINTER role are allowed to mint CVE until it reaches the maximum supply
  */
-contract CurvanceToken is ERC20, Ownable, AccessControl {
-    /// @dev Minter role identifier
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER");
-
+contract CurvanceToken is ERC20, ERC165, Ownable {
     /// @dev 4mil CVE maximum supply
     uint256 public maxSupply = 4_000_000 * 1e18;
-
-    /// @dev Emit when contract ownership is changed
-    event OwnerChanged(address indexed from, address indexed to);
 
     /// @dev Emit when token is minted
     event MintToken(address indexed to, uint256 amount);
 
-    /// @dev Only minters allowed
-    modifier onlyMinter() {
-        require(hasRole(MINTER_ROLE, msg.sender), "!minter");
-        _;
-    }
-
     /// @dev Initialize CVE token contract
-    constructor() ERC20("Curvance Token", "CVE") {
-        // Grant DEFAULT_ADMIN_ROLE for contract deployer and emit {RoleGranted}
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-    }
-
-    /// @dev Disable grantRole
-    function grantRole(bytes32 role, address account) public virtual override {
-        // Access to disable warnings
-        role;
-        account;
-    }
-
-    /// @dev Disable revokeRole
-    function revokeRole(bytes32 role, address account) public virtual override {
-        // Access to disable warnings
-        role;
-        account;
-    }
-
-    /// @dev Disable renounceRole
-    function renounceRole(bytes32 role, address account) public virtual override {
-        // Access to disable warnings
-        role;
-        account;
-    }
-
-    /**
-     * @dev Transfer contract ownership
-     *
-     * @param _newOwner New owner of the contract
-     */
-    function transferOwnership(address _newOwner) public virtual override {
-        // Check if msg.sender is the owner and change contract ownership
-        super.transferOwnership(_newOwner);
-
-        // Transfer minter rights to new owner and emit {RoleGranted} and {RoleRevoked}
-        _grantRole(MINTER_ROLE, _newOwner);
-        _revokeRole(MINTER_ROLE, msg.sender);
-
-        // Transfer ownership and emit {RoleGranted} and {RoleRevoked}
-        _grantRole(DEFAULT_ADMIN_ROLE, _newOwner);
-        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
-        emit OwnerChanged(msg.sender, _newOwner);
-    }
-
-    /**
-     * @dev Nominate a new minter, only executable by owner
-     *
-     * @param _nominee New minter to be nominated
-     */
-    function nominateMinter(address _nominee) external onlyOwner {
-        // Reverts if `_nominee` is already a minter and emit {RoleGranted}
-        _grantRole(MINTER_ROLE, _nominee);
-    }
-
-    /**
-     * @dev Remove minter from role, only executable by owner
-     *
-     * @param _minter Minter to be removed
-     */
-    function removeMinter(address _minter) external onlyOwner {
-        // Reverts if `_minter` is not a minter and emit {RoleRevoked}
-        _revokeRole(MINTER_ROLE, _minter);
-    }
-
-    /// @dev Renounce minter role, must be a minter
-    function renounceMinterRole() external onlyMinter {
-        // Check if msg.sender is the owner and change contract ownership
-        require(owner() != msg.sender, "Admin cannot renounce minter role");
-        // Reverts if `msg.sender` is not a minter and emit {RoleRevoked}
-        _revokeRole(MINTER_ROLE, msg.sender);
-    }
-
-    /**
-     * @dev Check if address has minter rights
-     *
-     * @param _addr Address to be checked for minter rights
-     * @return True, if `_addr` is a minter, false otherwise
-     */
-    function isMinter(address _addr) public view returns (bool) {
-        return hasRole(MINTER_ROLE, _addr);
-    }
+    constructor() ERC20("Curvance Token", "CVE") {}
 
     /**
      * @dev Used to mint tokens until `maxSupply` is reached, needs to be executed
@@ -124,7 +29,7 @@ contract CurvanceToken is ERC20, Ownable, AccessControl {
      * @param _to Address to send funds to
      * @param _amount Amount to send
      */
-    function mint(address _to, uint256 _amount) external onlyMinter {
+    function mint(address _to, uint256 _amount) external onlyOwner {
         require(totalSupply() + _amount <= maxSupply, "maxSupply reached");
         _mint(_to, _amount);
 

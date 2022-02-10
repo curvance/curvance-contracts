@@ -5,42 +5,20 @@ import { CurvanceToken, CurvanceToken__factory, MockICve__factory } from "../src
 
 describe("Curvance Token - CVE", () => {
   let owner: Signer;
-  let minter: Signer;
-  let notMinter: Signer;
   let newOwner: Signer;
   let curvanceToken: CurvanceToken;
 
   const initialSupply = utils.parseEther("1000");
 
-  const minterRole = utils.keccak256(utils.toUtf8Bytes("MINTER"));
-  const adminRole = utils.zeroPad("0x00", 32);
-
   beforeEach(async () => {
     // Get owner and operator
-    [owner, minter, notMinter, newOwner] = await ethers.getSigners();
+    [owner, newOwner] = await ethers.getSigners();
 
     // Deploy contracts
     curvanceToken = await new CurvanceToken__factory(owner).deploy();
 
     // Mint initial supply with owner
     await curvanceToken.mint(await owner.getAddress(), initialSupply);
-  });
-
-  it("Check if disabled functions are not changing state", async () => {
-    // `grantRole` should not be able change contract state
-    await curvanceToken.grantRole(minterRole, await notMinter.getAddress());
-    expect(await curvanceToken.isMinter(await notMinter.getAddress())).to.be.false;
-
-    // Grant minter rights to `minter`
-    await curvanceToken.nominateMinter(await minter.getAddress());
-
-    // `revokeRole` should not be able change contract state
-    await curvanceToken.revokeRole(minterRole, await minter.getAddress());
-    expect(await curvanceToken.isMinter(await minter.getAddress())).to.be.true;
-
-    // `renounceRole`should not be able to change contract state
-    await curvanceToken.connect(minter).renounceRole(minterRole, await minter.getAddress());
-    expect(await curvanceToken.isMinter(await minter.getAddress())).to.be.true;
   });
 
   it("ICve interface should be compatible with CVE contract", async () => {
@@ -62,13 +40,6 @@ describe("Curvance Token - CVE", () => {
     expect(ownerBalance).to.be.equal(await curvanceToken.totalSupply());
   });
 
-  it("Owner cannot renounce minter role", async () => {
-    // Try to renounce
-    const tx = curvanceToken.renounceMinterRole();
-    // Should revert
-    await expect(tx).to.be.revertedWith("Admin cannot renounce minter role");
-  });
-
   it("Should not be able to mint more than `maxSupply`", async () => {
     // Get how many tokens are left to mint
     const maxSupply = await curvanceToken.maxSupply();
@@ -84,59 +55,11 @@ describe("Curvance Token - CVE", () => {
     // Transfer ownership
     const tx = curvanceToken.transferOwnership(await newOwner.getAddress());
 
-    // Should emit `OwnerChanged` event
-    await expect(tx).to.emit(curvanceToken, "OwnerChanged");
+    // Should emit `OwnershipTransferred` event
+    await expect(tx).to.emit(curvanceToken, "OwnershipTransferred");
 
     // Check if ownership has changed
     const newOwnerAddress = await curvanceToken.owner();
     expect(newOwnerAddress).to.be.equal(await newOwner.getAddress());
-
-    // Minter role also transferred
-    expect(await curvanceToken.isMinter(await newOwner.getAddress())).to.be.true;
-    expect(await curvanceToken.isMinter(await owner.getAddress())).to.be.false;
-
-    // Admin role also transferred
-    expect(await curvanceToken.hasRole(adminRole, await newOwner.getAddress())).to.be.true;
-    expect(await curvanceToken.hasRole(adminRole, await owner.getAddress())).to.be.false;
-  });
-
-  describe("Add another minter", () => {
-    // Amount of tokens to mint
-    const tokensToMint = 1000;
-
-    beforeEach(async () => {
-      // Add minter
-      await curvanceToken.nominateMinter(await minter.getAddress());
-    });
-
-    it("Only minter should be able to mint tokens", async () => {
-      // Address without minter rights tries to mint tokens
-      const tx = curvanceToken.connect(notMinter).mint(await notMinter.getAddress(), tokensToMint);
-      await expect(tx).to.be.revertedWith("!minter");
-    });
-
-    it("Minter should be able to mint tokens", async () => {
-      // New minter should be able to mint tokens
-      await curvanceToken.connect(minter).mint(await minter.getAddress(), tokensToMint);
-      expect(await curvanceToken.balanceOf(await minter.getAddress())).to.be.equal(tokensToMint);
-    });
-
-    it("Owner should be able to remove minter rights", async () => {
-      // Remove minter rights from `minter`
-      await curvanceToken.removeMinter(await minter.getAddress());
-
-      // Address without minter rights tries to mint tokens
-      const tx = curvanceToken.connect(minter).mint(await minter.getAddress(), tokensToMint);
-      await expect(tx).to.be.revertedWith("!minter");
-    });
-
-    it("Minter should be able to renouce role", async () => {
-      // Renouce minter role
-      await curvanceToken.connect(minter).renounceMinterRole();
-
-      // Address without minter rights tries to mint tokens
-      const tx = curvanceToken.connect(minter).mint(await minter.getAddress(), tokensToMint);
-      await expect(tx).to.be.revertedWith("!minter");
-    });
   });
 });
