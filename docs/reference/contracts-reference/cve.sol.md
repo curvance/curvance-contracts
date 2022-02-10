@@ -12,11 +12,11 @@ The name of the pet
 {% endswagger-parameter %}
 
 {% swagger-parameter in="body" name="owner_id" required="false" type="string" %}
-The 
+The
 
 `id`
 
- of the user who owns the pet
+of the user who owns the pet
 {% endswagger-parameter %}
 
 {% swagger-parameter in="body" name="species" required="false" type="string" %}
@@ -28,6 +28,7 @@ The breed of the pet
 {% endswagger-parameter %}
 
 {% swagger-response status="200" description="Pet successfully created" %}
+
 ```javascript
 {
     "name"="Wilson",
@@ -38,6 +39,7 @@ The breed of the pet
     "breed": "Golden Retriever",
 }
 ```
+
 {% endswagger-response %}
 
 {% swagger-response status="401" description="Permission denied" %}
