@@ -8,11 +8,17 @@ We want to offer the user to earn yield from staking CVE in `CveLocker.sol` whil
 
 With this implementation approach we want to front run other protocols offering CVE specific wrappers to earn yield by staking CVE.
 
-To offer the user staking his CVE and also using it as collateral in fuse, we will conform `CvlCVE.sol` to the EIP-4626 standard and add our own custom functionality where needed.
+To offer the user staking his CVE and also using it as collateral in fuse, we will base CvlCVE.sol on the Curve gauge wrapper and Convex cvxCRV staking wrapper implementations.
 
 See:
 
-{% embed url="https://eips.ethereum.org/EIPS/eip-4626" %}
+{% embed url="https://github.com/curvefi/curve-dao-contracts/tree/master/contracts/gauges/wrappers" %}
+Written in Vyper, the implementation Convex based their wrapper off
+{% endembed %}
+
+{% embed url="https://github.com/convex-eth/platform/blob/main/contracts/contracts/wrappers/ConvexStakingWrapper.sol" %}
+An implementation in Solidity, based on the Curve wrapper
+{% endembed %}
 
 #### Steps
 
