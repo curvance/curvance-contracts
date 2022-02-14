@@ -5,30 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ITreasuryFunds {
     /**
-     * @dev Transfer contract ownership
-     *
-     * @param _newOwner New owner of the contract
-     */
-    function transferOwnership(address _newOwner) external;
-
-    /**
-     * @dev Nominate a new treasurer, only executable by owner
-     *
-     * @param _nominee New treasurer to be nominated
-     */
-    function nominateTreasurer(address _nominee) external;
-
-    /**
-     * @dev Remove treasurer from role, only executable by owner
-     *
-     * @param _treasurer Treasurer to be removed
-     */
-    function removeTreasurer(address _treasurer) external;
-
-    /// @dev Renounce treasurer role, must be a treasurer but not the contract admin
-    function renounceTreasurerRole() external;
-
-    /**
      * @dev Withdraw an amount of a given asset to a given address
      *
      * @param _asset The ERC20 compatible asset to be used
