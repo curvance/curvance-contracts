@@ -7,8 +7,8 @@
 
 * [Contracts Reference](reference/contracts-reference/README.md)
   * [Cve.sol](reference/contracts-reference/cve.sol.md)
-  * [CveLocker.sol](reference/contracts-reference/cvelocker.sol.md)
-  * [CvlCVE.sol](reference/contracts-reference/cvlcve.sol.md)
+  * [VotingEscrow.sol](reference/contracts-reference/votingescrow.sol.md)
+  * [cveCVE.sol](reference/contracts-reference/cvecve.sol.md)
   * [CvlCVEBOOST.sol](reference/contracts-reference/cvlcveboost.sol.md)
 * [Fuse Reference](reference/fuse-reference/README.md)
   * [Unitroller.sol](reference/fuse-reference/unitroller.sol.md)
