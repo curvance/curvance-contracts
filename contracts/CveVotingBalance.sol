@@ -130,17 +130,20 @@ contract CveVotingBalance{
             return 0;
         }
 
+/** @TODO WIP - Update code below to work with VotingEscrow.sol */
+
+
         //compute to find previous epoch
         uint256 currentEpoch = block.timestamp.div(rewardsDuration).mul(rewardsDuration);
-        uint256 epochindex = ILockedCvx(locker).epochCount() - 1;
-        (, uint32 _enddate) = ILockedCvx(locker).epochs(epochindex);
+        uint256 epochindex = IVotingEscrow(locker).epochCount() - 1;
+        (, uint32 _enddate) = IVotingEscrow(locker).epochs(epochindex);
         if(_enddate >= currentEpoch){
             //if end date is already the current epoch,  minus 1 to get the previous
             epochindex -= 1;
         }
         //get balances of current and previous
-        uint256 balanceAtPrev = ILockedCvx(locker).balanceAtEpochOf(epochindex, _account);
-        uint256 currentBalance = ILockedCvx(locker).balanceOf(_account);
+        uint256 balanceAtPrev = IVotingEscrow(locker).balanceAtEpochOf(epochindex, _account);
+        uint256 currentBalance = IVotingEscrow(locker).balanceOf(_account);
 
         //return greater balance
         return max(balanceAtPrev, currentBalance);
@@ -162,7 +165,7 @@ contract CveVotingBalance{
         uint256 currentEpochUnlock = block.timestamp.div(rewardsDuration).mul(rewardsDuration).add(lockDuration);
 
         //grab account lock list
-        (,,,ILockedCvx.LockedBalance[] memory balances) = ILockedCvx(locker).lockedBalances(_account);
+        (,,,IVotingEscrow.LockedBalance[] memory balances) = IVotingEscrow(locker).lockedBalances(_account);
         
         //if most recent lock is current epoch, then lock amount is pending balance
         uint256 pending;
@@ -178,6 +181,6 @@ contract CveVotingBalance{
     }
 
     function totalSupply() view external returns(uint256){
-        return ILockedCvx(locker).totalSupply();
+        return IVotingEscrow(locker).totalSupply();
     }
 }
