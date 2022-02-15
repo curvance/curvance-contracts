@@ -21,7 +21,7 @@ contract VotingEscrow is Ownable {
     }
     struct Lock {
         uint256 amount;
-        uint32 unlockTime;
+        uint64 unlockTime;
     }
     struct Reward {
         uint40 periodFinish;
@@ -105,10 +105,10 @@ contract VotingEscrow is Ownable {
         return amount;
     }
 
-    function deposit(address _account, uint256 _amount) public {
+    function deposit(address _account, uint256 _amount) external {
         updateReward(_account);
 
-        cve.transfer(address(this), _amount);
+        cve.safeTransferFrom(_account, address(this), _amount);
 
         totalLockedSupply += _amount;
         /// @dev Deletgates votes to the team multisig
@@ -117,13 +117,9 @@ contract VotingEscrow is Ownable {
         CveCVE(wrapperAddress).mint(_account, _amount);
     }
 
-    function lock(address _account, uint256 _amount) public {
+    // lock for LOCK_DURATION
+    function _lock(address _account, uint256 _amount) internal {
         updateReward(_account);
-
-        if (msg.sender == wrapperAddress) {
-            cve.transfer(address(this), _amount);
-            delegatedVotes -= _amount;
-        }
 
         Balance storage userBalance = userBalances[_account];
         userBalance.amount += _amount;
@@ -133,7 +129,7 @@ contract VotingEscrow is Ownable {
 
         uint256 locksLength = userLocks[_account].length;
         if (locksLength == 0 || userLocks[_account][locksLength - 1].unlockTime < unlockTime) {
-            userLocks[_account].push(Lock({ amount: _amount, unlockTime: uint32(unlockTime) }));
+            userLocks[_account].push(Lock({ amount: _amount, unlockTime: uint64(unlockTime) }));
         } else {
             userLocks[_account][locksLength - 1].amount += _amount;
         }
@@ -142,6 +138,21 @@ contract VotingEscrow is Ownable {
         // updateStakeRatio(stakeOffsetOnLock);
 
         emit Locked(_account, _amount);
+    }
+
+    function lock(uint256 _amount) external {
+        require(_amount > 0, "invalid amount");
+        cve.safeTransferFrom(msg.sender, address(this), _amount);
+
+        _lock(msg.sender, _amount);
+    }
+
+    function lockFor(address _account, uint256 _amount) external {
+        require(msg.sender == wrapperAddress, "!auth");
+        // TODO: can't be just this (for transferring)
+        delegatedVotes -= _amount;
+
+        _lock(_account, _amount);
     }
 
     function claimAll(address _account) public {
