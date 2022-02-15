@@ -25,9 +25,9 @@ contract VotingEscrow is Ownable {
     }
     struct Reward {
         uint40 periodFinish;
-        uint40 lastUpdateTime;
-        // TODO: implement changing reward rates
         uint208 rewardRate;
+        // TODO: implement changing reward rates
+        uint40 lastUpdateTime;
         uint208 rewardPerTokenStored;
     }
 
