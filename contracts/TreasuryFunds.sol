@@ -11,13 +11,12 @@ import "./interfaces/ITreasuryFunds.sol";
 /**
  * @title Treasury Funds
  *
- * @author Convex Finance, Curvance
+ * @author Curvance
  *
- * @notice Receive treasury funds, treasurer can withdraw and execute arbitrary external code
+ * @notice Receive treasury funds, owner can withdraw and execute arbitrary external code
  *
- * @dev treasuryAdmin can assign treasurer roles, which are responsible for managing treasury's funds.
- *
- * @dev Multisig can be implemented by assigning an admin address, so it can add other addresses as treasurers.
+ * @dev Owner address is able to withdraw tokens of any arbitrary ERC20 asset and execute arbitrary functions of
+ * other contracts from the Treasury
  */
 contract TreasuryFunds is Ownable, ERC165 {
     using SafeERC20 for IERC20;
