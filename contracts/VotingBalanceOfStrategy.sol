@@ -18,7 +18,6 @@ contract SnapshotVotingStrategy {
     /**
      *   @notice Obtain vote balances of eligible accounts
      *   @param _account Voting account
-     *   @param returns Pending vote balances
      */
     function balanceOf(address _account) external view returns (uint256) {
         //check eligibility
@@ -33,8 +32,7 @@ contract SnapshotVotingStrategy {
     }
 
     /**
-     *   @notice Obtain balance of all eligible votes
-     *   @param Total vote count
+     *   @notice Returns balance of all eligible votes
      */
     function totalVotes() external view returns (uint256) {
         uint256 totalVoteBalance = IVoteEscrow(locker).lockedSupply();
