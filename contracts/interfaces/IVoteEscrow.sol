@@ -27,8 +27,7 @@ interface IVoteEscrow{
     );
     function addReward(
         address _rewardsToken,
-        address _distributor,
-        bool _useBoost
+        address _distributor
     ) external;
     function approveRewardDistributor(
         address _rewardsToken,
@@ -36,7 +35,6 @@ interface IVoteEscrow{
         bool _approved
     ) external;
     function setStakeLimits(uint256 _minimum, uint256 _maximum) external;
-    function setBoost(uint256 _max, uint256 _rate, address _receivingAddress) external;
     function setKickIncentive(uint256 _rate, uint256 _delay) external;
     function shutdown() external;
     function recoverERC20(address _tokenAddress, uint256 _tokenAmount) external;

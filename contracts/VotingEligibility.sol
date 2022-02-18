@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VotingEligibility is Ownable {
 
-
     mapping(address => bool) public blockList;
 
     event AddBlocked(address indexed _account, bool _state);
