@@ -9,13 +9,13 @@ import "./interfaces/ICve.sol";
 
 /**
  * @title Curvance Token
- * @author Convex Finance, Curvance
+ * @author Curvance
  * @notice CVE token contract
- * @dev Addresses with MINTER role are allowed to mint CVE until it reaches the maximum supply
+ * @dev Owner address of the contract is able to mint tokens, could be a multisig contract
  */
 contract CurvanceToken is ERC20, ERC165, Ownable {
     /// @dev 4mil CVE maximum supply
-    uint256 public maxSupply = 4_000_000 * 1e18;
+    uint256 public maxSupply = 420_000_069 * 1e18;
 
     /// @dev Emit when token is minted
     event MintToken(address indexed to, uint256 amount);
