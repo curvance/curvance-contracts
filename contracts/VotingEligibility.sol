@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -32,7 +32,7 @@ contract VotingEligibility is Ownable {
      *   @param _account Account attempting to vote
      */
     function isEligible(address _account) external view returns (bool) {
-        if (blockList[_account] == true) {
+        if (blockList[_account]) {
             return false;
         }
 
