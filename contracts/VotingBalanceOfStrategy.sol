@@ -12,8 +12,13 @@ import "./interfaces/IVotingEligibility.sol";
  */
 
 contract SnapshotVotingStrategy {
-    address public constant locker = address(0x0000000000000000000000000000000000000000);
-    address public constant eligibleList = address(0x0000000000000000000000000000000000000000);
+    address public immutable locker;
+    address public immutable eligibleList;
+
+    constructor(address _locker, address _eligibility) {
+        locker = _locker;
+        eligibleList = _eligibility;
+    }
 
     /**
      *   @notice Obtain vote balances of eligible accounts
