@@ -4,7 +4,6 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./BaseStaking.sol";
 
@@ -26,11 +25,11 @@ interface IBaseStaking {
     function extraRewardsLength() external view returns (uint256);
 }
 
-contract CveCVE is ERC20, Ownable {
+contract CveCVE is ERC20 {
     using SafeERC20 for IERC20;
 
-    BaseStaking public staking;
-    IERC20 public cve;
+    BaseStaking public immutable staking;
+    IERC20 public immutable cve;
     address public locker;
 
     uint256 private constant MAX_SUPPLY = 420000069 * 1e18;
