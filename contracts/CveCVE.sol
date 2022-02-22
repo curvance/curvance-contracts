@@ -6,148 +6,99 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./BaseStaking.sol";
 
 interface IVotingEscrow {
     function lockFor(address _account, uint256 _amount) external;
 }
 
-// TODO: whitelisted pools to distribute to
-// TODO: kick incentive
+interface IBaseStaking {
+    function stakeFor(address _account, uint256 _amount) external;
+
+    function withdrawFor(
+        address _account,
+        uint256 _amount,
+        bool _claim
+    ) external;
+
+    function preAndPostTransfer(address _account) external;
+
+    function extraRewardsLength() external view returns (uint256);
+}
+
 contract CveCVE is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
-    struct EarnedData {
-        address token;
-        uint256 amount;
-    }
-
-    struct RewardData {
-        uint40 periodFinish;
-        uint208 rewardRate;
-        uint40 lastUpdateTime;
-        uint208 rewardPerTokenStored;
-    }
-
+    BaseStaking public staking;
+    IERC20 public cve;
     address public locker;
 
-    uint256 private constant MAX_SUPPLY = 400000069 * 1e18;
-    // Duration that rewards are streamed over
-    uint256 public constant rewardsDuration = 86400 * 7;
-
-    address[] public rewardTokens;
-
-    mapping(address => mapping(address => bool)) public rewardDistributors;
-    mapping(address => RewardData) public rewardData;
-    mapping(address => mapping(address => uint256)) public userRewards; // user -> reward_token -> amount
-    mapping(address => mapping(address => uint256)) public userRewardsPerTokenPaid; // user -> reward_token -> paid
+    uint256 private constant MAX_SUPPLY = 420000069 * 1e18;
 
     // emitted when a user unwraps cveCVE for CVE at 1:1 ratio
     event Unwrap(address indexed to, uint256 amount);
-    event RewardPaid(address account, address rewardsToken, uint256 reward);
-    event Recovered(address token, uint256 amount);
-    event RewardAdded(address token, uint256 amount);
+    event Deposited(address account, uint256 amount);
 
-    constructor(address _locker) ERC20("Curvance CVE", "cveCVE") {
+    constructor(
+        IERC20 _cve,
+        IERC20 _rewardToken,
+        address _locker,
+        address _operator,
+        address _rewardManager
+    ) ERC20("Curvance CVE", "cveCVE") {
         locker = _locker;
+        cve = _cve;
+
+        staking = new BaseStaking(_cve, _rewardToken, _operator, _rewardManager);
     }
 
     /**
-     * @notice add reward for future distribution to holders
-     * @param _rewardToken reward token to add
-     * @param _distributor from whom rewards will be sent for distribution
+     * @notice wrap cve for cveCVE
+     * @param _amount amount of cve to wrap
      */
-    function addReward(address _rewardToken, address _distributor) external onlyOwner {
-        require(rewardData[_rewardToken].lastUpdateTime == 0, "exist");
-        //require(_rewardToken != address(cve), "!assign");
-        rewardTokens.push(_rewardToken);
-        rewardData[_rewardToken].lastUpdateTime = uint40(block.timestamp);
-        rewardData[_rewardToken].periodFinish = uint40(block.timestamp);
-        rewardDistributors[_rewardToken][_distributor] = true;
-    }
-
-    /**
-     * @dev Modify approval for an address to call notifyRewardAmount
-     * @param _rewardsToken reward token
-     * @param _distributor from whom rewards will be sent for distribution
-     * @param _approved approval state
-     */
-    function approveRewardDistributor(
-        address _rewardsToken,
-        address _distributor,
-        bool _approved
-    ) external onlyOwner {
-        require(rewardData[_rewardsToken].lastUpdateTime > 0, "reward does not exist");
-        rewardDistributors[_rewardsToken][_distributor] = _approved;
-    }
-
-    /**
-     * @notice mint cveCVE
-     * @param _account address of user to credit with tokens
-     * @param _amount amount of cveCVE tokens to deposit
-     */
-    function mint(address _account, uint256 _amount) external onlyLocker {
+    function deposit(uint256 _amount) external {
+        require(_amount > 0, "amount cannot be 0");
         require(totalSupply() + _amount <= MAX_SUPPLY, "max supply");
-        _mint(_account, _amount);
+
+        // pull tokens
+        cve.safeTransferFrom(msg.sender, address(this), _amount);
+
+        // stake for user
+        staking.stakeFor(msg.sender, _amount);
+
+        // mint cveCVE
+        _mint(msg.sender, _amount);
+
+        emit Deposited(msg.sender, _amount);
     }
 
     /**
-     * @notice unwrap cveCVE for CVE at 1:1 ratio
-     * @param _amount amount of cveCVE tokens to unwrap
+     * @notice wrap cve for cveCVE. providing a means for holders to unwrap and lock cve tokens automatically.
+     * Otherwise tokens can be swapped in curve pool if locking is not wanted by user.
+     * @param _amount amount of cve to wrap
+     * @param _claim whether to claim rewards
      */
-    function unwrap(uint256 _amount) external {
-        require(_amount > 0, "amount must be greater than 0");
+    function unwrap(uint256 _amount, bool _claim) external {
+        require(_amount > 0, "amount cannot be 0");
+
         _burn(msg.sender, _amount);
 
+        // withdraw to this contract
+        staking.withdrawFor(msg.sender, _amount, _claim);
+
+        // lock
         IVotingEscrow(locker).lockFor(msg.sender, _amount);
 
         emit Unwrap(msg.sender, _amount);
     }
 
     /**
-     * @dev notify reward amount for new reward duration
-     * @param _rewardsToken rewards token
-     * @param _amount amount of rewards
-     */
-    function notifyRewardAmount(address _rewardsToken, uint256 _amount) external updateReward(address(0)) {
-        require(rewardDistributors[_rewardsToken][msg.sender], "unauthorized");
-        require(_amount > 0, "No reward");
-
-        _notifyReward(_rewardsToken, _amount);
-
-        // handle the transfer of reward tokens via `transferFrom` to reduce the number
-        // of transactions required and ensure correctness of the _reward amount
-        IERC20(_rewardsToken).safeTransferFrom(msg.sender, address(this), _amount);
-
-        emit RewardAdded(_rewardsToken, _amount);
-    }
-
-    /**
      * @notice get (claim) rewards for an account
      * @param _account account for which rewards are claimed
+     * @param _claimExtras whether to claim extra tokens if available
      */
-    function getReward(address _account) external updateReward(_account) {
-        for (uint256 i = 0; i < rewardTokens.length; i++) {
-            address _rewardsToken = rewardTokens[i];
-            uint256 reward = userRewards[_account][_rewardsToken];
-            if (reward > 0) {
-                userRewards[_account][_rewardsToken] = 0;
-                IERC20(_rewardsToken).safeTransfer(_account, reward);
-
-                emit RewardPaid(_account, _rewardsToken, reward);
-            }
-        }
-    }
-
-    /**
-     * @dev recover tokens accidentally sent here which are not rewards
-     *      reward tokens can be retrieved through other means
-     * @param _token token to recover
-     * @param _amount amount of token to recover
-     */
-    function recoverToken(address _token, uint256 _amount) external onlyOwner {
-        require(rewardData[_token].periodFinish == 0, "can't recover reward token this way");
-        IERC20(_token).safeTransfer(owner(), _amount);
-        emit Recovered(_token, _amount);
+    function getReward(address _account, bool _claimExtras) external {
+        staking.getReward(_account, _claimExtras);
     }
 
     /**
@@ -162,86 +113,15 @@ contract CveCVE is ERC20, Ownable {
      * @notice get number of reward tokens
      */
     function rewardLength() external view returns (uint256) {
-        return rewardTokens.length;
-    }
-
-    /**
-     * @notice get reward per token stored
-     * @param _rewardToken reward token
-     */
-    function rewardPerToken(address _rewardToken) external view returns (uint256) {
-        return _rewardPerToken(_rewardToken);
+        return staking.extraRewardsLength();
     }
 
     /**
      * @notice get earned rewards of a user
-     * @param _user user for whom to get earned rewards
+     * @param _account user for whom to get earned rewards
      */
-    function earned(address _user) external view returns (uint256) {
-        uint256 amount;
-        for (uint256 i = 0; i < rewardTokens.length; i++) {
-            amount += _earned(_user, rewardTokens[i], balanceOf(_user));
-        }
-
-        return amount;
-    }
-
-    /**
-     * @notice last time reward applicable
-     * @param _rewardsToken rewards token
-     */
-    function lastTimeRewardApplicable(address _rewardsToken) external view returns (uint256) {
-        return _lastTimeRewardApplicable(rewardData[_rewardsToken].periodFinish);
-    }
-
-    //////////////////////////////////////////////////////
-    // INTERNAL FUNCTIONS                                /
-    //////////////////////////////////////////////////////
-
-    /**
-     * @notice notify reward amount internal
-     * @param _rewardsToken rewards token
-     * @param _amount amount of rewards
-     */
-    function _notifyReward(address _rewardsToken, uint256 _amount) internal {
-        RewardData storage rdata = rewardData[_rewardsToken];
-
-        if (block.timestamp >= rdata.periodFinish) {
-            rdata.rewardRate = uint208(_amount / rewardsDuration);
-        } else {
-            uint256 remaining = uint256(rdata.periodFinish - block.timestamp);
-            uint256 leftover = remaining * rdata.rewardRate;
-            rdata.rewardRate = uint208((_amount + leftover) / rewardsDuration);
-        }
-
-        rdata.lastUpdateTime = uint40(block.timestamp);
-        rdata.periodFinish = uint40(block.timestamp + rewardsDuration);
-    }
-
-    function _lastTimeRewardApplicable(uint256 _finishTime) internal view returns (uint256) {
-        return Math.min(block.timestamp, _finishTime);
-    }
-
-    function _earned(
-        address _user,
-        address _rewardsToken,
-        uint256 _balance
-    ) internal view returns (uint256) {
-        return
-            ((_balance * (_rewardPerToken(_rewardsToken) - userRewardsPerTokenPaid[_user][_rewardsToken])) / 1e18) +
-            userRewards[_user][_rewardsToken];
-    }
-
-    function _rewardPerToken(address _rewardToken) internal view returns (uint256) {
-        if (totalSupply() == 0) {
-            return rewardData[_rewardToken].rewardPerTokenStored;
-        }
-        return
-            ((uint256(rewardData[_rewardToken].rewardPerTokenStored) +
-                _lastTimeRewardApplicable(rewardData[_rewardToken].periodFinish) -
-                rewardData[_rewardToken].lastUpdateTime) *
-                rewardData[_rewardToken].rewardRate *
-                1e18) / totalSupply();
+    function earned(address _account) external view returns (uint256) {
+        return staking.earned(_account);
     }
 
     /**
@@ -254,36 +134,29 @@ contract CveCVE is ERC20, Ownable {
         address _from,
         address _to,
         uint256
-    ) internal override updateReward(_from) updateReward(_to) {}
+    ) internal override {
+        if (_from != address(0)) {
+            staking.preAndPostTransfer(_from);
+        }
+        if (_to != address(0)) {
+            staking.preAndPostTransfer(_to);
+        }
+    }
 
     function _beforeTokenTransfer(
         address _from,
         address _to,
         uint256
-    ) internal override updateReward(_from) updateReward(_to) {}
+    ) internal override {
+        if (_from != address(0)) {
+            staking.preAndPostTransfer(_from);
+        }
+        if (_to != address(0)) {
+            staking.preAndPostTransfer(_to);
+        }
+    }
 
     /////////////////////////////////////////////////////
     // MODIFIERS                                        /
     /////////////////////////////////////////////////////
-
-    modifier updateReward(address _account) {
-        {
-            //stack too deep
-            for (uint256 i = 0; i < rewardTokens.length; i++) {
-                address token = rewardTokens[i];
-                rewardData[token].rewardPerTokenStored = uint208(_rewardPerToken(token));
-                rewardData[token].lastUpdateTime = uint40(_lastTimeRewardApplicable(rewardData[token].periodFinish));
-                if (_account != address(0)) {
-                    userRewards[_account][token] = _earned(_account, token, balanceOf(_account));
-                    userRewardsPerTokenPaid[_account][token] = rewardData[token].rewardPerTokenStored;
-                }
-            }
-        }
-        _;
-    }
-
-    modifier onlyLocker() {
-        require(msg.sender == locker, "!auth");
-        _;
-    }
 }
