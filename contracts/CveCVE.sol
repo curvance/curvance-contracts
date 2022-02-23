@@ -30,7 +30,7 @@ contract CveCVE is ERC20, Ownable {
 
     address public locker;
 
-    uint256 private constant MAX_SUPPLY = 400000069 * 1e18;
+    uint256 private constant MAX_SUPPLY = 420000069 * 1e18;
     // Duration that rewards are streamed over
     uint256 public constant rewardsDuration = 86400 * 7;
 
