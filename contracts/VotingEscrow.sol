@@ -4,13 +4,11 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IStakingProxy.sol";
 import "./interfaces/IRewardStaking.sol";
-
-// TODO Shouldn't need these -- verify handling of math operations
-import "./interfaces/BoringMath.sol";
-import "./interfaces/MathUtil.sol";
+import "./interfaces/ICve.sol";
+import "./interfaces/ICveCVE.sol";
 
 /**
 * @title Curvance Vote Escrow
@@ -20,22 +18,24 @@ import "./interfaces/MathUtil.sol";
     - Based on SNX MultiRewards by iamdefinitelyahuman - https://github.com/iamdefinitelyahuman/multi-rewards
 * @notice Designed to handle multiple rewards, allows for kicking unlocked CVE. 
 */
-contract VotingEscrow is Ownable {
+contract VotingEscrow is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     event Locked(address indexed _user, uint256 _amount);
     event RewardPaid(address indexed _user, address indexed _rewardsToken, uint256 _amount);
     event TeamAddressUpdated(address indexed _multisig, uint256 blockheight);
+    event KickReward(address indexed _user, address indexed _kicked, uint256 _reward);
+    event Withdrawn(address indexed _user, uint256 _amount, bool _relocked);
 
     /// @notice Tracks user balances.
-    struct Balance {
+    struct Balances {
         uint256 amount;
         /// @dev Tracks the first unexpired lock
         uint32 nextUnlockIndex;
     }
 
     /// @notice Tracks lock amounts & unlock times.
-    struct Lock {
+    struct LockedBalance {
         uint256 amount;
         uint64 unlockTime;
     }
@@ -49,10 +49,17 @@ contract VotingEscrow is Ownable {
         uint208 rewardPerTokenStored;
     }
 
+    /**
+    struct EarnedData {
+        address token;
+        uint256 amount;
+    } */
+
     /// @notice Defines the addresses used for tokens & contracts
     IERC20 public immutable cve;
+    address public stakingInterface;
     address public wrapper;
-    address public staking;
+    //address public staking;
 
     /// @notice Vote delegation tracking.
     address public teamMultisig;
@@ -76,8 +83,8 @@ contract VotingEscrow is Ownable {
     mapping(address => mapping(address => bool)) public rewardDistributors;
 
     /// @notice User balances tracking.
-    mapping(address => Balance) public userBalances;
-    mapping(address => Lock[]) public userLocks;
+    mapping(address => Balances) public balances;
+    mapping(address => LockedBalance[]) public userLocks;
 
     /// @notice Locked token name, symbol & decimals.
     string public name;
@@ -88,8 +95,6 @@ contract VotingEscrow is Ownable {
     uint256 public denominator = 10000;
     uint256 public kickRewardPerWeek = 100;
     uint256 public kickRewardDelay = 4 * rewardsDuration;
-    uint256 public minimumStake;
-    uint256 public maximumStake;
 
     /// @notice Contract shutdown status.
     bool public isShutdown = false; // <-- didn't need to be defined as false
@@ -97,12 +102,17 @@ contract VotingEscrow is Ownable {
     /// @notice Creates the Vote Escrow contract
     /// @param _cve Address of the CVE token interface
     /// @param _wrapper Address of the wrapper TODO (interface?)
-    constructor(IERC20 _cve, address _wrapper) {
+    constructor(
+        IERC20 _cve,
+        address _staking,
+        address _wrapper
+    ) {
         name = "Vote Escrow Curvance Token";
         symbol = "veCVE";
         decimals = 18;
 
         cve = _cve;
+        stakingInterface = _staking;
         wrapper = _wrapper;
 
         anytimeLockers[_wrapper] = true;
@@ -128,15 +138,17 @@ contract VotingEscrow is Ownable {
     }
 
     /// TODO Is this needed or is it more efficient to call this the updateReward as a function from within?
-    modifier updateReward(address _account) {
+    /** modifier updateReward(address _account) {
         {
             //stack too deep
-            Balances storage userBalance = balances[_account];
+            Balance storage userBalance = userBalances[_account];
             uint256 boostedBal = userBalance.boosted;
             for (uint256 i = 0; i < rewardTokens.length; i++) {
                 address token = rewardTokens[i];
-                rewardData[token].rewardPerTokenStored = _rewardPerToken(token).to208(); // reward token cvxCRV
-                rewardData[token].lastUpdateTime = _lastTimeRewardApplicable(rewardData[token].periodFinish).to40(); // set's claim time to now
+                // reward token cvxCRV
+                rewardData[token].rewardPerTokenStored = _rewardPerToken(token).to208();
+                // set's claim time to now
+                rewardData[token].lastUpdateTime = _lastTimeRewardApplicable(rewardData[token].periodFinish).to40();
                 if (_account != address(0)) {
                     //check if reward is boostable or not. use boosted or locked balance accordingly
                     rewards[_account][token] = _earned(
@@ -150,6 +162,7 @@ contract VotingEscrow is Ownable {
         }
         _;
     }
+    */
 
     ////////////////////////////////////////////
     //             Administrative             //
@@ -161,22 +174,10 @@ contract VotingEscrow is Ownable {
      * @dev Callable only by the Owner.
      * @param _locker Address of CveCVE.sol.
      */
-    function toggleAnytimeLocker(address _locker) external onlyOwner {
-        require(_locker != wrapper, "wrapper is permanent");
+    function toggleAnytimeLocker(address payable _locker) external onlyOwner {
+        require(_locker != address(wrapper), "wrapper is permanent");
         require(_locker != address(0), "invalid locker");
         anytimeLockers[_locker] = !anytimeLockers[_locker];
-    }
-
-    /** TODO Not needed if not doing a staking contract... Or just set these as fixed values like Convex does...
-     * TODO EITHER WAY, THIS CAN PROBABLY GO AWAY
-     * @notice Set the minimum & maximum CVE stake amounts.
-     * @dev Needed for setStakingContract()
-     * @param _minimum Minimum amount staked.
-     * @param _maximum Maximum amount staked.
-     */
-    function setStakingMinMax(uint256 _minimum, uint256 _maximum) external onlyOwner {
-        minimumStake = _minimum;
-        maximumStake = _maximum;
     }
 
     /**
@@ -186,9 +187,9 @@ contract VotingEscrow is Ownable {
      */
     //Set the staking contract for the underlying cvx. only allow change if nothing is currently staked
     function setStakingContract(address _staking) external onlyOwner {
-        require(staking == address(0) || (minimumStake == 0 && maximumStake == 0), "!assign");
+        require(address(stakingInterface) == address(0), "!assign");
 
-        staking = _staking;
+        stakingInterface = _staking;
     }
 
     /// @notice Set the incentive rate for the kick rewards.
@@ -196,8 +197,8 @@ contract VotingEscrow is Ownable {
     /// @param _ratePercent Percentage of the tokens given as rewards per week (100 == 1%).
     /// @param _weeksDelay Number of weeks until an unlock is eligible to be kicked.
     function setKickIncentive(uint256 _ratePercent, uint256 _weeksDelay) external onlyOwner {
-        require(_rate <= 500, "over max rate"); //max 5% per epoch
-        require(_delay >= 2, "min delay"); //minimum 2 epochs of grace
+        require(_ratePercent <= 500, "over max rate"); //max 5% per epoch
+        require(_weeksDelay >= 2, "min delay"); //minimum 2 weeks of grace
         kickRewardPerWeek = _ratePercent;
         kickRewardDelay = _weeksDelay * rewardsDuration;
     }
@@ -213,9 +214,9 @@ contract VotingEscrow is Ownable {
     /** TODO Update this to match our parameters */
     /// @notice Shuts down the contract, unstakes all tokens, releases all locks.
     function shutdown() external onlyOwner {
-        if (stakingProxy != address(0)) {
-            uint256 stakeBalance = IStakingProxy(stakingProxy).getBalance();
-            IStakingProxy(stakingProxy).withdraw(stakeBalance);
+        if (stakingInterface != address(0)) {
+            uint256 stakeBalance = IStakingProxy(stakingInterface).getBalance();
+            IStakingProxy(stakingInterface).withdraw(stakeBalance);
         }
         isShutdown = true;
     }
@@ -256,7 +257,7 @@ contract VotingEscrow is Ownable {
     /// @notice Updates the rewards available for claiming
     /// @param _account Address of the caller seeking rewards claims.
     function updateReward(address _account) public {
-        Balance memory userBalance = userBalances[_account];
+        Balances memory userBalance = balances[_account];
 
         for (uint256 i = 0; i < rewardTokens.length; i++) {
             address token = rewardTokens[i];
@@ -314,7 +315,11 @@ contract VotingEscrow is Ownable {
 
     /// @notice Called by lastTimeRewardApplicable
     function _lastTimeRewardApplicable(uint256 _finishTime) internal view returns (uint256) {
-        return Math.min(block.timestamp, _finishTime);
+        if (block.timestamp < _finishTime) {
+            return _finishTime;
+        } else {
+            return block.timestamp;
+        }
     }
 
     ////////////////////////////////////////////
@@ -323,7 +328,7 @@ contract VotingEscrow is Ownable {
 
     /// @notice Set allowance.
     function setCveApproval() external {
-        cve.safeIncreaseAllowance(staking, type(uint256).max);
+        cve.safeIncreaseAllowance(stakingInterface, type(uint256).max);
     }
 
     /// @notice Deposit CVE into contract.
@@ -357,7 +362,7 @@ contract VotingEscrow is Ownable {
     }
 
     /// TODO Function for the wrapper to unlock the CVE and re-lock it at any time.
-    function unlock(uint256 _amount, bool _listed) external onlyAnytimeLocker {
+    function unwrap(uint256 _amount, bool _listed) external onlyAnytimeLocker {
         ///TODO Add removal from wrapper and re-lock.
     }
 
@@ -381,9 +386,12 @@ contract VotingEscrow is Ownable {
         uint256 _amount,
         bool _listed
     ) internal {
+        require(!isShutdown, "shutdown");
+        require(_amount > 0, "Cannot stake 0");
+
         updateReward(_account);
 
-        Balance storage userBalance = userBalances[_account];
+        Balances storage userBalance = balances[_account];
         userBalance.amount += _amount;
         totalLockedSupply += _amount;
 
@@ -396,7 +404,7 @@ contract VotingEscrow is Ownable {
 
         uint256 locksLength = userLocks[_account].length;
         if (locksLength == 0 || userLocks[_account][locksLength - 1].unlockTime < unlockTime) {
-            userLocks[_account].push(Lock({ amount: _amount, unlockTime: uint64(unlockTime) }));
+            userLocks[_account].push(LockedBalance({ amount: _amount, unlockTime: uint64(unlockTime) }));
         } else {
             userLocks[_account][locksLength - 1].amount += _amount;
         }
@@ -412,7 +420,7 @@ contract VotingEscrow is Ownable {
     // total token balance of an account, including unlocked but not withdrawn tokens
     /// @notice Provides the total balance of locked tokens held by an address.
     function lockedBalanceOf(address _user) external view returns (uint256) {
-        return userBalances[_user].amount;
+        return balances[_user].amount;
     }
 
     /** TODO Which of these is needed ? lockedBalanceOf vs. balanceOf */
@@ -424,11 +432,12 @@ contract VotingEscrow is Ownable {
             return delegatedVotes;
         }
 
-        Lock[] storage locks = userLocks[_account];
+        LockedBalance[] storage locks = userLocks[_account];
         uint256 locksLength = locks.length;
-        uint256 nextUnlockIndex = userBalances[_account].nextUnlockIndex;
+        uint256 nextUnlockIndex = balances[_account].nextUnlockIndex;
         /// @dev Start with user's current locked balance
-        uint256 amount = userBalances[_account].amount;
+        uint256 amount = balances[_account].amount;
+
         /// @dev Removing old records is more gas efficient than adding up
         for (uint256 i = nextUnlockIndex; i < locksLength; i++) {
             if (locks[i].unlockTime <= block.timestamp) {
@@ -441,7 +450,7 @@ contract VotingEscrow is Ownable {
 
         /// @dev Also remove amount in the current epoch.
         /// TODO - remove Epoch & use block.timestamp compared to user unlock time.
-        /// TODO - locks removed from user storage if removed after the lockDuration also (so: unlockTime >= block.timestamp)
+        /// TODO - locks removed from user storage if removed after the lockDuration (unlockTime >= block.timestamp)
         if (locksLength > 0 && uint256(locks[locksLength - 1].unlockTime) - lockDuration >= block.timestamp) {
             amount -= locks[locksLength - 1].amount;
         }
@@ -508,23 +517,21 @@ contract VotingEscrow is Ownable {
         address _withdrawTo,
         address _rewardAddress,
         uint256 _checkDelay
-    ) internal updateReward(_account) {
+    ) internal {
+        //updateReward(_account) {
+        updateReward(_account);
         LockedBalance[] storage locks = userLocks[_account];
         Balances storage userBalance = balances[_account];
-        uint112 locked;
-        uint112 boostedAmount;
+        uint256 locked;
         uint256 length = locks.length;
         uint256 reward = 0;
 
-        if (isShutdown || locks[length - 1].unlockTime <= block.timestamp.sub(_checkDelay)) {
+        if (isShutdown || locks[length - 1].unlockTime <= (block.timestamp - _checkDelay)) {
             //if time is beyond last lock, can just bundle everything together
-            locked = userBalance.locked;
-
-            ///TODO get rid of this.
-            //boostedAmount = userBalance.boosted;
+            locked = userBalance.amount;
 
             //dont delete, just set next index
-            userBalance.nextUnlockIndex = length.to32();
+            userBalance.nextUnlockIndex = uint32(length); ///.to32() TODO What does this do?
 
             //check for kick reward
             //this wont have the exact reward rate that you would get if looped through
@@ -539,9 +546,9 @@ contract VotingEscrow is Ownable {
                     Alternate calculation option down in the next `else` section to compare & evaluate! */
 
                 // Determines the amount of time since the end of the kickRewardsDelay
-                uint256 timeSinceOver = block.timestamp.sub(_checkDelay).sub(uint256(locks[length - 1].unlockTime));
+                uint256 timeSinceOver = block.timestamp - _checkDelay - (uint256(locks[length - 1].unlockTime));
                 // Determines the rewards for the kickoooor
-                reward = uint256(locks[length - 1].amount).mul(kickRewardPerWeek).mul(timeSinceOver).div(denominator);
+                reward = (uint256(locks[length - 1].amount) * kickRewardPerWeek * timeSinceOver) / denominator;
             }
         } else {
             /** @notice checkDelay == 0, then this is the token owner managing their assets */
@@ -550,19 +557,19 @@ contract VotingEscrow is Ownable {
             uint32 nextUnlockIndex = userBalance.nextUnlockIndex;
             for (uint256 i = nextUnlockIndex; i < length; i++) {
                 //unlock time must be less or equal to time
-                if (locks[i].unlockTime > block.timestamp.sub(_checkDelay)) break;
+                if (locks[i].unlockTime > block.timestamp - _checkDelay) break;
 
                 //add to cumulative amounts
-                locked = locked.add(locks[i].amount);
+                locked = locked + locks[i].amount;
                 //boostedAmount = boostedAmount.add(locks[i].boosted);
 
                 //check for kick reward
                 //each epoch over due increases reward
                 if (_checkDelay > 0) {
-                    /** TODO This is a different option for how to calculate the Rewards for the kickooooor. Compare them for accuracy & gas efficiency! */
-                    uint256 timeSinceOver = block.timestamp.sub(_checkDelay).sub(uint256(locks[length - 1].unlockTime)); //TODO is this needed? .div(rewardsDuration);
-                    uint256 rRate = MathUtil.min(kickRewardPerWeek.mul(rewardsDuration), denominator);
-                    reward = uint256(locks[length - 1].amount).mul(rRate).div(denominator);
+                    // Determines the amount of time since the end of the kickRewardsDelay
+                    uint256 timeSinceOver = block.timestamp - _checkDelay - (uint256(locks[length - 1].unlockTime));
+                    // Determines the rewards for the kickoooor
+                    reward = (uint256(locks[length - 1].amount) * kickRewardPerWeek * timeSinceOver) / denominator;
                 }
 
                 //set next unlock index
@@ -574,106 +581,35 @@ contract VotingEscrow is Ownable {
         require(locked > 0, "no exp locks");
 
         //update user balances and total supplies
-        userBalance.locked = userBalance.locked.sub(locked);
-        //userBalance.boosted = userBalance.boosted.sub(boostedAmount);
-        lockedSupply = lockedSupply.sub(locked);
-        //boostedSupply = boostedSupply.sub(boostedAmount);
+        userBalance.amount = userBalance.amount - locked;
+        totalLockedSupply = totalLockedSupply - locked;
 
         emit Withdrawn(_account, locked, _relock);
 
         //send process incentive
         if (reward > 0) {
-            //if theres a reward(kicked), it will always be a withdraw only
-            //preallocate enough cvx from stake contract to pay for both reward and withdraw
-            allocateCVEForTransfer(uint256(locked));
-
             //reduce return amount by the kick reward
-            locked = locked.sub(reward.to112());
+            locked = locked - reward;
 
             //transfer reward
-            transferCVE(_rewardAddress, reward, false);
+            transferCVE(_rewardAddress, reward);
 
             emit KickReward(_rewardAddress, _account, reward);
         }
 
         //relock or return to user
         if (_relock) {
-            _lock(_withdrawTo, locked, _spendRatio);
+            _lock(_withdrawTo, locked, false);
         } else {
-            transferCVE(_withdrawTo, locked, true);
-        }
-    }
-
-    ////////////////////////////////////////////
-    //      Needed if CVE to be staked        //
-    ////////////////////////////////////////////
-
-    /** 
-    * TODO If this is something we want to include, this needs updating & adding the needed variables
-    *
-    * Such as these: 
-    uint256 public minimumStake = 10000;
-    uint256 public maximumStake = 10000;
-    address public stakingProxy;
-    address public constant cvxcrvStaking = address(0x3Fe65692bfCD0e6CF84cB1E7d24108E434A7587e);
-    uint256 public constant stakeOffsetOnLock = 500; //allow broader range for staking when depositing
-    //token constants
-    IERC20 public constant stakingToken = IERC20(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B); //cvx
-    address public constant cvxCrv = address(0x62B9c7356A2Dc64a1969e19C23e4f579F9810Aa7);
-
-    */
-
-    //pull required amount of cvx from staking for an upcoming transfer
-    function allocateCVEForTransfer(uint256 _amount) internal {
-        uint256 balance = stakingToken.balanceOf(address(this));
-        if (_amount > balance) {
-            IStakingProxy(stakingProxy).withdraw(_amount.sub(balance));
+            transferCVE(_withdrawTo, locked);
         }
     }
 
     //transfer helper: pull enough from staking, transfer, updating staking ratio
-    function transferCVE(
-        address _account,
-        uint256 _amount,
-        bool _updateStake
-    ) internal {
+    function transferCVE(address _account, uint256 _amount) internal {
         //allocate enough cvx from staking for the transfer
-        allocateCVEForTransfer(_amount);
+        IStakingProxy(stakingInterface).withdraw(_amount);
         //transfer
-        stakingToken.safeTransfer(_account, _amount);
-
-        //update staking
-        if (_updateStake) {
-            updateStakeRatio(0);
-        }
-    }
-
-    //calculate how much cvx should be staked. update if needed
-    function updateStakeRatio(uint256 _offset) internal {
-        if (isShutdown) return;
-
-        //get balances
-        uint256 local = stakingToken.balanceOf(address(this)); // how much cvx is in here
-        uint256 staked = IStakingProxy(stakingProxy).getBalance(); // how much cvx is staked
-        uint256 total = local.add(staked);
-
-        if (total == 0) return;
-
-        //current staked ratio
-        uint256 ratio = staked.mul(denominator).div(total);
-        //mean will be where we reset to if unbalanced
-        uint256 mean = maximumStake.add(minimumStake).div(2);
-        uint256 max = maximumStake.add(_offset);
-        uint256 min = Math.min(minimumStake, minimumStake - _offset);
-        if (ratio > max) {
-            //remove
-            uint256 remove = staked.sub(total.mul(mean).div(denominator)); // amount to remove from staker
-            IStakingProxy(stakingProxy).withdraw(remove); // execute the unstaking
-        } else if (ratio < min) {
-            //add
-            uint256 increase = total.mul(mean).div(denominator).sub(staked); // amount to send to staker
-            stakingToken.safeTransfer(stakingProxy, increase);
-            IStakingProxy(stakingProxy).stake(); // execute the staking
-        }
+        cve.safeTransfer(_account, _amount);
     }
 }
