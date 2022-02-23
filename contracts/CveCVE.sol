@@ -7,10 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./BaseStaking.sol";
 
-interface IVotingEscrow {
-    function lockFor(address _account, uint256 _amount) external;
-}
-
 interface IBaseStaking {
     function stakeFor(address _account, uint256 _amount) external;
 
@@ -48,7 +44,7 @@ contract CveCVE is ERC20 {
         locker = _locker;
         cve = _cve;
 
-        staking = new BaseStaking(_cve, _rewardToken, _operator, _rewardManager);
+        staking = new BaseStaking(_cve, _rewardToken, _operator, _rewardManager, _locker);
     }
 
     /**
@@ -124,24 +120,11 @@ contract CveCVE is ERC20 {
     }
 
     /**
-     * @dev Hook that is called after any transfer of tokens. This includes
+     * @dev Hook that is called before any transfer of tokens. This includes
      * minting and burning.
-     * @param _from address from which tokens are transferred
-     * @param _to address to which tokens are transferred
+     * @param _from address from which tokens are being transferred
+     * @param _to address to which tokens are being transferred
      */
-    function _afterTokenTransfer(
-        address _from,
-        address _to,
-        uint256
-    ) internal override {
-        if (_from != address(0)) {
-            staking.preAndPostTransfer(_from);
-        }
-        if (_to != address(0)) {
-            staking.preAndPostTransfer(_to);
-        }
-    }
-
     function _beforeTokenTransfer(
         address _from,
         address _to,

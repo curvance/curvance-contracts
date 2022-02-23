@@ -25,12 +25,22 @@ interface IRewards {
     function stakingToken() external returns (address);
 }
 
+interface IVotingEscrow {
+    // whitelisted flexible locking
+    function dynamicLock(uint256 amount) external;
+
+    function dynamicWithdraw(uint256 amount) external;
+
+    function lockFor(address account, uint256 amount) external;
+}
+
 contract BaseStaking {
     using SafeERC20 for IERC20;
 
     address public owner;
     address public operator;
     address public rewardManager;
+    address public votingEscrow;
 
     IERC20 public rewardToken;
     IERC20 public stakingToken;
@@ -59,13 +69,15 @@ contract BaseStaking {
         IERC20 _stakingToken,
         IERC20 _rewardToken,
         address _operator,
-        address _rewardManager
+        address _rewardManager,
+        address _votingEscrow
     ) {
         owner = msg.sender;
         stakingToken = _stakingToken;
         rewardToken = _rewardToken;
         operator = _operator;
         rewardManager = _rewardManager;
+        votingEscrow = _votingEscrow;
     }
 
     /**
@@ -78,6 +90,28 @@ contract BaseStaking {
 
         extraRewards.push(_reward);
         return true;
+    }
+
+    /**
+     * @dev clear extra rewards
+     */
+    function clearExtraRewards() external {
+        require(msg.sender == rewardManager, "!auth");
+        delete extraRewards;
+    }
+
+    /**
+     * @dev clear extra reward
+     * @param _reward reward token to be removed
+     */
+    function clearExtraReward(address _reward) external {
+        require(msg.sender == rewardManager, "!auth");
+        for (uint256 i = 0; i < extraRewards.length; i++) {
+            if (extraRewards[i] == _reward) {
+                delete extraRewards[i];
+                break;
+            }
+        }
     }
 
     // TODO: redistribute expired rewards
@@ -113,6 +147,9 @@ contract BaseStaking {
         // give to _account
         _totalSupply += _amount;
         _balances[_account] += _amount;
+
+        // this is to have extra voting power. no rewards dilution
+        IVotingEscrow(votingEscrow).dynamicLock(_amount);
 
         emit Staked(_account, _amount);
 
@@ -202,6 +239,8 @@ contract BaseStaking {
 
         _totalSupply -= _amount;
         _balances[_account] -= _amount;
+
+        IVotingEscrow(votingEscrow).dynamicWithdraw(_amount);
 
         // note: withdraw cve to wrapped contract instead. as tokens will be automatically locked
         stakingToken.safeTransfer(msg.sender, _amount);
