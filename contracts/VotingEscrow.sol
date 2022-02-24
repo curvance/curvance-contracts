@@ -16,7 +16,7 @@ import "./interfaces/ICveCVE.sol";
     - Convex Finance CvxLocker - http://www.convexfinance.com/
     - Based on EPS Staking contract - http://ellipsis.finance/
     - Based on SNX MultiRewards by iamdefinitelyahuman - https://github.com/iamdefinitelyahuman/multi-rewards
-* @notice Designed to handle multiple rewards, allows for kicking unlocked CVE. 
+* @notice Designed to handle multiple rewards, allows for kicking unlocked CVE.
 */
 contract VotingEscrow is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -316,9 +316,9 @@ contract VotingEscrow is Ownable, ReentrancyGuard {
     /// @notice Called by lastTimeRewardApplicable
     function _lastTimeRewardApplicable(uint256 _finishTime) internal view returns (uint256) {
         if (block.timestamp < _finishTime) {
-            return _finishTime;
-        } else {
             return block.timestamp;
+        } else {
+            return _finishTime;
         }
     }
 
@@ -541,8 +541,8 @@ contract VotingEscrow is Ownable, ReentrancyGuard {
                 /** @notice if > 0, then a `kick` is taking place */
 
                 /** TODO The goal is to give the kickoooor 1% per week after delay times out
-                    * denominator was used as 10,000. So, 100/10000 = 1% or 0.1 
-                    TODO CHECK THE MATHS!!! 
+                    * denominator was used as 10,000. So, 100/10000 = 1% or 0.1
+                    TODO CHECK THE MATHS!!!
                     Alternate calculation option down in the next `else` section to compare & evaluate! */
 
                 // Determines the amount of time since the end of the kickRewardsDelay
