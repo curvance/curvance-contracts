@@ -12,7 +12,7 @@
     "noImplicitAny": true,
     "removeComments": true,
     "resolveJsonModule": true,
-    "sourceMap": true,
+    "noEmit": true,
     "strict": true,
     "target": "es6"
   },

@@ -2188,6 +2188,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ethereumjs-util@npm:^6.1.0":
+  version: 6.1.0
+  resolution: "@types/ethereumjs-util@npm:6.1.0"
+  dependencies:
+    ethereumjs-util: "*"
+  checksum: 4b8bc4d82be99495f14a2e760e0244ab2fa7a0929ac2d03c6756072c9bb68a632d785982e98659e1daf255f36bf88588d9d327a718880671fe727143801a7c39
+  languageName: node
+  linkType: hard
+
 "@types/form-data@npm:0.0.33":
   version: 0.0.33
   resolution: "@types/form-data@npm:0.0.33"
@@ -5598,6 +5607,7 @@ __metadata:
     "@typechain/ethers-v5": 8.0.5
     "@typechain/hardhat": 3.0.0
     "@types/chai": 4.2.22
+    "@types/ethereumjs-util": ^6.1.0
     "@types/fs-extra": 9.0.13
     "@types/mocha": 9.0.0
     "@types/node": 16.11.10
@@ -7215,6 +7225,19 @@ __metadata:
     ethereum-common: ^0.0.18
     ethereumjs-util: ^5.0.0
   checksum: fe2323fe7db7f5dda85715dc67c31dd1f2925bf5a88e393ba939dbe699b73df008f1332f711b1aa37e943193acf3b6976202a33f2fab1f7675b6d2dd70f424d4
+  languageName: node
+  linkType: hard
+
+"ethereumjs-util@npm:*":
+  version: 7.1.4
+  resolution: "ethereumjs-util@npm:7.1.4"
+  dependencies:
+    "@types/bn.js": ^5.1.0
+    bn.js: ^5.1.2
+    create-hash: ^1.1.2
+    ethereum-cryptography: ^0.1.3
+    rlp: ^2.2.4
+  checksum: ccfd9208bfe9205af124a9138c5a90db46cd2fcacf4b80f17f67915381c03253aa2fb90ead9e0b53d9a6fcfeed4310e5dfa8dc516ca2846d16baf81d605cd8c2
   languageName: node
   linkType: hard
 
