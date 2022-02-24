@@ -12,7 +12,6 @@
     "noImplicitAny": true,
     "removeComments": true,
     "resolveJsonModule": true,
-    "noEmit": true,
     "strict": true,
     "target": "es6"
   },
