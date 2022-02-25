@@ -2188,7 +2188,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ethereumjs-util@npm:^6.1.0":
+"@types/ethereumjs-util@npm:6.1.0":
   version: 6.1.0
   resolution: "@types/ethereumjs-util@npm:6.1.0"
   dependencies:
@@ -5607,7 +5607,7 @@ __metadata:
     "@typechain/ethers-v5": 8.0.5
     "@typechain/hardhat": 3.0.0
     "@types/chai": 4.2.22
-    "@types/ethereumjs-util": ^6.1.0
+    "@types/ethereumjs-util": 6.1.0
     "@types/fs-extra": 9.0.13
     "@types/mocha": 9.0.0
     "@types/node": 16.11.10
