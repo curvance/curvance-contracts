@@ -11,7 +11,7 @@ env:
 
 jobs:
   compile:
-    name: Contracts - Lint
+    name: Contracts - TS compile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
