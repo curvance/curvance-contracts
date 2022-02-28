@@ -4,18 +4,17 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IVotingEscrow.sol";
 
-contract CveCVE is ERC20, Ownable {
+contract CveCVE is ERC20 {
     using SafeERC20 for IERC20;
 
     uint256 private constant MAX_SUPPLY = 420_000_069 * 1e18;
 
     address public locker;
 
-    constructor(address _locker) ERC20("Curvance CVE", "cveCVE") Ownable() {
+    constructor(address _locker) ERC20("Curvance CVE", "cveCVE") {
         locker = _locker;
     }
 
@@ -32,12 +31,17 @@ contract CveCVE is ERC20, Ownable {
         _burn(_account, _amount);
     }
 
-    function _afterTokenTransfer(
+    function _beforeTokenTransfer(
         address _from,
         address _to,
         uint256
     ) internal override {
-        IVotingEscrow(locker).updateReward(_from);
-        IVotingEscrow(locker).updateReward(_to);
+        if (_from == address(0)) {
+            IVotingEscrow(locker).updateReward(_from);
+        }
+
+        if (_to == address(0)) {
+            IVotingEscrow(locker).updateReward(_to);
+        }
     }
 }

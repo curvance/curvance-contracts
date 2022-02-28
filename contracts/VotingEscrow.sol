@@ -48,6 +48,9 @@ contract VotingEscrow is Ownable {
     address public immutable wrapper;
 
     address public staking;
+    bool public isShutdown;
+    uint8 public immutable decimals;
+
     uint256 public minimumStake = 10_000;
     uint256 public maximumStake = 10_000;
     uint256 public constant stakeOffsetOnLock = 500;
@@ -55,14 +58,6 @@ contract VotingEscrow is Ownable {
     uint256 public delegatedVotes;
 
     address[] public rewardTokens;
-    mapping(address => Reward) public rewardData;
-    mapping(address => mapping(address => uint256)) public claimableRewards;
-    /// @dev reward token -> distributor -> is approved to add rewards
-    mapping(address => mapping(address => bool)) public rewardDistributors;
-
-    mapping(address => Balance) public userBalances;
-    mapping(address => Lock[]) public userLocks;
-
     address[] public pools;
 
     uint256 public totalLockedSupply;
@@ -74,11 +69,16 @@ contract VotingEscrow is Ownable {
     uint256 public kickRewardPerWeek = 100;
     uint256 public gracePeriod = REWARDS_DURATION * 4;
 
-    bool public isShutdown;
+    mapping(address => Reward) public rewardData;
+    mapping(address => mapping(address => uint256)) public claimableRewards;
+    /// @dev reward token -> distributor -> is approved to add rewards
+    mapping(address => mapping(address => bool)) public rewardDistributors;
+
+    mapping(address => Balance) public userBalances;
+    mapping(address => Lock[]) public userLocks;
 
     string public name;
     string public symbol;
-    uint8 public immutable decimals;
 
     /// @dev Owner should be the Curvance team's multisig
     constructor(
@@ -98,7 +98,7 @@ contract VotingEscrow is Ownable {
     function deposit(address _account, uint256 _amount) external {
         updateReward(_account);
 
-        cve.safeTransfer(address(this), _amount);
+        cve.safeTransferFrom(msg.sender, address(this), _amount);
 
         totalLockedSupply += _amount;
         /// @dev Deletgates votes to the team multisig
@@ -109,12 +109,13 @@ contract VotingEscrow is Ownable {
 
     function lock(uint224 _amount) external {
         require(_amount > 0, "invalid amount");
-        cve.safeTransfer(address(this), _amount);
+        cve.safeTransferFrom(msg.sender, address(this), _amount);
         _lock(msg.sender, _amount);
     }
 
     function unwrap(uint224 _amount) external {
         ICveCVE(wrapper).burn(msg.sender, _amount);
+        totalLockedSupply -= _amount;
         delegatedVotes -= _amount;
         _lock(msg.sender, _amount);
 
@@ -123,7 +124,7 @@ contract VotingEscrow is Ownable {
 
     /// @dev Should be called immediately after deployment
     function setApprovals() external {
-        cve.safeApprove(staking, type(uint256).max);
+        cve.safeIncreaseAllowance(staking, type(uint256).max);
     }
 
     function withdraw(address _account, uint256 _amount) external onlyOwner {
@@ -131,9 +132,8 @@ contract VotingEscrow is Ownable {
     }
 
     /// @notice Set the staking contract for the underlying CVE
-    /// @dev Only allow change if nothing is currently staked
     function setStakingContract(address _staking) external onlyOwner {
-        require(address(staking) == address(0) || (minimumStake == 0 && maximumStake == 0), "!assign");
+        // TODO: withdraw
         staking = _staking;
     }
 
@@ -150,7 +150,7 @@ contract VotingEscrow is Ownable {
             uint256 claimable = claimableRewards[_account][_rewardToken];
             if (claimable > 0) {
                 claimableRewards[_account][_rewardToken] = 0;
-                IERC20(_rewardToken).safeTransfer(_account, claimable);
+                IERC20(_rewardToken).safeTransferFrom(msg.sender, _account, claimable);
                 emit RewardPaid(_account, _rewardToken, claimable);
             }
         }
@@ -273,7 +273,7 @@ contract VotingEscrow is Ownable {
     ) public onlyOwner {
         require(_token != address(cve), "cannot withdraw staking token");
         require(rewardData[_token].lastUpdateTime == 0, "cannot withdraw reward token");
-        IERC20(_token).safeTransfer(_to, _amount);
+        IERC20(_token).safeTransferFrom(msg.sender, _to, _amount);
     }
 
     function _lock(address _account, uint224 _amount) internal {
@@ -380,7 +380,7 @@ contract VotingEscrow is Ownable {
     ) internal {
         allocateForWithdrawal(_amount);
 
-        cve.safeTransfer(_account, _amount);
+        cve.safeTransferFrom(msg.sender, _account, _amount);
 
         if (_updateStake) {
             updateStakeRatio(0);
@@ -410,7 +410,7 @@ contract VotingEscrow is Ownable {
 
         if (ratio < min) {
             uint256 addAmount = ((total * mean) / DENOMINATOR) - stakedBalance;
-            cve.safeTransfer(staking, addAmount);
+            cve.safeTransferFrom(msg.sender, staking, addAmount);
             IStakingProxy(staking).stake();
         } else if (ratio > max) {
             uint256 removeAmount = stakedBalance - ((total * mean) / DENOMINATOR);
