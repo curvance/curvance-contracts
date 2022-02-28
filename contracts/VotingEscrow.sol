@@ -150,7 +150,7 @@ contract VotingEscrow is Ownable {
             uint256 claimable = claimableRewards[_account][_rewardToken];
             if (claimable > 0) {
                 claimableRewards[_account][_rewardToken] = 0;
-                IERC20(_rewardToken).safeTransferFrom(msg.sender, _account, claimable);
+                IERC20(_rewardToken).safeTransfer(_account, claimable);
                 emit RewardPaid(_account, _rewardToken, claimable);
             }
         }
@@ -273,7 +273,7 @@ contract VotingEscrow is Ownable {
     ) public onlyOwner {
         require(_token != address(cve), "cannot withdraw staking token");
         require(rewardData[_token].lastUpdateTime == 0, "cannot withdraw reward token");
-        IERC20(_token).safeTransferFrom(msg.sender, _to, _amount);
+        IERC20(_token).safeTransfer(_to, _amount);
     }
 
     function _lock(address _account, uint224 _amount) internal {
@@ -380,7 +380,7 @@ contract VotingEscrow is Ownable {
     ) internal {
         allocateForWithdrawal(_amount);
 
-        cve.safeTransferFrom(msg.sender, _account, _amount);
+        cve.safeTransfer(_account, _amount);
 
         if (_updateStake) {
             updateStakeRatio(0);
@@ -410,7 +410,7 @@ contract VotingEscrow is Ownable {
 
         if (ratio < min) {
             uint256 addAmount = ((total * mean) / DENOMINATOR) - stakedBalance;
-            cve.safeTransferFrom(msg.sender, staking, addAmount);
+            cve.safeTransfer(staking, addAmount);
             IStakingProxy(staking).stake();
         } else if (ratio > max) {
             uint256 removeAmount = stakedBalance - ((total * mean) / DENOMINATOR);
