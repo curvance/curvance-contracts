@@ -42,12 +42,12 @@ describe("Curvance Token - CVE", () => {
 
   it("Should not be able to mint more than `maxSupply`", async () => {
     // Get how many tokens are left to mint
-    const maxSupply = await curvanceToken.maxSupply();
+    const maxSupply = await curvanceToken.MAX_SUPPLY();
     const amountToMaxSupply = maxSupply.sub(await curvanceToken.totalSupply());
 
     // Revert if `maxSupply` is surpassed
     await expect(curvanceToken.mint(await owner.getAddress(), amountToMaxSupply.add(1))).to.be.revertedWith(
-      "maxSupply reached",
+      "MAX_SUPPLY reached",
     );
   });
 

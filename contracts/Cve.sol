@@ -13,24 +13,21 @@ import "./interfaces/ICve.sol";
  * @notice CVE token contract
  * @dev Owner address of the contract is able to mint tokens, could be a multisig contract
  */
-contract CurvanceToken is ERC20, ERC165, Ownable {
-    /// @dev 4mil CVE maximum supply
-    uint256 public maxSupply = 420_000_069 * 1e18;
+contract CurvanceToken is ERC20("Curvance Token", "CVE"), ERC165, Ownable {
+    /// @dev CVE maximum supply
+    uint256 public constant MAX_SUPPLY = 420_000_069 * 1e18;
 
     /// @dev Emit when token is minted
     event MintToken(address indexed to, uint256 amount);
 
-    /// @dev Initialize CVE token contract
-    constructor() ERC20("Curvance Token", "CVE") {}
-
     /**
-     * @dev Used to mint tokens until `maxSupply` is reached, needs to be executed
+     * @dev Used to mint tokens until `MAX_SUPPLY` is reached, needs to be executed
      *       by addresses with the MINTER role
      * @param _to Address to send funds to
      * @param _amount Amount to send
      */
     function mint(address _to, uint256 _amount) external onlyOwner {
-        require(totalSupply() + _amount <= maxSupply, "maxSupply reached");
+        require(totalSupply() + _amount <= MAX_SUPPLY, "MAX_SUPPLY reached");
         _mint(_to, _amount);
 
         emit MintToken(_to, _amount);
