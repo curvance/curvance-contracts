@@ -36,11 +36,11 @@ contract CveCVE is ERC20 {
         address _to,
         uint256
     ) internal override {
-        if (_from == address(0)) {
+        if (_from != address(0)) {
             IVotingEscrow(votingEscrow).updateReward(_from);
         }
 
-        if (_to == address(0)) {
+        if (_to != address(0)) {
             IVotingEscrow(votingEscrow).updateReward(_to);
         }
     }
