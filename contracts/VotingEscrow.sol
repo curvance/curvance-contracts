@@ -110,14 +110,14 @@ contract VotingEscrow is Ownable {
     function lock(uint224 _amount) external {
         require(_amount > 0, "invalid amount");
         cve.safeTransferFrom(msg.sender, address(this), _amount);
-        _lock(msg.sender, _amount);
+        _lock(msg.sender, _amount, false);
     }
 
     function unwrap(uint224 _amount) external {
         ICveCVE(wrapper).burn(msg.sender, _amount);
         totalLockedSupply -= _amount;
         delegatedVotes -= _amount;
-        _lock(msg.sender, _amount);
+        _lock(msg.sender, _amount, false);
 
         emit Unwrap(msg.sender, _amount);
     }
@@ -157,8 +157,8 @@ contract VotingEscrow is Ownable {
     }
 
     /// @notice Withdraw/relock all currently locked tokens where the unlock time has passed
-    function processExpiredLocks(bool _relock, address _withdrawTo) external {
-        _processExpiredLocks(msg.sender, _relock, _withdrawTo, msg.sender, false);
+    function processExpiredLocks(address _withdrawTo) external {
+        _processExpiredLocks(msg.sender, false, _withdrawTo, msg.sender, false);
     }
 
     /// @notice Withdraw/relock all currently locked tokens where the unlock time has passed
@@ -229,12 +229,12 @@ contract VotingEscrow is Ownable {
         }
 
         Lock[] storage locks = userLocks[_account];
-        uint256 locksLength = locks.length;
+        uint256 idx = locks.length;
         uint256 nextUnlockIndex = userBalances[_account].nextUnlockIndex;
         /// @dev Start with user's current locked balance
         uint256 amount = userBalances[_account].amount;
         /// @dev Removing old records is more gas efficient than adding up
-        for (uint256 i = nextUnlockIndex; i < locksLength; i++) {
+        for (uint256 i = nextUnlockIndex; i < idx; i++) {
             if (locks[i].unlockTime <= block.timestamp) {
                 amount -= locks[i].amount;
             } else {
@@ -245,8 +245,8 @@ contract VotingEscrow is Ownable {
 
         /// @dev Also remove amount in the current epoch
         uint256 currentEpoch = (block.timestamp / REWARDS_DURATION) * REWARDS_DURATION;
-        if (locksLength > 0 && uint256(locks[locksLength - 1].unlockTime) - LOCK_DURATION == currentEpoch) {
-            amount -= locks[locksLength - 1].amount;
+        if (idx > 0 && uint256(locks[idx - 1].unlockTime) - LOCK_DURATION == currentEpoch) {
+            amount -= locks[idx - 1].amount;
         }
 
         return amount;
@@ -276,7 +276,11 @@ contract VotingEscrow is Ownable {
         IERC20(_token).safeTransfer(_to, _amount);
     }
 
-    function _lock(address _account, uint224 _amount) internal {
+    function _lock(
+        address _account,
+        uint224 _amount,
+        bool _isRelock
+    ) internal {
         require(!isShutdown, "shutdown");
         require(_amount > 0, "invalid amount");
 
@@ -286,14 +290,44 @@ contract VotingEscrow is Ownable {
         balance.amount += _amount;
         totalLockedSupply += _amount;
 
-        uint256 currentEpoch = (block.timestamp / REWARDS_DURATION) * REWARDS_DURATION;
-        uint256 unlockTime = currentEpoch + LOCK_DURATION;
+        uint256 lockEpoch = (block.timestamp / REWARDS_DURATION) * REWARDS_DURATION;
+        /// @dev If a fresh lock, add on an extra duration period
+        if (!_isRelock) lockEpoch += REWARDS_DURATION;
+        uint256 unlockTime = lockEpoch + LOCK_DURATION;
 
-        uint256 locksLength = userLocks[_account].length;
-        if (locksLength == 0 || userLocks[_account][locksLength - 1].unlockTime < unlockTime) {
+        uint256 idx = userLocks[_account].length;
+
+        /// @dev If the latest user lock is smaller than this lock, always just add new entry to the end of the list
+        if (idx == 0 || userLocks[_account][idx - 1].unlockTime < unlockTime) {
             userLocks[_account].push(Lock({ amount: _amount, unlockTime: uint32(unlockTime) }));
         } else {
-            userLocks[_account][locksLength - 1].amount += _amount;
+            /// @dev Else add to a current lock
+
+            /// @dev If latest lock is further in the future, lower index.
+            // This can only happen if relocking an expired lock after creating a
+            // new lock
+            if (userLocks[_account][idx - 1].unlockTime > unlockTime) idx--;
+
+            /// @dev If index points to the epoch when same unlock time, update it.
+            // This is always true with a normal lock but maybe not with relock
+            if (userLocks[_account][idx - 1].unlockTime == unlockTime) {
+                userLocks[_account][idx - 1].amount += _amount;
+            } else {
+                /// @dev Can only enter here if a relock is made after a lock
+                /// and there's no lock entry
+
+                /// @dev Reset index
+                idx = userLocks[_account].length;
+
+                Lock storage lastLock = userLocks[_account][idx - 1];
+
+                /// @dev Move last lock to end
+                userLocks[_account].push(Lock({ amount: lastLock.amount, unlockTime: lastLock.unlockTime }));
+
+                /// @dev Insert current lock by overwriting previous last lock
+                lastLock.amount = _amount;
+                lastLock.unlockTime = uint32(unlockTime);
+            }
         }
 
         updateStakeRatio(500);
@@ -367,7 +401,7 @@ contract VotingEscrow is Ownable {
         }
 
         if (_relock) {
-            _lock(_withdrawTo, locked);
+            _lock(_withdrawTo, locked, true);
         } else {
             _withdraw(_withdrawTo, locked, true);
         }
