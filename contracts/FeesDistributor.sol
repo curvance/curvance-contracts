@@ -35,8 +35,8 @@ contract FeesDistributor is Ownable {
 
     uint32 public lastHarvestedTime;
     address public operator; // keeper
+    uint32 public harvestInterval = 86400 * 7;
     address public immutable ve; // voting escrow
-    uint256 public harvestInterval = 86400 * 7;
 
     address[] public pools;
     address[] public underlyingTokens;
@@ -104,7 +104,7 @@ contract FeesDistributor is Ownable {
      * @dev set harvest interval
      * @param _interval new interval
      */
-    function setHarvestInterval(uint256 _interval) external onlyOwner {
+    function setHarvestInterval(uint32 _interval) external onlyOwner {
         require(_interval > 0, "invalid interval");
         harvestInterval = _interval;
 
