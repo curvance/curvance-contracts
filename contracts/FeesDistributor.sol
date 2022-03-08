@@ -123,6 +123,7 @@ contract FeesDistributor is Ownable {
         uint256 _amount
     ) external onlyOwner {
         require(_to != address(0), "invalid recipient");
+        require(!underlyingExists[_token], "cannot withdraw harvested token");
         if (_amount > 0) IERC20(_token).safeTransfer(_to, _amount);
         else IERC20(_token).safeTransfer(_to, IERC20(_token).balanceOf(address(this)));
 
