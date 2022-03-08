@@ -2,9 +2,29 @@ import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
 import { zeroAddress } from "ethereumjs-util";
-import { FeesDistributor, FeesDistributor__factory, MockVotingEscrow, MockVotingEscrow__factory } from "../src/types";
+import {
+  FeesDistributor,
+  FeesDistributor__factory,
+  MockCErc20,
+  MockCErc20__factory,
+  MockComptroller,
+  MockComptroller__factory,
+  MockCve,
+  MockCve__factory,
+  MockVotingEscrow,
+  MockVotingEscrow__factory,
+} from "../src/types";
 
 const ONE_DAY = 86400;
+
+/*const mineToFuture = async (futureTime: number) => {
+  await network.provider.send("evm_increaseTime", [futureTime]);
+  await network.provider.send("evm_mine");
+};
+
+const timestamp = async () => {
+  return (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp;
+};*/
 
 describe("Fuse Pool Fees distributor", async () => {
   let owner: Signer;
@@ -12,12 +32,17 @@ describe("Fuse Pool Fees distributor", async () => {
   let alice: Signer;
   let feesDistributor: FeesDistributor;
   let ve: MockVotingEscrow;
+  let cve: MockCve;
 
   beforeEach(async () => {
     [owner, michael, alice] = await ethers.getSigners();
 
     ve = await new MockVotingEscrow__factory(owner).deploy();
     feesDistributor = await new FeesDistributor__factory(owner).deploy(await alice.getAddress(), ve.address);
+
+    cve = await new MockCve__factory(owner).deploy("Curvance Token", "CVE");
+    await cve.mint(await michael.getAddress(), ethers.utils.parseEther("100"));
+    await cve.mint(feesDistributor.address, ethers.utils.parseEther("100"));
   });
 
   describe("admin tests", async () => {
@@ -67,6 +92,46 @@ describe("Fuse Pool Fees distributor", async () => {
         .to.emit(feesDistributor, "NewHarvestInterval")
         .withArgs(ONE_DAY);
       expect(await feesDistributor.harvestInterval()).to.eq(ONE_DAY);
+    });
+
+    it("can recover token", async () => {
+      await expect(
+        feesDistributor
+          .connect(alice)
+          .recoverToken(cve.address, await owner.getAddress(), ethers.utils.parseEther("100")),
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(feesDistributor.recoverToken(cve.address, await owner.getAddress(), ethers.utils.parseEther("100")))
+        .to.emit(feesDistributor, "RecoveredToken")
+        .withArgs(cve.address, await owner.getAddress(), await owner.getAddress(), ethers.utils.parseEther("100"));
+
+      expect(await cve.balanceOf(await owner.getAddress())).to.eq(ethers.utils.parseEther("100"));
+
+      // TODO: add test for underlyingExists check
+    });
+  });
+
+  describe("harvesting", async () => {
+    let comptroller: MockComptroller;
+    let erc20_A: MockCve;
+    let erc20_B: MockCve;
+    let cERC20_A: MockCErc20;
+    let cERC20_B: MockCErc20;
+    let fd: FeesDistributor;
+    let ve: MockVotingEscrow;
+
+    beforeEach(async () => {
+      // deplloy erc20s
+      erc20_A = await new MockCve__factory(owner).deploy("ERC20 A", "20A");
+      erc20_B = await new MockCve__factory(owner).deploy("ERC20 B", "20B");
+      // create pool/comptroller
+      cERC20_A = await new MockCErc20__factory(owner).deploy(erc20_A.address);
+      comptroller = await new MockComptroller__factory(owner).deploy([cERC20_A.address]);
+
+      ve = await new MockVotingEscrow__factory(owner).deploy();
+      fd = await new FeesDistributor__factory(owner).deploy(await alice.getAddress(), ve.address);
+
+      // add pool
+      await fd.addPool(comptroller.address);
     });
   });
 });
