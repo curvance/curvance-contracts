@@ -10,7 +10,7 @@ interface CErc20 {
 
     function _withdrawAdminFees(uint256 withdrawAmount) external returns (uint256);
 
-    function underlying() external returns (address);
+    function underlying() external view returns (address);
 }
 
 interface IComptroller {
@@ -156,7 +156,7 @@ contract FeesDistributor is Ownable {
                     if (_distribute) {
                         _notifyRewardsAmount(underlying, fees);
                     } else {
-                        feesRemaining[address(markets[j])] += fees;
+                        feesRemaining[underlying] += fees;
                     }
 
                     emit FeesHarvested(pools[i], address(markets[j]), fees);

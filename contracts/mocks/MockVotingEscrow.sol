@@ -5,7 +5,18 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // mock CVE for testing
 contract MockVotingEscrow {
-    constructor() {}
+    struct Reward {
+        uint40 periodFinish;
+        uint216 rewardRate;
+        uint40 lastUpdateTime;
+        uint216 rewardPerTokenStored;
+    }
+    mapping(address => Reward) public rewardData;
+
+    constructor(address _token) {
+        rewardData[_token].periodFinish = uint32(block.timestamp);
+        rewardData[_token].lastUpdateTime = uint32(block.timestamp);
+    }
 
     function notifyRewardAmount(address _token, uint256 _amount) external pure returns (bool) {
         _token;

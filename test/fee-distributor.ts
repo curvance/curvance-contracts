@@ -1,12 +1,12 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { Signer } from "ethers";
 import { zeroAddress } from "ethereumjs-util";
 import {
   FeesDistributor,
   FeesDistributor__factory,
-  MockCErc20,
-  MockCErc20__factory,
+  MCErc20,
+  MCErc20__factory,
   MockComptroller,
   MockComptroller__factory,
   MockCve,
@@ -17,14 +17,14 @@ import {
 
 const ONE_DAY = 86400;
 
-/*const mineToFuture = async (futureTime: number) => {
+const mineToFuture = async (futureTime: number) => {
   await network.provider.send("evm_increaseTime", [futureTime]);
   await network.provider.send("evm_mine");
 };
 
 const timestamp = async () => {
   return (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp;
-};*/
+};
 
 describe("Fuse Pool Fees distributor", async () => {
   let owner: Signer;
@@ -33,16 +33,33 @@ describe("Fuse Pool Fees distributor", async () => {
   let feesDistributor: FeesDistributor;
   let ve: MockVotingEscrow;
   let cve: MockCve;
+  let comptroller: MockComptroller;
+  let erc20_A: MockCve;
+  let erc20_B: MockCve;
+  let cERC20_A: MCErc20;
 
   beforeEach(async () => {
     [owner, michael, alice] = await ethers.getSigners();
 
-    ve = await new MockVotingEscrow__factory(owner).deploy();
+    // deplloy erc20s
+    erc20_A = await new MockCve__factory(owner).deploy("ERC20 A", "20A");
+    erc20_B = await new MockCve__factory(owner).deploy("ERC20 B", "20B");
+    // create pool/comptroller
+    cERC20_A = await new MCErc20__factory(owner).deploy(erc20_A.address);
+    comptroller = await new MockComptroller__factory(owner).deploy([cERC20_A.address]);
+
+    ve = await new MockVotingEscrow__factory(owner).deploy(await cERC20_A.underlying());
     feesDistributor = await new FeesDistributor__factory(owner).deploy(await alice.getAddress(), ve.address);
 
     cve = await new MockCve__factory(owner).deploy("Curvance Token", "CVE");
     await cve.mint(await michael.getAddress(), ethers.utils.parseEther("100"));
     await cve.mint(feesDistributor.address, ethers.utils.parseEther("100"));
+
+    // add pool
+    await feesDistributor.addPool(comptroller.address);
+
+    // mint fees to cerc20
+    await erc20_A.mint(cERC20_A.address, ethers.utils.parseEther("100"));
   });
 
   describe("admin tests", async () => {
@@ -64,7 +81,7 @@ describe("Fuse Pool Fees distributor", async () => {
       await expect(feesDistributor.addPool(await michael.getAddress()))
         .to.emit(feesDistributor, "PoolAdded")
         .withArgs(await michael.getAddress());
-      const pool = await feesDistributor.pools(0);
+      const pool = await feesDistributor.pools(1);
       expect(pool).to.eq(await michael.getAddress());
       expect(await feesDistributor.poolExists(await michael.getAddress())).to.eq(true);
 
@@ -108,30 +125,78 @@ describe("Fuse Pool Fees distributor", async () => {
 
       // TODO: add test for underlyingExists check
     });
-  });
 
-  describe("harvesting", async () => {
-    let comptroller: MockComptroller;
-    let erc20_A: MockCve;
-    let erc20_B: MockCve;
-    let cERC20_A: MockCErc20;
-    let cERC20_B: MockCErc20;
-    let fd: FeesDistributor;
-    let ve: MockVotingEscrow;
+    it("harvest only at intervals", async () => {
+      // only operator
+      await expect(feesDistributor.connect(michael).harvestAdminFees(false)).to.be.revertedWith("not authorized");
 
-    beforeEach(async () => {
-      // deplloy erc20s
-      erc20_A = await new MockCve__factory(owner).deploy("ERC20 A", "20A");
-      erc20_B = await new MockCve__factory(owner).deploy("ERC20 B", "20B");
-      // create pool/comptroller
-      cERC20_A = await new MockCErc20__factory(owner).deploy(erc20_A.address);
-      comptroller = await new MockComptroller__factory(owner).deploy([cERC20_A.address]);
+      // fast forward
+      await mineToFuture((await timestamp()) + ONE_DAY);
 
-      ve = await new MockVotingEscrow__factory(owner).deploy();
-      fd = await new FeesDistributor__factory(owner).deploy(await alice.getAddress(), ve.address);
+      await feesDistributor.connect(alice).harvestAdminFees(false);
+    });
 
-      // add pool
-      await fd.addPool(comptroller.address);
+    it("can harvest admin fees", async () => {
+      await expect(feesDistributor.connect(michael).harvestAdminFees(false)).to.be.revertedWith("not authorized");
+      // no underlying tokens nor fees yet
+      expect(await feesDistributor.underlyingExists(await cERC20_A.underlying())).to.eq(false);
+      expect(await feesDistributor.feesHarvested(cERC20_A.address)).to.eq(0);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(0);
+
+      const fees = ethers.utils.parseEther("100");
+      await expect(feesDistributor.connect(alice).harvestAdminFees(false))
+        .to.emit(feesDistributor, "FeesHarvested")
+        .withArgs(comptroller.address, cERC20_A.address, fees);
+
+      // validate harvest interval
+      expect(await feesDistributor.lastHarvestedTime()).to.gt(0);
+
+      // check underlying and fees
+      expect(await feesDistributor.underlyingExists(await cERC20_A.underlying())).to.eq(true);
+      expect(await feesDistributor.feesHarvested(cERC20_A.address)).to.eq(fees);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(fees);
+      expect(await feesDistributor.underlyingTokens(0)).to.eq(await cERC20_A.underlying());
+    });
+
+    it("notifies reward amount", async () => {
+      const fees = ethers.utils.parseEther("100");
+      await expect(feesDistributor.connect(alice).harvestAdminFees(true))
+        .to.emit(feesDistributor, "FeesDistributed")
+        .withArgs(ve.address, await cERC20_A.underlying(), fees);
+      expect(await feesDistributor.feesHarvested(cERC20_A.address)).to.eq(fees);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(0);
+    });
+
+    it("distributes remaining fees for a token", async () => {
+      const fees = ethers.utils.parseEther("100");
+      await feesDistributor.connect(alice).harvestAdminFees(false);
+
+      await expect(feesDistributor.connect(alice).distribute(await owner.getAddress())).to.be.revertedWith(
+        "nothing to distribute",
+      );
+
+      await expect(feesDistributor.connect(alice).distribute(await cERC20_A.underlying()))
+        .to.emit(feesDistributor, "FeesDistributed")
+        .withArgs(ve.address, await cERC20_A.underlying(), fees);
+      expect(await feesDistributor.feesHarvested(cERC20_A.address)).to.eq(fees);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(0);
+
+      await expect(feesDistributor.connect(alice).distribute(await cERC20_A.underlying())).to.be.revertedWith(
+        "nothing to distribute",
+      );
+    });
+
+    it("distributes all remaining fees", async () => {
+      const fees = ethers.utils.parseEther("100");
+      await feesDistributor.connect(alice).harvestAdminFees(false);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(fees);
+      expect(await feesDistributor.underlyingExists(await cERC20_A.underlying())).to.eq(true);
+
+      await expect(feesDistributor.connect(alice).distributeAll())
+        .to.emit(feesDistributor, "FeesDistributed")
+        .withArgs(ve.address, await cERC20_A.underlying(), fees);
+      expect(await feesDistributor.feesHarvested(cERC20_A.address)).to.eq(fees);
+      expect(await feesDistributor.feesRemaining(await cERC20_A.underlying())).to.eq(0);
     });
   });
 });
