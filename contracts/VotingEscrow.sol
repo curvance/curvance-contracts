@@ -84,6 +84,11 @@ contract VotingEscrow is Ownable {
         firstEpochStartTime = uint32(block.timestamp);
     }
 
+    /**
+     * @notice deposit cve for CVECVE for an account
+     * @param _account the account for whom to wrap cve
+     * @param _amount amount of cve tokens to wrap
+     */
     function deposit(address _account, uint256 _amount) external {
         updateReward(_account);
 
@@ -96,12 +101,21 @@ contract VotingEscrow is Ownable {
         ICveCVE(wrapper).mint(_account, _amount);
     }
 
+    /**
+     * @notice lock cve for account
+     * @param _account the account for whom to lock
+     * @param _amount amount of cve tokens to lock
+     */
     function lock(address _account, uint224 _amount) external {
         cve.safeTransferFrom(msg.sender, address(this), _amount);
 
         _lock(_account, _amount, false);
     }
 
+    /**
+     * @notice withdraw and lock cve. By design, CVECVE can only be withdrawn for a locked cve position
+     * @param _amount amount of CVECVE tokens to unwrap
+     */
     function unwrap(uint224 _amount) external {
         ICveCVE(wrapper).burn(msg.sender, _amount);
         totalLockedSupply -= _amount;
@@ -111,13 +125,11 @@ contract VotingEscrow is Ownable {
         emit Unwrap(msg.sender, _amount);
     }
 
-    /// @dev Should be called immediately after deployment
+    /**
+     * @dev Set approvals for staking. Should be called immediately after deployment
+     */
     function setApprovals() external {
         cve.safeIncreaseAllowance(staking, type(uint256).max);
-    }
-
-    function withdraw(address _account, uint256 _amount) external onlyOwner {
-        _withdraw(_account, _amount, true);
     }
 
     /// @notice Set the staking contract for the underlying CVE
@@ -610,6 +622,11 @@ contract VotingEscrow is Ownable {
 
     function _allocateCVEForWithdrawal(uint256 _amount) internal {
         uint256 balance = cve.balanceOf(address(this));
+        // consider delegated votes in calculation.
+        // TODO: 0xhamish. will we stake or invest them in a strategy? if so, this will affect below condition
+        if (delegatedVotes > 0 && balance > 0) {
+            balance -= delegatedVotes;
+        }
         if (_amount > balance) {
             IStakingProxy(staking).withdraw(_amount - balance);
         }
