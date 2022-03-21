@@ -18,6 +18,7 @@ contract VotingEscrow is Ownable {
     event KickReward(address indexed _user, address indexed _kicked, uint256 _amount);
     event FundedReward(address indexed _token, uint256 _amount);
     event RewardAdded(address token, uint256 amount);
+    event TokenRecovered(address _token, address _to, uint256 _amount);
 
     struct Balance {
         uint224 amount;
@@ -80,7 +81,7 @@ contract VotingEscrow is Ownable {
         cve = _cve;
         wrapper = _wrapper;
 
-        // epoch start period. will be used for view functions
+        // first epoch start period. will be used for view functions
         firstEpochStartTime = uint32(block.timestamp);
     }
 
@@ -102,6 +103,93 @@ contract VotingEscrow is Ownable {
         // stake directly
         cve.safeIncreaseAllowance(address(staking), _amount);
         IStakingProxy(staking).stake(_amount);
+    }
+
+    /**
+     * @dev Set kick incentive
+     * @param _rate rate per epoch
+     * @param _delay grace period factor
+     */
+    function setKickIncentive(uint256 _rate, uint256 _delay) external onlyOwner {
+        require(_rate <= 500, "over max rate"); /// @dev Max 5% per epoch
+        require(_delay >= 2, "min delay"); /// @dev Minimum 2 weeks of grace
+        kickRewardPerEpoch = _rate;
+        gracePeriod = REWARDS_DURATION * _delay;
+    }
+
+    /**
+     * @dev Shuts down the contract, unstakes all tokens, releases all locks
+     */
+    function shutdown() external onlyOwner {
+        if (staking != address(0)) {
+            uint256 stakedBalance = IStakingProxy(staking).getBalance();
+            IStakingProxy(staking).withdraw(stakedBalance);
+        }
+        isShutdown = true;
+    }
+
+    /**
+     * @dev Set approvals for staking. Should be called immediately after deployment
+     */
+    function setApprovals() external onlyOwner {
+        cve.safeIncreaseAllowance(staking, type(uint256).max);
+    }
+
+    /// @notice Set the staking contract for the underlying CVE
+    function setStakingContract(address _staking) external onlyOwner {
+        // TODO: 0xhamish. alternatively let staking contract have isShutdown flag so one can change staking contract
+        require(staking == address(0), "already set");
+        staking = _staking;
+    }
+
+    /**
+     * @dev Approve reward distributor
+     * @param _rewardsToken token to be approved
+     * @param _distributor address to distribute rewards
+     * @param _approved flag approved or not
+     */
+    function approveRewardDistributor(
+        address _rewardsToken,
+        address _distributor,
+        bool _approved
+    ) external onlyOwner {
+        require(rewardData[_rewardsToken].lastUpdateTime > 0, "!exist");
+        rewardDistributors[_rewardsToken][_distributor] = _approved;
+    }
+
+    /**
+     * @dev Add reward to be distributed by a distributor
+     * @param _rewardToken reward token to be approved
+     * @param _distributor address to distribute rewards
+     */
+    function addReward(address _rewardToken, address _distributor) external onlyOwner {
+        require(rewardData[_rewardToken].lastUpdateTime == 0, "exists");
+        require(_rewardToken != address(cve), "!assign");
+        rewardTokens.push(_rewardToken);
+        rewardData[_rewardToken].lastUpdateTime = uint40(block.timestamp);
+        rewardData[_rewardToken].periodFinish = uint40(block.timestamp);
+        rewardDistributors[_rewardToken][_distributor] = true;
+    }
+
+    /**
+     * @dev Recover token sent accidentally to contract or leftover rewards. Token shouldn't be staking token
+     * @param _token token to recover
+     * @param _to address to which recovered tokens are sent
+     * @param _amount amount of tokens to recover
+     */
+    function recoverToken(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external onlyOwner {
+        require(_token != address(cve), "cannot withdraw staking token");
+        require(rewardData[_token].lastUpdateTime == 0, "cannot withdraw reward token");
+        if (_amount == 0) {
+            _amount = IERC20(_token).balanceOf(address(this));
+        }
+        IERC20(_token).safeTransfer(_to, _amount);
+
+        emit TokenRecovered(_token, _to, _amount);
     }
 
     /**
@@ -130,19 +218,9 @@ contract VotingEscrow is Ownable {
     }
 
     /**
-     * @dev Set approvals for staking. Should be called immediately after deployment
+     * @notice get rewards for an account
+     * @param _account the account for whom to get rewards
      */
-    function setApprovals() external {
-        cve.safeIncreaseAllowance(staking, type(uint256).max);
-    }
-
-    /// @notice Set the staking contract for the underlying CVE
-    function setStakingContract(address _staking) external onlyOwner {
-        // TODO: 0xhamish. alternatively let staking contract have isShutdown flag so one can change staking contract
-        require(staking == address(0), "already set");
-        staking = _staking;
-    }
-
     function getRewards(address _account) external {
         updateReward(_account);
 
@@ -157,6 +235,11 @@ contract VotingEscrow is Ownable {
         }
     }
 
+    /**
+     * @notice get reward for an account for a given reward token
+     * @param _account the account for whom to get reward
+     * @param _rewardToken the reward token
+     */
     function getReward(address _account, address _rewardToken) external {
         updateReward(_account);
 
@@ -169,61 +252,43 @@ contract VotingEscrow is Ownable {
         }
     }
 
-    /// @notice Withdraw/relock all currently locked tokens where the unlock time has passed
+    /**
+     * @notice Withdraw/relock all currently locked tokens where the unlock time has passed
+     * @param _withdrawTo the account to receive withdrawn tokens
+     */
     function processExpiredLocks(address _withdrawTo) external {
         _processExpiredLocks(msg.sender, false, _withdrawTo, msg.sender, false);
     }
 
-    /// @notice Withdraw/relock all currently locked tokens where the unlock time has passed
+    /**
+     * @notice Withdraw/relock all currently locked tokens where the unlock time has passed
+     * @param _relock whether to relock or not
+     */
     function processExpiredLocks(bool _relock) external {
         _processExpiredLocks(msg.sender, _relock, msg.sender, msg.sender, false);
     }
 
+    /**
+     * @notice Kick expired locks for a given account
+     * @param _account account for which to kick expired locks
+     */
     function kickExpiredLocks(address _account) external {
         /// @dev Allow kick after grace period
         _processExpiredLocks(_account, false, _account, msg.sender, true);
     }
 
-    function setKickIncentive(uint256 _rate, uint256 _delay) external onlyOwner {
-        require(_rate <= 500, "over max rate"); /// @dev Max 5% per epoch
-        require(_delay >= 2, "min delay"); /// @dev Minimum 2 weeks of grace
-        kickRewardPerEpoch = _rate;
-        gracePeriod = REWARDS_DURATION * _delay;
-    }
-
-    /// @dev Shuts down the contract, unstakes all tokens, releases all locks
-    function shutdown() external onlyOwner {
-        if (staking != address(0)) {
-            uint256 stakedBalance = IStakingProxy(staking).getBalance();
-            IStakingProxy(staking).withdraw(stakedBalance);
-        }
-        isShutdown = true;
-    }
-
-    function approveRewardDistributor(
-        address _rewardsToken,
-        address _distributor,
-        bool _approved
-    ) external onlyOwner {
-        require(rewardData[_rewardsToken].lastUpdateTime > 0, "!exist");
-        rewardDistributors[_rewardsToken][_distributor] = _approved;
-    }
-
-    function addReward(address _rewardToken, address _distributor) external onlyOwner {
-        require(rewardData[_rewardToken].lastUpdateTime == 0, "exists");
-        require(_rewardToken != address(cve), "!assign");
-        rewardTokens.push(_rewardToken);
-        rewardData[_rewardToken].lastUpdateTime = uint40(block.timestamp);
-        rewardData[_rewardToken].periodFinish = uint40(block.timestamp);
-        rewardDistributors[_rewardToken][_distributor] = true;
-    }
-
-    /// @dev Total token balance of an account, including unlocked but not withdrawn tokens
+    /**
+     * @notice Total token balance of an account, including unlocked but not withdrawn tokens
+     * @param _user account for which to check locked balance
+     */
     function lockedBalanceOf(address _user) external view returns (uint256) {
         return userBalances[_user].amount;
     }
 
-    // Information on a user's locked balances
+    /**
+     * @notice Information on a user's locked balances
+     * @param _user account for which to get information
+     */
     function lockedBalances(address _user)
         external
         view
@@ -253,7 +318,11 @@ contract VotingEscrow is Ownable {
         return (userBalance.amount, unlockable, locked, lockData);
     }
 
-    //locked balance of an account which only includes properly locked tokens as of the most recent eligible epoch
+    /**
+     * @notice Locked balance of an account which only includes properly locked tokens
+     *         as of the most recent eligible epoch. Returns delegated votes for escrow owner
+     * @param _account account for which to get information
+     */
     function balanceOf(address _account) external view returns (uint256) {
         if (_account == owner()) {
             return delegatedVotes;
@@ -283,33 +352,43 @@ contract VotingEscrow is Ownable {
         return amount;
     }
 
+    /**
+     * @notice Reward per token
+     * @param _rewardsToken rewards token
+     */
     function rewardPerToken(address _rewardsToken) external view returns (uint256) {
         return _rewardPerToken(_rewardsToken);
     }
 
+    /**
+     * @notice Reward per token for duration
+     * @param _rewardsToken rewards token
+     */
     function getRewardForDuration(address _rewardsToken) external view returns (uint256) {
         return uint256(rewardData[_rewardsToken].rewardRate) * REWARDS_DURATION;
     }
 
-    //number of epochs
+    /**
+     * @notice Get number of epochs
+     */
     function epochCount() external view returns (uint256) {
         return getCurrentEpochIndex() + 1;
     }
 
-    ////supply of all properly locked balances at most recent eligible epoch
+    /**
+     * @notice Supply of all properly locked balances at most recent eligible epoch
+     */
     function totalSupply() external view returns (uint256) {
         uint256 currentEpoch = getCurrentEpoch();
         uint256 cutOffEpoch = currentEpoch - LOCK_DURATION;
 
         uint256 currentEpochIndex = getCurrentEpochIndex();
-        // TODO: is this condition ever going to fire?
         if (currentEpochIndex * REWARDS_DURATION + firstEpochStartTime > currentEpoch) {
             currentEpochIndex -= 1;
         }
 
         //traverse inversely to make more current queries more gas efficient
         uint256 supply;
-        // TODO: check if i = currentEpochIndex - 1 instead
         for (uint256 i = currentEpochIndex; i + 1 != 0; i--) {
             uint256 epochDate = i * REWARDS_DURATION + firstEpochStartTime;
             if (epochDate <= cutOffEpoch) {
@@ -321,7 +400,10 @@ contract VotingEscrow is Ownable {
         return supply;
     }
 
-    // supply of all properly locked BOOSTED balances at the given epoch
+    /**
+     * @notice Supply of all properly locked BOOSTED balances at the given epoch
+     * @param _epochIndex index of epoch at which total supply is calculated
+     */
     function totalSupplyAtEpochIndex(uint256 _epochIndex) public view returns (uint256) {
         if (getCurrentEpochIndex() < _epochIndex) {
             return 0;
@@ -344,7 +426,10 @@ contract VotingEscrow is Ownable {
         return supply;
     }
 
-    //return currently locked but not active balance
+    /**
+     * @notice Return currently locked but not active balance
+     * @param _user account for whom to compute pending lock
+     */
     function pendingLockOf(address _user) external view returns (uint256 amount) {
         Lock[] storage locks = userLocks[_user];
 
@@ -359,15 +444,18 @@ contract VotingEscrow is Ownable {
         return 0;
     }
 
-    // _epoch is epoch index
-    function pendingLockAtEpochOf(uint256 _epoch, address _user) external view returns (uint256) {
+    /**
+     * @notice Return currently locked but not active balance
+     * @param _user account for whom to compute pending lock
+     */
+    function pendingLockAtEpochOf(uint256 _epochIndex, address _user) external view returns (uint256) {
         Lock[] storage locks = userLocks[_user];
 
         uint256 currentEpochIndex = getCurrentEpochIndex();
-        if (_epoch > currentEpochIndex) {
+        if (_epochIndex > currentEpochIndex) {
             return 0;
         }
-        uint256 nextEpoch = _epoch * REWARDS_DURATION + firstEpochStartTime + REWARDS_DURATION;
+        uint256 nextEpoch = _epochIndex * REWARDS_DURATION + firstEpochStartTime + REWARDS_DURATION;
         //traverse inversely
         for (uint256 i = locks.length - 1; i + 1 != 0; i--) {
             uint256 lockEpoch = uint256(locks[i].unlockTime) - LOCK_DURATION;
@@ -384,14 +472,23 @@ contract VotingEscrow is Ownable {
         return 0;
     }
 
+    /**
+     * @notice Return current epoch
+     */
     function getCurrentEpoch() public view returns (uint256) {
         return (block.timestamp / REWARDS_DURATION) * REWARDS_DURATION;
     }
 
+    /**
+     * @notice Return next epoch
+     */
     function getNextEpoch() public view returns (uint256) {
         return getCurrentEpoch() + REWARDS_DURATION;
     }
 
+    /**
+     * @notice Return index of current epoch
+     */
     function getCurrentEpochIndex() public view returns (uint256) {
         uint256 currentEpoch = getCurrentEpoch();
         // will get rounded
@@ -399,7 +496,10 @@ contract VotingEscrow is Ownable {
         return currentEpochIndex;
     }
 
-    // return max uint if epoch out of place
+    /**
+     * @notice Return index of a given epoch. Return max uint if epoch is out of place
+     * @param _epoch the epoch
+     */
     function getEpochIndex(uint256 _epoch) public view returns (uint256) {
         uint256 currentEpoch = getCurrentEpoch();
         if (_epoch > currentEpoch) {
@@ -409,6 +509,10 @@ contract VotingEscrow is Ownable {
         return (_epoch - firstEpochStartTime) / REWARDS_DURATION;
     }
 
+    /**
+     * @notice Update reward params for an account
+     * @param _account account for whom to update reward params
+     */
     function updateReward(address _account) public {
         {
             //stack too deep
@@ -426,6 +530,22 @@ contract VotingEscrow is Ownable {
         }
     }
 
+    /**
+     * @dev Return last finished time applicable of a reward token
+     * @param _rewardsToken rewards token
+     */
+    function lastTimeRewardApplicable(address _rewardsToken) public view returns (uint256) {
+        return _lastTimeRewardApplicable(rewardData[_rewardsToken].periodFinish);
+    }
+
+    ///////////////////////////////////////////
+    ////////////// Internal Functions /////////
+    ///////////////////////////////////////////
+
+    /**
+     * @dev Return reward per token
+     * @param _rewardsToken rewards token
+     */
     function _rewardPerToken(address _rewardsToken) internal view returns (uint256) {
         if (totalLockedSupply == 0) {
             return rewardData[_rewardsToken].rewardPerTokenStored;
@@ -439,6 +559,12 @@ contract VotingEscrow is Ownable {
                 1e18) / totalLockedSupply);
     }
 
+    /**
+     * @dev Return earned amount of reward tokens for an account
+     * @param _user account to calculate for
+     * @param _rewardsToken reward token
+     * @param _balance balance to use in calculation
+     */
     function _earned(
         address _user,
         address _rewardsToken,
@@ -450,27 +576,21 @@ contract VotingEscrow is Ownable {
             claimableRewards[_user][_rewardsToken];
     }
 
-    function recoverToken(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) external onlyOwner {
-        require(_token != address(cve), "cannot withdraw staking token");
-        require(rewardData[_token].lastUpdateTime == 0, "cannot withdraw reward token");
-        if (_amount == 0) {
-            _amount = IERC20(_token).balanceOf(address(this));
-        }
-        IERC20(_token).safeTransfer(_to, _amount);
-    }
-
-    function lastTimeRewardApplicable(address _rewardsToken) public view returns (uint256) {
-        return _lastTimeRewardApplicable(rewardData[_rewardsToken].periodFinish);
-    }
-
+    /**
+     * @dev Return last finished time applicable of a reward token. Internal function
+     * @param _finishTime finish time
+     */
     function _lastTimeRewardApplicable(uint256 _finishTime) internal view returns (uint256) {
         return Math.min(block.timestamp, _finishTime);
     }
 
+    /**
+     * @dev Vote-lock cve tokens
+     * @param _account account for whom to lock
+     * @param _amount amount of tokens to lock
+     * @param _isRelock whether or not this action is a fresh lock
+     * @param _stake whether or not to stake cve directly
+     */
     function _lock(
         address _account,
         uint224 _amount,
@@ -537,6 +657,15 @@ contract VotingEscrow is Ownable {
         emit Locked(_account, _amount);
     }
 
+    /**
+     * @dev Process expired locks
+     * @param _account account for whom to process
+     * @param _relock whether to relock processed tokens
+     * @param _withdrawTo receiver of processed tokens
+     * @param _rewardAddress in the event of a kick incentive/reward, receiver of said reward
+     * @param _useGracePeriod in the event of kicking expired locks, grace period after 
+            which expired locks can be kicked
+     */
     function _processExpiredLocks(
         address _account,
         bool _relock,
@@ -613,11 +742,16 @@ contract VotingEscrow is Ownable {
         if (_relock) {
             _lock(_withdrawTo, locked, true, true);
         } else {
-            _withdraw(_withdrawTo, locked, true);
+            _transfer(_withdrawTo, locked, true);
         }
     }
 
-    function _withdraw(
+    /**
+     * @dev Transfer cve to account
+     * @param _account account to which funds are transferred
+     * @param _amount amount of tokens to transfer
+     */
+    function _transfer(
         address _account,
         uint256 _amount,
         bool
@@ -627,6 +761,10 @@ contract VotingEscrow is Ownable {
         cve.safeTransfer(_account, _amount);
     }
 
+    /**
+     * @dev Allocate cve to this contract for transfer
+     * @param _amount amount of tokens to allocate
+     */
     function _allocateCVEForWithdrawal(uint256 _amount) internal {
         uint256 balance = cve.balanceOf(address(this));
         if (_amount > balance) {
@@ -634,33 +772,43 @@ contract VotingEscrow is Ownable {
         }
     }
 
-    function _notifyReward(address _rewardsToken, uint256 _reward) internal {
+    /**
+     * @dev Notify contract of new distributed rewards
+     * @param _rewardsToken reward token
+     * @param _amount amount of reward tokens
+     */
+    function _notifyReward(address _rewardsToken, uint256 _amount) internal {
         Reward storage rdata = rewardData[_rewardsToken];
 
         if (block.timestamp >= rdata.periodFinish) {
-            rdata.rewardRate = uint216(_reward / REWARDS_DURATION);
+            rdata.rewardRate = uint216(_amount / REWARDS_DURATION);
         } else {
             uint256 remaining = uint256(rdata.periodFinish) - block.timestamp;
             uint256 leftover = remaining * rdata.rewardRate;
-            rdata.rewardRate = uint216((_reward + leftover) / REWARDS_DURATION);
+            rdata.rewardRate = uint216((_amount + leftover) / REWARDS_DURATION);
         }
 
         rdata.lastUpdateTime = uint40(block.timestamp);
         rdata.periodFinish = uint40(block.timestamp + REWARDS_DURATION);
     }
 
-    function notifyRewardAmount(address _rewardsToken, uint256 _reward) external {
+    /**
+     * @dev Notify contract of new distributed rewards
+     * @param _rewardsToken reward token
+     * @param _amount amount of reward tokens
+     */
+    function notifyRewardAmount(address _rewardsToken, uint256 _amount) external {
         updateReward(address(0));
 
         require(rewardDistributors[_rewardsToken][msg.sender], "not distributor");
-        require(_reward > 0, "No reward");
+        require(_amount > 0, "No reward");
 
-        _notifyReward(_rewardsToken, _reward);
+        _notifyReward(_rewardsToken, _amount);
 
         // handle the transfer of reward tokens via `transferFrom` to reduce the number
         // of transactions required and ensure correctness of the _reward amount
-        IERC20(_rewardsToken).safeTransferFrom(msg.sender, address(this), _reward);
+        IERC20(_rewardsToken).safeTransferFrom(msg.sender, address(this), _amount);
 
-        emit RewardAdded(_rewardsToken, _reward);
+        emit RewardAdded(_rewardsToken, _amount);
     }
 }
