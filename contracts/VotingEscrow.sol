@@ -95,10 +95,13 @@ contract VotingEscrow is Ownable {
         cve.safeTransferFrom(msg.sender, address(this), _amount);
 
         totalLockedSupply += _amount;
-        /// @dev Deletgates votes to the team multisig
+        /// @dev Delegates votes to the team multisig
         delegatedVotes += _amount;
 
         ICveCVE(wrapper).mint(_account, _amount);
+        // stake directly
+        cve.safeIncreaseAllowance(address(staking), _amount);
+        IStakingProxy(staking).stake(_amount);
     }
 
     /**
@@ -120,6 +123,7 @@ contract VotingEscrow is Ownable {
         ICveCVE(wrapper).burn(msg.sender, _amount);
         totalLockedSupply -= _amount;
         delegatedVotes -= _amount;
+        // TODO: 0xhamish. add flag to indicate staking or not for this special case of unwrap
         _lock(msg.sender, _amount, false);
 
         emit Unwrap(msg.sender, _amount);
@@ -134,7 +138,7 @@ contract VotingEscrow is Ownable {
 
     /// @notice Set the staking contract for the underlying CVE
     function setStakingContract(address _staking) external onlyOwner {
-        // TODO: @dev alternatively let staking contract have isShutdown flag so one can change staking contract
+        // TODO: 0xhamish. alternatively let staking contract have isShutdown flag so one can change staking contract
         require(staking == address(0), "already set");
         staking = _staking;
     }
@@ -622,11 +626,6 @@ contract VotingEscrow is Ownable {
 
     function _allocateCVEForWithdrawal(uint256 _amount) internal {
         uint256 balance = cve.balanceOf(address(this));
-        // consider delegated votes in calculation.
-        // TODO: 0xhamish. will we stake or invest them in a strategy? if so, this will affect below condition
-        if (delegatedVotes > 0 && balance > 0) {
-            balance -= delegatedVotes;
-        }
         if (_amount > balance) {
             IStakingProxy(staking).withdraw(_amount - balance);
         }
