@@ -112,7 +112,7 @@ contract VotingEscrow is Ownable {
     function lock(address _account, uint224 _amount) external {
         cve.safeTransferFrom(msg.sender, address(this), _amount);
 
-        _lock(_account, _amount, false);
+        _lock(_account, _amount, false, true);
     }
 
     /**
@@ -123,8 +123,8 @@ contract VotingEscrow is Ownable {
         ICveCVE(wrapper).burn(msg.sender, _amount);
         totalLockedSupply -= _amount;
         delegatedVotes -= _amount;
-        // TODO: 0xhamish. add flag to indicate staking or not for this special case of unwrap
-        _lock(msg.sender, _amount, false);
+        // @dev don't stake because _amount of cve were staked during deposit
+        _lock(msg.sender, _amount, false, false);
 
         emit Unwrap(msg.sender, _amount);
     }
@@ -474,7 +474,8 @@ contract VotingEscrow is Ownable {
     function _lock(
         address _account,
         uint224 _amount,
-        bool _isRelock
+        bool _isRelock,
+        bool _stake
     ) internal {
         require(!isShutdown, "shutdown");
         require(_amount > 0, "invalid amount");
@@ -528,8 +529,10 @@ contract VotingEscrow is Ownable {
         }
 
         // stake amount directly
-        cve.safeIncreaseAllowance(address(staking), _amount);
-        IStakingProxy(staking).stake(_amount);
+        if (_stake) {
+            cve.safeIncreaseAllowance(address(staking), _amount);
+            IStakingProxy(staking).stake(_amount);
+        }
 
         emit Locked(_account, _amount);
     }
@@ -608,7 +611,7 @@ contract VotingEscrow is Ownable {
 
         // relock or return to user
         if (_relock) {
-            _lock(_withdrawTo, locked, true);
+            _lock(_withdrawTo, locked, true, true);
         } else {
             _withdraw(_withdrawTo, locked, true);
         }
