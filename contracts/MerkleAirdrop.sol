@@ -14,10 +14,10 @@ contract CVEAirdrop {
     uint256 public immutable maximumClaimAmount;
     uint256 public immutable endClaimTimestamp;
 
-    bytes32 public airdropMerkleRoot;
-    address public owner;
-    bool public isPaused;
-    uint256 private locked = 1;
+    bytes32 public           airdropMerkleRoot;
+    address public           owner;
+    bool    public           isPaused = true;
+    uint256 private          locked = 1;
 
     mapping(address => bool) public airdropClaimed;
 
@@ -66,15 +66,15 @@ contract CVEAirdrop {
 
     /**
      * @notice Claim CVE tokens for airdrop
-     * @param amount Requested CVE amount to claim for the airdrop
-     * @param _proof Bytes32 array containing the merkle proofs
+     * @param _amount Requested CVE amount to claim for the airdrop
+     * @param _proof Bytes32 array containing the merkle proof
      */
-    function claimAirdrop(uint256 amount, bytes32[] calldata _proof) external notPaused nonReentrant {
+    function claimAirdrop(uint256 _amount, bytes32[] calldata _proof) external notPaused nonReentrant {
         // Verify that the airdrop Merkle Root has been set
         require(airdropMerkleRoot != bytes32(0), "claimAirdrop: Airdrop Merkle Root not set");
 
         // Verify CVE amount request is not above the maximum claim amount
-        require(amount <= maximumClaimAmount, "claimAirdrop: Amount too high");
+        require(_amount <= maximumClaimAmount, "claimAirdrop: Amount too high");
 
         // Verify Claim window has not passed
         require(block.timestamp < endClaimTimestamp, "claimAirdrop: Too late to claim");
@@ -83,21 +83,21 @@ contract CVEAirdrop {
         require(!airdropClaimed[_msgSender()], "claimAirdrop: Already claimed");
 
         // Compute the merkle leaf and verify the merkle proof
-        require(verifyProof(_proof, airdropMerkleRoot, keccak256(abi.encodePacked(_msgSender(), amount))), "claimAirdrop: Invalid proof provided");
+        require(verifyProof(_proof, airdropMerkleRoot, keccak256(abi.encodePacked(_msgSender(), _amount))), "claimAirdrop: Invalid proof provided");
 
         // Document that airdrop has been claimed
         airdropClaimed[_msgSender()] = true;
 
         // Transfer CVE tokens
-        cveToken.safeTransfer(_msgSender(), amount);
+        cveToken.safeTransfer(_msgSender(), _amount);
 
-        emit CVEAirdropClaimed(_msgSender(), amount);
+        emit CVEAirdropClaimed(_msgSender(), _amount);
     }
 
     /**
-     * @notice Gas efficient merkle tree proof verification implementation to validate CVE token claim
+     * @notice Gas efficient merkle proof verification implementation to validate CVE token claim
      * @param _proof Requested CVE amount to claim for the airdrop
-     * @param _root Merkle tree root to check computed hash against
+     * @param _root Merkle root to check computed hash against
      * @param _leaf Merkle leaf containing hashed inputs to compare proof element against 
      */
     function verifyProof(bytes32[] memory _proof, bytes32 _root, bytes32 _leaf) internal pure returns (bool) {
@@ -119,7 +119,27 @@ contract CVEAirdrop {
     }
 
     /**
-     * @dev rescue any token sent by mistake
+     * @notice Check whether a user has CVE tokens to claim
+     * @param _address address of the user to check
+     * @param _amount amount to claim
+     * @param _proof array containing the merkle proof
+     */
+    function canClaimAirdrop(
+        address _address,
+        uint256 _amount,
+        bytes32[] calldata _proof
+    ) external view returns (bool) {
+        if (!airdropClaimed[_address]){
+            if (block.timestamp <= endClaimTimestamp) {
+                // Compute the leaf and verify the merkle proof
+                return verifyProof(_proof, airdropMerkleRoot, keccak256(abi.encodePacked(_address, _amount)));
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @notice rescue any tokens sent by mistake
      * @param _token token to rescue
      * @param _recipient address to receive token
      */
@@ -140,10 +160,10 @@ contract CVEAirdrop {
     }
 
     /**
-     * @notice Withdraws unclaimed airdrop tokens to contract Owner
+     * @notice Withdraws unclaimed airdrop tokens to contract Owner after airdrop claim period has ended
      */
-    function withdrawTokenRewards() external onlyOwner {
-        require(block.timestamp > endClaimTimestamp, "withdrawTokenRewards: Too early to remove airdrop balance");
+    function withdrawRemainingAirdropTokens() external onlyOwner {
+        require(block.timestamp > endClaimTimestamp, "withdrawRemainingAirdropTokens: Too early");
         uint256 tokensToWithdraw = cveToken.balanceOf(address(this));
         cveToken.safeTransfer(_msgSender(), tokensToWithdraw);
 
@@ -163,7 +183,7 @@ contract CVEAirdrop {
      * @notice Set contract Owner
      * @param _newOwner new contract Owner
      */
-    function setOwner(address _newOwner) public onlyOwner {
+    function setOwner(address _newOwner) external onlyOwner {
         owner = _newOwner;
         emit OwnerUpdated(_msgSender(), _newOwner);
     }
