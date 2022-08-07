@@ -130,7 +130,7 @@ contract CVEAirdrop {
         bytes32[] calldata _proof
     ) external view returns (bool) {
         if (!airdropClaimed[_address]){
-            if (block.timestamp <= endClaimTimestamp) {
+            if (block.timestamp < endClaimTimestamp) {
                 // Compute the leaf and verify the merkle proof
                 return verifyProof(_proof, airdropMerkleRoot, keccak256(abi.encodePacked(_address, _amount)));
             }
