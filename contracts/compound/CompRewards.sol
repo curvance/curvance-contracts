@@ -14,7 +14,7 @@ import "./interfaces/IComptroller.sol";
  * @title CompRewards
  * @author Compound
  */
-contract CompRewards is MarketStorage, RewardsStorage, IReward { 
+contract CompRewards is MarketStorage, RewardsStorage, IReward {
 
     error AddressUnauthorized();
     error MarketNotListed();
@@ -133,7 +133,7 @@ Pulled directly out of ComptrollerG7.sol
     function distributeSupplierCveExternal(address cTokenCollateral, address claimer) external override {
         if(msg.sender != comptroller) {
             revert AddressUnauthorized();
-        }    
+        }
         distributeSupplierCve(cTokenCollateral, claimer);
     }
 
@@ -238,9 +238,9 @@ Pulled directly out of ComptrollerG7.sol
      * @param suppliers Whether or not to claim COMP earned by supplying
      */
     function claimCve(
-        address[] memory holders, 
-        CToken[] memory cTokens, 
-        bool borrowers, 
+        address[] memory holders,
+        CToken[] memory cTokens,
+        bool borrowers,
         bool suppliers
     ) public {
         for (uint i = 0; i < cTokens.length; i++) {
@@ -361,7 +361,7 @@ Pulled directly out of ComptrollerG7.sol
     function getCveAddress() public pure returns (address) {
         return 0xc00e94Cb662C3520282E6f5717214004A7f26888;
     }
-    
+
     /**
      * @notice Checks caller is admin, or this contract is becoming the new implementation
      */
