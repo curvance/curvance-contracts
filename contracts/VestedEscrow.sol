@@ -70,15 +70,17 @@ contract VestedEscrow {
 
         // If past lock end date, unlock all remainin balance
         // Otherwise, transfer tokens unlocked up to date
-        if (block.timestamp <= (viewInitTime(msgSender()) + viewLockTime(msgSender()))) {
+        if (block.timestamp >= (viewInitTime(msgSender()) + viewLockTime(msgSender()))) {
+            uint256 withdrawAmount = viewBalance(vester) / 10e11;
             Escrows[msgSender()].balance = 0;
 
             // Transfer remaining locked CVE
             CVE.approve(address(this), viewBalance(vester));
-            CVE.transferFrom(tokenVault, vester, viewBalance(vester));
+            CVE.transferFrom(tokenVault, vester, withdrawAmount);
         }
         else {
             (uint256 _withdrawAmount, uint256 _withdrawTime) = _calculateWithdraw(msgSender());
+            uint256 withdrawAmount = _withdrawAmount / 10e11;
 
             // update balance, lock remaining, and init time
             Escrows[vester] = Vester(
@@ -89,7 +91,7 @@ contract VestedEscrow {
             
             // Trasnfer unlocked CVE balance
             CVE.approve(address(this), _withdrawAmount);
-            CVE.transferFrom(tokenVault, msgSender(), _withdrawAmount);
+            CVE.transferFrom(tokenVault, msgSender(), withdrawAmount);
         }
     }
 
