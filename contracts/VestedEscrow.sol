@@ -20,14 +20,18 @@ contract VestedEscrow {
     // Token vault
     address tokenVault;
 
-    // Escrow balance
-    mapping(address => uint) public balances;
+    struct Vester {
+        // Escrow balance (balances are kept in .10e11 since an year in blockstamp is around 3e8)
+        uint256 balance;
 
-    // Withdrawal date
-    mapping(address => uint) public lockTime;
+        // Withdrawal date
+        uint256 lockTime;
 
-    // Timekeeping constant
-    mapping(address => uint) public initTime;
+        // Timekeeping constant
+        uint256 initTime;
+    }
+
+    mapping(address => Vester) public Escrows;
 
     // HELPERS
     uint8 private lockStatus = 1;
@@ -42,26 +46,24 @@ contract VestedEscrow {
         tokenVault == _tokenVault;
     }
 
-    // Deposits tokens and creates escrow balance
+    // ----- MAIN ----- //
+
+    // Creates locked balance and records time
     function createEscrow(
         address payable vester,
-        uint lockedTokensAmount,
-        uint lockTimeInBlocks
+        uint256 lockedTokensAmount,
+        uint256 lockTimeInBlocks
         ) external nonReentrant onlyAdmin {
-
-        // Set escrow balance
-        balances[vester] = lockedTokensAmount;
-
-        // Set lock time
-        lockTime[vester] = lockTimeInBlocks;
-
-        // Set init time constant
-        initTime[vester] = block.timestamp;
+        
+        lockedTokensAmount = lockedTokensAmount * 10e11;
+        Escrows[vester] = Vester(lockedTokensAmount,lockTimeInBlocks,block.timestamp);
     }
 
     // Checks balance, calculates claim amount, and withdraws
     function claim(address payable vester) public nonReentrant {
 
+        // Check if msg.sender is vester
+        // Can omit vester arg if no need for delegated calls
         require(msgSender() == vester, "Not vesting user");        
         // Check for balance
         require(viewBalance(msgSender()) > 0, "No balance");
@@ -69,32 +71,41 @@ contract VestedEscrow {
         // If past lock end date, unlock all remainin balance
         // Otherwise, transfer tokens unlocked up to date
         if (block.timestamp <= (viewInitTime(msgSender()) + viewLockTime(msgSender()))) {
+            Escrows[msgSender()].balance = 0;
+
+            // Transfer remaining locked CVE
+            CVE.approve(address(this), viewBalance(vester));
             CVE.transferFrom(tokenVault, vester, viewBalance(vester));
-        } else {
-            (uint _withdrawAmount, uint _withdrawTime) = _calculateWithdraw(msgSender());
+        }
+        else {
+            (uint256 _withdrawAmount, uint256 _withdrawTime) = _calculateWithdraw(msgSender());
 
             // update balance, lock remaining, and init time
-            _editbalance(msgSender(), (viewBalance(msgSender())-_withdrawAmount));
-            _editLockTime(msgSender(), (viewLockTime(msgSender())-_withdrawTime));
-            _editInitTime(msgSender(), (viewInitTime(msgSender())-_withdrawTime));
-
+            Escrows[vester] = Vester(
+                (viewBalance(msgSender())-_withdrawAmount),
+                (viewLockTime(msgSender())-_withdrawTime),
+                (viewInitTime(msgSender())-_withdrawTime)
+                );
+            
+            // Trasnfer unlocked CVE balance
+            CVE.approve(address(this), _withdrawAmount);
             CVE.transferFrom(tokenVault, msgSender(), _withdrawAmount);
         }
     }
 
     // Changing escrow balance
-    function editbalance(address vester, uint newBalance) external onlyAdmin {
-        _editbalance(vester, newBalance);
+    function editbalance(address vester, uint256 newBalance) external onlyAdmin nonReentrant {
+        Escrows[vester].balance = newBalance * 10e11;
     }
 
     // Changing escrow lock time
-    function editLockTime(address vester, uint newLockTime) external onlyAdmin {
-        _editLockTime(vester, newLockTime);
+    function editLockTime(address vester, uint256 newLockTime) external onlyAdmin nonReentrant {
+        Escrows[vester].lockTime = newLockTime;
     }
 
     // Changing x constant
-    function editInitTime(address vester, uint newInitTime) external onlyAdmin {
-        _editInitTime(vester, newInitTime);
+    function editInitTime(address vester, uint256 newInitTime) external onlyAdmin nonReentrant {
+        Escrows[vester].initTime = newInitTime;
     } 
 
 
@@ -104,41 +115,26 @@ contract VestedEscrow {
     function _calculateWithdraw(address vester) view internal returns (uint, uint) {
 
         // y = mx + b except the token emission is reversed in calculation for unsigned numbers
-        uint m = viewBalance(vester) / viewLockTime(vester);    // slope
-        uint x = block.timestamp - viewInitTime(vester);        // time passed
-        uint y = m*x;                                           // balance to withdraw
+        uint256 m = viewBalance(vester) / viewLockTime(vester);    // slope
+        uint256 x = block.timestamp - viewInitTime(vester);        // time passed
+        uint256 y = m*x;                                           // balance to withdraw
 
         return (y, x);
     }
 
-    // Changing escrow balance
-    function _editbalance(address vester, uint newBalance) internal {
-        balances[vester] = newBalance;
-    }
-
-    // Changing escrow lock time
-    function _editLockTime(address vester, uint newLockTime) internal {
-        lockTime[vester] = newLockTime;
-    }
-
-    // Changing x constant
-    function _editInitTime(address vester, uint newInitTime) internal {
-        initTime[vester] = newInitTime;
-    } 
-
 
     // ----- VIEW FUNCTIONS ----- //
 
-    function viewBalance(address vester) public view returns (uint) {
-        return balances[vester];
+    function viewBalance(address vester) public view returns (uint256) {
+        return Escrows[vester].balance;
     }
 
-    function viewLockTime(address vester) public view returns (uint) {
-        return lockTime[vester];
+    function viewLockTime(address vester) public view returns (uint256) {
+        return Escrows[vester].lockTime;
     }
 
-    function viewInitTime(address vester) internal view returns (uint) {
-        return initTime[vester];
+    function viewInitTime(address vester) internal view returns (uint256) {
+        return Escrows[vester].initTime;
     }
 
 
@@ -157,6 +153,7 @@ contract VestedEscrow {
         lockStatus == 1;
     }
 
+    // onlyAdmin
     modifier onlyAdmin() {
         require(msgSender() == admin, "Not admin");
         _;
