@@ -33,10 +33,6 @@ abstract contract CTokenCompounding is CTokenBase {
 
     /// CONSTANTS ///
 
-    // Period harvested rewards are vested over
-    uint256 public vestPeriod = 1 days;
-    NewVestingData public pendingVestUpdate;
-
     // Mask of reward rate entry in packed vault data
     uint256 private constant _BITMASK_REWARD_RATE = (1 << 128) - 1;
 
@@ -54,6 +50,12 @@ abstract contract CTokenCompounding is CTokenBase {
 
     /// STORAGE ///
 
+    // Period harvested rewards are vested over
+    uint256 public vestPeriod = 1 days;
+    NewVestingData public pendingVestUpdate;
+    /// @dev 1 = unpaused; 2 = paused
+    uint256 public compoundingPaused = 2; // Starts paused until market started
+
     // Internal stored vault accounting
     // Bits Layout:
     // - [0..127]    `rewardRate`
@@ -61,9 +63,14 @@ abstract contract CTokenCompounding is CTokenBase {
     // - [192..255] `lastVestClaim`
     uint256 internal _vaultData; // Packed vault data
 
+    /// EVENTS ///
+
+    event CompoundingPaused(bool pauseState);
+
     /// ERRORS ///
 
     error CTokenCompounding__InvalidVestPeriod();
+    error CTokenCompounding__CompoundingPaused();
     error CTokenCompounding__RedeemMoreThanMax();
     error CTokenCompounding__WithdrawMoreThanMax();
     error CTokenCompounding__ZeroShares();
@@ -168,15 +175,25 @@ abstract contract CTokenCompounding is CTokenBase {
 
     // PERMISSIONED FUNCTIONS
 
+    /// @notice Used to start a CToken market, executed via lendtroller
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry
+    /// @param by The account initializing the market
     function startMarket(
         address by
     ) external override nonReentrant returns (bool) {
         _startMarket(by);
         _afterDeposit(42069, 42069);
         _setlastVestClaim(uint64(block.timestamp));
+        compoundingPaused = 1;
         return true;
     }
 
+    /// @notice Admin function to set a new compounding vesting period
+    /// @dev Requires dao authority, 
+    ///      and vesting period cannot be longer than a week
+    /// @param newVestingPeriod New vesting period in seconds
     function setVestingPeriod(uint256 newVestingPeriod) external {
         _checkDaoPermissions();
 
@@ -186,6 +203,25 @@ abstract contract CTokenCompounding is CTokenBase {
 
         pendingVestUpdate.updateNeeded = true;
         pendingVestUpdate.newVestPeriod = uint248(newVestingPeriod);
+    }
+
+    /// @notice Admin function to set compounding paused
+    /// @dev requires timelock authority if unpausing
+    /// @param state pause or unpause
+    function setCompoundingPaused(bool state) external {
+        // If the market has not been started do not allow compounding changes
+        if (lastVestClaim() == 0) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (state) {
+            _checkDaoPermissions();
+        } else {
+            _checkElevatedPermissions();
+        }
+
+        compoundingPaused = state ? 2 : 1;
+        emit CompoundingPaused(state);
     }
 
     // EXTERNAL POSITION LOGIC TO OVERRIDE
@@ -239,11 +275,8 @@ abstract contract CTokenCompounding is CTokenBase {
             revert CTokenCompounding__ZeroAssets();
         }
 
-        if (assets > maxDeposit(receiver)) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
-
-        // Fail if deposit not allowed
+        // Fail if deposit not allowed, this stands in for a maxDeposit
+        // check reviewing isListed and mintPaused != 2
         lendtroller.canMint(address(this));
 
         // Save _totalAssets and pendingRewards to memory
@@ -272,11 +305,8 @@ abstract contract CTokenCompounding is CTokenBase {
             revert CTokenCompounding__ZeroShares();
         }
 
-        if (shares > maxMint(receiver)) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
-
-        // Fail if mint not allowed
+        // Fail if mint not allowed, this stands in for a maxMint
+        // check reviewing isListed and mintPaused != 2
         lendtroller.canMint(address(this));
 
         // Save _totalAssets and pendingRewards to memory
@@ -563,8 +593,18 @@ abstract contract CTokenCompounding is CTokenBase {
         // else there are no pending rewards
     }
 
-    /// @notice Vests the pending rewards, updates vault data
-    ///         and share price high watermark
+    /// @notice Checks if the caller can compound the vaults rewards
+    function _canCompound() internal {
+        if (!centralRegistry.isHarvester(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (compoundingPaused == 2) {
+            revert CTokenCompounding__CompoundingPaused();
+        }
+    }
+
+    /// @notice Vests the pending rewards, and updates vault data
     /// @param currentAssets The current assets of the vault
     function _vestRewards(uint256 currentAssets) internal {
         // Update the lastVestClaim timestamp
@@ -574,6 +614,7 @@ abstract contract CTokenCompounding is CTokenBase {
         _totalAssets = currentAssets;
     }
 
+    /// @notice Vests the pending rewards, and updates vault data if needed
     function _vestIfNeeded() internal {
         uint256 pending = _calculatePendingRewards();
         if (pending > 0) {
@@ -582,6 +623,9 @@ abstract contract CTokenCompounding is CTokenBase {
         }
     }
 
+    /// @notice Updates the vesting period if needed
+    /// @dev If there a pending vesting update,
+    ///      and prior vest is done then `vestPeriod` is updated
     function _updateVestingPeriodIfNeeded() internal {
         if (pendingVestUpdate.updateNeeded) {
             vestPeriod = pendingVestUpdate.newVestPeriod;

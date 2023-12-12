@@ -82,8 +82,8 @@ contract CTokenPrimitive is CTokenBase {
     // PERMISSIONED FUNCTIONS
 
     /// @notice Used to start a CToken market, executed via lendtroller
-    /// @dev This initial mint is a failsafe against the empty market exploit
-    ///      although we protect against it in many ways,
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
     ///      better safe than sorry
     /// @param by The account initializing the market
     function startMarket(address by) external nonReentrant override returns (bool) {
@@ -105,11 +105,8 @@ contract CTokenPrimitive is CTokenBase {
             revert CTokenPrimitive__ZeroAssets();
         }
 
-        if (assets > maxDeposit(receiver)) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
-
-        // Fail if deposit not allowed
+        // Fail if deposit not allowed, this stands in for a maxDeposit
+        // check reviewing isListed and mintPaused != 2
         lendtroller.canMint(address(this));
 
         // Save _totalAssets to memory
@@ -137,11 +134,8 @@ contract CTokenPrimitive is CTokenBase {
             revert CTokenPrimitive__ZeroShares();
         }
 
-        if (shares > maxMint(receiver)) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
-
-        // Fail if mint not allowed
+        // Fail if mint not allowed, this stands in for a maxMint
+        // check reviewing isListed and mintPaused != 2
         lendtroller.canMint(address(this));
 
         // Save _totalAssets to memory

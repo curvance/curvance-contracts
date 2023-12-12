@@ -27,13 +27,16 @@ contract Convex2PoolCToken is CTokenCompounding {
 
     /// CONSTANTS ///
 
+    /// @notice This address is for ethereum mainnet so make sure to update
+    ///         it if curve/convex is being supported on another chain
     address private constant _CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
 
     /// STORAGE ///
 
-    StrategyData public strategyData; // position vault packed configuration
+    /// @notice StrategyData packed configuration data
+    StrategyData public strategyData;
 
-    /// Token => underlying token of the Curve 2Pool LP or not
+    /// @notice Token => underlying token of the Curve 2Pool LP or not
     mapping(address => bool) public isUnderlyingToken;
 
     /// EVENTS ///
@@ -42,7 +45,6 @@ contract Convex2PoolCToken is CTokenCompounding {
 
     /// ERRORS ///
 
-    error Convex2PoolCToken__Unauthorized();
     error Convex2PoolCToken__UnsafePool();
     error Convex2PoolCToken__InvalidVaultConfig();
     error Convex2PoolCToken__InvalidCoinLength();
@@ -160,13 +162,8 @@ contract Convex2PoolCToken is CTokenCompounding {
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            revert Convex2PoolCToken__Unauthorized();
-        }
-
-        if (_vaultStatus != 2) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
+        // Checks whether the caller can compound the vault yield
+        _canCompound();
 
         // Vest pending rewards if there are any
         _vestIfNeeded();

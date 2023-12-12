@@ -30,9 +30,11 @@ contract PendleLPCToken is CTokenCompounding {
 
     /// STORAGE ///
 
-    StrategyData public strategyData; // position vault packed configuration
+    /// @notice StrategyData packed configuration data
+    StrategyData public strategyData;
 
-    mapping(address => bool) public isUnderlyingToken; // token => is underlying token
+    /// @notice token => is underlying token
+    mapping(address => bool) public isUnderlyingToken;
 
     /// EVENTS ///
 
@@ -40,7 +42,6 @@ contract PendleLPCToken is CTokenCompounding {
 
     /// ERRORS ///
 
-    error PendleLPCToken__Unauthorized();
     error PendleLPCToken__InvalidSwapper(
         uint256 index,
         address invalidSwapper
@@ -112,13 +113,8 @@ contract PendleLPCToken is CTokenCompounding {
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            revert PendleLPCToken__Unauthorized();
-        }
-
-        if (_vaultStatus != 2) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
+        // Checks whether the caller can compound the vault yield
+        _canCompound();
 
         // Vest pending rewards if there are any
         _vestIfNeeded();

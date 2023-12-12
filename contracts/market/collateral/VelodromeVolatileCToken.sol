@@ -27,17 +27,18 @@ contract VelodromeVolatileCToken is CTokenCompounding {
 
     /// CONSTANTS ///
 
-    // Optimism VELO contract address
+    /// @notice VELO contract address
     IERC20 public constant rewardToken =
         IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
-    // Whether VELO is an underlying token of the pair
+    /// @notice Whether VELO is an underlying token of the pair
     bool public immutable rewardTokenIsUnderlying;
 
     /// STORAGE ///
 
-    StrategyData public strategyData; // position vault packed configuration
+    /// @notice StrategyData packed configuration data
+    StrategyData public strategyData;
 
-    /// Token => underlying token of the vAMM LP or not
+    /// @notice Token => underlying token of the vAMM LP or not
     mapping(address => bool) public isUnderlyingToken;
 
     /// EVENTS ///
@@ -46,7 +47,7 @@ contract VelodromeVolatileCToken is CTokenCompounding {
 
     /// ERRORS ///
 
-    error VelodromeVolatileCToken__Unauthorized();
+    error VelodromeVolatileCToken__ChainIsNotSupported();
     error VelodromeVolatileCToken__StakingTokenIsNotAsset(
         address stakingToken
     );
@@ -64,6 +65,10 @@ contract VelodromeVolatileCToken is CTokenCompounding {
         IVeloPairFactory pairFactory,
         IVeloRouter router
     ) CTokenCompounding(centralRegistry_, asset_, lendtroller_) {
+        if (block.chainid != 10) {
+            revert VelodromeVolatileCToken__ChainIsNotSupported();
+        }
+
         // Cache assigned asset address
         address _asset = asset();
         // Validate that we have the proper gauge linked with the proper LP
@@ -111,13 +116,8 @@ contract VelodromeVolatileCToken is CTokenCompounding {
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            revert VelodromeVolatileCToken__Unauthorized();
-        }
-
-        if (_vaultStatus != 2) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
+        // Checks whether the caller can compound the vault yield
+        _canCompound();
 
         // Vest pending rewards if there are any
         _vestIfNeeded();

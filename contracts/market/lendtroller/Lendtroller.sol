@@ -16,6 +16,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract Lendtroller is LiquidityManager, ERC165 {
     /// CONSTANTS ///
 
+    /// @notice gaugePool contract address.
+    IGaugePool public immutable gaugePool;
+
     /// @notice Maximum collateral requirement to avoid liquidation. 40%
     uint256 internal constant _MAX_COLLATERAL_REQUIREMENT = 0.4e18;
     /// @notice Maximum collateralization ratio. 91%
@@ -30,9 +33,13 @@ contract Lendtroller is LiquidityManager, ERC165 {
     uint256 internal constant _MAX_LIQUIDATION_FEE = .05e18;
     /// `bytes4(keccak256(bytes("Lendtroller__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x31765827;
-    /// @notice gaugePool contract address.
-    IGaugePool public immutable gaugePool;
-
+    /// `bytes4(keccak256(bytes("Lendtroller__Unauthorized()")))`
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x5254e575;
+    /// `bytes4(keccak256(bytes("Lendtroller__TokenNotListed()")))`
+    uint256 internal constant _TOKEN_NOT_LISTED_SELECTOR = 0xf3e41c92;
+    /// `bytes4(keccak256(bytes("Lendtroller__Paused()")))`
+    uint256 internal constant _PAUSED_SELECTOR = 0xe192eaaf;
+    
     /// STORAGE ///
 
     /// @notice A list of all tokens inside this market for the frontend.
@@ -46,6 +53,8 @@ contract Lendtroller is LiquidityManager, ERC165 {
     uint256 public transferPaused = 1;
     /// @dev 1 = unpaused; 2 = paused
     uint256 public seizePaused = 1;
+    /// @dev 1 = unpaused; 2 = paused
+    uint256 public redeemPaused = 1;
     /// @dev Token => 0 or 1 = unpaused; 2 = paused
     mapping(address => uint256) public mintPaused;
     /// @dev Token => 0 or 1 = unpaused; 2 = paused
@@ -211,7 +220,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256 tokens
     ) external {
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         if (!IMToken(mToken).isCToken()) {
@@ -222,7 +231,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         // make sure it is done via the mToken contract itself
         if (msg.sender != account) {
             if (msg.sender != mToken) {
-                revert Lendtroller__Unauthorized();
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
         }
 
@@ -290,7 +299,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256 amount
     ) external {
         if (msg.sender != mToken) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         _reduceCollateralIfNecessary(account, mToken, balance, amount, false);
@@ -318,7 +327,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
             // Caller is unauthorized to close their dToken position
             // if they owe a balance
             if (debt != 0) {
-                revert Lendtroller__Unauthorized();
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
 
             _closePosition(msg.sender, accountData, token);
@@ -352,11 +361,11 @@ contract Lendtroller is LiquidityManager, ERC165 {
     /// @param mToken The token to verify mints against
     function canMint(address mToken) external view {
         if (mintPaused[mToken] == 2) {
-            revert Lendtroller__Paused();
+            _revert(_PAUSED_SELECTOR);
         }
 
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
     }
 
@@ -392,7 +401,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         bool forceRedeemCollateral
     ) external {
         if (msg.sender != mToken) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         _canRedeem(mToken, account, amount);
@@ -418,7 +427,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256 amount
     ) external {
         if (msg.sender != mToken) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         accountAssets[account].cooldownTimestamp = block.timestamp;
@@ -431,7 +440,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
     /// @param account The address of the account that has just borrowed
     function notifyBorrow(address mToken, address account) external {
         if (msg.sender != mToken) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         accountAssets[account].cooldownTimestamp = block.timestamp;
@@ -443,7 +452,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
     /// @param account The account who will have their loan repaid
     function canRepay(address mToken, address account) external view {
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         // We require a `minimumHoldPeriod` to break flashloan manipulations attempts
@@ -495,7 +504,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         bool liquidateExact
     ) external returns (uint256, uint256, uint256) {
         if (msg.sender != dToken) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         (
@@ -525,15 +534,15 @@ contract Lendtroller is LiquidityManager, ERC165 {
         address debtToken
     ) external view {
         if (seizePaused == 2) {
-            revert Lendtroller__Paused();
+            _revert(_PAUSED_SELECTOR);
         }
 
         if (!tokenData[collateralToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         if (!tokenData[debtToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         if (
@@ -555,7 +564,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256 amount
     ) external view {
         if (transferPaused == 2) {
-            revert Lendtroller__Paused();
+            _revert(_PAUSED_SELECTOR);
         }
 
         _canRedeem(mToken, from, amount);
@@ -568,11 +577,11 @@ contract Lendtroller is LiquidityManager, ERC165 {
     function liquidateAccount(address account) external {
         // Make sure they are not trying to liquidate themselves
         if (msg.sender == account) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (seizePaused == 2) {
-            revert Lendtroller__Paused();
+            _revert(_PAUSED_SELECTOR);
         }
 
         (
@@ -636,7 +645,13 @@ contract Lendtroller is LiquidityManager, ERC165 {
             revert Lendtroller__TokenAlreadyListed();
         }
 
-        IMToken(mToken).isCToken(); // Sanity check to make sure its really a mToken
+        // Sanity check to make sure its really a mToken
+        IMToken(mToken).isCToken();
+
+        // Immediately deposit into the market to prevent any rounding exploits
+        if (!IMToken(mToken).startMarket(msg.sender)) {
+            revert Lendtroller__InvariantError();
+        }
 
         MarketToken storage token = tokenData[mToken];
         token.isListed = true;
@@ -651,15 +666,8 @@ contract Lendtroller is LiquidityManager, ERC165 {
                 }
             }
         }
+        
         tokensListed.push(mToken);
-
-        // Start the market if necessary
-        if (IMToken(mToken).totalSupply() == 0) {
-            if (!IMToken(mToken).startMarket(msg.sender)) {
-                revert Lendtroller__InvariantError();
-            }
-        }
-
         emit TokenListed(mToken);
     }
 
@@ -691,7 +699,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         // Verify mToken is listed
         MarketToken storage marketToken = tokenData[address(mToken)];
         if (!marketToken.isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         // Convert the parameters from basis points to `WAD` format
@@ -817,7 +825,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256[] calldata newCollateralCaps
     ) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         uint256 numTokens = mTokens.length;
@@ -860,7 +868,7 @@ contract Lendtroller is LiquidityManager, ERC165 {
         _checkAuthorizedPermissions(state);
 
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         mintPaused[mToken] = state ? 2 : 1;
@@ -875,11 +883,21 @@ contract Lendtroller is LiquidityManager, ERC165 {
         _checkAuthorizedPermissions(state);
 
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         borrowPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Borrow Paused", state);
+    }
+
+    /// @notice Admin function to set redemption paused
+    /// @dev requires timelock authority if unpausing
+    /// @param state pause or unpause
+    function setRedeemPaused(bool state) external {
+        _checkAuthorizedPermissions(state);
+
+        redeemPaused = state ? 2 : 1;
+        emit ActionPaused("Redeem Paused", state);
     }
 
     /// @notice Admin function to set transfer paused
@@ -941,17 +959,17 @@ contract Lendtroller is LiquidityManager, ERC165 {
         uint256 amount
     ) public {
         if (borrowPaused[mToken] == 2) {
-            revert Lendtroller__Paused();
+            _revert(_PAUSED_SELECTOR);
         }
 
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         if (tokenData[mToken].accountData[account].activePosition < 2) {
             // only mTokens may call borrowAllowed if account not in market
             if (msg.sender != mToken) {
-                revert Lendtroller__Unauthorized();
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
 
             // The account is not in the market yet, so make them enter
@@ -1078,8 +1096,12 @@ contract Lendtroller is LiquidityManager, ERC165 {
         address account,
         uint256 amount
     ) internal view {
+        if (redeemPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
         if (!tokenData[mToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         // We require a `minimumHoldPeriod` to break flashloan manipulations attempts
@@ -1131,13 +1153,13 @@ contract Lendtroller is LiquidityManager, ERC165 {
         bool liquidateExact
     ) internal view returns (uint256, uint256, uint256) {
         if (!tokenData[debtToken].isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         MarketToken storage cToken = tokenData[collateralToken];
 
         if (!cToken.isListed) {
-            revert Lendtroller__TokenNotListed();
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         // Do not let people liquidate 0 collateralization ratio assets
@@ -1249,13 +1271,14 @@ contract Lendtroller is LiquidityManager, ERC165 {
 
     /// @dev Internal helper function for easily converting between scalars
     function _bpToWad(uint256 value) internal pure returns (uint256) {
+        // multiplies by 1e14 to convert from basis points to WAD
         return value * 100000000000000;
     }
 
     /// @dev Checks whether the caller has sufficient permissions
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert Lendtroller__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
@@ -1265,11 +1288,11 @@ contract Lendtroller is LiquidityManager, ERC165 {
     function _checkAuthorizedPermissions(bool state) internal view {
         if (state) {
             if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-                revert Lendtroller__Unauthorized();
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
         } else {
             if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-                revert Lendtroller__Unauthorized();
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
         }
     }

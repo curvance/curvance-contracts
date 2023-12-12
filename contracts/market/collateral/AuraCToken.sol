@@ -29,14 +29,17 @@ contract AuraCToken is CTokenCompounding {
 
     /// CONSTANTS ///
 
+    /// @notice These addresses are for ethereum mainnet so make sure to update
+    ///         them if balancer/aura is being supported on another chain
     address private constant BAL = 0xba100000625a3754423978a60c9317c58a424e3D;
     address private constant AURA = 0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     /// STORAGE ///
 
-    StrategyData public strategyData; // position vault packed configuration
+    /// @notice StrategyData packed configuration data
+    StrategyData public strategyData; 
 
-    /// Token => underlying token of the BPT or not
+    /// @notice Token => underlying token of the BPT or not
     mapping(address => bool) public isUnderlyingToken;
 
     /// EVENTS ///
@@ -45,7 +48,6 @@ contract AuraCToken is CTokenCompounding {
 
     /// ERRORS ///
 
-    error AuraCToken__Unauthorized();
     error AuraCToken__InvalidVaultConfig();
     error AuraCToken__InvalidSwapper(uint256 index, address invalidSwapper);
 
@@ -137,7 +139,7 @@ contract AuraCToken is CTokenCompounding {
                     IRewards(rewarder.extraRewards(i++)).rewardToken()
                 ).baseToken();
 
-                if (rewardToken != AURA) {
+                if (rewardToken != AURA && rewardToken != BAL) {
                     strategyData.rewardTokens.push() = rewardToken;
                 }
             }
@@ -178,13 +180,8 @@ contract AuraCToken is CTokenCompounding {
     function harvest(
         bytes calldata data
     ) external override returns (uint256 yield) {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            revert AuraCToken__Unauthorized();
-        }
-
-        if (_vaultStatus != 2) {
-            _revert(_VAULT_NOT_ACTIVE_SELECTOR);
-        }
+        // Checks whether the caller can compound the vault yield
+        _canCompound();
 
         // Vest pending rewards if there are any
         _vestIfNeeded();
