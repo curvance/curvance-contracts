@@ -5,6 +5,7 @@ import { PropertiesAsserts } from "tests/fuzzing/PropertiesHelper.sol";
 import { ErrorConstants } from "tests/fuzzing/ErrorConstants.sol";
 
 import { MockToken } from "contracts/mocks/MockToken.sol";
+import { MockCToken } from "contracts/mocks/MockCToken.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { MockCircleRelayer, MockWormhole } from "contracts/mocks/MockCircleRelayer.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
@@ -96,6 +97,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _DAI_ADDRESS = address(dai);
         balRETH = new MockToken("balWethReth", "balWethReth", 18);
         _BALANCER_WETH_RETH = address(balRETH);
+        cToken = new MockCToken(_USDC_ADDRESS, "CTOKEN", "CTOKEN", 18);
 
         emit LogString("DEPLOYED: centralRegistry");
         _deployCentralRegistry();
