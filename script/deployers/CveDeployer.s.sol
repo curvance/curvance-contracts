@@ -12,6 +12,7 @@ contract CveDeployer is DeployConfiguration {
 
     function _deployCve(
         address centralRegistry,
+        address wormholeCore,
         address tokenBridgeRelayer,
         address team,
         uint256 daoTreasuryAllocation,
@@ -25,6 +26,7 @@ contract CveDeployer is DeployConfiguration {
         cve = address(
             new CVE(
                 ICentralRegistry(centralRegistry),
+                wormholeCore,
                 tokenBridgeRelayer,
                 team,
                 daoTreasuryAllocation,
