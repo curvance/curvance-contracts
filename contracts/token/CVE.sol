@@ -21,7 +21,7 @@ contract CVE is ERC20 {
     ITokenBridgeRelayer public immutable tokenBridgeRelayer;
 
     /// @notice Address of Wormhole core contract.
-    IWormhole public immutable wormhole;
+    IWormhole public immutable wormholeCore;
 
     // Timestamp when token was created
     uint256 public immutable tokenGenerationEventTimestamp;
@@ -54,12 +54,14 @@ contract CVE is ERC20 {
     error CVE__Unauthorized();
     error CVE__InsufficientCVEAllocation();
     error CVE__ParametersAreInvalid();
+    error CVE__WormholeCoreIsZeroAddress();
     error CVE__TokenBridgeRelayerIsZeroAddress();
 
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
+        address wormholeCore_,
         address tokenBridgeRelayer_,
         address team_,
         uint256 daoTreasuryAllocation_,
@@ -75,6 +77,9 @@ contract CVE is ERC20 {
         ) {
             revert CVE__ParametersAreInvalid();
         }
+        if (wormholeCore_ == address(0)) {
+            revert CVE__WormholeCoreIsZeroAddress();
+        }
         if (tokenBridgeRelayer_ == address(0)) {
             revert CVE__TokenBridgeRelayerIsZeroAddress();
         }
@@ -85,7 +90,7 @@ contract CVE is ERC20 {
 
         centralRegistry = centralRegistry_;
         tokenBridgeRelayer = ITokenBridgeRelayer(tokenBridgeRelayer_);
-        wormhole = ITokenBridgeRelayer(tokenBridgeRelayer_).wormhole();
+        wormholeCore = IWormhole(wormholeCore_);
         tokenGenerationEventTimestamp = block.timestamp;
         teamAddress = team_;
         daoTreasuryAllocation = daoTreasuryAllocation_;
@@ -236,7 +241,7 @@ contract CVE is ERC20 {
     /// @notice Returns required amount of native asset for message fee.
     /// @return Required fee.
     function bridgeFee() external view returns (uint256) {
-        return wormhole.messageFee();
+        return wormholeCore.messageFee();
     }
 
     /// PUBLIC FUNCTIONS ///

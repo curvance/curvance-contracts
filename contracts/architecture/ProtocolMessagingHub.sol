@@ -34,7 +34,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
     ICentralRegistry public immutable centralRegistry;
 
     /// @notice Address of Wormhole core contract.
-    IWormhole public immutable wormhole;
+    IWormhole public immutable wormholeCore;
 
     /// @notice Address of Wormhole Relayer.
     IWormholeRelayer public immutable wormholeRelayer;
@@ -63,6 +63,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
     error ProtocolMessagingHub__Unauthorized();
     error ProtocolMessagingHub__InvalidCentralRegistry();
     error ProtocolMessagingHub__FeeTokenIsZeroAddress();
+    error ProtocolMessagingHub__WormholeCoreIsZeroAddress();
     error ProtocolMessagingHub__WormholeRelayerIsZeroAddress();
     error ProtocolMessagingHub__CircleRelayerIsZeroAddress();
     error ProtocolMessagingHub__TokenBridgeRelayerIsZeroAddress();
@@ -89,6 +90,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address feeToken_,
+        address wormholeCore_,
         address wormholeRelayer_,
         address circleRelayer_,
         address tokenBridgeRelayer_
@@ -104,11 +106,11 @@ contract ProtocolMessagingHub is ReentrancyGuard {
         if (feeToken_ == address(0)) {
             revert ProtocolMessagingHub__FeeTokenIsZeroAddress();
         }
+        if (wormholeCore_ == address(0)) {
+            revert ProtocolMessagingHub__WormholeCoreIsZeroAddress();
+        }
         if (wormholeRelayer_ == address(0)) {
             revert ProtocolMessagingHub__WormholeRelayerIsZeroAddress();
-        }
-        if (circleRelayer_ == address(0)) {
-            revert ProtocolMessagingHub__CircleRelayerIsZeroAddress();
         }
         if (tokenBridgeRelayer_ == address(0)) {
             revert ProtocolMessagingHub__TokenBridgeRelayerIsZeroAddress();
@@ -120,7 +122,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
         wormholeRelayer = IWormholeRelayer(wormholeRelayer_);
         circleRelayer = ICircleRelayer(circleRelayer_);
         tokenBridgeRelayer = ITokenBridgeRelayer(tokenBridgeRelayer_);
-        wormhole = ICircleRelayer(circleRelayer_).wormhole();
+        wormholeCore = IWormhole(wormholeCore_);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -323,7 +325,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
             }
         }
 
-        (uint256 messageFee, ) = _quoteWormholeFee(dstChainId, true);
+        uint256 messageFee = _quoteWormholeFee(dstChainId, true);
 
         // Validate that we have sufficient fees to send crosschain
         if (address(this).balance < messageFee) {
@@ -340,20 +342,40 @@ contract ProtocolMessagingHub is ReentrancyGuard {
             amount
         );
 
-        SwapperLib._approveTokenIfNeeded(
-            feeToken,
-            address(circleRelayer),
-            amount
-        );
+        if (
+            address(circleRelayer) != address(0) &&
+            circleRelayer.getRegisteredContract(dstChainId) != bytes32(0)
+        ) {
+            SwapperLib._approveTokenIfNeeded(
+                feeToken,
+                address(circleRelayer),
+                amount
+            );
 
-        // Sends funds to feeAccumulator on another chain
-        circleRelayer.transferTokensWithRelay{ value: messageFee }(
-            IERC20Metadata(feeToken),
-            amount,
-            0,
-            dstChainId,
-            bytes32(uint256(uint160(to)))
-        );
+            // Sends funds to feeAccumulator on another chain
+            circleRelayer.transferTokensWithRelay{ value: messageFee }(
+                IERC20Metadata(feeToken),
+                amount,
+                0,
+                dstChainId,
+                bytes32(uint256(uint160(to)))
+            );
+        } else {
+            SwapperLib._approveTokenIfNeeded(
+                feeToken,
+                address(tokenBridgeRelayer),
+                amount
+            );
+
+            tokenBridgeRelayer.transferTokensWithRelay{ value: messageFee }(
+                feeToken,
+                amount,
+                0,
+                wormholeChainId[dstChainId],
+                bytes32(uint256(uint160(to))),
+                0
+            );
+        }
     }
 
     /// @notice Register wormhole specific chain IDs for evm chain IDs.
@@ -377,11 +399,10 @@ contract ProtocolMessagingHub is ReentrancyGuard {
     /// @param dstChainId Wormhole specific destination chain ID.
     /// @param transferToken Whether deliver token or not.
     /// @return Total gas cost.
-    /// @return Deliverying fee.
     function quoteWormholeFee(
         uint16 dstChainId,
         bool transferToken
-    ) external view returns (uint256, uint256) {
+    ) external view returns (uint256) {
         return _quoteWormholeFee(dstChainId, transferToken);
     }
 
@@ -472,7 +493,7 @@ contract ProtocolMessagingHub is ReentrancyGuard {
             revert ProtocolMessagingHub__ChainIsNotSupported();
         }
 
-        (uint256 messageFee, ) = _quoteWormholeFee(dstChainId, false);
+        uint256 messageFee = _quoteWormholeFee(dstChainId, false);
 
         wormholeRelayer.sendPayloadToEvm{ value: messageFee }(
             dstChainId,
@@ -490,24 +511,26 @@ contract ProtocolMessagingHub is ReentrancyGuard {
     /// @param dstChainId Wormhole specific destination chain ID.
     /// @param transferToken Whether deliver token or not.
     /// @return nativeFee Total gas cost.
-    /// @return tokenFee Deliverying fee.
     function _quoteWormholeFee(
         uint16 dstChainId,
         bool transferToken
-    ) internal view returns (uint256 nativeFee, uint256 tokenFee) {
+    ) internal view returns (uint256 nativeFee) {
         // Cost of delivering token and payload to targetChain.
-        (nativeFee, ) = wormholeRelayer.quoteEVMDeliveryPrice(
-            dstChainId,
-            0,
-            _GAS_LIMIT
-        );
+        if (
+            address(circleRelayer) != address(0) &&
+            circleRelayer.getRegisteredContract(dstChainId) != bytes32(0)
+        ) {
+            (nativeFee, ) = wormholeRelayer.quoteEVMDeliveryPrice(
+                dstChainId,
+                0,
+                _GAS_LIMIT
+            );
+        }
 
         if (transferToken) {
             // Add cost of publishing the 'sending token' wormhole message.
-            nativeFee += wormhole.messageFee();
+            nativeFee += wormholeCore.messageFee();
         }
-
-        tokenFee = circleRelayer.relayerFee(dstChainId, feeToken);
     }
 
     /// @dev Internal helper for reverting efficiently.
