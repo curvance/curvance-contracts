@@ -13,6 +13,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract TestBaseVeCVE is TestBase {
     address internal constant _USDC_ADDRESS =
         0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant _WORMHOLE_CORE =
+        0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
     address internal constant _TOKEN_BRIDGE_RELAYER =
         0xCafd2f0A35A4459fA40C0517e17e6fA2939441CA;
 
@@ -64,6 +66,7 @@ contract TestBaseVeCVE is TestBase {
     function _deployCVE() internal {
         cve = new CVE(
             ICentralRegistry(address(centralRegistry)),
+            _WORMHOLE_CORE,
             _TOKEN_BRIDGE_RELAYER,
             _ZERO_ADDRESS,
             0,
