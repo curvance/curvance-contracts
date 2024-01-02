@@ -72,4 +72,11 @@ contract TestStatefulDeployments is StatefulBaseMarket {
             "CVE DEPLOY FAILED: CVE.builderAllocationPerMonth() > 0 failed"
         );
     }
+
+    function Lendtroller_is_deployed() public {
+        assertWithMsg(
+            address(lendtroller.gaugePool()) == address(gaugePool),
+            "LENDTROLLER DEPLOY FAILED: lendtroller.gaugePool() == gaugePool failed"
+        );
+    }
 }

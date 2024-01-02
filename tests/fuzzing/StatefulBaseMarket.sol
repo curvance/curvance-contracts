@@ -17,7 +17,6 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
-import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -74,6 +73,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     MockToken public rewardToken;
     GaugePool public gaugePool;
+    PartnerGaugePool public partnerGaugePool;
 
     address public harvester;
     address public randomUser = address(1000000);
@@ -97,7 +97,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _DAI_ADDRESS = address(dai);
         balRETH = new MockToken("balWethReth", "balWethReth", 18);
         _BALANCER_WETH_RETH = address(balRETH);
-        cToken = new MockCToken(_USDC_ADDRESS, "CTOKEN", "CTOKEN", 18);
 
         emit LogString("DEPLOYED: centralRegistry");
         _deployCentralRegistry();
@@ -127,8 +126,10 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployDUSDC();
         emit LogString("DEPLOYED: DDAI");
         _deployDDAI();
-        // emit LogString("DEPLOYED: CBALRETH");
-        // _deployCBALRETH();
+        emit LogString("DEPLOYED: CUSDC");
+        _deployCUSDC();
+        emit LogString("DEPLOYED: DAI");
+        _deployCDAI();
         // emit LogString("DEPLOYED: ZAPPER");
         // _deployZapper();
         emit LogString("DEPLOYED: PositionFolding");
@@ -332,6 +333,14 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     function _deployGaugePool() internal {
         gaugePool = new GaugePool(ICentralRegistry(address(centralRegistry)));
         centralRegistry.addGaugeController(address(gaugePool));
+
+        // Additional logic for partner gauge pool fuzzing logic
+        // partnerGaugePool = new PartnerGaugePool(
+        //     address(gaugePool),
+        //     address(usdc),
+        //     ICentralRegistry(address(centralRegistry))
+        // );
+        // gaugePool.addPartnerGauge(address(partnerGaugePool));
     }
 
     function _deployMarketManager() internal {
@@ -343,6 +352,9 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(marketManager),
             marketInterestFactor
         );
+        try gaugePool.start(address(lendtroller)) {} catch {
+            assertWithMsg(false, "start gauge pool failed");
+        }
     }
 
     function _deployDynamicInterestRateModel() internal {
@@ -366,6 +378,24 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     function _deployDDAI() internal returns (DToken) {
         dDAI = _deployDToken(_DAI_ADDRESS);
         return dDAI;
+    }
+
+    function _deployCUSDC() internal returns (MockCToken) {
+        cUSDC = new MockCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(address(usdc)),
+            address(lendtroller)
+        );
+        return cUSDC;
+    }
+
+    function _deployCDAI() internal returns (MockCToken) {
+        cDAI = new MockCToken(
+            ICentralRegistry(address(centralRegistry)),
+            IERC20(address(dai)),
+            address(lendtroller)
+        );
+        return cDAI;
     }
 
     function _deployDToken(address token) internal returns (DToken) {
