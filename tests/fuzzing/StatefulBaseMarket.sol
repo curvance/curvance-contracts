@@ -47,7 +47,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
     ProtocolMessagingHub public protocolMessagingHub;
-    BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     DynamicInterestRateModel public InterestRateModel;
@@ -76,10 +75,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     PartnerGaugePool public partnerGaugePool;
 
     address public harvester;
-    address public randomUser = address(1000000);
-    address public user1 = address(1000001);
-    address public user2 = address(1000002);
-    address public liquidator = address(1000003);
     uint256 public clPointMultiplier = 11000; // 110%
     uint256 public voteBoostMultiplier = 11000; // 110%
     uint256 public lockBoostMultiplier = 10000; // 110%
@@ -146,7 +141,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(this),
             address(this),
             0,
-            address(this),
+            address(0),
             address(this)
         );
         centralRegistry.transferEmergencyCouncil(address(this));
