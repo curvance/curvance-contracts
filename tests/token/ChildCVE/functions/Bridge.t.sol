@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import { TestBaseChildCVE } from "../TestBaseChildCVE.sol";
-import { ITokenBridgeRelayer } from "contracts/interfaces/wormhole/ITokenBridgeRelayer.sol";
+import { ITokenBridgeRelayer } from "contracts/interfaces/external/wormhole/ITokenBridgeRelayer.sol";
 import { ERC20 } from "contracts/libraries/ERC20.sol";
 
 contract BridgeTest is TestBaseChildCVE {

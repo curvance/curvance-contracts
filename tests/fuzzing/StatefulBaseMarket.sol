@@ -151,6 +151,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(this),
             address(this),
             0,
+            address(this),
             address(this)
         );
         centralRegistry.transferEmergencyCouncil(address(this));
@@ -198,12 +199,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _deployProtocolMessagingHub() internal {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
-            _WORMHOLE_CORE,
-            _WORMHOLE_RELAYER,
-            _CIRCLE_RELAYER,
-            _TOKEN_BRIDGE_RELAYER
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
     }
