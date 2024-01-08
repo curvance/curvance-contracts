@@ -14,11 +14,13 @@ contract CentralRegistryDeployer is DeployConfiguration {
         address timelock,
         address emergencyCouncil,
         uint256 genesisEpoch,
-        address sequencer
+        address sequencer,
+        address feeToken
     ) internal {
         require(daoAddress != address(0), "Set the daoAddress!");
         require(timelock != address(0), "Set the timelock!");
         require(emergencyCouncil != address(0), "Set the emergencyCouncil!");
+        require(feeToken != address(0), "Set the feeToken!");
 
         centralRegistry = address(
             new CentralRegistry(
@@ -26,7 +28,8 @@ contract CentralRegistryDeployer is DeployConfiguration {
                 timelock,
                 emergencyCouncil,
                 genesisEpoch,
-                sequencer
+                sequencer,
+                feeToken
             )
         );
 

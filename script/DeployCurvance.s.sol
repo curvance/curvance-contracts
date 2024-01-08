@@ -8,6 +8,7 @@ import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.s
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { CveLockerDeployer } from "./deployers/CveLockerDeployer.s.sol";
 import { ProtocolMessagingHubDeployer } from "./deployers/ProtocolMessagingHubDeployer.s.sol";
+import { OneBalanceFeeManagerDeployer } from "./deployers/OneBalanceFeeManagerDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { GaugePoolDeployer } from "./deployers/GaugePoolDeployer.s.sol";
@@ -22,6 +23,7 @@ contract DeployCurvance is
     CveDeployer,
     CveLockerDeployer,
     ProtocolMessagingHubDeployer,
+    OneBalanceFeeManagerDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
     GaugePoolDeployer,
@@ -55,7 +57,8 @@ contract DeployCurvance is
             deployer,
             deployer,
             _readConfigUint256(".centralRegistry.genesisEpoch"),
-            _readConfigAddress(".centralRegistry.sequencer")
+            _readConfigAddress(".centralRegistry.sequencer"),
+            _readConfigAddress(".centralRegistry.feeToken")
         );
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
@@ -87,21 +90,24 @@ contract DeployCurvance is
 
         // Deploy ProtocolMessagingHub
 
-        _deployProtocolMessagingHub(
-            centralRegistry,
-            _readConfigAddress(".protocolMessagingHub.feeToken"),
-            _readConfigAddress(".protocolMessagingHub.wormholeCore"),
-            _readConfigAddress(".protocolMessagingHub.wormholeRelayer"),
-            _readConfigAddress(".protocolMessagingHub.circleRelayer"),
-            _readConfigAddress(".protocolMessagingHub.tokenBridgeRelayer")
-        );
+        _deployProtocolMessagingHub(centralRegistry);
         _setProtocolMessagingHub(protocolMessagingHub);
+
+        // Deploy OneBalanceFeeManager
+
+        _deployOneBalanceFeeManager(
+            centralRegistry,
+            _readConfigAddress(".oneBalanceFeeManager.gelatoOneBalance"),
+            _readConfigAddress(
+                ".oneBalanceFeeManager.polygonOneBalanceFeeManager"
+            )
+        );
 
         // Deploy FeeAccumulator
 
         _deployFeeAccumulator(
             centralRegistry,
-            _readConfigAddress(".feeAccumulator.feeToken"),
+            oneBalanceFeeManager,
             _readConfigUint256(".feeAccumulator.gasForCalldata"),
             _readConfigUint256(".feeAccumulator.gasForCrosschain")
         );
