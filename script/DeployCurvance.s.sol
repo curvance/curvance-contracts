@@ -67,10 +67,8 @@ contract DeployCurvance is
 
         // Deploy CVE
 
-        _deployCve(
+        _deployCVE(
             centralRegistry,
-            _readConfigAddress(".cve.wormholeCore"),
-            _readConfigAddress(".cve.tokenBridgeRelayer"),
             _readConfigAddress(".cve.teamAddress"),
             _readConfigUint256(".cve.daoTreasuryAllocation"),
             _readConfigUint256(".cve.callOptionAllocation"),

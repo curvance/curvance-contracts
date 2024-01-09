@@ -10,10 +10,8 @@ import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 contract CveDeployer is DeployConfiguration {
     address cve;
 
-    function _deployCve(
+    function _deployCVE(
         address centralRegistry,
-        address wormholeCore,
-        address tokenBridgeRelayer,
         address team,
         uint256 daoTreasuryAllocation,
         uint256 callOptionAllocation,
@@ -26,8 +24,6 @@ contract CveDeployer is DeployConfiguration {
         cve = address(
             new CVE(
                 ICentralRegistry(centralRegistry),
-                wormholeCore,
-                tokenBridgeRelayer,
                 team,
                 daoTreasuryAllocation,
                 callOptionAllocation,
