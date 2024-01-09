@@ -181,8 +181,6 @@ contract TestBaseMarket is TestBase {
 
         cve = new CVE(
             ICentralRegistry(address(centralRegistry)),
-            _WORMHOLE_CORE,
-            _TOKEN_BRIDGE_RELAYER,
             address(0),
             10000 ether,
             10000 ether,
