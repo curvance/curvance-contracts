@@ -110,6 +110,8 @@ contract FeeAccumulator is ReentrancyGuard {
     error FeeAccumulator__RemovalTokenDoesNotExist();
     error FeeAccumulator__MessagingHubHasNotChanged();
 
+    receive() external payable {}
+
     /// CONSTRUCTOR ///
 
     constructor(
