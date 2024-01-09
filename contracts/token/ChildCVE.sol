@@ -4,8 +4,6 @@ pragma solidity ^0.8.17;
 import { ERC20 } from "contracts/libraries/ERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ERC165Checker } from "contracts/libraries/ERC165Checker.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-import { ITokenBridgeRelayer } from "contracts/interfaces/external/wormhole/ITokenBridgeRelayer.sol";
 import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
 
 contract CVE is ERC20 {
@@ -13,12 +11,6 @@ contract CVE is ERC20 {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-
-    /// @notice Wormhole TokenBridgeRelayer.
-    ITokenBridgeRelayer public immutable tokenBridgeRelayer;
-
-    /// @notice Address of Wormhole core contract.
-    IWormhole public immutable wormholeCore;
 
     /// `bytes4(keccak256(bytes("CVE__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x15f37077;
@@ -32,11 +24,7 @@ contract CVE is ERC20 {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wormholeCore_,
-        address tokenBridgeRelayer_
-    ) {
+    constructor(ICentralRegistry centralRegistry_) {
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -45,16 +33,7 @@ contract CVE is ERC20 {
         ) {
             revert CVE__ParametersAreInvalid();
         }
-        if (wormholeCore_ == address(0)) {
-            revert CVE__WormholeCoreIsZeroAddress();
-        }
-        if (tokenBridgeRelayer_ == address(0)) {
-            revert CVE__TokenBridgeRelayerIsZeroAddress();
-        }
-
         centralRegistry = centralRegistry_;
-        tokenBridgeRelayer = ITokenBridgeRelayer(tokenBridgeRelayer_);
-        wormholeCore = IWormhole(wormholeCore_);
     }
 
     /// EXTERNAL FUNCTIONIS ///
@@ -109,18 +88,16 @@ contract CVE is ERC20 {
     /// @return Required fee.
     function relayerFee(uint256 dstChainId) external view returns (uint256) {
         return
-            tokenBridgeRelayer.calculateRelayerFee(
-                IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                    .wormholeChainId(dstChainId),
-                address(this),
-                18
-            );
+            IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+                .cveRelayerFee(dstChainId);
     }
 
     /// @notice Returns required amount of native asset for message fee.
     /// @return Required fee.
     function bridgeFee() external view returns (uint256) {
-        return wormholeCore.messageFee();
+        return
+            IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+                .cveBridgeFee();
     }
 
     /// PUBLIC FUNCTIONS ///
