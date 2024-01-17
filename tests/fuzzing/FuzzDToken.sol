@@ -11,6 +11,7 @@ contract FuzzDToken is StatefulBaseMarket {
     // @custom:precondition user must not have a shortfall for respective token
     function borrow_should_succeed(address dtoken, uint256 amount) public {
         is_supported_dtoken(dtoken);
+        check_price_feed();
         require(lendtroller.borrowPaused(dtoken) != 2);
         amount = clampBetween(amount, 1, type(uint64).max);
         require(lendtroller.isListed(dtoken));
@@ -33,6 +34,8 @@ contract FuzzDToken is StatefulBaseMarket {
         }
     }
 
+    /// @custom:property marketUnderlyingHeld() must always be equal to the underlying token balance of the dtoken contract
+    /// @custom:precondition dtoken is one of the supported assets
     function marketUnderlyingHeld_equivalent_to_balanceOf_underlying(
         address dtoken
     ) public {
@@ -52,6 +55,8 @@ contract FuzzDToken is StatefulBaseMarket {
         );
     }
 
+    /// @custom:property decimals for dtoken must always be equal to the underlying's number of decimals
+    /// @custom:precondition dtoken is one of the supported assets
     function decimals_for_dtoken_equivalent_to_underlying(
         address dtoken
     ) public {

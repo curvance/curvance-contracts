@@ -1,7 +1,6 @@
 pragma solidity 0.8.17;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { MockCToken } from "contracts/mocks/MockCToken.sol";
-import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/SafeTransferLib.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
@@ -9,10 +8,6 @@ import { IMToken } from "contracts/market/lendtroller/LiquidityManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
 contract FuzzLendtroller is StatefulBaseMarket {
-    MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockDaiFeed;
-    bool feedsSetup;
-    uint256 lastRoundUpdate;
     mapping(address => bool) setCollateralValues;
     mapping(address => bool) collateralCapsUpdated;
     mapping(address => bool) postedCollateral;
@@ -183,49 +178,6 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
     }
 
-    function setUpFeeds() public {
-        require(centralRegistry.hasElevatedPermissions(address(this)));
-        require(gaugePool.startTime() < block.timestamp);
-        // use mock pricing for testing
-        // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
-        mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));
-        chainlinkAdaptor.addAsset(address(cUSDC), address(mockUsdcFeed), true);
-        dualChainlinkAdaptor.addAsset(
-            address(cUSDC),
-            address(mockUsdcFeed),
-            true
-        );
-        mockDaiFeed = new MockDataFeed(address(chainlinkDaiUsd));
-        chainlinkAdaptor.addAsset(address(cDAI), address(mockDaiFeed), true);
-        dualChainlinkAdaptor.addAsset(
-            address(cDAI),
-            address(mockDaiFeed),
-            true
-        );
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockUsdcFeed.setMockAnswer(1e8);
-        mockDaiFeed.setMockAnswer(1e8);
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkDaiUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        priceRouter.addMTokenSupport(address(cDAI));
-        priceRouter.addMTokenSupport(address(cUSDC));
-
-        feedsSetup = true;
-        lastRoundUpdate = block.timestamp;
-    }
-
     /// @custom:property lend-5 – Calling updateCollateralToken with variables in correct bounds should succeed.
     /// @custom:precondition price feed must be recent
     /// @custom:precondition price feed must be setup
@@ -286,6 +238,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:property lend-7 Setting collateral caps for a token given permissions and collateral values being set should succeed.
     /// @custom:precondition address(this) has dao permissions
     /// @custom:precondition collateral values for mtoken must be set
+    /// @custom:precondition cap is bound between [0, uint256.max]
     function setCToken_should_succeed(address mtoken, uint256 cap) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
         require(setCollateralValues[mtoken]);
@@ -502,6 +455,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:precondition collateral caps for the token are >0
     /// @custom:precondition price feed must be out of date
     /// @custom:precondition user must have mtoken balance
+    /// @custom:precondition tokens is bound between [mtokenBalance - existingCollateral+1, uint256.max]
     function post_collateral_should_fail_too_many_tokens(
         address mtoken,
         uint256 tokens,
@@ -581,7 +535,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             mtoken,
             address(this)
         );
-        tokens = clampBetweenBoundsFromOne(lower, tokens);
+        tokens = clampBetween(tokens, 1, oldCollateralForUser);
 
         uint256 oldCollateralPostedForToken = lendtroller.collateralPosted(
             mtoken
@@ -704,7 +658,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:precondition token must be listed in Lendtroller
     /// @custom:precondition price feed must be up to date
     /// @custom:precondition user must have an existing position
-    /// @custom:precondition tokens to remove is bound between [existingCollateral+1, uint32.max]
+    /// @custom:precondition tokens to remove is bound between [existingCollateral+1, uint256.max]
     function removeCollateral_should_fail_with_removing_too_many_tokens(
         address mtoken,
         uint256 tokens
@@ -1006,35 +960,5 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 bounds.collRatio
             );
         }
-    }
-
-    // If the price is stale, update the round data and update lastRoundUpdate
-    function check_price_feed() public {
-        // if lastRoundUpdate timestamp is stale
-        if (lastRoundUpdate > block.timestamp) {
-            lastRoundUpdate = block.timestamp;
-        }
-        if (block.timestamp - chainlinkUsdcUsd.latestTimestamp() > 24 hours) {
-            // TODO: Change this to a loop to loop over lendtroller.assetsOf()
-            // Save a mapping of assets -> chainlink oracle
-            // call updateRoundData on each oracle
-            chainlinkUsdcUsd.updateRoundData(
-                0,
-                1e8,
-                block.timestamp,
-                block.timestamp
-            );
-            chainlinkDaiUsd.updateRoundData(
-                0,
-                1e8,
-                block.timestamp,
-                block.timestamp
-            );
-        }
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-        mockUsdcFeed.setMockAnswer(1e8);
-        mockDaiFeed.setMockAnswer(1e8);
-        lastRoundUpdate = block.timestamp;
     }
 }
