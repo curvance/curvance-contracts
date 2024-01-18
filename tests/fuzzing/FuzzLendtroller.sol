@@ -6,6 +6,7 @@ import { SafeTransferLib } from "contracts/libraries/SafeTransferLib.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { IMToken } from "contracts/market/lendtroller/LiquidityManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
+import { PriceRouter } from "contracts/oracles/PriceRouter.sol";
 
 contract FuzzLendtroller is StatefulBaseMarket {
     mapping(address => bool) setCollateralValues;
@@ -153,7 +154,11 @@ contract FuzzLendtroller is StatefulBaseMarket {
             bool assetCalc = doesOverflow(
                 preTotalAssets + amount,
                 preTotalAssets
-            );
+            ) ||
+                doesOverflow(
+                    preCTokenBalanceThis + amount,
+                    preCTokenBalanceThis
+                );
             // LEND-31
             bool isPriceNegative;
             if (mtoken == address(cDAI)) {
@@ -178,6 +183,24 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
     }
 
+    function check_price_divergence(
+        address mtoken
+    ) private returns (bool divergenceTooLarge, bool priceError) {
+        (uint256 lowerPrice, uint lowError) = PriceRouter(priceRouter)
+            .getPrice(mtoken, true, true);
+        (uint256 higherPrice, uint highError) = PriceRouter(priceRouter)
+            .getPrice(mtoken, true, false);
+
+        priceError = lowError == 2 || highError == 2;
+
+        if (
+            higherPrice - lowerPrice >
+            PriceRouter(priceRouter).badSourceDivergenceFlag()
+        ) {
+            divergenceTooLarge = true;
+        }
+    }
+
     /// @custom:property lend-5 – Calling updateCollateralToken with variables in correct bounds should succeed.
     /// @custom:precondition price feed must be recent
     /// @custom:precondition price feed must be setup
@@ -197,13 +220,16 @@ contract FuzzLendtroller is StatefulBaseMarket {
     ) public {
         require(feedsSetup);
         require(centralRegistry.hasDaoPermissions(address(this)));
-        if (!lendtroller.isListed(mtoken)) {
-            list_token_should_succeed(mtoken);
-        }
+        require(lendtroller.isListed(mtoken));
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
 
-        TokenCollateralBounds
-            memory bounds = get_safe_update_collateral_bounds(
+        (bool divergenceTooLarge, bool priceError) = check_price_divergence(
+            mtoken
+        );
+
+        {
+            check_price_feed();
+            get_safe_update_collateral_bounds(
                 collRatio,
                 collReqSoft,
                 collReqHard,
@@ -212,26 +238,38 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 liqFee,
                 baseCFactor
             );
-        check_price_feed();
+        }
         try
             lendtroller.updateCollateralToken(
                 IMToken(address(mtoken)),
-                bounds.collRatio,
-                bounds.collReqSoft,
-                bounds.collReqHard,
-                bounds.liqIncSoft,
-                bounds.liqIncHard,
-                bounds.liqFee,
-                bounds.baseCFactor
+                safeBounds.collRatio,
+                safeBounds.collReqSoft,
+                safeBounds.collReqHard,
+                safeBounds.liqIncSoft,
+                safeBounds.liqIncHard,
+                safeBounds.liqFee,
+                safeBounds.baseCFactor
             )
-        {} catch {
-            // LEND-5
-            assertWithMsg(
-                false,
-                "LENDTROLLER - updateCollateralToken should succeed"
-            );
+        {
+            setCollateralValues[mtoken] = true;
+        } catch (bytes memory revertData) {
+            {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                if (divergenceTooLarge || priceError) {
+                    assertWithMsg(
+                        errorSelector == lendtroller_priceErrorSelectorHash,
+                        "LENDTROLLER - expected updateCollateralToken to fail if price diverge too much"
+                    );
+                }
+
+                // LEND-5
+                assertWithMsg(
+                    false,
+                    "LENDTROLLER - updateCollateralToken should succeed"
+                );
+            }
         }
-        setCollateralValues[mtoken] = true;
     }
 
     /// @custom:property lend-6 – Calling setCTokenCollateralCaps should increase the globally set the collateral caps to the cap provided
@@ -316,26 +354,25 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
 
-        TokenCollateralBounds
-            memory bounds = get_safe_update_collateral_bounds(
-                collRatio,
-                collReqSoft,
-                collReqHard,
-                liqIncSoft,
-                liqIncHard,
-                liqFee,
-                baseCFactor
-            );
+        get_safe_update_collateral_bounds(
+            collRatio,
+            collReqSoft,
+            collReqHard,
+            liqIncSoft,
+            liqIncHard,
+            liqFee,
+            baseCFactor
+        );
         try
             lendtroller.updateCollateralToken(
                 IMToken(address(mtoken)),
-                bounds.collRatio,
-                bounds.collReqSoft,
-                bounds.collReqHard,
-                bounds.liqIncSoft,
-                bounds.liqIncHard,
-                bounds.liqFee,
-                bounds.baseCFactor
+                safeBounds.collRatio,
+                safeBounds.collReqSoft,
+                safeBounds.collReqHard,
+                safeBounds.liqIncSoft,
+                safeBounds.liqIncHard,
+                safeBounds.liqFee,
+                safeBounds.baseCFactor
             )
         {
             assertWithMsg(
@@ -425,10 +462,11 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 address(this)
             );
 
+            uint256 mtokenExchange = MockCToken(mtoken).exchangeRateSafe();
             // LEND-9
             assertEq(
-                newCollateralForUser,
-                oldCollateralForUser + tokens,
+                (newCollateralForUser) * mtokenExchange,
+                (oldCollateralForUser + tokens) * mtokenExchange,
                 "LENDTROLLER - new collateral must collateral+tokens"
             );
             // LEND-10
@@ -750,11 +788,26 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
         );
         IMToken[] memory preAssetsOf = lendtroller.assetsOf(address(this));
+        (, uint256 shortfall) = lendtroller.hypotheticalLiquidityOf(
+            address(this),
+            mtoken,
+            tokens,
+            0
+        );
 
-        (bool success, bytes memory rd) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(lendtroller).call(
             abi.encodeWithSignature("closePosition(address)", mtoken)
         );
+        uint256 errorSelector = extractErrorSelector(revertData);
+
         if (!success) {
+            if (shortfall > 0) {
+                assertWithMsg(
+                    errorSelector ==
+                        lendtroller_insufficientCollateralSelectorHash,
+                    "LENDTROLLER - closePosition should revert with InsufficientCollateral if shortfall exists"
+                );
+            }
             assertWithMsg(
                 false,
                 "LENDTROLLER - closePosition expected to be successful with correct preconditions"
@@ -879,6 +932,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 liqFee;
         uint256 baseCFactor;
     }
+    TokenCollateralBounds safeBounds;
 
     // Bounds the specific variables required to call updateCollateralBounds
     // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
@@ -899,65 +953,65 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 liqIncHard,
         uint256 liqFee,
         uint256 baseCFactor
-    ) private returns (TokenCollateralBounds memory bounds) {
+    ) private {
         // TODO: incorrect for new rebase (min: 10%, max: 50%)
-        bounds.baseCFactor = clampBetween(baseCFactor, 1, 1e18 / 1e14);
+        safeBounds.baseCFactor = clampBetween(baseCFactor, 1, 1e18 / 1e14);
 
         // liquidity incentive soft -> hard goes up
-        bounds.liqFee = clampBetween(
+        safeBounds.liqFee = clampBetween(
             liqFee,
             0,
             lendtroller.MAX_LIQUIDATION_FEE() / 1e14
         );
 
-        bounds.liqIncSoft = clampBetween(
+        safeBounds.liqIncSoft = clampBetween(
             liqIncSoft,
-            lendtroller.MIN_LIQUIDATION_INCENTIVE() / 1e14 + bounds.liqFee,
+            lendtroller.MIN_LIQUIDATION_INCENTIVE() / 1e14 + safeBounds.liqFee,
             lendtroller.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
         );
 
-        bounds.liqIncHard = clampBetween(
+        safeBounds.liqIncHard = clampBetween(
             liqIncHard,
-            bounds.liqIncSoft + 1, // TODO expected changes in rebase
+            safeBounds.liqIncSoft + 1, // TODO expected changes in rebase
             lendtroller.MAX_LIQUIDATION_INCENTIVE() / 1e14
         );
 
         // collateral requirement soft -> hard goes down
-        bounds.collReqHard = clampBetween(
+        safeBounds.collReqHard = clampBetween(
             collReqHard,
-            bounds.liqIncHard, // account for MIN_EXCESS_COLLATERAL_REQUIREMENT  on rebase
+            safeBounds.liqIncHard, // account for MIN_EXCESS_COLLATERAL_REQUIREMENT  on rebase
             lendtroller.MAX_COLLATERAL_REQUIREMENT() / 1e14 - 1
         );
 
-        bounds.collReqSoft = clampBetween(
+        safeBounds.collReqSoft = clampBetween(
             collReqSoft,
-            bounds.collReqHard + 1,
+            safeBounds.collReqHard + 1,
             lendtroller.MAX_COLLATERAL_REQUIREMENT() / 1e14
         );
 
         uint256 collatPremium = uint256(
-            ((WAD * WAD) / (WAD + (bounds.collReqSoft * 1e14)))
+            ((WAD * WAD) / (WAD + (safeBounds.collReqSoft * 1e14)))
         );
 
         if (lendtroller.MAX_COLLATERALIZATION_RATIO() > collatPremium) {
-            bounds.collRatio = clampBetween(
+            safeBounds.collRatio = clampBetween(
                 collRatio,
                 0,
                 (collatPremium / 1e14) // collat ratio is going to be *1e14, so make sure that it will not overflow
             );
             emit LogUint256(
                 "collateral ratio clamped to collateralization premium:",
-                bounds.collRatio
+                safeBounds.collRatio
             );
         } else {
-            bounds.collRatio = clampBetween(
+            safeBounds.collRatio = clampBetween(
                 collRatio,
                 0,
                 lendtroller.MAX_COLLATERALIZATION_RATIO() / 1e14
             );
             emit LogUint256(
                 "collateral ratio clamped to max collateralization ratio:",
-                bounds.collRatio
+                safeBounds.collRatio
             );
         }
     }

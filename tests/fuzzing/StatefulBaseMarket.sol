@@ -355,6 +355,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     function _deployDynamicInterestRateModel() internal {
+        // TODO: this can be setup using dynamic values as per fuzzing suite
         InterestRateModel = new DynamicInterestRateModel(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
@@ -440,11 +441,18 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         try MockToken(underlyingAddress).mint(amount) {} catch (
             bytes memory revertData
         ) {
-            uint256 currentSupply = MockToken(underlyingAddress).totalSupply();
+            uint256 underlyingSupply = MockToken(underlyingAddress)
+                .totalSupply();
+            uint256 mtokenSupply = MockToken(underlyingAddress).totalSupply();
             uint256 errorSelector = extractErrorSelector(revertData);
 
             unchecked {
-                if (doesOverflow(currentSupply + amount, currentSupply)) {
+                if (
+                    doesOverflow(
+                        underlyingSupply + amount,
+                        underlyingSupply
+                    ) || doesOverflow(mtokenSupply + amount, mtokenSupply)
+                ) {
                     assertWithMsg(
                         errorSelector == token_total_supply_overflow,
                         "MToken underlying - mint underlying amount should succeed"
@@ -501,6 +509,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
         mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));
         chainlinkAdaptor.addAsset(address(cUSDC), address(mockUsdcFeed), true);
+        chainlinkAdaptor.addAsset(address(dUSDC), address(mockUsdcFeed), true);
+
         dualChainlinkAdaptor.addAsset(
             address(cUSDC),
             address(mockUsdcFeed),
@@ -508,6 +518,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         );
         mockDaiFeed = new MockDataFeed(address(chainlinkDaiUsd));
         chainlinkAdaptor.addAsset(address(cDAI), address(mockDaiFeed), true);
+        chainlinkAdaptor.addAsset(address(dDAI), address(mockDaiFeed), true);
         dualChainlinkAdaptor.addAsset(
             address(cDAI),
             address(mockDaiFeed),
@@ -532,7 +543,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         );
         priceRouter.addMTokenSupport(address(cDAI));
         priceRouter.addMTokenSupport(address(cUSDC));
-
+        priceRouter.addMTokenSupport(address(dDAI));
+        priceRouter.addMTokenSupport(address(dUSDC));
         feedsSetup = true;
         lastRoundUpdate = block.timestamp;
     }

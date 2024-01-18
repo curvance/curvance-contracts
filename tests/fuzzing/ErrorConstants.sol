@@ -43,6 +43,9 @@ contract ErrorConstants {
             uint32(bytes4(keccak256("Lendtroller__LendtrollerMismatch()")))
         );
 
+    uint256 lendtroller_priceErrorSelectorHash =
+        uint256(uint32(bytes4(keccak256("Lendtroller__PriceError()"))));
+
     uint256 token_total_supply_overflow =
         uint256(uint32(bytes4(keccak256("TotalSupplyOverflow()"))));
 
