@@ -1,8 +1,10 @@
 
-# Set the directory to upload to the droplet.
+# Set the directory to upload to the droplet .
+# Release Echidna Link: https://github.com/crytic/echidna/releases/download/v2.2.1/echidna-2.2.1-Linux.zip
 [input]
 directory = "."
-timeout = "48h"
+timeout = "96h"
+jobName = "echidna vecve 10000000"
 
 [commands]
 setup = '''
@@ -17,7 +19,7 @@ fi
 
 if ! command -v echidna >/dev/null 2>&1; then
   echo "Downloading echidna..."
-  curl -fsSL -o /tmp/echidna.zip https://github.com/crytic/echidna/releases/download/v2.2.1/echidna-2.2.1-Linux.zip
+  curl -fsSL -o /tmp/echidna.zip https://github.com/crytic/echidna/actions/runs/7573348911/artifacts/1178775227
   echo "Extracting echidna..."
   unzip /tmp/echidna.zip -d /tmp
   tar -xzf /tmp/echidna.tar.gz -C /tmp
@@ -49,4 +51,4 @@ forge --version
 
 # This command is run from the input directory
 # after the setup script completes.
-run = "source /.bashrc && forge --version && make echidna-cloud && make medusa-local"
+run = "source /.bashrc && forge --version && make ec"
