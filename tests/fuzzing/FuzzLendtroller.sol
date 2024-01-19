@@ -167,7 +167,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 isPriceNegative = chainlinkUsdcUsd.latestAnswer() < 0;
             }
             // LEND-29, LEND-30
-            if (!lower && (convertToSharesOverflow || assetCalc)) {
+            if (convertToSharesOverflow || assetCalc) {
                 assertEq(
                     errorSelector,
                     0,
@@ -395,9 +395,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 tokens,
         bool lower
     ) public {
-        if (!collateralCapsUpdated[mtoken]) {
-            setCToken_should_succeed(mtoken, tokens);
-        }
+        require(collateralCapsUpdated[mtoken]);
         check_price_feed();
 
         if (IMToken(mtoken).balanceOf(address(this)) == 0) {
@@ -584,6 +582,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             tokens,
             0
         );
+        emit LogUint256("shortfall:", shortfall);
 
         if (shortfall > 0) {
             (bool success, bytes memory revertData) = address(lendtroller)
@@ -791,7 +790,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         (, uint256 shortfall) = lendtroller.hypotheticalLiquidityOf(
             address(this),
             mtoken,
-            tokens,
+            collateralPostedForUser,
             0
         );
 
@@ -807,11 +806,12 @@ contract FuzzLendtroller is StatefulBaseMarket {
                         lendtroller_insufficientCollateralSelectorHash,
                     "LENDTROLLER - closePosition should revert with InsufficientCollateral if shortfall exists"
                 );
+            } else {
+                assertWithMsg(
+                    false,
+                    "LENDTROLLER - closePosition expected to be successful with correct preconditions"
+                );
             }
-            assertWithMsg(
-                false,
-                "LENDTROLLER - closePosition expected to be successful with correct preconditions"
-            );
         } else {
             check_close_position_post_conditions(mtoken, preAssetsOf.length);
         }
