@@ -12,6 +12,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     mapping(address => bool) setCollateralValues;
     mapping(address => bool) collateralCapsUpdated;
     mapping(address => bool) postedCollateral;
+    mapping(address => bool) isCollateralRatioZero;
 
     constructor() {
         SafeTransferLib.safeApprove(
@@ -238,6 +239,9 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 liqFee,
                 baseCFactor
             );
+            if (safeBounds.collRatio == 0) {
+                isCollateralRatioZero[mtoken] = true;
+            }
         }
         try
             lendtroller.updateCollateralToken(
@@ -275,11 +279,15 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:property lend-6 – Calling setCTokenCollateralCaps should increase the globally set the collateral caps to the cap provided
     /// @custom:property lend-7 Setting collateral caps for a token given permissions and collateral values being set should succeed.
     /// @custom:precondition address(this) has dao permissions
+    /// @custom:precondition mtoken is a C token
     /// @custom:precondition collateral values for mtoken must be set
     /// @custom:precondition cap is bound between [0, uint256.max]
     function setCToken_should_succeed(address mtoken, uint256 cap) public {
+        require(IMToken(mtoken).isCToken());
         require(centralRegistry.hasDaoPermissions(address(this)));
         require(setCollateralValues[mtoken]);
+        require(!isCollateralRatioZero[mtoken]);
+
         check_price_feed();
 
         address[] memory tokens = new address[](1);
@@ -354,15 +362,20 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
 
-        get_safe_update_collateral_bounds(
-            collRatio,
-            collReqSoft,
-            collReqHard,
-            liqIncSoft,
-            liqIncHard,
-            liqFee,
-            baseCFactor
-        );
+        {
+            get_safe_update_collateral_bounds(
+                collRatio,
+                collReqSoft,
+                collReqHard,
+                liqIncSoft,
+                liqIncHard,
+                liqFee,
+                baseCFactor
+            );
+            if (safeBounds.collRatio == 0) {
+                isCollateralRatioZero[mtoken] = true;
+            }
+        }
         try
             lendtroller.updateCollateralToken(
                 IMToken(address(mtoken)),
@@ -560,10 +573,14 @@ contract FuzzLendtroller is StatefulBaseMarket {
         require(lendtroller.isListed(mtoken));
         check_price_feed();
 
+        emit LogUint256("posted collateral at: ", postedCollateralAt[mtoken]);
+        emit LogUint256("MIN_HOLD_PERIOD: ", lendtroller.MIN_HOLD_PERIOD());
+        emit LogUint256("current timestamp: ", block.timestamp);
         require(
             block.timestamp >
                 postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
         );
+
         require(lendtroller.hasPosition(mtoken, address(this)));
         require(lendtroller.redeemPaused() != 2);
 
