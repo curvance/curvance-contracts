@@ -2,13 +2,13 @@ pragma solidity 0.8.17;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { MockCToken } from "contracts/mocks/MockCToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { SafeTransferLib } from "contracts/libraries/SafeTransferLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
-import { IMToken } from "contracts/market/lendtroller/LiquidityManager.sol";
+import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { PriceRouter } from "contracts/oracles/PriceRouter.sol";
+import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 
-contract FuzzLendtroller is StatefulBaseMarket {
+contract FuzzMarketManager is StatefulBaseMarket {
     mapping(address => bool) setCollateralValues;
     mapping(address => bool) collateralCapsUpdated;
     mapping(address => bool) postedCollateral;
@@ -37,13 +37,13 @@ contract FuzzLendtroller is StatefulBaseMarket {
         );
     }
 
-    /// @custom:property lend-1 Once a new token is listed, lendtroller.isListed(mtoken) should return true.
+    /// @custom:property lend-1 Once a new token is listed, marketManager.isListed(mtoken) should return true.
     /// @custom:precondition mtoken must not already be listed
     /// @custom:precondition mtoken must be one of: cDAI, cUSDC
     function list_token_should_succeed(address mtoken) public {
         uint256 amount = 42069;
-        // require the token is not already listed into the lendtroller
-        require(!lendtroller.isListed(mtoken));
+        // require the token is not already listed into the marketManager
+        require(!marketManager.isListed(mtoken));
 
         require(
             mtoken == address(cDAI) ||
@@ -57,29 +57,29 @@ contract FuzzLendtroller is StatefulBaseMarket {
         address underlyingAddress = MockCToken(mtoken).underlying();
         IERC20 underlying = IERC20(underlyingAddress);
 
-        try lendtroller.listToken(mtoken) {
+        try marketManager.listToken(mtoken) {
             assertWithMsg(
-                lendtroller.isListed(mtoken),
-                "LENDTROLLER - lendtroller.listToken() should succeed"
+                marketManager.isListed(mtoken),
+                "LENDTROLLER - marketManager.listToken() should succeed"
             );
         } catch {
             assertWithMsg(false, "LENDTROLLER - failed to list token");
         }
     }
 
-    /// @custom:property lend-2 A token already added to the Lendtroller cannot be added again
+    /// @custom:property lend-2 A token already added to the MarketManager cannot be added again
     /// @custom:precondition mtoken must already be listed
     /// @custom:precondition mtoken must be one of: cDAI, cUSDC
     function list_token_should_fail_if_already_listed(address mtoken) public {
         uint256 amount = 42069;
-        // require the token is not already listed into the lendtroller
-        require(lendtroller.isListed(mtoken));
+        // require the token is not already listed into the marketManager
+        require(marketManager.isListed(mtoken));
 
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         address underlyingAddress = MockCToken(mtoken).underlying();
         IERC20 underlying = IERC20(underlyingAddress);
 
-        try lendtroller.listToken(mtoken) {
+        try marketManager.listToken(mtoken) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - listToken for duplicate token should not be possible"
@@ -101,7 +101,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:property lend-31 If oracle returns price <0, deposit should revert
     /// @custom:precondition GaugePool must have been started before block.timestamp
     /// @custom:precondition mtoken must be one of: cDAI, cUSDC
-    /// @custom:precondition mtoken must be listed in Lendtroller
+    /// @custom:precondition mtoken must be listed in MarketManager
     /// @custom:precondition minting must not be paused
     function c_token_deposit(
         address mtoken,
@@ -110,10 +110,10 @@ contract FuzzLendtroller is StatefulBaseMarket {
     ) public {
         require(gaugePool.startTime() < block.timestamp);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
-        if (!lendtroller.isListed(mtoken)) {
+        if (!marketManager.isListed(mtoken)) {
             list_token_should_succeed(mtoken);
         }
-        require(lendtroller.mintPaused(mtoken) != 2);
+        require(marketManager.mintPaused(mtoken) != 2);
 
         address underlyingAddress = MockCToken(mtoken).underlying();
         amount = clampBetweenBoundsFromOne(lower, amount);
@@ -187,16 +187,16 @@ contract FuzzLendtroller is StatefulBaseMarket {
     function check_price_divergence(
         address mtoken
     ) private returns (bool divergenceTooLarge, bool priceError) {
-        (uint256 lowerPrice, uint lowError) = PriceRouter(priceRouter)
+        (uint256 lowerPrice, uint lowError) = OracleRouter(oracleRouter)
             .getPrice(mtoken, true, true);
-        (uint256 higherPrice, uint highError) = PriceRouter(priceRouter)
+        (uint256 higherPrice, uint highError) = OracleRouter(oracleRouter)
             .getPrice(mtoken, true, false);
 
         priceError = lowError == 2 || highError == 2;
 
         if (
             higherPrice - lowerPrice >
-            PriceRouter(priceRouter).badSourceDivergenceFlag()
+            OracleRouter(oracleRouter).badSourceDivergenceFlag()
         ) {
             divergenceTooLarge = true;
         }
@@ -207,7 +207,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:precondition price feed must be setup
     /// @custom:precondition address(this) must have dao permissions
     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
-    /// @custom:precondition mtoken must be listed in the Lendtroller
+    /// @custom:precondition mtoken must be listed in the MarketManager
     /// @custom:precondition get_safe_update_collateral_bounds must be in correct bounds
     function updateCollateralToken_should_succeed(
         address mtoken,
@@ -221,7 +221,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     ) public {
         require(feedsSetup);
         require(centralRegistry.hasDaoPermissions(address(this)));
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
 
         (bool divergenceTooLarge, bool priceError) = check_price_divergence(
@@ -244,7 +244,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             }
         }
         try
-            lendtroller.updateCollateralToken(
+            marketManager.updateCollateralToken(
                 IMToken(address(mtoken)),
                 safeBounds.collRatio,
                 safeBounds.collReqSoft,
@@ -295,7 +295,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "setCTokenCollateralCaps(address[],uint256[])",
                 tokens,
@@ -306,7 +306,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         if (success) {
             // LEND-6
             assertEq(
-                lendtroller.collateralCaps(mtoken),
+                marketManager.collateralCaps(mtoken),
                 cap,
                 "LENDTROLLER - collateral caps for token should be >=0"
             );
@@ -324,7 +324,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:property lend-8 – updateCollateralToken should revert if the price feed is out of date
     /// @custom:precondition price feed is out of date
     /// @custom:precondition cap is bound between [1, uint256.max], inclusive
-    /// @custom:precondition mtoken must be listed in Lendtroller
+    /// @custom:precondition mtoken must be listed in MarketManager
     /// @custom:precondition mtoken must be one of: cDAI, cUSDC
     function updateCollateralToken_should_revert_if_price_feed_out_of_date(
         address mtoken,
@@ -354,7 +354,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
         require(feedsSetup);
         require(centralRegistry.hasDaoPermissions(address(this)));
-        if (!lendtroller.isListed(mtoken)) {
+        if (!marketManager.isListed(mtoken)) {
             list_token_should_succeed(mtoken);
         }
         address[] memory tokens = new address[](1);
@@ -377,7 +377,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             }
         }
         try
-            lendtroller.updateCollateralToken(
+            marketManager.updateCollateralToken(
                 IMToken(address(mtoken)),
                 safeBounds.collRatio,
                 safeBounds.collReqSoft,
@@ -420,13 +420,13 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
         uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
 
-        uint256 oldCollateralForUser = lendtroller.collateralPostedFor(
+        uint256 oldCollateralForUser = marketManager.collateralPostedFor(
             mtoken,
             address(this)
         );
-        uint256 collateralCaps = lendtroller.collateralCaps(mtoken);
+        uint256 collateralCaps = marketManager.collateralCaps(mtoken);
 
-        uint256 oldCollateralForToken = lendtroller.collateralPosted(mtoken);
+        uint256 oldCollateralForToken = marketManager.collateralPosted(mtoken);
         if (
             mtokenBalance - oldCollateralForUser >
             collateralCaps - oldCollateralForToken
@@ -449,7 +449,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
 
         {
-            (bool success, bytes memory revertData) = address(lendtroller)
+            (bool success, bytes memory revertData) = address(marketManager)
                 .call(
                     abi.encodeWithSignature(
                         "postCollateral(address,address,uint256)",
@@ -468,7 +468,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 );
             }
             // ensure account collateral has increased by # of tokens
-            uint256 newCollateralForUser = lendtroller.collateralPostedFor(
+            uint256 newCollateralForUser = marketManager.collateralPostedFor(
                 mtoken,
                 address(this)
             );
@@ -482,11 +482,11 @@ contract FuzzLendtroller is StatefulBaseMarket {
             );
             // LEND-10
             assertWithMsg(
-                lendtroller.hasPosition(mtoken, address(this)),
+                marketManager.hasPosition(mtoken, address(this)),
                 "LENDTROLLER - addr(this) must have position after posting"
             );
             // ensure collateralPosted increases by tokens
-            uint256 newCollateralForToken = lendtroller.collateralPosted(
+            uint256 newCollateralForToken = marketManager.collateralPosted(
                 mtoken
             );
             // LEND-11
@@ -522,7 +522,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         }
         uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
 
-        uint256 oldCollateralForUser = lendtroller.collateralPostedFor(
+        uint256 oldCollateralForUser = marketManager.collateralPostedFor(
             mtoken,
             address(this)
         );
@@ -535,9 +535,9 @@ contract FuzzLendtroller is StatefulBaseMarket {
             type(uint256).max
         );
 
-        uint256 oldCollateralForToken = lendtroller.collateralPosted(mtoken);
+        uint256 oldCollateralForToken = marketManager.collateralPosted(mtoken);
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "postCollateral(address,address,uint256)",
                 address(this),
@@ -558,7 +558,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:property lend-17 If the user does not have a liquidity shortfall and meets expected preconditions, the removeCollateral should be successful.
     /// @custom:precondition price feed must be recent
     /// @custom:precondition mtoken is one of: cDAI, cUSDC
-    /// @custom:precondition mtoken must be listed in the Lendtroller
+    /// @custom:precondition mtoken must be listed in the MarketManager
     /// @custom:precondition current timestamp must exceed the MIN_HOLD_PERIOD from postCollateral timestamp
     /// @custom:precondition token is clamped between [1, collateralForUser]
     /// @custom:precondition redeemPaused flag must not be set
@@ -570,30 +570,30 @@ contract FuzzLendtroller is StatefulBaseMarket {
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(postedCollateral[mtoken]);
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         check_price_feed();
 
         emit LogUint256("posted collateral at: ", postedCollateralAt[mtoken]);
-        emit LogUint256("MIN_HOLD_PERIOD: ", lendtroller.MIN_HOLD_PERIOD());
+        emit LogUint256("MIN_HOLD_PERIOD: ", marketManager.MIN_HOLD_PERIOD());
         emit LogUint256("current timestamp: ", block.timestamp);
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
 
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        require(lendtroller.redeemPaused() != 2);
+        require(marketManager.hasPosition(mtoken, address(this)));
+        require(marketManager.redeemPaused() != 2);
 
-        uint256 oldCollateralForUser = lendtroller.collateralPostedFor(
+        uint256 oldCollateralForUser = marketManager.collateralPostedFor(
             mtoken,
             address(this)
         );
         tokens = clampBetween(tokens, 1, oldCollateralForUser);
 
-        uint256 oldCollateralPostedForToken = lendtroller.collateralPosted(
+        uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
             mtoken
         );
-        (, uint256 shortfall) = lendtroller.hypotheticalLiquidityOf(
+        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             tokens,
@@ -602,7 +602,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
         emit LogUint256("shortfall:", shortfall);
 
         if (shortfall > 0) {
-            (bool success, bytes memory revertData) = address(lendtroller)
+            (bool success, bytes memory revertData) = address(marketManager)
                 .call(
                     abi.encodeWithSignature(
                         "removeCollateral(address,uint256,bool)",
@@ -623,7 +623,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 );
             }
         } else {
-            (bool success, bytes memory rd) = address(lendtroller).call(
+            (bool success, bytes memory rd) = address(marketManager).call(
                 abi.encodeWithSignature(
                     "removeCollateral(address,uint256,bool)",
                     mtoken,
@@ -637,7 +637,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
                 "LENDTROLLER - expected removeCollateral expected to be successful with no shortfall"
             );
             // Collateral posted for the mtoken should decrease
-            uint256 newCollateralPostedForToken = lendtroller.collateralPosted(
+            uint256 newCollateralPostedForToken = marketManager.collateralPosted(
                 mtoken
             );
             // LEND-14
@@ -648,7 +648,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             );
 
             // Collateral posted for the user should decrease
-            uint256 newCollateralForUser = lendtroller.collateralPostedFor(
+            uint256 newCollateralForUser = marketManager.collateralPostedFor(
                 mtoken,
                 address(this)
             );
@@ -660,7 +660,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             );
             if (newCollateralForUser == 0 && closePositionIfPossible) {
                 assertWithMsg(
-                    !lendtroller.hasPosition(mtoken, address(this)),
+                    !marketManager.hasPosition(mtoken, address(this)),
                     "LENDTROLLER - closePositionIfPossible flag set should remove a user's position"
                 );
             }
@@ -669,7 +669,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
 
     /// @custom:property lend-18 Removing collateral for a nonexistent position should revert with invariant error hash.
     /// @custom:precondition mtoken is either of: cDAI or cUSDC
-    /// @custom:precondition token must be listed in Lendtroller
+    /// @custom:precondition token must be listed in MarketManager
     /// @custom:precondition price feed must be up to date
     /// @custom:precondition user must NOT have an existing position
     function removeCollateral_should_fail_with_non_existent_position(
@@ -677,11 +677,11 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 tokens
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         check_price_feed();
-        require(!lendtroller.hasPosition(mtoken, address(this)));
+        require(!marketManager.hasPosition(mtoken, address(this)));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "removeCollateral(address,uint256,bool)",
                 mtoken,
@@ -709,7 +709,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
 
     /// @custom:property lend-19 Removing more tokens than a user has for collateral should revert with insufficient collateral hash.
     /// @custom:precondition mtoken is either of: cDAI or cUSDC
-    /// @custom:precondition token must be listed in Lendtroller
+    /// @custom:precondition token must be listed in MarketManager
     /// @custom:precondition price feed must be up to date
     /// @custom:precondition user must have an existing position
     /// @custom:precondition tokens to remove is bound between [existingCollateral+1, uint256.max]
@@ -718,10 +718,10 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 tokens
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         check_price_feed();
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        uint256 oldCollateralForUser = lendtroller.collateralPostedFor(
+        require(marketManager.hasPosition(mtoken, address(this)));
+        uint256 oldCollateralForUser = marketManager.collateralPostedFor(
             mtoken,
             address(this)
         );
@@ -732,7 +732,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             type(uint256).max
         );
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "removeCollateral(address,uint256,bool)",
                 mtoken,
@@ -766,7 +766,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     ) public {
         require(msg.sender != mtoken);
         try
-            lendtroller.reduceCollateralIfNecessary(
+            marketManager.reduceCollateralIfNecessary(
                 address(this),
                 mtoken,
                 IMToken(mtoken).balanceOf(address(this)),
@@ -790,28 +790,28 @@ contract FuzzLendtroller is StatefulBaseMarket {
     /// @custom:precondition token must have an existing position
     /// @custom:precondition collateralPostedForUser for respective token > 0
     function closePosition_should_succeed(address mtoken) public {
-        require(lendtroller.redeemPaused() != 2);
+        require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
-        require(lendtroller.hasPosition(mtoken, address(this)));
+        require(marketManager.hasPosition(mtoken, address(this)));
         check_price_feed();
-        uint256 collateralPostedForUser = lendtroller.collateralPostedFor(
+        uint256 collateralPostedForUser = marketManager.collateralPostedFor(
             address(mtoken),
             address(this)
         );
         require(collateralPostedForUser > 0);
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        IMToken[] memory preAssetsOf = lendtroller.assetsOf(address(this));
-        (, uint256 shortfall) = lendtroller.hypotheticalLiquidityOf(
+        IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
+        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             collateralPostedForUser,
             0
         );
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature("closePosition(address)", mtoken)
         );
         uint256 errorSelector = extractErrorSelector(revertData);
@@ -844,22 +844,22 @@ contract FuzzLendtroller is StatefulBaseMarket {
     function closePosition_should_succeed_if_collateral_is_0(
         address mtoken
     ) public {
-        require(lendtroller.redeemPaused() != 2);
+        require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
-        require(lendtroller.hasPosition(mtoken, address(this)));
+        require(marketManager.hasPosition(mtoken, address(this)));
         check_price_feed();
-        uint256 collateralPostedForUser = lendtroller.collateralPostedFor(
+        uint256 collateralPostedForUser = marketManager.collateralPostedFor(
             address(mtoken),
             address(this)
         );
         require(collateralPostedForUser == 0);
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        IMToken[] memory preAssetsOf = lendtroller.assetsOf(address(this));
+        IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
 
-        (bool success, bytes memory rd) = address(lendtroller).call(
+        (bool success, bytes memory rd) = address(marketManager).call(
             abi.encodeWithSignature("closePosition(address)", mtoken)
         );
         if (!success) {} else {
@@ -872,14 +872,14 @@ contract FuzzLendtroller is StatefulBaseMarket {
         uint256 preAssetsOfLength
     ) private {
         assertWithMsg(
-            !lendtroller.hasPosition(mtoken, address(this)),
+            !marketManager.hasPosition(mtoken, address(this)),
             "LENDTROLLER - closePosition should remove position in mtoken if successful"
         );
         assertWithMsg(
-            lendtroller.collateralPostedFor(mtoken, address(this)) == 0,
+            marketManager.collateralPostedFor(mtoken, address(this)) == 0,
             "LENDTROLLER - closePosition should reduce collateralPosted for user to 0"
         );
-        IMToken[] memory postAssetsOf = lendtroller.assetsOf(address(this));
+        IMToken[] memory postAssetsOf = marketManager.assetsOf(address(this));
         assertWithMsg(
             preAssetsOfLength - 1 == postAssetsOf.length,
             "LENDTROLLER - closePosition expected to remove asset from assetOf"
@@ -887,7 +887,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     }
 
     function liquidateAccount_should_succeed(address account) public {
-        try lendtroller.liquidateAccount(account) {} catch {}
+        try marketManager.liquidateAccount(account) {} catch {}
     }
 
     // Stateful Functions
@@ -902,7 +902,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
     function cToken_balance_gte_collateral_posted(address ctoken) public {
         uint256 cTokenBalance = MockCToken(ctoken).balanceOf(address(this));
 
-        uint256 collateralPostedForAddress = lendtroller.collateralPosted(
+        uint256 collateralPostedForAddress = marketManager.collateralPosted(
             address(this)
         );
 
@@ -917,9 +917,9 @@ contract FuzzLendtroller is StatefulBaseMarket {
     // market collateral posted should always be less than the max(collateralCaps for a token) -≥
     // ECHIDNA TODO: keep track of max collateral cap for a specific token
     function collateralPosted_lte_collateralCaps(address token) public {
-        uint256 collateralPosted = lendtroller.collateralPosted(token);
+        uint256 collateralPosted = marketManager.collateralPosted(token);
 
-        uint256 collateralCaps = lendtroller.collateralCaps(token);
+        uint256 collateralCaps = marketManager.collateralCaps(token);
 
         assertLte(
             collateralPosted,
@@ -928,9 +928,9 @@ contract FuzzLendtroller is StatefulBaseMarket {
         );
     }
 
-    // @custom:property s-lend-3 totalSupply should never be zero for any mtoken once added to Lendtroller
+    // @custom:property s-lend-3 totalSupply should never be zero for any mtoken once added to MarketManager
     function totalSupply_of_listed_token_is_never_zero(address mtoken) public {
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         assertNeq(
             IMToken(mtoken).totalSupply(),
             0,
@@ -980,39 +980,39 @@ contract FuzzLendtroller is StatefulBaseMarket {
         safeBounds.liqFee = clampBetween(
             liqFee,
             0,
-            lendtroller.MAX_LIQUIDATION_FEE() / 1e14
+            marketManager.MAX_LIQUIDATION_FEE() / 1e14
         );
 
         safeBounds.liqIncSoft = clampBetween(
             liqIncSoft,
-            lendtroller.MIN_LIQUIDATION_INCENTIVE() / 1e14 + safeBounds.liqFee,
-            lendtroller.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
+            marketManager.MIN_LIQUIDATION_INCENTIVE() / 1e14 + safeBounds.liqFee,
+            marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
         );
 
         safeBounds.liqIncHard = clampBetween(
             liqIncHard,
             safeBounds.liqIncSoft + 1, // TODO expected changes in rebase
-            lendtroller.MAX_LIQUIDATION_INCENTIVE() / 1e14
+            marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14
         );
 
         // collateral requirement soft -> hard goes down
         safeBounds.collReqHard = clampBetween(
             collReqHard,
             safeBounds.liqIncHard, // account for MIN_EXCESS_COLLATERAL_REQUIREMENT  on rebase
-            lendtroller.MAX_COLLATERAL_REQUIREMENT() / 1e14 - 1
+            marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14 - 1
         );
 
         safeBounds.collReqSoft = clampBetween(
             collReqSoft,
             safeBounds.collReqHard + 1,
-            lendtroller.MAX_COLLATERAL_REQUIREMENT() / 1e14
+            marketManager.MAX_COLLATERAL_REQUIREMENT() / 1e14
         );
 
         uint256 collatPremium = uint256(
             ((WAD * WAD) / (WAD + (safeBounds.collReqSoft * 1e14)))
         );
 
-        if (lendtroller.MAX_COLLATERALIZATION_RATIO() > collatPremium) {
+        if (marketManager.MAX_COLLATERALIZATION_RATIO() > collatPremium) {
             safeBounds.collRatio = clampBetween(
                 collRatio,
                 0,
@@ -1026,7 +1026,7 @@ contract FuzzLendtroller is StatefulBaseMarket {
             safeBounds.collRatio = clampBetween(
                 collRatio,
                 0,
-                lendtroller.MAX_COLLATERALIZATION_RATIO() / 1e14
+                marketManager.MAX_COLLATERALIZATION_RATIO() / 1e14
             );
             emit LogUint256(
                 "collateral ratio clamped to max collateralization ratio:",

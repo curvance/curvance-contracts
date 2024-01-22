@@ -1,21 +1,21 @@
 pragma solidity 0.8.17;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
-import { IMToken } from "contracts/market/lendtroller/LiquidityManager.sol";
+import { IMToken } from "contracts/market/LiquidityManager.sol";
 
-contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
+contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
     /// @custom:property sc-lend-1 canMint should not revert when mint is not paused and token is listed
     /// @custom:precondition mintPaused !=2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     function canMint_should_not_revert_when_mint_not_paused_and_is_listed(
         address mtoken
     ) public {
-        uint256 mintPaused = lendtroller.mintPaused(mtoken);
-        bool isListed = lendtroller.isListed(mtoken);
+        uint256 mintPaused = marketManager.mintPaused(mtoken);
+        bool isListed = marketManager.isListed(mtoken);
 
         require(mintPaused != 2);
         require(isListed);
 
-        try lendtroller.canMint(mtoken) {} catch {
+        try marketManager.canMint(mtoken) {} catch {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canMint() should have not reverted"
@@ -25,17 +25,17 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-2 canMint should revert when token is not listed
     /// @custom:precondition mintPaused !=2
-    /// @custom:precondition mtoken is not listed in Lendtroller
+    /// @custom:precondition mtoken is not listed in MarketManager
     function canMint_should_revert_when_token_is_not_listed(
         address mtoken
     ) public {
-        uint256 mintPaused = lendtroller.mintPaused(mtoken);
-        bool isListed = lendtroller.isListed(mtoken);
+        uint256 mintPaused = marketManager.mintPaused(mtoken);
+        bool isListed = marketManager.isListed(mtoken);
 
         require(mintPaused != 2);
         require(!isListed);
 
-        try lendtroller.canMint(mtoken) {
+        try marketManager.canMint(mtoken) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canMint() should have reverted when token is not listed but did not"
@@ -45,15 +45,15 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-3 canMint should revert when mintPaused = 2
     /// @custom:precondition mintPaused = 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     function canMint_should_revert_when_mint_is_paused(address mtoken) public {
-        uint256 mintPaused = lendtroller.mintPaused(mtoken);
-        bool isListed = lendtroller.isListed(mtoken);
+        uint256 mintPaused = marketManager.mintPaused(mtoken);
+        bool isListed = marketManager.isListed(mtoken);
 
         require(mintPaused == 2);
         require(isListed);
 
-        try lendtroller.canMint(mtoken) {
+        try marketManager.canMint(mtoken) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canMint() should have reverted when mint is paused but did not"
@@ -63,7 +63,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-4 canRedeem should be successful when @precondition are met
     /// @custom:precondition redeemPaused != 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition current timestamp > cooldownTimestamp + MIN_HOLD_PERIOD
     /// @custom:precondition user has a position for mtoken, addr(this)
     /// @custom:precondition liquidityDeficity >0
@@ -72,21 +72,21 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.redeemPaused() != 2);
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.redeemPaused() != 2);
+        require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canRedeem(mtoken, account, amount) {} catch {
+        try marketManager.canRedeem(mtoken, account, amount) {} catch {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canRedeem expected to succeed under @precondition"
@@ -96,7 +96,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-5 canRedeem should revert when redeemPaused = 2
     /// @custom:precondition redeemPaused = 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition address(this) has a position for mtoken
     /// @custom:precondition liquidity deficity for hypothetical liquidity = 0;
     function canRedeem_should_revert_when_redeem_is_paused(
@@ -104,17 +104,17 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.redeemPaused() == 2);
-        require(lendtroller.isListed(mtoken));
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.redeemPaused() == 2);
+        require(marketManager.isListed(mtoken));
+        require(marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canRedeem(mtoken, account, amount) {
+        try marketManager.canRedeem(mtoken, account, amount) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canRedeem expected to revert when redeem is paused"
@@ -131,7 +131,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-6 canRedeem should revert when token is not listed
     /// @custom:precondition redeemPaused != 2
-    /// @custom:precondition mtoken is not listed in Lendtroller
+    /// @custom:precondition mtoken is not listed in MarketManager
     /// @custom:precondition address(this) has a position for mtoken
     /// @custom:precondition liquidity deficity for hypothetical liquidity = 0;
     function canRedeem_should_revert_token_not_listed(
@@ -139,17 +139,17 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.redeemPaused() != 2);
-        require(!lendtroller.isListed(mtoken));
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.redeemPaused() != 2);
+        require(!marketManager.isListed(mtoken));
+        require(marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canRedeem(mtoken, account, amount) {
+        try marketManager.canRedeem(mtoken, account, amount) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canRedeem expected to revert token is not listed"
@@ -166,7 +166,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-7 canRedeem should revert when liquidity deficit > 0
     /// @custom:precondition redeemPaused != 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition address(this) has a position for mtoken
     /// @custom:precondition liquidity deficity for hypothetical liquidity > 0;
     function canRedeem_should_revert_deficit_exists(
@@ -174,17 +174,17 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.redeemPaused() != 2);
-        require(lendtroller.isListed(mtoken));
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.redeemPaused() != 2);
+        require(marketManager.isListed(mtoken));
+        require(marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit > 0);
-        try lendtroller.canRedeem(mtoken, account, amount) {
+        try marketManager.canRedeem(mtoken, account, amount) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canRedeem expected to revert token is not listed"
@@ -202,7 +202,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-8 canRedeem should just return when user has no position for token
     /// @custom:precondition redeemPaused != 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition address(this) has no position for mtoken
     /// @custom:precondition liquidity deficity for hypothetical liquidity == 0;
     function canRedeem_should_return_when_no_position_exists(
@@ -210,17 +210,17 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.redeemPaused() != 2);
-        require(lendtroller.isListed(mtoken));
-        require(!lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.redeemPaused() != 2);
+        require(marketManager.isListed(mtoken));
+        require(!marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canRedeem(mtoken, account, amount) {} catch (
+        try marketManager.canRedeem(mtoken, account, amount) {} catch (
             bytes memory revertData
         ) {
             assertWithMsg(
@@ -241,7 +241,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     ) public {
         require(address(this) != mtoken);
         try
-            lendtroller.canRedeemWithCollateralRemoval(
+            marketManager.canRedeemWithCollateralRemoval(
                 account,
                 mtoken,
                 balance,
@@ -259,7 +259,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     /// @custom:property sc-lend-10 canTransfer should succeed under correct preconditions
     /// @custom:precondition transferPaused != 2
     /// @custom:precondition redeemPaused =2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition timestamp has passed hold period
     /// @custom:precondition user has position
     function canTransfer_should_succed(
@@ -267,15 +267,15 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.transferPaused() != 2);
-        require(lendtroller.redeemPaused() != 2);
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.transferPaused() != 2);
+        require(marketManager.redeemPaused() != 2);
+        require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        require(lendtroller.hasPosition(mtoken, address(this)));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.hasPosition(mtoken, address(this)));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
@@ -283,7 +283,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         );
         require(liquidityDeficit == 0);
 
-        try lendtroller.canTransfer(mtoken, address(this), amount) {} catch (
+        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -299,16 +299,16 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     /// @custom:property sc-lend-11 canTransfer should fail with PAUSED when transferPaused = 2
     /// @custom:precondition transferPaused = 2
     /// @custom:precondition redeemPaused !=2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     function canTransfer_should_fail_when_transfer_is_paused(
         address mtoken,
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.transferPaused() == 2);
-        require(lendtroller.redeemPaused() != 2);
-        require(lendtroller.isListed(mtoken));
-        try lendtroller.canTransfer(mtoken, address(this), amount) {} catch (
+        require(marketManager.transferPaused() == 2);
+        require(marketManager.redeemPaused() != 2);
+        require(marketManager.isListed(mtoken));
+        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -324,16 +324,16 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     /// @custom:property sc-lend-12 canTransfer should fail with NOT LISTED when mtoken is not added to system
     /// @custom:precondition transferPaused != 2
     /// @custom:precondition redeemPaused != 2
-    /// @custom:precondition mtoken is not listed in Lendtroller
+    /// @custom:precondition mtoken is not listed in MarketManager
     function canTransfer_should_fail_when_mtoken_not_listed(
         address mtoken,
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.transferPaused() != 2);
-        require(lendtroller.redeemPaused() != 2);
-        require(!lendtroller.isListed(mtoken));
-        try lendtroller.canTransfer(mtoken, address(this), amount) {} catch (
+        require(marketManager.transferPaused() != 2);
+        require(marketManager.redeemPaused() != 2);
+        require(!marketManager.isListed(mtoken));
+        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -349,16 +349,16 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     /// @custom:property sc-lend-13 canTransfer should fail with PAUSED when redeemPaused = 2
     /// @custom:precondition transferPaused != 2
     /// @custom:precondition redeemPaused =2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     function canTransfer_should_fail_when_redeem_is_paused(
         address mtoken,
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.transferPaused() != 2);
-        require(lendtroller.redeemPaused() == 2);
-        require(lendtroller.isListed(mtoken));
-        try lendtroller.canTransfer(mtoken, address(this), amount) {} catch (
+        require(marketManager.transferPaused() != 2);
+        require(marketManager.redeemPaused() == 2);
+        require(marketManager.isListed(mtoken));
+        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -373,43 +373,43 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-14 canBorrow should succeed when borrow is not paused and mtoken is listed
     /// @custom:precondition borrowPaused != 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
     function canBorrow_should_succeed(
         address mtoken,
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.borrowPaused(mtoken) != 2);
-        require(lendtroller.isListed(mtoken));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.borrowPaused(mtoken) != 2);
+        require(marketManager.isListed(mtoken));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canBorrow(mtoken, address(this), amount) {} catch {}
+        try marketManager.canBorrow(mtoken, address(this), amount) {} catch {}
     }
 
     /// @custom:property sc-lend-15 canBorrow should fail with PAUSED when borrow is paused
     /// @custom:precondition borrowPaused = 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
     function canBorrow_should_fail_when_borrow_is_paused(
         address mtoken,
         uint256 amount
     ) public {
-        require(lendtroller.borrowPaused(mtoken) == 2);
-        require(lendtroller.isListed(mtoken));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.borrowPaused(mtoken) == 2);
+        require(marketManager.isListed(mtoken));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canBorrow(mtoken, address(this), amount) {} catch (
+        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -423,16 +423,16 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-16 canBorrow should fail with token is not listed
     /// @custom:precondition borrowPaused != 2
-    /// @custom:precondition mtoken is not listed in Lendtroller
+    /// @custom:precondition mtoken is not listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
     function canBorrow_should_fail_when_token_is_unlisted(
         address mtoken,
         address account,
         uint256 amount
     ) public {
-        require(lendtroller.borrowPaused(mtoken) != 2);
-        require(!lendtroller.isListed(mtoken));
-        try lendtroller.canBorrow(mtoken, address(this), amount) {} catch (
+        require(marketManager.borrowPaused(mtoken) != 2);
+        require(!marketManager.isListed(mtoken));
+        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -446,22 +446,22 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-17 canBorrow should fail with liquidityDeficity >0
     /// @custom:precondition borrowPaused != 2
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit > 0
     function canBorrow_should_fail_liquidity_deficit_exists(
         address mtoken,
         uint256 amount
     ) public {
-        require(lendtroller.borrowPaused(mtoken) != 2);
-        require(lendtroller.isListed(mtoken));
-        (, uint256 liquidityDeficit) = lendtroller.hypotheticalLiquidityOf(
+        require(marketManager.borrowPaused(mtoken) != 2);
+        require(marketManager.isListed(mtoken));
+        (, uint256 liquidityDeficit) = marketManager.hypotheticalLiquidityOf(
             address(this),
             mtoken,
             0,
             amount
         );
         require(liquidityDeficit == 0);
-        try lendtroller.canBorrow(mtoken, address(this), amount) {} catch (
+        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -476,15 +476,15 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-18 canBorrowWithNotify should fail when called directly
     /// @custom:precondition mtoken != address(this)
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     function canBorrowWithNotify_should_fail_when_called_directly(
         address mtoken,
         address account,
         uint256 amount
     ) public {
         require(mtoken != address(this));
-        require(lendtroller.isListed(mtoken));
-        try lendtroller.canBorrowWithNotify(mtoken, account, amount) {
+        require(marketManager.isListed(mtoken));
+        try marketManager.canBorrowWithNotify(mtoken, account, amount) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canBorrowWithNotify() should not succeed when not called by mtoken"
@@ -499,15 +499,15 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     }
 
     /// @custom:property sc-lend-19 canRepay should succeed under correct @precondition
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has passed cooldown timestamp
     function canRepay_should_succeed(address mtoken, address account) public {
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        try lendtroller.canRepay(mtoken, account) {} catch {
+        try marketManager.canRepay(mtoken, account) {} catch {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canRepay should have succeeded with correct @precondition"
@@ -516,18 +516,18 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     }
 
     /// @custom:property sc-lend-20 canRepay should fail when token is not listed
-    /// @custom:precondition mtoken is not listed in Lendtroller
+    /// @custom:precondition mtoken is not listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has passed cooldown timestamp
     function canRepay_should_fail_when_not_listed(
         address mtoken,
         address account
     ) public {
-        require(!lendtroller.isListed(mtoken));
+        require(!marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        try lendtroller.canRepay(mtoken, account) {} catch (
+        try marketManager.canRepay(mtoken, account) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -539,18 +539,18 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
     }
 
     /// @custom:property sc-lend-21 canRepay should fail when MIN_HOLD_PERIOD has not passed
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has not passed since cooldown timestamp
     function canRepay_should_fail_min_hold_has_not_passed(
         address mtoken,
         address account
     ) public {
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
         require(
             block.timestamp <=
-                postedCollateralAt[mtoken] + lendtroller.MIN_HOLD_PERIOD()
+                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
         );
-        try lendtroller.canRepay(mtoken, account) {} catch (
+        try marketManager.canRepay(mtoken, account) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -561,24 +561,24 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         }
     }
 
-    /// @custom:property sc-lend-22 The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same lendtroller.
+    /// @custom:property sc-lend-22 The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same marketManager.
     /// @custom:precondition seize is not paused
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has not passed since cooldown timestamp
     /// @custom:precondition collateral and debt token are listed
-    /// @custom:precondition lendtroller for collateral and debt token are identical
+    /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_succeed(
         address collateralToken,
         address debtToken
     ) public {
-        require(lendtroller.seizePaused() != 2);
-        require(lendtroller.isListed(collateralToken));
-        require(lendtroller.isListed(debtToken));
+        require(marketManager.seizePaused() != 2);
+        require(marketManager.isListed(collateralToken));
+        require(marketManager.isListed(debtToken));
         require(
-            IMToken(collateralToken).lendtroller() ==
-                IMToken(debtToken).lendtroller()
+            IMToken(collateralToken).marketManager() ==
+                IMToken(debtToken).marketManager()
         );
-        try lendtroller.canSeize(collateralToken, debtToken) {} catch {
+        try marketManager.canSeize(collateralToken, debtToken) {} catch {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canSeize() should be successful with correct @precondition"
@@ -588,22 +588,22 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-23 The canSeize function should revert when seize is paused
     /// @custom:precondition seize is paused
-    /// @custom:precondition mtoken is listed in Lendtroller
+    /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has not passed since cooldown timestamp
     /// @custom:precondition collateral and debt token are listed
-    /// @custom:precondition lendtroller for collateral and debt token are identical
+    /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_revert_when_seize_paused(
         address collateralToken,
         address debtToken
     ) public {
-        require(lendtroller.seizePaused() == 2);
-        require(lendtroller.isListed(collateralToken));
-        require(lendtroller.isListed(debtToken));
+        require(marketManager.seizePaused() == 2);
+        require(marketManager.isListed(collateralToken));
+        require(marketManager.isListed(debtToken));
         require(
-            IMToken(collateralToken).lendtroller() ==
-                IMToken(debtToken).lendtroller()
+            IMToken(collateralToken).marketManager() ==
+                IMToken(debtToken).marketManager()
         );
-        try lendtroller.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(collateralToken, debtToken) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - canSeize() should have reverted with seizePaused = 2"
@@ -620,24 +620,24 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
 
     /// @custom:property sc-lend-24 The canSeize function should revert when collateral or debt token are not listed
     /// @custom:precondition seize is not paused
-    /// @custom:precondition token is  not listed in Lendtroller
+    /// @custom:precondition token is  not listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has not passed since cooldown timestamp
     /// @custom:precondition collateral or debt token are not listed
-    /// @custom:precondition lendtroller for collateral and debt token are identical
+    /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_revert_when_token_is_unlisted(
         address collateralToken,
         address debtToken
     ) public {
-        require(lendtroller.seizePaused() != 2);
+        require(marketManager.seizePaused() != 2);
         require(
-            !lendtroller.isListed(collateralToken) ||
-                !lendtroller.isListed(debtToken)
+            !marketManager.isListed(collateralToken) ||
+                !marketManager.isListed(debtToken)
         );
         require(
-            IMToken(collateralToken).lendtroller() ==
-                IMToken(debtToken).lendtroller()
+            IMToken(collateralToken).marketManager() ==
+                IMToken(debtToken).marketManager()
         );
-        try lendtroller.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(collateralToken, debtToken) {
             assertWithMsg(
                 false,
                 "LENDTROLLER - seizePaused() should have reverted when token is unlisted"
@@ -652,34 +652,34 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         }
     }
 
-    /// @custom:property sc-lend-25 The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same lendtroller.
+    /// @custom:property sc-lend-25 The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same marketManager.
     /// @custom:precondition seize is not paused
-    /// @custom:precondition token is  not listed in Lendtroller
+    /// @custom:precondition token is  not listed in MarketManager
     /// @custom:precondition MIN_HOLD_PERIOD has not passed since cooldown timestamp
     /// @custom:precondition collateral and debt token are listed
-    /// @custom:precondition lendtroller for collateral and debt token are not identical
+    /// @custom:precondition marketManager for collateral and debt token are not identical
     function canSeize_should_revert_when_lendtroller_not_equal(
         address collateralToken,
         address debtToken
     ) public {
-        require(lendtroller.seizePaused() != 2);
-        require(lendtroller.isListed(collateralToken));
-        require(lendtroller.isListed(debtToken));
+        require(marketManager.seizePaused() != 2);
+        require(marketManager.isListed(collateralToken));
+        require(marketManager.isListed(debtToken));
         require(
-            IMToken(collateralToken).lendtroller() !=
-                IMToken(debtToken).lendtroller()
+            IMToken(collateralToken).marketManager() !=
+                IMToken(debtToken).marketManager()
         );
-        try lendtroller.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(collateralToken, debtToken) {
             assertWithMsg(
                 false,
-                "LENDTROLLER - seizePaused() should have reverted when lendtroller is not equal"
+                "LENDTROLLER - seizePaused() should have reverted when marketManager is not equal"
             );
         } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
                 errorSelector == lendtroller_mismatchSelectorHash,
-                "LENDTROLLER - canSeize() should revert with lendtroller mismatch selector hash"
+                "LENDTROLLER - canSeize() should revert with marketManager mismatch selector hash"
             );
         }
     }
@@ -692,7 +692,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         bool liquidateExact
     ) public {
         try
-            lendtroller.canLiquidate(
+            marketManager.canLiquidate(
                 dToken,
                 cToken,
                 account,
@@ -710,7 +710,7 @@ contract FuzzLendtrollerStateChecks is StatefulBaseMarket {
         bool liquidateExact
     ) public {
         try
-            lendtroller.canLiquidateWithExecution(
+            marketManager.canLiquidateWithExecution(
                 dToken,
                 cToken,
                 account,

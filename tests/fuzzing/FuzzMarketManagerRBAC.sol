@@ -3,12 +3,12 @@ import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { MockCToken } from "contracts/mocks/MockCToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { SafeTransferLib } from "contracts/libraries/SafeTransferLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
-import { IMToken } from "contracts/market/lendtroller/LiquidityManager.sol";
+import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
-contract FuzzLendtrollerRBAC is StatefulBaseMarket {
+contract FuzzMarketManagerRBAC is StatefulBaseMarket {
     /// @custom:property ac-lend-1 Calling setMintPaused with correct preconditions should not revert.
     /// @custom:property ac-lend-2 Calling the setMintPaused(mtoken, true) with authorization should set isMintPaused to 2.
     /// @custom:property ac-lend-3 Calling the setMintPaused(mtoken, false) with authorization should set isMintPaused to 1.
@@ -19,9 +19,9 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
         bool state
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "setMintPaused(address,bool)",
                 mtoken,
@@ -29,7 +29,7 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
             )
         );
         if (success) {
-            uint256 isMintPaused = lendtroller.mintPaused(mtoken);
+            uint256 isMintPaused = marketManager.mintPaused(mtoken);
             if (state) {
                 // ac-lend-2
                 assertWithMsg(
@@ -65,11 +65,11 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature("setRedeemPaused(bool)", state)
         );
         if (success) {
-            uint256 redeemPaused = lendtroller.redeemPaused();
+            uint256 redeemPaused = marketManager.redeemPaused();
             if (state == true) {
                 // ac-lend-5
                 assertEq(
@@ -105,11 +105,11 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature("setTransferPaused(bool)", state)
         );
         if (success) {
-            uint256 transferPaused = lendtroller.transferPaused();
+            uint256 transferPaused = marketManager.transferPaused();
             if (state == true) {
                 assertEq(
                     transferPaused,
@@ -143,11 +143,11 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature("setSeizePaused(bool)", state)
         );
         if (success) {
-            uint256 seizePaused = lendtroller.seizePaused();
+            uint256 seizePaused = marketManager.seizePaused();
             if (state == true) {
                 // ac-lend-11
                 assertEq(
@@ -178,15 +178,15 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
     /// @custom:property Calling setBorrowPaused(mtoken, true) should set isBorrowPaused to 2.
     /// @custom:property Calling setBorrowPaused(mtoken, false) should set isBorrowPaused to 1.
     /// @custom:precondition address(this) has dao permissions
-    /// @custom:precondition mtoken must be listed token in lendtroller
+    /// @custom:precondition mtoken must be listed token in marketManager
     function setBorrowPaused_should_succeed(
         address mtoken,
         bool state
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
-        require(lendtroller.isListed(mtoken));
+        require(marketManager.isListed(mtoken));
 
-        (bool success, bytes memory revertData) = address(lendtroller).call(
+        (bool success, bytes memory revertData) = address(marketManager).call(
             abi.encodeWithSignature(
                 "setBorrowPaused(address,bool)",
                 mtoken,
@@ -194,7 +194,7 @@ contract FuzzLendtrollerRBAC is StatefulBaseMarket {
             )
         );
         if (success) {
-            uint256 isBorrowPaused = lendtroller.borrowPaused(mtoken);
+            uint256 isBorrowPaused = marketManager.borrowPaused(mtoken);
             if (state) {
                 assertWithMsg(
                     isBorrowPaused == 2,
