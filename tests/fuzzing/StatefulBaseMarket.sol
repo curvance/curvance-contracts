@@ -54,10 +54,15 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     MarketManager public marketManager;
     PositionFolding public positionFolding;
     OracleRouter public oracleRouter;
+
     AuraCToken public auraCToken;
+    AuraCToken public cBALRETH;
+    
     DToken public dUSDC;
     DToken public dDAI;
-    AuraCToken public cBALRETH;
+
+    MockCToken public cDAI;
+    MockCToken public cUSDC;
     MockToken public usdc;
     MockToken public dai;
     MockToken public WETH;
@@ -75,7 +80,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     GaugePool public gaugePool;
 
     address public harvester;
-    uint256 public clPointMultiplier = 11000; // 110%
     uint256 public voteBoostMultiplier = 11000; // 110%
     uint256 public lockBoostMultiplier = 10000; // 110%
     uint256 public marketInterestFactor = 1000; // 10%
@@ -340,7 +344,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(marketManager),
             marketInterestFactor
         );
-        try gaugePool.start(address(lendtroller)) {} catch {
+        try gaugePool.start(address(marketManager)) {} catch {
             assertWithMsg(false, "start gauge pool failed");
         }
     }
@@ -373,7 +377,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         cUSDC = new MockCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(address(usdc)),
-            address(lendtroller)
+            address(marketManager)
         );
         return cUSDC;
     }
@@ -382,7 +386,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         cDAI = new MockCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(address(dai)),
-            address(lendtroller)
+            address(marketManager)
         );
         return cDAI;
     }
@@ -532,10 +536,10 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             block.timestamp,
             block.timestamp
         );
-        priceRouter.addMTokenSupport(address(cDAI));
-        priceRouter.addMTokenSupport(address(cUSDC));
-        priceRouter.addMTokenSupport(address(dDAI));
-        priceRouter.addMTokenSupport(address(dUSDC));
+        oracleRouter.addMTokenSupport(address(cDAI));
+        oracleRouter.addMTokenSupport(address(cUSDC));
+        oracleRouter.addMTokenSupport(address(dDAI));
+        oracleRouter.addMTokenSupport(address(dUSDC));
         feedsSetup = true;
         lastRoundUpdate = block.timestamp;
     }
@@ -547,7 +551,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             lastRoundUpdate = block.timestamp;
         }
         if (block.timestamp - chainlinkUsdcUsd.latestTimestamp() > 24 hours) {
-            // TODO: Change this to a loop to loop over lendtroller.assetsOf()
+            // TODO: Change this to a loop to loop over marketManager.assetsOf()
             // Save a mapping of assets -> chainlink oracle
             // call updateRoundData on each oracle
             chainlinkUsdcUsd.updateRoundData(
