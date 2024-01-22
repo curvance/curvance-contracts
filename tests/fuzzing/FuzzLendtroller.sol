@@ -914,6 +914,8 @@ contract FuzzLendtroller is StatefulBaseMarket {
     }
 
     /// @custom:property s-lend-2 Market collateral posted should always be less than or equal to collateralCaps for a token.
+    // market collateral posted should always be less than the max(collateralCaps for a token) -≥
+    // ECHIDNA TODO: keep track of max collateral cap for a specific token
     function collateralPosted_lte_collateralCaps(address token) public {
         uint256 collateralPosted = lendtroller.collateralPosted(token);
 
