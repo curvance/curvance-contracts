@@ -57,7 +57,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     AuraCToken public auraCToken;
     AuraCToken public cBALRETH;
-    
+
     DToken public dUSDC;
     DToken public dDAI;
 
@@ -147,7 +147,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(this),
             0,
             address(0),
-            address(this)
+            address(usdc)
         );
         centralRegistry.transferEmergencyCouncil(address(this));
         centralRegistry.setLockBoostMultiplier(lockBoostMultiplier);
@@ -198,6 +198,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         harvester = address(this);
         centralRegistry.addHarvester(harvester);
 
+        emit LogUint256("woowowo", 0);
         feeAccumulator = new FeeAccumulator(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
@@ -263,7 +264,10 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(_DAI_ADDRESS, address(chainlinkAdaptor));
+        oracleRouter.addAssetPriceFeed(
+            _DAI_ADDRESS,
+            address(chainlinkAdaptor)
+        );
         oracleRouter.addAssetPriceFeed(
             _RETH_ADDRESS,
             address(chainlinkAdaptor)
@@ -503,8 +507,18 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         // use mock pricing for testing
         // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
         mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));
-        chainlinkAdaptor.addAsset(address(cUSDC), address(mockUsdcFeed), 0, true);
-        chainlinkAdaptor.addAsset(address(dUSDC), address(mockUsdcFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            address(cUSDC),
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+        chainlinkAdaptor.addAsset(
+            address(dUSDC),
+            address(mockUsdcFeed),
+            0,
+            true
+        );
 
         dualChainlinkAdaptor.addAsset(
             address(cUSDC),
@@ -513,8 +527,18 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             true
         );
         mockDaiFeed = new MockDataFeed(address(chainlinkDaiUsd));
-        chainlinkAdaptor.addAsset(address(cDAI), address(mockDaiFeed), 0, true);
-        chainlinkAdaptor.addAsset(address(dDAI), address(mockDaiFeed), 0, true);
+        chainlinkAdaptor.addAsset(
+            address(cDAI),
+            address(mockDaiFeed),
+            0,
+            true
+        );
+        chainlinkAdaptor.addAsset(
+            address(dDAI),
+            address(mockDaiFeed),
+            0,
+            true
+        );
         dualChainlinkAdaptor.addAsset(
             address(cDAI),
             address(mockDaiFeed),
