@@ -11,26 +11,11 @@ import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
     function _after_deploy_config(string memory network) internal {
-        _loadFaucet(network);
         _startLocker();
-    }
 
-    function _loadFaucet(string memory network) internal {
         if(keccak256(abi.encodePacked(network)) != keccak256(abi.encodePacked("sepolia"))) {
-            return;
+            _configTestnet();
         }
-
-        address faucet_addr = _getDeployedContract("faucet");
-        address cve_addr = _getDeployedContract("cve");
-
-        require(faucet_addr != address(0), "Faucet is not deployed!");
-        require(cve_addr != address(0), "CVE is not deployed!");
-
-        // Load with 10M CVE
-        CVE cve = CVE(cve_addr);
-        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
-        console.log("Balance", cve.balanceOf(deployer));
-        cve.transfer(faucet_addr,1e25);
     }
 
     function _startLocker() internal {
@@ -45,5 +30,26 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         CVELocker(cveLocker).startLocker();
         console.log("startLocker");
+    }
+
+    function _configTestnet() internal {
+        address centralRegistry = _getDeployedContract("centralRegistry");
+
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
+        _loadFaucet();
+    }
+
+    function _loadFaucet() internal {
+        address faucet_addr = _getDeployedContract("faucet");
+        address cve_addr = _getDeployedContract("cve");
+
+        require(faucet_addr != address(0), "Faucet is not deployed!");
+        require(cve_addr != address(0), "CVE is not deployed!");
+
+        // Load with 10M CVE
+        CVE cve = CVE(cve_addr);
+        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
+        console.log("Balance", cve.balanceOf(deployer));
+        cve.transfer(faucet_addr,1e25);
     }
 }
