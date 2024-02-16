@@ -10,10 +10,16 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
+    function _is_testnet(string memory network) internal pure returns (bool) {
+        return
+            keccak256(abi.encodePacked(network)) ==
+            keccak256(abi.encodePacked("sepolia"));
+    }
+
     function _after_deploy_config(string memory network) internal {
         _startLocker();
 
-        if(keccak256(abi.encodePacked(network)) != keccak256(abi.encodePacked("sepolia"))) {
+        if (_is_testnet(network)) {
             _configTestnet();
         }
     }
@@ -25,15 +31,23 @@ contract StartContractsConfig is Script, DeployConfiguration {
         console.log("cveLocker =", cveLocker);
 
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(CVELocker(cveLocker).lockerStarted() != 2, "Locker already started!");
-        require(CentralRegistry(centralRegistry).veCVE() != address(0), "Set veCVE!");
+        require(
+            CVELocker(cveLocker).lockerStarted() != 2,
+            "Locker already started!"
+        );
+        require(
+            CentralRegistry(centralRegistry).veCVE() != address(0),
+            "Set veCVE!"
+        );
 
         CVELocker(cveLocker).startLocker();
         console.log("startLocker");
     }
 
     function _configTestnet() internal {
-        address centralRegistry = _getDeployedContract("centralRegistry");
+        CentralRegistry centralRegistry = CentralRegistry(
+            _getDeployedContract("centralRegistry")
+        );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
         _loadFaucet();
@@ -50,6 +64,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
         CVE cve = CVE(cve_addr);
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
         console.log("Balance", cve.balanceOf(deployer));
-        cve.transfer(faucet_addr,1e25);
+        cve.transfer(faucet_addr, 1e25);
     }
 }

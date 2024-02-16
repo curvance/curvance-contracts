@@ -194,7 +194,13 @@ contract TestBaseMarket is TestBase {
     }
 
     function _deployVeCVE() internal {
-        veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
+        uint256 epochDuration = 2 weeks;
+        uint256 lockEpochs = 26;
+        veCVE = new VeCVE(
+            ICentralRegistry(address(centralRegistry)),
+            epochDuration,
+            lockEpochs
+        );
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
         cveLocker.startLocker();

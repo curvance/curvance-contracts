@@ -6,13 +6,20 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
 contract VeCVEDeploymentTest is TestBaseVeCVE {
+    uint256 epochDuration = 2 weeks;
+    uint256 lockEpochs = 26;
+
     function test_veCVEDeployment_fail_whenCentralRegistryIsInvalid() public {
         vm.expectRevert(VeCVE.VeCVE__ParametersAreInvalid.selector);
-        new VeCVE(ICentralRegistry(address(1)));
+        new VeCVE(ICentralRegistry(address(1)), epochDuration, lockEpochs);
     }
 
     function test_veCVEDeployment_success() public {
-        veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
+        veCVE = new VeCVE(
+            ICentralRegistry(address(centralRegistry)),
+            epochDuration,
+            lockEpochs
+        );
 
         assertEq(
             veCVE.name(),

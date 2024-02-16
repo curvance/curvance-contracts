@@ -28,12 +28,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Timestamp `unlockTime` will be set to when a lock
     //          is on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_DURATION = 2 weeks;
-    /// @notice in # of epochs.
-    uint256 public constant LOCK_DURATION_EPOCHS = 26;
-    /// @notice in # of seconds.
-    uint256 public constant LOCK_DURATION = 52 weeks;
     /// @notice Point multiplier for a continuous lock. 2 = 200%.
     uint256 public constant CL_POINT_MULTIPLIER = 2;
 
@@ -59,6 +53,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// STORAGE ///
 
+    /// @notice Protocol epoch length.
+    uint256 public EPOCH_DURATION = 2 weeks;
+    /// @notice in # of epochs.
+    uint256 public LOCK_DURATION_EPOCHS = 26;
+    /// @notice in # of seconds.
+    uint256 public LOCK_DURATION = 52 weeks;
     /// @notice Token Points on this chain.
     uint256 public chainPoints;
     ///  @notice 1 = active; 2 = shutdown.
@@ -94,9 +94,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
+    constructor(
+        ICentralRegistry centralRegistry_,
+        uint256 epoch_duration_,
+        uint256 lock_epochs_
+    ) {
         _name = "Vote Escrowed CVE";
         _symbol = "VeCVE";
+
+        EPOCH_DURATION = epoch_duration_;
+        LOCK_DURATION_EPOCHS = lock_epochs_;
+        LOCK_DURATION = epoch_duration_ * lock_epochs_;
 
         if (
             !ERC165Checker.supportsInterface(
