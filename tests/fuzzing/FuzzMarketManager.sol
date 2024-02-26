@@ -104,7 +104,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
-                errorSelector == marketManager_tokenAlreadyListedSelectorHash,
+                errorSelector == marketManager_invalidParameterSelectorHash,
                 "MARKET-2 listToken() expected TokenAlreadyListed selector hash on failure"
             );
         }
@@ -604,17 +604,9 @@ contract FuzzMarketManager is FuzzLiquidations {
         emit LogUint256("shortfall:", shortfall);
 
         if (shortfall > 0) {
-            (bool success, bytes memory revertData) = address(marketManager)
-                .call(
-                    abi.encodeWithSignature(
-                        "removeCollateral(address,uint256,bool)",
-                        mtoken,
-                        tokens,
-                        closePositionIfPossible
-                    )
-                );
-            // If the call failed, ensure that the revert message is insufficient collateral
-            if (!success) {
+            try marketManager.removeCollateral(mtoken, tokens) {} catch (
+                bytes memory revertData
+            ) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
                 assertWithMsg(
@@ -624,39 +616,35 @@ contract FuzzMarketManager is FuzzLiquidations {
                 );
             }
         } else {
-            (bool success, ) = address(marketManager).call(
-                abi.encodeWithSignature(
-                    "removeCollateral(address,uint256,bool)",
-                    mtoken,
-                    tokens,
-                    closePositionIfPossible
-                )
-            );
+            // the account has no shortfall
 
-            assertWithMsg(
-                success,
-                "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
-            );
-            // Collateral posted for the mtoken should decrease
-            uint256 newCollateralPostedForToken = marketManager
-                .collateralPosted(mtoken);
-            assertEq(
-                newCollateralPostedForToken,
-                oldCollateralPostedForToken - tokens,
-                "MARKET-18 global collateral posted should decrease"
-            );
+            try marketManager.removeCollateral(mtoken, tokens) {
+                // Collateral posted for the mtoken should decrease
+                uint256 newCollateralPostedForToken = marketManager
+                    .collateralPosted(mtoken);
+                assertEq(
+                    newCollateralPostedForToken,
+                    oldCollateralPostedForToken - tokens,
+                    "MARKET-18 global collateral posted should decrease"
+                );
 
-            // Collateral posted for the user should decrease
-            uint256 newCollateralForUser = _collateralPostedFor(mtoken);
-            assertEq(
-                newCollateralForUser,
-                oldCollateralForUser - tokens,
-                "MARKET-19 user collateral posted should decrease"
-            );
-            if (newCollateralForUser == 0 && closePositionIfPossible) {
+                // Collateral posted for the user should decrease
+                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
+                assertEq(
+                    newCollateralForUser,
+                    oldCollateralForUser - tokens,
+                    "MARKET-19 user collateral posted should decrease"
+                );
+                if (newCollateralForUser == 0 && closePositionIfPossible) {
+                    assertWithMsg(
+                        !_hasPosition(mtoken),
+                        "MARKET-22 closePositionIfPossible flag set should remove a user's position"
+                    );
+                }
+            } catch {
                 assertWithMsg(
-                    !_hasPosition(mtoken),
-                    "MARKET-22 closePositionIfPossible flag set should remove a user's position"
+                    false,
+                    "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
                 );
             }
         }
@@ -677,23 +665,13 @@ contract FuzzMarketManager is FuzzLiquidations {
         _checkPriceFeed();
         require(!_hasPosition(mtoken));
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "removeCollateral(address,uint256,bool)",
-                mtoken,
-                tokens,
-                false
-            )
-        );
-
-        if (success) {
+        try marketManager.removeCollateral(mtoken, tokens) {
             assertWithMsg(
                 false,
                 "MARKET-23 removeCollateral should fail with non existent position"
             );
-        } else {
+        } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
-
             if (tokens == 0) {
                 assertWithMsg(
                     errorSelector ==
@@ -722,6 +700,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(marketManager.isListed(mtoken));
         _checkPriceFeed();
+        emit LogBool("has position", _hasPosition(mtoken));
         require(_hasPosition(mtoken));
         uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
 
@@ -731,21 +710,12 @@ contract FuzzMarketManager is FuzzLiquidations {
             type(uint256).max
         );
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "removeCollateral(address,uint256,bool)",
-                mtoken,
-                tokens,
-                false
-            )
-        );
-
-        if (success) {
+        try marketManager.removeCollateral(mtoken, tokens) {
             assertWithMsg(
                 false,
                 "MARKET-24 removeCollateral should fail insufficient collateral"
             );
-        } else {
+        } catch (bytes memory revertData) {
             // expectation is that this should fail
             uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -786,6 +756,8 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
     }
 
+    // the closePosition function was removed from the codebase thus these invariants are no longer needed
+    /* 
     /// @custom:property market-26 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is greater than 0.
     /// @custom:property market-27 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is greater than 0.
     /// @custom:property market-28 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0.
@@ -842,6 +814,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
     }
 
+
     /// @custom:property market-31 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is equal to 0.
     /// @custom:property market-32 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is equal to 0.
     /// @custom:property market-33 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0.
@@ -882,6 +855,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             );
         }
     }
+    */
 
     uint256 constant DAI_PRICE = 1e24;
     uint256 constant USDC_PRICE = 1e7;

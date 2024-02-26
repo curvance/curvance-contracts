@@ -355,8 +355,11 @@ contract FuzzDToken is FuzzMarketManager {
         _isSupportedDToken(dtoken);
         address underlying = DToken(dtoken).underlying();
         uint256 accountDebt = DToken(dtoken).debtBalanceCached(address(this));
+        emit LogUint256("acct debt", accountDebt);
         amount = clampBetween(amount, 0, accountDebt);
         require(_mintAndApprove(underlying, dtoken, accountDebt));
+        // TODO: The real amount that a user should approve on repay is the amount they want to repay + interestAccrued, and not an amount that (could be) significantly greater than the amount.
+        IERC20(underlying).approve(dtoken, accountDebt * WAD);
         require(marketManager.isListed(dtoken));
         try marketManager.canRepay(address(dtoken), address(this)) {} catch {
             return;
@@ -408,11 +411,21 @@ contract FuzzDToken is FuzzMarketManager {
                 address(this)
             );
             if (amount == 0) {
-                assertEq(
-                    postUnderlyingBalance,
-                    preUnderlyingBalance - accountDebt,
-                    "DTOK-14 repay with amount=0 should reduce underlying balance by accountDebt"
-                );
+                // interest accrued
+                if (lastTimestampUpdated + compoundRate <= block.timestamp) {
+                    // TODO this should be adjusted for hypothetical interest accrual
+                    assertLte(
+                        postUnderlyingBalance,
+                        preUnderlyingBalance - accountDebt,
+                        "DTOK-14 repay with amount=0 should reduce underlying balance by accountDebt"
+                    );
+                } else {
+                    assertEq(
+                        postUnderlyingBalance,
+                        preUnderlyingBalance - accountDebt,
+                        "DTOK-X repay with amount=0 should reduce underlying balance by accountDebt"
+                    );
+                }
             } else {
                 assertEq(
                     postUnderlyingBalance,

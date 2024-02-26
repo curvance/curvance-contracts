@@ -101,7 +101,7 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 liqFee,
             uint256 baseCFactor,
             uint256 cfactorCurve
-        ) = marketManager.tokenData(debtToken);
+        ) = marketManager.tokenData(collateralToken);
         (
             uint256 lFactor,
             uint256 debtTokenPrice,
@@ -173,12 +173,14 @@ contract FuzzLiquidations is StatefulBaseMarket {
     /// @custom:precondition incentive must be >= MIN_LIQUIDATION_INCENTIVE
     function _calculateIncentive() private {
         // Preconditions
-        assertWithMsg(
-            data.liqBaseIncentive >= marketManager.MIN_LIQUIDATION_INCENTIVE(),
+        assertGte(
+            data.liqBaseIncentive,
+            marketManager.MIN_LIQUIDATION_INCENTIVE(),
             "LIQ-4 - data.liqBaseIncentive must be >= MIN_LIQUIDATION_INCENTIVE"
         );
-        assertWithMsg(
-            data.liqBaseIncentive <= marketManager.MAX_LIQUIDATION_INCENTIVE(),
+        assertLte(
+            data.liqBaseIncentive,
+            marketManager.MAX_LIQUIDATION_INCENTIVE(),
             "LIQ-4 - data.liqBaseIncentive must be <= MAX_LIQUIDATION_INCENTIVE"
         );
 
