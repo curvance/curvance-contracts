@@ -44,7 +44,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     }
 
     function setup() public {
-        setUpFeeds();
+        _setup_feeds();
         marketManager.updateCollateralToken(
             IMToken(address(cUSDC)),
             7000,
@@ -234,7 +234,7 @@ contract FuzzMarketManager is FuzzLiquidations {
 
         (, uint256 oldCR, , , , , , , ) = marketManager.tokenData(mtoken);
         {
-            _checkPriceFeed();
+            _check_price_feed();
             _getSafeUpdateCollateralBounds(
                 collRatio,
                 collReqSoft,
@@ -307,7 +307,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             maxCollateralCap[mtoken] = cap;
         }
 
-        _checkPriceFeed();
+        _check_price_feed();
 
         address[] memory tokens = new address[](1);
         tokens[0] = mtoken;
@@ -427,7 +427,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         bool lower
     ) public {
         require(collateralCapsUpdated[mtoken]);
-        _checkPriceFeed();
+        _check_price_feed();
 
         if (IMToken(mtoken).balanceOf(address(this)) == 0) {
             c_token_deposit(
@@ -438,7 +438,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
         uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
 
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
+        uint256 oldCollateralForUser = _get_collateral_posted_for(mtoken);
         uint256 collateralCaps = marketManager.collateralCaps(mtoken);
 
         uint256 oldCollateralForToken = marketManager.collateralPosted(mtoken);
@@ -482,7 +482,9 @@ contract FuzzMarketManager is FuzzLiquidations {
                 );
             } else {
                 // ensure account collateral has increased by # of tokens
-                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
+                uint256 newCollateralForUser = _get_collateral_posted_for(
+                    mtoken
+                );
 
                 uint256 mtokenExchange = MockCToken(mtoken).exchangeRateSafe();
                 assertEq(
@@ -520,7 +522,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         bool lower
     ) public {
         require(collateralCapsUpdated[mtoken]);
-        _checkPriceFeed();
+        _check_price_feed();
 
         if (IMToken(mtoken).balanceOf(address(this)) == 0) {
             c_token_deposit(
@@ -531,7 +533,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
         uint256 mtokenBalance = IMToken(mtoken).balanceOf(address(this));
 
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
+        uint256 oldCollateralForUser = _get_collateral_posted_for(mtoken);
 
         // collateralPosted + tokens <= mtoken.balanceOf(address(this))
         // tokens <= mtoken.balanceOf(address(this)) - collateralPosted
@@ -575,21 +577,21 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(postedCollateral[mtoken]);
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
 
         emit LogUint256(
             "cooldown timestamp for mtoken",
-            _getCooldownTimestampFor()
+            _get_cooldown_timestamp_for()
         );
         require(
             block.timestamp >
-                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
+                _get_cooldown_timestamp_for() + marketManager.MIN_HOLD_PERIOD()
         );
 
         require(_hasPosition(mtoken));
         require(marketManager.redeemPaused() != 2);
 
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
+        uint256 oldCollateralForUser = _get_collateral_posted_for(mtoken);
         tokens = clampBetween(tokens, 1, oldCollateralForUser);
 
         uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
@@ -629,7 +631,9 @@ contract FuzzMarketManager is FuzzLiquidations {
                 );
 
                 // Collateral posted for the user should decrease
-                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
+                uint256 newCollateralForUser = _get_collateral_posted_for(
+                    mtoken
+                );
                 assertEq(
                     newCollateralForUser,
                     oldCollateralForUser - tokens,
@@ -662,7 +666,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
         require(!_hasPosition(mtoken));
 
         try marketManager.removeCollateral(mtoken, tokens) {
@@ -699,10 +703,10 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
         emit LogBool("has position", _hasPosition(mtoken));
         require(_hasPosition(mtoken));
-        uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
+        uint256 oldCollateralForUser = _get_collateral_posted_for(mtoken);
 
         tokens = clampBetween(
             tokens,
@@ -770,12 +774,12 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(_hasPosition(mtoken));
-        _checkPriceFeed();
-        uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
+        _check_price_feed();
+        uint256 collateralPostedForUser = _get_collateral_posted_for(mtoken);
         require(collateralPostedForUser > 0);
         require(
             block.timestamp >
-                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
+                _get_cooldown_timestamp_for() + marketManager.MIN_HOLD_PERIOD()
         );
         IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
         (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
@@ -828,8 +832,8 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(_hasPosition(mtoken));
-        _checkPriceFeed();
-        uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
+        _check_price_feed();
+        uint256 collateralPostedForUser = _get_collateral_posted_for(mtoken);
         require(collateralPostedForUser == 0);
         require(
             block.timestamp >
@@ -877,7 +881,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             for (uint256 i = 0; i < assets.length; i++) {
                 if (assets[i].isCToken()) {
                     assertEq(
-                        _collateralPostedFor(address(assets[i])),
+                        _get_collateral_posted_for(address(assets[i])),
                         0,
                         "MARKET-36 - liquidateAccount should zero out collateral"
                     );
@@ -1029,7 +1033,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 usdcPrice
     ) internal returns (uint256) {
         // ensure price feeds are up to date and in sync before updating collateral token and listing
-        _checkPriceFeed();
+        _check_price_feed();
         {
             (
                 bool is_cusdc_listed,
@@ -1216,7 +1220,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             "closePosition should remove position in mtoken if successful"
         );
         assertWithMsg(
-            _collateralPostedFor(mtoken) == 0,
+            _get_collateral_posted_for(mtoken) == 0,
             collateralPostedId,
             "closePosition should reduce collateralPosted for user to 0"
         );
@@ -1254,7 +1258,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         address dtoken,
         address collateralToken
     ) internal view {
-        _isSupportedDToken(dtoken);
+        _is_supported_dtoken(dtoken);
         require(account != msg.sender);
         require(marketManager.isListed(dtoken));
         require(

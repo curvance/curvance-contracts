@@ -13,6 +13,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
 
     constructor() {
         caller = address(this);
+        // TODO: The current FuzzVeCVE contract tests this default rewards data and should be extended
         defaultRewardData = RewardsData(false, false, false, false);
         // seeds the execution with creating a lock
         create_lock_when_not_shutdown(uint(0), false);
@@ -24,6 +25,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
     /// @custom:precondition  amount clamped between [WAD, uint64.max]
     /// @custom:precondition  CVE token must approve VeCVE token contract
     /// @custom:limitations this fuzzing function only tests bounds of WAD-uint64.max, and is missing upper bounds
+    /// @custom:limitations create_lock_when_shutdown_should_fail is not implemented in this fuzzing suite. The shutdown checks should be applied to all state-changing functions in VeCVE, similar to combineAllLocks.
     function create_lock_when_not_shutdown(
         uint256 amount,
         bool continuousLock
@@ -365,6 +367,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
     /// @custom:property VECVE-56 combineAllLocks should revert when system is shut down
     /// @custom:precondition vecve is shut down
     /// @custom:preconditio user has more than 2 locks
+    /// @custom:limitations This fuzzing suite is missing high coverage in shutdown states and should be extended
     function combineAllLocks_called_when_shutdown_should_revert() public {
         bool continuous = true;
         require(_get_locks_length() >= 2);
