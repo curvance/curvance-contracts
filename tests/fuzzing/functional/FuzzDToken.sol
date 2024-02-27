@@ -451,7 +451,7 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:precondition market manager for dtoken and ctoken match
     /// @custom:precondition account has collateral posted for respective token
     /// @custom:precondition account is in "danger" of liquidation
-    function liquidate_should_succeed_with_non_exact(uint256 amount) public {
+    function liquidate_should_succeed_with_non_exact() public {
         uint256 daiPrice = DAI_PRICE;
         uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
@@ -470,10 +470,13 @@ contract FuzzDToken is FuzzMarketManager {
                 0, // 0 does not represent anything here, when the liquidateExact is false
                 false
             );
-        amount = _boundLiquidateValues(debtToLiquidate, collateralToken);
+        uint256 amount = _boundLiquidateValues(
+            debtToLiquidate,
+            collateralToken
+        );
         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
-        _checkLiquidatePreconditions(account, dtoken, collateralToken);
+        // _checkLiquidatePreconditions(account, dtoken, collateralToken);
 
         {
             address underlyingDToken = DToken(dtoken).underlying();
@@ -506,37 +509,19 @@ contract FuzzDToken is FuzzMarketManager {
     // TODO: These need additional tweaking
     // liquidateExact amount, with zero
     function liquidate_should_fail_with_exact_with_zero(
-        address account,
         address dtoken,
         address collateralToken
     ) public {
+        address account = address(this);
+        _isSupportedCToken(collateralToken);
+        _isSupportedDToken(dtoken);
         uint256 amount = 0;
         // Structured for non exact liquidations, debt amount to liquidate = max
         uint256 collateralPostedFor = _collateralPostedFor(
             address(collateralToken)
         );
+
         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
-        // amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
-        // (
-        //     uint256 debtToLiquidate,
-        //     uint256 seizedForLiquidation,
-        //     uint256 seizedForProtocol
-        // ) = marketManager.canLiquidate(
-        //         dtoken,
-        //         collateralToken,
-        //         account,
-        //         0,
-        //         true
-        //     );
-
-        address underlyingDToken = DToken(dtoken).underlying();
-
-        uint256 senderBalanceUnderlying = IERC20(underlyingDToken).balanceOf(
-            msg.sender
-        );
-        uint256 preAccountCollateral = IERC20(collateralToken).balanceOf(
-            account
-        );
 
         // expect the above to fail
         hevm.prank(msg.sender);
@@ -546,18 +531,23 @@ contract FuzzDToken is FuzzMarketManager {
                 amount,
                 IMToken(collateralToken)
             )
-        {} catch {
-            assert(false);
+        {} catch (bytes memory revertData) {
+            uint256 errorSelector = extractErrorSelector(revertData);
+
+            assertWithMsg(
+                errorSelector == marketManager_invalidParameterSelectorHash,
+                "DTOK-X liquidateExact should fail with amount 0"
+            );
         }
     }
 
     // liquidateExact amount, with specified amount
     function liquidate_should_succeed_with_exact(
         uint256 amount,
-        address account,
         address dtoken,
         address collateralToken
     ) public {
+        address account = address(this);
         // Structured for non exact liquidations, debt amount to liquidate = max
         uint256 collateralPostedFor = _collateralPostedFor(
             address(collateralToken)

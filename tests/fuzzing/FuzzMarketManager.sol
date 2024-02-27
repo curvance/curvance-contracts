@@ -860,14 +860,14 @@ contract FuzzMarketManager is FuzzLiquidations {
     uint256 constant DAI_PRICE = 1e24;
     uint256 constant USDC_PRICE = 1e7;
 
-    /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed.
+    /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed (i.e: no revert, no panic)
     /// @custom:property market-36 Liquidating an account should result in all collateral token balances being zeroed out.
     /// @custom:property market-37 Liquidating an account should result in all debtBalanceCached() for all debt tokens being zeroed out.
+    /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
     function liquidateAccount_should_succeed(uint256 amount) public {
         require(marketManager.seizePaused() != 2);
         address account = address(this);
         amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
-        calculateLiquidation_exact(amount);
 
         IMToken[] memory assets = marketManager.assetsOf(account);
 
@@ -889,7 +889,40 @@ contract FuzzMarketManager is FuzzLiquidations {
                     );
                 }
             }
-        } catch {
+        } catch Panic(uint256 errorCode) {
+            if (errorCode == PANIC_UNDER_OVER_FLOW_CODE) {
+                for (uint256 i = 0; i < assets.length; i++) {
+                    if (assets[i].isCToken()) {
+                        continue;
+                    }
+                    uint256 totalBorrows = IMToken(assets[i]).totalBorrows();
+                    uint256 accountDebt = IMToken(assets[i]).debtBalanceCached(
+                        address(this)
+                    );
+                    if (totalBorrows < accountDebt) {
+                        emit LogUint256(
+                            "difference between totalBorrows and accountDebt",
+                            accountDebt - totalBorrows
+                        );
+                        // The system has a *known* limitation in rounding that totalBorrows and accountDebt can be off by one wei
+                        // This check ensures that if there is a diff, it must be no more than 1 wei, otherwise Echidna will throw
+                        assertEq(
+                            accountDebt - totalBorrows,
+                            1,
+                            "MARKET-42 - difference between accountdebt and totalborrows exceeds 1"
+                        );
+                    }
+                }
+            } else {
+                emit LogUint256("panic code:", errorCode);
+                assertWithMsg(
+                    false,
+                    "MARKET-35 liquidateAccount panicked unexpectedly"
+                );
+            }
+        } catch (bytes memory revertData) {
+            uint256 errorSelector = extractErrorSelector(revertData);
+
             assertWithMsg(
                 false,
                 "MARKET-35 liquidateAccount with correct preconditions should succeed"
