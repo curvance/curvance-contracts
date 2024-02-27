@@ -468,10 +468,10 @@ contract FuzzDToken is FuzzMarketManager {
                 0, // 0 does not represent anything here, when the liquidateExact is false
                 false
             );
-        amount = _boundLiquidateValues(debtToLiquidate, collateralToken);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        amount = _bound_liquidate_values(debtToLiquidate, collateralToken);
+        _pre_liquidate(amount, DAI_PRICE, USDC_PRICE);
 
-        _checkLiquidatePreconditions(account, dtoken, collateralToken);
+        _check_liquidate_preconditions(account, dtoken, collateralToken);
 
         {
             address underlyingDToken = DToken(dtoken).underlying();
@@ -512,7 +512,7 @@ contract FuzzDToken is FuzzMarketManager {
         _is_supported_ctoken(collateralToken);
         _is_supported_dtoken(dtoken);
 
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _pre_liquidate(amount, DAI_PRICE, USDC_PRICE);
 
         address underlyingDToken = DToken(dtoken).underlying();
 
@@ -544,8 +544,8 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 collateralPostedFor = _get_collateral_posted_for(
             address(collateralToken)
         );
-        amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        amount = _bound_liquidate_values(collateralPostedFor, collateralToken);
+        _pre_liquidate(amount, DAI_PRICE, USDC_PRICE);
 
         (
             uint256 debtToLiquidate,
