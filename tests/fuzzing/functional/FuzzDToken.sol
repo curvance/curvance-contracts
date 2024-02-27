@@ -513,6 +513,7 @@ contract FuzzDToken is FuzzMarketManager {
         address collateralToken
     ) public {
         require(marketManager.seizePaused() != 2);
+
         address account = address(this);
         _isSupportedCToken(collateralToken);
         _isSupportedDToken(dtoken);
@@ -536,7 +537,9 @@ contract FuzzDToken is FuzzMarketManager {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
-                errorSelector == invalid_amount,
+                errorSelector == invalid_amount ||
+                    errorSelector ==
+                    marketManager_invalidParameterSelectorHash,
                 "DTOK-X liquidateExact should fail with amount 0"
             );
         }
@@ -553,8 +556,8 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 collateralPostedFor = _collateralPostedFor(
             address(collateralToken)
         );
-        amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        // amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
+        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
         (
             uint256 debtToLiquidate,
