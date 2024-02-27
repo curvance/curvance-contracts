@@ -595,7 +595,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
             mtoken
         );
-        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
+        uint256 shortfall = _getLiquidityDeficit(
             address(this),
             mtoken,
             tokens,
@@ -778,7 +778,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                 _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
-        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
+        uint256 shortfall = _getLiquidityDeficit(
             address(this),
             mtoken,
             collateralPostedForUser,
@@ -864,6 +864,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     /// @custom:property market-36 Liquidating an account should result in all collateral token balances being zeroed out.
     /// @custom:property market-37 Liquidating an account should result in all debtBalanceCached() for all debt tokens being zeroed out.
     /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
+    /// @custom:limitation there is a KNOWN rounding offset here by 1 wei, where the this flow can revert. This function will revert if the diff exceeds 1 wei
     function liquidateAccount_should_succeed(uint256 amount) public {
         require(marketManager.seizePaused() != 2);
         address account = address(this);

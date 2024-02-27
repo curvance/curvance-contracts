@@ -624,6 +624,40 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         require(marketManager.isListed(ctoken));
     }
 
+    function _getLiquidityDeficit(
+        address account,
+        address mtoken,
+        uint256 redeemTokens,
+        uint256 amount
+    ) internal view returns (uint256) {
+        (, uint256 liquidityDeficit, ) = _getHypotheticalLiquidityOf(
+            account,
+            mtoken,
+            redeemTokens,
+            amount
+        );
+        return liquidityDeficit;
+    }
+
+    function _getHypotheticalLiquidityOf(
+        address account,
+        address mtoken,
+        uint256 redeemTokens,
+        uint256 amount
+    ) internal view returns (uint256, uint256, bool[] memory) {
+        (
+            uint256 accountLiquidity,
+            uint256 liquidityDeficit,
+            bool[] memory closePositions
+        ) = marketManager.hypotheticalLiquidityOf(
+                account,
+                mtoken,
+                redeemTokens,
+                amount
+            );
+        return (accountLiquidity, liquidityDeficit, closePositions);
+    }
+
     function _hasPosition(address mToken) internal view returns (bool) {
         (bool hasPosition, , ) = marketManager.tokenDataOf(
             address(this),

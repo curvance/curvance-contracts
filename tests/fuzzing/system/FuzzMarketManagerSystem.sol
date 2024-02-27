@@ -1,6 +1,7 @@
 pragma solidity 0.8.17;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract FuzzMarketManagerSystem is StatefulBaseMarket {
     // Stateful Functions
@@ -56,28 +57,32 @@ contract FuzzMarketManagerSystem is StatefulBaseMarket {
         );
     }
 
-    function hypotheticalLiquidityOf_no_excess_liquidity_for_amount_greater_than_posted(
-        address mtoken,
+    function pruned_positions_should_never_have_collateral_posted(
+        uint256 redeemTokens,
         uint256 amount
     ) public {
-        _isSupportedDToken(mtoken);
+        IMToken[] memory assets = marketManager.assetsOf(address(this));
 
-        (bool hasPosition, , uint256 collateralPosted) = marketManager
-            .tokenDataOf(address(this), mtoken);
-        require(hasPosition);
-        amount = clampBetween(amount, collateralPosted + 1, type(uint256).max);
-        (uint256 excessLiquidity, uint256 liquidityDeficit) = marketManager
-            .hypotheticalLiquidityOf(address(this), mtoken, 0, amount);
-        assertEq(
-            excessLiquidity,
-            0,
-            "MARKET MANAGER - calling hypothetical liquidity of for an amount greater than posted should result in no excess"
-        );
-        assertGt(
-            liquidityDeficit,
-            0,
-            "MARKET MANAGER - calling hypothetical liquidity of for an amount greater than posted should result in error"
-        );
+        for (uint256 i = 0; i < assets.length; i++) {
+            address assetAddr = address(assets[i]);
+            (, , bool[] memory positionsToClose) = _getHypotheticalLiquidityOf(
+                address(this),
+                assetAddr,
+                redeemTokens,
+                amount
+            );
+            if (positionsToClose.length == 0) {
+                assertEq(
+                    _collateralPostedFor(assetAddr),
+                    0,
+                    "S-MARKET-4 - if no positions to be pruned, collateral posted for asset must be 0"
+                );
+                assertWithMsg(
+                    !_hasPosition(assetAddr),
+                    "S-MARKET-5 - if no positions to be pruned, user must not have a position"
+                );
+            }
+        }
     }
 
     // current debt > max allowed debt after folding
