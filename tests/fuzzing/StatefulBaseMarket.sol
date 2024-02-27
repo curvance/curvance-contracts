@@ -201,8 +201,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         emit LogUint256("woowowo", 0);
         feeAccumulator = new FeeAccumulator(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
-        );
+            _USDC_ADDRESS);
         centralRegistry.setFeeAccumulator(address(feeAccumulator));
     }
 
@@ -509,7 +508,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     bool feedsSetup;
     uint256 lastRoundUpdate;
 
-    function _setup_feeds() internal {
+    function setUpFeeds() public {
         require(centralRegistry.hasElevatedPermissions(address(this)));
         require(gaugePool.startTime() < block.timestamp);
         // use mock pricing for testing
@@ -553,7 +552,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         //     0,
         //     true
         // );
-        _set_price_to_default();
+        _setPriceToDefault();
         emit LogUint256("set price to default", 1e8);
         chainlinkUsdcUsd.updateRoundData(
             0,
@@ -578,7 +577,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     // If the price is stale, update the round data and update lastRoundUpdate
-    function _check_price_feed() internal {
+    function _checkPriceFeed() internal {
         // if lastRoundUpdate timestamp is stale
         if (lastRoundUpdate > block.timestamp) {
             lastRoundUpdate = block.timestamp;
@@ -603,30 +602,22 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
                 block.timestamp
             );
         }
-        _set_price_to_default();
+        _setPriceToDefault();
         lastRoundUpdate = block.timestamp;
     }
 
-    function _set_price_to_default() private {
+    function _setPriceToDefault() private {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockUsdcFeed.setMockAnswer(1e8);
         mockDaiFeed.setMockAnswer(1e8);
     }
 
-    // When the # of supported debt tokens increase, this will need to be updated
-    function _is_supported_dtoken(address dtoken) internal view {
-        require(marketManager.isListed(dtoken));
+    function _isSupportedDToken(address dtoken) internal view {
         require(dtoken == address(dUSDC) || dtoken == address(dDAI));
     }
 
-    // When the # of supportd tokens increases, this will need to be updated
-    function _is_supported_ctoken(address ctoken) internal view {
-        require(marketManager.isListed(ctoken));
-        require(ctoken == address(cUSDC) || ctoken == address(cDAI));
-    }
-
-    function _has_position(address mToken) internal view returns (bool) {
+    function _hasPosition(address mToken) internal view returns (bool) {
         (bool hasPosition, , ) = marketManager.tokenDataOf(
             address(this),
             mToken
@@ -634,7 +625,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         return hasPosition;
     }
 
-    function _get_collateral_posted_for(
+    function _collateralPostedFor(
         address mToken
     ) internal view returns (uint256) {
         (, , uint256 collateralPosted) = marketManager.tokenDataOf(
@@ -644,7 +635,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         return collateralPosted;
     }
 
-    function _get_cooldown_timestamp_for() internal view returns (uint256) {
+    function _getCooldownTimestampFor() internal view returns (uint256) {
         uint256 downtime = marketManager.accountAssets(address(this));
         return downtime;
     }

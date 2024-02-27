@@ -24,9 +24,9 @@ contract FuzzDToken is FuzzMarketManager {
         address dtoken,
         uint256 amount
     ) public {
-        _is_supported_dtoken(dtoken);
+        _isSupportedDToken(dtoken);
         require(gaugePool.startTime() < block.timestamp);
-        _check_price_feed();
+        _checkPriceFeed();
         (bool mintingPossible, ) = address(marketManager).call(
             abi.encodeWithSignature("canMint(address)", dtoken)
         );
@@ -139,8 +139,8 @@ contract FuzzDToken is FuzzMarketManager {
         address dtoken,
         uint256 amount
     ) public {
-        _is_supported_dtoken(dtoken);
-        _check_price_feed();
+        _isSupportedDToken(dtoken);
+        _checkPriceFeed();
         address underlying = DToken(dtoken).underlying();
         require(marketManager.isListed(dtoken));
         require(marketManager.borrowPaused(dtoken) != 2);
@@ -205,8 +205,8 @@ contract FuzzDToken is FuzzMarketManager {
         address dtoken,
         uint256 amount
     ) public {
-        _is_supported_dtoken(dtoken);
-        _check_price_feed();
+        _isSupportedDToken(dtoken);
+        _checkPriceFeed();
         address underlying = DToken(dtoken).underlying();
         require(marketManager.borrowPaused(dtoken) != 2);
         uint256 upperBound = DToken(dtoken).marketUnderlyingHeld() -
@@ -293,7 +293,7 @@ contract FuzzDToken is FuzzMarketManager {
         address dtoken,
         uint256 amount
     ) public {
-        _is_supported_dtoken(dtoken);
+        _isSupportedDToken(dtoken);
         uint256 accountDebt = DToken(dtoken).debtBalanceCached(address(this));
         emit LogUint256("account debt", accountDebt);
         address underlying = DToken(dtoken).underlying();
@@ -352,7 +352,7 @@ contract FuzzDToken is FuzzMarketManager {
         address dtoken,
         uint256 amount
     ) public {
-        _is_supported_dtoken(dtoken);
+        _isSupportedDToken(dtoken);
         address underlying = DToken(dtoken).underlying();
         uint256 accountDebt = DToken(dtoken).debtBalanceCached(address(this));
         emit LogUint256("acct debt", accountDebt);
@@ -452,6 +452,8 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:precondition account has collateral posted for respective token
     /// @custom:precondition account is in "danger" of liquidation
     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
+        uint256 daiPrice = DAI_PRICE;
+        uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
         address account = address(this);
         address dtoken = address(dDAI);
@@ -509,12 +511,32 @@ contract FuzzDToken is FuzzMarketManager {
         address collateralToken
     ) public {
         uint256 amount = 0;
-        _is_supported_ctoken(collateralToken);
-        _is_supported_dtoken(dtoken);
-
+        // Structured for non exact liquidations, debt amount to liquidate = max
+        uint256 collateralPostedFor = _collateralPostedFor(
+            address(collateralToken)
+        );
         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        // amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
+        // (
+        //     uint256 debtToLiquidate,
+        //     uint256 seizedForLiquidation,
+        //     uint256 seizedForProtocol
+        // ) = marketManager.canLiquidate(
+        //         dtoken,
+        //         collateralToken,
+        //         account,
+        //         0,
+        //         true
+        //     );
 
         address underlyingDToken = DToken(dtoken).underlying();
+
+        uint256 senderBalanceUnderlying = IERC20(underlyingDToken).balanceOf(
+            msg.sender
+        );
+        uint256 preAccountCollateral = IERC20(collateralToken).balanceOf(
+            account
+        );
 
         // expect the above to fail
         hevm.prank(msg.sender);
@@ -524,12 +546,8 @@ contract FuzzDToken is FuzzMarketManager {
                 amount,
                 IMToken(collateralToken)
             )
-        {} catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-            assertWithMsg(
-                errorSelector == marketManager_invalidParameterSelectorHash,
-                "DTOK-X liquidateExact with amount=0 should revert with invalid parameter selector hash"
-            );
+        {} catch {
+            assert(false);
         }
     }
 
@@ -541,7 +559,7 @@ contract FuzzDToken is FuzzMarketManager {
         address collateralToken
     ) public {
         // Structured for non exact liquidations, debt amount to liquidate = max
-        uint256 collateralPostedFor = _get_collateral_posted_for(
+        uint256 collateralPostedFor = _collateralPostedFor(
             address(collateralToken)
         );
         amount = _boundLiquidateValues(collateralPostedFor, collateralToken);
