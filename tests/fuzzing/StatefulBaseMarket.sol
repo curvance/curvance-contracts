@@ -172,13 +172,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     function _deployVeCVE() internal {
-        uint256 epochDuration = 2 weeks;
-        uint256 lockEpochs = 26;
-        veCVE = new VeCVE(
-            ICentralRegistry(address(centralRegistry)),
-            epochDuration,
-            lockEpochs
-        );
+        veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
         cveLocker.startLocker();

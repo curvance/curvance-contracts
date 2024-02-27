@@ -115,13 +115,7 @@ contract DeployCurvance is
         _setFeeAccumulator(feeAccumulator);
 
         // Deploy VeCVE
-        uint256 epochDuration = 2 weeks;
-        uint256 lockEpochs = 26;
-        if (_is_testnet(network)) {
-            epochDuration = 5 minutes;
-            lockEpochs = 1;
-        }
-        _deployVeCve(centralRegistry, epochDuration, lockEpochs);
+        _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
         // Deploy GaugePool

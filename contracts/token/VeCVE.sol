@@ -194,9 +194,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 epoch_duration_,
-        uint256 lock_epochs_
+        ICentralRegistry centralRegistry_
     ) {
         _name = "Vote Escrowed CVE";
         _symbol = "veCVE";
