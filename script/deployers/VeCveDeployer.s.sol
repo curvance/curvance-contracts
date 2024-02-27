@@ -13,12 +13,18 @@ contract VeCveDeployer is DeployConfiguration {
     address veCve;
 
     function _deployVeCve(
-        address centralRegistry
+        address centralRegistry,
+        uint256 epochDuration,
+        uint256 lockEpochs
     ) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 
         veCve = address(
-            new VeCVE(ICentralRegistry(centralRegistry))
+            new VeCVE(
+                ICentralRegistry(centralRegistry),
+                epochDuration,
+                lockEpochs
+            )
         );
 
         console.log("veCve: ", veCve);

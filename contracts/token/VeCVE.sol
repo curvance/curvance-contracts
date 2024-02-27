@@ -29,7 +29,7 @@ import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHu
 ///        A popular system to incentivize people to lock tokens is
 ///        inflationary rewards, these have been removed to standardize
 ///        the incentives with users with creating disproportionate rewards
-///        for being "early". The goal is a continuous system that is just 
+///        for being "early". The goal is a continuous system that is just
 ///        as attractive in year 15 as it is on Day 1.
 ///
 ///      - Offchain Voting:
@@ -88,8 +88,8 @@ import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHu
 ///        result in a user's checkpointed points becoming too high when
 ///        examined directly, but does not introduce any exploitable vector
 ///        since the user's checkpoint will be updated as they step through
-///        each reward epoch. 
-///      
+///        each reward epoch.
+///
 contract VeCVE is ERC20, ReentrancyGuard {
     /// TYPES ///
 
@@ -170,7 +170,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         corresponding unlock documented.
     /// @dev User => Epoch # => Tokens unlocked.
     mapping(address => mapping(uint256 => uint256)) public userUnlocksByEpoch;
-    
+
     /// EVENTS ///
 
     event Locked(address indexed user, uint256 amount);
@@ -193,7 +193,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) {
+    constructor(
+        ICentralRegistry centralRegistry_,
+        uint256 epoch_duration_,
+        uint256 lock_epochs_
+    ) {
         _name = "Vote Escrowed CVE";
         _symbol = "veCVE";
 
