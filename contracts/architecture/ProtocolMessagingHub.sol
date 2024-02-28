@@ -22,7 +22,7 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///      Emissions offchain -> onchain porting, veCVE token locking data,
 ///      moving protocol fees, bridging CVE, moving a veCVE lock crosschain,
 ///      etc.
-///      
+///
 ///      Native gas tokens are stored inside the contract to pay for all
 ///      crosschain actions. Locked token data actions are intended to be
 ///      moved over to Wormhole's CCQ prior to mainnet deployment.
@@ -179,9 +179,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 locker.recordEpochRewards(amount);
                 return;
             }
-        // PayloadID = 4 Indicates receiving some crosschain information from
-        // a remote chain. Such as Gauge emissions configuration,
-        // locked token data, locker rewards data. 
+            // PayloadID = 4 Indicates receiving some crosschain information from
+            // a remote chain. Such as Gauge emissions configuration,
+            // locked token data, locker rewards data.
         } else if (payloadId == 4) {
             (, bytes memory emissionData) = abi.decode(
                 payload,
@@ -255,8 +255,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                     }
                 }
             }
-        // PayloadID = 5 Indicates migrating a veCVE lock from the source
-        // chain to this destination chain. 
+            // PayloadID = 5 Indicates migrating a veCVE lock from the source
+            // chain to this destination chain.
         } else if (payloadId == 5) {
             (, bytes memory lockData) = abi.decode(payload, (uint8, bytes));
 
@@ -357,13 +357,14 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
         _checkMessagingHubStatus();
 
-        return _transferTokenViaWormhole(
-            address(cve),
-            dstChainId,
-            recipient,
-            amount,
-            msg.value
-        );
+        return
+            _transferTokenViaWormhole(
+                address(cve),
+                dstChainId,
+                recipient,
+                amount,
+                msg.value
+            );
     }
 
     /// @notice Send wormhole message to bridge VeCVE lock.
@@ -428,9 +429,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @notice Returns required amount of native asset for message fee.
     /// @param dstChainId Chain ID of the target blockchain.
     /// @return Required fee.
-    function cveBridgeFee(
-        uint256 dstChainId
-    ) external view returns (uint256) {
+    function cveBridgeFee(uint256 dstChainId) external view returns (uint256) {
         return _quoteWormholeFee(dstChainId, true);
     }
 

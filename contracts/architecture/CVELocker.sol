@@ -39,7 +39,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      may also be integrated to facilitate a wider range of chain support.
 ///      Such as routing a distributed reward token into a chain specific
 ///      stablecoin after a Wormhole message is delivered.
-///      
+///
 contract CVELocker is Delegable, ReentrancyGuard {
     /// CONSTANTS ///
 
@@ -134,8 +134,8 @@ contract CVELocker is Delegable, ReentrancyGuard {
         // or protocol messaging hub.
         if (
             msg.sender != centralRegistry.feeAccumulator() &&
-            msg.sender != centralRegistry.protocolMessagingHub() 
-            ) {
+            msg.sender != centralRegistry.protocolMessagingHub()
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -647,13 +647,6 @@ contract CVELocker is Delegable, ReentrancyGuard {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }

@@ -18,7 +18,7 @@ contract OneBalanceFeeManagerReceiveWormholeMessagesTest is
         _deployBaseContracts();
     }
 
-    function test_oneBalanceFeeManagerReceiveWormholeMessages_fail_whenCallerIsNotWormholeRelayer()
+    function test_receiveWormholeMessages_fail_whenCallerIsNotWormholeRelayer()
         public
     {
         vm.expectRevert(
@@ -33,9 +33,7 @@ contract OneBalanceFeeManagerReceiveWormholeMessagesTest is
         );
     }
 
-    function test_oneBalanceFeeManagerReceiveWormholeMessages_fail_whenNotReceivedToken()
-        public
-    {
+    function test_receiveWormholeMessages_fail_whenNotReceivedToken() public {
         vm.expectRevert();
 
         vm.prank(_WORMHOLE_RELAYER);
@@ -48,9 +46,41 @@ contract OneBalanceFeeManagerReceiveWormholeMessagesTest is
         );
     }
 
-    function test_oneBalanceFeeManagerReceiveWormholeMessages_success_notOnPolygon()
+    function test_receiveWormholeMessages_fail_whenMessageIsAlreadyDelivered()
         public
     {
+        deal(_USDC_ADDRESS, address(oneBalanceFeeManager), 100e6);
+
+        vm.startPrank(_WORMHOLE_RELAYER);
+
+        oneBalanceFeeManager.receiveWormholeMessages(
+            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS)))),
+            new bytes[](0),
+            "",
+            23,
+            "0x01"
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OneBalanceFeeManager
+                    .OneBalanceFeeManager__MessageHashIsAlreadyDelivered
+                    .selector,
+                bytes32("0x01")
+            )
+        );
+        oneBalanceFeeManager.receiveWormholeMessages(
+            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS)))),
+            new bytes[](0),
+            "",
+            23,
+            "0x01"
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_receiveWormholeMessages_success_notOnPolygon() public {
         _fork();
 
         _USDC_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -78,7 +108,7 @@ contract OneBalanceFeeManagerReceiveWormholeMessagesTest is
         assertEq(usdc.balanceOf(_GELATO_ONE_BALANCE), balance);
     }
 
-    function test_oneBalanceFeeManagerReceiveWormholeMessages_success_whenPayloadIdIsNotOne()
+    function test_receiveWormholeMessages_success_whenPayloadIdIsNotOne()
         public
     {
         deal(_USDC_ADDRESS, address(oneBalanceFeeManager), 100e6);
@@ -100,9 +130,7 @@ contract OneBalanceFeeManagerReceiveWormholeMessagesTest is
         assertEq(usdc.balanceOf(_GELATO_ONE_BALANCE), balance);
     }
 
-    function test_oneBalanceFeeManagerReceiveWormholeMessages_success_whenPayloadIdIsOne()
-        public
-    {
+    function test_receiveWormholeMessages_success_whenPayloadIdIsOne() public {
         deal(_USDC_ADDRESS, address(oneBalanceFeeManager), 100e6);
 
         uint256 balance = usdc.balanceOf(_GELATO_ONE_BALANCE);

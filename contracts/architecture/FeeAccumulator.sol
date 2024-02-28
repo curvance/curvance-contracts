@@ -799,8 +799,8 @@ contract FeeAccumulator is ReentrancyGuard {
             // epochRewardsPerCVE expects in aggregate, making the last
             // individual or individuals unable to claim their rewards.
             feeTokenBalanceForChain =
-                (((feeTokenBalance * WAD) / totalLockedTokens) * 
-                crossChainLockData[i].lockAmount) /
+                (((feeTokenBalance * WAD) / totalLockedTokens) *
+                    crossChainLockData[i].lockAmount) /
                 WAD;
 
             messagingHub.sendFees(
@@ -822,7 +822,7 @@ contract FeeAccumulator is ReentrancyGuard {
         // epochRewardsPerCVE expects in aggregate, making the last
         // individual or individuals unable to claim their rewards.
         feeTokenBalanceForChain =
-        (((feeTokenBalance * WAD) / totalLockedTokens) * lockedTokens) /
+            (((feeTokenBalance * WAD) / totalLockedTokens) * lockedTokens) /
             WAD;
         uint256 epochRewardsPerCVE = (feeTokenBalance * WAD) /
             totalLockedTokens;

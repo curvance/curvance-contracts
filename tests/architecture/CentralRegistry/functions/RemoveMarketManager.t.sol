@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract Market {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
@@ -14,6 +15,8 @@ contract Market {
 }
 
 contract RemoveMarketManagerTest is TestBaseMarket {
+    using stdStorage for StdStorage;
+
     address newMarket;
 
     event RemovedCurvanceContract(
@@ -43,12 +46,25 @@ contract RemoveMarketManagerTest is TestBaseMarket {
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.removeMarketManager(user1);
+
+        stdstore
+            .target(address(centralRegistry))
+            .sig("isMarketManager(address)")
+            .with_key(user1)
+            .checked_write(true);
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.removeMarketManager(user1);
     }
 
     function test_removeMarketManager_success() public {
         centralRegistry.addMarketManager(newMarket, 5000);
+
         vm.expectEmit(true, true, true, true);
         emit RemovedCurvanceContract("Market Manager", newMarket);
+
         centralRegistry.removeMarketManager(newMarket);
         assertFalse(centralRegistry.isMarketManager(newMarket));
     }
