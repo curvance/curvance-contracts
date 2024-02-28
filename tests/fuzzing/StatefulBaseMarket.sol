@@ -206,12 +206,26 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setFeeAccumulator(address(feeAccumulator));
     }
 
+    int192 constant MIN_ORACLE_ANSWER = 1e6;
+    int192 constant MAX_USDC_ANSWER = 1e11;
+    int192 constant MAX_DAI_ANSWER = 1e50;
+
     function _deployChainlinkAdaptors() internal {
         // TODO: These numbers should be pulled into const variables
-        // setup chainlink usdcUdc with 8 deciamsl, starting price = 1e8, maxAnswer = 1e11, minAnswer = 1
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e11, 1e6);
+        // setup chainlink usdcUdc with 8 deciamsl, starting price = 1e8, maxAnswer = 1e11, minAnswer = 1e6
+        chainlinkUsdcUsd = new MockV3Aggregator(
+            8,
+            1e8,
+            MAX_USDC_ANSWER,
+            MIN_ORACLE_ANSWER
+        );
         // setup chainlink daiUSD with 8 decimals, starting price = 1e8, maxAnswer = 1e50, minAnswer = 1e6
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(
+            8,
+            1e8,
+            MAX_DAI_ANSWER,
+            MIN_ORACLE_ANSWER
+        );
         chainlinkUsdcEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
         chainlinkRethEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
         chainlinkDaiEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
@@ -578,7 +592,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     // If the price is stale, update the round data and update lastRoundUpdate
-    function _checkPriceFeed() internal {
+    function _check_price_feed() internal {
         // if lastRoundUpdate timestamp is stale
         if (lastRoundUpdate > block.timestamp) {
             lastRoundUpdate = block.timestamp;

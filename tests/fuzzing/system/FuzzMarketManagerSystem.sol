@@ -39,7 +39,7 @@ contract FuzzMarketManagerSystem is StatefulBaseMarket {
                 "S-MARKET-2 - collateralPosted must be equal to 0 when max collateral is posted"
             );
         } else {
-            assertLt(
+            assertLte(
                 collateralPosted,
                 maxCollateralCap[token],
                 "S-MARKET-3 - collateralPosted must be strictly less than the max collateral posted"

@@ -26,7 +26,7 @@ contract FuzzDToken is FuzzMarketManager {
     ) public {
         _isSupportedDToken(dtoken);
         require(gaugePool.startTime() < block.timestamp);
-        _checkPriceFeed();
+        _check_price_feed();
         (bool mintingPossible, ) = address(marketManager).call(
             abi.encodeWithSignature("canMint(address)", dtoken)
         );
@@ -140,7 +140,7 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 amount
     ) public {
         _isSupportedDToken(dtoken);
-        _checkPriceFeed();
+        _check_price_feed();
         address underlying = DToken(dtoken).underlying();
         require(marketManager.isListed(dtoken));
         require(marketManager.borrowPaused(dtoken) != 2);
@@ -206,7 +206,7 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 amount
     ) public {
         _isSupportedDToken(dtoken);
-        _checkPriceFeed();
+        _check_price_feed();
         address underlying = DToken(dtoken).underlying();
         require(marketManager.borrowPaused(dtoken) != 2);
         uint256 upperBound = DToken(dtoken).marketUnderlyingHeld() -
@@ -379,9 +379,18 @@ contract FuzzDToken is FuzzMarketManager {
         //     );
 
         try DToken(dtoken).repay(amount) {
-            if (lastTimestampUpdated + compoundRate <= block.timestamp) {
-                // interest was accrued
-                {
+            uint256 postUnderlyingBalance = IERC20(underlying).balanceOf(
+                address(this)
+            );
+            if (amount == 0) {
+                // interest accrued
+                if (lastTimestampUpdated + compoundRate <= block.timestamp) {
+                    // TODO this should be adjusted for hypothetical interest accrual
+                    assertLte(
+                        postUnderlyingBalance,
+                        preUnderlyingBalance - accountDebt,
+                        "DTOK-14 repay with amount=0 should reduce underlying balance by accountDebt"
+                    );
                     // TODO: Adjust this to accurately calculate the total interest accrued, because this uses MarketData.exchangeRate which is not DebtData.accountExchangeRate, therefore this currently checks an incorrect assertion.
                     /* 
                     assertEq(
@@ -398,28 +407,13 @@ contract FuzzDToken is FuzzMarketManager {
                         "DTOK-17 repay totalBorrows = postBorrows - amount - interest accrued for amount"
                     );
                     */
-                }
-            } else {
-                // interest was not accrued
-                assertEq(
-                    DToken(dtoken).totalBorrows(),
-                    preTotalBorrows - amount,
-                    "DTOK-13 repay postTotalBorrows failed = preTotalBorrows - amount"
-                );
-            }
-            uint256 postUnderlyingBalance = IERC20(underlying).balanceOf(
-                address(this)
-            );
-            if (amount == 0) {
-                // interest accrued
-                if (lastTimestampUpdated + compoundRate <= block.timestamp) {
-                    // TODO this should be adjusted for hypothetical interest accrual
-                    assertLte(
-                        postUnderlyingBalance,
-                        preUnderlyingBalance - accountDebt,
-                        "DTOK-14 repay with amount=0 should reduce underlying balance by accountDebt"
-                    );
                 } else {
+                    // interest was not accrued
+                    assertEq(
+                        DToken(dtoken).totalBorrows(),
+                        preTotalBorrows - accountDebt,
+                        "DTOK-13 repay postTotalBorrows failed = preTotalBorrows - amount"
+                    );
                     assertEq(
                         postUnderlyingBalance,
                         preUnderlyingBalance - accountDebt,

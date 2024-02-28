@@ -76,7 +76,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
+                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         require(_hasPosition(mtoken));
         uint256 liquidityDeficit = _getLiquidityDeficit(
@@ -270,7 +270,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
+                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         require(_hasPosition(mtoken));
         uint256 liquidityDeficit = _getLiquidityDeficit(
@@ -506,7 +506,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
+                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         try marketManager.canRepay(mtoken, account) {} catch {
             assertWithMsg(
@@ -526,7 +526,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(!marketManager.isListed(mtoken));
         require(
             block.timestamp >
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
+                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         try marketManager.canRepay(mtoken, account) {} catch (
             bytes memory revertData
@@ -549,7 +549,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.isListed(mtoken));
         require(
             block.timestamp <=
-                postedCollateralAt[mtoken] + marketManager.MIN_HOLD_PERIOD()
+                _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         try marketManager.canRepay(mtoken, account) {} catch (
             bytes memory revertData

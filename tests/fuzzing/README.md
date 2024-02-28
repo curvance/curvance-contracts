@@ -289,6 +289,58 @@ Tips and tricks:
 - Partner gauges – The system does not test the GaugePool, and its interactions with partner gauges. 
 - Removing collateral with a shortfall – There is coverage currently missing on removing collateral with a shortfall > 0, which may need additional tweaking with respect to system state. 
 - Market Manager State Checks – missing coverage on canLiquidate and canLiquidateWithExecution functions 
+- Use of dynamic fuzzing values for liquidations – currently, the range of state that the Fuzzer tests with liquidations is **limited**. This means that many functions are missing dynamic oracle ranges, and especially, the use of dynamic tokens. The following helper functions may help to identify and differentiate conditions necessary for a liquidation. 
+```solidity
+    function _check_liquidate_preconditions(
+        address account,
+        address dtoken,
+        address collateralToken
+    ) internal view {
+        _isSupportedDToken(dtoken);
+        require(account != msg.sender);
+        require(marketManager.isListed(dtoken));
+        require(
+            DToken(dtoken).marketManager() ==
+                DToken(collateralToken).marketManager()
+        );
+        require(IMToken(collateralToken).isCToken());
+        require(marketManager.collateralPosted(collateralToken) > 0);
+        require(marketManager.seizePaused() != 2);
+        (
+            uint256 lfactor,
+            uint256 debtTokenPrice,
+            uint256 collatTokenPrice
+        ) = marketManager.LiquidationStatusOf(
+                account,
+                dtoken,
+                collateralToken
+            );
+        require(lfactor > 0);
+    }
+
+    function _bound_liquidate_values(
+        uint256 amount,
+        address collateralToken
+    ) internal returns (uint256 clampedAmount) {
+        (
+            ,
+            uint256 collRatio,
+            uint256 collReqSoft,
+            uint256 collReqHard,
+            ,
+            ,
+            ,
+            ,
+
+        ) = marketManager.tokenData(address(collateralToken));
+        require(collRatio > 0);
+        uint256 maxValue = amount * collReqSoft;
+        uint256 minValue = amount * collReqHard;
+        emit LogUint256("min", minValue);
+        emit LogUint256("max", maxValue);
+        clampedAmount = clampBetween(amount, minValue, maxValue);
+    }
+```
 
 
 ## Installation Requirements
