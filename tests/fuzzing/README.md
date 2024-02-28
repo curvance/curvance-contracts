@@ -275,6 +275,8 @@ Tips and tricks:
 - Larger range on oracle prices – This will allow the fuzzer to explore large price deviations – the current test suite uses a default price to match the unit tests of 1e8 for each asset 
 - More token interactions – A larger range of debt and collateral tokens the fuzzer can transact with, with additional assets valued in USD and ETH would be meaningful for the rest of the system. This can also include decimal checks.
 - Larger input ranges – Input ranges being expanded to test entire full range of inputs (i.e: for uint256, testing the full range of 0 - type(uint256).max
+- No significant coverage in OracleRouter while this fuzzing suite may consume input and output from the OracleRouter, there are no stateful fuzzing tests targeting the correctness of these return values. 
+  - In liquidateAccount, an attempt is being made to show an example of how to introduce dynamic oracle pricing into the fuzzing suite, but will likely affect the rest of the market manager functions on edge cases, due to the need to check for underflow / overflow issues. 
  
 ### VeCVE limitations
 
