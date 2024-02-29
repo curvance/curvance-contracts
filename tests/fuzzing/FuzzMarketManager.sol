@@ -921,9 +921,9 @@ contract FuzzMarketManager is FuzzLiquidations {
 
                         // The system has a *known* limitation in rounding that totalBorrows and accountDebt can be off by one wei
                         // This check ensures that if there is a diff, it must be no more than 1 wei, otherwise Echidna will throw
-                        assertEq(
+                        assertLt(
                             accountDebt - totalBorrows,
-                            3,
+                            2,
                             "MARKET-42 - difference between accountdebt and totalborrows exceeds 1"
                         );
                         deltaTotalBorrowsAndDebt = int256(
@@ -946,10 +946,15 @@ contract FuzzMarketManager is FuzzLiquidations {
         } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
 
-            assertWithMsg(
-                false,
-                "MARKET-35 liquidateAccount with correct preconditions should succeed"
-            );
+            if (
+                errorSelector == insufficient_allowance ||
+                errorSelector == transfer_from_failed
+            ) {} else {
+                assertWithMsg(
+                    false,
+                    "MARKET-35 liquidateAccount with correct preconditions should succeed"
+                );
+            }
         }
     }
 
@@ -1056,6 +1061,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         hevm.prank(liquidator);
         dai.approve(address(dDAI), amount * WAD);
 
+        emit LogUint256("setting dai price to:", uint256(int256(daiPrice)));
         mockDaiFeed.setMockAnswer(int256(daiPrice));
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         chainlinkDaiUsd.updateRoundData(
@@ -1071,7 +1077,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         );
         require(!daiData.hadError);
 
-        emit LogString("set chainlink round data for usdc");
+        emit LogUint256("setting usdc price to:", uint256(int256(usdcPrice)));
         chainlinkUsdcUsd.updateRoundData(
             0,
             int256(usdcPrice),

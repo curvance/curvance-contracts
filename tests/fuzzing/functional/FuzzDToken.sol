@@ -445,7 +445,7 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:precondition market manager for dtoken and ctoken match
     /// @custom:precondition account has collateral posted for respective token
     /// @custom:precondition account is in "danger" of liquidation
-    function liquidate_should_succeed_with_non_exact() public {
+    function liquidate_should_succeed_with_non_exact(uint256 amount) public {
         uint256 daiPrice = DAI_PRICE;
         uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
@@ -464,13 +464,8 @@ contract FuzzDToken is FuzzMarketManager {
                 0, // 0 does not represent anything here, when the liquidateExact is false
                 false
             );
-        uint256 amount = _boundLiquidateValues(
-            debtToLiquidate,
-            collateralToken
-        );
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
-        // _checkLiquidatePreconditions(account, dtoken, collateralToken);
+        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
         {
             address underlyingDToken = DToken(dtoken).underlying();

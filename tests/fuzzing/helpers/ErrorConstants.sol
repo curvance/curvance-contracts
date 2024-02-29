@@ -82,4 +82,9 @@ contract ErrorConstants {
 
     uint256 invalid_amount =
         uint256(uint32(bytes4(keccak256("InvalidAmount()"))));
+
+    uint256 insufficient_allowance =
+        uint256(uint32(bytes4(keccak256("InsufficientAllowance()"))));
+    uint256 transfer_from_failed =
+        uint256(uint32(bytes4(keccak256("TransferFromFailed()"))));
 }
