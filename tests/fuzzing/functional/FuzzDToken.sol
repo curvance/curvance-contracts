@@ -613,8 +613,8 @@ contract FuzzDToken is FuzzMarketManager {
 
     /// @custom:property dtok-26 liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation.
     /// @custom:property dtok-27 Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.
-    /// @custom dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
-    /// @custom dtok-29 Liquidating an exact amount should result in collateral token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
+    /// @custom:property dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
+    /// @custom:property dtok-29 Liquidating an exact amount should result in collateral token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
     /// @custom:precondition dtoken being liquidated is dDAI
     /// @custom:precondition ctoken being liquidated is cUSDC
     /// @custom:precondition account being liquidated is address(this)
