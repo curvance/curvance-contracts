@@ -439,6 +439,12 @@ contract FuzzDToken is FuzzMarketManager {
     // SOFT liquidation
 
     // by default, this should just liquidate the maximum amount, assuming nonexist liquidation
+    /// @custom:property dtok-20 liquidating a non-exact amount should remove the user's position in the collateral token
+    /// @custom:property dtok-21  liquidating a non-exact amount should zero out the collateral posted for a user in the collateral token
+    /// @custom:property dtok-22 liquidating a non-exact amount should zero out the debt balance of the respective debt token
+    /// @custom:property dtok-23 liquidating a non-exact amount should decrease collateral balance for an account
+    /// @custom:property dtok-24 liquidating a non-exact amount should decrease the liquidator's underlying dtokenBalance by `debtToLiquidate`
+    /// @custom:property dtok-25 liquidating a non-exact amount should increase the collateral token balance by (amount seized by liquidation - amount seized by protocol)
     /// @custom:precondition liquidating an account's maximum
     /// @custom:precondition dToken is supported
     /// @custom:precondition cToken is supported
@@ -448,7 +454,7 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:limitation insufficient assertions on the invalid_amount error check, as the calculation on # of shares is needed to determine if it will actually revert
     /// @custom:limitation currently this contract is accruing interest to make sure exchange rates catch up before calculating. This property should be loosened to allow for more dynamic range testing, however this will require a hypothetical interest function to exist
     /// @custom:limitation this property is also currently ONLY testing the dtoken = DAI, ctoken = cUSDC and should be expanded as other liquidation functions should be
-    /// @custom:limitation
+    /// @custom:limitation needs additional checks for when invalidAmount error is thrown
     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
@@ -456,7 +462,7 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
         address account = address(this);
-        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
         DToken(dtoken).accrueInterest();
         (
@@ -467,8 +473,8 @@ contract FuzzDToken is FuzzMarketManager {
                 dtoken,
                 collateralToken,
                 account,
-                0, // 0 does not represent anything here, when the liquidateExact is false
-                false
+                0, // unused as a non-exact liquidation will liquidate the maximum soft liquidation amount possible
+                false // false represents a non-exact liquidation
             );
 
         address underlyingDToken = DToken(dtoken).underlying();
@@ -484,22 +490,26 @@ contract FuzzDToken is FuzzMarketManager {
             uint256 priorDebt = DToken(dtoken).debtBalanceCached(
                 address(this)
             );
+            uint256 preSenderCollateral = IERC20(collateralToken).balanceOf(
+                msg.sender
+            );
 
             hevm.prank(msg.sender);
             try DToken(dtoken).liquidate(account, IMToken(collateralToken)) {
-                // the user should no longer have a psoition in the collateral token
+                // After a non-exact (maximum) liquidation, the user should no longer have a position in the collateral token.
                 assertWithMsg(
                     !_hasPosition(collateralToken),
                     "DTOK-20 soft liquidate entire account should clear position for collateral"
                 );
 
-                // the amt of collateral posted for the user must be 0 after a soft liquidation of max token amount
+                // The amount of collateral posted for a user must be zero.
                 assertEq(
                     _collateralPostedFor(collateralToken),
                     0,
                     "DTOK-21 soft liquidate entire account should zero out collateral posted for the user"
                 );
 
+                // The debt of the account should decrease by debtToLiquidate
                 assertEq(
                     priorDebt -
                         DToken(dtoken).debtBalanceCached(address(this)),
@@ -507,40 +517,48 @@ contract FuzzDToken is FuzzMarketManager {
                     "DTOK-22 soft liquidate entire account should zero out debt balance for user"
                 );
 
-                // collateralToken.balanceof(acct) + amount seized for liquidation  = pre account collateral
+                // The collateral token balance for the liquidated account should decrease by `seizedForLiquidation`
+                emit LogUint256(
+                    "collateralBalanceBefore",
+                    collateralBalanceBefore
+                );
+                emit LogUint256(
+                    "current bal",
+                    IMToken(collateralToken).balanceOf(address(this))
+                );
+                emit LogUint256("seized by protocol", seizedForProtocol);
                 assertEq(
-                    _collateralPostedFor(collateralToken) +
-                        seizedForLiquidation,
-                    preAccountCollateral,
-                    "DTOK-22 liquidate: post account collateral + tokens seized for liquidation + tokens seized by protocol = pre account collateral"
+                    collateralBalanceBefore -
+                        IMToken(collateralToken).balanceOf(address(this)),
+                    seizedForLiquidation,
+                    "DTOK-23 soft liquidate should decrease collateral balance for account"
                 );
 
-                // the account that was liquidated should have no ctoken balance left, i.e: they should have lost all their collateral
-                // assertEq(
-                //     collateralBalanceBefore -
-                //         IMToken(collateralToken).balanceOf(address(this)),
-                //     seizedForLiquidation,
-                //     "DTOK-23 soft liquidate should zero out collateral balance for account"
-                // );
-                // the liquidator's underlying debt token should DECREASE by `seizedForLiquidation` returned by `canLiquidate`
-                // tokens are being sent from
+                // The liquidator's underlying debt token balance should DECREASE by `debtToLiquidate` as they had to front the user's debt
                 assertEq(
                     IERC20(underlyingDToken).balanceOf(msg.sender),
                     senderBalanceUnderlying - debtToLiquidate,
-                    "DTOK-24 soft liquidate should decresae liquiator's underlying dtoken balance by `debtToLiquidate"
+                    "DTOK-24 soft liquidate should decresae liquidator's underlying dtoken balance by `debtToLiquidate"
                 );
 
-                //
-                // debtToken will be repaid from liquidator -> DToken contract
-                // therefore underlyingDToken.balanceOf(msg.sender) = senderBalanceUnderlying - debtToliquidate
-                // assertEq(
-                //     IERC20(underlyingDToken).balanceOf(msg.sender),
-                //     senderBalanceUnderlying - debtToLiquidate,
-                //     "DTOK-20 liquidate: underlying msg.sender balance after liquidate = previous underlying - debt to liquidate"
-                // );
+                // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
+                // Therefore, the liquidator's collateral token balance must be equivalent to their previous balance + their allocation of tokens
+                {
+                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation - the amount of tokens seized for the protocol
+                    uint256 collateralTokensForLiquidator = seizedForLiquidation -
+                            seizedForProtocol;
+                    emit LogAddress("msg.sender", msg.sender);
+
+                    assertEq(
+                        IERC20(collateralToken).balanceOf(msg.sender),
+                        preSenderCollateral + collateralTokensForLiquidator,
+                        "DTOK-25 soft liquidate: collateral token balance of sender must increase by (amount seized by liquidation - amount seized for protocol)"
+                    );
+                }
             } catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
                 if (errorSelector == invalid_amount) {
+                    // An assertion check is missing here.
                     // TODO: Determine condition where this should be true
                     // hypothetically if amount = 0 OR
                     // amount to be deposited to gaugepool would round down to zero
@@ -568,14 +586,12 @@ contract FuzzDToken is FuzzMarketManager {
         _isSupportedCToken(collateralToken);
         _isSupportedDToken(dtoken);
         uint256 amount = 0;
-        // Structured for non exact liquidations, debt amount to liquidate = max
         uint256 collateralPostedFor = _collateralPostedFor(
             address(collateralToken)
         );
 
         _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
-        // expect the above to fail
         hevm.prank(msg.sender);
         try
             DToken(dtoken).liquidateExact(
@@ -585,7 +601,7 @@ contract FuzzDToken is FuzzMarketManager {
             )
         {} catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
-
+            // liquidating 0 tokens SHOULD fail with one of these two error messages
             assertWithMsg(
                 errorSelector == invalid_amount ||
                     errorSelector ==
@@ -595,7 +611,16 @@ contract FuzzDToken is FuzzMarketManager {
         }
     }
 
-    /// @custom:property
+    /// @custom:property dtok-26 liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation.
+    /// @custom:property dtok-27 Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.
+    /// @custom dtok-28 Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.
+    /// @custom dtok-29 Liquidating an exact amount should result in collateral token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)
+    /// @custom:precondition dtoken being liquidated is dDAI
+    /// @custom:precondition ctoken being liquidated is cUSDC
+    /// @custom:precondition account being liquidated is address(this)
+    /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
+    /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
+
     function liquidate_should_succeed_with_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
@@ -637,51 +662,41 @@ contract FuzzDToken is FuzzMarketManager {
                     IMToken(collateralToken)
                 );
 
-                // the user's prior collateral balance - post collateral balance must be equivalent to the total amount that was seized for liquidaiton
-                emit LogUint256("prior collateral:", priorCollateral);
-                emit LogUint256(
-                    "collateral posted for:",
-                    _collateralPostedFor(collateralToken)
-                );
-                emit LogUint256("debt to be liquidated", debtToLiquidate);
-                emit LogUint256("seized for liq", seizedForLiquidation);
-                emit LogUint256("seized for protocol", seizedForProtocol);
-
+                // The user's previous collateral balance - post collateral balance must equal the total amount that was seized for liquidation
                 assertEq(
                     priorCollateral - _collateralPostedFor(collateralToken),
                     seizedForLiquidation,
-                    "DTOK-X soft liquidation exact should result in priorCollateral - current collateral = seized for liquidation + seized for protocol"
+                    "DTOK-26 soft liquidation exact should result in priorCollateral - current collateral = seized for liquidation"
                 );
 
-                // the user's prior debt balance - current debt balance should be equivalent to the amount of debt that was liquidated
+                // The user's previous debt balance - current debt balance must equal the total amount of debt that was liquidated
                 assertEq(
                     priorDebt -
                         DToken(dtoken).debtBalanceCached(address(this)),
                     debtToLiquidate,
-                    "DTOK-X soft liquidate exact acct debt should decrease by debtToLiquidate"
+                    "DTOK-27 soft liquidate exact acct debt should decrease by debtToLiquidate"
                 );
 
-                // on a liquidation, the liquidator will send repay debt tokens to keep the system in a heavily state
-                // the liquidator's underlying dtoken balance after execution = pre execution underlying dtoken + debt to liquidate
+                // When liquidating, the liquidator will REPAY debt tokens TO the system
+                // Therefore, the liquidator's underlying dtoken after execution should be equal to the pre underlying dtoken balance + debtToLiquidate
                 assertEq(
                     IERC20(underlyingDToken).balanceOf(msg.sender),
                     senderBalanceUnderlying + debtToLiquidate,
-                    "DTOK- liquidate: underlying msg.sender balance after liquidate = previous underlying + debt to liquidate"
+                    "DTOK-28 liquidate: underlying msg.sender balance after liquidate = previous underlying + debt to liquidate"
                 );
 
-                assertEq(
-                    IERC20(collateralToken).balanceOf(msg.sender),
-                    preSenderCollateral +
-                        (seizedForLiquidation - seizedForProtocol),
-                    "DTOK-X soft liquidate: collateral token balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
-                );
-                // assertEq(
-                //     IERC20(collateralToken).balanceOf(account) +
-                //         seizedForLiquidation +
-                //         seizedForProtocol,
-                //     preAccountCollateral,
-                //     "DTOK- liquidate: post account collateral token balance + tokens seized for liquidation + tokens seized by protocol = pre account collateral"
-                // );
+                // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
+                // Therefore, the liquidator's collateral token balance must be equivalent to their previous balance + their allocation of tokens
+                {
+                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation - the amount of tokens seized for the protocol
+                    uint256 collateralTokensForLiquidator = seizedForLiquidation -
+                            seizedForProtocol;
+                    assertEq(
+                        IERC20(collateralToken).balanceOf(msg.sender),
+                        preSenderCollateral + collateralTokensForLiquidator,
+                        "DTOK-29 soft liquidate: collateral token balance of sender must increase by (amount sized by liquidation - amount seized for protocol)"
+                    );
+                }
             }
         }
     }

@@ -1110,11 +1110,12 @@ contract FuzzMarketManager is FuzzLiquidations {
                 ,
                 ,
                 ,
-                ,
+                uint256 liqFee,
                 ,
                 ,
 
             ) = marketManager.tokenData(address(cUSDC));
+            emit LogUint256("liqFee", liqFee);
             // if C_USDC is not listed, make sure to list it
             if (!is_cusdc_listed) {
                 list_token_should_succeed(address(cUSDC));
@@ -1128,7 +1129,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                     0,
                     0,
                     0,
-                    0,
+                    10000e18,
                     0
                 );
             }

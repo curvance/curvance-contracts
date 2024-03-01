@@ -143,7 +143,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _deployCentralRegistry() internal {
         centralRegistry = new CentralRegistry(
-            address(this),
+            address(0x0000000000000000000000000000000000020000),
             address(this),
             address(this),
             0,
