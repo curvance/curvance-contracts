@@ -4,7 +4,7 @@
 
 | ID      | Description                                                             | Status |
 |---------|-------------------------------------------------------------------------|--------|
-| CURV-1  | The central registry has the daoAddress set to the second fuzzing caller.             | Passed |
+| CURV-1  | The central registry has the daoAddress set to the second fuzzing caller. | Passed |
 | CURV-2  | The central registry has the timelock address set to the deployer.       | Passed |
 | CURV-3  | The central registry has the emergency council address set to the deployer. | Passed |
 | CURV-4  | The central registry’s genesis Epoch is equal to zero.                   | Passed |
@@ -247,7 +247,7 @@
 | DTOK-12  | The repay function should succeed with proper preconditions.                                                                    | Failed |
 | DTOK-13  | Repaying any amount with no interest accruing should make totalBorrows equivalent to preTotalBorrows - amount                   | Passed |
 | DTOK-14  | If a user repays with amount = 0, they zero out their accountDebt for their account.                                            | Passed |
-| DTOK-15  | A user should be able to repay between 0 and their accountDebt with the repay function.                                         |        |
+| DTOK-15  | A user should be able to repay between 0 and their accountDebt with the repay function.                                         | Passed |
 | DTOK-16  | A user trying to soft liquidate another account should fail with a 0 amount.                                                    | Passed |
 | DTOK-17  | Repaying an amount with interest accruing should make totalBorrows equivalent to totalBorrows - preTotalBorrows - amount - (abs(new_exchange_rate - old_exchange_rate)*accountDebt) | Passed |
 | DTOK-18  | The mint function should revert if amount * WAD / exchangRate == 0, when trying to deposit to the GaugePool.                    | Passed |

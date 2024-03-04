@@ -873,6 +873,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     /// @custom:precondition accountCollateral must be < accountDebt to be liquidatable
     /// @custom:limitation there is a KNOWN rounding offset here by 1 wei, where the this flow can revert. This function will revert if the diff exceeds 1 wei
     /// @custom:limitation there is also a KNOWN limitation that liquidation functions currently are using the DAI PRICE and USDC PRICE constants. This function is an attempt to introduce randomness into this flow.
+    /// @custom:limitation debt and collateral balance checks are missing here
     function liquidateAccount_should_succeed(
         uint256 amount,
         uint256 usdcPrice,
@@ -880,8 +881,10 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public returns (int256) {
         require(marketManager.seizePaused() != 2);
         address account = address(this);
+        // returns oracle prices within the min and max of the aggregator values
         (usdcPrice, daiPrice) = _bound_oracle_prices(usdcPrice, daiPrice);
-        amount = _preLiquidate(amount, daiPrice, usdcPrice);
+        // sets up liquidatable system and ensures that system can be liquidated
+        amount = _preLiquidate(amount, daiPrice, usdcPrice, amount, false);
 
         IMToken[] memory assets = marketManager.assetsOf(account);
 
@@ -992,7 +995,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(marketManager.seizePaused() != 2);
         address account = msg.sender;
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, false);
 
         hevm.prank(msg.sender);
         try this.prankLiquidateAccount(account) {
@@ -1019,7 +1022,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(marketManager.seizePaused() == 2);
         address account = address(this);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, false);
 
         hevm.prank(msg.sender);
         try this.prankLiquidateAccount(account) {
@@ -1099,7 +1102,9 @@ contract FuzzMarketManager is FuzzLiquidations {
     function _preLiquidate(
         uint256 amount,
         uint256 daiPrice,
-        uint256 usdcPrice
+        uint256 usdcPrice,
+        uint256 amountLiquidated,
+        bool exactAmount
     ) internal returns (uint256) {
         // ensure price feeds are up to date and in sync before updating collateral token and listing
         _check_price_feed();
@@ -1164,12 +1169,13 @@ contract FuzzMarketManager is FuzzLiquidations {
         // mint tokens and set the oracle prices of the system
         _setup_liquidatable_states(amount, daiPrice, usdcPrice);
         // ensure that the account can be liquidated
+        // note: that this will need to be made dynamic for other variations of liquidations
         (uint256 debt, , ) = marketManager.canLiquidate(
             address(dDAI),
             address(cUSDC),
             address(this),
-            amount,
-            false
+            amountLiquidated,
+            exactAmount
         );
 
         (uint256 accountCollateral, , uint256 accountDebt) = marketManager

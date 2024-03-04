@@ -5,6 +5,7 @@ import { DToken } from "contracts/market/collateral/DToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
+import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";
 
 contract FuzzDToken is FuzzMarketManager {
     constructor() {
@@ -461,7 +462,7 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
         address account = address(this);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, 0, false);
 
         DToken(dtoken).accrueInterest();
         (
@@ -589,7 +590,8 @@ contract FuzzDToken is FuzzMarketManager {
             address(collateralToken)
         );
 
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, true);
+        calculateLiquidation_exact(amount, true);
 
         hevm.prank(msg.sender);
         try
@@ -628,7 +630,7 @@ contract FuzzDToken is FuzzMarketManager {
         );
         DToken(dtoken).accrueInterest();
         uint256 priorDebt = DToken(dtoken).debtBalanceCached(address(this));
-        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
+        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, true);
 
         (
             uint256 debtToLiquidate,
