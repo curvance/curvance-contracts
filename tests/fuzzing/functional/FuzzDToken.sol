@@ -233,7 +233,8 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 preUnderlyingBalance = IERC20(underlying).balanceOf(
             address(this)
         );
-        uint256 er = DToken(dtoken).exchangeRateCached();
+        // Old exchange rate may be useful when determining the amount of interest that was accrued
+        // uint256 er = DToken(dtoken).exchangeRateCached();
 
         try DToken(dtoken).borrow(amount) {
             // Interest is accrued
@@ -301,10 +302,6 @@ contract FuzzDToken is FuzzMarketManager {
         require(_mintAndApprove(underlying, dtoken, amount));
         require(marketManager.isListed(dtoken));
 
-        (uint40 lastTimestampUpdated, , uint256 compoundRate) = DToken(dtoken)
-            .marketData();
-        uint256 old_er = DToken(dtoken).exchangeRateCached();
-
         amount = clampBetween(amount, accountDebt + 1, type(uint256).max);
         dai.mint(amount);
         dai.approve(address(dDAI), amount);
@@ -318,6 +315,8 @@ contract FuzzDToken is FuzzMarketManager {
         // );
 
         try DToken(dtoken).repay(amount) {
+            // interestAccrued should be set to the function that will return hypothetical interest accrual
+            /*
             uint256 interestAccrued = _calculate_interest_accrued(
                 amount,
                 dtoken,
@@ -325,6 +324,8 @@ contract FuzzDToken is FuzzMarketManager {
                 lastTimestampUpdated,
                 compoundRate
             );
+            */
+            uint256 interestAccrued;
             // if interest accrued and final amount underflowed, repay with more than account debt balance should fail.
             int256 finalAmount = int256(
                 amount + interestAccrued - accountDebt
@@ -455,14 +456,13 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:limitation insufficient assertions on the invalid_amount error check, as the calculation on # of shares is needed to determine if it will actually revert
     /// @custom:limitation currently this contract is accruing interest to make sure exchange rates catch up before calculating. This property should be loosened to allow for more dynamic range testing, however this will require a hypothetical interest function to exist
     /// @custom:limitation this property is also currently ONLY testing the dtoken = DAI, ctoken = cUSDC and should be expanded as other liquidation functions should be
+    /// @custom:limitation missing collateralPostedFor assertion difference checks
     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
-        uint256 daiPrice = DAI_PRICE;
-        uint256 usdcPrice = USDC_PRICE;
         require(marketManager.seizePaused() != 2);
         address account = address(this);
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, 0, false);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
         DToken(dtoken).accrueInterest();
         (
@@ -482,9 +482,6 @@ contract FuzzDToken is FuzzMarketManager {
         {
             uint256 senderBalanceUnderlying = IERC20(underlyingDToken)
                 .balanceOf(msg.sender);
-            uint256 preAccountCollateral = _collateralPostedFor(
-                collateralToken
-            );
             uint256 collateralBalanceBefore = IMToken(collateralToken)
                 .balanceOf(address(this));
             uint256 priorDebt = DToken(dtoken).debtBalanceCached(
@@ -586,11 +583,8 @@ contract FuzzDToken is FuzzMarketManager {
         _isSupportedCToken(collateralToken);
         _isSupportedDToken(dtoken);
         uint256 amount = 0;
-        uint256 collateralPostedFor = _collateralPostedFor(
-            address(collateralToken)
-        );
 
-        _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, true);
+        _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
         calculateLiquidation_exact(amount, true);
 
         hevm.prank(msg.sender);
@@ -621,6 +615,7 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:precondition account being liquidated is address(this)
     /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
+    /// @custom:limitation missing check for collateral token balance of account
     function liquidate_should_succeed_with_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
@@ -630,7 +625,7 @@ contract FuzzDToken is FuzzMarketManager {
         );
         DToken(dtoken).accrueInterest();
         uint256 priorDebt = DToken(dtoken).debtBalanceCached(address(this));
-        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE, amount, true);
+        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
         (
             uint256 debtToLiquidate,
@@ -650,8 +645,6 @@ contract FuzzDToken is FuzzMarketManager {
             {
                 uint256 senderBalanceUnderlying = IERC20(underlyingDToken)
                     .balanceOf(msg.sender);
-                uint256 preAccountCollateral = IERC20(collateralToken)
-                    .balanceOf(account);
                 uint256 preSenderCollateral = IERC20(collateralToken)
                     .balanceOf(msg.sender);
 
@@ -703,9 +696,9 @@ contract FuzzDToken is FuzzMarketManager {
 
     // helper functions
 
+    // This function no longer used, was in an attempt to calculate the exact amount of interest accrued over a period of time.
     function _calculate_interest_accrued(
         uint256 priorBorrows,
-        address dtoken,
         uint256 old_er,
         uint256 lastTimestampUpdated,
         uint256 compoundRate

@@ -286,11 +286,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(accountDebt != 0);
         amount = clampBetween(amount, 1, accountCollateral);
 
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
-
+        try marketManager.canTransfer(mtoken, address(this), amount) {} catch {
             assertWithMsg(
                 false,
                 "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
