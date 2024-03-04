@@ -4,7 +4,7 @@
 
 | ID      | Description                                                             | Status |
 |---------|-------------------------------------------------------------------------|--------|
-| CURV-1  | The central registry has the daoAddress set to the deployer.             | Passed |
+| CURV-1  | The central registry has the daoAddress set to the second fuzzing caller.             | Passed |
 | CURV-2  | The central registry has the timelock address set to the deployer.       | Passed |
 | CURV-3  | The central registry has the emergency council address set to the deployer. | Passed |
 | CURV-4  | The central registry’s genesis Epoch is equal to zero.                   | Passed |
@@ -23,26 +23,27 @@
 
 
 ## FuzzVECVE – Functional Invariants
-| ID       | Description                                                                                                            | Result |
-|----------|------------------------------------------------------------------------------------------------------------------------|--------|
+
+| ID       | Property                                                                                                           | Result |
+|----------|-------------------------------------------------------------------------------------------------------------------|--------|
 | VECVE-1  | Creating a lock with a specified amount when the system is not in a shutdown state should succeed, with preLockCVEBalance matching postLockCVEBalance + amount and preLockVECVEBalance + amount matching postLockVECVEBalance. | Passed |
 | VECVE-2  | Creating a lock with an amount less than WAD should fail and revert with an error message indicating invalid lock amount. | Passed |
 | VECVE-3  | Creating a lock with zero amount should fail and revert with an error message indicating an invalid lock amount. | Passed |
-| VECVE-4  | Combining all continuous locks into a single continuous lock should result in identical user points before and after the operation. | FAILED |
+| VECVE-4  | Combining all continuous locks into a single continuous lock should result in identical user points before and after the operation. | Failed |
 | VECVE-5  | Combining all continuous locks into a single continuous lock should result in an increase in user points being greater than veCVE balance * MULTIPLIER / WAD. | Passed |
 | VECVE-6  | Combining all continuous locks into a single continuous lock should result in chainUnlocksByEpoch being equal to 0. | Passed |
 | VECVE-7  | Combining all continuous locks into a single continuous lock should result in chainUnlocksByEpoch being equal to 0. | Passed |
 | VECVE-8  | Combining all non-continuous locks into a single non-continuous lock should result in the combined lock amount matching the sum of original lock amounts. | Passed |
 | VECVE-9  | Combining all continuous locks into a single continuous lock should result in resulting user points times the CL_POINT_MULTIPLIER being greater than or equal to the balance of veCVE. | Passed |
-| VECVE-10 | Combining non-continuous locks into continuous lock terminals should result in increased post combine user points compared to the pre combine user points. | FAILED |
+| VECVE-10 | Combining non-continuous locks into continuous lock terminals should result in increased post combine user points compared to the pre combine user points. | Failed |
 | VECVE-11 | Combining non-continuous locks into continuous lock terminals should result in the userUnlockByEpoch value decreasing for each respective epoch. | Passed |
 | VECVE-12 | Combining non-continuous locks into continuous lock terminals should result in chainUnlockByEpoch decreasing for each respective epoch. | Passed |
 | VECVE-13 | Combining non-continuous locks to continuous locks should result in chainUnlockByEpochs being equal to 0. | Passed |
 | VECVE-14 | Combining non-continuous locks to continuous locks should result in the userUnlocksByEpoch being equal to 0. | Passed |
 | VECVE-15 | Combining any locks to a non continuous terminal should result in the amount for the combined terminal matching the sum of original lock amounts. | Passed |
 | VECVE-16 | Combining some continuous locks to a non continuous terminal should result in user points decreasing. | Passed |
-| VECVE-17 | Combining no prior continuous locks to a non continuous terminal should result in no change in user points. | FAILED |
-| VECVE-18 | Combining some prior continuous locks to a non continuous terminal should result in the veCVE balance of a user equaling the user points. | FAILED |
+| VECVE-17 | Combining no prior continuous locks to a non continuous terminal should result in no change in user points. | Failed |
+| VECVE-18 | Combining some prior continuous locks to a non continuous terminal should result in the veCVE balance of a user equaling the user points. | Failed |
 | VECVE-19 | Processing an expired lock should fail when the lock index is incorrect or exceeds the length of created locks. | Passed |
 | VECVE-20 | Disabling a continuous lock for a user’s continuous lock results in a decrease of user points. | Passed |
 | VECVE-21 | Disable continuous lock for a user’s continuous lock results in a decrease of chain points. | Passed |
@@ -79,13 +80,12 @@
 | VECVE-52 | Processing an expired lock without a relocking option results in decreasing vecve tokens | Passed |
 | VECVE-53 | Processing an expired lock without relocking should result in user points being equal. | Passed |
 | VECVE-54 | Processing an expired lock without relocking should result in chain points being equal if epochs to claim = 0. | Passed |
-| VECVE-55 | Processing expired locks with relock should not change the number of locks a user has. | FAILED |
-| VECVE-56 | Combining locks should not be possible when the system is shut down. | FAILED |
+| VECVE-55 | Processing expired locks with relock should not change the number of locks a user has. | Failed |
+| VECVE-56 | Combining locks should not be possible when the system is shut down. | Failed |
 | VECVE-57 | Processing expired locks without relocking should decrease user points if epoch to claim > 0. | Passed |
 | VECVE-58 | Creating a lock with the correct preconditions should not revert. | Passed |
-| VECVE-59 | Combining non-continuous locks to continuous locks should be successful with correct preconditions. | FAILED |
-| VECVE-60 | Combining some prior continuous locks to non continuous terminals should be successful with correct preconditions. | FAILED |
-
+| VECVE-59 | Combining non-continuous locks to continuous locks should be successful with correct preconditions. | Passed |
+| VECVE-60 | Combining some prior continuous locks to non continuous terminals should be successful with correct preconditions. | Passed |
 
 ## FuzzVECVE – System Invariants
 
@@ -101,53 +101,53 @@
 
 ## Market Manager - Functional Invariants
 
-| ID        | Property                                                                                                                     | Result |
-|-----------|-----------------------------------------------------------------------------------------------------------------------------|--------|
-| MARKET-1  | Once a new token is listed, isListed(mtoken) should return true.                                                             | Passed |
-| MARKET-2  | A token already added to the MarketManager cannot be added again.                                                            | Passed |
-| MARKET-3  | A user can deposit into an mtoken provided that they have the underlying asset, and they have approved the mtoken contract.  | Passed |
-| MARKET-4  | When depositing assets into the mtoken, the wrapped token balance for the user should increase.                              | Passed |
-| MARKET-5  | Calling updateCollateralToken with variables in the correct bounds should succeed.                                            | Passed |
-| MARKET-6  | Calling updateCollateralToken with divergence in prices too large should fail with PriceError.                                | Passed |
-| MARKET-7  | Calling updateCollateralToken where price returns PriceError should fail with PriceError.                                     | FAILED |
+| ID        | Property                                                                                                               | Result |
+|-----------|-----------------------------------------------------------------------------------------------------------------------|--------|
+| MARKET-1  | Once a new token is listed, isListed(mtoken) should return true.                                                       | Passed |
+| MARKET-2  | A token already added to the MarketManager cannot be added again.                                                      | Passed |
+| MARKET-3  | A user can deposit into an mtoken provided that they have the underlying asset, and they have approved the mtoken contract. | Passed |
+| MARKET-4  | When depositing assets into the mtoken, the wrapped token balance for the user should increase.                         | Passed |
+| MARKET-5  | Calling updateCollateralToken with variables in the correct bounds should succeed.                                      | Passed |
+| MARKET-6  | Calling updateCollateralToken with divergence in prices too large should fail with PriceError.                          | Passed |
+| MARKET-7  | Calling updateCollateralToken where price returns PriceError should fail with PriceError.                               | Failed |
 | MARKET-8  | Calling updateCollateralToken on a token with a non-zero collateral ratio should not allow the new collateral ratio to be set to zero. | Passed |
-| MARKET-9  | Setting the collateral caps for a token should increase the globally set value for the specific token.                         | Passed |
-| MARKET-10 | Setting collateral caps for a token given permissions and collateral values being set should succeed.                          | Passed |
-| MARKET-12 | With the correct bounds on input, updateCollateralToken should revert if the price feed is out of date.                        | Passed |
-| MARKET-13 | After collateral is posted, the user’s collateral posted position for the respective asset should increase.                   | Passed |
-| MARKET-14 | After collateral is posted, calling hasPosition on the user’s mtoken should return true.                                      | Passed |
-| MARKET-15 | After collateral is posted, the global collateral for the mtoken should increase by the amount posted.                        | Passed |
+| MARKET-9  | Setting the collateral caps for a token should increase the globally set value for the specific token.                   | Passed |
+| MARKET-10 | Setting collateral caps for a token given permissions and collateral values being set should succeed.                    | Passed |
+| MARKET-12 | With the correct bounds on input, updateCollateralToken should revert if the price feed is out of date.                  | Passed |
+| MARKET-13 | After collateral is posted, the user’s collateral posted position for the respective asset should increase.             | Passed |
+| MARKET-14 | After collateral is posted, calling hasPosition on the user’s mtoken should return true.                                | Passed |
+| MARKET-15 | After collateral is posted, the global collateral for the mtoken should increase by the amount posted.                  | Passed |
 | MARKET-16 | When price feed is up to date, address(this) has mtoken, tokens are bound correctly, and caller is correct, the postCollateral call should succeed. | Passed |
-| MARKET-17 | Trying to post too much collateral should revert.                                                                           | Passed |
-| MARKET-14 | Removing collateral from the system should decrease the global posted collateral by the removed amount.                       | Passed |
-| MARKET-15 | Removing collateral from the system should reduce the user posted collateral by the removed amount.                           | Passed |
+| MARKET-17 | Trying to post too much collateral should revert.                                                                     | Passed |
+| MARKET-14 | Removing collateral from the system should decrease the global posted collateral by the removed amount.                 | Passed |
+| MARKET-15 | Removing collateral from the system should reduce the user posted collateral by the removed amount.                     | Passed |
 | MARKET-16 | If the user has a liquidity shortfall, the user should not be permitted to remove collateral (function should fail with insufficient collateral selector hash). | Passed |
-| MARKET-17 | Removing collateral for a nonexistent position should revert with invariant error hash.                                       | Passed |
-| MARKET-18 | Removing collateral from the system should decrease the global posted collateral by the removed amount.                       | Passed |
-| MARKET-19 | Removing collateral from the system should reduce the user posted collateral by the removed amount.                           | Passed |
+| MARKET-17 | Removing collateral for a nonexistent position should revert with invariant error hash.                                 | Passed |
+| MARKET-18 | Removing collateral from the system should decrease the global posted collateral by the removed amount.                 | Passed |
+| MARKET-19 | Removing collateral from the system should reduce the user posted collateral by the removed amount.                     | Passed |
 | MARKET-20 | If the user has a liquidity shortfall, the user should not be permitted to remove collateral (function should fail with insufficient collateral selector hash). | Passed |
 | MARKET-21 | If the user does not have a liquidity shortfall and meets expected preconditions, the removeCollateral should be successful. | Passed |
 | MARKET-22 | If new collateral for user after removing is = 0 and a user wants to close position, the user should no longer have a position in the asset | Passed |
-| MARKET-23 | Removing collateral for a nonexistent position should revert with invariant error hash.                                       | Passed |
-| MARKET-24 | Removing more tokens than a user has for collateral should revert with insufficient collateral hash.                          | Passed |
-| MARKET-25 | Calling reduceCollateralIfNecessary should fail when not called within the context of the mtoken.                             | Passed |
-| MARKET-26 | Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is greater than 0. | Passed |
-| MARKET-27 | Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is greater than 0. | Passed |
-| MARKET-28 | Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0. | Passed |
-| MARKET-29 | Calling closePosition with correct preconditions should succeed,where collateral posted for the user is greater than 0.      | Passed |
-| MARKET-30 | In a shortfall, closePosition should revert with insufficient collateral error                                                | Passed |
-| MARKET-31 | Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is equal to 0. | Passed |
-| MARKET-32 | Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is equal to 0. | Passed |
-| MARKET-33 | Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0. | Passed |
-| MARKET-34 | Calling closePosition with correct preconditions should succeed,where collateral posted for the user is equal to 0.         | Passed |
-| MARKET-35 | Liquidating an entire account should succeed with the correct preconditions.                                                  | FAILED |
-| MARKET-36 | Liquidating an entire account should zero out users’ balance for every collateral token they deposited.                      | Passed |
-| MARKET-37 | Liquidating an entire account should remove the user’s position in every asset.                                               | Passed |
+| MARKET-23 | Removing collateral for a nonexistent position should revert with invariant error hash.                                 | Passed |
+| MARKET-24 | Removing more tokens than a user has for collateral should revert with insufficient collateral hash.                    | Passed |
+| MARKET-25 | Calling reduceCollateralIfNecessary should fail when not called within the context of the mtoken.                       | Passed |
+| MARKET-26 | Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is greater than 0. | Passed1 |
+| MARKET-27 | Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is greater than 0. | Passed1 |
+| MARKET-28 | Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0. | Passed1 |
+| MARKET-29 | Calling closePosition with correct preconditions should succeed, where collateral posted for the user is greater than 0. | Passed1 |
+| MARKET-30 | In a shortfall, closePosition should revert with insufficient collateral error                                          | Passed1 |
+| MARKET-31 | Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is equal to 0. | Passed1 |
+| MARKET-32 | Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is equal to 0. | Passed1 |
+| MARKET-33 | Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0. | Passed1 |
+| MARKET-34 | Calling closePosition with correct preconditions should succeed, where collateral posted for the user is equal to 0. | Passed |
+| MARKET-35 | Liquidating an entire account should succeed with the correct preconditions.                                           | Failed |
+| MARKET-36 | Liquidating an entire account should zero out users’ balance for every collateral token they deposited.               | Passed |
+| MARKET-37 | Liquidating an entire account should remove the user’s position in every asset.                                       | Passed |
 | MARKET-38 | Attempting to liquidate an entire account (hard liquidation) should fail if the collateral >= debt with NoLiquidationAvailable. | Passed |
 | MARKET-39 | Attempting to liquidate an entire account (hard liquidation) should fail if a user is attempting to liquidate themselves with Unauthorized. | Passed |
-| MARKET-40 | Attempting to liquidate an entire account (hard liquidation) should fail if seize is paused with Paused.                      | Passed |
-| MARKET-41 | Calling removeCollateral with zero tokens should fail.                                                                      | Passed |
-
+| MARKET-40 | Attempting to liquidate an entire account (hard liquidation) should fail if seize is paused with Paused.               | Passed |
+| MARKET-41 | Calling removeCollateral with zero tokens should fail.                                                               | Passed |
+| MARKET-42 | Liquidating an account should result in no more than a 1 wei difference between totalborrows and accountDebt           | Failed |
 
 ## Market Manager – Access Controls
 
@@ -184,7 +184,7 @@
 | SC-MARKET-9  | The canRedeemWithCollateralRemoval function should fail when not called by the mtoken address.                                                                               | Passed |
 | SC-MARKET-10 | The canTransfer function should pass when all preconditions are met.                                                                                                         | Passed |
 | SC-MARKET-11 | The canTransfer function should fail when transferring in the system is paused.                                                                                              | Passed |
-| SC-MARKET-12 | The canTransfer function should fail when the mtoken is not listed.                                                                                                          |        |
+| SC-MARKET-12 | The canTransfer function should fail when the mtoken is not listed.                                                                                                          | Passed |
 | SC-MARKET-13 | The canTransfer function should fail when redeem is paused.                                                                                                                  | Passed |
 | SC-MARKET-14 | The canBorrow function should succeed when borrow is not paused and mtoken is listed.                                                                                        | Passed |
 | SC-MARKET-15 | The canBorrow function should fail when borrow is paused.                                                                                                                    | Passed |
@@ -201,12 +201,14 @@
 
 ## Market Manager – System Invariants
 
-| ID        | Property                                                                                                             | Result |
-|-----------|---------------------------------------------------------------------------------------------------------------------|--------|
-| S-MARKET-1| A user’s cToken balance must always be greater than the total collateral posted for a ctoken.                         | Passed |
-| S-MARKET-2| Market collateral posted of 0 for a token should have collateral posted for a token to be equivalent to the max collateral cap. | Passed |
-| S-MARKET-3| Market collateral posted should always be less than max collateralCap for a non-zero collateral cap.                  | Passed |
-| S-MARKET-4| The total supply of a token should never go down to zero once it has been listed.                                     | Passed |
+| ID         | Property                                                                                                  | Result |
+|------------|----------------------------------------------------------------------------------------------------------|--------|
+| S-MARKET-1 | A user’s cToken balance must always be greater than the total collateral posted for a ctoken.             | Passed |
+| S-MARKET-2 | Market collateral posted of 0 for a token should have collateral posted for a token to be equivalent to the max collateral cap. | Passed |
+| S-MARKET-3 | Market collateral posted should always be less than max collateralCap for a non-zero collateral cap.     | Passed |
+| S-MARKET-4 | The total supply of a token should never go down to zero once it has been listed.                        | Passed |
+| S-MARKET-5 | If no positions need to be pruned, collateral posted for the asset must be zero.                         | Passed |
+| S-MARKET-6 | If no positions need to be pruned, a user must not have a position in the asset.                         | Passed |
 
 ## Market Manager – Liquidation Invariants 
 
@@ -229,26 +231,37 @@
 
 ## DToken - Functional Invariants
 
-| ID     | Property                                                                                                                                       | Result |
-|--------|-----------------------------------------------------------------------------------------------------------------------------------------------|--------|
-| DTOK-1 | Calling DToken.mint should succeed with correct preconditions.                                                                                | Passed |
-| DTOK-2 | Underlying balance for sender DToken should decrease by amount after minting DToken.                                                           | Passed |
-| DTOK-3 | Balance of the recipient after minting DToken should increase by amount * WAD/exchangeRateCached()                                              | FAILED |
-| DTOK-4 | DToken totalSupply should increase by amount * WAD/exchangeRateCached() after calling DToken mint.                                              | Passed |
-| DTOK-5 | The borrow function should succeed with proper preconditions, when not accruing interest.                                                       | Passed |
-| DTOK-6 | If interest has not accrued, totalBorrows should increase after calling borrow.                                                                 | Passed |
-| DTOK-7 | If interest has not accrued, the underlying balance of the caller should increase by amount                                                     | Passed |
-| DTOK-8 | The borrow function should succeed with proper preconditions, when accruing interest.                                                           | Passed |
-| DTOK-9 | If interest has accrued, the totalBorrows should increase by the amount.                                                                        | Passed |
-| DTOK-10| If interest has accrued, the underlying balance should increase by amount.                                                                      | Passed |
-| DTOK-11| A user attempting to repay too much should error gracefully.                                                                                    | FAILED |
-| DTOK-12| The repay function should succeed with proper preconditions.                                                                                    | Passed |
-| DTOK-13| Repaying any amount with no interest accruing should make totalBorrows equivalent to preTotalBorrows - amount                                   | Passed |
-| DTOK-14| If a user repays with amount = 0, they zero out their accountDebt for their account.                                                            | Passed |
-| DTOK-15| A user should be able to repay between 0 and their accountDebt with the repay function.                                                         |        |
-| DTOK-16| A user trying to soft liquidate another account should fail with a 0 amount.                                                                    | Passed |
-| DTOK-17| Repaying an amount with interest accruing should make totalBorrows equivalent to totalBorrows - preTotalBorrows - amount - (|new_exchange_rate - old_exchange_rate|*accountDebt) | Passed |
-| DTOK-18| The mint function should revert if amount * WAD / exchangRate == 0, when trying to deposit to the GaugePool.                                    | Passed |
+| ID       | Property                                                                                                                        | Result |
+|----------|--------------------------------------------------------------------------------------------------------------------------------|--------|
+| DTOK-1   | Calling DToken.mint should succeed with correct preconditions.                                                                | Passed |
+| DTOK-2   | Underlying balance for sender DToken should decrease by amount after minting DToken.                                           | Passed |
+| DTOK-3   | Balance of the recipient after minting DToken should increase by amount * WAD/exchangeRateCached()                             | Passed |
+| DTOK-4   | DToken totalSupply should increase by amount * WAD/exchangeRateCached() after calling DToken mint.                             | Passed |
+| DTOK-5   | The borrow function should succeed with proper preconditions, when not accruing interest.                                       | Passed |
+| DTOK-6   | If interest has not accrued, totalBorrows should increase after calling borrow.                                                 | Passed |
+| DTOK-7   | If interest has not accrued, the underlying balance of the caller should increase by amount                                    | Passed |
+| DTOK-8   | The borrow function should succeed with proper preconditions, when accruing interest.                                           | Passed |
+| DTOK-9   | If interest has accrued, the totalBorrows should increase by the amount.                                                        | Passed |
+| DTOK-10  | If interest has accrued, the underlying balance should increase by amount.                                                     | Passed |
+| DTOK-11  | A user attempting to repay too much should error gracefully.                                                                   | Failed |
+| DTOK-12  | The repay function should succeed with proper preconditions.                                                                    | Failed |
+| DTOK-13  | Repaying any amount with no interest accruing should make totalBorrows equivalent to preTotalBorrows - amount                   | Passed |
+| DTOK-14  | If a user repays with amount = 0, they zero out their accountDebt for their account.                                            | Passed |
+| DTOK-15  | A user should be able to repay between 0 and their accountDebt with the repay function.                                         |        |
+| DTOK-16  | A user trying to soft liquidate another account should fail with a 0 amount.                                                    | Passed |
+| DTOK-17  | Repaying an amount with interest accruing should make totalBorrows equivalent to totalBorrows - preTotalBorrows - amount - (abs(new_exchange_rate - old_exchange_rate)*accountDebt) | Passed |
+| DTOK-18  | The mint function should revert if amount * WAD / exchangRate == 0, when trying to deposit to the GaugePool.                    | Passed |
+| DTOK-19  | Applying a soft liquidation of exactly 0 tokens should fail with InvalidParameter or InvalidParameter errors.                  | Failed |
+| DTOK-20  | Liquidating a non-exact amount should remove the user's position in the collateral token                                       | Passed |
+| DTOK-21  | Liquidating a non-exact amount should zero out the collateral posted for a user in the collateral token.                         | Passed |
+| DTOK-22  | Liquidating a non-exact amount should zero out the debt balance of the respective debt token.                                   | Passed |
+| DTOK-23  | Liquidating a non-exact amount should decrease collateral balance for an account.                                               | Failed |
+| DTOK-24  | Liquidating a non-exact amount should decrease the liquidator's underlying dtokenBalance by debtToLiquidate.                    | Passed |
+| DTOK-25  | Liquidating a non-exact amount should increase the collateral token balance by (amount seized by liquidation - amount seized by protocol). | Failed |
+| DTOK-26  | Liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation. | Passed |
+| DTOK-27  | Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.                                        | Passed |
+| DTOK-28  | Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate. | Passed |
+| DTOK-29  | Liquidating an exact amount should result in collateral token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol) | Passed |
 
 
 ## DToken – System Invariants

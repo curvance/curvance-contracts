@@ -47,7 +47,7 @@ contract FuzzMarketManagerSystem is StatefulBaseMarket {
         }
     }
 
-    // @custom:property s-market-3 totalSupply should never be zero for any mtoken once added to marketManager
+    /// @custom:property s-market-4 totalSupply should never be zero for any mtoken once added to marketManager
     function totalSupply_of_listed_token_is_never_zero(address mtoken) public {
         require(marketManager.isListed(mtoken));
         assertNeq(
@@ -57,6 +57,8 @@ contract FuzzMarketManagerSystem is StatefulBaseMarket {
         );
     }
 
+    /// @custom:property s-market-5 If no positions need to be pruned, collateral posted for the asset must be zero
+    /// @custom:property s-market-6 If no positions are to be pruned, a user must not have a position in the asset
     function pruned_positions_should_never_have_collateral_posted(
         uint256 redeemTokens,
         uint256 amount
@@ -75,11 +77,11 @@ contract FuzzMarketManagerSystem is StatefulBaseMarket {
                 assertEq(
                     _collateralPostedFor(assetAddr),
                     0,
-                    "S-MARKET-4 - if no positions to be pruned, collateral posted for asset must be 0"
+                    "S-MARKET-5 - if no positions to be pruned, collateral posted for asset must be 0"
                 );
                 assertWithMsg(
                     !_hasPosition(assetAddr),
-                    "S-MARKET-5 - if no positions to be pruned, user must not have a position"
+                    "S-MARKET-6 - if no positions to be pruned, user must not have a position"
                 );
             }
         }

@@ -454,7 +454,6 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:limitation insufficient assertions on the invalid_amount error check, as the calculation on # of shares is needed to determine if it will actually revert
     /// @custom:limitation currently this contract is accruing interest to make sure exchange rates catch up before calculating. This property should be loosened to allow for more dynamic range testing, however this will require a hypothetical interest function to exist
     /// @custom:limitation this property is also currently ONLY testing the dtoken = DAI, ctoken = cUSDC and should be expanded as other liquidation functions should be
-    /// @custom:limitation needs additional checks for when invalidAmount error is thrown
     function liquidate_should_succeed_with_non_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
@@ -620,7 +619,6 @@ contract FuzzDToken is FuzzMarketManager {
     /// @custom:precondition account being liquidated is address(this)
     /// @custom:limitation once posting of collateral etc can be done by any address, open up to any account can be liquidated
     /// @custom:limitation current uses a constant for dai and usdc price to push the position into an liquidatable state, see liquidateAccount in marketManager for dynamic generation
-
     function liquidate_should_succeed_with_exact(uint256 amount) public {
         address dtoken = address(dDAI);
         address collateralToken = address(cUSDC);
