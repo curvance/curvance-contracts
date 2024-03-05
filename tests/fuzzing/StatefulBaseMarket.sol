@@ -143,7 +143,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _deployCentralRegistry() internal {
         centralRegistry = new CentralRegistry(
-            address(this),
+            address(0x0000000000000000000000000000000000020000),
             address(this),
             address(this),
             0,
@@ -201,16 +201,31 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         emit LogUint256("woowowo", 0);
         feeAccumulator = new FeeAccumulator(
             ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS);
+            _USDC_ADDRESS
+        );
         centralRegistry.setFeeAccumulator(address(feeAccumulator));
     }
 
+    int192 constant MIN_ORACLE_ANSWER = 1e6;
+    int192 constant MAX_USDC_ANSWER = 1e11;
+    int192 constant MAX_DAI_ANSWER = 1e50;
+
     function _deployChainlinkAdaptors() internal {
         // TODO: These numbers should be pulled into const variables
-        // setup chainlink usdcUdc with 8 deciamsl, starting price = 1e8, maxAnswer = 1e11, minAnswer = 1
-        chainlinkUsdcUsd = new MockV3Aggregator(8, 1e8, 1e11, 1e6);
+        // setup chainlink usdcUdc with 8 deciamsl, starting price = 1e8, maxAnswer = 1e11, minAnswer = 1e6
+        chainlinkUsdcUsd = new MockV3Aggregator(
+            8,
+            1e8,
+            MAX_USDC_ANSWER,
+            MIN_ORACLE_ANSWER
+        );
         // setup chainlink daiUSD with 8 decimals, starting price = 1e8, maxAnswer = 1e50, minAnswer = 1e6
-        chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDaiUsd = new MockV3Aggregator(
+            8,
+            1e8,
+            MAX_DAI_ANSWER,
+            MIN_ORACLE_ANSWER
+        );
         chainlinkUsdcEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
         chainlinkRethEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
         chainlinkDaiEth = new MockV3Aggregator(18, 1e18, 1e24, 1e13);
@@ -577,7 +592,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     // If the price is stale, update the round data and update lastRoundUpdate
-    function _checkPriceFeed() internal {
+    function _check_price_feed() internal {
         // if lastRoundUpdate timestamp is stale
         if (lastRoundUpdate > block.timestamp) {
             lastRoundUpdate = block.timestamp;
@@ -615,6 +630,46 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _isSupportedDToken(address dtoken) internal view {
         require(dtoken == address(dUSDC) || dtoken == address(dDAI));
+        require(marketManager.isListed(dtoken));
+    }
+
+    function _isSupportedCToken(address ctoken) internal view {
+        require(ctoken == address(cUSDC) || ctoken == address(cDAI));
+        require(marketManager.isListed(ctoken));
+    }
+
+    function _getLiquidityDeficit(
+        address account,
+        address mtoken,
+        uint256 redeemTokens,
+        uint256 amount
+    ) internal view returns (uint256) {
+        (, uint256 liquidityDeficit, ) = _getHypotheticalLiquidityOf(
+            account,
+            mtoken,
+            redeemTokens,
+            amount
+        );
+        return liquidityDeficit;
+    }
+
+    function _getHypotheticalLiquidityOf(
+        address account,
+        address mtoken,
+        uint256 redeemTokens,
+        uint256 amount
+    ) internal view returns (uint256, uint256, bool[] memory) {
+        (
+            uint256 accountLiquidity,
+            uint256 liquidityDeficit,
+            bool[] memory closePositions
+        ) = marketManager.hypotheticalLiquidityOf(
+                account,
+                mtoken,
+                redeemTokens,
+                amount
+            );
+        return (accountLiquidity, liquidityDeficit, closePositions);
     }
 
     function _hasPosition(address mToken) internal view returns (bool) {

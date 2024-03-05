@@ -287,14 +287,14 @@ contract MarketManager is LiquidityManager, ERC165 {
         address mTokenModified,
         uint256 redeemTokens, // in Shares.
         uint256 borrowAmount // in Assets.
-    ) external view returns (uint256, uint256) {
+    ) external view returns (uint256, uint256, bool [] memory) {
         // Make sure they are not trying to hypothetically borrow
         // a collateral token.
         if (IMToken(mTokenModified).isCToken() && borrowAmount > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        (HypotheticalData memory result,) = _hypotheticalLiquidityOf(
+        (HypotheticalData memory result, bool [] memory positionsToClose) = _hypotheticalLiquidityOf(
             account,
             HypotheticalAction({
                     mTokenModified: mTokenModified,
@@ -303,7 +303,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                     errorCodeBreakpoint: 2
             })
         );
-        return (result.collateralSurplus, result.liquidityDeficit);
+        return (result.collateralSurplus, result.liquidityDeficit, positionsToClose);
     }
 
     /// @notice Posts `tokens` of `cToken` as collateral inside this market.

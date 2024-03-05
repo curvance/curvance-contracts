@@ -12,7 +12,8 @@ contract TestStatefulDeployments is StatefulBaseMarket {
     /// @custom:property curv-7 The central registry has granted the deployer elevated permissions.
     function CentralRegistry_is_deployed_and_setup() public {
         assertWithMsg(
-            centralRegistry.daoAddress() == address(this),
+            centralRegistry.daoAddress() ==
+                address(0x0000000000000000000000000000000000020000),
             "CURV-1: CentralRegistry.daoAddress == address(this) failed"
         );
         assertWithMsg(

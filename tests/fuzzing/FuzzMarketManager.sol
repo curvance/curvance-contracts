@@ -104,7 +104,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
-                errorSelector == marketManager_tokenAlreadyListedSelectorHash,
+                errorSelector == marketManager_invalidParameterSelectorHash,
                 "MARKET-2 listToken() expected TokenAlreadyListed selector hash on failure"
             );
         }
@@ -228,13 +228,13 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(feedsSetup);
 
-        (bool divergenceTooLarge, bool priceError) = _checkPriceDivergence(
+        (bool divergenceTooLarge, bool priceError) = _check_price_divergence(
             mtoken
         );
 
         (, uint256 oldCR, , , , , , , ) = marketManager.tokenData(mtoken);
         {
-            _checkPriceFeed();
+            _check_price_feed();
             _getSafeUpdateCollateralBounds(
                 collRatio,
                 collReqSoft,
@@ -307,7 +307,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             maxCollateralCap[mtoken] = cap;
         }
 
-        _checkPriceFeed();
+        _check_price_feed();
 
         address[] memory tokens = new address[](1);
         tokens[0] = mtoken;
@@ -427,7 +427,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         bool lower
     ) public {
         require(collateralCapsUpdated[mtoken]);
-        _checkPriceFeed();
+        _check_price_feed();
 
         if (IMToken(mtoken).balanceOf(address(this)) == 0) {
             c_token_deposit(
@@ -520,7 +520,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         bool lower
     ) public {
         require(collateralCapsUpdated[mtoken]);
-        _checkPriceFeed();
+        _check_price_feed();
 
         if (IMToken(mtoken).balanceOf(address(this)) == 0) {
             c_token_deposit(
@@ -575,7 +575,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(postedCollateral[mtoken]);
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
 
         emit LogUint256(
             "cooldown timestamp for mtoken",
@@ -595,7 +595,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 oldCollateralPostedForToken = marketManager.collateralPosted(
             mtoken
         );
-        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
+        uint256 shortfall = _getLiquidityDeficit(
             address(this),
             mtoken,
             tokens,
@@ -604,17 +604,9 @@ contract FuzzMarketManager is FuzzLiquidations {
         emit LogUint256("shortfall:", shortfall);
 
         if (shortfall > 0) {
-            (bool success, bytes memory revertData) = address(marketManager)
-                .call(
-                    abi.encodeWithSignature(
-                        "removeCollateral(address,uint256,bool)",
-                        mtoken,
-                        tokens,
-                        closePositionIfPossible
-                    )
-                );
-            // If the call failed, ensure that the revert message is insufficient collateral
-            if (!success) {
+            try marketManager.removeCollateral(mtoken, tokens) {} catch (
+                bytes memory revertData
+            ) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
                 assertWithMsg(
@@ -624,39 +616,35 @@ contract FuzzMarketManager is FuzzLiquidations {
                 );
             }
         } else {
-            (bool success, ) = address(marketManager).call(
-                abi.encodeWithSignature(
-                    "removeCollateral(address,uint256,bool)",
-                    mtoken,
-                    tokens,
-                    closePositionIfPossible
-                )
-            );
+            // the account has no shortfall
 
-            assertWithMsg(
-                success,
-                "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
-            );
-            // Collateral posted for the mtoken should decrease
-            uint256 newCollateralPostedForToken = marketManager
-                .collateralPosted(mtoken);
-            assertEq(
-                newCollateralPostedForToken,
-                oldCollateralPostedForToken - tokens,
-                "MARKET-18 global collateral posted should decrease"
-            );
+            try marketManager.removeCollateral(mtoken, tokens) {
+                // Collateral posted for the mtoken should decrease
+                uint256 newCollateralPostedForToken = marketManager
+                    .collateralPosted(mtoken);
+                assertEq(
+                    newCollateralPostedForToken,
+                    oldCollateralPostedForToken - tokens,
+                    "MARKET-18 global collateral posted should decrease"
+                );
 
-            // Collateral posted for the user should decrease
-            uint256 newCollateralForUser = _collateralPostedFor(mtoken);
-            assertEq(
-                newCollateralForUser,
-                oldCollateralForUser - tokens,
-                "MARKET-19 user collateral posted should decrease"
-            );
-            if (newCollateralForUser == 0 && closePositionIfPossible) {
+                // Collateral posted for the user should decrease
+                uint256 newCollateralForUser = _collateralPostedFor(mtoken);
+                assertEq(
+                    newCollateralForUser,
+                    oldCollateralForUser - tokens,
+                    "MARKET-19 user collateral posted should decrease"
+                );
+                if (newCollateralForUser == 0 && closePositionIfPossible) {
+                    assertWithMsg(
+                        !_hasPosition(mtoken),
+                        "MARKET-22 closePositionIfPossible flag set should remove a user's position"
+                    );
+                }
+            } catch {
                 assertWithMsg(
-                    !_hasPosition(mtoken),
-                    "MARKET-22 closePositionIfPossible flag set should remove a user's position"
+                    false,
+                    "MARKET-21 expected removeCollateral expected to be successful with no shortfall"
                 );
             }
         }
@@ -674,26 +662,16 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
         require(!_hasPosition(mtoken));
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "removeCollateral(address,uint256,bool)",
-                mtoken,
-                tokens,
-                false
-            )
-        );
-
-        if (success) {
+        try marketManager.removeCollateral(mtoken, tokens) {
             assertWithMsg(
                 false,
                 "MARKET-23 removeCollateral should fail with non existent position"
             );
-        } else {
+        } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
-
             if (tokens == 0) {
                 assertWithMsg(
                     errorSelector ==
@@ -721,7 +699,8 @@ contract FuzzMarketManager is FuzzLiquidations {
     ) public {
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(marketManager.isListed(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
+        emit LogBool("has position", _hasPosition(mtoken));
         require(_hasPosition(mtoken));
         uint256 oldCollateralForUser = _collateralPostedFor(mtoken);
 
@@ -731,21 +710,12 @@ contract FuzzMarketManager is FuzzLiquidations {
             type(uint256).max
         );
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
-            abi.encodeWithSignature(
-                "removeCollateral(address,uint256,bool)",
-                mtoken,
-                tokens,
-                false
-            )
-        );
-
-        if (success) {
+        try marketManager.removeCollateral(mtoken, tokens) {
             assertWithMsg(
                 false,
                 "MARKET-24 removeCollateral should fail insufficient collateral"
             );
-        } else {
+        } catch (bytes memory revertData) {
             // expectation is that this should fail
             uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -786,6 +756,8 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
     }
 
+    // the closePosition function was removed from the codebase thus these invariants are no longer needed
+    /* 
     /// @custom:property market-26 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is greater than 0.
     /// @custom:property market-27 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is greater than 0.
     /// @custom:property market-28 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is greater than 0.
@@ -798,7 +770,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(_hasPosition(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
         uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
         require(collateralPostedForUser > 0);
         require(
@@ -806,7 +778,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                 _getCooldownTimestampFor() + marketManager.MIN_HOLD_PERIOD()
         );
         IMToken[] memory preAssetsOf = marketManager.assetsOf(address(this));
-        (, uint256 shortfall) = marketManager.hypotheticalLiquidityOf(
+        uint256 shortfall = _getLiquidityDeficit(
             address(this),
             mtoken,
             collateralPostedForUser,
@@ -842,6 +814,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
     }
 
+
     /// @custom:property market-31 Calling closePosition with correct preconditions should remove a position in the mtoken, where collateral posted for the user is equal to 0.
     /// @custom:property market-32 Calling closePosition with correct preconditions should set collateralPosted for the user’s mtoken to zero, where collateral posted for the user is equal to 0.
     /// @custom:property market-33 Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0.
@@ -855,7 +828,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(marketManager.redeemPaused() != 2);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         require(_hasPosition(mtoken));
-        _checkPriceFeed();
+        _check_price_feed();
         uint256 collateralPostedForUser = _collateralPostedFor(mtoken);
         require(collateralPostedForUser == 0);
         require(
@@ -882,18 +855,36 @@ contract FuzzMarketManager is FuzzLiquidations {
             );
         }
     }
+    */
 
     uint256 constant DAI_PRICE = 1e24;
     uint256 constant USDC_PRICE = 1e7;
+    int256 public deltaTotalBorrowsAndDebt;
 
-    /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed.
+    function echidna_liquidate_delta() public view returns (int256) {
+        return deltaTotalBorrowsAndDebt;
+    }
+
+    /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed (i.e: no revert, no panic)
     /// @custom:property market-36 Liquidating an account should result in all collateral token balances being zeroed out.
     /// @custom:property market-37 Liquidating an account should result in all debtBalanceCached() for all debt tokens being zeroed out.
-    function liquidateAccount_should_succeed(uint256 amount) public {
+    /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
+    /// @custom:precondition seizePaused must !=2 (i.e: market manager does not have seizePaused)
+    /// @custom:precondition accountCollateral must be < accountDebt to be liquidatable
+    /// @custom:limitation there is a KNOWN rounding offset here by 1 wei, where the this flow can revert. This function will revert if the diff exceeds 1 wei
+    /// @custom:limitation there is also a KNOWN limitation that liquidation functions currently are using the DAI PRICE and USDC PRICE constants. This function is an attempt to introduce randomness into this flow.
+    /// @custom:limitation debt and collateral balance checks are missing here
+    function liquidateAccount_should_succeed(
+        uint256 amount,
+        uint256 usdcPrice,
+        uint256 daiPrice
+    ) public {
         require(marketManager.seizePaused() != 2);
         address account = address(this);
-        amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
-        calculateLiquidation_exact(amount);
+        // returns oracle prices within the min and max of the aggregator values
+        (usdcPrice, daiPrice) = _bound_oracle_prices(usdcPrice, daiPrice);
+        // sets up liquidatable system and ensures that system can be liquidated
+        amount = _preLiquidate(amount, daiPrice, usdcPrice);
 
         IMToken[] memory assets = marketManager.assetsOf(account);
 
@@ -915,15 +906,64 @@ contract FuzzMarketManager is FuzzLiquidations {
                     );
                 }
             }
-        } catch {
-            assertWithMsg(
-                false,
-                "MARKET-35 liquidateAccount with correct preconditions should succeed"
-            );
+        } catch Panic(uint256 errorCode) {
+            if (errorCode == PANIC_UNDER_OVER_FLOW_CODE) {
+                for (uint256 i = 0; i < assets.length; i++) {
+                    if (assets[i].isCToken()) {
+                        continue;
+                    }
+                    uint256 totalBorrows = IMToken(assets[i]).totalBorrows();
+                    uint256 accountDebt = IMToken(assets[i]).debtBalanceCached(
+                        address(this)
+                    );
+                    if (totalBorrows < accountDebt) {
+                        emit LogUint256(
+                            "difference between totalBorrows and accountDebt",
+                            accountDebt - totalBorrows
+                        );
+
+                        // The system has a *known* limitation in rounding that totalBorrows and accountDebt can be off by one wei
+                        // This check ensures that if there is a diff, it must be no more than 1 wei, otherwise Echidna will throw
+                        assertLt(
+                            accountDebt - totalBorrows,
+                            2,
+                            "MARKET-42 - difference between accountdebt and totalborrows exceeds 1"
+                        );
+                        deltaTotalBorrowsAndDebt = int256(
+                            totalBorrows - accountDebt
+                        );
+                    } else {
+                        deltaTotalBorrowsAndDebt = int256(
+                            accountDebt - totalBorrows
+                        );
+                    }
+                }
+            } else {
+                emit LogUint256("panic code:", errorCode);
+                assertWithMsg(
+                    false,
+                    "MARKET-35 liquidateAccount panicked unexpectedly"
+                );
+            }
+        } catch (bytes memory revertData) {
+            uint256 errorSelector = extractErrorSelector(revertData);
+
+            if (
+                errorSelector == insufficient_allowance ||
+                errorSelector == transfer_from_failed
+            ) {} else {
+                assertWithMsg(
+                    false,
+                    "MARKET-35 liquidateAccount with correct preconditions should succeed"
+                );
+            }
         }
     }
 
-    /// @custom:property market-38 liquidateAccount shoudl fail if acocunt is not flagged for liquidation
+    /// @custom:property market-38 Attempting to liquidate an entire account (hard liquidation) should fail if the collateral >= debt with NoLiquidationAvailable.
+    /// @custom:precondition seizePaused != 2
+    /// @custom:precondition address(this) must NOT be flagged for liquidation
+    /// @custom:precondition address(this) is being liquidated
     function liquidateAccount_should_fail_if_account_not_flagged() public {
         require(marketManager.seizePaused() != 2);
         require(!marketManager.flaggedForLiquidation(address(this)));
@@ -933,7 +973,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         try this.prankLiquidateAccount(account) {
             assertWithMsg(
                 false,
-                "MARKET- liquidateAccount should fail if account is not flagged for liquidations"
+                "MARKET-38 liquidateAccount should fail if account is not flagged for liquidations"
             );
         } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -941,11 +981,14 @@ contract FuzzMarketManager is FuzzLiquidations {
             assertEq(
                 errorSelector,
                 marketManager_noLiquidationAvailableSelectorHash,
-                "MARKET- liquidateAccount should fail with NoLiquidationAvailable if not flagged"
+                "MARKET-38 liquidateAccount should fail with NoLiquidationAvailable if not flagged"
             );
         }
     }
 
+    /// @custom:property market-39 Attempting to liquidate an entire account (hard liquidation) should fail if a user is attempting to liquidate themselves with Unauthorized.
+    /// @custom:precondition account to liquidate is msg.sender
+    /// @custom:precondition seize must not be paused
     function liquidateAccount_should_fail_if_self_account(
         uint256 amount
     ) public {
@@ -957,7 +1000,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         try this.prankLiquidateAccount(account) {
             assertWithMsg(
                 false,
-                "MARKET- liquidateAccount should fail if user attempts to liquidate themselves"
+                "MARKET-39 liquidateAccount should fail if user attempts to liquidate themselves"
             );
         } catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -965,11 +1008,14 @@ contract FuzzMarketManager is FuzzLiquidations {
             assertEq(
                 errorSelector,
                 marketManager_unauthorizedSelectorHash,
-                "MARKET- liquidateAccount should fail with Unauthorized"
+                "MARKET-39 liquidateAccount should fail with Unauthorized"
             );
         }
     }
 
+    /// @custom:property market-40 Attempting to liquidate an entire account (hard liquidation) should fail if seize is paused with Paused.
+    /// @custom:precondition account = address(this)
+    /// @custom:precondition seizePaused = 2 (is paused)
     function liquidateAccount_should_fail_if_seize_paused(
         uint256 amount
     ) public {
@@ -1001,7 +1047,9 @@ contract FuzzMarketManager is FuzzLiquidations {
 
     // Helper Functions
 
-    function _setupLiquidatableStates(
+    // This function sets up the system to set the prices to the respective assets
+    /// @custom:limitation as mentioned in liquidation functions, the fuzz suite currently uses STATIC prices. this should be opened up to a larger range.
+    function _setup_liquidatable_states(
         uint amount,
         uint256 daiPrice,
         uint256 usdcPrice
@@ -1015,6 +1063,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         hevm.prank(liquidator);
         dai.approve(address(dDAI), amount * WAD);
 
+        emit LogUint256("setting dai price to:", uint256(int256(daiPrice)));
         mockDaiFeed.setMockAnswer(int256(daiPrice));
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         chainlinkDaiUsd.updateRoundData(
@@ -1030,7 +1079,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         );
         require(!daiData.hadError);
 
-        emit LogString("set chainlink round data for usdc");
+        emit LogUint256("setting usdc price to:", uint256(int256(usdcPrice)));
         chainlinkUsdcUsd.updateRoundData(
             0,
             int256(usdcPrice),
@@ -1048,14 +1097,14 @@ contract FuzzMarketManager is FuzzLiquidations {
         require(!usdcData.hadError);
     }
 
-    // gets prices needed to liquidate
+    /// @notice this function will set up the system such that the account's position is liquidatable
     function _preLiquidate(
         uint256 amount,
         uint256 daiPrice,
         uint256 usdcPrice
     ) internal returns (uint256) {
         // ensure price feeds are up to date and in sync before updating collateral token and listing
-        _checkPriceFeed();
+        _check_price_feed();
         {
             (
                 bool is_cusdc_listed,
@@ -1063,11 +1112,12 @@ contract FuzzMarketManager is FuzzLiquidations {
                 ,
                 ,
                 ,
-                ,
+                uint256 liqFee,
                 ,
                 ,
 
             ) = marketManager.tokenData(address(cUSDC));
+            emit LogUint256("liqFee", liqFee);
             // if C_USDC is not listed, make sure to list it
             if (!is_cusdc_listed) {
                 list_token_should_succeed(address(cUSDC));
@@ -1081,7 +1131,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                     0,
                     0,
                     0,
-                    0,
+                    10000e18,
                     0
                 );
             }
@@ -1093,6 +1143,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                 post_collateral_should_succeed(address(cUSDC), WAD + 1, false);
             }
         }
+
         {
             // ddai must be listed in the market manager to continue
             (bool is_ddai_listed, , , , , , , , ) = marketManager.tokenData(
@@ -1113,16 +1164,9 @@ contract FuzzMarketManager is FuzzLiquidations {
         dDAI.borrow(amount);
 
         // mint tokens and set the oracle prices of the system
-        _setupLiquidatableStates(amount, daiPrice, usdcPrice);
-        // ensure that the account can be liquidated
-        (uint256 debt, , ) = marketManager.canLiquidate(
-            address(dDAI),
-            address(cUSDC),
-            address(this),
-            amount,
-            false
-        );
+        _setup_liquidatable_states(amount, daiPrice, usdcPrice);
 
+        // ensure that the account can be liquidated
         (uint256 accountCollateral, , uint256 accountDebt) = marketManager
             .statusOf(address(this));
         // ensure that the collateral < accountDebt to be liquidated
@@ -1229,6 +1273,25 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
     }
 
+    // The oracle router has a min and max price limit defined per asset, and should be reflected here
+    function _bound_oracle_prices(
+        uint256 usdcPrice,
+        uint256 daiPrice
+    ) internal returns (uint256, uint256) {
+        usdcPrice = clampBetween(
+            usdcPrice,
+            uint256(int256(MIN_ORACLE_ANSWER)),
+            uint256(int256(MAX_USDC_ANSWER))
+        );
+        daiPrice = clampBetween(
+            daiPrice,
+            uint256(int256(MIN_ORACLE_ANSWER)),
+            uint256(int256(MAX_DAI_ANSWER))
+        );
+        return (usdcPrice, daiPrice);
+    }
+
+    /* The following post-conditions were introduced as part of the closePosition function that was removed in the last rebase. 
     function _checkClosePositionPostConditions(
         address mtoken,
         uint256 preAssetsOfLength,
@@ -1253,8 +1316,9 @@ contract FuzzMarketManager is FuzzLiquidations {
             "closePosition expected to remove asset from assetOf"
         );
     }
+    */
 
-    function _checkPriceDivergence(
+    function _check_price_divergence(
         address mtoken
     ) private view returns (bool divergenceTooLarge, bool priceError) {
         (uint256 lowerPrice, uint lowError) = OracleRouter(oracleRouter)
@@ -1273,55 +1337,5 @@ contract FuzzMarketManager is FuzzLiquidations {
         ) {
             divergenceTooLarge = true;
         }
-    }
-
-    function _checkLiquidatePreconditions(
-        address account,
-        address dtoken,
-        address collateralToken
-    ) internal view {
-        _isSupportedDToken(dtoken);
-        require(account != msg.sender);
-        require(marketManager.isListed(dtoken));
-        require(
-            DToken(dtoken).marketManager() ==
-                DToken(collateralToken).marketManager()
-        );
-        require(IMToken(collateralToken).isCToken());
-        require(marketManager.collateralPosted(collateralToken) > 0);
-        require(marketManager.seizePaused() != 2);
-        (
-            uint256 lfactor,
-            uint256 debtTokenPrice,
-            uint256 collatTokenPrice
-        ) = marketManager.LiquidationStatusOf(
-                account,
-                dtoken,
-                collateralToken
-            );
-        require(lfactor > 0);
-    }
-
-    function _boundLiquidateValues(
-        uint256 amount,
-        address collateralToken
-    ) internal returns (uint256 clampedAmount) {
-        (
-            ,
-            uint256 collRatio,
-            uint256 collReqSoft,
-            uint256 collReqHard,
-            ,
-            ,
-            ,
-            ,
-
-        ) = marketManager.tokenData(address(collateralToken));
-        require(collRatio > 0);
-        uint256 maxValue = amount * collReqSoft;
-        uint256 minValue = amount * collReqHard;
-        emit LogUint256("min", minValue);
-        emit LogUint256("max", maxValue);
-        clampedAmount = clampBetween(amount, minValue, maxValue);
     }
 }

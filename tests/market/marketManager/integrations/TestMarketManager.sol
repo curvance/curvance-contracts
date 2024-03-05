@@ -90,7 +90,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
             1
         );
 
-        (uint256 liquidity, uint256 debt) = marketManager
+        (uint256 liquidity, uint256 debt, ) = marketManager
             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
         assertEq(liquidity, 0);

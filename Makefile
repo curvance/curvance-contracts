@@ -3,6 +3,11 @@ echidna-local, el:
 	forge clean
 	echidna tests/fuzzing/FuzzingSuite.sol --contract FuzzingSuite --config tests/fuzzing/config/echidna-local.yaml
 
+echidna-optimize, eo: 
+	rm -rf crytic-export 
+	forge clean 
+	echidna tests/fuzzing/FuzzingSuite.sol --contract FuzzingSuite --config tests/fuzzing/config/echidna-optimize.yaml
+
 echidna-cloud, ec: 
 	rm -rf crytic-export
 	forge clean

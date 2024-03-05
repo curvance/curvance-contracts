@@ -1,6 +1,8 @@
 pragma solidity 0.8.17;
 
 contract ErrorConstants {
+    uint256 PANIC_UNDER_OVER_FLOW_CODE = 17;
+
     uint256 vecve_lockTypeMismatchHash =
         uint256(uint32(bytes4(keccak256("VeCVE__LockTypeMismatch()"))));
 
@@ -80,4 +82,9 @@ contract ErrorConstants {
 
     uint256 invalid_amount =
         uint256(uint32(bytes4(keccak256("InvalidAmount()"))));
+
+    uint256 insufficient_allowance =
+        uint256(uint32(bytes4(keccak256("InsufficientAllowance()"))));
+    uint256 transfer_from_failed =
+        uint256(uint32(bytes4(keccak256("TransferFromFailed()"))));
 }

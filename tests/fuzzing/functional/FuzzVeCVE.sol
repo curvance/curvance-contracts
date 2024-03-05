@@ -136,6 +136,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
     /// @custom:precondition  User must have more than 2 locks created
     /// @custom:precondition  All previous locks must be continuous
     /// @custom:precondition vecVE contract is not shut down
+    /// @custom:precondition there must be epochs to claim, otherwise this function will not run. this was introduced as a result of an inconsistency in user points when there were no epochs to claim, and will be fixed by introduction of a blackout period for claiming rewards
     function combineAllLocks_for_all_continuous_to_continuous_terminal_should_succeed()
         public
     {
@@ -143,6 +144,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
         bool continuous = true;
         require(_get_locks_length() >= 2);
         bool hasEpochs = _has_epochs_to_claim();
+        require(hasEpochs);
 
         uint256 preCombineUserPoints = veCVE.userPoints(caller);
         (
@@ -206,6 +208,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
     /// @custom:precondition  user must have more than 2 existing locks
     /// @custom:precondition  some of the pre-existing locks must be non-cntinuous
     /// @custom:precondition veCVE contract is not shut down
+    /// @custom:precondition there must be epochs to claim, otherwise this function will not run. this was introduced as a result of an inconsistency in user points when there were no epochs to claim, and will be fixed by introduction of a blackout period for claiming rewards
     function combineAllLocks_non_continuous_to_continuous_terminals_should_succeed()
         public
     {
@@ -293,6 +296,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
     /// @custom:property vecve-60 - Combining some prior continuous locks to non continuous terminal should be successful with correct preconditions.
     /// @custom:precondition  User must have at least 2 existing locks
     /// @custom:precondition veCVE contract is not shut down
+    /// @custom:precondition there must be epochs to claim, otherwise this function will not run. this was introduced as a result of an inconsistency in user points when there were no epochs to claim, and will be fixed by introduction of a blackout period for claiming rewards
     function combineAllLocks_should_succeed_to_non_continuous_terminal()
         public
     {
@@ -301,6 +305,7 @@ contract FuzzVeCVE is StatefulBaseMarket {
         require(_get_locks_length() >= 2);
         _save_epoch_unlock_values();
         bool hasEpochs = _has_epochs_to_claim();
+        require(hasEpochs);
 
         uint256 preCombineUserPoints = veCVE.userPoints(caller);
         (

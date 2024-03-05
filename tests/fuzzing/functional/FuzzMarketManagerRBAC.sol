@@ -21,7 +21,7 @@ contract FuzzMarketManagerRBAC is StatefulBaseMarket {
         require(centralRegistry.hasDaoPermissions(address(this)));
         require(marketManager.isListed(mtoken));
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
+        (bool success, ) = address(marketManager).call(
             abi.encodeWithSignature(
                 "setMintPaused(address,bool)",
                 mtoken,
@@ -97,7 +97,7 @@ contract FuzzMarketManagerRBAC is StatefulBaseMarket {
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
+        (bool success, ) = address(marketManager).call(
             abi.encodeWithSignature("setTransferPaused(bool)", state)
         );
         if (success) {
@@ -132,7 +132,7 @@ contract FuzzMarketManagerRBAC is StatefulBaseMarket {
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
 
-        (bool success, bytes memory revertData) = address(marketManager).call(
+        (bool success, ) = address(marketManager).call(
             abi.encodeWithSignature("setSeizePaused(bool)", state)
         );
         if (success) {
