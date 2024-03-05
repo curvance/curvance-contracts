@@ -122,6 +122,9 @@ contract ClaimRewardsTest is TestBaseCVELocker {
 
         vm.assume(amount > 1e18 && amount <= 100e18);
 
+        assertFalse(cveLocker.hasRewardsToClaim(user1));
+        assertEq(cveLocker.hypotheticalRewardsClaim(user1), 0);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -139,9 +142,10 @@ contract ClaimRewardsTest is TestBaseCVELocker {
             cveLocker.recordEpochRewards(_ONE);
         }
 
-        assertTrue(cveLocker.hasRewardsToClaim(user1));
-
         uint256 rewards = isFreshLockContinuous ? amount * 2 : amount;
+
+        assertTrue(cveLocker.hasRewardsToClaim(user1));
+        assertEq(cveLocker.hypotheticalRewardsClaim(user1), rewards);
 
         deal(_USDC_ADDRESS, address(cveLocker), rewards);
 

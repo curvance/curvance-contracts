@@ -3,8 +3,11 @@ pragma solidity 0.8.17;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
+import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract RemoveRewardTokenTest is TestBaseFeeAccumulator {
+    using stdStorage for StdStorage;
+
     address[] public tokens;
 
     function setUp() public override {
@@ -28,6 +31,20 @@ contract RemoveRewardTokenTest is TestBaseFeeAccumulator {
             FeeAccumulator
                 .FeeAccumulator__RemovalTokenIsNotRewardToken
                 .selector
+        );
+        feeAccumulator.removeRewardToken(_USDT_ADDRESS);
+    }
+
+    function test_removeRewardToken_fail_whenTokenDoesNotExist() public {
+        stdstore
+            .target(address(feeAccumulator))
+            .sig("rewardTokenInfo(address)")
+            .with_key(_USDT_ADDRESS)
+            .depth(0)
+            .checked_write(2);
+
+        vm.expectRevert(
+            FeeAccumulator.FeeAccumulator__RemovalTokenDoesNotExist.selector
         );
         feeAccumulator.removeRewardToken(_USDT_ADDRESS);
     }

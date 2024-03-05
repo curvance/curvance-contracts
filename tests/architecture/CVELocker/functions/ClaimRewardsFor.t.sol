@@ -117,6 +117,8 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
         uint256 desiredTokenBalance = cve.balanceOf(user1);
         uint256 epoch = cveLocker.epochsToClaim(user1);
 
+        assertEq(cveLocker.currentEpoch(block.timestamp) + 1, epoch);
+
         vm.prank(address(veCVE));
         cveLocker.claimRewardsFor(
             user1,
