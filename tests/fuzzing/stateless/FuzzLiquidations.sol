@@ -39,6 +39,7 @@ contract FuzzLiquidations is StatefulBaseMarket {
         uint256 liquidatedTokens;
         uint256 liquidatedTokenToProtocol;
     }
+    /// @notice stores intermediate calculated values
     IntermediateValues calculated;
 
     constructor() {
@@ -46,7 +47,17 @@ contract FuzzLiquidations is StatefulBaseMarket {
         debtToken = address(dDAI);
     }
 
-    function calculateLiquidation_exact(uint256 amount) internal {
+    /// @notice stores failed steps and error codes
+    mapping(uint256 => HasError) errors;
+    struct HasError {
+        bool err;
+        string msg;
+    }
+
+    function calculateLiquidation_exact(
+        uint256 amount,
+        bool liquidateExact
+    ) internal returns (uint256[] memory error_id, string[] memory msgs) {
         // Setup state
         debtAmount = amount;
         _saveCurrentState();
@@ -68,8 +79,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
                 debtToken,
                 collateralToken,
                 address(this),
-                debtAmount,
-                false
+                amount,
+                liquidateExact
             );
 
         assertEq(
@@ -87,6 +98,20 @@ contract FuzzLiquidations is StatefulBaseMarket {
             _canLiqProtocol,
             "LIQUIDATED - expected liquidated tokens to protocol = can liquidate return value"
         );
+
+        bool hadError;
+        uint8 index;
+        for (uint8 i = 0; i < 13; i++) {
+            HasError memory has = errors[i];
+            if (has.err) {
+                hadError = true;
+                error_id[index] += i;
+                msgs[index] = has.msg;
+                index++;
+                emit LogUint256("Liquidation arithmetic errored:", i);
+            }
+        }
+        return (error_id, msgs);
     }
 
     /// @notice saves token data and liquidation status of system
@@ -101,7 +126,7 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 liqFee,
             uint256 baseCFactor,
             uint256 cfactorCurve
-        ) = marketManager.tokenData(debtToken);
+        ) = marketManager.tokenData(collateralToken);
         (
             uint256 lFactor,
             uint256 debtTokenPrice,
@@ -143,26 +168,34 @@ contract FuzzLiquidations is StatefulBaseMarket {
     /// @custom:precondition l factor <= WAD
     function _calculateCFactor() private {
         // Preconditions
-        assertWithMsg(
-            data.baseCFactor >= marketManager.MIN_BASE_CFACTOR(),
-            "LIQ-1 - c base c factor must be >= to MIN_BASE_CFACTOR"
-        );
-        assertWithMsg(
-            data.baseCFactor <= marketManager.MAX_BASE_CFACTOR(),
-            "LIQ-1 - data.baseCFactor must be <= MAX_BASE_CFACTOR"
-        );
-        assertWithMsg(data.lFactor > 0, "L factor must be > 0 ");
-        assertWithMsg(data.lFactor <= WAD, "LIQ-2 - L factor must be <= WAD");
+        if (
+            data.baseCFactor < marketManager.MIN_BASE_CFACTOR() ||
+            data.baseCFactor > marketManager.MAX_BASE_CFACTOR()
+        ) {
+            emit LogUint256("data.baseCFactor", data.baseCFactor);
+            errors[1] = HasError(
+                true,
+                "LIQ-1 - c base c factor must be >= to MIN_BASE_CFACTOR and  <= MAX_BASE_CFACTOR"
+            );
+        }
+
+        if (data.lFactor <= 0 || data.lFactor > WAD) {
+            emit LogUint256("data.lFactor", data.lFactor);
+            errors[2] = HasError(true, "L factor must be > 0 and <= WAD");
+        }
 
         uint256 cFactor = data.baseCFactor +
             (data.cFactorCurve * data.lFactor) /
             WAD;
 
         // Postconditions
-        assertWithMsg(
-            cFactor >= data.baseCFactor && cFactor <= WAD,
-            "LIQ-3 - c factor result must be bound between [data.baseCFactor, WAD]"
-        );
+        if (!(cFactor >= data.baseCFactor && cFactor <= WAD)) {
+            errors[3] = HasError(
+                true,
+                "LIQ-3 - c factor result must be bound between [data.baseCFactor, WAD]"
+            );
+        }
+
         calculated.cFactor = cFactor;
     }
 
@@ -173,28 +206,32 @@ contract FuzzLiquidations is StatefulBaseMarket {
     /// @custom:precondition incentive must be >= MIN_LIQUIDATION_INCENTIVE
     function _calculateIncentive() private {
         // Preconditions
-        assertWithMsg(
-            data.liqBaseIncentive >= marketManager.MIN_LIQUIDATION_INCENTIVE(),
-            "LIQ-4 - data.liqBaseIncentive must be >= MIN_LIQUIDATION_INCENTIVE"
-        );
-        assertWithMsg(
-            data.liqBaseIncentive <= marketManager.MAX_LIQUIDATION_INCENTIVE(),
-            "LIQ-4 - data.liqBaseIncentive must be <= MAX_LIQUIDATION_INCENTIVE"
-        );
+        if (
+            data.liqBaseIncentive <
+            marketManager.MIN_LIQUIDATION_INCENTIVE() ||
+            data.liqBaseIncentive >
+            marketManager.MAX_LIQUIDATION_INCENTIVE() - 1
+        ) {
+            errors[4] = HasError(
+                true,
+                "LIQ-4 - data.liqBaseIncentive must be between [MIN_LIQUIDATION_INCENTIVE, MAX_LIQUIDATION_INCENTIVE]"
+            );
+        }
 
         uint256 incentive = data.liqBaseIncentive +
             (data.liqCurve * data.lFactor) /
             WAD;
 
         // Postconditions
-        assertWithMsg(
-            incentive >= marketManager.MIN_LIQUIDATION_INCENTIVE(),
-            "LIQ-5 - incentive must be >= MIN_LIQUIDATION_INCENTIVE"
-        );
-        assertWithMsg(
-            incentive <= marketManager.MAX_LIQUIDATION_INCENTIVE(),
-            "LIQ-5 - incentive must be <= MAX_LIQUIDATION_INCENTIVE"
-        );
+        if (
+            incentive < marketManager.MIN_LIQUIDATION_INCENTIVE() ||
+            incentive > marketManager.MAX_LIQUIDATION_INCENTIVE()
+        ) {
+            errors[5] = HasError(
+                true,
+                "LIQ-5 - incentive must be between [MIN_LIQUIDATION_INCENTIVE, MAX_LIQUIDATION_INCENTIVE]"
+            );
+        }
         calculated.incentive = incentive;
     }
 
@@ -209,22 +246,24 @@ contract FuzzLiquidations is StatefulBaseMarket {
 
         // Postconditions
         if (calculated.cFactor == 0) {
-            assertWithMsg(
-                maxAmount == 0,
+            errors[6] = HasError(
+                true,
                 "LIQ-6 - maxAmount = 0 when calculated.cFactor = 0"
             );
         } else if (calculated.cFactor == WAD) {
-            assertWithMsg(
-                maxAmount == data.debtBalanceCached,
-                "LIQ-7 - maxAmount = data.debtBalanceCached when calculated.cFactor = WAD"
-            );
+            if (maxAmount != data.debtBalanceCached) {
+                errors[7] = HasError(
+                    true,
+                    "LIQ-7 - maxAmount = data.debtBalanceCached when calculated.cFactor = WAD"
+                );
+            }
         } else {
-            assertGt(maxAmount, 0, "LIQUIDATIONS - maxAmount must be >0");
-            assertLt(
-                maxAmount,
-                data.debtBalanceCached,
-                "LIQ-8 - maxAmount must be <= data.debtBalanceCached"
-            );
+            if (maxAmount == 0 || maxAmount > data.debtBalanceCached) {
+                errors[8] = HasError(
+                    true,
+                    "LIQ-8 - maxAmount must be >0 and <= debt balance cached"
+                );
+            }
         }
         calculated.maxAmount = maxAmount;
     }
@@ -254,23 +293,26 @@ contract FuzzLiquidations is StatefulBaseMarket {
 
         // Postconditions
         if (collateralTokenDecimals == debtTokenDecimals) {
-            assertEq(
-                amountAdjusted,
-                data.debtBalanceCached,
-                "LIQ-9 - when collat token dec == debt token dec, amountAdjusted = debtAmount"
-            );
+            if (amountAdjusted != data.debtBalanceCached) {
+                errors[9] = HasError(
+                    true,
+                    "LIQ-9 - when collat token dec == debt token dec, amountAdjusted = debtAmount"
+                );
+            }
         } else if (collateralTokenDecimals > debtTokenDecimals) {
-            assertGt(
-                amountAdjusted,
-                data.debtBalanceCached,
-                "LIQ-10 - amountAdjusted > debtBalanceCached when collateral token < debt token decimals"
-            );
+            if (amountAdjusted <= data.debtBalanceCached) {
+                errors[10] = HasError(
+                    true,
+                    "LIQ-10 - amountAdjusted > debtBalanceCached when collateral token < debt token decimals"
+                );
+            }
         } else if (collateralTokenDecimals < debtTokenDecimals) {
-            assertLt(
-                amountAdjusted,
-                data.debtBalanceCached,
-                "LIQ-11 - amountAdjusted < debtBalanceCached when collateral token < debt token decimals"
-            );
+            if (amountAdjusted >= data.debtBalanceCached) {
+                errors[11] = HasError(
+                    true,
+                    "LIQ-11 - amountAdjusted < debtBalanceCached when collateral token < debt token decimals"
+                );
+            }
         }
         calculated.amountAdjusted = amountAdjusted;
     }
@@ -283,17 +325,19 @@ contract FuzzLiquidations is StatefulBaseMarket {
 
         // Postconditions
         if (calculated.amountAdjusted == 0) {
-            assertEq(
-                liquidatedTokens,
-                0,
-                "LIQ-12 - liquidatedTokens = 0 when amountAdjusted = 0 "
-            );
+            if (liquidatedTokens != 0) {
+                errors[12] = HasError(
+                    true,
+                    "LIQ-12 - liquidatedTokens = 0 when amountAdjusted = 0"
+                );
+            }
         } else if (calculated.debtToCollateralRatio == 0) {
-            assertEq(
-                liquidatedTokens,
-                0,
-                "LIQ-13 - liquidatedTokens = 0 when amountAdjusted = 0 "
-            );
+            if (liquidatedTokens != 0) {
+                errors[13] = HasError(
+                    true,
+                    "LIQ-13 - liquidatedTokens = 0 when amountAdjusted = 0"
+                );
+            }
         }
         calculated.liquidatedTokens = liquidatedTokens;
     }

@@ -551,14 +551,14 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         view
         returns (uint256 overR, uint256 underR, uint256 overB, uint256 underB)
     {
-        (overR, underR) = marketManager.hypotheticalLiquidityOf(
+        (overR, underR, ) = marketManager.hypotheticalLiquidityOf(
             account,
             address(mTokenModified),
             redeemTokens,
             0
         );
 
-        (overB, underB) = marketManager.hypotheticalLiquidityOf(
+        (overB, underB, ) = marketManager.hypotheticalLiquidityOf(
             account,
             address(mTokenModified),
             0,
