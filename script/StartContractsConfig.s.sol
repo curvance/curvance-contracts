@@ -2,10 +2,14 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { CVE } from "contracts/token/CVE.sol";
 import { CVELocker } from "contracts/architecture/CVELocker.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
@@ -50,7 +54,62 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
+        _createTestMarkets();
         _loadFaucet();
+    }
+
+    function _createTestMarkets() internal {
+        ICentralRegistry cr = ICentralRegistry(
+            _getDeployedContract("centralRegistry")
+        );
+        address guagePool = _getDeployedContract("gaugePool");
+
+        MarketManager firstMarket = new MarketManager(cr, guagePool);
+        console.log("firstMarket =", address(firstMarket));
+        _saveDeployedContracts("firstTestMarket", address(firstMarket));
+
+        MarketManager secondMarket = new MarketManager(cr, guagePool);
+        console.log("secondMarket =", address(secondMarket));
+        _saveDeployedContracts("secondTestMarket", address(secondMarket));
+
+        address usdc = _readConfigAddress("markets.dTokens.USDC.asset");
+        address dai = _readConfigAddress("markets.dTokens.DAI.asset");
+        address wbtc = _readConfigAddress("markets.cTokens.WBTC.asset");
+
+        firstMarket.listToken(usdc);
+        firstMarket.listToken(dai);
+        secondMarket.listToken(wbtc);
+
+        secondMarket.updateCollateralToken(
+            IMToken(wbtc),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.collRatio"
+            ),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.collReqA"
+            ),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.collReqB"
+            ),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.liqIncA"
+            ),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.liqIncB"
+            ),
+            _readConfigUint256("markets.cTokens.WBTC.collateralConfig.liqFee"),
+            _readConfigUint256(
+                "markets.cTokens.WBTC.collateralConfig.baseCFactor"
+            )
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = wbtc;
+        uint256[] memory newCollateralCaps = new uint256[](1);
+        newCollateralCaps[0] = _readConfigUint256(
+            "markets.cTokens.WBTC.collateralConfig.collateralCaps"
+        );
+        secondMarket.setCTokenCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function _loadFaucet() internal {
