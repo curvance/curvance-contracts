@@ -36,6 +36,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             _WETH
         );
         centralRegistry.addZapper(address(complexZapper));
+        centralRegistry.addSwapper(address(complexZapper));
 
         owner = address(this);
         user = user1;

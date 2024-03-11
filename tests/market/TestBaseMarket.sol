@@ -504,6 +504,7 @@ contract TestBaseMarket is TestBase {
             _WETH_ADDRESS
         );
         centralRegistry.addZapper(address(complexZapper));
+        centralRegistry.addSwapper(address(complexZapper));
         return complexZapper;
     }
 
