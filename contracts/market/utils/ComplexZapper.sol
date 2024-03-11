@@ -50,7 +50,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            false = all tokens.
     ///                            true = single token.
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
@@ -162,7 +162,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            0 = all tokens.
     ///                            1 = single token; uint256 interface.
     ///                            2+ = single token; int128 interface.
@@ -214,7 +214,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            0 = all tokens.
     ///                            1 = single token; uint256 interface.
     ///                            2+ = single token; int128 interface.
@@ -242,7 +242,7 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount
         );
-    
+
         // Exit Curve lp position.
         outAmount = _exitCurve(
             lpMinter,
@@ -307,12 +307,12 @@ contract ComplexZapper is ReentrancyGuard {
     ///                       1. The Balancer vault address.
     ///                       2. The BPT pool ID.
     ///                       3. Whether BPT should be unwrapped to a single
-    ///                          token or not. 
+    ///                          token or not.
     ///                          false = all tokens.
     ///                          true = single token.
     ///                       4. Used if `singleAssetWithdraw` = true,
     ///                          indicates the coin index inside the Balancer
-    ///                          BPT to withdraw as. 
+    ///                          BPT to withdraw as.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
@@ -360,12 +360,12 @@ contract ComplexZapper is ReentrancyGuard {
     ///                       1. The Balancer vault address.
     ///                       2. The BPT pool ID.
     ///                       3. Whether BPT should be unwrapped to a single
-    ///                          token or not. 
+    ///                          token or not.
     ///                          false = all tokens.
     ///                          true = single token.
     ///                       4. Used if `singleAssetWithdraw` = true,
     ///                          indicates the coin index inside the Balancer
-    ///                          BPT to withdraw as. 
+    ///                          BPT to withdraw as.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
@@ -387,7 +387,7 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount
         );
-    
+
         // Exit Balancer lp position.
         outAmount = _exitBalancer(
             balancerData.balancerVault,
@@ -467,12 +467,7 @@ contract ComplexZapper is ReentrancyGuard {
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(
-            router,
-            zapData,
-            tokenSwaps,
-            recipient
-        );
+        outAmount = _exitVelodrome(router, zapData, tokenSwaps, recipient);
     }
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
@@ -506,12 +501,7 @@ contract ComplexZapper is ReentrancyGuard {
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(
-            router,
-            zapData,
-            tokenSwaps,
-            recipient
-        );
+        outAmount = _exitVelodrome(router, zapData, tokenSwaps, recipient);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -594,11 +584,7 @@ contract ComplexZapper is ReentrancyGuard {
                 msg.sender
             );
         } else {
-            assets = cToken.redeemFor(
-                shares,
-                address(this),
-                msg.sender
-            );
+            assets = cToken.redeemFor(shares, address(this), msg.sender);
         }
 
         // Validate that output of redemption is sufficient.
@@ -613,7 +599,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the Curve lp token.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            0 = all tokens.
     ///                            1 = single token; uint256 interface.
     ///                            2+ = single token; int128 interface.
@@ -631,7 +617,7 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 singleAssetIndex,
         SwapperLib.Swap[] calldata tokenSwaps,
         address recipient
-    ) internal returns (uint256 outAmount){
+    ) internal returns (uint256 outAmount) {
         // Exit Curve lp position.
         CurveLib.exitCurve(
             lpMinter,
@@ -671,7 +657,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            false = all tokens.
     ///                            true = single token.
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
@@ -691,7 +677,7 @@ contract ComplexZapper is ReentrancyGuard {
         address[] calldata tokens,
         SwapperLib.Swap[] calldata tokenSwaps,
         address recipient
-    ) internal returns (uint256 outAmount){
+    ) internal returns (uint256 outAmount) {
         // Exit BPT position.
         BalancerLib.exitBalancer(
             balancerVault,
@@ -739,7 +725,7 @@ contract ComplexZapper is ReentrancyGuard {
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata tokenSwaps,
         address recipient
-    ) internal returns (uint256 outAmount){
+    ) internal returns (uint256 outAmount) {
         // Exit Velodrome sAMM/vAMM position.
         VelodromeLib.exitVelodrome(
             router,
@@ -822,7 +808,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Helper function for efficiently transferring tokens
     ///         to desired user.
-    /// @param token The token to transfer to `recipient`, 
+    /// @param token The token to transfer to `recipient`,
     ///              this can be the network gas token.
     /// @param recipient The user receiving `token`.
     /// @param amount The amount of `token` to be transferred to `recipient`.
@@ -834,7 +820,7 @@ contract ComplexZapper is ReentrancyGuard {
         if (CommonLib.isETH(token)) {
             return SafeTransferLib.forceSafeTransferETH(recipient, amount);
         }
-            
+
         SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 }

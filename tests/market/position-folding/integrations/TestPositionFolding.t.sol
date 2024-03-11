@@ -287,9 +287,8 @@ contract TestPositionFolding is TestBaseMarket {
         deleverageData.borrowToken = dDAI;
 
         deleverageData.swapZap.inputToken = address(balRETH);
-        deleverageData.swapZap.inputAmount = deleverageData
-            .collateralAmount;
-        deleverageData.swapZap.inputToken = _WETH_ADDRESS;
+        deleverageData.swapZap.inputAmount = deleverageData.collateralAmount;
+        deleverageData.swapZap.outputToken = _WETH_ADDRESS;
 
         address[] memory tokens = new address[](2);
         tokens[0] = _RETH_ADDRESS;
