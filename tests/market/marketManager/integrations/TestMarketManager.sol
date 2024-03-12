@@ -221,7 +221,6 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
     }
 
     function testPositionCloseAfterRemoveCollateral() public {
-        
         address[] memory users = new address[](3);
         users[0] = address(0x1111);
         users[1] = address(0x2222);
@@ -256,39 +255,33 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _postCollateral(users[0], cTokens[0], 1 ether);
 
         skip(30 minutes);
-        
+
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
-        bool [] memory positionsToClose;
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
-            users[0],
-            address(cTokens[0]),
-            0,
-            0
-        );
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
+        assertEq(positionsToClose[0], false);
+        (bool hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
 
         vm.prank(users[0]);
         marketManager.removeCollateral(address(cTokens[0]), 1 ether);
 
-        vm.expectRevert(
-            OracleRouter.OracleRouter__InvalidParameter.selector
-        );
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
+        (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0]),
-            0,
-            0
+            address(cTokens[0])
         );
+        assertEq(hasPosition, false);
+
+        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
     }
 
     function testPositionCloseAfterRedeem() public {
@@ -326,39 +319,33 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _postCollateral(users[0], cTokens[0], 1 ether);
 
         skip(30 minutes);
-        
+
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
-        bool [] memory positionsToClose;
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
-            users[0],
-            address(cTokens[0]),
-            0,
-            0
-        );
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
+        assertEq(positionsToClose[0], false);
+        (bool hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
 
         vm.prank(users[0]);
         cTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
 
-        vm.expectRevert(
-            OracleRouter.OracleRouter__InvalidParameter.selector
-        );
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
+        (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0]),
-            0,
-            0
+            address(cTokens[0])
         );
+        assertEq(hasPosition, false);
+
+        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
     }
 
     function testPositionCloseAfterLiquidate() public {
@@ -399,36 +386,46 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _borrow(users[0], dTokens[0], 0.7 ether);
 
         skip(20 minutes);
-        _updateRoundData(cTokensAgg[0], 0, 1e7);
-        
+        _updateRoundData(cTokensAgg[0], 0, 0.9e8);
+
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
-        bool [] memory positionsToClose;
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        bool hasPosition;
+        assertEq(positionsToClose.length, 2);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0]),
-            0,
-            0
+            address(cTokens[0])
         );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
+
+        _liquidate(dTokens[0], cTokens[0], users[0], true);
+
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 2);
-
-        _liquidate(dTokens[0], cTokens[0], users[0], false);
-
-        (
-            collateralSurplus,
-            liquidityDeficit,
-            positionsToClose
-        ) = marketManager.hypotheticalLiquidityOf(
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0]),
-            0,
-            0
+            address(cTokens[0])
         );
-        assertEq(positionsToClose.length, 1);
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
     }
 }
