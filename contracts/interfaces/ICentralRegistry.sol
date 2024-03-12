@@ -162,23 +162,26 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is an approved zapper.
-    function isZapper(address addressToCheck) external view returns (bool);
-
     /// @notice Returns whether the inputted address is an approved swapper.
     function isSwapper(address addressToCheck) external view returns (bool);
 
     /// @notice Returns whether the inputted address is an approved veCVELocker.
-    function isVeCVELocker(address addressToCheck) external view returns (bool);
+    function isVeCVELocker(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Gauge Controller.
-    function isGaugeController(address addressToCheck) external view returns (bool);
+    function isGaugeController(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Market Manager.
-    function isMarketManager(address addressToCheck) external view returns (bool);
+    function isMarketManager(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is an Approved Endpoint.
     function isEndpoint(address addressToCheck) external view returns (bool);

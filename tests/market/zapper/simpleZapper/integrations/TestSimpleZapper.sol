@@ -47,7 +47,6 @@ contract TestSimpleZapper is TestBaseMarket {
             address(marketManager),
             _WETH_ADDRESS
         );
-        centralRegistry.addZapper(address(simpleZapper));
         centralRegistry.addSwapper(address(simpleZapper));
 
         centralRegistry.addHarvester(address(this));
@@ -167,7 +166,10 @@ contract TestSimpleZapper is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(complexZapper.marketManager()), address(marketManager));
+        assertEq(
+            address(complexZapper.marketManager()),
+            address(marketManager)
+        );
     }
 
     function testZapAndDeposit() public {

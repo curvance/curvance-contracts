@@ -20,7 +20,6 @@ contract BasicRemoveContractsTest is TestBaseMarket {
         super.setUp();
 
         removeFuncs = [
-            "removeZapper(address)",
             "removeSwapper(address)",
             "removeVeCVELocker(address)",
             "removeGaugeController(address)",
@@ -28,7 +27,6 @@ contract BasicRemoveContractsTest is TestBaseMarket {
             "removeEndpoint(address)"
         ];
         maps = [
-            "isZapper(address)",
             "isSwapper(address)",
             "isVeCVELocker(address)",
             "isGaugeController(address)",
@@ -36,7 +34,6 @@ contract BasicRemoveContractsTest is TestBaseMarket {
             "isEndpoint(address)"
         ];
         expectedLogs = [
-            "Zapper",
             "Swapper",
             "VeCVELocker",
             "Gauge Controller",
@@ -44,7 +41,6 @@ contract BasicRemoveContractsTest is TestBaseMarket {
             "Endpoint"
         ];
         addFuncs = [
-            "addZapper(address)",
             "addSwapper(address)",
             "addVeCVELocker(address)",
             "addGaugeController(address)",
