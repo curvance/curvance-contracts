@@ -8,8 +8,16 @@ contract ExtendLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
+
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(50e18, false, rewardsData, "", 0);
     }
@@ -31,7 +39,19 @@ contract ExtendLockTest is TestBaseVeCVE {
     function test_extendLock_fail_whenUnlockTimestampIsExpired() public {
         // no need to set rewardsData because it will not be called
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
         vm.warp(unlockTime + 1);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.extendLock(0, true, rewardsData, "", 0);

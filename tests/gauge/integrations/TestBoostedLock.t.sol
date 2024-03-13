@@ -26,6 +26,7 @@ contract TestBoostedLock is TestBaseMarket {
         _prepareUSDC(user1, 200000e6);
         _prepareUSDC(user2, 200000e6);
         _prepareUSDC(liquidator, 200000e6);
+        _prepareUSDC(address(cveLocker), 10000000e6);
 
         // prepare 1 BAL-RETH/WETH
         _prepareBALRETH(user1, 1 ether);
@@ -145,16 +146,23 @@ contract TestBoostedLock is TestBaseMarket {
             16000e18
         );
 
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         // user0, user3 claims
         RewardsData memory rewardData;
         vm.prank(users[0]);
         gaugePool.claimAndLock(tokens[0], false, rewardData, "0x", 0);
         vm.prank(users[3]);
         gaugePool.claimAndLock(tokens[1], false, rewardData, "0x", 0);
-        assertEq(veCVE.balanceOf(users[0]), 12000e18);
-        assertEq(veCVE.balanceOf(users[3]), 16000e18);
-        assertApproxEqAbs(veCVE.getVotes(users[0]), 11538e18, 1e18);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 15384e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]), 876020e18);
+        assertEq(veCVE.balanceOf(users[3]), 6928160e18);
+        assertApproxEqAbs(veCVE.getVotes(users[0]), 842326e18, 1e18);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 6661692e18, 1e18);
 
         vm.warp(block.timestamp + 1000);
 
@@ -163,16 +171,16 @@ contract TestBoostedLock is TestBaseMarket {
         gaugePool.claimAndExtendLock(tokens[0], 0, true, rewardData, "0x", 0);
         vm.prank(users[3]);
         gaugePool.claimAndExtendLock(tokens[1], 0, false, rewardData, "0x", 0);
-        assertEq(veCVE.balanceOf(users[0]), 32000e18);
-        assertEq(veCVE.balanceOf(users[3]), 176000e18);
-        assertEq(veCVE.getVotes(users[0]), 35200e18);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 169230e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]), 896020e18);
+        assertEq(veCVE.balanceOf(users[3]), 7088160e18);
+        assertEq(veCVE.getVotes(users[0]), 985622e18);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 6815538e18, 1e18);
 
         vm.warp(block.timestamp + 6 weeks);
-        assertEq(veCVE.balanceOf(users[0]), 32000e18);
-        assertEq(veCVE.balanceOf(users[3]), 176000e18);
-        assertEq(veCVE.getVotes(users[0]), 35200e18);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 148923e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]), 896020e18);
+        assertEq(veCVE.balanceOf(users[3]), 7088160e18);
+        assertEq(veCVE.getVotes(users[0]), 985622e18);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 5997673e18, 1e18);
     }
 
     function testRevertClaimAndExtendLock() public {

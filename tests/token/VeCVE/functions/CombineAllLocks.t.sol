@@ -10,8 +10,14 @@ contract CombineAllLocksTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        deal(_USDC_ADDRESS, address(cveLocker), 30e6);
         deal(address(cve), address(this), _INITIAL_AMOUNT);
         cve.approve(address(veCVE), _INITIAL_AMOUNT);
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(1e6);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(_INITIAL_AMOUNT, false, rewardsData, "", 0);
     }

@@ -80,6 +80,13 @@ contract ClaimRewardsTest is TestBaseCVELocker {
     }
 
     function test_claimRewards_fail_whenSwapDataIsInvalid() public {
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -91,11 +98,6 @@ contract ClaimRewardsTest is TestBaseCVELocker {
 
         vm.prank(address(veCVE));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         swapData.inputToken = _DAI_ADDRESS;
 
@@ -125,6 +127,13 @@ contract ClaimRewardsTest is TestBaseCVELocker {
         assertFalse(cveLocker.hasRewardsToClaim(user1));
         assertEq(cveLocker.hypotheticalRewardsClaim(user1), 0);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -136,11 +145,6 @@ contract ClaimRewardsTest is TestBaseCVELocker {
 
         vm.prank(address(veCVE));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         uint256 rewards = isFreshLockContinuous ? amount * 2 : amount;
 

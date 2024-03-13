@@ -9,6 +9,17 @@ contract CreateLockTest is TestBaseVeCVE {
     event Locked(address indexed user, uint256 amount);
     event RewardPaid(address user, address rewardToken, uint256 amount);
 
+    function setUp() public override {
+        super.setUp();
+
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
     function test_createLock_fail_whenVeCVEShutdown(
         bool shouldLock,
         bool isFreshLock,
@@ -17,6 +28,40 @@ contract CreateLockTest is TestBaseVeCVE {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
+        veCVE.createLock(100e18, true, rewardsData, "", 0);
+    }
+
+    function test_createLock_fail_whenPreEpochRestriction(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        vm.warp(veCVE.nextEpochStartTime() - 1);
+
+        vm.expectRevert(VeCVE.VeCVE__PreEpochRestriction.selector);
+        veCVE.createLock(100e18, true, rewardsData, "", 0);
+    }
+
+    function test_createLock_fail_whenPostEpochRestriction(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        vm.warp(veCVE.nextEpochStartTime());
+
+        vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
+        veCVE.createLock(100e18, true, rewardsData, "", 0);
+    }
+
+    function test_createLock_fail_whenEpochNotDelivered(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        vm.warp(veCVE.nextEpochStartTime() + veCVE.EPOCH_DURATION());
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
+        vm.expectRevert(VeCVE.VeCVE__EpochNotDelivered.selector);
         veCVE.createLock(100e18, true, rewardsData, "", 0);
     }
 
@@ -180,11 +225,6 @@ contract CreateLockTest is TestBaseVeCVE {
 
         vm.prank(address(cveLocker.veCVE()));
         cveLocker.updateUserClaimIndex(address(this), 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         // verify that rewards are delivered
         vm.expectEmit(true, true, true, true, address(cveLocker));

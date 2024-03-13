@@ -8,6 +8,15 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 contract CreateLockForTest is TestBaseVeCVE {
     event Locked(address indexed user, uint256 amount);
 
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
     function test_createLockFor_fail_whenVeCVEShutdown(
         bool shouldLock,
         bool isFreshLock,

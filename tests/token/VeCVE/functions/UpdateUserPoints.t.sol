@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
-contract VeCVEDeploymentTest is TestBaseVeCVE {
+contract UpdateUserPointsTest is TestBaseVeCVE {
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
     function test_updateUserPoints_fail_unauthorized() public {
         vm.prank(address(1));
 
