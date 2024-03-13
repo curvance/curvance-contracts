@@ -383,7 +383,10 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _postCollateral(users[0], cTokens[0], 1 ether);
 
         _supplyDToken(users[2], dTokens[0], 3 ether);
-        _borrow(users[0], dTokens[0], 0.7 ether);
+        _borrow(users[0], dTokens[0], 0.6 ether);
+
+        _supplyDToken(users[2], dTokens[1], 3 ether);
+        _borrow(users[0], dTokens[1], 0.1 ether);
 
         skip(20 minutes);
         _updateRoundData(cTokensAgg[0], 0, 0.9e8);
@@ -395,6 +398,56 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
 
         bool hasPosition;
+        assertEq(positionsToClose.length, 3);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], false);
+        assertEq(positionsToClose[2], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[1])
+        );
+        assertEq(hasPosition, true);
+
+        _liquidate(dTokens[0], cTokens[0], users[0], true);
+
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        assertEq(positionsToClose.length, 3);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], true);
+        assertEq(positionsToClose[2], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[1])
+        );
+        assertEq(hasPosition, true);
+
+        marketManager.canBorrowWithPrune(address(dTokens[1]), users[0], 0);
+
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
         assertEq(positionsToClose.length, 2);
         assertEq(positionsToClose[0], false);
         assertEq(positionsToClose[1], false);
@@ -407,24 +460,10 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
             users[0],
             address(dTokens[0])
         );
-        assertEq(hasPosition, true);
-
-        _liquidate(dTokens[0], cTokens[0], users[0], true);
-
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
-
-        assertEq(positionsToClose.length, 2);
-        assertEq(positionsToClose[0], false);
-        assertEq(positionsToClose[1], true);
+        assertEq(hasPosition, false);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
-        );
-        assertEq(hasPosition, true);
-        (hasPosition, , ) = marketManager.tokenDataOf(
-            users[0],
-            address(dTokens[0])
+            address(dTokens[1])
         );
         assertEq(hasPosition, true);
     }
