@@ -58,7 +58,7 @@ script="script ./script/DeployCurvance.s.sol \"$network\" --sig \"run(string)\" 
 if [ "${is_sim^^}" == "FALSE" ] || [ "$is_test" == "0" ]
 then
   echo "Deploying to $network"
-  script="forge ${script} --broadcast -vvvv"
+  script="forge ${script} --broadcast -vvvv --slow"
 else
   echo "Deploying to $network [TEST-RUN]"
   script="forge ${script} -vvvv"
