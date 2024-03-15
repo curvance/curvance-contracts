@@ -131,6 +131,7 @@ interface ICentralRegistry {
 
     /// @notice Address array for all Curvance Market Managers on this chain.
     function marketManagers() external view returns (address[] memory);
+    function queryMarketManagers() external view returns (address[] memory);
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
@@ -169,16 +170,22 @@ interface ICentralRegistry {
     function isSwapper(address addressToCheck) external view returns (bool);
 
     /// @notice Returns whether the inputted address is an approved veCVELocker.
-    function isVeCVELocker(address addressToCheck) external view returns (bool);
+    function isVeCVELocker(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Gauge Controller.
-    function isGaugeController(address addressToCheck) external view returns (bool);
+    function isGaugeController(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Market Manager.
-    function isMarketManager(address addressToCheck) external view returns (bool);
+    function isMarketManager(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is an Approved Endpoint.
     function isEndpoint(address addressToCheck) external view returns (bool);

@@ -659,6 +659,11 @@ contract MarketManager is LiquidityManager, ERC165 {
         return (dTokenRepaid, cTokenLiquidated, protocolTokens);
     }
 
+
+    function queryTokensListed() external view returns (address[] memory) {
+        return tokensListed;
+    }
+
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `debtToken` should be allowed.
     /// @param collateralToken cToken which was used as collateral

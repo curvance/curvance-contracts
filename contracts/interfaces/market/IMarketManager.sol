@@ -5,7 +5,7 @@ import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 interface IMarketManager {
-    /// @notice Whether mToken minting is paused. 
+    /// @notice Whether mToken minting is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function mintPaused(address mToken) external view returns (uint256);
 
@@ -14,8 +14,8 @@ interface IMarketManager {
     /// @param mToken The address of the mToken to post collateral for.
     /// @param tokens The amount of `mToken` to post as collateral, in shares.
     function postCollateral(
-        address account, 
-        address mToken, 
+        address account,
+        address mToken,
         uint256 tokens
     ) external;
 
@@ -27,9 +27,9 @@ interface IMarketManager {
     /// @param amount The maximum amount of shares that could be removed as
     ///               collateral.
     function reduceCollateralIfNecessary(
-        address account, 
-        address cToken, 
-        uint256 balance, 
+        address account,
+        address cToken,
+        uint256 balance,
         uint256 amount
     ) external;
 
@@ -64,7 +64,7 @@ interface IMarketManager {
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself 
+    /// @dev This can only be called by the mToken itself
     ///      (specifically cTokens, because dTokens are never collateral).
     /// @param mToken The market to verify the redeem against.
     /// @param account The account which would redeem the tokens.
@@ -76,7 +76,7 @@ interface IMarketManager {
     function canRedeemWithCollateralRemoval(
         address mToken,
         address account,
-        uint256 balance, 
+        uint256 balance,
         uint256 amount,
         bool forceRedeemCollateral
     ) external;
@@ -148,10 +148,7 @@ interface IMarketManager {
     /// @param collateralToken Asset which was used as collateral
     ///                        and will be seized.
     /// @param debtToken Asset which was borrowed by the account.
-    function canSeize(
-        address collateralToken,
-        address debtToken
-    ) external;
+    function canSeize(address collateralToken, address debtToken) external;
 
     /// @notice Checks if the account should be allowed to transfer tokens
     ///         in the given market.
@@ -184,6 +181,7 @@ interface IMarketManager {
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
     function tokensListed() external view returns (address[] memory);
+    function queryTokensListed() external view returns (address[] memory);
 
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
