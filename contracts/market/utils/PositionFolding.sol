@@ -35,7 +35,7 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
     /// @param swapData Swapperlib swapping struct containing instructions
     ///                 on how to handle the necessary dToken swap
     ///                 to facilitate leveraging.
-    /// @param zapperCall Swapperlib zapping struct containing instructions
+    /// @param swapZap Swapperlib zapping struct containing instructions
     ///                   on how to handle the necessary cToken zap
     ///                   to facilitate leveraging.
     struct LeverageStruct {
@@ -43,7 +43,7 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
         uint256 borrowAmount;
         CTokenPrimitive collateralToken;
         SwapperLib.Swap swapData;
-        SwapperLib.ZapperCall zapperCall;
+        SwapperLib.Swap swapZap;
     }
 
     /// @param collateralToken Address of cToken that will be routed into
@@ -52,7 +52,7 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
     ///                         deleveraged.
     /// @param borrowToken Address of dToken that will have its underlying
     ///                    token debt repaid.
-    /// @param zapperCall Swapperlib zapping struct containing instructions
+    /// @param swapZap Swapperlib zapping struct containing instructions
     ///                   on how to handle the necessary cToken outward zap
     ///                   to a single token (e.g. dToken underlying) to
     ///                   facilitate deleveraging.
@@ -65,7 +65,7 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
         CTokenPrimitive collateralToken;
         uint256 collateralAmount;
         DToken borrowToken;
-        SwapperLib.ZapperCall zapperCall;
+        SwapperLib.Swap swapZap;
         SwapperLib.Swap swapData;
         uint256 repayAmount;
     }
@@ -92,10 +92,9 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
     error PositionFolding__InvalidCentralRegistry();
     error PositionFolding__InvalidMarketManager();
     error PositionFolding__InvalidSwapper(address invalidSwapper);
+    error PositionFolding__InvalidSwapperParam();
     error PositionFolding__InvalidParam();
     error PositionFolding__InvalidAmount();
-    error PositionFolding__InvalidZapper(address invalidZapper);
-    error PositionFolding__InvalidZapperParam();
     error PositionFolding__InvalidTokenPrice();
     error PositionFolding__ExceedsMaximumBorrowAmount(
         uint256 amount,
@@ -313,20 +312,20 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
         }
 
         // Prepare cToken underlying.
-        SwapperLib.ZapperCall memory zapperCall = leverageData.zapperCall;
+        SwapperLib.Swap memory swapZap = leverageData.swapZap;
 
         // Check to make sure there is calldata attached to execute the zap.
-        if (zapperCall.call.length > 0) {
+        if (swapZap.call.length > 0) {
             // Validate that the target Zapper is approved inside Curvance.
-            if (!centralRegistry.isZapper(leverageData.zapperCall.target)) {
-                revert PositionFolding__InvalidZapper(
-                    leverageData.zapperCall.target
+            if (!centralRegistry.isSwapper(leverageData.swapZap.target)) {
+                revert PositionFolding__InvalidSwapper(
+                    leverageData.swapZap.target
                 );
             }
 
             // Execute Zap from `borrowToken` underlying into cToken
             // underlying.
-            SwapperLib.zap(zapperCall);
+            SwapperLib.swap(centralRegistry, swapZap);
         }
 
         // We do not need to check whether collateralToken is listed
@@ -349,14 +348,14 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
         // Enter Curvance.
         collateralToken.depositAsCollateral(amount, borrower);
 
-        uint256 remaining = IERC20(zapperCall.inputToken).balanceOf(
+        uint256 remaining = IERC20(swapZap.inputToken).balanceOf(
             address(this)
         );
 
         // Transfer remaining Zapper input token back to the user.
         if (remaining > 0) {
             SafeTransferLib.safeTransfer(
-                zapperCall.inputToken,
+                swapZap.inputToken,
                 borrower,
                 remaining
             );
@@ -444,23 +443,23 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
             );
         }
 
-        SwapperLib.ZapperCall memory zapperCall = deleverageData.zapperCall;
+        SwapperLib.Swap memory swapZap = deleverageData.swapZap;
 
         // Check to make sure there is calldata attached to execute the swap.
-        if (zapperCall.call.length > 0) {
-            if (collateralUnderlying != zapperCall.inputToken) {
-                revert PositionFolding__InvalidZapperParam();
+        if (swapZap.call.length > 0) {
+            if (collateralUnderlying != swapZap.inputToken) {
+                revert PositionFolding__InvalidSwapperParam();
             }
 
             // Validate that the target Zapper is approved inside Curvance.
-            if (!centralRegistry.isZapper(deleverageData.zapperCall.target)) {
-                revert PositionFolding__InvalidZapper(
-                    deleverageData.zapperCall.target
+            if (!centralRegistry.isSwapper(deleverageData.swapZap.target)) {
+                revert PositionFolding__InvalidSwapper(
+                    deleverageData.swapZap.target
                 );
             }
 
             // Execute Zap from cToken underlying into unwrapped assets.
-            SwapperLib.zap(zapperCall);
+            SwapperLib.swap(centralRegistry, swapZap);
         }
 
         // Check to make sure there is calldata attached to execute the swap.

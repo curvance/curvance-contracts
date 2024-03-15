@@ -228,21 +228,22 @@ contract TestPositionFolding is TestBaseMarket {
             address(positionFolding),
             block.timestamp
         );
-        leverageData.zapperCall.inputToken = _WETH_ADDRESS;
+        leverageData.swapZap.inputToken = _WETH_ADDRESS;
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(amountForLeverage, path);
-        leverageData.zapperCall.inputAmount = amountsOut[1];
+        leverageData.swapZap.inputAmount = amountsOut[1];
+        leverageData.swapZap.outputToken = address(balRETH);
 
         address[] memory tokens = new address[](2);
         tokens[0] = _RETH_ADDRESS;
         tokens[1] = _WETH_ADDRESS;
-        leverageData.zapperCall.target = address(complexZapper);
-        leverageData.zapperCall.call = abi.encodeWithSelector(
+        leverageData.swapZap.target = address(complexZapper);
+        leverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.enterBalancer.selector,
             address(0),
             ComplexZapper.ZapperData(
                 _WETH_ADDRESS,
-                leverageData.zapperCall.inputAmount,
+                leverageData.swapZap.inputAmount,
                 address(balRETH),
                 0,
                 false
@@ -285,15 +286,15 @@ contract TestPositionFolding is TestBaseMarket {
         deleverageData.collateralAmount = 0.3 ether;
         deleverageData.borrowToken = dDAI;
 
-        deleverageData.zapperCall.inputToken = address(balRETH);
-        deleverageData.zapperCall.inputAmount = deleverageData
-            .collateralAmount;
+        deleverageData.swapZap.inputToken = address(balRETH);
+        deleverageData.swapZap.inputAmount = deleverageData.collateralAmount;
+        deleverageData.swapZap.outputToken = _WETH_ADDRESS;
 
         address[] memory tokens = new address[](2);
         tokens[0] = _RETH_ADDRESS;
         tokens[1] = _WETH_ADDRESS;
-        deleverageData.zapperCall.target = address(complexZapper);
-        deleverageData.zapperCall.call = abi.encodeWithSelector(
+        deleverageData.swapZap.target = address(complexZapper);
+        deleverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.exitBalancer.selector,
             ComplexZapper.BPTRedemption(
                 _BALANCER_VAULT,
@@ -303,7 +304,7 @@ contract TestPositionFolding is TestBaseMarket {
             ),
             ComplexZapper.ZapperData(
                 address(balRETH),
-                deleverageData.zapperCall.inputAmount,
+                deleverageData.swapZap.inputAmount,
                 _WETH_ADDRESS,
                 0,
                 false

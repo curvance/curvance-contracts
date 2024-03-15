@@ -181,12 +181,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.addMarketManager: ", marketManager);
     }
 
-    function _addZapper(address zapper) internal {
+    function _addSwapper(address swapper) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(zapper != address(0), "Set the zapper!");
+        require(swapper != address(0), "Set the swapper!");
 
-        CentralRegistry(centralRegistry).addZapper(zapper);
-        console.log("centralRegistry.addZapper: ", zapper);
+        CentralRegistry(centralRegistry).addSwapper(swapper);
+        console.log("centralRegistry.addSwapper: ", swapper);
     }
 
     function _transferDaoOwnership(address daoAddress) internal {

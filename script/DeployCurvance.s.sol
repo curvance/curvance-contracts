@@ -106,10 +106,7 @@ contract DeployCurvance is
 
         // Deploy FeeAccumulator
 
-        _deployFeeAccumulator(
-            centralRegistry,
-            oneBalanceFeeManager
-        );
+        _deployFeeAccumulator(centralRegistry, oneBalanceFeeManager);
         _setFeeAccumulator(feeAccumulator);
 
         // Deploy VeCVE
@@ -137,12 +134,11 @@ contract DeployCurvance is
             marketManager,
             _readConfigAddress(".zapper.weth")
         );
-        _addZapper(complexZapper);
+        _addSwapper(complexZapper);
 
         // Deploy PositionFolding
 
         _deployPositionFolding(centralRegistry, marketManager);
-
 
         _deployOracleRouter(
             centralRegistry,
