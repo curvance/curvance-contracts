@@ -219,4 +219,252 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         marketManager.removeCollateral(address(cTokens[0]), 1 ether);
     }
+
+    function testPositionCloseAfterRemoveCollateral() public {
+        address[] memory users = new address[](3);
+        users[0] = address(0x1111);
+        users[1] = address(0x2222);
+        users[2] = address(0x3333);
+
+        noOfCollateralTokens = 2;
+        noOfDebtTokens = 2;
+
+        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+            noOfCollateralTokens
+        );
+        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
+        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+            noOfCollateralTokens
+        );
+        MockV3Aggregator[]
+            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfCollateralTokens
+            );
+        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
+            noOfDebtTokens
+        );
+
+        (
+            cTokens,
+            cTokensAgg,
+            cTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+
+        _genCollateral(users[0], cTokens[0], 1 ether);
+        _postCollateral(users[0], cTokens[0], 1 ether);
+
+        skip(30 minutes);
+
+        uint256 collateralSurplus;
+        uint256 liquidityDeficit;
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        assertEq(positionsToClose.length, 1);
+        assertEq(positionsToClose[0], false);
+        (bool hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+
+        vm.prank(users[0]);
+        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, false);
+
+        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+    }
+
+    function testPositionCloseAfterRedeem() public {
+        address[] memory users = new address[](3);
+        users[0] = address(0x1111);
+        users[1] = address(0x2222);
+        users[2] = address(0x3333);
+
+        noOfCollateralTokens = 2;
+        noOfDebtTokens = 2;
+
+        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+            noOfCollateralTokens
+        );
+        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
+        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+            noOfCollateralTokens
+        );
+        MockV3Aggregator[]
+            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfCollateralTokens
+            );
+        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
+            noOfDebtTokens
+        );
+
+        (
+            cTokens,
+            cTokensAgg,
+            cTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+
+        _genCollateral(users[0], cTokens[0], 1 ether);
+        _postCollateral(users[0], cTokens[0], 1 ether);
+
+        skip(30 minutes);
+
+        uint256 collateralSurplus;
+        uint256 liquidityDeficit;
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        assertEq(positionsToClose.length, 1);
+        assertEq(positionsToClose[0], false);
+        (bool hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+
+        vm.prank(users[0]);
+        cTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
+
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, false);
+
+        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+    }
+
+    function testPositionCloseAfterLiquidate() public {
+        address[] memory users = new address[](3);
+        users[0] = address(0x1111);
+        users[1] = address(0x2222);
+        users[2] = address(0x3333);
+
+        noOfCollateralTokens = 2;
+        noOfDebtTokens = 2;
+
+        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+            noOfCollateralTokens
+        );
+        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
+        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+            noOfCollateralTokens
+        );
+        MockV3Aggregator[]
+            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfCollateralTokens
+            );
+        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
+            noOfDebtTokens
+        );
+
+        (
+            cTokens,
+            cTokensAgg,
+            cTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+
+        _genCollateral(users[0], cTokens[0], 1 ether);
+        _postCollateral(users[0], cTokens[0], 1 ether);
+
+        _supplyDToken(users[2], dTokens[0], 3 ether);
+        _borrow(users[0], dTokens[0], 0.6 ether);
+
+        _supplyDToken(users[2], dTokens[1], 3 ether);
+        _borrow(users[0], dTokens[1], 0.1 ether);
+
+        skip(20 minutes);
+        _updateRoundData(cTokensAgg[0], 0, 0.9e8);
+
+        uint256 collateralSurplus;
+        uint256 liquidityDeficit;
+        bool[] memory positionsToClose;
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        bool hasPosition;
+        assertEq(positionsToClose.length, 3);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], false);
+        assertEq(positionsToClose[2], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[1])
+        );
+        assertEq(hasPosition, true);
+
+        _liquidate(dTokens[0], cTokens[0], users[0], true);
+
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        assertEq(positionsToClose.length, 3);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], true);
+        assertEq(positionsToClose[2], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[1])
+        );
+        assertEq(hasPosition, true);
+
+        marketManager.canBorrowWithPrune(address(dTokens[1]), users[0], 0);
+
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+
+        assertEq(positionsToClose.length, 2);
+        assertEq(positionsToClose[0], false);
+        assertEq(positionsToClose[1], false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(cTokens[0])
+        );
+        assertEq(hasPosition, true);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[0])
+        );
+        assertEq(hasPosition, false);
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            users[0],
+            address(dTokens[1])
+        );
+        assertEq(hasPosition, true);
+    }
 }
