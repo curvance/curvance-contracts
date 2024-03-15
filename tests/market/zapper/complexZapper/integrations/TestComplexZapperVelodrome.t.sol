@@ -35,14 +35,17 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             address(marketManager),
             _WETH
         );
-        centralRegistry.addZapper(address(complexZapper));
+        centralRegistry.addSwapper(address(complexZapper));
 
         owner = address(this);
         user = user1;
     }
 
     function testInitialize() public {
-        assertEq(address(complexZapper.marketManager()), address(marketManager));
+        assertEq(
+            address(complexZapper.marketManager()),
+            address(marketManager)
+        );
     }
 
     function testEnterVelodrome() public {
@@ -76,7 +79,10 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user);
 
         vm.startPrank(user);
-        IERC20(_VELODROME_WETH_USDC).approve(address(complexZapper), withdrawAmount);
+        IERC20(_VELODROME_WETH_USDC).approve(
+            address(complexZapper),
+            withdrawAmount
+        );
         complexZapper.exitVelodrome(
             _VELODROME_ROUTER,
             ComplexZapper.ZapperData(

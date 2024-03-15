@@ -47,7 +47,7 @@ contract TestSimpleZapper is TestBaseMarket {
             address(marketManager),
             _WETH_ADDRESS
         );
-        centralRegistry.addZapper(address(simpleZapper));
+        centralRegistry.addSwapper(address(simpleZapper));
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeAccumulator(address(this));
@@ -166,22 +166,26 @@ contract TestSimpleZapper is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(complexZapper.marketManager()), address(marketManager));
+        assertEq(
+            address(complexZapper.marketManager()),
+            address(marketManager)
+        );
     }
 
     function testZapAndDeposit() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user, ethAmount);
 
-        SwapperLib.ZapperCall memory zapperCall;
-        zapperCall.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        zapperCall.inputAmount = ethAmount;
-        zapperCall.target = address(complexZapper);
+        SwapperLib.Swap memory swapZap;
+        swapZap.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapZap.inputAmount = ethAmount;
+        swapZap.target = address(complexZapper);
+        swapZap.outputToken = _CURVE_STETH_LP;
 
         address[] memory tokens = new address[](2);
         tokens[0] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         tokens[1] = _STETH_ADDRESS;
-        zapperCall.call = abi.encodeWithSelector(
+        swapZap.call = abi.encodeWithSelector(
             ComplexZapper.enterCurve.selector,
             address(0),
             ComplexZapper.ZapperData(
@@ -199,7 +203,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         vm.startPrank(user);
         simpleZapper.zapAndDeposit{ value: ethAmount }(
-            zapperCall,
+            swapZap,
             address(cSTETH),
             user
         );

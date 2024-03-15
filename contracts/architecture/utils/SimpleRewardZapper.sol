@@ -141,14 +141,14 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// @notice Claims CVE locker rewards, then Zaps, then deposits
     ///         `zapperCall.inputToken`, a cToken underlying, and enters
     ///         into Curvance collateral position.
-    /// @param zapperCall Zap instruction data to execute the Zap.
+    /// @param swapZap Zap instruction data to execute the Zap.
     /// @param marketManager The Curvance market manager address which has
     ///                      listed `cToken`.
     /// @param cToken The Curvance cToken address.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount of cTokens received from Zapping.
     function claimZapAndDeposit(
-        SwapperLib.ZapperCall memory zapperCall,
+        SwapperLib.Swap memory swapZap,
         address marketManager,
         address cToken,
         address recipient
@@ -161,7 +161,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Swap input token must match the reward token from the CVE locker,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (zapperCall.inputToken != rewardToken) {
+        if (swapZap.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -180,20 +180,20 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // cTokens are natively authorized.
 
         // Validate target contract is an approved Zapper.
-        if (!centralRegistry.isZapper(zapperCall.target)) {
-            revert SimpleRewardZapper__InvalidZapper(zapperCall.target);
+        if (!centralRegistry.isSwapper(swapZap.target)) {
+            revert SimpleRewardZapper__InvalidZapper(swapZap.target);
         }
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
 
         // Validate Zap input amount equals rewards received.
-        if (zapperCall.inputAmount != rewards) {
+        if (swapZap.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
         // Execute Zap into cToken underlying.
-        SwapperLib.zap(zapperCall);
+        SwapperLib.swap(centralRegistry, swapZap);
 
         // Enter Curvance cToken position.
         return _enterCurvance(cToken, recipient);

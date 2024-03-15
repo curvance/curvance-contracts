@@ -25,18 +25,6 @@ library SwapperLib {
         bytes call;
     }
 
-    /// @notice Used to execute a Zap, which is a single external action.
-    /// @param inputToken Address of input token to Zap from.
-    /// @param inputAmount The amount of `inputToken` to Zap.
-    /// @param target Address of the Zapper, usually an aggregator.
-    /// @param call Zap instruction calldata.
-    struct ZapperCall {
-        address inputToken;
-        uint256 inputAmount;
-        address target;
-        bytes call;
-    }
-
     /// ERRORS ///
 
     error SwapperLib__SwapError();
@@ -97,40 +85,6 @@ library SwapperLib {
         _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
 
         return CommonLib.getTokenBalance(outputToken) - balance;
-    }
-
-    /// @notice Zaps an input token into something.
-    /// @dev Calls the `zap` function in a specified contract (the zapper).
-    ///      1. Approves the zapper to transfer the required amount
-    ///         of the input token.
-    ///      2. Calls the zapper and checks if the operation was successful.
-    ///         If the call failed, it reverts with an error message.
-    /// @param zapperCall A `ZapperCall` struct containing the zapper contract
-    ///                   address, the calldata for the `zap` function,
-    ///                   the input token address and the input amount.
-    function zap(ZapperCall memory zapperCall) internal {
-        // Approve `zapperCall.inputToken` to target contract, if necessary.
-        _approveTokenIfNeeded(
-            zapperCall.inputToken,
-            zapperCall.target,
-            zapperCall.inputAmount
-        );
-
-        // Check whether we need to attach gas token or not.
-        uint256 value = 0;
-        if (CommonLib.isETH(zapperCall.inputToken)) {
-            value = zapperCall.inputAmount;
-        }
-
-        // Execute the zap.
-        (bool success, bytes memory auxData) = zapperCall.target.call{
-            value: value
-        }(zapperCall.call);
-
-        // Remove any excess approval.
-        _removeApprovalIfNeeded(zapperCall.inputToken, zapperCall.target);
-
-        SwapperLib.propagateError(success, auxData, "SwapperLib: zapper");
     }
 
     /// @notice Approves `token` spending allowance, if needed.

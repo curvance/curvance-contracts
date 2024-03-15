@@ -81,26 +81,26 @@ contract SimpleZapper is ReentrancyGuard {
     /// @notice Zaps then deposits `zapperCall.inputToken`, a cToken
     ///         underlying, and enters into Curvance position,
     ///         for `recipient`.
-    /// @param zapperCall Zap instruction data to execute the Zap.
+    /// @param swapZap Zap instruction data to execute the Zap.
     /// @param cToken The Curvance cToken address.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount received from Zapping.
     function zapAndDeposit(
-        SwapperLib.ZapperCall memory zapperCall,
+        SwapperLib.Swap memory swapZap,
         address cToken,
         address recipient
     ) external payable nonReentrant returns (uint256) {
-        if (CommonLib.isETH(zapperCall.inputToken)) {
+        if (CommonLib.isETH(swapZap.inputToken)) {
             // Validate message has gas token attached.
-            if (zapperCall.inputAmount != msg.value) {
+            if (swapZap.inputAmount != msg.value) {
                 revert SimpleZapper__ExecutionError();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
-                zapperCall.inputToken,
+                swapZap.inputToken,
                 msg.sender,
                 address(this),
-                zapperCall.inputAmount
+                swapZap.inputAmount
             );
         }
 
@@ -111,12 +111,12 @@ contract SimpleZapper is ReentrancyGuard {
         }
 
         // Validate target contract is an approved Zapper.
-        if (!centralRegistry.isZapper(zapperCall.target)) {
-            revert SimpleZapper__InvalidZapper(zapperCall.target);
+        if (!centralRegistry.isSwapper(swapZap.target)) {
+            revert SimpleZapper__InvalidZapper(swapZap.target);
         }
 
         // Execute Zap.
-        SwapperLib.zap(zapperCall);
+        SwapperLib.swap(centralRegistry, swapZap);
 
         // Enter Curvance cToken position.
         return _enterCurvance(cToken, recipient);
