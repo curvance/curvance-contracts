@@ -21,8 +21,14 @@ contract BridgeVeCVELockTest is TestBaseVeCVE {
             23
         );
 
+        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(1e6);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
         veCVE.createLock(30e18, true, rewardsData, "", 0);
@@ -54,7 +60,19 @@ contract BridgeVeCVELockTest is TestBaseVeCVE {
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
         vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.bridgeVeCVELock(0, 42161, true, rewardsData, "", 0);

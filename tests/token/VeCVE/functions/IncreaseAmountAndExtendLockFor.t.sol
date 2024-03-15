@@ -8,24 +8,27 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         centralRegistry.addVeCVELocker(address(this));
 
-        veCVE.createLockFor(
-            address(1),
-            50e18,
-            false,
-            rewardsData,
-            "",
-            0
-        );
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
+        veCVE.createLockFor(address(1), 50e18, false, rewardsData, "", 0);
 
         centralRegistry.removeVeCVELocker(address(this));
     }
 
-    function test_increaseAmountAndExtendLockFor_fail_whenVeCVEShutdown() public {
+    function test_increaseAmountAndExtendLockFor_fail_whenVeCVEShutdown()
+        public
+    {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
@@ -40,7 +43,9 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         );
     }
 
-    function test_increaseAmountAndExtendLockFor_fail_whenAmountIsZero() public {
+    function test_increaseAmountAndExtendLockFor_fail_whenAmountIsZero()
+        public
+    {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLockFor(
             address(1),
@@ -93,7 +98,19 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         centralRegistry.addVeCVELocker(address(this));
 
         (, uint40 unlockTime) = veCVE.userLocks(address(1), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
         vm.warp(unlockTime + 1);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLockFor(
@@ -149,17 +166,12 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         assertEq(unlockTime, veCVE.freshLockTimestamp());
     }
 
-    function test_increaseAmountAndExtendLockFor_fail_startContinuousLock() public {
+    function test_increaseAmountAndExtendLockFor_fail_startContinuousLock()
+        public
+    {
         centralRegistry.addVeCVELocker(address(this));
 
-        veCVE.createLockFor(
-            address(2),
-            10e18,
-            true,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
 
         // cannot extned a continuous lock with a non-continuous lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
@@ -175,17 +187,12 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     }
 
     // cover L1059
-    function test_increaseAmountAndExtendLockFor_success_startContinuousLock() public {
+    function test_increaseAmountAndExtendLockFor_success_startContinuousLock()
+        public
+    {
         centralRegistry.addVeCVELocker(address(this));
 
-        veCVE.createLockFor(
-            address(2),
-            10e18,
-            true,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
 
         veCVE.increaseAmountAndExtendLockFor(
             address(2),
@@ -197,7 +204,10 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             0
         );
 
-        (uint256 lockAmount, uint40 unlockTime) = veCVE.userLocks(address(2), 0);
+        (uint256 lockAmount, uint40 unlockTime) = veCVE.userLocks(
+            address(2),
+            0
+        );
         assertEq(lockAmount, 11e18);
         assertEq(unlockTime, veCVE.CONTINUOUS_LOCK_VALUE());
 

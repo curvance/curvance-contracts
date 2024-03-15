@@ -29,7 +29,7 @@ import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHu
 ///        A popular system to incentivize people to lock tokens is
 ///        inflationary rewards, these have been removed to standardize
 ///        the incentives with users with creating disproportionate rewards
-///        for being "early". The goal is a continuous system that is just 
+///        for being "early". The goal is a continuous system that is just
 ///        as attractive in year 15 as it is on Day 1.
 ///
 ///      - Offchain Voting:
@@ -88,8 +88,8 @@ import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHu
 ///        result in a user's checkpointed points becoming too high when
 ///        examined directly, but does not introduce any exploitable vector
 ///        since the user's checkpoint will be updated as they step through
-///        each reward epoch. 
-///      
+///        each reward epoch.
+///
 contract VeCVE is ERC20, ReentrancyGuard {
     /// TYPES ///
 
@@ -109,9 +109,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
     /// @notice The length of one voting escrow epoch, in weeks.
     uint256 public constant EPOCH_DURATION = 2 weeks;
+    /// @notice The length of state change restriction pre/post epoch, in weeks.
+    uint256 public constant RESTRICTION_DURATION = 12 hours;
     /// @notice The length of a fresh voting escrow CVE position, in epochs.
     uint256 public constant LOCK_DURATION_EPOCHS = 26;
-    /// @notice The length of a fresh voting escrow CVE position, in seconds.
+    /// @notice The length of a fresh voting escrow CVE position, in weeks.
     uint256 public constant LOCK_DURATION = 52 weeks;
     /// @notice Point multiplier for a continuous lock.
     /// @dev 2 = 200%.
@@ -170,7 +172,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         corresponding unlock documented.
     /// @dev User => Epoch # => Tokens unlocked.
     mapping(address => mapping(uint256 => uint256)) public userUnlocksByEpoch;
-    
+
     /// EVENTS ///
 
     event Locked(address indexed user, uint256 amount);
@@ -187,6 +189,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
     error VeCVE__NonTransferrable();
     error VeCVE__LockTypeMismatch();
     error VeCVE__InvalidLock();
+    error VeCVE__PreEpochRestriction();
+    error VeCVE__PostEpochRestriction();
+    error VeCVE__EpochNotDelivered();
     error VeCVE__VeCVEShutdown();
     error VeCVE__ParametersAreInvalid();
     error VeCVE__InvariantError();
@@ -213,27 +218,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Used for frontend, needed due to array of structs.
-    /// @param user The user to query veCVE locks for.
-    /// @return Unwrapped user lock information.
-    function queryUserLocks(
-        address user
-    ) external view returns (uint256[] memory, uint256[] memory) {
-        uint256 numLocks = userLocks[user].length;
-        Lock[] memory locks = userLocks[user];
-        Lock memory lock;
-        uint256[] memory lockAmounts = new uint256[](numLocks);
-        uint256[] memory lockTimestamps = new uint256[](numLocks);
-
-        for (uint256 i; i < numLocks; ++i) {
-            lock = locks[i];
-            lockAmounts[i] = lock.amount;
-            lockTimestamps[i] = lock.unlockTime;
-        }
-
-        return (lockAmounts, lockTimestamps);
-    }
 
     /// @notice Rescue any token sent by mistake.
     /// @param token token to rescue.
@@ -289,6 +273,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
@@ -322,6 +307,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
         _canLock(amount);
 
         if (
@@ -363,6 +349,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
+
+        _checkEpochStatus();
 
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -427,6 +415,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
@@ -466,6 +455,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
         _canLock(amount);
 
         if (
@@ -505,6 +495,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
+
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
 
@@ -546,6 +538,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
+
+        _checkEpochStatus();
 
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -671,6 +665,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
+        _checkEpochStatus();
+
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
 
@@ -706,7 +702,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             if (
                 cveLocker.userNextClaimIndex(msg.sender) <=
                 currentEpoch(unlockTime)
-                ) {
+            ) {
                 // Update their points to reflect the removed lock.
                 _updateDataFromEarlyUnlock(msg.sender, amount, unlockTime);
             }
@@ -768,6 +764,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
 
+        _checkEpochStatus();
+
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
 
@@ -827,6 +825,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
+
+        _checkEpochStatus();
 
         // Claim any pending locker rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -899,6 +899,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      userUnlocksByEpoch[user][epoch] > 0
     ///      so we do not need to check here.
     function updateUserPoints(address user, uint256 epoch) external {
+        _checkEpochStatus();
+
         address _cveLocker = address(cveLocker);
         assembly {
             if iszero(eq(caller(), _cveLocker)) {
@@ -912,6 +914,29 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 userPoints[user] -
                 userUnlocksByEpoch[user][epoch];
         }
+    }
+
+    /// View Functions ///
+
+    /// @notice Used for frontend, needed due to array of structs.
+    /// @param user The user to query veCVE locks for.
+    /// @return Unwrapped user lock information.
+    function queryUserLocks(
+        address user
+    ) external view returns (uint256[] memory, uint256[] memory) {
+        uint256 numLocks = userLocks[user].length;
+        Lock[] memory locks = userLocks[user];
+        Lock memory lock;
+        uint256[] memory lockAmounts = new uint256[](numLocks);
+        uint256[] memory lockTimestamps = new uint256[](numLocks);
+
+        for (uint256 i; i < numLocks; ++i) {
+            lock = locks[i];
+            lockAmounts[i] = lock.amount;
+            lockTimestamps[i] = lock.unlockTime;
+        }
+
+        return (lockAmounts, lockTimestamps);
     }
 
     /// @notice Calculates the total votes for a user based on their current locks.
@@ -1027,8 +1052,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
             );
     }
 
-    /// View Functions ///
-
     /// @notice Calculates the votes for a single lock of a user based
     ///         on a specific timestamp.
     /// @param user The address of the user whose lock is being used
@@ -1116,6 +1139,29 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Check whether it should restrict state changes or not.
+    function _checkEpochStatus() internal {
+        uint256 nextEpochStartTime = nextEpochStartTime();
+        uint256 currentEpochStartTime = nextEpochStartTime - EPOCH_DURATION;
+
+        if (
+            currentEpochStartTime <= block.timestamp &&
+            block.timestamp <= currentEpochStartTime + RESTRICTION_DURATION
+        ) {
+            revert VeCVE__PostEpochRestriction();
+        }
+        if (
+            nextEpochStartTime - RESTRICTION_DURATION <= block.timestamp &&
+            block.timestamp < nextEpochStartTime
+        ) {
+            revert VeCVE__PreEpochRestriction();
+        }
+
+        if (cveLocker.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
+            revert VeCVE__EpochNotDelivered();
+        }
+    }
 
     /// @notice Claims rewards for any unclaimed reward epochs.
     /// @param user The address of the user claiming rewards.

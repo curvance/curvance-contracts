@@ -11,36 +11,41 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        deal(_USDC_ADDRESS, address(cveLocker), 10000e18);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         veCVE.createLock(30e18, false, rewardsData, "", 0);
+
+        (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
     }
 
     function test_processExpiredLock_fail_whenLockIndexExceeds() public {
         // no need to set rewardsData because it will revert before
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.processExpiredLock(
-            1,
-            false,
-            false,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.processExpiredLock(1, false, false, rewardsData, "", 0);
     }
 
     function test_processExpiredLock_fail_whenLockIsNotExpired() public {
         // no need to set rewardsData because it will revert before
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
-        veCVE.processExpiredLock(
-            0,
-            false,
-            false,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
     }
 
     function test_processExpiredLock_success_withContinuousLock(
@@ -51,17 +56,12 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Unlocked(address(this), 30e18);
 
-        veCVE.processExpiredLock(
-            0,
-            false,
-            true,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.processExpiredLock(0, false, true, rewardsData, "", 0);
     }
 
     function test_processExpiredLock_success_withDiscontinuousLock(
@@ -72,17 +72,12 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Unlocked(address(this), 30e18);
 
-        veCVE.processExpiredLock(
-            0,
-            false,
-            false,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
     }
 
     // cover L575
@@ -91,22 +86,22 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        (uint216 amount, uint40 unlockTime) =
-            veCVE.userLocks(address(this), 0);
-        vm.warp(unlockTime);
-
-        // Index 0, relock = true, continuous lock mode = true
-        veCVE.processExpiredLock(
-            0,
-            true,
-            true,
-            rewardsData,
-            "",
+        (uint216 amount, uint40 unlockTime) = veCVE.userLocks(
+            address(this),
             0
         );
-        
+        vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
+        // Index 0, relock = true, continuous lock mode = true
+        veCVE.processExpiredLock(0, true, true, rewardsData, "", 0);
+
         // lockIndex 0 is updated to new timestamp
-        (uint216 amount2, uint40 unlockTime2) = veCVE.userLocks(address(this), 0);
+        (uint216 amount2, uint40 unlockTime2) = veCVE.userLocks(
+            address(this),
+            0
+        );
         assertGt(unlockTime2, unlockTime);
         assertEq(unlockTime2, veCVE.CONTINUOUS_LOCK_VALUE());
         assertEq(amount2, amount);
@@ -118,22 +113,22 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        (uint216 amount, uint40 unlockTime) =
-            veCVE.userLocks(address(this), 0);
-        vm.warp(unlockTime);
-
-        // Index 0, relock = true, continuous lock mode = false
-        veCVE.processExpiredLock(
-            0,
-            true,
-            false,
-            rewardsData,
-            "",
+        (uint216 amount, uint40 unlockTime) = veCVE.userLocks(
+            address(this),
             0
         );
-        
+        vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
+        // Index 0, relock = true, continuous lock mode = false
+        veCVE.processExpiredLock(0, true, false, rewardsData, "", 0);
+
         // lockIndex 0 is updated to new timestamp
-        (uint216 amount2, uint40 unlockTime2) = veCVE.userLocks(address(this), 0);
+        (uint216 amount2, uint40 unlockTime2) = veCVE.userLocks(
+            address(this),
+            0
+        );
         assertGt(unlockTime2, unlockTime);
         assertEq(unlockTime2, veCVE.freshLockTimestamp());
         assertEq(amount2, amount);
@@ -147,6 +142,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.shutdown();
 
@@ -164,9 +161,13 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     }
 
     // cover L1117
-    function test_processExpiredLock_sucess_withoutRelock_notLastIndex() public {
+    function test_processExpiredLock_sucess_withoutRelock_notLastIndex()
+        public
+    {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
         (, uint40 unlockTime2) = veCVE.userLocks(address(this), 1);
@@ -175,14 +176,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Unlocked(address(this), 30e18);
 
-        veCVE.processExpiredLock(
-            0,
-            false,
-            false,
-            rewardsData,
-            "",
-            0
-        );
+        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
 
         (, unlockTime) = veCVE.userLocks(address(this), 0);
         assertEq(unlockTime, unlockTime2);

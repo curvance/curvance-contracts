@@ -14,8 +14,14 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        deal(_USDC_ADDRESS, address(cveLocker), 100e18);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
     }
@@ -63,7 +69,19 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
     function test_earlyExpireLock_fail_expired() public {
         // no need to set rewardsData because it will revert before
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
         vm.warp(unlockTime);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         // cannot early expire expired lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);

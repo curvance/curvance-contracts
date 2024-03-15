@@ -291,6 +291,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_success_whenPayloadIdIs5() public {
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         centralRegistry.addVeCVELocker(address(protocolMessagingHub));
 
         assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);

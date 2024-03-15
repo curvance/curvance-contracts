@@ -22,6 +22,13 @@ contract ManageRewardsForTest is TestBaseCVELocker {
     }
 
     function test_manageRewardsFor_success() public {
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(1e6);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         cveLocker.setDelegateApproval(address(this), true);
@@ -35,11 +42,6 @@ contract ManageRewardsForTest is TestBaseCVELocker {
 
         vm.prank(address(veCVE));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(1e6);
-        }
 
         assertEq(usdc.balanceOf(address(this)), 0);
 
