@@ -192,7 +192,6 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACT MAPPINGS
 
-    mapping(address => bool) public isZapper;
     mapping(address => bool) public isSwapper;
     mapping(address => bool) public isVeCVELocker;
     mapping(address => bool) public isGaugeController;
@@ -887,44 +886,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
-    }
-
-    /// @notice Adds a Zapper contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Zapper contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newZapper The new Zapper contract to support for use
-    ///                  in Curvance.
-    function addZapper(address newZapper) external {
-        _checkElevatedPermissions();
-
-        // Validate `newZapper` is not currently supported.
-        if (isZapper[newZapper]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isZapper[newZapper] = true;
-
-        emit NewCurvanceContract("Zapper", newZapper);
-    }
-
-    /// @notice Removes a Zapper contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Zapper contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentZapper The supported Zapper contract to remove from
-    ///                      Curvance.
-    function removeZapper(address currentZapper) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentZapper` is currently supported.
-        if (!isZapper[currentZapper]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isZapper[currentZapper];
-
-        emit RemovedCurvanceContract("Zapper", currentZapper);
     }
 
     /// @notice Adds a Swapper contract for use in Curvance.

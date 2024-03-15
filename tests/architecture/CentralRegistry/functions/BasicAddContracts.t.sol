@@ -16,7 +16,6 @@ contract BasicAddContractsTest is TestBaseMarket {
         super.setUp();
 
         addFuncs = [
-            "addZapper(address)",
             "addSwapper(address)",
             "addVeCVELocker(address)",
             "addGaugeController(address)",
@@ -24,7 +23,6 @@ contract BasicAddContractsTest is TestBaseMarket {
             "addEndpoint(address)"
         ];
         maps = [
-            "isZapper(address)",
             "isSwapper(address)",
             "isVeCVELocker(address)",
             "isGaugeController(address)",
@@ -32,7 +30,6 @@ contract BasicAddContractsTest is TestBaseMarket {
             "isEndpoint(address)"
         ];
         expectedLogs = [
-            "Zapper",
             "Swapper",
             "VeCVELocker",
             "Gauge Controller",
