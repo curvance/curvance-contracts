@@ -93,12 +93,12 @@ contract StartContractsConfig is Script, DeployConfiguration {
         ICentralRegistry cr = ICentralRegistry(
             _getDeployedContract("centralRegistry")
         );
-        address guagePool = _getDeployedContract("gaugePool");
+        address gaugePool = _getDeployedContract("gaugePool");
         address oracleRouter = _getDeployedContract("oracleRouter");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         uint256 marketInterestFactor = 1000; // 10%
 
-        MarketManager firstMarket = new MarketManager(cr, guagePool);
+        MarketManager firstMarket = new MarketManager(cr, gaugePool);
         console.log("firstMarket =", address(firstMarket));
         _saveDeployedContracts("firstTestMarket", address(firstMarket));
         CentralRegistry(address(cr)).addMarketManager(
@@ -106,7 +106,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
             marketInterestFactor
         );
 
-        MarketManager secondMarket = new MarketManager(cr, guagePool);
+        MarketManager secondMarket = new MarketManager(cr, gaugePool);
         console.log("secondMarket =", address(secondMarket));
         _saveDeployedContracts("secondTestMarket", address(secondMarket));
         CentralRegistry(address(cr)).addMarketManager(
@@ -115,61 +115,40 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
-        address dai = _readConfigAddress(".markets.dTokens.DAI.asset");
         address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
 
         MockToken(usdc).mint(52e25);
-        MockToken(dai).mint(52e25);
         MockToken(wbtc).mint(52e25);
 
-        address dusdc = _deployDToken(
+        address dusdc = _deployDTokenAndList(
             "Div-D-USDC",
-            ".markets.dTokens.USDC",
+            address(usdc),
             cr,
             firstMarket
         );
-        MockToken(usdc).approve(dusdc, 52e25);
-        address ddai = _deployDToken(
-            "Div-D-DAI",
-            ".markets.dTokens.DAI",
-            cr,
-            firstMarket
-        );
-        MockToken(dai).approve(ddai, 52e25);
-        address cwbtc = _deployCToken(
+        address cwbtc = _deployCTokenAndList(
             "Div-C-WBTC",
-            ".markets.cTokens.WBTC",
+            address(wbtc),
+            cr,
+            firstMarket
+        );
+        address dwbtc = _deployDTokenAndList(
+            "Div-D-WBTC",
+            address(wbtc),
             cr,
             secondMarket
         );
-        MockToken(wbtc).approve(cwbtc, 52e25);
-
-        firstMarket.listToken(dusdc);
-        firstMarket.listToken(ddai);
-        secondMarket.listToken(cwbtc);
-
-        secondMarket.updateCollateralToken(
-            IMToken(cwbtc),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            0,
-            1000
+        address cusdc = _deployCTokenAndList(
+            "Div-C-USDC",
+            address(usdc),
+            cr,
+            secondMarket
         );
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = cwbtc;
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = _readConfigUint256(
-            ".markets.cTokens.WBTC.collateralConfig.collateralCaps"
-        );
-        secondMarket.setCTokenCollateralCaps(mTokens, newCollateralCaps);
     }
 
-    function _deployCToken(
+    function _deployCTokenAndList(
         string memory name,
-        string memory param_path,
+        address asset,
         ICentralRegistry cr,
         MarketManager market
     ) internal returns (address) {
@@ -177,12 +156,12 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
 
         CTokenParam memory param = CTokenParam({
-            asset: _readConfigAddress(string.concat(param_path, ".asset")),
+            asset: asset,
             chainlinkEth: _readConfigAddress(
-                string.concat(param_path, ".chainlinkEth")
+                ".markets.cTokens.WBTC.chainlinkEth"
             ),
             chainlinkUsd: _readConfigAddress(
-                string.concat(param_path, ".chainlinkUsd")
+                ".markets.cTokens.WBTC.chainlinkUsd"
             )
         });
 
@@ -190,8 +169,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
         if (
             !ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(param.asset)
         ) {
-            // TO-DO: Have a lookup table here for param assets for whether
-            // there are special heartbeats smaller than 24 hours.
             if (param.chainlinkEth != address(0)) {
                 ChainlinkAdaptor(chainlinkAdaptor).addAsset(
                     param.asset,
@@ -200,8 +177,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
                     false
                 );
             }
-            // TO-DO: Have a lookup table here for param assets for whether
-            // there are special heartbeats smaller than 24 hours.
             if (param.chainlinkUsd != address(0)) {
                 ChainlinkAdaptor(chainlinkAdaptor).addAsset(
                     param.asset,
@@ -236,12 +211,30 @@ contract StartContractsConfig is Script, DeployConfiguration {
             OracleRouter(oracleRouter).addMTokenSupport(cToken);
         }
 
+        MockToken(asset).approve(cToken, 52e25);
+        market.listToken(cToken);
+        market.updateCollateralToken(
+            IMToken(cToken),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            0,
+            1000
+        );
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = cToken;
+        uint256[] memory newCollateralCaps = new uint256[](1);
+        newCollateralCaps[0] = 1e25;
+        market.setCTokenCollateralCaps(mTokens, newCollateralCaps);
+
         return cToken;
     }
 
-    function _deployDToken(
+    function _deployDTokenAndList(
         string memory name,
-        string memory param_path,
+        address asset,
         ICentralRegistry cr,
         MarketManager market
     ) internal returns (address) {
@@ -249,52 +242,34 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
 
         DTokenParam memory param = DTokenParam({
-            asset: _readConfigAddress(string.concat(param_path, ".asset")),
+            asset: asset,
             chainlinkEth: _readConfigAddress(
-                string.concat(param_path, ".chainlinkEth")
+                ".markets.dTokens.USDC.chainlinkEth"
             ),
             chainlinkUsd: _readConfigAddress(
-                string.concat(param_path, ".chainlinkUsd")
+                ".markets.dTokens.USDC.chainlinkUsd"
             ),
             interestRateParam: DTokenInterestRateParam({
                 adjustmentRate: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.adjustmentRate"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.adjustmentRate"
                 ),
                 adjustmentVelocity: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.adjustmentVelocity"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.adjustmentVelocity"
                 ),
                 baseRatePerYear: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.baseRatePerYear"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.baseRatePerYear"
                 ),
                 decayRate: _readConfigUint256(
-                    string.concat(param_path, ".interestRateParam.decayRate")
+                    ".markets.dTokens.USDC.interestRateParam.decayRate"
                 ),
                 vertexMultiplierMax: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.vertexMultiplierMax"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.vertexMultiplierMax"
                 ),
                 vertexRatePerYear: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.vertexRatePerYear"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.vertexRatePerYear"
                 ),
                 vertexUtilizationStart: _readConfigUint256(
-                    string.concat(
-                        param_path,
-                        ".interestRateParam.vertexUtilizationStart"
-                    )
+                    ".markets.dTokens.USDC.interestRateParam.vertexUtilizationStart"
                 )
             })
         });
@@ -346,6 +321,9 @@ contract StartContractsConfig is Script, DeployConfiguration {
         if (!OracleRouter(oracleRouter).isSupportedAsset(dToken)) {
             OracleRouter(oracleRouter).addMTokenSupport(dToken);
         }
+
+        MockToken(asset).approve(dToken, 52e25);
+        market.listToken(dToken);
 
         return dToken;
     }
