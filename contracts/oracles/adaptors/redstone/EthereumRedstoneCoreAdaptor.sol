@@ -6,8 +6,10 @@ import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract EthereumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, PrimaryProdDataServiceConsumerBase {
-
+contract EthereumRedstoneCoreAdaptor is
+    BaseRedstoneCoreAdaptor,
+    PrimaryProdDataServiceConsumerBase
+{
     /// ERRORS ///
 
     error EthereumRedstoneCoreAdaptor__ChainIsNotSupported();
@@ -17,7 +19,7 @@ contract EthereumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, PrimaryProdData
     constructor(
         ICentralRegistry centralRegistry_
     ) BaseRedstoneCoreAdaptor(centralRegistry_) {
-        // `redstone-primary-prod` that this oracle adaptor 
+        // `redstone-primary-prod` that this oracle adaptor
         // is configured for should only be on Ethereum mainnet.
         if (block.chainid != 1) {
             revert EthereumRedstoneCoreAdaptor__ChainIsNotSupported();
@@ -26,18 +28,19 @@ contract EthereumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, PrimaryProdData
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice The minimum number of signer messages to be validated 
+    /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
-    function getUniqueSignersThreshold() public view override returns (uint8) {
+    function getUniqueSignersThreshold() public pure override returns (uint8) {
         return 3;
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Extracts price stored in msg.data with the transaction, 
+    /// @notice Extracts price stored in msg.data with the transaction,
     ///         can be called multiple times in one transaction.
-    function  _extractPrice(bytes32 symbolHash) internal override view returns (uint256) {
+    function _extractPrice(
+        bytes32 symbolHash
+    ) internal view override returns (uint256) {
         return getOracleNumericValueFromTxMsg(symbolHash);
     }
-
 }
