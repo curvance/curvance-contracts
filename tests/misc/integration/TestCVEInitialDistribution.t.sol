@@ -98,6 +98,11 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         centralRegistry.addVeCVELocker(address(distributor));
 
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);
 

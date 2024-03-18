@@ -80,6 +80,13 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
     function test_claimRewardsFor_success_fuzzed(uint256 amount) public {
         vm.assume(amount > 1e18 && amount <= 100e18);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -91,11 +98,6 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
 
         vm.prank(address(veCVE));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         assertTrue(cveLocker.hasRewardsToClaim(user1));
 

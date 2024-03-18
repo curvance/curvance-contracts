@@ -5,6 +5,15 @@ import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 
 contract VotesTest is TestBaseVeCVE {
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
     function test_getVotes_zero() public {
         assertEq(veCVE.getVotes(address(this)), 0);
     }
@@ -21,7 +30,10 @@ contract VotesTest is TestBaseVeCVE {
         assertEq(veCVE.getVotes(address(this)), 0);
     }
 
-    function test_getVotes_continous_lock_withBoost(uint256 amount, uint16 boost) public {
+    function test_getVotes_continous_lock_withBoost(
+        uint256 amount,
+        uint16 boost
+    ) public {
         uint256 denominator = 1e4;
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
         boost = uint16(bound(boost, denominator, type(uint16).max));
@@ -33,7 +45,10 @@ contract VotesTest is TestBaseVeCVE {
         vm.warp(1000);
 
         // current boost is x2
-        assertEq(veCVE.getVotes(address(this)), (amount * boost) / denominator);
+        assertEq(
+            veCVE.getVotes(address(this)),
+            (amount * boost) / denominator
+        );
     }
 
     function test_getVotes_after_lock(uint256 amount, uint16 timeWarp) public {
@@ -49,7 +64,8 @@ contract VotesTest is TestBaseVeCVE {
             assertEq(veCVE.getVotes(address(this)), 0);
             return;
         }
-        uint256 epoch = (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+        uint256 epoch = (unlockTime - block.timestamp) /
+            veCVE.EPOCH_DURATION();
         uint256 votes = (amount * epoch) / veCVE.LOCK_DURATION_EPOCHS();
 
         assertEq(veCVE.getVotes(address(this)), votes);

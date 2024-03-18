@@ -51,6 +51,13 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
     function test_claimRewardsFor_fail_whenCallerIsNotVeCVE() public {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -62,11 +69,6 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
 
         vm.prank(address(cveLocker.veCVE()));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         uint256 epochs = cveLocker.epochsToClaim(user1);
 
@@ -85,6 +87,13 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.feeAccumulator());
+            cveLocker.recordEpochRewards(_ONE);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
         vm.startPrank(user1);
 
         deal(address(cve), user1, 100e18);
@@ -96,11 +105,6 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
 
         vm.prank(address(cveLocker.veCVE()));
         cveLocker.updateUserClaimIndex(user1, 1);
-
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
-        }
 
         deal(_USDC_ADDRESS, address(cveLocker), amount);
 

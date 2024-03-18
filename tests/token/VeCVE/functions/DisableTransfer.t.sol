@@ -5,12 +5,16 @@ import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 
 contract DisabledTransfers is TestBaseVeCVE {
-
     function setUp() public override {
         super.setUp();
 
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
     }

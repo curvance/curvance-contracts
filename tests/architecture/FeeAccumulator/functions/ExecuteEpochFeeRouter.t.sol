@@ -15,6 +15,15 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
             epoch: 0
         });
 
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
     function test_executeEpochFeeRouter_fail_whenChainIsNotSupported() public {
         centralRegistry.addChainSupport(
             address(protocolMessagingHub),
@@ -44,7 +53,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
     function test_executeEpochFeeRouter_success_whenChainIsNotSupported()
         public
     {
-        skip(2 weeks);
+        skip(veCVE.EPOCH_DURATION() * 2);
 
         vm.expectRevert();
         feeAccumulator.crossChainLockData(0);
@@ -78,6 +87,9 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
 
     function _executeEpochFeeRouter() internal {
         skip(3 weeks);
+
+        vm.prank(centralRegistry.feeAccumulator());
+        cveLocker.recordEpochRewards(_ONE);
 
         deal(address(protocolMessagingHub), _ONE);
         deal(address(feeAccumulator), _ONE);
@@ -115,6 +127,8 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
         assertEq(lockAmount, _ONE);
         assertEq(chainId, 42161);
         assertEq(epoch, nextEpoch);
+
+        skip(veCVE.EPOCH_DURATION() * 2);
 
         vm.prank(address(protocolMessagingHub));
         feeAccumulator.executeEpochFeeRouter(42161);
