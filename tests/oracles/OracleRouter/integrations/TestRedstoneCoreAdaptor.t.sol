@@ -30,7 +30,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
         adapter = new EthereumRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        adapter.addAsset(WBTC, true, 18);
+        adapter.addAsset(WBTC, true, 18, 12 hours);
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
 

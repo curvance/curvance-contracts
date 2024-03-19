@@ -24,7 +24,15 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         bytes32 symbolHash;
         uint256 max;
         uint256 decimals;
+        uint256 heartbeat;
     }
+
+    /// CONSTANTS ///
+
+    /// @notice If zero is specified for a Pyth asset heartbeat,
+    ///         this value is used instead.
+    /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
 
     /// STORAGE ///
 
@@ -37,6 +45,8 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     mapping(address => AdaptorData) public adaptorDataUSD;
 
     mapping(address => mapping(bool => uint256)) private overriddenPrice;
+    mapping(address => mapping(bool => uint256))
+        private overriddenPriceUpdatedAt;
 
     /// EVENTS ///
 
@@ -51,6 +61,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
     error BaseRedstoneCoreAdaptor__AssetIsNotSupported();
     error BaseRedstoneCoreAdaptor__SymbolHashError();
+    error BaseRedstoneCoreAdaptor__InvalidHeartbeat();
 
     /// CONSTRUCTOR ///
 
@@ -93,8 +104,19 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ///              or ETH (inUSD = false).
     /// @param decimals The number of decimals the redstone core feed
     ///                 prices in.
-    function addAsset(address asset, bool inUSD, uint8 decimals) external {
+    function addAsset(
+        address asset,
+        bool inUSD,
+        uint8 decimals,
+        uint256 heartbeat
+    ) external {
         _checkElevatedPermissions();
+
+        if (heartbeat != 0) {
+            if (heartbeat > DEFAULT_HEART_BEAT) {
+                revert BaseRedstoneCoreAdaptor__InvalidHeartbeat();
+            }
+        }
 
         bytes32 symbolHash;
         if (inUSD) {
@@ -133,6 +155,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         // when trying to save the final value into an uint240.
         data.max = uint192((uint256(type(uint192).max) * 9) / 10);
         data.symbolHash = symbolHash;
+        data.heartbeat = heartbeat;
         data.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -179,6 +202,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             overriddenPrice[asset][inUSD] = _extractPrice(
                 adaptorDataUSD[asset].symbolHash
             );
+            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
         } else {
             if (!adaptorDataNonUSD[asset].isConfigured) {
                 revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
@@ -186,6 +210,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             overriddenPrice[asset][inUSD] = _extractPrice(
                 adaptorDataNonUSD[asset].symbolHash
             );
+            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
         }
     }
 
@@ -250,7 +275,12 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             }
         }
 
-        pData.hadError = _verifyData(price, data.max);
+        pData.hadError = _verifyData(
+            price,
+            overriddenPriceUpdatedAt[asset][inUSD],
+            data.max,
+            data.heartbeat
+        );
 
         if (!pData.hadError) {
             pData.inUSD = inUSD;
@@ -267,8 +297,10 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ///         (true = error, false = no error).
     function _verifyData(
         uint256 value,
-        uint256 max
-    ) internal pure returns (bool) {
+        uint256 timestamp,
+        uint256 max,
+        uint256 heartbeat
+    ) internal view returns (bool) {
         // Validate `value` is not above the buffered maximum value allowed.
         if (value > max) {
             return true;
@@ -276,6 +308,11 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
         // If we got a price of 0, bubble up an error immediately.
         if (value == 0) {
+            return true;
+        }
+
+        // Validate the price returned is not stale.
+        if (block.timestamp - timestamp > heartbeat) {
             return true;
         }
 
