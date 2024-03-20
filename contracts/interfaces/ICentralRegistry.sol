@@ -97,9 +97,6 @@ interface ICentralRegistry {
     /// @param chainId Evm chain ID.
     function cctpDomain(uint256 chainId) external view returns (uint16);
 
-    /// @notice Returns Gelato sponsor address.
-    function gelatoSponsor() external view returns (address);
-
     /// @notice Returns protocolCompoundFee, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
 

@@ -67,8 +67,6 @@ contract FeeAccumulator is ReentrancyGuard {
     address public immutable feeToken;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice Address of OneBalanceFeeManager contract.
-    address public immutable oneBalanceFeeManager;
 
     /// @notice Fee token decimal unit.
     uint256 internal immutable _feeTokenUnit;
@@ -93,7 +91,6 @@ contract FeeAccumulator is ReentrancyGuard {
     /// ERRORS ///
 
     error FeeAccumulator__Unauthorized();
-    error FeeAccumulator__OneBalanceFeeManagerIsZeroAddress();
     error FeeAccumulator__InvalidCentralRegistry();
     error FeeAccumulator__SwapDataAndTokenLengthMismatch(
         uint256 numSwapData,
@@ -138,10 +135,7 @@ contract FeeAccumulator is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address oneBalanceFeeManager_
-    ) {
+    constructor(ICentralRegistry centralRegistry_) {
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -150,13 +144,9 @@ contract FeeAccumulator is ReentrancyGuard {
         ) {
             revert FeeAccumulator__InvalidCentralRegistry();
         }
-        if (oneBalanceFeeManager_ == address(0)) {
-            revert FeeAccumulator__OneBalanceFeeManagerIsZeroAddress();
-        }
 
         centralRegistry = centralRegistry_;
         feeToken = centralRegistry.feeToken();
-        oneBalanceFeeManager = oneBalanceFeeManager_;
         _feeTokenUnit = 10 ** IERC20(feeToken).decimals();
         // We document this incase we ever need to update messaging hub
         // and want to revoke.
@@ -244,7 +234,7 @@ contract FeeAccumulator is ReentrancyGuard {
 
         SafeTransferLib.safeTransfer(
             feeToken,
-            oneBalanceFeeManager,
+            address(centralRegistry),
             (IERC20(feeToken).balanceOf(address(this)) * vaultCompoundFee()) /
                 vaultYieldFee()
         );
@@ -302,7 +292,7 @@ contract FeeAccumulator is ReentrancyGuard {
 
         SafeTransferLib.safeTransfer(
             feeToken,
-            oneBalanceFeeManager,
+            address(centralRegistry),
             (feeTokenRequiredForOTC * vaultCompoundFee()) / vaultYieldFee()
         );
 
@@ -773,10 +763,10 @@ contract FeeAccumulator is ReentrancyGuard {
         uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
 
         // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
-        // should be sent and deposited to Gelato 1Balance on polygon.
+        // should be sent.
         SafeTransferLib.safeTransfer(
             feeToken,
-            oneBalanceFeeManager,
+            address(centralRegistry),
             (feeTokenBalance * vaultCompoundFee()) /
                 centralRegistry.protocolHarvestFee()
         );

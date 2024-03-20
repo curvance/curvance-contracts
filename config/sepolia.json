@@ -27,10 +27,6 @@
   "cveLocker": {
     "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
   },
-  "oneBalanceFeeManager": {
-    "gelatoOneBalance": "0x7506C12a824d73D9b08564d5Afc22c949434755e",
-    "polygonOneBalanceFeeManager": "0x0000000000000000000000000000000000000001"
-  },
   "feeAccumulator": {
     "gasForCalldata": 1e9,
     "gasForCrosschain": 1e9
