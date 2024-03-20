@@ -30,7 +30,13 @@ contract EthereumRedstoneCoreAdaptor is
 
     /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
-    function getUniqueSignersThreshold() public pure override returns (uint8) {
+    function getUniqueSignersThreshold()
+        public
+        pure
+        virtual
+        override
+        returns (uint8)
+    {
         return 3;
     }
 
