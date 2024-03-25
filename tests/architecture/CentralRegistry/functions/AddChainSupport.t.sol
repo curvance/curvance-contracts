@@ -18,6 +18,7 @@ contract AddChainSupportTest is TestBaseMarket {
             address(this),
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -30,6 +31,7 @@ contract AddChainSupportTest is TestBaseMarket {
             address(this),
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -42,6 +44,7 @@ contract AddChainSupportTest is TestBaseMarket {
             address(this),
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -54,6 +57,7 @@ contract AddChainSupportTest is TestBaseMarket {
             address(this),
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -66,6 +70,7 @@ contract AddChainSupportTest is TestBaseMarket {
             user1,
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -84,6 +89,7 @@ contract AddChainSupportTest is TestBaseMarket {
             user1,
             address(this),
             address(1),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -95,7 +101,7 @@ contract AddChainSupportTest is TestBaseMarket {
             address messagingHub,
             uint256 asSourceAux,
             uint256 asDestinationAux,
-            address cveAddress
+            address cveAddress,
         ) = centralRegistry.supportedChainData(42161);
         assertEq(isSupported, 2);
         assertEq(messagingHub, address(this));
