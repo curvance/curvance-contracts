@@ -69,8 +69,11 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// @param centralRegistry_ The address of central registry.
     constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+        ICentralRegistry centralRegistry_,
+        address pyth_
+    ) BaseOracleAdaptor(centralRegistry_) {
+        pyth = pyth_;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
