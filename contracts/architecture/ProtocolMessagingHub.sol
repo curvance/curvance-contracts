@@ -41,6 +41,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
 
+    uint256 internal constant _PAYLOAD_4_GAS_LIMIT = 250_000;
+    uint256 internal constant _PAYLOAD_5_GAS_LIMIT = 250_000;
+
     /// STORAGE ///
 
     /// @notice Whether the Protocol Messaging Hub is paused or not.
@@ -307,10 +310,12 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @param dstChainId Destination chain ID.
     /// @param to The address of Messaging Hub on `dstChainId`.
     /// @param amount The amount of token to transfer.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function sendFees(
         uint256 dstChainId,
         address to,
-        uint256 amount
+        uint256 amount,
+        uint256 gasLimit
     ) external {
         _checkMessagingHubStatus();
         _checkPermissions();
@@ -359,18 +364,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             amount
         );
 
-        _sendFeeToken(dstChainId, to, amount);
+        _sendFeeToken(dstChainId, to, amount, gasLimit);
     }
 
     /// @notice Send wormhole message to bridge CVE.
     /// @param dstChainId Chain ID of the target blockchain.
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeCVE(
         uint256 dstChainId,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        uint256 gasLimit
     ) external payable returns (uint64) {
         if (msg.sender != address(cve)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -384,7 +391,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 dstChainId,
                 recipient,
                 amount,
-                msg.value
+                msg.value,
+                gasLimit
             );
     }
 
@@ -393,12 +401,14 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
     /// @param continuousLock Whether the lock should be continuous or not.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeVeCVELock(
         uint256 dstChainId,
         address recipient,
         uint256 amount,
-        bool continuousLock
+        bool continuousLock,
+        uint256 gasLimit
     ) external payable returns (uint64) {
         if (msg.sender != veCVE) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -417,7 +427,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 dstMessagingHub,
                 msg.value,
                 5,
-                payload
+                payload,
+                gasLimit > 0 ? gasLimit : _PAYLOAD_5_GAS_LIMIT
             );
     }
 
@@ -426,16 +437,18 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     ///                   should be sent.
     /// @param toAddress The destination address specified by `dstChainId`.
     /// @param payload The payload data that is sent along with the message.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function sendWormholeMessages(
         uint256 dstChainId,
         address toAddress,
-        bytes calldata payload
+        bytes calldata payload,
+        uint256 gasLimit
     ) external payable returns (uint64) {
         _checkMessagingHubStatus();
         _checkPermissions();
 
-        uint256 messageFee = _quoteWormholeFee(dstChainId, false);
+        uint256 messageFee = _quoteWormholeFee(dstChainId, false, gasLimit);
 
         return
             _sendWormholeMessages(
@@ -443,15 +456,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 toAddress,
                 messageFee,
                 4,
-                payload
+                payload,
+                gasLimit > 0 ? gasLimit : _PAYLOAD_4_GAS_LIMIT
             );
     }
 
     /// @notice Returns required amount of native asset for message fee.
     /// @param dstChainId Chain ID of the target blockchain.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Required fee.
-    function cveBridgeFee(uint256 dstChainId) external view returns (uint256) {
-        return _quoteWormholeFee(dstChainId, true);
+    function cveBridgeFee(
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) external view returns (uint256) {
+        return _quoteWormholeFee(dstChainId, true, 0);
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -525,7 +543,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         address toAddress,
         uint256 messageFee,
         uint8 payloadId,
-        bytes memory payload
+        bytes memory payload,
+        uint256 gasLimit
     ) internal returns (uint64) {
         // Validate that we are aiming for a supported chain.
         if (centralRegistry.supportedChainData(dstChainId).isSupported < 2) {
@@ -540,7 +559,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 toAddress,
                 abi.encode(payloadId, payload), // payload
                 0, // No receiver value since we're just passing a message.
-                _GAS_LIMIT
+                gasLimit
             );
     }
 

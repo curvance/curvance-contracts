@@ -26,7 +26,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.expectRevert(FeeAccumulator.FeeAccumulator__Unauthorized.selector);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
     }
 
@@ -42,7 +43,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
     }
 
@@ -73,7 +75,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
     }
 
@@ -85,14 +88,16 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
     }
 
     function test_feeAccumulatorSendWormholeMessages_success() public {
         uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
             42161,
-            false
+            false,
+            0
         );
         deal(address(feeAccumulator), messageFee);
 
@@ -103,7 +108,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
 
         assertEq(feeAccumulator.lockedTokenDataSent(42161, nextEpoch), 2);
@@ -111,7 +117,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.sendWormholeMessages(
             42161,
-            address(protocolMessagingHub)
+            address(protocolMessagingHub),
+            0
         );
     }
 }

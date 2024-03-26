@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
-import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -427,7 +426,7 @@ contract OracleRouter {
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price. 
+    /// @return errorCode An error code related to fetching the price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving

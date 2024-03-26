@@ -13,7 +13,7 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-        protocolMessagingHub.sendWormholeMessages(42161, address(this), "");
+        protocolMessagingHub.sendWormholeMessages(42161, address(this), "", 0);
     }
 
     function test_protocolMessagingHubSendWormholeMessages_fail_whenMessagingHubIsPaused()
@@ -28,7 +28,7 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
                 .ProtocolMessagingHub__MessagingHubPaused
                 .selector
         );
-        protocolMessagingHub.sendWormholeMessages(42161, address(this), "");
+        protocolMessagingHub.sendWormholeMessages(42161, address(this), "", 0);
     }
 
     function test_protocolMessagingHubSendWormholeMessages_fail_whenChainIsNotSupported()
@@ -41,7 +41,7 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
         );
 
         vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendWormholeMessages(42161, address(this), "");
+        protocolMessagingHub.sendWormholeMessages(42161, address(this), "", 0);
     }
 
     function test_protocolMessagingHubSendWormholeMessages_fail_whenNativeAssetIsNotEnough()
@@ -60,13 +60,14 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
         vm.expectRevert();
 
         vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendWormholeMessages(42161, address(this), "");
+        protocolMessagingHub.sendWormholeMessages(42161, address(this), "", 0);
     }
 
     function test_protocolMessagingHubSendWormholeMessages_success() public {
         uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
             42161,
-            false
+            false,
+            0
         );
         deal(address(feeAccumulator), messageFee);
 
@@ -84,7 +85,8 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
         protocolMessagingHub.sendWormholeMessages{ value: messageFee }(
             42161,
             address(this),
-            ""
+            "",
+            0
         );
     }
 }

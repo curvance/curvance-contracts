@@ -304,9 +304,11 @@ contract FeeAccumulator is ReentrancyGuard {
     /// @param dstChainId Destination chain ID where the message data
     ///                   should be sent.
     /// @param toAddress The destination address specified by `dstChainId`.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function sendWormholeMessages(
         uint256 dstChainId,
-        address toAddress
+        address toAddress,
+        uint256 gasLimit
     ) external {
         if (!centralRegistry.isHarvester(msg.sender)) {
             revert FeeAccumulator__Unauthorized();
@@ -346,12 +348,17 @@ contract FeeAccumulator is ReentrancyGuard {
             centralRegistry.protocolMessagingHub()
         );
 
-        uint256 gas = messagingHub.quoteWormholeFee(dstChainId, false);
+        uint256 gas = messagingHub.quoteWormholeFee(
+            dstChainId,
+            false,
+            gasLimit
+        );
 
         messagingHub.sendWormholeMessages{ value: gas }(
             dstChainId,
             toAddress,
-            payload
+            payload,
+            gasLimit
         );
     }
 
@@ -407,7 +414,10 @@ contract FeeAccumulator is ReentrancyGuard {
     /// @notice Records a Curvance reward epoch, if all chains have been
     ///         recorded executes system wide reporting and distribution
     ///         to all chains within the Curvance Protocol system.
-    function executeEpochFeeRouter(uint256 chainId) external {
+    function executeEpochFeeRouter(
+        uint256 chainId,
+        uint256 gasLimit
+    ) external {
         ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
         uint256 epoch = locker.nextEpochToDeliver();
 
@@ -434,7 +444,8 @@ contract FeeAccumulator is ReentrancyGuard {
             uint256 epochRewardsPerCVE = _executeEpochFeeRouter(
                 chainData,
                 numChainData,
-                epoch
+                epoch,
+                gasLimit
             );
 
             IProtocolMessagingHub messagingHub = IProtocolMessagingHub(
@@ -442,7 +453,6 @@ contract FeeAccumulator is ReentrancyGuard {
             );
             LockData memory lockData;
             uint256 gas;
-            uint16 messagingChainId;
 
             // Notify the other chains of the per epoch rewards.
             for (uint256 i; i < numChainData; ) {
@@ -450,19 +460,18 @@ contract FeeAccumulator is ReentrancyGuard {
                 chainData = centralRegistry.supportedChainData(
                     lockData.chainId
                 );
-                messagingChainId = centralRegistry.GETHToMessagingChainId(
-                    uint256(lockData.chainId)
-                );
 
                 gas = messagingHub.quoteWormholeFee(
                     uint256(lockData.chainId),
-                    false
+                    false,
+                    gasLimit
                 );
 
                 messagingHub.sendWormholeMessages{ value: gas }(
                     uint256(lockData.chainId),
                     chainData.messagingHub,
-                    abi.encode(epochRewardsPerCVE)
+                    abi.encode(epochRewardsPerCVE),
+                    gasLimit
                 );
 
                 unchecked {
@@ -733,12 +742,14 @@ contract FeeAccumulator is ReentrancyGuard {
     ///                  instructions.
     /// @param numChains The number of chains to distribute rewards to.
     /// @param epoch The epoch to distribute rewards for.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return The rewards this epoch for having 1 CVE locked as veCVE,
     ///         in reward tokens in `WAD` form.
     function _executeEpochFeeRouter(
         ChainData memory chainData,
         uint256 numChains,
-        uint256 epoch
+        uint256 epoch,
+        uint256 gasLimit
     ) internal returns (uint256) {
         IProtocolMessagingHub messagingHub = IProtocolMessagingHub(
             centralRegistry.protocolMessagingHub()
@@ -796,7 +807,8 @@ contract FeeAccumulator is ReentrancyGuard {
             messagingHub.sendFees(
                 chainId,
                 chainData.messagingHub,
-                feeTokenBalanceForChain
+                feeTokenBalanceForChain,
+                gasLimit
             );
 
             unchecked {
