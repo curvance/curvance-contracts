@@ -174,7 +174,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             centralRegistry.protocolHarvestFee();
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(oneBalanceFeeManager)), oneBalanceFee);
+        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee);
         assertEq(usdc.balanceOf(address(cveLocker)), 100e6 - oneBalanceFee);
 
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
@@ -193,10 +193,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(
-            usdc.balanceOf(address(oneBalanceFeeManager)),
-            oneBalanceFee * 2
-        );
+        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee * 2);
         assertEq(
             usdc.balanceOf(centralRegistry.daoAddress()),
             100e6 - oneBalanceFee

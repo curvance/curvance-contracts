@@ -190,8 +190,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                     centralRegistry.protocolHarvestFee();
                 SafeTransferLib.safeTransfer(
                     feeToken,
-                    IFeeAccumulator(centralRegistry.feeAccumulator())
-                        .oneBalanceFeeManager(),
+                    address(centralRegistry),
                     oneBalanceFee
                 );
 
