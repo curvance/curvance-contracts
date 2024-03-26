@@ -4,12 +4,14 @@ pragma solidity ^0.8.17;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
+import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 
 contract FeeTokenBridgingHub is ReentrancyGuard {
     /// TYPES ///
@@ -84,6 +86,20 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
             revert FeeTokenBridgingHub__InsufficientGasToken();
         }
 
+        // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
+        // should be sent and deposited to Gelato 1Balance on polygon.
+        uint256 oneBalanceFee = (amount *
+            centralRegistry.protocolCompoundFee()) /
+            centralRegistry.protocolHarvestFee();
+        SafeTransferLib.safeTransfer(
+            feeToken,
+            IFeeAccumulator(centralRegistry.feeAccumulator())
+                .oneBalanceFeeManager(),
+            oneBalanceFee
+        );
+
+        amount -= oneBalanceFee;
+
         ITokenMessenger circleTokenMessenger = centralRegistry
             .circleTokenMessenger();
 
@@ -141,7 +157,13 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
             centralRegistry.cctpDomain(dstChainId),
             bytes32(uint256(uint160(to))),
             feeToken,
-            bytes32(uint256(uint160(to)))
+            bytes32(
+                uint256(
+                    uint160(
+                        address(centralRegistry.wormholeRelayers(dstChainId))
+                    )
+                )
+            )
         );
 
         IWormholeRelayer.MessageKey[]

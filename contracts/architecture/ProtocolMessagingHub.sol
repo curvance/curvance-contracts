@@ -5,6 +5,7 @@ import { GaugeController } from "contracts/gauge/GaugeController.sol";
 import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -63,6 +64,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         uint256 dstChainId
     );
     error ProtocolMessagingHub__ChainIdIsNotSupported(uint256 gethChainId);
+    error ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
     error ProtocolMessagingHub__MessagingHubPaused();
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
@@ -80,6 +82,25 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    function receiveMessage(
+        bytes calldata message,
+        bytes calldata attestation
+    ) external returns (bool success) {
+        bytes32 destinationCaller = TypedMemView.index(
+            TypedMemView.ref(message, 0),
+            84, // DESTINATION_CALLER_INDEX
+            32
+        );
+
+        // Validate destination caller
+        if (
+            destinationCaller != bytes32(0) &&
+            destinationCaller == bytes32(uint256(uint160(msg.sender)))
+        ) {
+            revert ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
+        }
+    }
 
     /// @notice Used when fees are received from other chains.
     ///         When a `send` is performed with this contract as the target,

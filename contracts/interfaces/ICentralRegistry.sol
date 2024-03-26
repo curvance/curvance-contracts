@@ -83,6 +83,11 @@ interface ICentralRegistry {
     /// @notice Returns WormholeRelayer contract address.
     function wormholeRelayer() external view returns (IWormholeRelayer);
 
+    /// @notice Returns WormholeRelayer contract address for chain ID.
+    function wormholeRelayers(
+        uint256 chainId
+    ) external view returns (IWormholeRelayer);
+
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
