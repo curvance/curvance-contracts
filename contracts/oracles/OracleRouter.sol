@@ -814,7 +814,7 @@ contract OracleRouter {
             errorCode = BAD_SOURCE;
         }
 
-        return (price, errorCode == BAD_SOURCE);
+        return (price, errorCode != NO_ERROR);
     }
 
     /// @notice Check whether sequencer is valid or down.
