@@ -12,21 +12,11 @@ import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 contract FeeAccumulatorDeployer is DeployConfiguration {
     address feeAccumulator;
 
-    function _deployFeeAccumulator(
-        address centralRegistry,
-        address oneBalanceFeeManager
-    ) internal {
+    function _deployFeeAccumulator(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(
-            oneBalanceFeeManager != address(0),
-            "Set the oneBalanceFeeManager!"
-        );
 
         feeAccumulator = address(
-            new FeeAccumulator(
-                ICentralRegistry(centralRegistry),
-                oneBalanceFeeManager
-            )
+            new FeeAccumulator(ICentralRegistry(centralRegistry))
         );
 
         console.log("feeAccumulator: ", feeAccumulator);

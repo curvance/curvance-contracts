@@ -38,8 +38,7 @@ contract MigrateFeeAccumulatorTest is TestBaseFeeAccumulator {
         uint256 feeTokenBalance = usdc.balanceOf(address(feeAccumulator));
 
         FeeAccumulator newFeeAccumulator = new FeeAccumulator(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setFeeAccumulator(address(newFeeAccumulator));
 

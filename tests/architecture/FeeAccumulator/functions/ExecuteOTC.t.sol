@@ -36,18 +36,6 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
         feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
     }
 
-    function test_executeOTC_fail_whenGelatoOneBalanceIsInvalid() public {
-        feeAccumulator.setEarmarked(_WETH_ADDRESS, true);
-
-        skip(10 days);
-        usdc.approve(address(feeAccumulator), _ONE);
-
-        vm.expectRevert(
-            FeeAccumulator.FeeAccumulator__ConfigurationError.selector
-        );
-        feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
-    }
-
     function test_executeOTC_success() public {
         feeAccumulator.setEarmarked(_WETH_ADDRESS, true);
 
@@ -55,7 +43,7 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
         deal(_WETH_ADDRESS, address(feeAccumulator), _ONE);
 
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), 0);
-        assertEq(usdc.balanceOf(address(oneBalanceFeeManager)), 0);
+        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
         usdc.approve(address(feeAccumulator), _ONE);
 
@@ -67,6 +55,6 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
             _ONE
         );
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
-        assertGt(usdc.balanceOf(address(oneBalanceFeeManager)), 0);
+        assertGt(usdc.balanceOf(address(centralRegistry)), 0);
     }
 }
