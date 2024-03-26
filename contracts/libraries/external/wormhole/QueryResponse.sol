@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.4;
 
-import {BytesParsing} from "./libraries/BytesParsing.sol";
-import "./interfaces/IWormhole.sol";
+import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
+import "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 // @dev ParsedQueryResponse is returned by QueryResponse.parseAndVerifyQueryResponse().
 struct ParsedQueryResponse {
