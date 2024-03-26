@@ -183,6 +183,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             if (token == feeToken) {
                 ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
 
+                // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
+                // should be sent and deposited to Gelato 1Balance on polygon.
+                uint256 oneBalanceFee = (amount *
+                    centralRegistry.protocolCompoundFee()) /
+                    centralRegistry.protocolHarvestFee();
+                SafeTransferLib.safeTransfer(
+                    feeToken,
+                    IFeeAccumulator(centralRegistry.feeAccumulator())
+                        .oneBalanceFeeManager(),
+                    oneBalanceFee
+                );
+
+                amount -= oneBalanceFee;
+
                 // If the locker is shutdown, transfer fees to DAO
                 // instead of recording epoch rewards.
                 if (locker.isShutdown() == 2) {
