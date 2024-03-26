@@ -12,14 +12,13 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
     CurvanceDAOLBP public lbp;
 
     uint256 softPrice = 10e18; // $10
+    uint256 hardPrice = 100e18; // $100
     uint256 cveAmountForSale = 10000e18;
 
     function setUp() public override {
         super.setUp();
 
-        lbp = new CurvanceDAOLBP(
-            ICentralRegistry(address(centralRegistry))
-        );
+        lbp = new CurvanceDAOLBP(ICentralRegistry(address(centralRegistry)));
 
         cve.transfer(address(lbp), cve.balanceOf(address(this)));
     }
@@ -35,6 +34,18 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp.start(
             block.timestamp - 1,
             softPrice,
+            hardPrice,
+            cveAmountForSale,
+            _WETH_ADDRESS
+        );
+    }
+
+    function testStartRevertWhenInvalidPrice() public {
+        vm.expectRevert(CurvanceDAOLBP.CurvanceDAOLBP__InvalidPrice.selector);
+        lbp.start(
+            block.timestamp,
+            hardPrice + 1,
+            hardPrice,
             cveAmountForSale,
             _WETH_ADDRESS
         );
@@ -44,14 +55,18 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp.start(
             block.timestamp,
             softPrice,
+            hardPrice,
             cveAmountForSale,
             _WETH_ADDRESS
         );
 
-        vm.expectRevert(CurvanceDAOLBP.CurvanceDAOLBP__AlreadyStarted.selector);
+        vm.expectRevert(
+            CurvanceDAOLBP.CurvanceDAOLBP__AlreadyStarted.selector
+        );
         lbp.start(
             block.timestamp,
             softPrice,
+            hardPrice,
             cveAmountForSale,
             _WETH_ADDRESS
         );
@@ -61,6 +76,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp.start(
             block.timestamp,
             softPrice,
+            hardPrice,
             cveAmountForSale,
             _WETH_ADDRESS
         );
@@ -71,6 +87,11 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         assertApproxEqRel(
             lbp.softCap(),
             (cveAmountForSale * softPrice) / lbp.paymentTokenPrice(),
+            0.0001e18
+        );
+        assertApproxEqRel(
+            lbp.hardCap(),
+            (cveAmountForSale * hardPrice) / lbp.paymentTokenPrice(),
             0.0001e18
         );
     }
@@ -103,10 +124,15 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp.commit(commitAmount);
         assertEq(lbp.saleCommitted(), commitAmount);
         assertEq(lbp.userCommitted(address(this)), commitAmount);
-        assertEq(
-            lbp.currentPrice(),
-            lbp.softPriceInpaymentToken()
-        );
+        assertEq(lbp.currentPrice(), lbp.softPriceInpaymentToken());
+
+        // before hardcap
+        commitAmount = lbp.hardCap();
+        _prepareCommit(address(this), commitAmount);
+        lbp.commit(commitAmount);
+        assertEq(lbp.saleCommitted(), commitAmount);
+        assertEq(lbp.userCommitted(address(this)), commitAmount);
+        assertEq(lbp.currentPrice(), lbp.hardPriceInpaymentToken());
     }
 
     function testCommitForRevertWhenlbpNotStarted() public {
@@ -137,10 +163,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp.commitFor(commitAmount, address(1));
         assertEq(lbp.saleCommitted(), commitAmount);
         assertEq(lbp.userCommitted(address(1)), commitAmount);
-        assertEq(
-            lbp.currentPrice(),
-            lbp.softPriceInpaymentToken()
-        );
+        assertEq(lbp.currentPrice(), lbp.softPriceInpaymentToken());
     }
 
     function testClaimRevertWhenPubliSaleNotStarted() public {
@@ -164,10 +187,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
 
         skip(lbp.SALE_PERIOD() + 1);
 
-        assertEq(
-            lbp.currentPrice(),
-            lbp.softPriceInpaymentToken()
-        );
+        assertEq(lbp.currentPrice(), lbp.softPriceInpaymentToken());
 
         lbp.claim();
 
