@@ -432,28 +432,6 @@ contract CentralRegistry is ERC165 {
         emit WormholeRelayerSet(newWormholeRelayer);
     }
 
-    /// @notice Sets new WormholeRelayer contract addresses.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeRelayerSet} event.
-    /// @param chainIds The chain ID for each wormholeRelayer.
-    /// @param newWormholeRelayers The new addresses of wormholeRelayer.
-    function setWormholeRelayers(
-        uint256[] calldata chainIds,
-        address[] calldata newWormholeRelayers
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numChainIds = chainIds.length;
-
-        for (uint256 i = 0; i < numChainIds; i++) {
-            wormholeRelayers[chainIds[i]] = IWormholeRelayer(
-                newWormholeRelayers[i]
-            );
-        }
-
-        emit WormholeRelayersSet(chainIds, newWormholeRelayers);
-    }
-
     /// @notice Sets an address of Circle TokenMessenger contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CircleTokenMessengerSet} event.
@@ -513,6 +491,28 @@ contract CentralRegistry is ERC165 {
             cctpDomain[chainIds[i]] = cctpDomains[i];
         }
         emit CCTPDomainsSet(chainIds, cctpDomains);
+    }
+
+    /// @notice Sets new WormholeRelayer contract addresses.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {WormholeRelayerSet} event.
+    /// @param chainIds The chain ID for each wormholeRelayer.
+    /// @param newWormholeRelayers The new addresses of wormholeRelayer.
+    function registerWormholeRelayers(
+        uint256[] calldata chainIds,
+        address[] calldata newWormholeRelayers
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 numChainIds = chainIds.length;
+
+        for (uint256 i = 0; i < numChainIds; i++) {
+            wormholeRelayers[chainIds[i]] = IWormholeRelayer(
+                newWormholeRelayers[i]
+            );
+        }
+
+        emit WormholeRelayersSet(chainIds, newWormholeRelayers);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas
