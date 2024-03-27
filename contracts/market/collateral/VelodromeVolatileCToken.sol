@@ -52,6 +52,7 @@ contract VelodromeVolatileCToken is CTokenCompounding {
     error VelodromeVolatileCToken__AssetIsNotStable();
     error VelodromeVolatileCToken__SlippageError();
     error VelodromeVolatileCToken__InvalidSwapper(address invalidSwapper);
+    error VelodromeVolatileCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -140,7 +141,7 @@ contract VelodromeVolatileCToken is CTokenCompounding {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
                     uint256 protocolFee = FixedPointMathLib.mulDiv(
-                        rewardAmount, 
+                        rewardAmount,
                         centralRegistry.protocolHarvestFee(),
                         1e18
                     );
@@ -162,6 +163,13 @@ contract VelodromeVolatileCToken is CTokenCompounding {
                             revert VelodromeVolatileCToken__InvalidSwapper(
                                 swapData.target
                             );
+                        }
+
+                        if (
+                            swapData.inputToken == asset() ||
+                            swapData.inputToken != address(rewardToken)
+                        ) {
+                            revert VelodromeVolatileCToken__InvalidSwapData();
                         }
 
                         SwapperLib.swap(centralRegistry, swapData);

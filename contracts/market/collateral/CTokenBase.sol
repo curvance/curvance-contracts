@@ -38,12 +38,12 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///
 ///      These caps can be updated as needed by the DAO and should be
 ///      configured based on "sticky" onchain liquidity in the corresponding
-///      asset. 
+///      asset.
 ///
 ///      The vaults can have their compounding, minting, or redemption
 ///      functionality paused. Modifying the maximum mint, deposit,
 ///      withdrawal, or redemptions possible.
-///     
+///
 ///      "Safe" versions of functions have been added that introduce
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
@@ -150,7 +150,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
         if (
             msg.sender == receiver ||
             msg.sender == marketManager.positionFolding()
-            ) {
+        ) {
             marketManager.postCollateral(receiver, address(this), shares);
         }
     }
@@ -408,7 +408,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
 
     /// @notice Withdraws assets, quoted in `shares` from the market,
     ///         and burns `owner` shares, on behalf of `owner`.
-    /// @dev Does not force collateral to be withdrawn. 
+    /// @dev Does not force collateral to be withdrawn.
     /// @param shares The amount of shares to be redeemed.
     /// @param receiver The account that should receive the assets.
     /// @param owner The account that will burn their shares to withdraw

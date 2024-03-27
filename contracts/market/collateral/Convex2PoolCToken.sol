@@ -59,6 +59,7 @@ contract Convex2PoolCToken is CTokenCompounding {
         address invalidSwapper
     );
     error Convex2PoolCToken__NoYield();
+    error Convex2PoolCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -222,8 +223,8 @@ contract Convex2PoolCToken is CTokenCompounding {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
                     protocolFee = FixedPointMathLib.mulDiv(
-                        rewardAmount, 
-                        harvestFee, 
+                        rewardAmount,
+                        harvestFee,
                         1e18
                     );
                     rewardAmount -= protocolFee;
@@ -245,6 +246,11 @@ contract Convex2PoolCToken is CTokenCompounding {
                             swapDataArray[i].target
                         );
                     }
+
+                    if (swapDataArray[i].inputToken == asset()) {
+                        revert Convex2PoolCToken__InvalidSwapData();
+                    }
+
                     SwapperLib.swap(centralRegistry, swapDataArray[i]);
                 }
             }
