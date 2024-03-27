@@ -118,10 +118,7 @@ contract StakedGMXCToken is CTokenCompounding {
                     revert StakedGMXCToken__InvalidSwapper(swapData.target);
                 }
 
-                if (
-                    swapData.inputToken == asset() ||
-                    swapData.inputToken != address(WETH)
-                ) {
+                if (swapData.inputToken != address(WETH)) {
                     revert StakedGMXCToken__InvalidSwapData();
                 }
 

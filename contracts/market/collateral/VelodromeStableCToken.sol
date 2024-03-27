@@ -178,10 +178,7 @@ contract VelodromeStableCToken is CTokenCompounding {
                             );
                         }
 
-                        if (
-                            swapData.inputToken == asset() ||
-                            swapData.inputToken != address(rewardToken)
-                        ) {
+                        if (swapData.inputToken != address(rewardToken)) {
                             revert VelodromeStableCToken__InvalidSwapData();
                         }
 

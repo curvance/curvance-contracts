@@ -172,10 +172,7 @@ contract AerodromeVolatileCToken is CTokenCompounding {
                             );
                         }
 
-                        if (
-                            swapData.inputToken == asset() ||
-                            swapData.inputToken != address(rewardToken)
-                        ) {
+                        if (swapData.inputToken != address(rewardToken)) {
                             revert AerodromeVolatileCToken__InvalidSwapData();
                         }
 

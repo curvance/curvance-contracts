@@ -178,10 +178,7 @@ contract AerodromeStableCToken is CTokenCompounding {
                             );
                         }
 
-                        if (
-                            swapData.inputToken == asset() ||
-                            swapData.inputToken != address(rewardToken)
-                        ) {
+                        if (swapData.inputToken != address(rewardToken)) {
                             revert AerodromeStableCToken__InvalidSwapData();
                         }
 

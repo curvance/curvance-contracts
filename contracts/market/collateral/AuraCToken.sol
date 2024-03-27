@@ -282,7 +282,6 @@ contract AuraCToken is CTokenCompounding {
                         }
 
                         if (
-                            swapDataArray[i].inputToken == asset() ||
                             swapDataArray[i].inputToken != address(rewardToken)
                         ) {
                             revert AuraCToken__InvalidSwapData();

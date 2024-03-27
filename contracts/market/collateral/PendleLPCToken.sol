@@ -223,7 +223,6 @@ contract PendleLPCToken is CTokenCompounding {
                         }
 
                         if (
-                            swapDataArray[i].inputToken == asset() ||
                             swapDataArray[i].inputToken != address(rewardToken)
                         ) {
                             revert PendleLPCToken__InvalidSwapData();
