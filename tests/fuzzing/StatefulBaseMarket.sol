@@ -200,8 +200,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
         emit LogUint256("woowowo", 0);
         feeAccumulator = new FeeAccumulator(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setFeeAccumulator(address(feeAccumulator));
     }
