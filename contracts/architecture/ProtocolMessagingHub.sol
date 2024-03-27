@@ -30,12 +30,28 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///      are not production ready.
 ///
 contract ProtocolMessagingHub is FeeTokenBridgingHub {
+    /// TYPES ///
+
+    struct ChainEntry {
+        uint16 chainID;
+        address contractAddress;
+        uint256 epochNumber;
+        uint256 chainPoints;
+        uint256 blockNum;
+        uint256 blockTime;
+    }
+
     /// CONSTANTS ///
 
     /// @notice CVE contract address.
     ICVE public immutable cve;
     /// @notice veCVE contract address.
     address public immutable veCVE;
+    /// @notice Messaging layer Chain ID in their integer format.
+    uint16 public thisChainID;
+
+    /// @dev `keccak256(bytes("queryLockPoints()"))`.
+    bytes4 internal _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
 
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
@@ -45,6 +61,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @notice Whether the Protocol Messaging Hub is paused or not.
     /// @dev 1 = activate; 2 = paused.
     uint256 public isPaused = 1;
+    /// @notice Contains last reported data for a particular chain
+    ///         after crosschain querying.
+    /// @dev Chain ID is recorded in the Messaging Layers Chain ID
+    ///      not GETH format.
+    mapping(uint16 => ChainEntry) public reportedLockPoints;
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
     mapping(bytes32 => bool) public isDeliveredMessageHash;
