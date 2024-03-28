@@ -5,6 +5,8 @@ import { GaugeController } from "contracts/gauge/GaugeController.sol";
 import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
+import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -13,6 +15,7 @@ import { ICentralRegistry, OmnichainData } from "contracts/interfaces/ICentralRe
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -29,13 +32,13 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///      At this time, payload/MessageType configuration + encoding/decoding
 ///      are not production ready.
 ///
-contract ProtocolMessagingHub is FeeTokenBridgingHub {
+contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
+    using BytesParsing for bytes;
     /// TYPES ///
 
     struct ChainEntry {
         uint16 chainID;
         address contractAddress;
-        uint256 epochNumber;
         uint256 chainPoints;
         uint256 blockNum;
         uint256 blockTime;
@@ -46,7 +49,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @notice CVE contract address.
     ICVE public immutable cve;
     /// @notice veCVE contract address.
-    address public immutable veCVE;
+    IVeCVE public immutable veCVE;
     /// @notice Messaging layer Chain ID in their integer format.
     uint16 public thisChainID;
 
@@ -55,6 +58,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
+    /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
+    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
 
     /// STORAGE ///
 
@@ -74,33 +79,83 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
     error ProtocolMessagingHub__InvalidBalance();
     error ProtocolMessagingHub__Unauthorized();
-    error ProtocolMessagingHub__ChainIsNotSupported();
-    error ProtocolMessagingHub__OperatorIsNotAuthorized(
-        address to,
-        uint256 gethChainId
-    );
-    error ProtocolMessagingHub__MessagingChainIdIsInvalid(
-        uint16 messagingChainId,
-        uint256 dstChainId
-    );
-    error ProtocolMessagingHub__ChainIdIsNotSupported(uint256 gethChainId);
+    error ProtocolMessagingHub__InvalidParameter();
     error ProtocolMessagingHub__MessagingHubPaused();
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
     );
-
     receive() external payable {}
 
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_
-    ) FeeTokenBridgingHub(centralRegistry_) {
+        ICentralRegistry centralRegistry_,
+        address wormhole_
+    ) FeeTokenBridgingHub(centralRegistry_) QueryResponse(wormhole_){
         cve = ICVE(centralRegistry.cve());
-        veCVE = centralRegistry.veCVE();
+        veCVE = IVeCVE(centralRegistry.veCVE());
+        if (address(centralRegistry_.wormholeCore()) != wormhole_) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints` on all other chains, 
+    ///         stores the results for the other chains, and updates the data for this chain.
+    function executeEpoch(bytes memory response, IWormhole.Signature[] memory signatures) external {
+        uint256 adjustedBlockTime;
+        ParsedQueryResponse memory r = parseAndVerifyQueryResponse(response, signatures);
+        uint256 numResponses = r.responses.length;
+        uint256[] memory chainIDs = centralRegistry.foreignChainIDs();
+        if (numResponses != chainIDs.length) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        for (uint256 i = 0; i < numResponses;) {
+            // Create a storage pointer for frequently read and updated data stored on the blockchain
+            ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
+            if (chainEntry.chainID != chainIDs[i]) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
+
+            // Validate that update is not obsolete
+            validateBlockNum(eqr.blockNum, chainEntry.blockNum);
+
+            // Validate that update is not stale
+            validateBlockTime(eqr.blockTime, block.timestamp - 300);
+
+            if (eqr.result.length != 1) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            // Validate addresses and function signatures
+            address[] memory validAddresses = new address[](1);
+            bytes4[] memory validFunctionSignatures = new bytes4[](1);
+            validAddresses[0] = chainEntry.contractAddress;
+            validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
+
+            validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
+
+            require(eqr.result[0].result.length == 32, "result is not a uint256");
+
+            chainEntry.blockNum = eqr.blockNum;
+            chainEntry.blockTime = adjustedBlockTime;
+            chainEntry.chainPoints = abi.decode(eqr.result[0].result, (uint256));
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        /// Add executeEpoch call here ///
+
+        reportedLockPoints[thisChainID].blockNum = block.number;
+        reportedLockPoints[thisChainID].blockTime = block.timestamp;
+        reportedLockPoints[thisChainID].chainPoints = queryLockPoints();
+    }
 
     /// @notice Used when fees are received from other chains.
     ///         When a `send` is performed with this contract as the target,
@@ -285,7 +340,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 .decode(lockData, (address, uint256, bool));
 
             cve.mintVeCVELock(amount);
-            cve.approve(veCVE, amount);
+            cve.approve(address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -326,26 +381,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
             // Validate that the operator is authorized.
             if (operator.isAuthorized < 2) {
-                revert ProtocolMessagingHub__OperatorIsNotAuthorized(
-                    to,
-                    dstChainId
-                );
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
 
             // Validate that the operator messaging chain matches.
             // the destination chain id.
             if (operator.messagingChainId != messagingChainId) {
-                revert ProtocolMessagingHub__MessagingChainIdIsInvalid(
-                    operator.messagingChainId,
-                    messagingChainId
-                );
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             // Validate that we are aiming for a supported chain.
             if (
                 centralRegistry.supportedChainData(dstChainId).isSupported < 2
             ) {
-                revert ProtocolMessagingHub__ChainIdIsNotSupported(dstChainId);
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
         }
 
@@ -400,7 +449,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         uint256 amount,
         bool continuousLock
     ) external payable returns (uint64) {
-        if (msg.sender != veCVE) {
+        if (msg.sender != address(veCVE)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -510,6 +559,13 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             amount
         );
     }
+    
+    /// PUBLIC FUNCTIONS ///
+
+    function queryLockPoints() public view returns (uint256) {
+        uint256 currentEpoch = veCVE.currentEpoch(block.timestamp);
+        return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(currentEpoch);
+    }
 
     /// INTERNAL FUNCTIONS ///
 
@@ -529,7 +585,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     ) internal returns (uint64) {
         // Validate that we are aiming for a supported chain.
         if (centralRegistry.supportedChainData(dstChainId).isSupported < 2) {
-            revert ProtocolMessagingHub__ChainIsNotSupported();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         return
