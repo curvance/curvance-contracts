@@ -1146,7 +1146,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Check whether it should restrict state changes or not.
-    function _checkEpochStatus() internal {
+    function _checkEpochStatus() internal view {
         uint256 nextEpochStartTime = nextEpochStartTime();
         uint256 currentEpochStartTime = nextEpochStartTime - EPOCH_DURATION;
 

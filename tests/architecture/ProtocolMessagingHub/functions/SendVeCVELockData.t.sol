@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
-import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
+import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
+import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 
-contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
+contract SendVeCVELockDataTest is TestBaseProtocolMessagingHub {
     function setUp() public override {
         super.setUp();
 
@@ -20,35 +20,35 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         );
     }
 
-    function test_feeAccumulatorSendWormholeMessages_fail_whenCallerIsNotAuthorized()
-        public
-    {
-        vm.expectRevert(FeeAccumulator.FeeAccumulator__Unauthorized.selector);
-        feeAccumulator.sendWormholeMessages(
+    function test_sendVeCVELockData_fail_whenCallerIsNotAuthorized() public {
+        vm.expectRevert(
+            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
+        );
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0
         );
     }
 
-    function test_feeAccumulatorSendWormholeMessages_fail_whenChainIsNotSupported()
-        public
-    {
+    function test_sendVeCVELockData_fail_whenChainIsNotSupported() public {
         centralRegistry.removeChainSupport(address(this), 42161);
 
         vm.expectRevert(
-            FeeAccumulator.FeeAccumulator__ChainIsNotSupported.selector
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__ChainIsNotSupported
+                .selector
         );
 
         vm.prank(harvester);
-        feeAccumulator.sendWormholeMessages(
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0
         );
     }
 
-    function test_feeAccumulatorSendWormholeMessages_fail_whenAddressIsNotCVEAddress()
+    function test_sendVeCVELockData_fail_whenAddressIsNotMessagingHub()
         public
     {
         centralRegistry.removeChainSupport(address(this), 42161);
@@ -64,8 +64,8 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                FeeAccumulator
-                    .FeeAccumulator__ToAddressIsNotMessagingHub
+                ProtocolMessagingHub
+                    .ProtocolMessagingHub__ToAddressIsNotMessagingHub
                     .selector,
                 address(1),
                 address(protocolMessagingHub)
@@ -73,49 +73,55 @@ contract FeeAccumulatorSendWormholeMessagesTest is TestBaseFeeAccumulator {
         );
 
         vm.prank(harvester);
-        feeAccumulator.sendWormholeMessages(
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0
         );
     }
 
-    function test_feeAccumulatorSendWormholeMessages_fail_whenHasNoEnoughNativeAssetForGas()
+    function test_sendVeCVELockData_fail_whenHasNoEnoughNativeAssetForGas()
         public
     {
         vm.expectRevert();
 
         vm.prank(harvester);
-        feeAccumulator.sendWormholeMessages(
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0
         );
     }
 
-    function test_feeAccumulatorSendWormholeMessages_success() public {
+    function test_sendVeCVELockData_success() public {
         uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
             42161,
             false,
             0
         );
-        deal(address(feeAccumulator), messageFee);
+        deal(address(protocolMessagingHub), messageFee);
 
         uint256 nextEpoch = ICVELocker(centralRegistry.cveLocker())
             .nextEpochToDeliver();
-        assertEq(feeAccumulator.lockedTokenDataSent(42161, nextEpoch), 0);
+        assertEq(
+            protocolMessagingHub.lockedTokenDataSent(42161, nextEpoch),
+            0
+        );
 
         vm.prank(harvester);
-        feeAccumulator.sendWormholeMessages(
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0
         );
 
-        assertEq(feeAccumulator.lockedTokenDataSent(42161, nextEpoch), 2);
+        assertEq(
+            protocolMessagingHub.lockedTokenDataSent(42161, nextEpoch),
+            2
+        );
 
         vm.prank(harvester);
-        feeAccumulator.sendWormholeMessages(
+        protocolMessagingHub.sendVeCVELockData(
             42161,
             address(protocolMessagingHub),
             0

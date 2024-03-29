@@ -8,6 +8,12 @@ struct EpochRolloverData {
     uint256 epoch;
 }
 
+struct LockData {
+    uint224 lockAmount;
+    uint16 epoch;
+    uint16 chainId;
+}
+
 interface IFeeAccumulator {
     /// @notice Receive finalized epoch rewards data
     function receiveExecutableLockData(uint256 lockValue) external;

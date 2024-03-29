@@ -14,6 +14,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
 import { EpochRolloverData } from "contracts/interfaces/IFeeAccumulator.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
 
 /// @title Curvance Fee Accumulator.
 /// @notice A system for managing fee collected through Curvance DAO
@@ -55,12 +56,6 @@ contract FeeAccumulator is ReentrancyGuard {
         uint256 forOTC;
     }
 
-    struct LockData {
-        uint224 lockAmount;
-        uint16 epoch;
-        uint16 chainId;
-    }
-
     /// CONSTANTS ///
 
     /// @notice Address of fee token.
@@ -77,6 +72,7 @@ contract FeeAccumulator is ReentrancyGuard {
     address internal _messagingHubStored;
 
     LockData[] public crossChainLockData;
+
     /// @notice We store token data semi redundantly to save gas
     ///         on daily operations and to help with gelato network structure
     ///         Used for Gelato Network bots to check what tokens to swap.
@@ -84,9 +80,6 @@ contract FeeAccumulator is ReentrancyGuard {
 
     /// @notice Token Address => RewardToken data.
     mapping(address => RewardToken) public rewardTokenInfo;
-
-    /// @notice ChainID => Epoch => 2 = yes; 0 = no.
-    mapping(uint256 => mapping(uint256 => uint256)) public lockedTokenDataSent;
 
     /// ERRORS ///
 
@@ -116,10 +109,6 @@ contract FeeAccumulator is ReentrancyGuard {
     );
     error FeeAccumulator__TokenIsNotEarmarked();
     error FeeAccumulator__ChainIsNotSupported();
-    error FeeAccumulator__ToAddressIsNotMessagingHub(
-        address cveAddress,
-        address toAddress
-    );
     error FeeAccumulator__ConfigurationError();
     error FeeAccumulator__CurrentEpochError(
         uint256 currentEpoch,
@@ -300,68 +289,6 @@ contract FeeAccumulator is ReentrancyGuard {
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
 
-    /// @notice Sends veCVE locked token data to destination chain.
-    /// @param dstChainId Destination chain ID where the message data
-    ///                   should be sent.
-    /// @param toAddress The destination address specified by `dstChainId`.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    function sendWormholeMessages(
-        uint256 dstChainId,
-        address toAddress,
-        uint256 gasLimit
-    ) external {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-        uint256 epoch = locker.nextEpochToDeliver();
-
-        if (lockedTokenDataSent[dstChainId][epoch] == 2) {
-            return;
-        }
-
-        lockedTokenDataSent[dstChainId][epoch] = 2;
-
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            dstChainId
-        );
-
-        if (chainData.isSupported < 2) {
-            revert FeeAccumulator__ChainIsNotSupported();
-        }
-
-        if (chainData.messagingHub != toAddress) {
-            revert FeeAccumulator__ToAddressIsNotMessagingHub(
-                chainData.messagingHub,
-                toAddress
-            );
-        }
-
-        IVeCVE veCVE = IVeCVE(centralRegistry.veCVE());
-
-        bytes memory payload = abi.encode(
-            veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch)
-        );
-
-        IProtocolMessagingHub messagingHub = IProtocolMessagingHub(
-            centralRegistry.protocolMessagingHub()
-        );
-
-        uint256 gas = messagingHub.quoteWormholeFee(
-            dstChainId,
-            false,
-            gasLimit
-        );
-
-        messagingHub.sendWormholeMessages{ value: gas }(
-            dstChainId,
-            toAddress,
-            payload,
-            gasLimit
-        );
-    }
-
     /// @notice Receives and records the epoch rewards for CVE from
     ///         the protocol messaging hub.
     /// @param amount The rewards per CVE for the previous epoch.
@@ -448,36 +375,12 @@ contract FeeAccumulator is ReentrancyGuard {
                 gasLimit
             );
 
-            IProtocolMessagingHub messagingHub = IProtocolMessagingHub(
-                centralRegistry.protocolMessagingHub()
-            );
-            LockData memory lockData;
-            uint256 gas;
-
-            // Notify the other chains of the per epoch rewards.
-            for (uint256 i; i < numChainData; ) {
-                lockData = crossChainLockData[i];
-                chainData = centralRegistry.supportedChainData(
-                    lockData.chainId
-                );
-
-                gas = messagingHub.quoteWormholeFee(
-                    uint256(lockData.chainId),
-                    false,
+            IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+                .sendEpochRewardData(
+                    crossChainLockData,
+                    epochRewardsPerCVE,
                     gasLimit
                 );
-
-                messagingHub.sendWormholeMessages{ value: gas }(
-                    uint256(lockData.chainId),
-                    chainData.messagingHub,
-                    abi.encode(epochRewardsPerCVE),
-                    gasLimit
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
 
             delete crossChainLockData;
         }

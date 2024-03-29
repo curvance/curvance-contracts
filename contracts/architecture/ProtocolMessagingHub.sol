@@ -9,8 +9,8 @@ import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { IFeeAccumulator, EpochRolloverData } from "contracts/interfaces/IFeeAccumulator.sol";
-import { ICentralRegistry, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { IFeeAccumulator, EpochRolloverData, LockData } from "contracts/interfaces/IFeeAccumulator.sol";
+import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
@@ -52,6 +52,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
     mapping(bytes32 => bool) public isDeliveredMessageHash;
+    /// @notice ChainID => Epoch => 2 = yes; 0 = no.
+    mapping(uint256 => mapping(uint256 => uint256)) public lockedTokenDataSent;
 
     /// ERRORS ///
 
@@ -65,6 +67,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     error ProtocolMessagingHub__MessagingChainIdIsInvalid(
         uint16 messagingChainId,
         uint256 dstChainId
+    );
+    error ProtocolMessagingHub__ToAddressIsNotMessagingHub(
+        address cveAddress,
+        address toAddress
     );
     error ProtocolMessagingHub__ChainIdIsNotSupported(uint256 gethChainId);
     error ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
@@ -88,8 +94,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
     function receiveMessage(
         bytes calldata message,
-        bytes calldata attestation
-    ) external returns (bool success) {
+        bytes calldata /* attestation */
+    ) external view returns (bool success) {
         bytes32 destinationCaller = TypedMemView.index(
             TypedMemView.ref(message, 0),
             84, // DESTINATION_CALLER_INDEX
@@ -449,29 +455,97 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @param dstChainId Destination chain ID where the message data
     ///                   should be sent.
     /// @param toAddress The destination address specified by `dstChainId`.
-    /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
-    function sendWormholeMessages(
+    function sendVeCVELockData(
         uint256 dstChainId,
         address toAddress,
-        bytes calldata payload,
         uint256 gasLimit
-    ) external payable returns (uint64) {
-        _checkMessagingHubStatus();
-        _checkPermissions();
+    ) external payable {
+        if (!centralRegistry.isHarvester(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
 
-        uint256 messageFee = _quoteWormholeFee(dstChainId, false, gasLimit);
+        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        uint256 epoch = locker.nextEpochToDeliver();
 
-        return
-            _sendWormholeMessages(
-                dstChainId,
-                toAddress,
-                messageFee,
-                4,
-                payload,
-                gasLimit > 0 ? gasLimit : _PAYLOAD_4_GAS_LIMIT
+        if (lockedTokenDataSent[dstChainId][epoch] == 2) {
+            return;
+        }
+
+        lockedTokenDataSent[dstChainId][epoch] = 2;
+
+        ChainData memory chainData = centralRegistry.supportedChainData(
+            dstChainId
+        );
+
+        if (chainData.isSupported < 2) {
+            revert ProtocolMessagingHub__ChainIsNotSupported();
+        }
+
+        if (chainData.messagingHub != toAddress) {
+            revert ProtocolMessagingHub__ToAddressIsNotMessagingHub(
+                chainData.messagingHub,
+                toAddress
             );
+        }
+
+        if (gasLimit == 0) {
+            gasLimit = _PAYLOAD_4_GAS_LIMIT;
+        }
+
+        bytes memory payload = abi.encode(
+            IVeCVE(veCVE).chainPoints() -
+                IVeCVE(veCVE).chainUnlocksByEpoch(epoch)
+        );
+
+        _sendWormholeMessages(
+            dstChainId,
+            toAddress,
+            _quoteWormholeFee(dstChainId, false, gasLimit),
+            4,
+            payload,
+            gasLimit
+        );
+    }
+
+    /// @notice Records a Curvance reward epoch, if all chains have been
+    ///         recorded executes system wide reporting and distribution
+    ///         to all chains within the Curvance Protocol system.
+    function sendEpochRewardData(
+        LockData[] calldata crossChainLockData,
+        uint256 epochRewardsPerCVE,
+        uint256 gasLimit
+    ) external {
+        if (msg.sender != centralRegistry.feeAccumulator()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (gasLimit == 0) {
+            gasLimit = _PAYLOAD_4_GAS_LIMIT;
+        }
+
+        uint256 numChainData = crossChainLockData.length;
+        uint16 lockDataChainId;
+        ChainData memory chainData;
+
+        // Notify the other chains of the per epoch rewards.
+        for (uint256 i; i < numChainData; ) {
+            lockDataChainId = crossChainLockData[i].chainId;
+            chainData = centralRegistry.supportedChainData(lockDataChainId);
+
+            _sendWormholeMessages(
+                uint256(lockDataChainId),
+                chainData.messagingHub,
+                _quoteWormholeFee(uint256(lockDataChainId), false, gasLimit),
+                4,
+                abi.encode(epochRewardsPerCVE),
+                gasLimit
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @notice Returns required amount of native asset for message fee.
@@ -482,7 +556,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         uint256 dstChainId,
         uint256 gasLimit
     ) external view returns (uint256) {
-        return _quoteWormholeFee(dstChainId, true, 0);
+        return _quoteWormholeFee(dstChainId, true, gasLimit);
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

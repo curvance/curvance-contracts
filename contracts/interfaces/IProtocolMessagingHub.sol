@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
+
 interface IProtocolMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         wormhole deposit and messaging.
@@ -14,21 +16,14 @@ interface IProtocolMessagingHub {
         uint256 gasLimit
     ) external view returns (uint256);
 
-    /// @notice Sends veCVE locked token data to destination chain.
-    /// @param dstChainId Destination chain ID where the message data should be
-    ///                   sent.
-    /// @param toAddress The destination address specified by `dstChainId`.
-    /// @param payload The payload data that is sent along with the message.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @dev We redundantly pass adapterParams so we do not need to coerce data
-    ///      in the function, calls with this function will have
-    ///      messageType = 1, 2 or 3
-    function sendWormholeMessages(
-        uint256 dstChainId,
-        address toAddress,
-        bytes calldata payload,
+    /// @notice Records a Curvance reward epoch, if all chains have been
+    ///         recorded executes system wide reporting and distribution
+    ///         to all chains within the Curvance Protocol system.
+    function sendEpochRewardData(
+        LockData[] memory crossChainLockData,
+        uint256 epochRewardsPerCVE,
         uint256 gasLimit
-    ) external payable;
+    ) external;
 
     /// @notice Sends fee tokens to the Messaging Hub on `dstChainId`.
     /// @param dstChainId Destination chain ID .
