@@ -3,7 +3,7 @@ const {
   DataPackage,
   NumericDataPoint,
   RedstonePayload,
-} = require("./lib/redstone-oracles-monorepo/packages/protocol/dist/src/index");
+} = require("./node_modules/@redstone-finance/protocol/dist/src/index");
 
 const args = process.argv.slice(2);
 
