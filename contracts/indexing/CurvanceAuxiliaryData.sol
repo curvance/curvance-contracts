@@ -16,6 +16,8 @@ import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 
+import "forge-std/console.sol";
+
 /// @notice An auxiliary contract for querying nuanced data
 ///         inside the Curvance ecosystem.
 contract CurvanceAuxiliaryData {
@@ -108,11 +110,25 @@ contract CurvanceAuxiliaryData {
     function getAccountTokenData(
         address account,
         address token
-    ) external view returns (bool, uint256, uint256) {
+    )
+        external
+        view
+        returns (
+            bool hasPosition,
+            uint256 balanceOf,
+            uint256 collateralOrDebtAmount
+        )
+    {
         IMarketManager marketManager = IMarketManager(
             IMToken(token).marketManager()
         );
-        return marketManager.tokenDataOf(account, token);
+        bool isCToken = IMToken(token).isCToken();
+
+        (hasPosition, balanceOf, collateralOrDebtAmount) = marketManager
+            .tokenDataOf(account, token);
+        collateralOrDebtAmount = isCToken
+            ? collateralOrDebtAmount
+            : IMToken(token).debtBalanceCached(account);
     }
 
     /// @notice Return the debt balance of `account` based on stored data.
@@ -190,7 +206,7 @@ contract CurvanceAuxiliaryData {
         address token;
         bool getLower;
 
-        for (uint256 i; i < numAssets; ++i) {
+        for (uint256 i; i < numAssets; ) {
             token = assets[i++];
             getLower = IMToken(token).isCToken() ? true : false;
             result += getTokenTVL(token, getLower);
@@ -206,7 +222,7 @@ contract CurvanceAuxiliaryData {
         address[] memory assets = getMarketCollateralAssets(market);
         uint256 numAssets = assets.length;
 
-        for (uint256 i; i < numAssets; ++i) {
+        for (uint256 i; i < numAssets; ) {
             result += getTokenTVL(assets[i++], true);
         }
     }
@@ -258,11 +274,12 @@ contract CurvanceAuxiliaryData {
         }
 
         address[] memory collateralAssets = new address[](numCollateralAssets);
+        uint256 collateralAssetsIndex = 0;
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
             if (IMToken(asset).isCToken()) {
-                collateralAssets[i] = asset;
+                collateralAssets[collateralAssetsIndex++] = asset;
             }
         }
 
@@ -288,11 +305,12 @@ contract CurvanceAuxiliaryData {
         }
 
         address[] memory debtAssets = new address[](numDebtAssets);
+        uint256 debtAssetsIndex = 0;
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
             if (!IMToken(asset).isCToken()) {
-                debtAssets[i] = asset;
+                debtAssets[debtAssetsIndex++] = asset;
             }
         }
 
@@ -349,6 +367,7 @@ contract CurvanceAuxiliaryData {
         address token
     ) public view returns (uint256 result) {
         IMToken mToken = IMToken(token);
+
         // Get outstanding borrows then query price and return.
         result =
             _getTokenPrice(mToken.underlying(), false) *

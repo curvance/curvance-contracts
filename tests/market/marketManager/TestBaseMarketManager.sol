@@ -5,6 +5,11 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
+// import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+// import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
+// import { MarketManager } from "contracts/market/MarketManager.sol";
+// import "forge-std/console.sol";
+
 contract TestBaseMarketManager is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
@@ -55,4 +60,19 @@ contract TestBaseMarketManager is TestBaseMarket {
             true
         );
     }
+
+    // function testAustin() public {
+    //     ICentralRegistry cr = ICentralRegistry(address(centralRegistry));
+    //     CurvanceAuxiliaryData aux = new CurvanceAuxiliaryData(cr);
+
+    //     address firstMarket = centralRegistry.queryMarketManagers()[0];
+    //     MarketManager mm = MarketManager(firstMarket);
+
+    //     mm.listToken(address(dUSDC));
+    //     mm.listToken(address(cBALRETH));
+
+    //     // address[] memory assets = aux.getMarketAssets(address(mm));
+    //     // console.log(aux.getTokenBorrows(assets[1]));
+    //     console.log(aux.getMarketDebtAssets(address(mm)).length);
+    // }
 }

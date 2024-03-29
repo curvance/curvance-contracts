@@ -15,9 +15,10 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
+import { MockToken } from "contracts/mocks/MockToken.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-
+import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
@@ -98,21 +99,25 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         uint256 marketInterestFactor = 1000; // 10%
 
-        MarketManager firstMarket = new MarketManager(cr, gaugePool);
+        GaugePool firstGp = new GaugePool(cr);
+        MarketManager firstMarket = new MarketManager(cr, address(firstGp));
         console.log("firstMarket =", address(firstMarket));
         _saveDeployedContracts("firstTestMarket", address(firstMarket));
         CentralRegistry(address(cr)).addMarketManager(
             address(firstMarket),
             marketInterestFactor
         );
+        firstGp.start(address(firstMarket));
 
-        MarketManager secondMarket = new MarketManager(cr, gaugePool);
+        GaugePool secondGp = new GaugePool(cr);
+        MarketManager secondMarket = new MarketManager(cr, address(secondGp));
         console.log("secondMarket =", address(secondMarket));
         _saveDeployedContracts("secondTestMarket", address(secondMarket));
         CentralRegistry(address(cr)).addMarketManager(
             address(secondMarket),
             marketInterestFactor
         );
+        secondGp.start(address(secondMarket));
 
         address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
         address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
@@ -120,27 +125,37 @@ contract StartContractsConfig is Script, DeployConfiguration {
         MockToken(usdc).mint(52e25);
         MockToken(wbtc).mint(52e25);
 
+        _deployTokensAndList(firstMarket, secondMarket, cr, usdc, wbtc);
+    }
+
+    function _deployTokensAndList(
+        MarketManager firstMarket,
+        MarketManager secondMarket,
+        ICentralRegistry cr,
+        address usdc,
+        address wbtc
+    ) internal {
         address dusdc = _deployDTokenAndList(
             "Div-D-USDC",
-            address(usdc),
+            usdc,
             cr,
             firstMarket
         );
         address cwbtc = _deployCTokenAndList(
             "Div-C-WBTC",
-            address(wbtc),
+            wbtc,
             cr,
             firstMarket
         );
         address dwbtc = _deployDTokenAndList(
             "Div-D-WBTC",
-            address(wbtc),
+            wbtc,
             cr,
             secondMarket
         );
         address cusdc = _deployCTokenAndList(
             "Div-C-USDC",
-            address(usdc),
+            usdc,
             cr,
             secondMarket
         );
@@ -273,7 +288,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
                 )
             })
         });
-        address asset = param.asset;
 
         // Setup chainlink adapters
         if (!ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(asset)) {
