@@ -5,15 +5,9 @@ import { FeeAccumulator, ICentralRegistry } from "contracts/architecture/FeeAccu
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
 contract BlastFeeAccumulator is FeeAccumulator, BlastYieldDelegable {
-
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address oneBalanceFeeManager_
-    ) FeeAccumulator(
-        centralRegistry_,
-        oneBalanceFeeManager_
-    ) BlastYieldDelegable (centralRegistry_) {}
-
+        ICentralRegistry centralRegistry_
+    ) FeeAccumulator(centralRegistry_) BlastYieldDelegable(centralRegistry_) {}
 }

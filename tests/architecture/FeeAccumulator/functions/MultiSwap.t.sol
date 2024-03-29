@@ -178,15 +178,12 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
 
     function test_multiSwap_success() public {
         deal(_WETH_ADDRESS, address(feeAccumulator), _ONE);
-        uint256 balance = usdc.balanceOf(address(oneBalanceFeeManager));
+        uint256 balance = usdc.balanceOf(address(centralRegistry));
 
         vm.prank(harvester);
         feeAccumulator.multiSwap(abi.encode(swapData), tokens);
 
-        assertEq(
-            IERC20(_WETH_ADDRESS).balanceOf(address(oneBalanceFeeManager)),
-            0
-        );
-        assertGt(usdc.balanceOf(address(oneBalanceFeeManager)), balance);
+        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(centralRegistry)), 0);
+        assertGt(usdc.balanceOf(address(centralRegistry)), balance);
     }
 }

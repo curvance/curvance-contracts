@@ -12,7 +12,6 @@ import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZap
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
-import { OneBalanceFeeManager } from "contracts/architecture/OneBalanceFeeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -75,8 +74,6 @@ contract TestBaseMarket is TestBase {
         0xBd3fa81B58Ba92a82136038B25aDec7066af3155;
     address internal _TOKEN_BRIDGE =
         0x3ee18B2214AFF97000D974cf647E7C347E8fa585;
-    address internal _GELATO_ONE_BALANCE =
-        0x7506C12a824d73D9b08564d5Afc22c949434755e;
 
     CVE public cve;
     VeCVE public veCVE;
@@ -85,7 +82,6 @@ contract TestBaseMarket is TestBase {
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
     ProtocolMessagingHub public protocolMessagingHub;
-    OneBalanceFeeManager public oneBalanceFeeManager;
     BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
@@ -161,7 +157,6 @@ contract TestBaseMarket is TestBase {
         _deployCVELocker();
         _deployVeCVE();
         _deployProtocolMessagingHub();
-        _deployOneBalanceFeeManager();
         _deployFeeAccumulator();
     }
 
@@ -180,7 +175,6 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
         centralRegistry.setWormholeCore(_WORMHOLE_CORE);
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
-        centralRegistry.setGelatoSponsor(address(1));
 
         uint256[] memory chainIds = new uint256[](3);
         uint16[] memory wormholeChainIds = new uint16[](3);
@@ -246,21 +240,12 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
     }
 
-    function _deployOneBalanceFeeManager() internal {
-        oneBalanceFeeManager = new OneBalanceFeeManager(
-            ICentralRegistry(address(centralRegistry)),
-            _GELATO_ONE_BALANCE,
-            address(1)
-        );
-    }
-
     function _deployFeeAccumulator() internal {
         harvester = makeAddr("harvester");
         centralRegistry.addHarvester(harvester);
 
         feeAccumulator = new FeeAccumulator(
-            ICentralRegistry(address(centralRegistry)),
-            address(oneBalanceFeeManager)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setFeeAccumulator(address(feeAccumulator));
     }
@@ -409,8 +394,8 @@ contract TestBaseMarket is TestBase {
         adapterData.poolDecimals = 18;
         adapterData.rateProviderDecimals[0] = 18;
         adapterData.rateProviders[
-                0
-            ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
+            0
+        ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
         adapterData.underlyingOrConstituent[0] = _RETH_ADDRESS;
         adapterData.underlyingOrConstituent[1] = _WETH_ADDRESS;
         balRETHAdapter.addAsset(_BALANCER_WETH_RETH, adapterData);

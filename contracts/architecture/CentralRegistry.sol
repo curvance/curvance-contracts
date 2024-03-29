@@ -5,7 +5,9 @@ import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
@@ -104,11 +106,6 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
-
-    // GELATO ADDRESSES
-
-    /// @notice The address of gelato sponsor.
-    address public gelatoSponsor;
 
     // PROTOCOL FEES
 
@@ -232,7 +229,6 @@ contract CentralRegistry is ERC165 {
     event WormholeChainIDsSet(uint256[] chainIds, uint16[] wormholeChainIds);
     event CCTPDomainsSet(uint256[] chainIds, uint32[] cctpDomains);
     event TokenBridgeSet(address newAddress);
-    event GelatoSponsorSet(address newAddress);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
 
@@ -295,6 +291,17 @@ contract CentralRegistry is ERC165 {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Withdraw fee token from central registry.
+    function withdrawFee() external {
+        _checkDaoPermissions();
+
+        SafeTransferLib.safeTransfer(
+            feeToken,
+            daoAddress,
+            IERC20(feeToken).balanceOf(address(this))
+        );
+    }
 
     /// @notice Withdraws all protocol reserve fees from a dToken
     ///         from interest generated and liquidations.
@@ -480,17 +487,6 @@ contract CentralRegistry is ERC165 {
             cctpDomain[chainIds[i]] = cctpDomains[i];
         }
         emit CCTPDomainsSet(chainIds, cctpDomains);
-    }
-
-    /// @notice Sets an address of gelato sponsor.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {GelatoSponsorSet} event.
-    /// @param newGelatoSponsor The new address of new gelato sponsor.
-    function setGelatoSponsor(address newGelatoSponsor) external {
-        _checkElevatedPermissions();
-
-        gelatoSponsor = newGelatoSponsor;
-        emit GelatoSponsorSet(newGelatoSponsor);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas

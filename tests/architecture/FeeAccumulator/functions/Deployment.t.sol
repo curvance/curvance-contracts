@@ -12,30 +12,12 @@ contract FeeAccumulatorDeploymentTest is TestBaseFeeAccumulator {
         vm.expectRevert(
             FeeAccumulator.FeeAccumulator__InvalidCentralRegistry.selector
         );
-        new FeeAccumulator(
-            ICentralRegistry(address(0)),
-            address(oneBalanceFeeManager)
-        );
-    }
-
-    function test_feeAccumulatorDeployment_fail_whenOneBalanceFeeManagerIsZeroAddress()
-        public
-    {
-        vm.expectRevert(
-            FeeAccumulator
-                .FeeAccumulator__OneBalanceFeeManagerIsZeroAddress
-                .selector
-        );
-        new FeeAccumulator(
-            ICentralRegistry(address(centralRegistry)),
-            address(0)
-        );
+        new FeeAccumulator(ICentralRegistry(address(0)));
     }
 
     function test_feeAccumulatorDeployment_success() public {
         feeAccumulator = new FeeAccumulator(
-            ICentralRegistry(address(centralRegistry)),
-            address(oneBalanceFeeManager)
+            ICentralRegistry(address(centralRegistry))
         );
 
         assertEq(
@@ -45,10 +27,6 @@ contract FeeAccumulatorDeploymentTest is TestBaseFeeAccumulator {
         assertEq(
             address(feeAccumulator.getOracleRouter()),
             centralRegistry.oracleRouter()
-        );
-        assertEq(
-            feeAccumulator.oneBalanceFeeManager(),
-            address(oneBalanceFeeManager)
         );
         assertEq(feeAccumulator.feeToken(), _USDC_ADDRESS);
         assertEq(
