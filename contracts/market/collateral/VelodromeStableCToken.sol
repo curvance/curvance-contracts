@@ -62,6 +62,7 @@ contract VelodromeStableCToken is CTokenCompounding {
     error VelodromeStableCToken__AssetIsNotStable();
     error VelodromeStableCToken__SlippageError();
     error VelodromeStableCToken__InvalidSwapper(address invalidSwapper);
+    error VelodromeStableCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -153,7 +154,7 @@ contract VelodromeStableCToken is CTokenCompounding {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
                     uint256 protocolFee = FixedPointMathLib.mulDiv(
-                        rewardAmount, 
+                        rewardAmount,
                         centralRegistry.protocolHarvestFee(),
                         1e18
                     );
@@ -177,6 +178,10 @@ contract VelodromeStableCToken is CTokenCompounding {
                             );
                         }
 
+                        if (swapData.inputToken != address(rewardToken)) {
+                            revert VelodromeStableCToken__InvalidSwapData();
+                        }
+
                         SwapperLib.swap(centralRegistry, swapData);
                     }
                 }
@@ -198,7 +203,7 @@ contract VelodromeStableCToken is CTokenCompounding {
                 IVeloPair(_asset).token0()
                 ? (r0, r1)
                 : (r1, r0);
-            // Feed library pair factory, lpToken, and stable = true, 
+            // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(
                 address(sd.pairFactory),
