@@ -15,6 +15,7 @@ contract BridgeVeCVELockTest is TestBaseVeCVE {
             address(this),
             address(protocolMessagingHub),
             address(cve),
+            _USDC_ADDRESS,
             42161,
             1,
             1,

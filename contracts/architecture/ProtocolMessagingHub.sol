@@ -9,7 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IFeeAccumulator, EpochRolloverData } from "contracts/interfaces/IFeeAccumulator.sol";
-import { ICentralRegistry, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, OmnichainData, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
@@ -84,6 +84,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         uint256 dstChainId
     );
     error ProtocolMessagingHub__ChainIdIsNotSupported(uint256 gethChainId);
+    error ProtocolMessagingHub__InvalidFeeTokenAdderess(uint256 gethChainId, address feeTokenAddress);
     error ProtocolMessagingHub__MessagingHubPaused();
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
@@ -148,17 +149,16 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             srcAddr,
             gethChainId
         );
-
-        // Validate message came directly from MessagingHub on the source chain.
-        if (
-            centralRegistry.supportedChainData(gethChainId).messagingHub !=
-            srcAddr
-        ) {
+        // Validate the operator is authorized.
+        if (operator.isAuthorized < 2) {
             return;
         }
 
-        // Validate the operator is authorized.
-        if (operator.isAuthorized < 2) {
+        ChainData memory chainData = centralRegistry.supportedChainData(
+            gethChainId
+        );
+        // Validate message came directly from MessagingHub on the source chain.
+        if (chainData.messagingHub != srcAddr) {
             return;
         }
 
@@ -167,39 +167,37 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         // PayloadID = 1 Indicates submitting fees and epoch lock data
         // for THIS chain, for a reported epoch.
         if (payloadId == 1) {
-            (, address token, uint256 amount) = abi.decode(
+            (, address srcFeeToken, uint256 amount) = abi.decode(
                 payload,
                 (uint8, address, uint256)
             );
+            // Validate fee token address
+            if (chainData.feeTokenAddress != srcFeeToken) {
+                revert ProtocolMessagingHub__InvalidFeeTokenAdderess(gethChainId, srcFeeToken);
+            }
 
             address feeToken = centralRegistry.feeToken();
+            ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
 
-            // Make sure the token received is the
-            // fee token (locker reward token), otherwise do not execute
-            // epoch finalization.
-            if (token == feeToken) {
-                ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-
-                // If the locker is shutdown, transfer fees to DAO
-                // instead of recording epoch rewards.
-                if (locker.isShutdown() == 2) {
-                    SafeTransferLib.safeTransfer(
-                        feeToken,
-                        centralRegistry.daoAddress(),
-                        amount
-                    );
-                    return;
-                }
-
-                // Transfer fees to locker and record newest epoch rewards.
+            // If the locker is shutdown, transfer fees to DAO
+            // instead of recording epoch rewards.
+            if (locker.isShutdown() == 2) {
                 SafeTransferLib.safeTransfer(
                     feeToken,
-                    address(locker),
+                    centralRegistry.daoAddress(),
                     amount
                 );
-                locker.recordEpochRewards(amount);
                 return;
             }
+
+            // Transfer fees to locker and record newest epoch rewards.
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                address(locker),
+                amount
+            );
+            locker.recordEpochRewards(amount);
+            return;
             // PayloadID = 4 Indicates receiving some crosschain information from
             // a remote chain. Such as Gauge emissions configuration,
             // locked token data, locker rewards data.

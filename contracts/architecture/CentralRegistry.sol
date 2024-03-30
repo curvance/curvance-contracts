@@ -773,6 +773,7 @@ contract CentralRegistry is ERC165 {
     ///                             address sending messaging to this chain
     ///                             for validation.
     /// @param messagingHub Contract address for new chains Messaging Hub.
+    /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
     /// @param sourceAux Auxilliary data when the chain is source.
@@ -782,6 +783,7 @@ contract CentralRegistry is ERC165 {
         address newOmnichainOperator,
         address messagingHub,
         address cveAddress,
+        address feeTokenAddress,
         uint256 chainId,
         uint256 sourceAux,
         uint256 destinationAux,
@@ -806,7 +808,8 @@ contract CentralRegistry is ERC165 {
             messagingHub: messagingHub,
             asSourceAux: sourceAux,
             asDestinationAux: destinationAux,
-            cveAddress: cveAddress
+            cveAddress: cveAddress,
+            feeTokenAddress: feeTokenAddress
         });
         messagingToGETHChainId[messagingChainId] = chainId;
         GETHToMessagingChainId[chainId] = messagingChainId;

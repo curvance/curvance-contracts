@@ -21,6 +21,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             address(srcMessagingHub),
             address(srcMessagingHub),
             address(cve),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
