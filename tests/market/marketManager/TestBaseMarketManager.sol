@@ -5,10 +5,13 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-// import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-// import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
-// import { MarketManager } from "contracts/market/MarketManager.sol";
-// import "forge-std/console.sol";
+import { MockToken } from "contracts/mocks/MockToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
+import "forge-std/console.sol";
 
 contract TestBaseMarketManager is TestBaseMarket {
     MockDataFeed public mockWethFeed;
@@ -61,18 +64,96 @@ contract TestBaseMarketManager is TestBaseMarket {
         );
     }
 
-    // function testAustin() public {
-    //     ICentralRegistry cr = ICentralRegistry(address(centralRegistry));
-    //     CurvanceAuxiliaryData aux = new CurvanceAuxiliaryData(cr);
+    function testAustin() public {
+        ICentralRegistry cr = ICentralRegistry(address(centralRegistry));
+        CurvanceAuxiliaryData aux = new CurvanceAuxiliaryData(cr);
 
-    //     address firstMarket = centralRegistry.queryMarketManagers()[0];
-    //     MarketManager mm = MarketManager(firstMarket);
+        address firstMarket = centralRegistry.queryMarketManagers()[0];
+        MarketManager mm = MarketManager(firstMarket);
 
-    //     mm.listToken(address(dUSDC));
-    //     mm.listToken(address(cBALRETH));
+        mm.listToken(address(dUSDC));
+        mm.listToken(address(cBALRETH));
 
-    //     // address[] memory assets = aux.getMarketAssets(address(mm));
-    //     // console.log(aux.getTokenBorrows(assets[1]));
-    //     console.log(aux.getMarketDebtAssets(address(mm)).length);
-    // }
+        mm.updateCollateralToken(
+            IMToken(address(cBALRETH)),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            0,
+            1000
+        );
+        address[] memory newCapTokens = new address[](1);
+        uint256[] memory newCapValues = new uint256[](1);
+        newCapTokens[0] = address(cBALRETH);
+        newCapValues[0] = 1e25;
+        mm.setCTokenCollateralCaps(newCapTokens, newCapValues);
+
+        IERC20 usdc = IERC20(dUSDC.underlying());
+        IERC20 balreth = IERC20(cBALRETH.underlying());
+
+        balreth.approve(address(cBALRETH), 200);
+        cBALRETH.depositAsCollateral(100, address(this));
+        cBALRETH.mint(100, address(this));
+
+        usdc.approve(address(dUSDC), 100);
+        dUSDC.mint(100);
+
+        console.log(
+            "Single cToken Price: ",
+            aux.getTokenPrice(address(cBALRETH))
+        );
+        console.log(
+            "Posted Collateral:",
+            aux.getMarketPostedCollateral(firstMarket)
+        );
+        console.log(
+            "Total Collateral Posted in USD:",
+            aux.getMarketCollateralPostedByUsd(firstMarket)
+        );
+        console.log(
+            "Total Collateral Deposited:",
+            aux.getMarketCollateralByToken(firstMarket)
+        );
+        console.log(
+            "Total Collateral Deposited in USD:",
+            aux.getMarketCollateralTVL(firstMarket)
+        );
+
+        CurvanceAuxiliaryData.MarketData memory marketData = aux.getMarketData(
+            firstMarket,
+            address(this)
+        );
+
+        console.log("--- Market Data Start ---");
+        console.log(marketData.totalTVL);
+        console.log(marketData.collateralTVL);
+        console.log(marketData.lendingTVL);
+        console.log(marketData.borrows);
+        console.log(marketData.collateralPostedByUsd);
+        console.log(marketData.collateralByToken);
+        console.log(marketData.postedCollateral);
+        console.log(marketData.accountCollateral);
+        console.log(marketData.accountDebt);
+        console.log(marketData.accountMaxDebt);
+
+        (
+            CurvanceAuxiliaryData.MarketDTokenData[] memory dTokenData,
+            CurvanceAuxiliaryData.MarketCTokenData[] memory cTokenData
+        ) = aux.getMarketAssetData(firstMarket);
+
+        console.log("--- Market DToken Data Start ---");
+        console.log(dTokenData[0].assetAddress);
+        console.log(dTokenData[0].marketAddress);
+        console.log("--- Market CToken Data Start ---");
+        console.log(cTokenData[0].totalCollateralPosted);
+
+        CurvanceAuxiliaryData.AllMarketData[] memory allMarketData = aux
+            .getAllMarketData(address(this));
+        console.log("--- All Market Data Start ---");
+        console.log(allMarketData[0].marketData.totalTVL);
+
+        // TODO: Still need to add user position for marketAssets
+    }
 }

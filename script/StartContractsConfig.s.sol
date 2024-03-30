@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
 import { CVE } from "contracts/token/CVE.sol";
+import { VeCVE } from "contracts/token/VeCVE.sol";
 import { CVELocker } from "contracts/architecture/CVELocker.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -20,6 +21,7 @@ import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
+import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
     struct DTokenInterestRateParam {
@@ -87,6 +89,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
         _createTestMarkets();
         _loadFaucet();
+
+        // Lock 25%
+        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
+        CVE cve = CVE(_getDeployedContract("cve"));
+        VeCVE veCVE = VeCVE(centralRegistry.veCVE());
+
+        uint256 lockAmount = cve.balanceOf(deployer) / 4;
+        cve.approve(address(veCVE), lockAmount);
+
+        RewardsData memory rewardsData;
+        veCVE.createLock(lockAmount, true, rewardsData, "", 0);
     }
 
     function _createTestMarkets() internal {
@@ -122,8 +135,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
         address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
 
-        MockToken(usdc).mint(52e25);
-        MockToken(wbtc).mint(52e25);
+        // MockToken(usdc).mint(52e25);
+        // MockToken(wbtc).mint(52e25);
 
         _deployTokensAndList(firstMarket, secondMarket, cr, usdc, wbtc);
     }

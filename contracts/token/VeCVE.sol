@@ -108,11 +108,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
     //          is set on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
     /// @notice The length of one voting escrow epoch, in weeks.
-    uint256 public constant EPOCH_DURATION = 5 minutes;
+    uint256 public constant EPOCH_DURATION = 12 hours;
     /// @notice The length of a fresh voting escrow CVE position, in epochs.
     uint256 public constant LOCK_DURATION_EPOCHS = 3;
     /// @notice The length of a fresh voting escrow CVE position, in seconds.
-    uint256 public constant LOCK_DURATION = EPOCH_DURATION * LOCK_DURATION_EPOCHS;
+    uint256 public constant LOCK_DURATION =
+        EPOCH_DURATION * LOCK_DURATION_EPOCHS;
     /// @notice Point multiplier for a continuous lock.
     /// @dev 2 = 200%.
     uint256 public constant CL_POINT_MULTIPLIER = 2;
@@ -193,9 +194,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    constructor(
-        ICentralRegistry centralRegistry_
-    ) {
+    constructor(ICentralRegistry centralRegistry_) {
         _name = "Vote Escrowed CVE";
         _symbol = "veCVE";
 
@@ -708,7 +707,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             if (
                 cveLocker.userNextClaimIndex(msg.sender) <=
                 currentEpoch(unlockTime)
-                ) {
+            ) {
                 // Update their points to reflect the removed lock.
                 _updateDataFromEarlyUnlock(msg.sender, amount, unlockTime);
             }
