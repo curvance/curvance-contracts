@@ -21,29 +21,33 @@ contract BridgeTest is TestBaseChildCVE {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        childCVE.bridge(137, user1, _ONE + 1);
+        childCVE.bridge(137, user1, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        childCVE.bridge(138, user1, _ONE);
+        childCVE.bridge(138, user1, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        childCVE.bridge(137, address(0), _ONE);
+        childCVE.bridge(137, address(0), _ONE, 0);
     }
 
     function test_bridge_success() public {
-        uint256 messageFee = protocolMessagingHub.quoteWormholeFee(137, true);
+        uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
+            137,
+            true,
+            0
+        );
 
         vm.prank(user1);
 
-        childCVE.bridge{ value: messageFee }(137, user1, _ONE);
+        childCVE.bridge{ value: messageFee }(137, user1, _ONE, 0);
 
         assertEq(childCVE.balanceOf(user1), 0);
         assertEq(childCVE.balanceOf(_TOKEN_BRIDGE), _ONE);

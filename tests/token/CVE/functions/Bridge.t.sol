@@ -16,29 +16,33 @@ contract BridgeTest is TestBaseMarket {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        cve.bridge(137, user1, _ONE + 1);
+        cve.bridge(137, user1, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        cve.bridge(138, user1, _ONE);
+        cve.bridge(138, user1, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        cve.bridge(137, address(0), _ONE);
+        cve.bridge(137, address(0), _ONE, 0);
     }
 
     function test_bridge_success() public {
-        uint256 messageFee = protocolMessagingHub.quoteWormholeFee(137, true);
+        uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
+            137,
+            true,
+            0
+        );
 
         vm.prank(user1);
 
-        cve.bridge{ value: messageFee }(137, user1, _ONE);
+        cve.bridge{ value: messageFee }(137, user1, _ONE, 0);
 
         assertEq(cve.balanceOf(user1), 0);
         assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);

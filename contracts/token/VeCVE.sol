@@ -752,13 +752,15 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param rewardsData Rewards data for CVE rewards locker.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function bridgeVeCVELock(
         uint256 lockIndex,
         uint256 dstChainId,
         bool continuousLock,
         RewardsData calldata rewardsData,
         bytes calldata params,
-        uint256 aux
+        uint256 aux,
+        uint256 gasLimit
     ) external payable nonReentrant returns (uint64 sequence) {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
@@ -783,11 +785,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
-        Lock memory lock = locks[lockIndex];
-        uint256 amount = lock.amount;
+        uint256 amount = locks[lockIndex].amount;
 
         // Update their points to reflect the removed lock.
-        _updateDataFromEarlyUnlock(msg.sender, amount, lock.unlockTime);
+        _updateDataFromEarlyUnlock(
+            msg.sender,
+            amount,
+            locks[lockIndex].unlockTime
+        );
 
         // Burn their VeCVE.
         _burn(msg.sender, amount);
@@ -800,7 +805,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         sequence = IProtocolMessagingHub(messagingHub).bridgeVeCVELock{
             value: msg.value
-        }(dstChainId, msg.sender, amount, continuousLock);
+        }(dstChainId, msg.sender, amount, continuousLock, gasLimit);
 
         // Check whether the user has no remaining locks and reset their
         // index, that way if in the future they create a new lock,
@@ -1141,7 +1146,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Check whether it should restrict state changes or not.
-    function _checkEpochStatus() internal {
+    function _checkEpochStatus() internal view {
         uint256 nextEpochStartTime = nextEpochStartTime();
         uint256 currentEpochStartTime = nextEpochStartTime - EPOCH_DURATION;
 
