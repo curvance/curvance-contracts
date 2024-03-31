@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import { GaugeController } from "contracts/gauge/GaugeController.sol";
 import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
+import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
@@ -34,12 +35,12 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///
 contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     using BytesParsing for bytes;
+    
     /// TYPES ///
 
     struct ChainEntry {
         uint16 chainID;
         address contractAddress;
-        uint256 chainPoints;
         uint256 blockNum;
         uint256 blockTime;
     }
@@ -50,8 +51,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     ICVE public immutable cve;
     /// @notice veCVE contract address.
     IVeCVE public immutable veCVE;
-    /// @notice Messaging layer Chain ID in their integer format.
-    uint16 public thisChainID;
 
     /// @dev `keccak256(bytes("queryLockPoints()"))`.
     bytes4 internal _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
@@ -74,8 +73,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
     mapping(bytes32 => bool) public isDeliveredMessageHash;
-    /// @notice ChainID => Epoch => 2 = yes; 0 = no.
-    mapping(uint256 => mapping(uint256 => uint256)) public lockedTokenDataSent;
 
     /// ERRORS ///
 
@@ -104,7 +101,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     
     /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints` on all other chains, 
     ///         stores the results for the other chains, and updates the data for this chain.
-    function executeEpoch(bytes memory response, IWormhole.Signature[] memory signatures) external {
+    function executeEpoch(
+        bytes memory response,
+        IWormhole.Signature[] memory signatures,
+        uint256 gasLimit
+    ) external {
         ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
         uint256 epoch = locker.nextEpochToDeliver();
 
@@ -120,7 +121,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        for (uint256 i; i < numResponses; ) {
+        uint256[] memory chainPoints = new uint256[](numResponses);
+        uint256 currentPoints;
+        uint256 totalPoints;
+
+        for (uint256 i; i < numResponses; ++i) {
             // Cache current chain entry.
             ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
             if (chainEntry.chainID != chainIDs[i]) {
@@ -154,18 +159,24 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
             chainEntry.blockNum = eqr.blockNum;
             chainEntry.blockTime = adjustedBlockTime;
-            chainEntry.chainPoints = abi.decode(eqr.result[0].result, (uint256));
 
-            unchecked {
-                ++i;
-            }
+            currentPoints = abi.decode(eqr.result[0].result, (uint256));
+            // Document points on current foreign chain.
+            chainPoints[i] = currentPoints;
+            totalPoints += currentPoints;
         }
 
-        /// Add executeEpoch call here ///
+        // Add this chains points to sum.
+        totalPoints += queryLockPoints();
 
-        reportedLockPoints[thisChainID].blockNum = block.number;
-        reportedLockPoints[thisChainID].blockTime = block.timestamp;
-        reportedLockPoints[thisChainID].chainPoints = queryLockPoints();
+        // Execute crosschain fee distribution.
+        _executeCrosschainEpoch(
+            chainIDs,
+            chainPoints,
+            numResponses,
+            totalPoints,
+            gasLimit
+        );
     }
 
     function receiveMessage(
@@ -394,7 +405,13 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingHubStatus();
-        _checkPermissions();
+
+        if (
+            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasDaoPermissions(msg.sender)
+        ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
 
         uint256 messagingChainId = centralRegistry.GETHToMessagingChainId(
             dstChainId
@@ -442,10 +459,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
     /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @param payloadType The type of payload information to relay to
-    ///                    destination chain. VeCVE lock migrations have a
-    ///                    payloadType of 4, whereas CVE has no payload type
-    ///                    because its a native transfer.
+    /// @param payloadType The type of payload information to relay to destination chain.
+    ///                    VeCVE lock migrations have a payloadType of 4, whereas CVE
+    ///                    has no payload type because its a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeToken(
@@ -544,8 +560,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
-        uint256 currentEpoch = veCVE.currentEpoch(block.timestamp);
-        return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(currentEpoch);
+        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        uint256 epoch = locker.nextEpochToDeliver();
+
+        return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -585,35 +603,47 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @notice Executes protocol-wide reporting and distribution of epoch
     ///         results, to all chains within the Curvance Protocol system.
     function _executeCrosschainEpoch(
-        LockData[] calldata crossChainLockData,
-        uint256 epochRewardsPerCVE,
+        uint256[] memory chainIDs,
+        uint256[] memory chainPoints,
+        uint256 numChains,
+        uint256 totalPoints,
         uint256 gasLimit
-    ) external {
+    ) internal {
         if (gasLimit == 0) {
             gasLimit = _DEFAULT_GAS_LIMIT;
         }
 
-        uint256 numChainData = crossChainLockData.length;
-        uint16 lockDataChainId;
+        // Query rewards for this epoch.
+        uint256 feeTokensOverall = IERC20(feeToken).balanceOf(address(this));
+        // Calculate rewards per veCVE point.
+        uint256 epochRewardsPerCVE = (feeTokensOverall * WAD) /
+            totalPoints;
+
+        uint256 feeTokensForChain;
+        uint256 currentChainID;
         ChainData memory chainData;
 
         // Notify the other chains of the per epoch rewards.
-        for (uint256 i; i < numChainData; ) {
-            lockDataChainId = crossChainLockData[i].chainId;
-            chainData = centralRegistry.supportedChainData(lockDataChainId);
+        for (uint256 i; i < numChains; ++i) {
+            currentChainID = chainIDs[i];
+            chainData = centralRegistry.supportedChainData(currentChainID);
+            // Calculate fees for current foreign Chain ID.
+            feeTokensForChain =
+                (((feeTokensOverall * WAD) / totalPoints) *
+                    chainPoints[i]) /
+                WAD;
 
+            // Send Information.
             _sendWormholeMessages(
-                uint256(lockDataChainId),
+                uint256(currentChainID),
                 chainData.messagingHub,
-                _quoteMessageFee(uint256(lockDataChainId), false, gasLimit),
+                _quoteMessageFee(uint256(currentChainID), false, gasLimit),
                 3,
                 abi.encode(epochRewardsPerCVE),
                 gasLimit
             );
 
-            unchecked {
-                ++i;
-            }
+            // Send Fees.
         }
     }
 
@@ -630,16 +660,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     function _checkMessagingHubStatus() internal view {
         if (isPaused == 2) {
             revert ProtocolMessagingHub__MessagingHubPaused();
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkPermissions() internal view {
-        if (
-            !centralRegistry.isHarvester(msg.sender) &&
-            msg.sender != centralRegistry.feeAccumulator()
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 

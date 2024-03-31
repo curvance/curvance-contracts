@@ -12,13 +12,6 @@ import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMe
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 contract FeeTokenBridgingHub is ReentrancyGuard {
-    /// TYPES ///
-
-    enum Transfer {
-        TOKEN_BRIDGE,
-        CCTP
-    }
-
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
