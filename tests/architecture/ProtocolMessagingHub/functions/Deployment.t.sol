@@ -21,11 +21,7 @@ contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {
     function test_protocolMessagingHubDeployment_fail_whenWormholeAddressIsInvalid()
         public
     {
-        vm.expectRevert(
-            FeeTokenBridgingHub
-                .FeeTokenBridgingHub__InvalidCentralRegistry
-                .selector
-        );
+        vm.expectRevert(0x8ef9698f); // bytes4(keccak(EmptyWormholeAddress()))
         new ProtocolMessagingHub(ICentralRegistry(address(1)), address(0));
     }
 

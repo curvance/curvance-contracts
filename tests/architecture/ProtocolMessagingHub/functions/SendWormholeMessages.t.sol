@@ -36,7 +36,7 @@ contract ProtocolMessagingHubSendWormholeMessagesTest is
     {
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__ChainIsNotSupported
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
 
