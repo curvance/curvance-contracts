@@ -62,8 +62,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
 
-    uint256 internal constant _DEFAULT_PAYLOAD_GAS_LIMIT = 250_000;
-
     /// STORAGE ///
 
     /// @notice Whether the Protocol Messaging Hub is paused or not.
@@ -142,7 +140,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
 
             validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
-            
+
             // Validate that the result is a uint256.
             if (eqr.result[0].result.length != 32) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
@@ -494,7 +492,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 msg.value,
                 5,
                 payload,
-                gasLimit > 0 ? gasLimit : _DEFAULT_PAYLOAD_GAS_LIMIT
+                gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
             );
     }
 
@@ -534,7 +532,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         if (gasLimit == 0) {
-            gasLimit = _DEFAULT_PAYLOAD_GAS_LIMIT;
+            gasLimit = _DEFAULT_GAS_LIMIT;
         }
 
         bytes memory payload = abi.encode(
@@ -545,7 +543,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         _sendWormholeMessages(
             dstChainId,
             toAddress,
-            _quoteWormholeFee(dstChainId, false, gasLimit),
+            _quoteMessageFee(dstChainId, false, gasLimit),
             4,
             payload,
             gasLimit
@@ -565,7 +563,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         if (gasLimit == 0) {
-            gasLimit = _DEFAULT_PAYLOAD_GAS_LIMIT;
+            gasLimit = _DEFAULT_GAS_LIMIT;
         }
 
         uint256 numChainData = crossChainLockData.length;
@@ -580,7 +578,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _sendWormholeMessages(
                 uint256(lockDataChainId),
                 chainData.messagingHub,
-                _quoteWormholeFee(uint256(lockDataChainId), false, gasLimit),
+                _quoteMessageFee(uint256(lockDataChainId), false, gasLimit),
                 4,
                 abi.encode(epochRewardsPerCVE),
                 gasLimit
@@ -590,17 +588,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 ++i;
             }
         }
-    }
-
-    /// @notice Returns required amount of native asset for message fee.
-    /// @param dstChainId Chain ID of the target blockchain.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Required fee.
-    function cveBridgeFee(
-        uint256 dstChainId,
-        uint256 gasLimit
-    ) external view returns (uint256) {
-        return _quoteWormholeFee(dstChainId, true, gasLimit);
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

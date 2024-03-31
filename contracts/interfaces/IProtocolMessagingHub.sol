@@ -5,12 +5,12 @@ import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
 
 interface IProtocolMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
-    ///         wormhole deposit and messaging.
+    ///         deposit and messaging.
     /// @param dstChainId Destination chain ID.
     /// @param transferToken Whether deliver token or not.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Total gas cost.
-    function quoteWormholeFee(
+    function quoteMessageFee(
         uint256 dstChainId,
         bool transferToken,
         uint256 gasLimit
@@ -64,13 +64,4 @@ interface IProtocolMessagingHub {
         bool continuousLock,
         uint256 gasLimit
     ) external payable returns (uint64);
-
-    /// @notice Returns required amount of native asset for message fee.
-    /// @param dstChainId Chain ID of the target blockchain.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Required fee.
-    function cveBridgeFee(
-        uint256 dstChainId,
-        uint256 gasLimit
-    ) external view returns (uint256);
 }

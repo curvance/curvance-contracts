@@ -125,7 +125,7 @@ contract CVE is ERC20 {
     ) external view returns (uint256) {
         return
             IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                .cveBridgeFee(dstChainId, gasLimit);
+                .quoteMessageFee(dstChainId, true, gasLimit);
     }
 
     /// PUBLIC FUNCTIONS ///
