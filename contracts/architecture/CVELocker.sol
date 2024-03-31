@@ -133,7 +133,6 @@ contract CVELocker is Delegable, ReentrancyGuard {
         // Validate the caller reporting epoch data is the fee accumulator,
         // or protocol messaging hub.
         if (
-            msg.sender != centralRegistry.feeAccumulator() &&
             msg.sender != centralRegistry.protocolMessagingHub()
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);

@@ -35,7 +35,7 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///
 contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     using BytesParsing for bytes;
-    
+
     /// TYPES ///
 
     struct ChainEntry {
@@ -166,14 +166,43 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             totalPoints += currentPoints;
         }
 
+        currentPoints = queryLockPoints();
         // Add this chains points to sum.
-        totalPoints += queryLockPoints();
+        totalPoints += currentPoints;
+
+        // Scoping to avoid stack too deep.
+        {
+            address feeAccumulator = centralRegistry.feeAccumulator();
+            uint256 feeTokenBalance = IERC20(feeToken).balanceOf(feeAccumulator);
+            uint256 compoundingFee = (feeTokenBalance * centralRegistry.protocolCompoundFee()) /
+                    centralRegistry.protocolHarvestFee();
+
+            // Move 1% of fees accumulated to central registry to be used for Gelato
+            // Network bots.
+            SafeTransferLib.safeTransferFrom(
+                feeToken,
+                feeAccumulator,
+                address(centralRegistry),
+                compoundingFee
+            );
+
+            feeTokenBalance -= compoundingFee;
+
+            // Move remaining fees on this chain to PMH to distribute.
+            SafeTransferLib.safeTransferFrom(
+                feeToken,
+                feeAccumulator,
+                address(this),
+                compoundingFee
+            );
+        }
 
         // Execute crosschain fee distribution.
         _executeCrosschainEpoch(
             chainIDs,
             chainPoints,
             numResponses,
+            currentPoints,
             totalPoints,
             gasLimit
         );
@@ -606,6 +635,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256[] memory chainIDs,
         uint256[] memory chainPoints,
         uint256 numChains,
+        uint256 thisChainsPoints,
         uint256 totalPoints,
         uint256 gasLimit
     ) internal {
@@ -622,6 +652,31 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 feeTokensForChain;
         uint256 currentChainID;
         ChainData memory chainData;
+
+        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+
+        feeTokensForChain =
+                (((feeTokensOverall * WAD) / totalPoints) *
+                    thisChainsPoints) /
+                WAD;
+
+        // If the locker is shutdown, transfer fees to DAO
+        // instead of recording epoch rewards.
+        if (locker.isShutdown() == 2) {
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                centralRegistry.daoAddress(),
+                feeTokensForChain
+            );
+        } else {
+            // Transfer fees to locker and record newest epoch rewards.
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                address(locker),
+                feeTokensForChain
+            );
+            locker.recordEpochRewards(epochRewardsPerCVE);
+        }
 
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {

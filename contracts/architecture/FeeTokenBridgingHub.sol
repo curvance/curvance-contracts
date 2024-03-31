@@ -243,9 +243,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
         bool transferToken,
         uint256 gasLimit
     ) internal view returns (uint256 nativeFee) {
-        IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
-
-        (nativeFee, ) = wormholeRelayer.quoteEVMDeliveryPrice(
+        (nativeFee, ) = centralRegistry.wormholeRelayer().quoteEVMDeliveryPrice(
             centralRegistry.wormholeChainId(dstChainId),
             0,
             gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
