@@ -723,7 +723,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         _canRedeemWithCollateralRemoval(
             mToken,
             from,
-            IMToken(mtoken).balanceOf(from),
+            IMToken(mToken).balanceOf(from),
             amount,
             false
         );

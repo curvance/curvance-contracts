@@ -188,7 +188,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _deployProtocolMessagingHub() internal {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            address(1)
         );
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
     }

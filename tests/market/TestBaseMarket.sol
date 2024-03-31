@@ -235,7 +235,8 @@ contract TestBaseMarket is TestBase {
 
     function _deployProtocolMessagingHub() internal {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            address(1)
         );
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
     }
