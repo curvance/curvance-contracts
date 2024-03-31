@@ -285,13 +285,23 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             .solvencyOf(address(this));
         require(accountDebt != 0);
         amount = clampBetween(amount, 1, accountCollateral);
+        bool cToken = IMToken(mtoken).isCToken();
 
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch {
-            assertWithMsg(
-                false,
-                "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
-            );
-        }
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch {
+                assertWithMsg(
+                    false,
+                    "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch {
+                assertWithMsg(
+                    false,
+                    "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
+                );
+            }
+        } 
     }
 
     /// @custom:property sc-market-11 canTransfer should fail with PAUSED when transferPaused = 2
@@ -305,16 +315,33 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() == 2);
         require(marketManager.redeemPaused() != 2);
         require(marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_pausedSelectorHash,
-                "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
         }
     }
 
@@ -329,16 +356,33 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() != 2);
         require(marketManager.redeemPaused() != 2);
         require(!marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_tokenNotListedSelectorHash,
-                "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with NOTLISTED
+                assertWithMsg(
+                    errorSelector == marketManager_tokenNotListedSelectorHash,
+                    "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with NOTLISTED
+                assertWithMsg(
+                    errorSelector == marketManager_tokenNotListedSelectorHash,
+                    "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
+                );
+            }
         }
     }
 
@@ -353,16 +397,33 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() != 2);
         require(marketManager.redeemPaused() == 2);
         require(marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_pausedSelectorHash,
-                "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
         }
     }
 
