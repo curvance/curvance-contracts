@@ -94,7 +94,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             abi.encodeWithSelector(
                 ProtocolMessagingHub
-                    .ProtocolMessagingHub__ChainIdIsNotSupported
+                    .ProtocolMessagingHub__InvalidParameter
                     .selector,
                 42161
             )

@@ -15,12 +15,24 @@ contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {
                 .FeeTokenBridgingHub__InvalidCentralRegistry
                 .selector
         );
-        new ProtocolMessagingHub(ICentralRegistry(address(0)));
+        new ProtocolMessagingHub(ICentralRegistry(address(0)), address(1));
+    }
+
+    function test_protocolMessagingHubDeployment_fail_whenWormholeAddressIsInvalid()
+        public
+    {
+        vm.expectRevert(
+            FeeTokenBridgingHub
+                .FeeTokenBridgingHub__InvalidCentralRegistry
+                .selector
+        );
+        new ProtocolMessagingHub(ICentralRegistry(address(1)), address(0));
     }
 
     function test_protocolMessagingHubDeployment_success() public {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            address(1)
         );
 
         assertEq(
