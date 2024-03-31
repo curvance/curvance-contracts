@@ -102,6 +102,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint40 unlockTime;
     }
 
+    /// @notice Stores instructions for bridging a voting escrow CVE position
+    ///         to another chain.
+    struct BridgeData {
+        uint256 dstChainId;
+        uint256 gasLimit;
+        bool continuousLock;
+    }
+
     /// CONSTANTS ///
 
     /// @notice The unix timestamp `unlockTime` will be set to when a lock
@@ -746,21 +754,24 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Moves a lock from this chain to `dstChainId`,
     ///         and processes any pending locker rewards.
     /// @param lockIndex The index of the lock to bridge.
-    /// @param dstChainId The Chain ID of the desired destination chain.
-    /// @param continuousLock Whether the bridged lock should be continuous
-    ///                       or not.
+    /// @param bridgeData Struct containing instructions for moving a
+    ///                   voting escrow lock to a desired destination chain.
+    ///                   Contains:
+    ///                   dstChainId The Chain ID of the desired destination
+    ///                              chain.
+    ///                   continuousLock Whether the bridged lock should be
+    ///                                  continuous or not.
+    ///                   gasLimit Gas limit with which to call on destination
+    ///                            chain.                   
     /// @param rewardsData Rewards data for CVE rewards locker.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    function bridgeVeCVELock(
+    function bridgeLock(
         uint256 lockIndex,
-        uint256 dstChainId,
-        bool continuousLock,
+        BridgeData calldata bridgeData,     
         RewardsData calldata rewardsData,
         bytes calldata params,
-        uint256 aux,
-        uint256 gasLimit
+        uint256 aux
     ) external payable nonReentrant returns (uint64 sequence) {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
@@ -801,11 +812,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Burn the CVE for bridged lock.
         ICVE(cve).burnVeCVELock(amount);
 
-        address messagingHub = centralRegistry.protocolMessagingHub();
-
-        sequence = IProtocolMessagingHub(messagingHub).bridgeVeCVELock{
-            value: msg.value
-        }(dstChainId, msg.sender, amount, continuousLock, gasLimit);
+        sequence = IProtocolMessagingHub(
+            centralRegistry.protocolMessagingHub()
+        ).bridgeToken{ value: msg.value }(
+            bridgeData.dstChainId,
+            msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
+            amount,
+            bridgeData.gasLimit,
+            4,
+            bridgeData.continuousLock
+        );
 
         // Check whether the user has no remaining locks and reset their
         // index, that way if in the future they create a new lock,

@@ -438,69 +438,56 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         _sendFeeToken(dstChainId, to, amount, gasLimit);
     }
 
-    /// @notice Send wormhole message to bridge CVE.
+    /// @notice Send CVE or a veCVE lock via Wormhole.
     /// @param dstChainId Chain ID of the target blockchain.
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
     /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @param payloadType The type of payload information to relay to
+    ///                    destination chain. VeCVE lock migrations have a
+    ///                    payloadType of 4, whereas CVE has no payload type
+    ///                    because its a native transfer.
+    /// @param aux Auxilliary boolean data if needed for bridging token.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
-    function bridgeCVE(
+    function bridgeToken(
         uint256 dstChainId,
         address recipient,
         uint256 amount,
-        uint256 gasLimit
+        uint256 gasLimit,
+        uint256 payloadType,
+        bool aux
     ) external payable returns (uint64) {
+        _checkMessagingHubStatus();
+
+        if (payloadType == 4) {
+            if (msg.sender != address(veCVE)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            return
+                _sendWormholeMessages(
+                    dstChainId,
+                    centralRegistry.supportedChainData(dstChainId).messagingHub, // Destination Messaging Hub.
+                    msg.value,
+                    4,
+                    abi.encode(recipient, amount, aux), // Payload.
+                    gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
+                );
+        }
+        
         if (msg.sender != address(cve)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _checkMessagingHubStatus();
-
         return
-            _transferTokenViaWormhole(
-                address(cve),
-                dstChainId,
-                recipient,
-                amount,
-                msg.value,
-                gasLimit
-            );
-    }
-
-    /// @notice Send wormhole message to bridge VeCVE lock.
-    /// @param dstChainId Chain ID of the target blockchain.
-    /// @param recipient The address of recipient on destination chain.
-    /// @param amount The amount of token to bridge.
-    /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
-    function bridgeVeCVELock(
-        uint256 dstChainId,
-        address recipient,
-        uint256 amount,
-        bool continuousLock,
-        uint256 gasLimit
-    ) external payable returns (uint64) {
-        if (msg.sender != address(veCVE)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _checkMessagingHubStatus();
-
-        address dstMessagingHub = centralRegistry
-            .supportedChainData(dstChainId)
-            .messagingHub;
-        bytes memory payload = abi.encode(recipient, amount, continuousLock);
-
-        return
-            _sendWormholeMessages(
-                dstChainId,
-                dstMessagingHub,
-                msg.value,
-                5,
-                payload,
-                gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
-            );
+        _transferTokenViaWormhole(
+            address(cve),
+            dstChainId,
+            recipient,
+            amount,
+            msg.value,
+            gasLimit
+        ); 
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

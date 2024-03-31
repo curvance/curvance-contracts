@@ -107,11 +107,13 @@ contract CVE is ERC20 {
         _mint(messagingHub, amount);
 
         return
-            IProtocolMessagingHub(messagingHub).bridgeCVE{ value: msg.value }(
+            IProtocolMessagingHub(messagingHub).bridgeToken{ value: msg.value }(
                 dstChainId,
                 recipient,
                 amount,
-                gasLimit
+                gasLimit,
+                0,
+                false
             );
     }
 
