@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
 library TypedMemView {
-    using SafeMath for uint256;
 
     // Why does this exist?
     // the solidity `bytes memory` type has a few weaknesses.
@@ -337,7 +334,7 @@ library TypedMemView {
         uint256 _loc,
         uint256 _len
     ) internal pure returns (bytes29 newView) {
-        uint256 _end = _loc.add(_len);
+        uint256 _end = _loc + _len;
         assembly {
             // solium-disable-previous-line security/no-inline-assembly
             if gt(_end, mload(0x40)) {
@@ -414,24 +411,6 @@ library TypedMemView {
     }
 
     /**
-     * @notice          The number of memory words this memory view occupies, rounded up.
-     * @param memView   The view
-     * @return          uint256 - The number of memory words
-     */
-    function words(bytes29 memView) internal pure returns (uint256) {
-        return uint256(len(memView)).add(31) / 32;
-    }
-
-    /**
-     * @notice          The in-memory footprint of a fresh copy of the view.
-     * @param memView   The view
-     * @return          uint256 - The in-memory footprint of a fresh copy of the view.
-     */
-    function footprint(bytes29 memView) internal pure returns (uint256) {
-        return words(memView) * 32;
-    }
-
-    /**
      * @notice          The number of bytes of the view.
      * @param memView   The view
      * @return          _len - The length of the view
@@ -452,61 +431,6 @@ library TypedMemView {
      */
     function end(bytes29 memView) internal pure returns (uint256) {
         return loc(memView) + len(memView);
-    }
-
-    /**
-     * @notice          Safe slicing without memory modification.
-     * @param memView   The view
-     * @param _index    The start index
-     * @param _len      The length
-     * @param newType   The new type
-     * @return          bytes29 - The new view
-     */
-    function slice(
-        bytes29 memView,
-        uint256 _index,
-        uint256 _len,
-        uint40 newType
-    ) internal pure returns (bytes29) {
-        uint256 _loc = loc(memView);
-
-        // Ensure it doesn't overrun the view
-        if (_loc.add(_index).add(_len) > end(memView)) {
-            return NULL;
-        }
-
-        _loc = _loc.add(_index);
-        return build(newType, _loc, _len);
-    }
-
-    /**
-     * @notice          Shortcut to `slice`. Gets a view representing the first `_len` bytes.
-     * @param memView   The view
-     * @param _len      The length
-     * @param newType   The new type
-     * @return          bytes29 - The new view
-     */
-    function prefix(
-        bytes29 memView,
-        uint256 _len,
-        uint40 newType
-    ) internal pure returns (bytes29) {
-        return slice(memView, 0, _len, newType);
-    }
-
-    /**
-     * @notice          Shortcut to `slice`. Gets a view representing the last `_len` byte.
-     * @param memView   The view
-     * @param _len      The length
-     * @param newType   The new type
-     * @return          bytes29 - The new view
-     */
-    function postfix(
-        bytes29 memView,
-        uint256 _len,
-        uint40 newType
-    ) internal pure returns (bytes29) {
-        return slice(memView, uint256(len(memView)).sub(_len), _len, newType);
     }
 
     /**
@@ -560,7 +484,7 @@ library TypedMemView {
         if (_bytes == 0) {
             return bytes32(0);
         }
-        if (_index.add(_bytes) > len(memView)) {
+        if ((_index + _bytes) > len(memView)) {
             revert(
                 indexErrOverrun(
                     loc(memView),
@@ -884,31 +808,4 @@ library TypedMemView {
         return sha2(unsafeJoin(memViews, ptr));
     }
 
-    /**
-     * @notice          copies all views, joins them into a new bytearray.
-     * @param memViews  The views
-     * @return          ret - The new byte array
-     */
-    function join(
-        bytes29[] memory memViews
-    ) internal view returns (bytes memory ret) {
-        uint256 ptr;
-        assembly {
-            // solium-disable-previous-line security/no-inline-assembly
-            ptr := mload(0x40) // load unused memory pointer
-        }
-
-        bytes29 _newView = unsafeJoin(memViews, ptr + 0x20);
-        uint256 _written = len(_newView);
-        uint256 _footprint = footprint(_newView);
-
-        assembly {
-            // solium-disable-previous-line security/no-inline-assembly
-            // store the legnth
-            mstore(ptr, _written)
-            // new pointer is old + 0x20 + the footprint of the body
-            mstore(0x40, add(add(ptr, _footprint), 0x20))
-            ret := ptr
-        }
-    }
 }
