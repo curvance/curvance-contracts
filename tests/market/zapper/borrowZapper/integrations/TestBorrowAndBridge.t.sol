@@ -176,7 +176,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             params
         );
 
-        uint256 messageFee = borrowZapper.quoteWormholeFee(42161, false, 0);
+        uint256 messageFee = borrowZapper.quoteMessageFee(42161, false, 0);
 
         // try borrow()
         vm.startPrank(user1);
