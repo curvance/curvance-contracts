@@ -478,19 +478,9 @@ contract MarketManager is LiquidityManager, ERC165 {
         bool forceRedeemCollateral
     ) external {
         _checkIsToken(mToken);
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
+        _canRedeemWithCollateralRemoval(
             mToken,
             account,
-            amount
-        );
-
-        if (updateNeeded == 1) {
-            _closePositions(account, positionsToClose);
-        }
-
-        _reduceCollateralIfNecessary(
-            account,
-            mToken,
             balance,
             amount,
             forceRedeemCollateral
@@ -689,29 +679,12 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
     }
 
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
+    /// @notice Checks if the account should be allowed to transfer debt
+    ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransfer(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external view {
-        if (transferPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        _canRedeem(mToken, from, amount);
-    }
-
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
-    /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferWithPrune(
+    function canTransferDToken(
         address mToken,
         address from,
         uint256 amount
@@ -730,6 +703,30 @@ contract MarketManager is LiquidityManager, ERC165 {
         if (updateNeeded == 1) {
             _closePositions(from, positionsToClose);
         }
+    }
+
+    /// @notice Checks if the account should be allowed to transfer collateral
+    ///         tokens in the given market.
+    /// @param mToken The market token to verify the transfer of.
+    /// @param from The account which sources the tokens.
+    /// @param amount The number of mTokens to transfer.
+    function canTransferCToken(
+        address mToken,
+        address from,
+        uint256 amount
+    ) external {
+        _checkIsToken(mToken);
+        if (transferPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        _canRedeemWithCollateralRemoval(
+            mToken,
+            from,
+            IMToken(mToken).balanceOf(from),
+            amount,
+            false
+        );
     }
 
     /// @notice Liquidates an entire account by partially paying down debts,
@@ -1508,6 +1505,43 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
 
         return (result.updateNeeded, positionsToClose);
+    }
+
+    /// @notice Checks if the account should be allowed to redeem tokens
+    ///         in the given market, and then redeems.
+    /// @dev This can only be called by the mToken itself 
+    ///      (specifically cTokens, because dTokens are never collateral).
+    /// @param mToken The market token to verify the redemption against.
+    /// @param account The account which would redeem the tokens.
+    /// @param balance The current mTokens balance of `account`.
+    /// @param amount The number of mTokens to exchange
+    ///               for the underlying asset in the market.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced.
+    function _canRedeemWithCollateralRemoval(
+        address mToken,
+        address account,
+        uint256 balance,
+        uint256 amount,
+        bool forceRedeemCollateral
+    ) internal {
+        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
+            mToken,
+            account,
+            amount
+        );
+
+        if (updateNeeded == 1) {
+            _closePositions(account, positionsToClose);
+        }
+
+        _reduceCollateralIfNecessary(
+            account,
+            mToken,
+            balance,
+            amount,
+            forceRedeemCollateral
+        );
     }
 
     /// @notice Helper function for checking if the liquidation should be

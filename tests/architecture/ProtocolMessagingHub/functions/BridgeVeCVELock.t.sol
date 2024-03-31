@@ -52,7 +52,7 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__ChainIsNotSupported
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         protocolMessagingHub.bridgeVeCVELock(138, user1, _ONE, true, 0);

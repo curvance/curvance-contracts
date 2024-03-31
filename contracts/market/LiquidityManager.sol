@@ -221,7 +221,7 @@ abstract contract LiquidityManager {
                         snapshot.decimals
                     );
                     accountCollateral += collateralValue;
-                    maxDebt =
+                    maxDebt +=
                         (collateralValue *
                             tokenData[snapshot.asset].collRatio) /
                         WAD;

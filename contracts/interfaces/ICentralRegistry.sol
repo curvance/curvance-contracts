@@ -132,6 +132,10 @@ interface ICentralRegistry {
     /// @notice Returns how many other chains are supported
     function supportedChains() external view returns (uint256);
 
+    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
+    ///         format.
+    function foreignChainIDs() external view returns (uint256[] memory);
+
     /// @notice Address array for all Curvance Market Managers on this chain.
     function marketManagers() external view returns (address[] memory);
 

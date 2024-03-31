@@ -89,7 +89,9 @@ contract DeployCurvance is
 
         // Deploy ProtocolMessagingHub
 
-        _deployProtocolMessagingHub(centralRegistry);
+        _deployProtocolMessagingHub(centralRegistry,
+        _readConfigAddress(".protocolMessagingHub.wormhole")
+        );
         _setProtocolMessagingHub(protocolMessagingHub);
 
         // Deploy FeeAccumulator

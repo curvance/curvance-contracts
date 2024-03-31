@@ -5,6 +5,8 @@ import { GaugeController } from "contracts/gauge/GaugeController.sol";
 import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
+import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -14,6 +16,7 @@ import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -30,13 +33,13 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 ///      At this time, payload/MessageType configuration + encoding/decoding
 ///      are not production ready.
 ///
-contract ProtocolMessagingHub is FeeTokenBridgingHub {
+contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
+    using BytesParsing for bytes;
     /// TYPES ///
 
     struct ChainEntry {
         uint16 chainID;
         address contractAddress;
-        uint256 epochNumber;
         uint256 chainPoints;
         uint256 blockNum;
         uint256 blockTime;
@@ -47,7 +50,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     /// @notice CVE contract address.
     ICVE public immutable cve;
     /// @notice veCVE contract address.
-    address public immutable veCVE;
+    IVeCVE public immutable veCVE;
     /// @notice Messaging layer Chain ID in their integer format.
     uint16 public thisChainID;
 
@@ -56,6 +59,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
+    /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
+    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
 
     uint256 internal constant _PAYLOAD_4_GAS_LIMIT = 250_000;
     uint256 internal constant _PAYLOAD_5_GAS_LIMIT = 250_000;
@@ -78,40 +83,84 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
     /// ERRORS ///
 
-    error ProtocolMessagingHub__InvalidBalance();
     error ProtocolMessagingHub__Unauthorized();
-    error ProtocolMessagingHub__ChainIsNotSupported();
-    error ProtocolMessagingHub__OperatorIsNotAuthorized(
-        address to,
-        uint256 gethChainId
-    );
-    error ProtocolMessagingHub__MessagingChainIdIsInvalid(
-        uint16 messagingChainId,
-        uint256 dstChainId
-    );
-    error ProtocolMessagingHub__ToAddressIsNotMessagingHub(
-        address cveAddress,
-        address toAddress
-    );
-    error ProtocolMessagingHub__ChainIdIsNotSupported(uint256 gethChainId);
-    error ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
+    error ProtocolMessagingHub__InvalidParameter();
     error ProtocolMessagingHub__MessagingHubPaused();
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
     );
-
     receive() external payable {}
 
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_
-    ) FeeTokenBridgingHub(centralRegistry_) {
+        ICentralRegistry centralRegistry_,
+        address wormhole_
+    ) FeeTokenBridgingHub(centralRegistry_) QueryResponse(wormhole_){
         cve = ICVE(centralRegistry.cve());
-        veCVE = centralRegistry.veCVE();
+        veCVE = IVeCVE(centralRegistry.veCVE());
+        if (address(centralRegistry_.wormholeCore()) != wormhole_) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
+    
+    /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints` on all other chains, 
+    ///         stores the results for the other chains, and updates the data for this chain.
+    function executeEpoch(bytes memory response, IWormhole.Signature[] memory signatures) external {
+        uint256 adjustedBlockTime;
+        ParsedQueryResponse memory r = parseAndVerifyQueryResponse(response, signatures);
+        uint256 numResponses = r.responses.length;
+        uint256[] memory chainIDs = centralRegistry.foreignChainIDs();
+        if (numResponses != chainIDs.length) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        for (uint256 i; i < numResponses; ) {
+            // Create a storage pointer for frequently read and updated data stored on the blockchain
+            ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
+            if (chainEntry.chainID != chainIDs[i]) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
+
+            // Validate that update is not obsolete
+            validateBlockNum(eqr.blockNum, chainEntry.blockNum);
+
+            // Validate that update is not stale
+            validateBlockTime(eqr.blockTime, block.timestamp - 300);
+
+            if (eqr.result.length != 1) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            // Validate addresses and function signatures
+            address[] memory validAddresses = new address[](1);
+            bytes4[] memory validFunctionSignatures = new bytes4[](1);
+            validAddresses[0] = chainEntry.contractAddress;
+            validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
+
+            validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
+
+            require(eqr.result[0].result.length == 32, "result is not a uint256");
+
+            chainEntry.blockNum = eqr.blockNum;
+            chainEntry.blockTime = adjustedBlockTime;
+            chainEntry.chainPoints = abi.decode(eqr.result[0].result, (uint256));
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        /// Add executeEpoch call here ///
+
+        reportedLockPoints[thisChainID].blockNum = block.number;
+        reportedLockPoints[thisChainID].blockTime = block.timestamp;
+        reportedLockPoints[thisChainID].chainPoints = queryLockPoints();
+    }
 
     function receiveMessage(
         bytes calldata message,
@@ -128,8 +177,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             destinationCaller != bytes32(0) &&
             destinationCaller == bytes32(uint256(uint160(msg.sender)))
         ) {
-            revert ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        return true;
     }
 
     /// @notice Used when fees are received from other chains.
@@ -202,7 +253,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             );
             // Validate fee token address
             if (chainData.feeTokenAddress != srcFeeToken) {
-                revert ProtocolMessagingHub__InvalidFeeTokenAdderess(gethChainId, srcFeeToken);
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             address feeToken = centralRegistry.feeToken();
@@ -326,7 +377,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
                 .decode(lockData, (address, uint256, bool));
 
             cve.mintVeCVELock(amount);
-            cve.approve(veCVE, amount);
+            cve.approve(address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -369,26 +420,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
 
             // Validate that the operator is authorized.
             if (operator.isAuthorized < 2) {
-                revert ProtocolMessagingHub__OperatorIsNotAuthorized(
-                    to,
-                    dstChainId
-                );
+                _revert(_UNAUTHORIZED_SELECTOR);
             }
 
             // Validate that the operator messaging chain matches.
             // the destination chain id.
             if (operator.messagingChainId != messagingChainId) {
-                revert ProtocolMessagingHub__MessagingChainIdIsInvalid(
-                    operator.messagingChainId,
-                    messagingChainId
-                );
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             // Validate that we are aiming for a supported chain.
             if (
                 centralRegistry.supportedChainData(dstChainId).isSupported < 2
             ) {
-                revert ProtocolMessagingHub__ChainIdIsNotSupported(dstChainId);
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
         }
 
@@ -448,7 +493,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         bool continuousLock,
         uint256 gasLimit
     ) external payable returns (uint64) {
-        if (msg.sender != veCVE) {
+        if (msg.sender != address(veCVE)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -498,14 +543,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         );
 
         if (chainData.isSupported < 2) {
-            revert ProtocolMessagingHub__ChainIsNotSupported();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         if (chainData.messagingHub != toAddress) {
-            revert ProtocolMessagingHub__ToAddressIsNotMessagingHub(
-                chainData.messagingHub,
-                toAddress
-            );
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (gasLimit == 0) {
@@ -599,40 +641,42 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         isPaused = state ? 2 : 1;
     }
 
-    /// @notice Permissioned function for returning fees reimbursed from
-    ///         wormhole to FeeAccumulator.
-    /// @dev This is for if we ever need to depreciate this
-    ///      ProtocolMessagingHub for another.
-    /// NOTE: This does not allow any loss of funds as authorized perms are
-    ///       required to change fee accumulator, meaning in order to steal
-    ///       funds a malicious actor would have had to compromise the whole
-    ///       system already. Thus, we only need to check for DAO perms here.
-    function returnReimbursedFees() external {
+    /// @notice Withdraws gas tokens and fee tokens from the Protocol Messaging Hub
+    ///         to the DAO address in order to depreciate or rebalance the
+    ///         Protocol Messaging Hub.
+    /// @dev This does not allow any loss of funds as authorized perms are
+    ///      required to change the Protocol Messaging Hub, meaning in order to steal
+    ///      funds a malicious actor would have had to compromise the whole
+    ///      system already. Thus, we only need to check for DAO perms here.
+    function withdrawDeposited() external {
         _checkAuthorizedPermissions(true);
 
         address feeToken = centralRegistry.feeToken();
+        uint256 gasTokenBalance = address(this).balance;
+        uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
 
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            centralRegistry.feeAccumulator(),
-            IERC20(feeToken).balanceOf(address(this))
-        );
-    }
-
-    /// @notice Withdraws `amount` gas tokens from the protocol messaging hub
-    ///         to the DAO address.
-    /// @param amount The amount of native gas tokens to withdraw.
-    function withdrawNative(uint256 amount) external {
-        _checkAuthorizedPermissions(true);
-
-        if (amount > address(this).balance) {
-            revert ProtocolMessagingHub__InvalidBalance();
+        if (gasTokenBalance > 0) {
+            SafeTransferLib.forceSafeTransferETH(
+                centralRegistry.daoAddress(),
+                gasTokenBalance
+            );
         }
 
-        SafeTransferLib.forceSafeTransferETH(
-            centralRegistry.daoAddress(),
-            amount
-        );
+        if (feeTokenBalance > 0) {
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                centralRegistry.daoAddress(),
+                feeTokenBalance
+            );
+
+        }  
+    }
+    
+    /// PUBLIC FUNCTIONS ///
+
+    function queryLockPoints() public view returns (uint256) {
+        uint256 currentEpoch = veCVE.currentEpoch(block.timestamp);
+        return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(currentEpoch);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -654,7 +698,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
     ) internal returns (uint64) {
         // Validate that we are aiming for a supported chain.
         if (centralRegistry.supportedChainData(dstChainId).isSupported < 2) {
-            revert ProtocolMessagingHub__ChainIsNotSupported();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         return

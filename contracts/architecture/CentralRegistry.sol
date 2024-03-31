@@ -167,6 +167,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Number of chains supported.
     uint256 public supportedChains;
+    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
+    ///         format.
+    uint256[] public foreignChainIDs;
     /// @notice Address array for all Curvance markets on this chain.
     address[] public marketManagers;
 

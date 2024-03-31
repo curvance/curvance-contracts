@@ -50,6 +50,11 @@ interface IVeCVE {
         address user
     ) external view returns (uint256[] memory, uint256[] memory);
 
+    /// @notice Returns the current epoch for the given time.
+    /// @param time The timestamp for which to calculate the epoch.
+    /// @return The current epoch.
+    function currentEpoch(uint256 time) external view returns (uint256);
+
     /// @notice Returns the chain's current token points for
     function chainPoints() external view returns (uint256);
 

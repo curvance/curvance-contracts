@@ -807,5 +807,4 @@ library TypedMemView {
         }
         return sha2(unsafeJoin(memViews, ptr));
     }
-
 }

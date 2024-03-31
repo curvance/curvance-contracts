@@ -31,7 +31,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             abi.encodeWithSelector(
                 ProtocolMessagingHub
-                    .ProtocolMessagingHub__OperatorIsNotAuthorized
+                    .ProtocolMessagingHub__Unauthorized
                     .selector,
                 address(this),
                 42161
@@ -63,7 +63,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             abi.encodeWithSelector(
                 ProtocolMessagingHub
-                    .ProtocolMessagingHub__MessagingChainIdIsInvalid
+                    .ProtocolMessagingHub__InvalidParameter
                     .selector,
                 23,
                 22
@@ -96,7 +96,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             abi.encodeWithSelector(
                 ProtocolMessagingHub
-                    .ProtocolMessagingHub__ChainIdIsNotSupported
+                    .ProtocolMessagingHub__InvalidParameter
                     .selector,
                 42161
             )

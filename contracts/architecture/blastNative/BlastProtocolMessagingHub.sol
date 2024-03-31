@@ -9,9 +9,11 @@ contract BlastProtocolMessagingHub is ProtocolMessagingHub, BlastYieldDelegable 
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_
+        ICentralRegistry centralRegistry_,
+        address wormhole_
     ) ProtocolMessagingHub(
-        centralRegistry_
+        centralRegistry_,
+        wormhole_
     ) BlastYieldDelegable (centralRegistry_) {}
 
 }
