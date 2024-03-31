@@ -3,7 +3,7 @@
 pragma solidity ^0.8.4;
 
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
-import "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 // @dev ParsedQueryResponse is returned by QueryResponse.parseAndVerifyQueryResponse().
 struct ParsedQueryResponse {
@@ -60,53 +60,6 @@ struct EthCallData {
     address contractAddress;
     bytes callData;
     bytes result;
-}
-
-// @dev SolanaAccountQueryResponse describes the response to a Solana Account query per-chain query.
-struct SolanaAccountQueryResponse {
-    bytes requestCommitment;
-    uint64 requestMinContextSlot;
-    uint64 requestDataSliceOffset;
-    uint64 requestDataSliceLength;
-    uint64 slotNumber;
-    uint64 blockTime;
-    bytes32 blockHash;
-    SolanaAccountResult [] results;
-}
-
-// @dev SolanaAccountResult describes a single Solana Account query result.
-struct SolanaAccountResult {
-    bytes32 account;
-    uint64 lamports;
-    uint64 rentEpoch;
-    bool executable;
-    bytes32 owner;
-    bytes data;
-}
-
-// @dev SolanaPdaQueryResponse describes the response to a Solana PDA (Program Derived Address) query per-chain query.
-struct SolanaPdaQueryResponse {
-    bytes requestCommitment;
-    uint64 requestMinContextSlot;
-    uint64 requestDataSliceOffset;
-    uint64 requestDataSliceLength;
-    uint64 slotNumber;
-    uint64 blockTime;
-    bytes32 blockHash;
-    SolanaPdaResult [] results;
-}
-
-// @dev SolanaPdaResult describes a single Solana PDA (Program Derived Address) query result.
-struct SolanaPdaResult {
-    bytes32 programId;
-    bytes[] seeds;
-    bytes32 account;
-    uint64 lamports;
-    uint64 rentEpoch;
-    bool executable;
-    bytes32 owner;
-    bytes data;
-    uint8 bump;
 }
 
 // Custom errors
@@ -402,124 +355,6 @@ abstract contract QueryResponse {
 
             (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
             (r.result[idx].result, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
-
-            unchecked { ++idx; }
-        }
-
-        checkLength(pcr.request, reqIdx);
-        checkLength(pcr.response, respIdx);
-    }
-
-    /// @dev parseSolanaAccountQueryResponse parses a ParsedPerChainQueryResponse for a Solana Account per-chain query.
-    function parseSolanaAccountQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaAccountQueryResponse memory r) {
-        if (pcr.queryType != QT_SOL_ACCOUNT) {
-            revert WrongQueryType(pcr.queryType, QT_SOL_ACCOUNT);
-        }
-
-        uint reqIdx;
-        uint respIdx;
-        uint32 len;
-
-        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
-        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
-        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
-        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
-        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
-
-        uint8 numAccounts;
-        (numAccounts, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_accounts
-
-        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
-        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
-        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
-
-        uint8 respNumResults;
-        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
-        if (respNumResults != numAccounts) {
-                revert UnexpectedNumberOfResults();
-        }
-
-        r.results = new SolanaAccountResult[](numAccounts);
-
-        // Walk through the call data and results in lock step.
-        for (uint idx; idx < numAccounts;) {
-            (r.results[idx].account, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request account
-
-            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
-            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
-
-            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnchecked(respIdx); // Response executable
-
-            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
-
-
-            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
-            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
-
-            unchecked { ++idx; }
-        }
-
-        checkLength(pcr.request, reqIdx);
-        checkLength(pcr.response, respIdx);
-    }
-
-    /// @dev parseSolanaPdaQueryResponse parses a ParsedPerChainQueryResponse for a Solana Pda per-chain query.
-    function parseSolanaPdaQueryResponse(ParsedPerChainQueryResponse memory pcr) public pure returns (SolanaPdaQueryResponse memory r) {
-        if (pcr.queryType != QT_SOL_PDA) {
-            revert WrongQueryType(pcr.queryType, QT_SOL_PDA);
-        }
-
-        uint reqIdx;
-        uint respIdx;
-        uint32 len;
-
-        (len, reqIdx) = pcr.request.asUint32Unchecked(reqIdx); // Request commitment_len
-        (r.requestCommitment, reqIdx) = pcr.request.sliceUnchecked(reqIdx, len); // Request commitment
-        (r.requestMinContextSlot, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request min_context_slot
-        (r.requestDataSliceOffset, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_offset
-        (r.requestDataSliceLength, reqIdx) = pcr.request.asUint64Unchecked(reqIdx); // Request data_slice_length 
-
-        uint8 numPdas;
-        (numPdas, reqIdx) = pcr.request.asUint8Unchecked(reqIdx); // Request num_Pdas
-
-        (r.slotNumber, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response slot_number
-        (r.blockTime, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response block_time_us
-        (r.blockHash, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response block_hash
-
-        uint8 respNumResults;
-        (respNumResults, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response num_results
-        if (respNumResults != numPdas) {
-                revert UnexpectedNumberOfResults();
-        }
-
-        r.results = new SolanaPdaResult[](numPdas);
-
-        // Walk through the call data and results in lock step.
-        for (uint idx; idx < numPdas;) {
-            (r.results[idx].programId, reqIdx) = pcr.request.asBytes32Unchecked(reqIdx); // Request programId
-
-            uint8 numSeeds; // Request number of seeds
-            (numSeeds, reqIdx) = pcr.request.asUint8Unchecked(reqIdx);
-            r.results[idx].seeds = new bytes[](numSeeds);
-            for (uint idx2; idx2 < numSeeds;) {
-                uint32 seedLen;
-                (seedLen, reqIdx) = pcr.request.asUint32Unchecked(reqIdx);
-                (r.results[idx].seeds[idx2], reqIdx) = pcr.request.sliceUnchecked(reqIdx, seedLen);
-                unchecked { ++idx2; }
-            }
-
-            (r.results[idx].account, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response account
-            (r.results[idx].bump, respIdx) = pcr.response.asUint8Unchecked(respIdx); // Response bump
-
-            (r.results[idx].lamports, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response lamports
-            (r.results[idx].rentEpoch, respIdx) = pcr.response.asUint64Unchecked(respIdx); // Response rent_epoch
-
-            (r.results[idx].executable, respIdx) = pcr.response.asBoolUnchecked(respIdx); // Response executable
-
-            (r.results[idx].owner, respIdx) = pcr.response.asBytes32Unchecked(respIdx); // Response owner
-
-            (len, respIdx) = pcr.response.asUint32Unchecked(respIdx); // result_len
-            (r.results[idx].data, respIdx) = pcr.response.sliceUnchecked(respIdx, len);
 
             unchecked { ++idx; }
         }

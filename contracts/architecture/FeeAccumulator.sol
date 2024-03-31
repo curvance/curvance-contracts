@@ -341,50 +341,50 @@ contract FeeAccumulator is ReentrancyGuard {
     /// @notice Records a Curvance reward epoch, if all chains have been
     ///         recorded executes system wide reporting and distribution
     ///         to all chains within the Curvance Protocol system.
-    function executeEpochFeeRouter(
-        uint256 chainId,
-        uint256 gasLimit
-    ) external {
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-        uint256 epoch = locker.nextEpochToDeliver();
+    // function executeEpochFeeRouter(
+    //     uint256 chainId,
+    //     uint256 gasLimit
+    // ) external {
+    //     ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+    //     uint256 epoch = locker.nextEpochToDeliver();
 
-        if (locker.currentEpoch(block.timestamp) <= epoch) {
-            revert FeeAccumulator__CurrentEpochError(
-                locker.currentEpoch(block.timestamp),
-                epoch
-            );
-        }
+    //     if (locker.currentEpoch(block.timestamp) <= epoch) {
+    //         revert FeeAccumulator__CurrentEpochError(
+    //             locker.currentEpoch(block.timestamp),
+    //             epoch
+    //         );
+    //     }
 
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            chainId
-        );
-        if (chainData.isSupported < 2) {
-            return;
-        }
+    //     ChainData memory chainData = centralRegistry.supportedChainData(
+    //         chainId
+    //     );
+    //     if (chainData.isSupported < 2) {
+    //         return;
+    //     }
 
-        uint256 numChainData = crossChainLockData.length;
+    //     uint256 numChainData = crossChainLockData.length;
 
-        // If we have sufficient chains reported,
-        // time to execute epoch fee routing.
-        if (numChainData == centralRegistry.supportedChains()) {
-            // Execute Fee Routing to each chain.
-            uint256 epochRewardsPerCVE = _executeEpochFeeRouter(
-                chainData,
-                numChainData,
-                epoch,
-                gasLimit
-            );
+    //     // If we have sufficient chains reported,
+    //     // time to execute epoch fee routing.
+    //     if (numChainData == centralRegistry.supportedChains()) {
+    //         // Execute Fee Routing to each chain.
+    //         uint256 epochRewardsPerCVE = _executeEpochFeeRouter(
+    //             chainData,
+    //             numChainData,
+    //             epoch,
+    //             gasLimit
+    //         );
 
-            IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                .sendEpochRewardData(
-                    crossChainLockData,
-                    epochRewardsPerCVE,
-                    gasLimit
-                );
+    //         IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+    //             .sendEpochRewardData(
+    //                 crossChainLockData,
+    //                 epochRewardsPerCVE,
+    //                 gasLimit
+    //             );
 
-            delete crossChainLockData;
-        }
-    }
+    //         delete crossChainLockData;
+    //     }
+    // }
 
     /// @notice Sends all left over fees to new fee accumulator.
     /// @dev This does not need to be permissioned as it pulls data

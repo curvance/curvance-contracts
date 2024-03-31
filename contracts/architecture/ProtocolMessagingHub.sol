@@ -6,7 +6,7 @@ import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
-import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
+import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -16,7 +16,6 @@ import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
