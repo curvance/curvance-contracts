@@ -83,7 +83,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
     /// ERRORS ///
 
-    error ProtocolMessagingHub__InvalidBalance();
     error ProtocolMessagingHub__Unauthorized();
     error ProtocolMessagingHub__InvalidParameter();
     error ProtocolMessagingHub__MessagingHubPaused();
@@ -118,7 +117,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        for (uint256 i = 0; i < numResponses;) {
+        for (uint256 i; i < numResponses; ) {
             // Create a storage pointer for frequently read and updated data stored on the blockchain
             ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
             if (chainEntry.chainID != chainIDs[i]) {
@@ -178,8 +177,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             destinationCaller != bytes32(0) &&
             destinationCaller == bytes32(uint256(uint160(msg.sender)))
         ) {
-            revert ProtocolMessagingHub__InvalidCCTPMessageDestinationCaller();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        return true;
     }
 
     /// @notice Used when fees are received from other chains.
@@ -252,7 +253,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             );
             // Validate fee token address
             if (chainData.feeTokenAddress != srcFeeToken) {
-                revert ProtocolMessagingHub__InvalidFeeTokenAdderess(gethChainId, srcFeeToken);
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             address feeToken = centralRegistry.feeToken();
@@ -542,14 +543,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         );
 
         if (chainData.isSupported < 2) {
-            revert ProtocolMessagingHub__ChainIsNotSupported();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         if (chainData.messagingHub != toAddress) {
-            revert ProtocolMessagingHub__ToAddressIsNotMessagingHub(
-                chainData.messagingHub,
-                toAddress
-            );
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (gasLimit == 0) {
@@ -643,40 +641,35 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         isPaused = state ? 2 : 1;
     }
 
-    /// @notice Permissioned function for returning fees reimbursed from
-    ///         wormhole to FeeAccumulator.
-    /// @dev This is for if we ever need to depreciate this
-    ///      ProtocolMessagingHub for another.
-    /// NOTE: This does not allow any loss of funds as authorized perms are
-    ///       required to change fee accumulator, meaning in order to steal
-    ///       funds a malicious actor would have had to compromise the whole
-    ///       system already. Thus, we only need to check for DAO perms here.
-    function returnReimbursedFees() external {
+    /// @notice Withdraws gas tokens and fee tokens from the Protocol Messaging Hub
+    ///         to the DAO address in order to depreciate or rebalance the
+    ///         Protocol Messaging Hub.
+    /// @dev This does not allow any loss of funds as authorized perms are
+    ///      required to change the Protocol Messaging Hub, meaning in order to steal
+    ///      funds a malicious actor would have had to compromise the whole
+    ///      system already. Thus, we only need to check for DAO perms here.
+    function withdrawDeposited() external {
         _checkAuthorizedPermissions(true);
 
         address feeToken = centralRegistry.feeToken();
+        uint256 gasTokenBalance = address(this).balance;
+        uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
 
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            centralRegistry.feeAccumulator(),
-            IERC20(feeToken).balanceOf(address(this))
-        );
-    }
-
-    /// @notice Withdraws `amount` gas tokens from the protocol messaging hub
-    ///         to the DAO address.
-    /// @param amount The amount of native gas tokens to withdraw.
-    function withdrawNative(uint256 amount) external {
-        _checkAuthorizedPermissions(true);
-
-        if (amount > address(this).balance) {
-            revert ProtocolMessagingHub__InvalidBalance();
+        if (gasTokenBalance > 0) {
+            SafeTransferLib.forceSafeTransferETH(
+                centralRegistry.daoAddress(),
+                gasTokenBalance
+            );
         }
 
-        SafeTransferLib.forceSafeTransferETH(
-            centralRegistry.daoAddress(),
-            amount
-        );
+        if (feeTokenBalance > 0) {
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                centralRegistry.daoAddress(),
+                feeTokenBalance
+            );
+
+        }  
     }
     
     /// PUBLIC FUNCTIONS ///
