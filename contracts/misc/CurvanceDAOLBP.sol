@@ -39,6 +39,8 @@ contract CurvanceDAOLBP {
     uint256 public cveAmountForSale;
     /// @notice Initial soft cap price, in `paymentToken`.
     uint256 public softPriceInpaymentToken;
+    /// @notice Initial hard cap price, in `paymentToken`.
+    uint256 public hardPriceInpaymentToken;
     /// @notice Payment token can be any ERC20, but never gas tokens.
     address public paymentToken;
     /// @notice Decimals for `paymentToken`.
@@ -46,7 +48,7 @@ contract CurvanceDAOLBP {
     /// @notice Cached price of paymentToken, locked in during start() call.
     uint256 public paymentTokenPrice;
     /// @notice The amount of decimals to adjust between paymentToken and CVE.
-    uint256 public saleDecimalAdjustment; 
+    uint256 public saleDecimalAdjustment;
     /// @notice The number of `paymentToken` committed to the LBP.
     uint256 public saleCommitted;
 
@@ -92,11 +94,13 @@ contract CurvanceDAOLBP {
     /// @notice Starts the configuration of the LBP.
     /// @param startTimestamp LBP start timestamp, in Unix time.
     /// @param softPriceInUSD LBP base token price, in USD.
+    /// @param hardPriceInUSD LBP hard cap token price, in USD.
     /// @param cveAmountInLBP CVE amount included in LBP.
     /// @param paymentTokenAddress The address of the payment token.
     function start(
         uint256 startTimestamp,
         uint256 softPriceInUSD,
+        uint256 hardPriceInUSD,
         uint256 cveAmountInLBP,
         address paymentTokenAddress
     ) external {
@@ -112,9 +116,14 @@ contract CurvanceDAOLBP {
             revert CurvanceDAOLBP__InvalidStartTime();
         }
 
+        if (softPriceInUSD >= hardPriceInUSD) {
+            revert CurvanceDAOLBP__InvalidPrice();
+        }
+
         uint256 errorCode;
-        (paymentTokenPrice, errorCode) = IOracleRouter(centralRegistry.oracleRouter())
-            .getPrice(paymentTokenAddress, true, true);
+        (paymentTokenPrice, errorCode) = IOracleRouter(
+            centralRegistry.oracleRouter()
+        ).getPrice(paymentTokenAddress, true, true);
 
         // Make sure that we didnt have a catastrophic error when pricing
         // the payment token.
@@ -124,6 +133,7 @@ contract CurvanceDAOLBP {
 
         startTime = startTimestamp;
         softPriceInpaymentToken = (softPriceInUSD * WAD) / paymentTokenPrice;
+        hardPriceInpaymentToken = (hardPriceInUSD * WAD) / paymentTokenPrice;
         cveAmountForSale = cveAmountInLBP;
         paymentToken = paymentTokenAddress;
         paymentTokenDecimals = IERC20(paymentTokenAddress).decimals();
@@ -138,6 +148,12 @@ contract CurvanceDAOLBP {
     function commit(uint256 amount) external {
         // Validate that LBP is active.
         _canCommit();
+
+        uint256 remaining = hardCap() - saleCommitted;
+        if (amount > remaining) {
+            // users can commit for only remaining amount
+            amount = remaining;
+        }
 
         // Take commitment.
         SafeTransferLib.safeTransferFrom(
@@ -227,23 +243,31 @@ contract CurvanceDAOLBP {
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current soft cap limit, in `paymentToken`, 
+    /// @notice Returns the current soft cap limit, in `paymentToken`,
     ///         denominated in 18 decimals.
     function softCap() public view returns (uint256) {
         return (softPriceInpaymentToken * cveAmountForSale) / WAD;
     }
 
+    /// @notice return sale hard cap
+    function hardCap() public view returns (uint256) {
+        return (hardPriceInpaymentToken * cveAmountForSale) / 1e18;
+    }
+
     /// @notice Returns the current LBP price based on current commitments.
-    function priceAt(
-        uint256 amount
-    ) public view returns (uint256 price) {
+    function priceAt(uint256 amount) public view returns (uint256 price) {
         // Adjust decimals between paymentTokenDecimals,
-        // and default 18 decimals of softCap(). 
+        // and default 18 decimals of softCap().
         amount = _adjustDecimals(amount, paymentTokenDecimals, 18);
 
         uint256 _softCap = softCap();
         if (amount < _softCap) {
             return softPriceInpaymentToken;
+        }
+
+        uint256 _hardCap = hardCap();
+        if (amount >= _hardCap) {
+            return hardPriceInpaymentToken;
         }
 
         // Equivalent to (amount * WAD) / cveAmountForSale rounded up.
@@ -261,7 +285,10 @@ contract CurvanceDAOLBP {
             return SaleStatus.NotStarted;
         }
 
-        if (block.timestamp < startTime + SALE_PERIOD) {
+        if (
+            block.timestamp < startTime + SALE_PERIOD &&
+            saleCommitted < hardCap()
+        ) {
             return SaleStatus.InSale;
         }
 

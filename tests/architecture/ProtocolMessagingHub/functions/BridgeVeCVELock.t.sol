@@ -15,6 +15,7 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
             address(this),
             address(protocolMessagingHub),
             address(cve),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -28,7 +29,7 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-        protocolMessagingHub.bridgeVeCVELock(42161, user1, _ONE, true);
+        protocolMessagingHub.bridgeVeCVELock(42161, user1, _ONE, true, 0);
     }
 
     function test_bridgeVeCVELock_fail_whenMessagingHubIsPaused() public {
@@ -41,7 +42,7 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__MessagingHubPaused
                 .selector
         );
-        protocolMessagingHub.bridgeVeCVELock(42161, user1, _ONE, true);
+        protocolMessagingHub.bridgeVeCVELock(42161, user1, _ONE, true, 0);
     }
 
     function test_bridgeVeCVELock_fail_whenDestinationChainIsNotRegistered()
@@ -54,7 +55,7 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        protocolMessagingHub.bridgeVeCVELock(138, user1, _ONE, true);
+        protocolMessagingHub.bridgeVeCVELock(138, user1, _ONE, true, 0);
     }
 
     function test_bridgeVeCVELock_fail_whenNativeTokenIsNotEnoughToCoverFee()
@@ -62,7 +63,8 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
     {
         uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
             42161,
-            false
+            false,
+            0
         );
 
         vm.prank(address(veCVE));
@@ -72,14 +74,16 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
             42161,
             user1,
             _ONE,
-            true
+            true,
+            0
         );
     }
 
     function test_bridgeVeCVELock_success() public {
         uint256 messageFee = protocolMessagingHub.quoteWormholeFee(
             42161,
-            false
+            false,
+            0
         );
 
         vm.prank(address(veCVE));
@@ -88,7 +92,8 @@ contract BridgeVeCVELockTest is TestBaseProtocolMessagingHub {
             42161,
             user1,
             _ONE,
-            true
+            true,
+            0
         );
     }
 }

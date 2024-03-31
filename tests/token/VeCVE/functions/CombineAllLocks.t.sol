@@ -30,7 +30,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         veCVE.shutdown();
 
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.bridgeVeCVELock(0, 42161, true, rewardsData, "", 0);
+        veCVE.bridgeVeCVELock(0, 42161, true, rewardsData, "", 0, 0);
     }
 
     function test_combineAllLocks_fail_whenCombineOneLock(

@@ -29,6 +29,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
             address(protocolMessagingHub),
             address(protocolMessagingHub),
             address(cve),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -47,7 +48,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
                 nextEpoch
             )
         );
-        feeAccumulator.executeEpochFeeRouter(42161);
+        feeAccumulator.executeEpochFeeRouter(42161, 0);
     }
 
     function test_executeEpochFeeRouter_success_whenChainIsNotSupported()
@@ -59,7 +60,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
         feeAccumulator.crossChainLockData(0);
 
         vm.prank(address(protocolMessagingHub));
-        feeAccumulator.executeEpochFeeRouter(42161);
+        feeAccumulator.executeEpochFeeRouter(42161, 0);
 
         vm.expectRevert();
         feeAccumulator.crossChainLockData(0);
@@ -110,6 +111,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
             address(protocolMessagingHub),
             address(protocolMessagingHub),
             address(cve),
+            _USDC_ADDRESS,
             42161,
             1,
             1,
@@ -131,7 +133,7 @@ contract ExecuteEpochFeeRouterTest is TestBaseFeeAccumulator {
         skip(veCVE.EPOCH_DURATION() * 2);
 
         vm.prank(address(protocolMessagingHub));
-        feeAccumulator.executeEpochFeeRouter(42161);
+        feeAccumulator.executeEpochFeeRouter(42161, 0);
 
         vm.expectRevert();
         feeAccumulator.crossChainLockData(0);

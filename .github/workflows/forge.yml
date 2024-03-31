@@ -28,4 +28,4 @@ jobs:
         run: forge install
 
       - name: Run forge tests
-        run: forge test
+        run: forge test --ffi

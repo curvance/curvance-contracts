@@ -179,19 +179,24 @@ contract TestBaseMarket is TestBase {
         uint256[] memory chainIds = new uint256[](3);
         uint16[] memory wormholeChainIds = new uint16[](3);
         uint32[] memory cctpDomains = new uint32[](3);
+        address[] memory wormholeRelayers = new address[](3);
 
         chainIds[0] = 1;
         wormholeChainIds[0] = 2;
         cctpDomains[0] = 0;
+        wormholeRelayers[0] = _WORMHOLE_RELAYER;
         chainIds[1] = 137;
         wormholeChainIds[1] = 5;
         cctpDomains[1] = 7;
+        wormholeRelayers[1] = _WORMHOLE_RELAYER;
         chainIds[2] = 42161;
         wormholeChainIds[2] = 23;
         cctpDomains[2] = 3;
+        wormholeRelayers[2] = _WORMHOLE_RELAYER;
 
         centralRegistry.registerWormholeChainIDs(chainIds, wormholeChainIds);
         centralRegistry.registerCCTPDomains(chainIds, cctpDomains);
+        centralRegistry.registerWormholeRelayers(chainIds, wormholeRelayers);
     }
 
     function _deployCVE() internal {

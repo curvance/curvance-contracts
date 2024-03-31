@@ -1,0 +1,9 @@
+{
+  "name": "curvance-contracts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@redstone-finance/protocol": "^0.3.6"
+  }
+}

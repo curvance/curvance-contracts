@@ -24,7 +24,15 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         bytes32 symbolHash;
         uint256 max;
         uint256 decimals;
+        uint256 heartbeat;
     }
+
+    /// CONSTANTS ///
+
+    /// @notice If zero is specified for a Pyth asset heartbeat,
+    ///         this value is used instead.
+    /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
+    uint256 public constant DEFAULT_HEART_BEAT = 1 days;
 
     /// STORAGE ///
 
@@ -36,11 +44,15 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     /// @dev Redstone Adaptor Data for pricing in USD.
     mapping(address => AdaptorData) public adaptorDataUSD;
 
+    mapping(address => mapping(bool => uint256)) private overriddenPrice;
+    mapping(address => mapping(bool => uint256))
+        private overriddenPriceUpdatedAt;
+
     /// EVENTS ///
 
     event RedstoneCoreAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event RedstoneCoreAssetRemoved(address asset);
@@ -49,6 +61,8 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
     error BaseRedstoneCoreAdaptor__AssetIsNotSupported();
     error BaseRedstoneCoreAdaptor__SymbolHashError();
+    error BaseRedstoneCoreAdaptor__InvalidHeartbeat();
+
     /// CONSTRUCTOR ///
 
     constructor(
@@ -91,11 +105,18 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     /// @param decimals The number of decimals the redstone core feed
     ///                 prices in.
     function addAsset(
-        address asset, 
+        address asset,
         bool inUSD,
-        uint8 decimals
+        uint8 decimals,
+        uint256 heartbeat
     ) external {
         _checkElevatedPermissions();
+
+        if (heartbeat != 0) {
+            if (heartbeat > DEFAULT_HEART_BEAT) {
+                revert BaseRedstoneCoreAdaptor__InvalidHeartbeat();
+            }
+        }
 
         bytes32 symbolHash;
         if (inUSD) {
@@ -126,14 +147,15 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             data.decimals = uint256(decimals);
         }
 
-        // Add a ~10% buffer to maximum price allowed from redstone can stop 
+        // Add a ~10% buffer to maximum price allowed from redstone can stop
         // updating its price before/above the min/max price.
         // We use a maximum buffered price of 2^192 - 1 since redstone core
         // reports pricing in 8 decimal format, requiring multiplication by
-        // 10e10 to standardize to 18 decimal format, which could overflow 
+        // 10e10 to standardize to 18 decimal format, which could overflow
         // when trying to save the final value into an uint240.
-        data.max = uint192(uint256(type(uint192).max) * 9 / 10);
+        data.max = uint192((uint256(type(uint192).max) * 9) / 10);
         data.symbolHash = symbolHash;
+        data.heartbeat = heartbeat;
         data.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -168,8 +190,28 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         // Notify the Oracle Router that we are going to stop supporting
         // the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
-        
+
         emit RedstoneCoreAssetRemoved(asset);
+    }
+
+    function writePrice(address asset, bool inUSD) external {
+        if (inUSD) {
+            if (!adaptorDataUSD[asset].isConfigured) {
+                revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+            }
+            overriddenPrice[asset][inUSD] = _extractPrice(
+                adaptorDataUSD[asset].symbolHash
+            );
+            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
+        } else {
+            if (!adaptorDataNonUSD[asset].isConfigured) {
+                revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+            }
+            overriddenPrice[asset][inUSD] = _extractPrice(
+                adaptorDataNonUSD[asset].symbolHash
+            );
+            overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
+        }
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -182,10 +224,10 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataUSD[asset].isConfigured) {
-            return _parseData(adaptorDataUSD[asset], true);
+            return _parseData(asset, adaptorDataUSD[asset], true);
         }
 
-        return _parseData(adaptorDataNonUSD[asset], false);
+        return _parseData(asset, adaptorDataNonUSD[asset], false);
     }
 
     /// @notice Retrieves the price of a given asset in ETH.
@@ -196,10 +238,10 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
-            return _parseData(adaptorDataNonUSD[asset], false);
+            return _parseData(asset, adaptorDataNonUSD[asset], false);
         }
 
-        return _parseData(adaptorDataUSD[asset], true);
+        return _parseData(asset, adaptorDataUSD[asset], true);
     }
 
     /// @notice Extracts the Redstone Core feed data for pricing of an asset.
@@ -210,10 +252,14 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
     function _parseData(
+        address asset,
         AdaptorData memory data,
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
-        uint256 price = _extractPrice(data.symbolHash);
+        uint256 price = overriddenPrice[asset][inUSD];
+        if (price == 0) {
+            revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+        }
 
         // Cache decimals value.
         uint256 quoteDecimals = data.decimals;
@@ -229,7 +275,12 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             }
         }
 
-        pData.hadError = _verifyData(price, data.max);
+        pData.hadError = _verifyData(
+            price,
+            overriddenPriceUpdatedAt[asset][inUSD],
+            data.max,
+            data.heartbeat
+        );
 
         if (!pData.hadError) {
             pData.inUSD = inUSD;
@@ -246,8 +297,10 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ///         (true = error, false = no error).
     function _verifyData(
         uint256 value,
-        uint256 max
-    ) internal pure returns (bool) {
+        uint256 timestamp,
+        uint256 max,
+        uint256 heartbeat
+    ) internal view returns (bool) {
         // Validate `value` is not above the buffered maximum value allowed.
         if (value > max) {
             return true;
@@ -255,6 +308,11 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
         // If we got a price of 0, bubble up an error immediately.
         if (value == 0) {
+            return true;
+        }
+
+        // Validate the price returned is not stale.
+        if (block.timestamp - timestamp > heartbeat) {
             return true;
         }
 
@@ -266,6 +324,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     }
 
     /// INTERNAL FUNCTIONS TO OVERRIDE ///
-    function  _extractPrice(bytes32 symbolHash) internal virtual view returns (uint256);
-
+    function _extractPrice(
+        bytes32 symbolHash
+    ) internal view virtual returns (uint256);
 }
