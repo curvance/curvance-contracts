@@ -106,6 +106,13 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints` on all other chains, 
     ///         stores the results for the other chains, and updates the data for this chain.
     function executeEpoch(bytes memory response, IWormhole.Signature[] memory signatures) external {
+        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        uint256 epoch = locker.nextEpochToDeliver();
+
+        if (locker.currentEpoch(block.timestamp) <= epoch) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
         uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(response, signatures);
         uint256 numResponses = r.responses.length;
@@ -115,7 +122,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         for (uint256 i; i < numResponses; ) {
-            // Create a storage pointer for frequently read and updated data stored on the blockchain
+            // Cache current chain entry.
             ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
             if (chainEntry.chainID != chainIDs[i]) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
@@ -123,17 +130,17 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
 
-            // Validate that update is not obsolete
+            // Validate that update is not obsolete.
             validateBlockNum(eqr.blockNum, chainEntry.blockNum);
 
-            // Validate that update is not stale
+            // Validate that update is not stale.
             validateBlockTime(eqr.blockTime, block.timestamp - 300);
 
             if (eqr.result.length != 1) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            // Validate addresses and function signatures
+            // Validate addresses and function signatures.
             address[] memory validAddresses = new address[](1);
             bytes4[] memory validFunctionSignatures = new bytes4[](1);
             validAddresses[0] = chainEntry.contractAddress;
@@ -496,100 +503,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             );
     }
 
-    /// @notice Sends veCVE locked token data to destination chain.
-    /// @param dstChainId Destination chain ID where the message data
-    ///                   should be sent.
-    /// @param toAddress The destination address specified by `dstChainId`.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    function sendVeCVELockData(
-        uint256 dstChainId,
-        address toAddress,
-        uint256 gasLimit
-    ) external payable {
-        if (!centralRegistry.isHarvester(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-        uint256 epoch = locker.nextEpochToDeliver();
-
-        if (lockedTokenDataSent[dstChainId][epoch] == 2) {
-            return;
-        }
-
-        lockedTokenDataSent[dstChainId][epoch] = 2;
-
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            dstChainId
-        );
-
-        if (chainData.isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        if (chainData.messagingHub != toAddress) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (gasLimit == 0) {
-            gasLimit = _DEFAULT_GAS_LIMIT;
-        }
-
-        bytes memory payload = abi.encode(
-            IVeCVE(veCVE).chainPoints() -
-                IVeCVE(veCVE).chainUnlocksByEpoch(epoch)
-        );
-
-        _sendWormholeMessages(
-            dstChainId,
-            toAddress,
-            _quoteMessageFee(dstChainId, false, gasLimit),
-            4,
-            payload,
-            gasLimit
-        );
-    }
-
-    /// @notice Records a Curvance reward epoch, if all chains have been
-    ///         recorded executes system wide reporting and distribution
-    ///         to all chains within the Curvance Protocol system.
-    function sendEpochRewardData(
-        LockData[] calldata crossChainLockData,
-        uint256 epochRewardsPerCVE,
-        uint256 gasLimit
-    ) external {
-        if (msg.sender != centralRegistry.feeAccumulator()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (gasLimit == 0) {
-            gasLimit = _DEFAULT_GAS_LIMIT;
-        }
-
-        uint256 numChainData = crossChainLockData.length;
-        uint16 lockDataChainId;
-        ChainData memory chainData;
-
-        // Notify the other chains of the per epoch rewards.
-        for (uint256 i; i < numChainData; ) {
-            lockDataChainId = crossChainLockData[i].chainId;
-            chainData = centralRegistry.supportedChainData(lockDataChainId);
-
-            _sendWormholeMessages(
-                uint256(lockDataChainId),
-                chainData.messagingHub,
-                _quoteMessageFee(uint256(lockDataChainId), false, gasLimit),
-                4,
-                abi.encode(epochRewardsPerCVE),
-                gasLimit
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
     /// @notice Permissioned function that flips the pause status of the
@@ -681,6 +594,41 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 0, // No receiver value since we're just passing a message.
                 gasLimit
             );
+    }
+
+    /// @notice Executes protocol-wide reporting and distribution of epoch
+    ///         results, to all chains within the Curvance Protocol system.
+    function _executeCrosschainEpoch(
+        LockData[] calldata crossChainLockData,
+        uint256 epochRewardsPerCVE,
+        uint256 gasLimit
+    ) external {
+        if (gasLimit == 0) {
+            gasLimit = _DEFAULT_GAS_LIMIT;
+        }
+
+        uint256 numChainData = crossChainLockData.length;
+        uint16 lockDataChainId;
+        ChainData memory chainData;
+
+        // Notify the other chains of the per epoch rewards.
+        for (uint256 i; i < numChainData; ) {
+            lockDataChainId = crossChainLockData[i].chainId;
+            chainData = centralRegistry.supportedChainData(lockDataChainId);
+
+            _sendWormholeMessages(
+                uint256(lockDataChainId),
+                chainData.messagingHub,
+                _quoteMessageFee(uint256(lockDataChainId), false, gasLimit),
+                3,
+                abi.encode(epochRewardsPerCVE),
+                gasLimit
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @dev Internal helper for reverting efficiently.
