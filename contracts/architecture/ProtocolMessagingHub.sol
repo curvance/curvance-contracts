@@ -178,17 +178,16 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
             srcAddr,
             gethChainId
         );
-
-        // Validate message came directly from MessagingHub on the source chain.
-        if (
-            centralRegistry.supportedChainData(gethChainId).messagingHub !=
-            srcAddr
-        ) {
+        // Validate the operator is authorized.
+        if (operator.isAuthorized < 2) {
             return;
         }
 
-        // Validate the operator is authorized.
-        if (operator.isAuthorized < 2) {
+        ChainData memory chainData = centralRegistry.supportedChainData(
+            gethChainId
+        );
+        // Validate message came directly from MessagingHub on the source chain.
+        if (chainData.messagingHub != srcAddr) {
             return;
         }
 
@@ -197,52 +196,51 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub {
         // PayloadID = 1 Indicates submitting fees and epoch lock data
         // for THIS chain, for a reported epoch.
         if (payloadId == 1) {
-            (, address token, uint256 amount) = abi.decode(
+            (, address srcFeeToken, uint256 amount) = abi.decode(
                 payload,
                 (uint8, address, uint256)
             );
+            // Validate fee token address
+            if (chainData.feeTokenAddress != srcFeeToken) {
+                revert ProtocolMessagingHub__InvalidFeeTokenAdderess(gethChainId, srcFeeToken);
+            }
 
             address feeToken = centralRegistry.feeToken();
+            ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
 
-            // Make sure the token received is the
-            // fee token (locker reward token), otherwise do not execute
-            // epoch finalization.
-            if (token == feeToken) {
-                ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+            // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
+            // should be sent and deposited to Gelato 1Balance on polygon.
+            uint256 oneBalanceFee = (amount *
+                centralRegistry.protocolCompoundFee()) /
+                centralRegistry.protocolHarvestFee();
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                address(centralRegistry),
+                oneBalanceFee
+            );
 
-                // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
-                // should be sent and deposited to Gelato 1Balance on polygon.
-                uint256 oneBalanceFee = (amount *
-                    centralRegistry.protocolCompoundFee()) /
-                    centralRegistry.protocolHarvestFee();
+            amount -= oneBalanceFee;
+
+            // If the locker is shutdown, transfer fees to DAO
+            // instead of recording epoch rewards.
+            if (locker.isShutdown() == 2) {
                 SafeTransferLib.safeTransfer(
                     feeToken,
-                    address(centralRegistry),
-                    oneBalanceFee
-                );
-
-                amount -= oneBalanceFee;
-
-                // If the locker is shutdown, transfer fees to DAO
-                // instead of recording epoch rewards.
-                if (locker.isShutdown() == 2) {
-                    SafeTransferLib.safeTransfer(
-                        feeToken,
-                        centralRegistry.daoAddress(),
-                        amount
-                    );
-                    return;
-                }
-
-                // Transfer fees to locker and record newest epoch rewards.
-                SafeTransferLib.safeTransfer(
-                    feeToken,
-                    address(locker),
+                    centralRegistry.daoAddress(),
                     amount
                 );
-                locker.recordEpochRewards(amount);
                 return;
             }
+
+            // Transfer fees to locker and record newest epoch rewards.
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                address(locker),
+                amount
+            );
+            locker.recordEpochRewards(amount);
+            return;
+            
             // PayloadID = 4 Indicates receiving some crosschain information from
             // a remote chain. Such as Gauge emissions configuration,
             // locked token data, locker rewards data.

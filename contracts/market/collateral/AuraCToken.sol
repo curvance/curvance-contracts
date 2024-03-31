@@ -37,7 +37,8 @@ contract AuraCToken is CTokenCompounding {
     /// @dev These addresses are for Ethereum mainnet so make sure to update
     ///      them if Balancer/Aura is being supported on another chain
     address private constant _BAL = 0xba100000625a3754423978a60c9317c58a424e3D;
-    address private constant _AURA = 0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
+    address private constant _AURA =
+        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     /// STORAGE ///
 
@@ -57,6 +58,7 @@ contract AuraCToken is CTokenCompounding {
 
     error AuraCToken__InvalidVaultConfig();
     error AuraCToken__InvalidSwapper(uint256 index, address invalidSwapper);
+    error AuraCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -257,8 +259,8 @@ contract AuraCToken is CTokenCompounding {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
                     protocolFee = FixedPointMathLib.mulDiv(
-                        rewardAmount, 
-                        harvestFee, 
+                        rewardAmount,
+                        harvestFee,
                         1e18
                     );
                     rewardAmount -= protocolFee;
@@ -277,6 +279,12 @@ contract AuraCToken is CTokenCompounding {
                                 i,
                                 swapDataArray[i].target
                             );
+                        }
+
+                        if (
+                            swapDataArray[i].inputToken != address(rewardToken)
+                        ) {
+                            revert AuraCToken__InvalidSwapData();
                         }
 
                         SwapperLib.swap(centralRegistry, swapDataArray[i]);

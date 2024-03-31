@@ -53,6 +53,7 @@ contract PendleLPCToken is CTokenCompounding {
         uint256 index,
         address invalidSwapper
     );
+    error PendleLPCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -101,7 +102,7 @@ contract PendleLPCToken is CTokenCompounding {
     function reQueryUnderlyingTokens() external {
         address[] memory currentTokens = strategyData.underlyingTokens;
         uint256 numCurrentTokens = currentTokens.length;
-        
+
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
         for (uint256 i; i < numCurrentTokens; ) {
@@ -168,7 +169,10 @@ contract PendleLPCToken is CTokenCompounding {
                 uint256 minLPAmount,
                 ApproxParams memory approx,
                 LimitOrderData memory limit
-            ) = abi.decode(data, (SwapperLib.Swap[], uint256, ApproxParams, LimitOrderData));
+            ) = abi.decode(
+                    data,
+                    (SwapperLib.Swap[], uint256, ApproxParams, LimitOrderData)
+                );
 
             {
                 // Use scoping to avoid stack too deep.
@@ -196,8 +200,8 @@ contract PendleLPCToken is CTokenCompounding {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
                     protocolFee = FixedPointMathLib.mulDiv(
-                        rewardAmount, 
-                        harvestFee, 
+                        rewardAmount,
+                        harvestFee,
                         1e18
                     );
                     rewardAmount -= protocolFee;
@@ -218,12 +222,17 @@ contract PendleLPCToken is CTokenCompounding {
                             );
                         }
 
+                        if (
+                            swapDataArray[i].inputToken != address(rewardToken)
+                        ) {
+                            revert PendleLPCToken__InvalidSwapData();
+                        }
+
                         SwapperLib.swap(centralRegistry, swapDataArray[i]);
                     }
                 }
             }
 
-            
             {
                 uint256 numUnderlyingTokens = sd.underlyingTokens.length;
                 address underlyingToken;

@@ -61,6 +61,7 @@ contract AerodromeStableCToken is CTokenCompounding {
     error AerodromeStableCToken__AssetIsNotStable();
     error AerodromeStableCToken__SlippageError();
     error AerodromeStableCToken__InvalidSwapper(address invalidSwapper);
+    error AerodromeStableCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -177,6 +178,10 @@ contract AerodromeStableCToken is CTokenCompounding {
                             );
                         }
 
+                        if (swapData.inputToken != address(rewardToken)) {
+                            revert AerodromeStableCToken__InvalidSwapData();
+                        }
+
                         SwapperLib.swap(centralRegistry, swapData);
                     }
                 }
@@ -198,7 +203,7 @@ contract AerodromeStableCToken is CTokenCompounding {
                 IVeloPair(_asset).token0()
                 ? (r0, r1)
                 : (r1, r0);
-            // Feed library pair factory, lpToken, and stable = true, 
+            // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(
                 address(sd.pairFactory),

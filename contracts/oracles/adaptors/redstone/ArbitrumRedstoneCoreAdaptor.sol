@@ -6,8 +6,10 @@ import { ArbitrumProdDataServiceConsumerBase } from "contracts/libraries/externa
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract ArbitrumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, ArbitrumProdDataServiceConsumerBase {
-
+contract ArbitrumRedstoneCoreAdaptor is
+    BaseRedstoneCoreAdaptor,
+    ArbitrumProdDataServiceConsumerBase
+{
     /// ERRORS ///
 
     error ArbitrumRedstoneCoreAdaptor__ChainIsNotSupported();
@@ -17,7 +19,7 @@ contract ArbitrumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, ArbitrumProdDat
     constructor(
         ICentralRegistry centralRegistry_
     ) BaseRedstoneCoreAdaptor(centralRegistry_) {
-        // `redstone-arbitrum-prod` that this oracle adaptor 
+        // `redstone-arbitrum-prod` that this oracle adaptor
         // is configured for should only be on Arbitrum mainnet.
         if (block.chainid != 42161) {
             revert ArbitrumRedstoneCoreAdaptor__ChainIsNotSupported();
@@ -26,18 +28,19 @@ contract ArbitrumRedstoneCoreAdaptor is BaseRedstoneCoreAdaptor, ArbitrumProdDat
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice The minimum number of signer messages to be validated 
+    /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
-    function getUniqueSignersThreshold() public view override returns (uint8) {
+    function getUniqueSignersThreshold() public pure override returns (uint8) {
         return 3;
     }
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Extracts price stored in msg.data with the transaction, 
+    /// @notice Extracts price stored in msg.data with the transaction,
     ///         can be called multiple times in one transaction.
-    function  _extractPrice(bytes32 symbolHash) internal override view returns (uint256) {
+    function _extractPrice(
+        bytes32 symbolHash
+    ) internal view override returns (uint256) {
         return getOracleNumericValueFromTxMsg(symbolHash);
     }
-
 }

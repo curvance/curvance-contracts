@@ -32,6 +32,7 @@ struct ChainData {
     uint256 asSourceAux;
     uint256 asDestinationAux;
     address cveAddress;
+    address feeTokenAddress;
 }
 
 interface ICentralRegistry {

@@ -32,6 +32,7 @@ contract StakedGMXCToken is CTokenCompounding {
     error StakedGMXCToken__InvalidWETH();
     error StakedGMXCToken__InvalidSwapper(address invalidSwapper);
     error StakedGMXCToken__ChainIsNotSupported();
+    error StakedGMXCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -95,7 +96,7 @@ contract StakedGMXCToken is CTokenCompounding {
             // If there are no pending rewards, skip swapping logic.
             if (rewardAmount > 0) {
                 // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
+                // compounding bot.
                 uint256 protocolFee = FixedPointMathLib.mulDiv(
                     rewardAmount,
                     centralRegistry.protocolHarvestFee(),
@@ -115,6 +116,10 @@ contract StakedGMXCToken is CTokenCompounding {
 
                 if (!centralRegistry.isSwapper(swapData.target)) {
                     revert StakedGMXCToken__InvalidSwapper(swapData.target);
+                }
+
+                if (swapData.inputToken != address(WETH)) {
+                    revert StakedGMXCToken__InvalidSwapData();
                 }
 
                 yield = SwapperLib.swap(centralRegistry, swapData);
