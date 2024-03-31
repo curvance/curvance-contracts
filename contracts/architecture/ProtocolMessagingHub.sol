@@ -62,8 +62,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
 
-    uint256 internal constant _PAYLOAD_4_GAS_LIMIT = 250_000;
-    uint256 internal constant _PAYLOAD_5_GAS_LIMIT = 250_000;
+    uint256 internal constant _DEFAULT_PAYLOAD_GAS_LIMIT = 250_000;
 
     /// STORAGE ///
 
@@ -143,8 +142,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
 
             validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
-
-            require(eqr.result[0].result.length == 32, "result is not a uint256");
+            
+            // Validate that the result is a uint256.
+            if (eqr.result[0].result.length != 32) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
 
             chainEntry.blockNum = eqr.blockNum;
             chainEntry.blockTime = adjustedBlockTime;
@@ -242,11 +244,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             return;
         }
 
-        uint8 payloadId = abi.decode(payload, (uint8));
+        uint8 payloadType = abi.decode(payload, (uint8));
 
-        // PayloadID = 1 Indicates submitting fees and epoch lock data
-        // for THIS chain, for a reported epoch.
-        if (payloadId == 1) {
+        // PayloadType = 1: Submitting fees and epoch lock data for THIS chain,
+        //                  for a reported epoch.
+        if (payloadType == 1) {
             (, address srcFeeToken, uint256 amount) = abi.decode(
                 payload,
                 (uint8, address, uint256)
@@ -292,10 +294,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             locker.recordEpochRewards(amount);
             return;
             
-            // PayloadID = 4 Indicates receiving some crosschain information from
-            // a remote chain. Such as Gauge emissions configuration,
-            // locked token data, locker rewards data.
-        } else if (payloadId == 4) {
+        // PayloadID = 2: Crosschain Gauge Emission Configuration.
+        } else if (payloadType == 2) {
             (, bytes memory emissionData) = abi.decode(
                 payload,
                 (uint8, bytes)
@@ -305,72 +305,55 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 address[] memory gaugePools,
                 uint256[] memory emissionTotals,
                 address[][] memory tokens,
-                uint256[][] memory emissions,
-                uint256 chainLockedAmount,
-                uint256 messageType
+                uint256[][] memory emissions
             ) = abi.decode(
                     emissionData,
                     (
                         address[],
                         uint256[],
                         address[][],
-                        uint256[][],
-                        uint256,
-                        uint256
+                        uint256[][]
                     )
                 );
 
-            // Message Type 1: Receive feeAccumulator information of locked
-            //                 tokens on a chain for the epoch.
-            if (messageType == 1) {
-                IFeeAccumulator(centralRegistry.feeAccumulator())
-                    .receiveCrossChainLockData(
-                        EpochRolloverData({
-                            chainId: gethChainId,
-                            value: chainLockedAmount,
-                            numChainData: 0,
-                            epoch: 0
-                        })
-                    );
-                return;
-            }
+            // Use scoping for stack too deep logic.
+            uint256 numPools = gaugePools.length;
+            GaugeController gaugePool;
 
-            // Message Type 2: Receive finalized epoch rewards data.
-            if (messageType == 2) {
-                IFeeAccumulator(centralRegistry.feeAccumulator())
-                    .receiveExecutableLockData(chainLockedAmount);
-                return;
-            }
+            for (uint256 i; i < numPools; ) {
+                gaugePool = GaugeController(gaugePools[i]);
+                // Mint epoch gauge emissions to the gauge pool.
+                cve.mintGaugeEmissions(
+                    address(gaugePool),
+                    emissionTotals[i]
+                );
+                // Set upcoming epoch emissions for voted configuration.
+                gaugePool.setEmissionRates(
+                    gaugePool.currentEpoch() + 1,
+                    tokens[i],
+                    emissions[i]
+                );
 
-            // Message Type 3+: Update gauge emissions for all gauge
-            //                  controllers on this chain.
-            {
-                // Use scoping for stack too deep logic.
-                uint256 numPools = gaugePools.length;
-                GaugeController gaugePool;
-
-                for (uint256 i; i < numPools; ) {
-                    gaugePool = GaugeController(gaugePools[i]);
-                    // Mint epoch gauge emissions to the gauge pool.
-                    cve.mintGaugeEmissions(
-                        address(gaugePool),
-                        emissionTotals[i]
-                    );
-                    // Set upcoming epoch emissions for voted configuration.
-                    gaugePool.setEmissionRates(
-                        gaugePool.currentEpoch() + 1,
-                        tokens[i],
-                        emissions[i]
-                    );
-
-                    unchecked {
-                        ++i;
-                    }
+                unchecked {
+                    ++i;
                 }
             }
-            // PayloadID = 5 Indicates migrating a veCVE lock from the source
-            // chain to this destination chain.
-        } else if (payloadId == 5) {
+            return;
+
+        // PayloadID = 3: Receive finalized epoch rewards data.
+        } else if (payloadType == 3) {
+            (, uint256 chainLockedAmount) = abi.decode(
+                payload,
+                (uint8, uint256)
+            );
+
+            IFeeAccumulator(centralRegistry.feeAccumulator())
+                    .receiveExecutableLockData(chainLockedAmount);
+            return;
+
+        // PayloadID = 4: Indicates migrating a veCVE lock from the source
+        //                chain to this destination chain.
+        }  else if (payloadType == 4) {
             (, bytes memory lockData) = abi.decode(payload, (uint8, bytes));
 
             (address recipient, uint256 amount, bool continuousLock) = abi
@@ -511,7 +494,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 msg.value,
                 5,
                 payload,
-                gasLimit > 0 ? gasLimit : _PAYLOAD_5_GAS_LIMIT
+                gasLimit > 0 ? gasLimit : _DEFAULT_PAYLOAD_GAS_LIMIT
             );
     }
 
@@ -551,7 +534,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         if (gasLimit == 0) {
-            gasLimit = _PAYLOAD_4_GAS_LIMIT;
+            gasLimit = _DEFAULT_PAYLOAD_GAS_LIMIT;
         }
 
         bytes memory payload = abi.encode(
@@ -582,7 +565,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         if (gasLimit == 0) {
-            gasLimit = _PAYLOAD_4_GAS_LIMIT;
+            gasLimit = _DEFAULT_PAYLOAD_GAS_LIMIT;
         }
 
         uint256 numChainData = crossChainLockData.length;
