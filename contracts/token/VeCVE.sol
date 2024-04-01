@@ -917,8 +917,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param user The address of the user whose points are to be updated.
     /// @param epoch The epoch from which the unlock amount will be reduced.
     /// @dev This function is only called when
-    ///      userUnlocksByEpoch[user][epoch] > 0
-    ///      so we do not need to check here.
+    ///      userUnlocksByEpoch[user][epoch] > 0 so we do not need to check
+    ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
         _checkEpochStatus();
 
@@ -930,11 +930,24 @@ contract VeCVE is ERC20, ReentrancyGuard {
             }
         }
 
-        unchecked {
-            userPoints[user] =
-                userPoints[user] -
-                userUnlocksByEpoch[user][epoch];
+        userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
+    }
+
+    /// @notice Updates chain points by reducing the amount that gets unlocked
+    ///         in a specific epoch.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
+    /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
+    ///      so we do not need for equal 0 here.
+    function updateChainPoints(uint256 epoch) external {
+        address _cveLocker = address(cveLocker);
+        assembly {
+            if iszero(eq(caller(), _cveLocker)) {
+                mstore(0x00, _UNAUTHORIZED_SELECTOR)
+                revert(0x1c, 0x04)
+            }
         }
+        
+        chainPoints = chainPoints - chainUnlocksByEpoch[epoch];
     }
 
     /// View Functions ///

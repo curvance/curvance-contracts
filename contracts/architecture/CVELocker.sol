@@ -138,6 +138,14 @@ contract CVELocker is Delegable, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        uint256 epoch = nextEpochToDeliver;
+
+        if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
+            // If the chain has tokens unlocking this epoch we need to decrease
+            // chainPoints.
+            veCVE.updateChainPoints(epoch);
+        }
+
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
         epochRewardsPerCVE[nextEpochToDeliver++] = rewardsPerCVE;
