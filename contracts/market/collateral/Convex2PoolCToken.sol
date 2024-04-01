@@ -54,10 +54,6 @@ contract Convex2PoolCToken is CTokenCompounding {
     error Convex2PoolCToken__UnsafePool();
     error Convex2PoolCToken__InvalidVaultConfig();
     error Convex2PoolCToken__InvalidCoinLength();
-    error Convex2PoolCToken__InvalidSwapper(
-        uint256 index,
-        address invalidSwapper
-    );
     error Convex2PoolCToken__NoYield();
     error Convex2PoolCToken__InvalidSwapData();
 
@@ -240,13 +236,6 @@ contract Convex2PoolCToken is CTokenCompounding {
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (!centralRegistry.isSwapper(swapDataArray[i].target)) {
-                        revert Convex2PoolCToken__InvalidSwapper(
-                            i,
-                            swapDataArray[i].target
-                        );
-                    }
-
                     if (swapDataArray[i].inputToken == asset()) {
                         revert Convex2PoolCToken__InvalidSwapData();
                     }

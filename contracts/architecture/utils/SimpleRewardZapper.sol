@@ -53,7 +53,6 @@ contract SimpleRewardZapper is ReentrancyGuard {
     error SimpleRewardZapper__InvalidMarketManager();
     error SimpleRewardZapper__InvalidCentralRegistry();
     error SimpleRewardZapper__InvalidCVELocker();
-    error SimpleRewardZapper__InvalidZapper(address invalidZapper);
 
     /// CONSTRUCTOR ///
 
@@ -109,11 +108,6 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Validate that the desired output token is approved.
         if (authorizedOutputToken[swapperData.outputToken] != 2) {
             revert SimpleRewardZapper__UnknownOutputToken();
-        }
-
-        // Validate target contract is an approved swapper.
-        if (!centralRegistry.isSwapper(swapperData.target)) {
-            revert SimpleRewardZapper__InvalidZapper(swapperData.target);
         }
 
         // Claim caller rewards and cache reward amount.
@@ -178,11 +172,6 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
         // We do not need to check for an output token approval here since all
         // cTokens are natively authorized.
-
-        // Validate target contract is an approved Zapper.
-        if (!centralRegistry.isSwapper(swapZap.target)) {
-            revert SimpleRewardZapper__InvalidZapper(swapZap.target);
-        }
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
@@ -257,11 +246,6 @@ contract SimpleRewardZapper is ReentrancyGuard {
             // matches the underlying needed.
             if (swapperData.outputToken != dTokenUnderlying) {
                 revert SimpleRewardZapper__ExecutionError();
-            }
-
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(swapperData.target)) {
-                revert SimpleRewardZapper__InvalidZapper(swapperData.target);
             }
 
             // Swap from reward token into `dTokenUnderlying`.

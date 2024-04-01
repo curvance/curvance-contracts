@@ -61,7 +61,6 @@ contract VelodromeStableCToken is CTokenCompounding {
     error VelodromeStableCToken__StakingTokenIsNotAsset(address stakingToken);
     error VelodromeStableCToken__AssetIsNotStable();
     error VelodromeStableCToken__SlippageError();
-    error VelodromeStableCToken__InvalidSwapper(address invalidSwapper);
     error VelodromeStableCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -171,12 +170,6 @@ contract VelodromeStableCToken is CTokenCompounding {
                             data,
                             (SwapperLib.Swap)
                         );
-
-                        if (!centralRegistry.isSwapper(swapData.target)) {
-                            revert VelodromeStableCToken__InvalidSwapper(
-                                swapData.target
-                            );
-                        }
 
                         if (swapData.inputToken != address(rewardToken)) {
                             revert VelodromeStableCToken__InvalidSwapData();

@@ -58,7 +58,6 @@ contract AerodromeVolatileCToken is CTokenCompounding {
     );
     error AerodromeVolatileCToken__AssetIsNotStable();
     error AerodromeVolatileCToken__SlippageError();
-    error AerodromeVolatileCToken__InvalidSwapper(address invalidSwapper);
     error AerodromeVolatileCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -165,12 +164,6 @@ contract AerodromeVolatileCToken is CTokenCompounding {
                             data,
                             (SwapperLib.Swap)
                         );
-
-                        if (!centralRegistry.isSwapper(swapData.target)) {
-                            revert AerodromeVolatileCToken__InvalidSwapper(
-                                swapData.target
-                            );
-                        }
 
                         if (swapData.inputToken != address(rewardToken)) {
                             revert AerodromeVolatileCToken__InvalidSwapData();

@@ -30,7 +30,6 @@ contract StakedGMXCToken is CTokenCompounding {
     error StakedGMXCToken__SlippageError();
     error StakedGMXCToken__InvalidRewardRouter();
     error StakedGMXCToken__InvalidWETH();
-    error StakedGMXCToken__InvalidSwapper(address invalidSwapper);
     error StakedGMXCToken__ChainIsNotSupported();
     error StakedGMXCToken__InvalidSwapData();
 
@@ -113,10 +112,6 @@ contract StakedGMXCToken is CTokenCompounding {
                     data,
                     (SwapperLib.Swap)
                 );
-
-                if (!centralRegistry.isSwapper(swapData.target)) {
-                    revert StakedGMXCToken__InvalidSwapper(swapData.target);
-                }
 
                 if (swapData.inputToken != address(WETH)) {
                     revert StakedGMXCToken__InvalidSwapData();

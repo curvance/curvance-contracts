@@ -57,7 +57,6 @@ contract AuraCToken is CTokenCompounding {
     /// ERRORS ///
 
     error AuraCToken__InvalidVaultConfig();
-    error AuraCToken__InvalidSwapper(uint256 index, address invalidSwapper);
     error AuraCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -272,15 +271,6 @@ contract AuraCToken is CTokenCompounding {
 
                     // Swap from rewardToken to underlying LP token, if necessary.
                     if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            !centralRegistry.isSwapper(swapDataArray[i].target)
-                        ) {
-                            revert AuraCToken__InvalidSwapper(
-                                i,
-                                swapDataArray[i].target
-                            );
-                        }
-
                         if (
                             swapDataArray[i].inputToken != address(rewardToken)
                         ) {

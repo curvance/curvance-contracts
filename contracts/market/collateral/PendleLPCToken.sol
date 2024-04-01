@@ -48,11 +48,6 @@ contract PendleLPCToken is CTokenCompounding {
     event Harvest(uint256 yield);
 
     /// ERRORS ///
-
-    error PendleLPCToken__InvalidSwapper(
-        uint256 index,
-        address invalidSwapper
-    );
     error PendleLPCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -213,15 +208,6 @@ contract PendleLPCToken is CTokenCompounding {
 
                     // Swap from reward token to underlying tokens, if necessary.
                     if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            !centralRegistry.isSwapper(swapDataArray[i].target)
-                        ) {
-                            revert PendleLPCToken__InvalidSwapper(
-                                i,
-                                swapDataArray[i].target
-                            );
-                        }
-
                         if (
                             swapDataArray[i].inputToken != address(rewardToken)
                         ) {

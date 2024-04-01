@@ -35,7 +35,6 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
             block.timestamp
         );
 
-        centralRegistry.addSwapper(_UNISWAP_V2_ROUTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))

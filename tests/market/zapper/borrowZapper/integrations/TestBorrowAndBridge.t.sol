@@ -151,7 +151,6 @@ contract TestBorrowAndBridge is TestBaseMarket {
         assertEq(cBALRETH.balanceOf(user1), _ONE);
         assertEq(cBALRETH.exchangeRateCached(), _ONE);
 
-        centralRegistry.addSwapper(_UNISWAP_V3_SWAP_ROUTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))

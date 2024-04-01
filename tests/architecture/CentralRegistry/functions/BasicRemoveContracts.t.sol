@@ -20,28 +20,24 @@ contract BasicRemoveContractsTest is TestBaseMarket {
         super.setUp();
 
         removeFuncs = [
-            "removeSwapper(address)",
             "removeVeCVELocker(address)",
             "removeGaugeController(address)",
             "removeHarvester(address)",
             "removeEndpoint(address)"
         ];
         maps = [
-            "isSwapper(address)",
             "isVeCVELocker(address)",
             "isGaugeController(address)",
             "isHarvester(address)",
             "isEndpoint(address)"
         ];
         expectedLogs = [
-            "Swapper",
             "VeCVELocker",
             "Gauge Controller",
             "Harvestor",
             "Endpoint"
         ];
         addFuncs = [
-            "addSwapper(address)",
             "addVeCVELocker(address)",
             "addGaugeController(address)",
             "addHarvester(address)",

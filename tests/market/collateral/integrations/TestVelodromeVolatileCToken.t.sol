@@ -49,7 +49,6 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeAccumulator(address(this));
-        centralRegistry.addSwapper(address(veloRouter));
         centralRegistry.setExternalCallDataChecker(
             address(veloRouter),
             address(new MockCallDataChecker(address(veloRouter)))
