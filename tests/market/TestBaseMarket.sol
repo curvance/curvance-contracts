@@ -28,7 +28,7 @@ import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.s
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TestBaseMarket is TestBase {
     address internal _ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -177,26 +177,21 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
 
         uint256[] memory chainIds = new uint256[](3);
-        uint16[] memory wormholeChainIds = new uint16[](3);
+        WormholeData[] memory wormholeData = new WormholeData[](3);
         uint32[] memory cctpDomains = new uint32[](3);
-        address[] memory wormholeRelayers = new address[](3);
 
         chainIds[0] = 1;
-        wormholeChainIds[0] = 2;
         cctpDomains[0] = 0;
-        wormholeRelayers[0] = _WORMHOLE_RELAYER;
+        wormholeData[0] = WormholeData(2, _WORMHOLE_RELAYER);
         chainIds[1] = 137;
-        wormholeChainIds[1] = 5;
         cctpDomains[1] = 7;
-        wormholeRelayers[1] = _WORMHOLE_RELAYER;
+        wormholeData[1] = WormholeData(5, _WORMHOLE_RELAYER);
         chainIds[2] = 42161;
-        wormholeChainIds[2] = 23;
         cctpDomains[2] = 3;
-        wormholeRelayers[2] = _WORMHOLE_RELAYER;
+        wormholeData[2] = WormholeData(23, _WORMHOLE_RELAYER);
 
-        centralRegistry.registerWormholeChainIDs(chainIds, wormholeChainIds);
+        centralRegistry.registerWormholeData(chainIds, wormholeData);
         centralRegistry.registerCCTPDomains(chainIds, cctpDomains);
-        centralRegistry.registerWormholeRelayers(chainIds, wormholeRelayers);
     }
 
     function _deployCVE() internal {
@@ -240,8 +235,7 @@ contract TestBaseMarket is TestBase {
 
     function _deployProtocolMessagingHub() internal {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry)),
-            address(1)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
     }

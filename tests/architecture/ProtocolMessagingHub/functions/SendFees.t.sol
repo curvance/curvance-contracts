@@ -17,29 +17,21 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__MessagingHubPaused
                 .selector
         );
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenCallerIsNotAuthorized() public {
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenOperatorIsNotAuthorized() public {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__Unauthorized
-                    .selector,
-                address(this),
-                42161
-            )
+            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenMessagingChainIdIsInvalid() public {
@@ -61,17 +53,11 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             .checked_write(22);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__InvalidParameter
-                    .selector,
-                23,
-                22
-            )
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
@@ -94,16 +80,11 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             .checked_write(1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__InvalidParameter
-                    .selector,
-                42161
-            )
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughNativeAssetForMessageFee()
@@ -127,9 +108,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
                 .FeeTokenBridgingHub__InsufficientGasToken
                 .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughFeeToken() public {
@@ -147,9 +126,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("TransferFromFailed()")));
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_success() public {
@@ -169,8 +146,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE);
 
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 250_000);
+        protocolMessagingHub.sendFees(42161, 10e6, 250_000);
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE - 10e6);
     }

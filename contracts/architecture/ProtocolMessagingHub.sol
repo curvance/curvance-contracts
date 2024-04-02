@@ -254,10 +254,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         isDeliveredMessageHash[deliveryHash] = true;
-        address wormholeRelayer = address(centralRegistry.wormholeRelayer());
 
         // Validate that the Wormhole Relayer is the caller.
-        if (msg.sender != wormholeRelayer) {
+        if (msg.sender != address(centralRegistry.wormholeRelayer())) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -428,29 +427,23 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 messagingChainId = centralRegistry.GETHToMessagingChainId(
             dstChainId
         );
+        OmnichainData memory operator = centralRegistry.getOmnichainOperators(
+            chainData.messagingHub,
+            dstChainId
+        );
 
-        {
-            // Avoid stack too deep
-            OmnichainData memory operator = centralRegistry
-                .getOmnichainOperators(chainData.messagingHub, dstChainId);
+        // Validate that the operator is authorized.
+        if (operator.isAuthorized < 2) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
 
-            // Validate that the operator is authorized.
-            if (operator.isAuthorized < 2) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            // Validate that the operator messaging chain matches.
-            // the destination chain id.
-            if (operator.messagingChainId != messagingChainId) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
-
-            // Validate that we are aiming for a supported chain.
-            if (
-                centralRegistry.supportedChainData(dstChainId).isSupported < 2
-            ) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
+        // Validate that the operator messaging chain matches
+        // the destination chain id and we are aiming for a supported chain.
+        if (
+            operator.messagingChainId != messagingChainId ||
+            chainData.isSupported < 2
+        ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Pull the fee token from the fee accumulator.
@@ -497,10 +490,12 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
+            ChainData memory chainData = centralRegistry.supportedChainData(
+                dstChainId
+            );
+
             // Validate that we are aiming for a supported chain.
-            if (
-                centralRegistry.supportedChainData(dstChainId).isSupported < 2
-            ) {
+            if (chainData.isSupported < 2) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
@@ -509,9 +504,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                     value: msg.value
                 }(
                     centralRegistry.wormholeData(dstChainId).chainId,
-                    centralRegistry
-                        .supportedChainData(dstChainId)
-                        .messagingHub,
+                    chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
                     0, // No receiver value since we're just passing a message.
                     gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
@@ -617,7 +610,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
         uint256 feeTokensForChain;
         uint256 currentChainID;
-        ChainData memory chainData;
 
         ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
 
@@ -646,7 +638,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
             currentChainID = chainIds[i];
-            chainData = centralRegistry.supportedChainData(currentChainID);
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
                 (((feeTokensOverall * WAD) / totalPoints) * chainPoints[i]) /
@@ -655,7 +646,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 uint256(currentChainID),
-                chainData.messagingHub,
+                centralRegistry
+                    .supportedChainData(currentChainID)
+                    .messagingHub,
                 _quoteMessageFee(uint256(currentChainID), false, gasLimit),
                 abi.encode(3, epochRewardsPerCVE),
                 gasLimit

@@ -11,7 +11,7 @@ contract DisabledTransfers is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        vm.prank(centralRegistry.feeAccumulator());
+        vm.prank(centralRegistry.protocolMessagingHub());
         cveLocker.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);

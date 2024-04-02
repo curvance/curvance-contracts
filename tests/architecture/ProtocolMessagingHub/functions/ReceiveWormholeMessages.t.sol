@@ -201,7 +201,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
     }
 
-    function test_receiveWormholeMessages_success_whenPayloadIdIs4() public {
+    function test_receiveWormholeMessages_success_whenPayloadIdIs2() public {
         address[] memory gaugePools;
         uint256[] memory emissionTotals;
         address[][] memory tokens;
@@ -217,7 +217,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(
-                4,
+                2,
                 abi.encode(
                     gaugePools,
                     emissionTotals,
@@ -247,7 +247,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(
-                4,
+                2,
                 abi.encode(
                     gaugePools,
                     emissionTotals,
@@ -283,7 +283,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(
-                4,
+                2,
                 abi.encode(
                     gaugePools,
                     emissionTotals,
@@ -300,8 +300,8 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
     }
 
-    function test_receiveWormholeMessages_success_whenPayloadIdIs5() public {
-        vm.prank(centralRegistry.feeAccumulator());
+    function test_receiveWormholeMessages_success_whenPayloadIdIs4() public {
+        vm.prank(centralRegistry.protocolMessagingHub());
         cveLocker.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -317,7 +317,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(5, abi.encode(recipient, amount, continuousLock)),
+            abi.encode(4, recipient, amount, continuousLock),
             new bytes[](0),
             bytes32(uint256(uint160(address(srcMessagingHub)))),
             23,

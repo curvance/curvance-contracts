@@ -23,7 +23,7 @@ contract RecordEpochRewardsTest is TestBaseCVELocker {
     function test_recordEpochRewards_success() public {
         assertEq(cveLocker.epochRewardsPerCVE(nextEpochToDeliver), 0);
 
-        vm.prank(centralRegistry.feeAccumulator());
+        vm.prank(centralRegistry.protocolMessagingHub());
         cveLocker.recordEpochRewards(_ONE);
 
         assertEq(cveLocker.epochRewardsPerCVE(nextEpochToDeliver), _ONE);

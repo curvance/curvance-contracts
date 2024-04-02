@@ -8,7 +8,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        vm.prank(centralRegistry.feeAccumulator());
+        vm.prank(centralRegistry.protocolMessagingHub());
         cveLocker.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
