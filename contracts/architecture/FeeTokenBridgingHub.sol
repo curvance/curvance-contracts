@@ -67,11 +67,13 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
+    /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
         address to,
         uint256 amount,
+        bytes memory payload,
         uint256 gasLimit
     ) internal {
         uint256 wormholeFee = _quoteMessageFee(dstChainId, true, gasLimit);
@@ -83,6 +85,10 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
 
         ITokenMessenger circleTokenMessenger = centralRegistry
             .circleTokenMessenger();
+
+        if (payload.length == 0) {
+            payload = abi.encode(uint8(1), feeToken, amount);
+        }
 
         if (
             address(circleTokenMessenger) != address(0) &&
@@ -96,6 +102,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
                 dstChainId,
                 to,
                 amount,
+                payload,
                 wormholeFee,
                 gasLimit
             );
@@ -105,7 +112,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
                 dstChainId,
                 to,
                 amount,
-                abi.encode(uint8(1), feeToken, amount),
+                payload,
                 wormholeFee,
                 gasLimit
             );
@@ -118,6 +125,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
+    /// @param payload The payload data that is sent along with the message.
     /// @param wormholeFee Total gas cost to attach send a CCTP message
     ///                    to `dstChainId`.
     /// @param gasLimit Gas limit with which to call on destination chain.
@@ -126,6 +134,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
         uint256 dstChainId,
         address to,
         uint256 amount,
+        bytes memory payload,
         uint256 wormholeFee,
         uint256 gasLimit
     ) internal {
@@ -161,7 +170,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
             wormholeData.chainId,
             to,
-            abi.encode(uint8(1), feeToken, amount),
+            payload,
             0,
             0,
             gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,

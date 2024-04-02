@@ -382,10 +382,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // PayloadID = 4: Indicates migrating a veCVE lock from the source
             //                chain to this destination chain.
 
-            (, bytes memory lockData) = abi.decode(payload, (uint8, bytes));
-
-            (address recipient, uint256 amount, bool continuousLock) = abi
-                .decode(lockData, (address, uint256, bool));
+            (, address recipient, uint256 amount, bool continuousLock) = abi
+                .decode(payload, (uint8, address, uint256, bool));
 
             cve.mintVeCVELock(amount);
             cve.approve(address(veCVE), amount);
@@ -465,7 +463,13 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             amount
         );
 
-        _sendFeeToken(dstChainId, chainData.messagingHub, amount, gasLimit);
+        _sendFeeToken(
+            dstChainId,
+            chainData.messagingHub,
+            amount,
+            "",
+            gasLimit
+        );
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -493,15 +497,23 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
+            // Validate that we are aiming for a supported chain.
+            if (
+                centralRegistry.supportedChainData(dstChainId).isSupported < 2
+            ) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
             return
-                _sendWormholeMessages(
-                    dstChainId,
+                centralRegistry.wormholeRelayer().sendPayloadToEvm{
+                    value: msg.value
+                }(
+                    centralRegistry.wormholeData(dstChainId).chainId,
                     centralRegistry
                         .supportedChainData(dstChainId)
-                        .messagingHub, // Destination Messaging Hub.
-                    msg.value,
-                    4,
-                    abi.encode(recipient, amount, aux), // Payload.
+                        .messagingHub,
+                    abi.encode(4, recipient, amount, aux), // payload
+                    0, // No receiver value since we're just passing a message.
                     gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
                 );
         }
@@ -584,38 +596,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Sends veCVE locked token data to destination chain.
-    /// @param dstChainId Destination chain ID where the message data
-    ///                   should be sent.
-    /// @param toAddress The destination address specified by `dstChainId`.
-    /// @param payloadId The id of payload.
-    /// @param payload The payload data that is sent along with the message.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
-    function _sendWormholeMessages(
-        uint256 dstChainId,
-        address toAddress,
-        uint256 messageFee,
-        uint8 payloadId,
-        bytes memory payload,
-        uint256 gasLimit
-    ) internal returns (uint64) {
-        // Validate that we are aiming for a supported chain.
-        if (centralRegistry.supportedChainData(dstChainId).isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        return
-            centralRegistry.wormholeRelayer().sendPayloadToEvm{
-                value: messageFee
-            }(
-                centralRegistry.wormholeData(dstChainId).chainId,
-                toAddress,
-                abi.encode(payloadId, payload), // payload
-                0, // No receiver value since we're just passing a message.
-                gasLimit
-            );
-    }
-
     /// @notice Executes protocol-wide reporting and distribution of epoch
     ///         results, to all chains within the Curvance Protocol system.
     function _executeCrosschainEpoch(
@@ -672,17 +652,14 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 (((feeTokensOverall * WAD) / totalPoints) * chainPoints[i]) /
                 WAD;
 
-            // Send Information.
-            _sendWormholeMessages(
+            // Send fees and information.
+            _sendFeeToken(
                 uint256(currentChainID),
                 chainData.messagingHub,
                 _quoteMessageFee(uint256(currentChainID), false, gasLimit),
-                3,
-                abi.encode(epochRewardsPerCVE),
+                abi.encode(3, epochRewardsPerCVE),
                 gasLimit
             );
-
-            // Send Fees.
         }
     }
 

@@ -71,6 +71,7 @@ contract BorrowZapper is FeeTokenBridgingHub {
             dstChainId,
             msg.sender,
             IERC20(feeToken).balanceOf(address(this)) - balancePrior,
+            "",
             gasLimit
         );
     }
