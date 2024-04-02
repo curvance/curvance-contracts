@@ -77,7 +77,6 @@ error InvalidPayloadLength(uint256 received, uint256 expected);
 error InvalidContractAddress();
 error InvalidFunctionSignature();
 error InvalidChainId();
-error StaleBlockNum();
 error StaleBlockTime();
 
 // @dev QueryResponse is a library that implements the parsing and verification of Cross Chain Query (CCQ) responses.
@@ -373,13 +372,6 @@ abstract contract QueryResponse {
             revert StaleBlockTime();
         }
     }
-
-    /// @dev validateBlockNum validates that the parsed blockNum isn't stale
-    function validateBlockNum(uint64 _blockNum, uint256 _minBlockNum) public pure {
-        if (_blockNum < _minBlockNum) {
-            revert StaleBlockNum();
-        }
-    } 
 
     /// @dev validateChainId validates that the parsed chainId is one of an array of chainIds we expect
     function validateChainId(uint16 chainId, uint16[] memory _validChainIds) public pure {

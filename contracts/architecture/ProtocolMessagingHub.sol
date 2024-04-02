@@ -36,15 +36,6 @@ import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     using BytesParsing for bytes;
 
-    /// TYPES ///
-
-    struct ChainEntry {
-        uint16 chainID;
-        address contractAddress;
-        uint256 blockNum;
-        uint256 blockTime;
-    }
-
     /// CONSTANTS ///
 
     /// @notice CVE contract address.
@@ -65,11 +56,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @notice Whether the Protocol Messaging Hub is paused or not.
     /// @dev 1 = activate; 2 = paused.
     uint256 public isPaused = 1;
-    /// @notice Contains last reported data for a particular chain
-    ///         after crosschain querying.
-    /// @dev Chain ID is recorded in the Messaging Layers Chain ID
-    ///      not GETH format.
-    mapping(uint16 => ChainEntry) public reportedLockPoints;
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
     mapping(bytes32 => bool) public isDeliveredMessageHash;
@@ -113,7 +99,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        uint256 adjustedBlockTime;
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(response, signatures);
         uint256 numResponses = r.responses.length;
         uint256[] memory chainIDs = centralRegistry.foreignChainIDs();
@@ -126,16 +111,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 totalPoints;
 
         for (uint256 i; i < numResponses; ++i) {
-            // Cache current chain entry.
-            ChainEntry storage chainEntry = reportedLockPoints[r.responses[i].chainId];
-            if (chainEntry.chainID != chainIDs[i]) {
+            if (r.responses[i].chainId != chainIDs[i]) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             EthCallQueryResponse memory eqr = parseEthCallQueryResponse(r.responses[i]);
-
-            // Validate that update is not obsolete.
-            validateBlockNum(eqr.blockNum, chainEntry.blockNum);
 
             // Validate that update is not stale.
             validateBlockTime(eqr.blockTime, block.timestamp - 300);
@@ -147,18 +127,21 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // Validate addresses and function signatures.
             address[] memory validAddresses = new address[](1);
             bytes4[] memory validFunctionSignatures = new bytes4[](1);
-            validAddresses[0] = chainEntry.contractAddress;
-            validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
 
+            // Validate our responses came from the expected contract (Messaging Hub),
+            // and expected function.
+            validAddresses[0] = centralRegistry.supportedChainData(
+                centralRegistry.messagingToGETHChainId(
+                    uint16(chainIDs[i])
+                )
+            ).messagingHub;
+            validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
             validateMultipleEthCallData(eqr.result, validAddresses, validFunctionSignatures);
 
             // Validate that the result is a uint256.
             if (eqr.result[0].result.length != 32) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
-
-            chainEntry.blockNum = eqr.blockNum;
-            chainEntry.blockTime = adjustedBlockTime;
 
             currentPoints = abi.decode(eqr.result[0].result, (uint256));
             // Document points on current foreign chain.
