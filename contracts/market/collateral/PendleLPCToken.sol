@@ -76,6 +76,14 @@ contract PendleLPCToken is CTokenCompounding {
                 isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
             }
         }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (!isUnderlyingToken[rewardToken]) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -208,9 +216,8 @@ contract PendleLPCToken is CTokenCompounding {
 
                     // Swap from reward token to underlying tokens, if necessary.
                     if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            swapDataArray[i].inputToken != address(rewardToken)
-                        ) {
+                        if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                            // this will be the same check: `swapDataArray[i].inputToken != address(rewardToken)`
                             revert PendleLPCToken__InvalidSwapData();
                         }
 

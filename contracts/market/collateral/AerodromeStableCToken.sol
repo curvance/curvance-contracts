@@ -113,6 +113,10 @@ contract AerodromeStableCToken is CTokenCompounding {
         rewardTokenIsUnderlying = (address(rewardToken) ==
             strategyData.token0 ||
             address(rewardToken) == strategyData.token1);
+
+        if (!rewardTokenIsUnderlying) {
+            isApprovedAsset[address(rewardToken)] = true;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -171,7 +175,8 @@ contract AerodromeStableCToken is CTokenCompounding {
                             (SwapperLib.Swap)
                         );
 
-                        if (swapData.inputToken != address(rewardToken)) {
+                        if (!isApprovedAsset[swapData.inputToken]) {
+                            // this will be the same check: `swapData.inputToken != rewardToken`
                             revert AerodromeStableCToken__InvalidSwapData();
                         }
 

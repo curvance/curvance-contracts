@@ -125,6 +125,14 @@ contract Convex2PoolCToken is CTokenCompounding {
                 ++i;
             }
         }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (!isUnderlyingToken[rewardToken]) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -190,9 +198,6 @@ contract Convex2PoolCToken is CTokenCompounding {
             // Claim pending Convex rewards.
             sd.rewarder.getReward(address(this), true);
 
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
-                .decode(data, (SwapperLib.Swap[], uint256));
-
             uint256 numRewardTokens = sd.rewardTokens.length;
             address rewardToken;
             uint256 rewardAmount;
@@ -233,10 +238,12 @@ contract Convex2PoolCToken is CTokenCompounding {
             }
 
             // Prep liquidity for Curve Pool.
+            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+                .decode(data, (SwapperLib.Swap[], uint256));
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (swapDataArray[i].inputToken == asset()) {
+                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
                         revert Convex2PoolCToken__InvalidSwapData();
                     }
 

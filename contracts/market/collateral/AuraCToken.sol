@@ -89,27 +89,7 @@ contract AuraCToken is CTokenCompounding {
         );
         strategyData.balancerPoolId = IBalancerPool(pidToken).getPoolId();
 
-        // Add BAL as a reward token, then let Aura tell you what rewards
-        // the vault will receive.
-        strategyData.rewardTokens.push() = _BAL;
-        // Add AURA as a reward token, since some vaults do not list AURA
-        // as a reward token.
-        strategyData.rewardTokens.push() = _AURA;
-
-        uint256 extraRewardsLength = IBaseRewardPool(rewarder_)
-            .extraRewardsLength();
-        for (uint256 i; i < extraRewardsLength; ) {
-            unchecked {
-                address rewardToken = IStashWrapper(
-                    IRewards(IBaseRewardPool(rewarder_).extraRewards(i++))
-                        .rewardToken()
-                ).baseToken();
-
-                if (rewardToken != _AURA && rewardToken != _BAL) {
-                    strategyData.rewardTokens.push() = rewardToken;
-                }
-            }
-        }
+        reQueryRewardTokens();
 
         // Query liquidity pool's underlying tokens from the Balancer vault.
         (address[] memory queriedTokens, , ) = strategyData
@@ -123,6 +103,14 @@ contract AuraCToken is CTokenCompounding {
                 isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
             }
         }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (!isUnderlyingToken[rewardToken]) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -132,7 +120,7 @@ contract AuraCToken is CTokenCompounding {
     /// @notice Requeries reward tokens directly from Aura smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameters.
-    function reQueryRewardTokens() external {
+    function reQueryRewardTokens() public {
         delete strategyData.rewardTokens;
 
         // Add BAL as a reward token, then let Aura tell you what rewards
@@ -270,15 +258,12 @@ contract AuraCToken is CTokenCompounding {
                     );
 
                     // Swap from rewardToken to underlying LP token, if necessary.
-                    if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            swapDataArray[i].inputToken != address(rewardToken)
-                        ) {
-                            revert AuraCToken__InvalidSwapData();
-                        }
-
-                        SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                        // this will be the same check: `swapDataArray[i].inputToken != rewardToken`
+                        revert AuraCToken__InvalidSwapData();
                     }
+
+                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
                 }
             }
 
