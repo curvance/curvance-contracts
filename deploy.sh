@@ -59,6 +59,10 @@ if [ "${is_sim^^}" == "FALSE" ] || [ "$is_test" == "0" ]
 then
   echo "Deploying to $network"
   script="forge ${script} --broadcast -vvvv --slow"
+
+  echo "REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS ";
+  echo "REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS ";
+  echo "REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS ";
 else
   echo "Deploying to $network [TEST-RUN]"
   script="forge ${script} -vvvv"

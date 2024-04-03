@@ -97,24 +97,16 @@ contract TestBaseMarketManager is TestBaseMarket {
         cBALRETH.depositAsCollateral(100, address(this));
         cBALRETH.mint(100, address(this));
 
-        usdc.approve(address(dUSDC), 100);
-        dUSDC.mint(100);
+        usdc.approve(address(dUSDC), 100e6);
+        dUSDC.mint(100e6);
 
         console.log(
             "Single cToken Price: ",
             aux.getTokenPrice(address(cBALRETH))
         );
         console.log(
-            "Posted Collateral:",
-            aux.getMarketPostedCollateral(firstMarket)
-        );
-        console.log(
             "Total Collateral Posted in USD:",
             aux.getMarketCollateralPostedByUsd(firstMarket)
-        );
-        console.log(
-            "Total Collateral Deposited:",
-            aux.getMarketCollateralByToken(firstMarket)
         );
         console.log(
             "Total Collateral Deposited in USD:",
@@ -132,20 +124,19 @@ contract TestBaseMarketManager is TestBaseMarket {
         console.log(marketData.lendingTVL);
         console.log(marketData.borrows);
         console.log(marketData.collateralPostedByUsd);
-        console.log(marketData.collateralByToken);
-        console.log(marketData.postedCollateral);
-        console.log(marketData.accountCollateral);
-        console.log(marketData.accountDebt);
-        console.log(marketData.accountMaxDebt);
+        console.log(marketData.userMarketPosition.debt);
+        console.log(marketData.userMarketPosition.collateral);
+        console.log(marketData.userMarketPosition.maxDebt);
 
         (
             CurvanceAuxiliaryData.MarketDTokenData[] memory dTokenData,
             CurvanceAuxiliaryData.MarketCTokenData[] memory cTokenData
-        ) = aux.getMarketAssetData(firstMarket);
+        ) = aux.getMarketAssetData(firstMarket, address(this));
 
         console.log("--- Market DToken Data Start ---");
         console.log(dTokenData[0].assetAddress);
         console.log(dTokenData[0].marketAddress);
+        console.log(dTokenData[0].tvl);
         console.log("--- Market CToken Data Start ---");
         console.log(cTokenData[0].totalCollateralPosted);
 
@@ -153,7 +144,5 @@ contract TestBaseMarketManager is TestBaseMarket {
             .getAllMarketData(address(this));
         console.log("--- All Market Data Start ---");
         console.log(allMarketData[0].marketData.totalTVL);
-
-        // TODO: Still need to add user position for marketAssets
     }
 }
