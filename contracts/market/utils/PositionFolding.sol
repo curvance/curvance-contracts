@@ -549,7 +549,9 @@ contract PositionFolding is
             revert PositionFolding__InvalidTokenPrice();
         }
 
-        return ((maxLeverage - sumDebt) * 1e18) / price;
+        return
+            ((((maxLeverage - sumDebt) * 1e18) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / 1e18;
     }
 
     /// @inheritdoc ERC165
