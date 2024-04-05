@@ -129,7 +129,7 @@ contract Convex3PoolCToken is CTokenCompounding {
         // updated approved token list
         for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
             address rewardToken = strategyData.rewardTokens[i];
-            if (!isUnderlyingToken[rewardToken]) {
+            if (rewardToken != asset()) {
                 isApprovedAsset[rewardToken] = true;
             }
         }

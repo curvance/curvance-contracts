@@ -107,7 +107,7 @@ contract AuraCToken is CTokenCompounding {
         // updated approved token list
         for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
             address rewardToken = strategyData.rewardTokens[i];
-            if (!isUnderlyingToken[rewardToken]) {
+            if (address(rewardToken) != asset()) {
                 isApprovedAsset[rewardToken] = true;
             }
         }
@@ -217,9 +217,6 @@ contract AuraCToken is CTokenCompounding {
             // Claim pending Aura rewards.
             sd.rewarder.getReward(address(this), true);
 
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
-                .decode(data, (SwapperLib.Swap[], uint256));
-
             {
                 // Use scoping to avoid stack too deep.
                 uint256 numRewardTokens = sd.rewardTokens.length;
@@ -256,10 +253,15 @@ contract AuraCToken is CTokenCompounding {
                         feeAccumulator,
                         protocolFee
                     );
+                }
+            }
 
-                    // Swap from rewardToken to underlying LP token, if necessary.
+            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+                .decode(data, (SwapperLib.Swap[], uint256));
+            {
+                uint256 numSwapData = swapDataArray.length;
+                for (uint256 i; i < numSwapData; ++i) {
                     if (!isApprovedAsset[swapDataArray[i].inputToken]) {
-                        // this will be the same check: `swapDataArray[i].inputToken != rewardToken`
                         revert AuraCToken__InvalidSwapData();
                     }
 

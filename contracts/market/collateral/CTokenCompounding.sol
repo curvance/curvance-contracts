@@ -85,6 +85,7 @@ abstract contract CTokenCompounding is CTokenBase {
     error CTokenCompounding__WithdrawMoreThanMax();
     error CTokenCompounding__ZeroShares();
     error CTokenCompounding__ZeroAssets();
+    error CTokenCompounding__InvalidApprovedAsset();
 
     /// CONSTRUCTOR ///
 
@@ -211,6 +212,10 @@ abstract contract CTokenCompounding is CTokenBase {
         _checkDaoPermissions();
 
         for (uint256 i = 0; i < assets.length; ++i) {
+            if (approved && assets[i] == asset()) {
+                revert CTokenCompounding__InvalidApprovedAsset();
+            }
+
             isApprovedAsset[assets[i]] = approved;
         }
     }

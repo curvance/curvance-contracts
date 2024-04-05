@@ -115,7 +115,7 @@ contract VelodromeStableCToken is CTokenCompounding {
             strategyData.token0 ||
             address(rewardToken) == strategyData.token1);
 
-        if (!rewardTokenIsUnderlying) {
+        if (address(rewardToken) != asset()) {
             isApprovedAsset[address(rewardToken)] = true;
         }
     }
