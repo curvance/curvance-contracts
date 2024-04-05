@@ -632,6 +632,7 @@ contract DynamicInterestRateModel is ERC165 {
             _SECONDS_PER_YEAR;
 
         config.vertexStartingPoint = vertexUtilStart;
+        config.vertexMultiplierMax = vertexMultiplierMax;
         config.adjustmentRate = adjustmentRate;
         config.adjustmentVelocity = adjustmentVelocity;
 
