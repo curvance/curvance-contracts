@@ -18,7 +18,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
 
     address public owner;
     address public user;
-    MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
@@ -34,19 +33,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         user = user1;
 
         // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
         dualChainlinkAdaptor.addAsset(
@@ -82,7 +68,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             false
         );
 
-        _prepareUSDC(user, 200000e6);
         _prepareDAI(user, 200000e18);
         _prepareBALRETH(user, 2 ether);
 
@@ -91,7 +76,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -106,15 +90,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             marketManager.listToken(address(dDAI));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(dDAI));
-        }
-
-        // setup dUSDC
-        {
-            _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(dUSDC), 200000e6);
-            marketManager.listToken(address(dUSDC));
-            // // add MToken support on price router
-            // oracleRouter.addMTokenSupport(address(dUSDC));
         }
 
         // setup CBALRETH
@@ -180,16 +155,11 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
 
     function provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareUSDC(liquidityProvider, 200000e6);
         _prepareDAI(liquidityProvider, 200000e18);
         _prepareBALRETH(liquidityProvider, 20 ether);
-        // mint dUSDC
-        vm.startPrank(liquidityProvider);
-        usdc.approve(address(dUSDC), 200000e6);
-        dUSDC.mint(200000e6);
         // mint dDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(dDAI), 200000 ether);
+        dai.approve(address(dDAI), 20000000 ether);
         dDAI.mint(200000 ether);
         // mint cBALETH
         balRETH.approve(address(cBALRETH), 10 ether);
@@ -218,7 +188,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
 
         // mint
-        assertGt(cBALRETH.deposit(1 ether, user1), 0);
+        assertGt(cBALRETH.deposit(1 ether, user), 0);
         marketManager.postCollateral(user, address(cBALRETH), 1 ether);
         assertEq(cBALRETH.balanceOf(user), 1 ether);
 
@@ -226,7 +196,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         balRETH.approve(address(cBALRETHWithExitFee), 1 ether);
 
         // mint
-        assertGt(cBALRETHWithExitFee.deposit(1 ether, user1), 0);
+        assertGt(cBALRETHWithExitFee.deposit(1 ether, user), 0);
         marketManager.postCollateral(
             user,
             address(cBALRETHWithExitFee),
@@ -239,72 +209,145 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         dDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
-        balanceBeforeBorrow = usdc.balanceOf(user);
-        // borrow
-        dUSDC.borrow(100e6);
-        assertEq(balanceBeforeBorrow + 100e6, usdc.balanceOf(user));
+        {
+            //with cBALRETH
+            // try leverage with 50% of max
+            uint256 amountForLeverage = (positionFolding
+                .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+                100;
 
-        // try leverage with 50% of max
-        uint256 amountForLeverage = (positionFolding
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
-            100;
-
-        PositionFolding.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
-        leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
-        leverageData.swapData.inputToken = address(dai);
-        leverageData.swapData.inputAmount = amountForLeverage;
-        leverageData.swapData.outputToken = _WETH_ADDRESS;
-        leverageData.swapData.target = _UNISWAP_V2_ROUTER;
-        address[] memory path = new address[](2);
-        path[0] = address(dai);
-        path[1] = _WETH_ADDRESS;
-        leverageData.swapData.call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amountForLeverage,
-            0,
-            path,
-            address(positionFolding),
-            block.timestamp
-        );
-        leverageData.swapZap.inputToken = _WETH_ADDRESS;
-        uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(amountForLeverage, path);
-        leverageData.swapZap.inputAmount = amountsOut[1];
-        leverageData.swapZap.outputToken = address(balRETH);
-
-        address[] memory tokens = new address[](2);
-        tokens[0] = _RETH_ADDRESS;
-        tokens[1] = _WETH_ADDRESS;
-        leverageData.swapZap.target = address(complexZapper);
-        leverageData.swapZap.call = abi.encodeWithSelector(
-            ComplexZapper.enterBalancer.selector,
-            address(0),
-            ComplexZapper.ZapperData(
-                _WETH_ADDRESS,
-                leverageData.swapZap.inputAmount,
-                address(balRETH),
+            PositionFolding.LeverageStruct memory leverageData;
+            leverageData.borrowToken = dDAI;
+            leverageData.borrowAmount = amountForLeverage;
+            leverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
+            leverageData.swapData.inputToken = address(dai);
+            leverageData.swapData.inputAmount = amountForLeverage;
+            leverageData.swapData.outputToken = _WETH_ADDRESS;
+            leverageData.swapData.target = _UNISWAP_V2_ROUTER;
+            address[] memory path = new address[](2);
+            path[0] = address(dai);
+            path[1] = _WETH_ADDRESS;
+            leverageData.swapData.call = abi.encodeWithSignature(
+                "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+                amountForLeverage,
                 0,
-                false
-            ),
-            new SwapperLib.Swap[](0),
-            _BALANCER_VAULT,
-            _BAL_WETH_RETH_POOLID,
-            tokens,
-            address(positionFolding)
-        );
+                path,
+                address(positionFolding),
+                block.timestamp
+            );
+            leverageData.swapZap.inputToken = _WETH_ADDRESS;
+            uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
+                .getAmountsOut(amountForLeverage, path);
+            leverageData.swapZap.inputAmount = amountsOut[1];
+            leverageData.swapZap.outputToken = address(balRETH);
 
-        positionFolding.leverage(leverageData, 500);
+            address[] memory tokens = new address[](2);
+            tokens[0] = _RETH_ADDRESS;
+            tokens[1] = _WETH_ADDRESS;
+            leverageData.swapZap.target = address(complexZapper);
+            leverageData.swapZap.call = abi.encodeWithSelector(
+                ComplexZapper.enterBalancer.selector,
+                address(0),
+                ComplexZapper.ZapperData(
+                    _WETH_ADDRESS,
+                    leverageData.swapZap.inputAmount,
+                    address(balRETH),
+                    0,
+                    false
+                ),
+                new SwapperLib.Swap[](0),
+                _BALANCER_VAULT,
+                _BAL_WETH_RETH_POOLID,
+                tokens,
+                address(positionFolding)
+            );
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+            positionFolding.leverage(leverageData, 500);
 
-        (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
-        assertGt(cBALRETHBalance, 1.39 ether);
-        assertEq(cBALRETHBorrowed, 0 ether);
+            (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
+                user
+            );
+            assertEq(dDAIBalance, 0);
+            assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+
+            (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
+                .getSnapshot(user);
+            assertGt(cBALRETHBalance, 1.39 ether);
+            assertEq(cBALRETHBorrowed, 0 ether);
+        }
+
+        {
+            (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
+            // with cBALRETHWithExitFee
+            // try leverage with 50% of max
+            uint256 amountForLeverage = (positionFolding
+                .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+                100;
+
+            PositionFolding.LeverageStruct memory leverageData;
+            leverageData.borrowToken = dDAI;
+            leverageData.borrowAmount = amountForLeverage;
+            leverageData.collateralToken = CTokenPrimitive(
+                address(cBALRETHWithExitFee)
+            );
+            leverageData.swapData.inputToken = address(dai);
+            leverageData.swapData.inputAmount = amountForLeverage;
+            leverageData.swapData.outputToken = _WETH_ADDRESS;
+            leverageData.swapData.target = _UNISWAP_V2_ROUTER;
+            address[] memory path = new address[](2);
+            path[0] = address(dai);
+            path[1] = _WETH_ADDRESS;
+            leverageData.swapData.call = abi.encodeWithSignature(
+                "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+                amountForLeverage,
+                0,
+                path,
+                address(positionFolding),
+                block.timestamp
+            );
+            leverageData.swapZap.inputToken = _WETH_ADDRESS;
+            uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
+                .getAmountsOut(amountForLeverage, path);
+            leverageData.swapZap.inputAmount = amountsOut[1];
+            leverageData.swapZap.outputToken = address(balRETH);
+
+            address[] memory tokens = new address[](2);
+            tokens[0] = _RETH_ADDRESS;
+            tokens[1] = _WETH_ADDRESS;
+            leverageData.swapZap.target = address(complexZapper);
+            leverageData.swapZap.call = abi.encodeWithSelector(
+                ComplexZapper.enterBalancer.selector,
+                address(0),
+                ComplexZapper.ZapperData(
+                    _WETH_ADDRESS,
+                    leverageData.swapZap.inputAmount,
+                    address(balRETH),
+                    0,
+                    false
+                ),
+                new SwapperLib.Swap[](0),
+                _BALANCER_VAULT,
+                _BAL_WETH_RETH_POOLID,
+                tokens,
+                address(positionFolding)
+            );
+
+            positionFolding.leverage(leverageData, 500);
+
+            (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
+                user
+            );
+            assertEq(dDAIBalance, 0);
+            assertEq(dDAIBorrowed, dDAIBorrowedBefore + amountForLeverage);
+
+            (
+                uint256 cBALRETHBalance,
+                uint256 cBALRETHBorrowed,
+
+            ) = cBALRETHWithExitFee.getSnapshot(user);
+            assertGt(cBALRETHBalance, 1.09 ether);
+            assertEq(cBALRETHBorrowed, 0 ether);
+        }
 
         vm.stopPrank();
     }
