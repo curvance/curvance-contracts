@@ -6,6 +6,7 @@ import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
@@ -16,6 +17,9 @@ import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
+import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 
 /// @title Curvance Protocol Messaging Hub.
@@ -68,6 +72,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
     );
+    error ProtocolMessagingHub__InvalidWormholeChainId();
+    error ProtocolMessagingHub__InvalidRecipient();
 
     receive() external payable {}
 
@@ -85,8 +91,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints` on all other chains,
-    ///         stores the results for the other chains, and updates the data for this chain.
+    /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints`
+    ///         on all other chains, stores the results for the other chains,
+    ///         and updates the data for this chain.
     function executeEpoch(
         bytes memory response,
         IWormhole.Signature[] memory signatures,
@@ -172,8 +179,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 centralRegistry.protocolCompoundFee()) /
                 centralRegistry.protocolHarvestFee();
 
-            // Move 1% of fees accumulated to central registry to be used for Gelato
-            // Network bots.
+            // Move 1% of fees accumulated to central registry to be used
+            // for Gelato Network bots.
             SafeTransferLib.safeTransferFrom(
                 feeToken,
                 feeAccumulator,
@@ -470,9 +477,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
     /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @param payloadType The type of payload information to relay to destination chain.
-    ///                    VeCVE lock migrations have a payloadType of 4, whereas CVE
-    ///                    has no payload type because its a native transfer.
+    /// @param payloadType The type of payload information to relay to
+    ///                    estination chain.
+    ///                    VeCVE lock migrations have a payloadType of 4,
+    ///                    whereas CVE has no payload type because its
+    ///                    a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeToken(
@@ -484,6 +493,21 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         bool aux
     ) external payable returns (uint64) {
         _checkMessagingHubStatus();
+
+        uint16 wormholeChainId = centralRegistry
+            .wormholeData(dstChainId)
+            .chainId;
+
+        if (wormholeChainId == 0) {
+            revert ProtocolMessagingHub__InvalidWormholeChainId();
+        }
+        if (recipient == address(0)) {
+            revert ProtocolMessagingHub__InvalidRecipient();
+        }
+
+        if (gasLimit == 0) {
+            gasLimit = _DEFAULT_GAS_LIMIT;
+        }
 
         if (payloadType == 4) {
             if (msg.sender != address(veCVE)) {
@@ -503,11 +527,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 centralRegistry.wormholeRelayer().sendPayloadToEvm{
                     value: msg.value
                 }(
-                    centralRegistry.wormholeData(dstChainId).chainId,
+                    wormholeChainId,
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
                     0, // No receiver value since we're just passing a message.
-                    gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
+                    gasLimit
                 );
         }
 
@@ -515,16 +539,38 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        ITokenBridge tokenBridge = centralRegistry.tokenBridge();
+        IWormhole wormholeCore = centralRegistry.wormholeCore();
+
+        SwapperLib._approveTokenIfNeeded(
+            address(cve),
+            address(tokenBridge),
+            amount
+        );
+
+        uint64 sequence = tokenBridge.transferTokensWithPayload{
+            value: wormholeCore.messageFee()
+        }(
+            address(cve),
+            amount,
+            wormholeChainId,
+            bytes32(uint256(uint160(recipient))),
+            0,
+            ""
+        );
+
+        IWormholeRelayer.VaaKey[]
+            memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
+        vaaKeys[0] = IWormholeRelayer.VaaKey({
+            emitterAddress: bytes32(uint256(uint160(address(tokenBridge)))),
+            chainId: wormholeCore.chainId(),
+            sequence: sequence
+        });
+
         return
-            _transferTokenViaWormhole(
-                address(cve),
-                dstChainId,
-                recipient,
-                amount,
-                "",
-                msg.value,
-                gasLimit
-            );
+            centralRegistry.wormholeRelayer().sendVaasToEvm{
+                value: msg.value - wormholeCore.messageFee()
+            }(wormholeChainId, recipient, "", 0, gasLimit, vaaKeys);
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

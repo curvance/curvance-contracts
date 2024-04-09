@@ -6,10 +6,8 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 contract FeeTokenBridgingHub is ReentrancyGuard {
     /// CONSTANTS ///
@@ -173,68 +171,6 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
             messageKeys,
             15
         );
-    }
-
-    /// @notice Sends fee tokens to the receiver on `dstChainId`.
-    /// @param token The address of the token to transfer via Wormhole.
-    /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
-    /// @param amount The amount of token to transfer.
-    /// @param payload The payload data that is sent along with the message.
-    /// @param wormholeFee Total gas cost to attach send a Wormhole message
-    ///                    to `dstChainId`.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    function _transferTokenViaWormhole(
-        address token,
-        uint256 dstChainId,
-        address to,
-        uint256 amount,
-        bytes memory payload,
-        uint256 wormholeFee,
-        uint256 gasLimit
-    ) internal returns (uint64) {
-        ITokenBridge tokenBridge = centralRegistry.tokenBridge();
-        IWormhole wormholeCore = centralRegistry.wormholeCore();
-        uint16 wormholeChainId = centralRegistry
-            .wormholeData(dstChainId)
-            .chainId;
-
-        SwapperLib._approveTokenIfNeeded(token, address(tokenBridge), amount);
-
-        uint64 sequence = tokenBridge.transferTokensWithPayload{
-            value: wormholeCore.messageFee()
-        }(
-            token,
-            amount,
-            wormholeChainId,
-            bytes32(uint256(uint160(to))),
-            0,
-            payload
-        );
-
-        if (payload.length > 0) {
-            IWormholeRelayer.VaaKey[]
-                memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
-            vaaKeys[0] = IWormholeRelayer.VaaKey({
-                emitterAddress: bytes32(
-                    uint256(uint160(address(tokenBridge)))
-                ),
-                chainId: wormholeCore.chainId(),
-                sequence: sequence
-            });
-
-            return
-                centralRegistry.wormholeRelayer().sendVaasToEvm{
-                    value: wormholeFee - wormholeCore.messageFee()
-                }(
-                    wormholeChainId,
-                    to,
-                    payload,
-                    0,
-                    gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
-                    vaaKeys
-                );
-        }
     }
 
     /// @notice Quotes gas cost and token fee for executing crosschain
