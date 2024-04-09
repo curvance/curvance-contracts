@@ -267,19 +267,6 @@ contract FeeAccumulator is ReentrancyGuard {
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
 
-    /// @notice Receives and records the epoch rewards for CVE from
-    ///         the protocol messaging hub.
-    /// @param amount The rewards per CVE for the previous epoch.
-    function receiveExecutableLockData(uint256 amount) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        // We validate nextEpochToDeliver in receiveCrossChainLockData on
-        // the chain calculating values.
-        ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(amount);
-    }
-
     /// @notice Sends all left over fees to new fee accumulator.
     /// @dev This does not need to be permissioned as it pulls data
     ///      directly from the Central Registry meaning a malicious actor

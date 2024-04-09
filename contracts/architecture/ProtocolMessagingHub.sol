@@ -381,8 +381,9 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 (uint8, uint256)
             );
 
-            IFeeAccumulator(centralRegistry.feeAccumulator())
-                .receiveExecutableLockData(chainLockedAmount);
+            ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(
+                chainLockedAmount
+            );
             return;
         } else if (payloadType == 4) {
             // PayloadID = 4: Indicates migrating a veCVE lock from the source

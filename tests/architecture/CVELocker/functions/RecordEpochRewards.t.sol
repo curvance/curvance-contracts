@@ -5,7 +5,7 @@ import { TestBaseCVELocker } from "../TestBaseCVELocker.sol";
 import { CVELocker } from "contracts/architecture/CVELocker.sol";
 
 contract RecordEpochRewardsTest is TestBaseCVELocker {
-    uint256 nextEpochToDeliver;
+    uint256 public nextEpochToDeliver;
 
     function setUp() public override {
         super.setUp();
