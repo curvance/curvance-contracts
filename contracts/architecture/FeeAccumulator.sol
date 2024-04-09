@@ -71,8 +71,6 @@ contract FeeAccumulator is ReentrancyGuard {
     /// @notice Cached Protocol Messaging Hub address.
     address internal _messagingHubStored;
 
-    LockData[] public crossChainLockData;
-
     /// @notice We store token data semi redundantly to save gas
     ///         on daily operations and to help with gelato network structure
     ///         Used for Gelato Network bots to check what tokens to swap.
@@ -292,42 +290,6 @@ contract FeeAccumulator is ReentrancyGuard {
         ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(amount);
     }
 
-    /// @notice Receives and processes cross-chain lock data for
-    ///         the next undelivered epoch.
-    /// @param data Struct containing ChainID and value, with extra room for
-    ///             epoch, and number of chains.
-    ///             This is to avoid stack too deep issues in the function.
-    /// @dev This function handles cross-chain communication and
-    ///      the coordination of fee routing, as well as recording and
-    ///      reporting epoch rewards on those fees.
-    ///      Uses both Layerzero and Stargate to execute all necessary actions.
-    ///      If sufficient chains have reported, it calculates rewards,
-    ///      notifies other chains, and executes crosschain fee routing.
-    function receiveCrossChainLockData(
-        EpochRolloverData memory data
-    ) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            data.chainId
-        );
-        if (chainData.isSupported < 2) {
-            return;
-        }
-
-        uint256 epoch = ICVELocker(centralRegistry.cveLocker())
-            .nextEpochToDeliver();
-
-        _validateAndRecordChainData(
-            data.value,
-            data.chainId,
-            crossChainLockData.length,
-            epoch
-        );
-    }
-
     /// @notice Sends all left over fees to new fee accumulator.
     /// @dev This does not need to be permissioned as it pulls data
     ///      directly from the Central Registry meaning a malicious actor
@@ -536,47 +498,6 @@ contract FeeAccumulator is ReentrancyGuard {
         rewardTokenInfo[newToken] = RewardToken({
             isRewardToken: 2,
             forOTC: 1
-        });
-    }
-
-    /// @notice Validates the inbound chain data and records it in the
-    ///         crossChainLockData.
-    /// @param value The locked amount value to record.
-    /// @param chainId The ID of the chain where the data is coming from.
-    /// @param numChainData Number of data entries in the crossChainLockData.
-    /// @param epoch The current epoch number.
-    /// @dev This function also serves the purpose of validating that
-    ///      the current data structure. If the data is stale or a repeat
-    ///      of the same chain, it resets and starts over.
-    function _validateAndRecordChainData(
-        uint256 value,
-        uint256 chainId,
-        uint256 numChainData,
-        uint256 epoch
-    ) internal {
-        if (numChainData > 0) {
-            for (uint256 i; i < numChainData; ) {
-                // If somehow the data is stale or we are repeat adding
-                // the same chain, reset and start over.
-                if (
-                    crossChainLockData[i].epoch < epoch ||
-                    crossChainLockData[i].chainId == chainId
-                ) {
-                    delete crossChainLockData;
-                    break;
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
-        // Add the new chain recorded data.
-        crossChainLockData.push() = LockData({
-            lockAmount: uint224(value),
-            epoch: uint16(epoch),
-            chainId: uint16(chainId)
         });
     }
 

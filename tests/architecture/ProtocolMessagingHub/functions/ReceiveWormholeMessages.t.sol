@@ -209,9 +209,6 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         uint256 chainLockedAmount = _ONE;
         uint256 messageType = 1;
 
-        vm.expectRevert();
-        feeAccumulator.crossChainLockData(0);
-
         uint256 nextEpoch = cveLocker.nextEpochToDeliver();
 
         vm.prank(_WORMHOLE_RELAYER);
@@ -232,13 +229,6 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             23,
             bytes32("0x01")
         );
-
-        (uint224 lockAmount, uint16 epoch, uint16 chainId) = feeAccumulator
-            .crossChainLockData(0);
-
-        assertEq(lockAmount, _ONE);
-        assertEq(chainId, 42161);
-        assertEq(epoch, nextEpoch);
 
         messageType = 2;
 
