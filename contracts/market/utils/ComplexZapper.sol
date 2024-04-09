@@ -768,7 +768,7 @@ contract ComplexZapper is ReentrancyGuard {
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] memory tokenSwaps,
         bool depositInputAsWETH
     ) internal {
         // If the input token is chain gas token, check if it should be
@@ -799,10 +799,15 @@ contract ComplexZapper is ReentrancyGuard {
                 revert ComplexZapper__InvalidSwapper(i, tokenSwaps[i].target);
             }
 
-            // Execute swap into underlying(s).
-            unchecked {
-                SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
+            if (
+                CommonLib.isETH(tokenSwaps[i].inputToken) && depositInputAsWETH
+            ) {
+                // change input token to WETH
+                tokenSwaps[i].inputToken = address(WETH);
             }
+
+            // Execute swap into underlying(s).
+            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
         }
     }
 
