@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -10,11 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
-import { EpochRolloverData } from "contracts/interfaces/IFeeAccumulator.sol";
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title Curvance Fee Accumulator.
 /// @notice A system for managing fee collected through Curvance DAO
@@ -102,12 +97,7 @@ contract FeeAccumulator is ReentrancyGuard {
         address currentToken
     );
     error FeeAccumulator__TokenIsNotEarmarked();
-    error FeeAccumulator__ChainIsNotSupported();
     error FeeAccumulator__ConfigurationError();
-    error FeeAccumulator__CurrentEpochError(
-        uint256 currentEpoch,
-        uint256 nextEpochToDeliver
-    );
     error FeeAccumulator__NewFeeAccumulatorIsNotChanged();
     error FeeAccumulator__TokenLengthIsZero();
     error FeeAccumulator__RemovalTokenIsNotRewardToken();
