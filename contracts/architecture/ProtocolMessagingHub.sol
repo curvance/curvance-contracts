@@ -114,7 +114,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 totalPoints;
 
         for (uint256 i; i < numResponses; ++i) {
-            if (r.responses[i].chainId != chainIDs[i]) {
+            if (r.responses[i].chainId != chainIds[i]) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
@@ -137,7 +137,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // and expected function.
             validAddresses[0] = centralRegistry
                 .supportedChainData(
-                    centralRegistry.messagingToGETHChainId(uint16(chainIDs[i]))
+                    centralRegistry.messagingToGETHChainId(uint16(chainIds[i]))
                 )
                 .messagingHub;
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
