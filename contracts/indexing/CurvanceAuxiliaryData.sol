@@ -77,6 +77,7 @@ contract CurvanceAuxiliaryData {
         uint8 underlyingDecimal;
         uint256 totalCollateralTokens;
         uint256 totalCollateralPosted;
+        uint256 collateralCap;
         uint256 price;
         AccountAssetPosition userTokenPosition;
     }
@@ -348,6 +349,9 @@ contract CurvanceAuxiliaryData {
                 MARKET_ASSET_RESERVE;
             cTokenData.totalCollateralPosted = MarketManager(market)
                 .collateralPosted(cTokens[i]);
+            cTokenData.collateralCap = MarketManager(market).collateralCaps(
+                cTokens[i]
+            );
             cTokenData.price = _getTokenPrice(cTokens[i], true);
 
             cResults[i] = cTokenData;

@@ -47,6 +47,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkUsd;
     }
 
+    struct MarketTokenDeploy {
+        string name;
+        address token;
+        address chainlinkEthAggregator;
+        address chainlinkUsdAggregator;
+    }
+
     function _is_testnet(string memory network) internal pure returns (bool) {
         return
             keccak256(abi.encodePacked(network)) ==
@@ -85,9 +92,18 @@ contract StartContractsConfig is Script, DeployConfiguration {
         CentralRegistry centralRegistry = CentralRegistry(
             _getDeployedContract("centralRegistry")
         );
+        ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
+
+        // Create chainlink adaptor
+        ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(icr);
+        _saveDeployedContracts(
+            "Div-chainlinkAdaptor",
+            address(chainlinkAdaptor)
+        );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
         _createTestMarkets();
+        _createRealTestMarkets();
         _loadFaucet();
 
         // Lock 25%
@@ -102,146 +118,242 @@ contract StartContractsConfig is Script, DeployConfiguration {
         veCVE.createLock(lockAmount, true, rewardsData, "", 0);
     }
 
-    function _createTestMarkets() internal {
-        // Load dependencies
+    function _createRealTestMarkets() internal {
         ICentralRegistry cr = ICentralRegistry(
             _getDeployedContract("centralRegistry")
         );
-        address gaugePool = _getDeployedContract("gaugePool");
-        address oracleRouter = _getDeployedContract("oracleRouter");
-        address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-        uint256 marketInterestFactor = 1000; // 10%
 
-        GaugePool firstGp = new GaugePool(cr);
-        MarketManager firstMarket = new MarketManager(cr, address(firstGp));
-        console.log("firstMarket =", address(firstMarket));
-        _saveDeployedContracts("firstTestMarket", address(firstMarket));
-        CentralRegistry(address(cr)).addMarketManager(
-            address(firstMarket),
-            marketInterestFactor
+        address l_usd = _getDeployedContract("LUSD");
+        address m_eth = _getDeployedContract("mETH");
+        address m_usd = _getDeployedContract("mUSD");
+        address mk_usd = _getDeployedContract("mkUSD");
+        MockToken(l_usd).mint(52e25);
+        MockToken(m_eth).mint(52e25);
+        MockToken(m_usd).mint(52e25);
+        MockToken(mk_usd).mint(52e25);
+
+        address chainlinkUsdcFeedInUsd = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
+        address chainlinkEthFeedInUsd = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
+
+        MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
+        MarketTokenDeploy[]
+            memory thirdCollateralTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory thirdDebtTokens = new MarketTokenDeploy[](
+            1
         );
-        firstGp.start(address(firstMarket));
-
-        GaugePool secondGp = new GaugePool(cr);
-        MarketManager secondMarket = new MarketManager(cr, address(secondGp));
-        console.log("secondMarket =", address(secondMarket));
-        _saveDeployedContracts("secondTestMarket", address(secondMarket));
-        CentralRegistry(address(cr)).addMarketManager(
-            address(secondMarket),
-            marketInterestFactor
+        thirdCollateralTokens[0] = MarketTokenDeploy(
+            "Div-CToken-mETH",
+            m_eth,
+            address(0),
+            chainlinkEthFeedInUsd
         );
-        secondGp.start(address(secondMarket));
+        thirdDebtTokens[0] = MarketTokenDeploy(
+            "Div-DToken-mUSD",
+            m_usd,
+            address(0),
+            chainlinkUsdcFeedInUsd
+        );
+        _deployMarketTokens(
+            thirdMarket,
+            cr,
+            thirdCollateralTokens,
+            thirdDebtTokens
+        );
 
-        address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
-        address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
+        MarketManager fourthMarket = _createMarket("fourthTestMarket", cr);
+        MarketTokenDeploy[]
+            memory fourthCollateralTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory fourthDebtTokens = new MarketTokenDeploy[](
+            1
+        );
+        fourthCollateralTokens[0] = MarketTokenDeploy(
+            "Div-CToken-LUSD",
+            l_usd,
+            address(0),
+            chainlinkUsdcFeedInUsd
+        );
+        fourthDebtTokens[0] = MarketTokenDeploy(
+            "Div-DToken-mkUSD",
+            mk_usd,
+            address(0),
+            chainlinkUsdcFeedInUsd
+        );
+        _deployMarketTokens(
+            fourthMarket,
+            cr,
+            fourthCollateralTokens,
+            fourthDebtTokens
+        );
+    }
 
+    function _createTestMarkets() internal {
+        ICentralRegistry cr = ICentralRegistry(
+            _getDeployedContract("centralRegistry")
+        );
+
+        // address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
+        // address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
         // MockToken(usdc).mint(52e25);
         // MockToken(wbtc).mint(52e25);
 
-        _deployTokensAndList(firstMarket, secondMarket, cr, usdc, wbtc);
+        MarketManager firstMarket = _createMarket("firstTestMarket", cr);
+        MarketTokenDeploy[]
+            memory firstCollateralTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory firstDebtTokens = new MarketTokenDeploy[](
+            1
+        );
+        firstCollateralTokens[0] = MarketTokenDeploy(
+            "Div-CToken-WBTC",
+            _readConfigAddress(".markets.cTokens.WBTC.asset"),
+            _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
+            _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
+        );
+        firstDebtTokens[0] = MarketTokenDeploy(
+            "Div-DToken-USDC",
+            _readConfigAddress(".markets.dTokens.USDC.asset"),
+            _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
+            _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
+        );
+        _deployMarketTokens(
+            firstMarket,
+            cr,
+            firstCollateralTokens,
+            firstDebtTokens
+        );
+
+        MarketManager secondMarket = _createMarket("secondTestMarket", cr);
+        MarketTokenDeploy[]
+            memory secondCollateralTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory secondDebtTokens = new MarketTokenDeploy[](
+            1
+        );
+        secondCollateralTokens[0] = MarketTokenDeploy(
+            "Div-CToken-USDC",
+            _readConfigAddress(".markets.dTokens.USDC.asset"),
+            _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
+            _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
+        );
+        secondDebtTokens[0] = MarketTokenDeploy(
+            "Div-DToken-WBTC",
+            _readConfigAddress(".markets.cTokens.WBTC.asset"),
+            _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
+            _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
+        );
+        _deployMarketTokens(
+            secondMarket,
+            cr,
+            secondCollateralTokens,
+            secondDebtTokens
+        );
     }
 
-    function _deployTokensAndList(
-        MarketManager firstMarket,
-        MarketManager secondMarket,
+    function _createMarket(
+        string memory marketName,
+        ICentralRegistry cr
+    ) internal returns (MarketManager market) {
+        uint256 marketInterestFactor = 1000; // 10%
+
+        GaugePool gp = new GaugePool(cr);
+        market = new MarketManager(cr, address(gp));
+        console.log(marketName, " created =", address(market));
+        _saveDeployedContracts(marketName, address(market));
+        CentralRegistry(address(cr)).addMarketManager(
+            address(market),
+            marketInterestFactor
+        );
+        gp.start(address(market));
+    }
+
+    function _deployMarketTokens(
+        MarketManager market,
         ICentralRegistry cr,
-        address usdc,
-        address wbtc
+        MarketTokenDeploy[] memory collateralTokens,
+        MarketTokenDeploy[] memory debtTokens
     ) internal {
-        address dusdc = _deployDTokenAndList(
-            "Div-D-USDC",
-            usdc,
-            cr,
-            firstMarket
-        );
-        address cwbtc = _deployCTokenAndList(
-            "Div-C-WBTC",
-            wbtc,
-            cr,
-            firstMarket
-        );
-        address dwbtc = _deployDTokenAndList(
-            "Div-D-WBTC",
-            wbtc,
-            cr,
-            secondMarket
-        );
-        address cusdc = _deployCTokenAndList(
-            "Div-C-USDC",
-            usdc,
-            cr,
-            secondMarket
-        );
-    }
-
-    function _deployCTokenAndList(
-        string memory name,
-        address asset,
-        ICentralRegistry cr,
-        MarketManager market
-    ) internal returns (address) {
-        address oracleRouter = _getDeployedContract("oracleRouter");
-        address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
-
-        CTokenParam memory param = CTokenParam({
-            asset: asset,
-            chainlinkEth: _readConfigAddress(
-                ".markets.cTokens.WBTC.chainlinkEth"
-            ),
-            chainlinkUsd: _readConfigAddress(
-                ".markets.cTokens.WBTC.chainlinkUsd"
-            )
-        });
-
-        // Setup underlying chainlink adapters.
-        if (
-            !ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(param.asset)
-        ) {
-            if (param.chainlinkEth != address(0)) {
-                ChainlinkAdaptor(chainlinkAdaptor).addAsset(
-                    param.asset,
-                    param.chainlinkEth,
-                    0,
-                    false
-                );
-            }
-            if (param.chainlinkUsd != address(0)) {
-                ChainlinkAdaptor(chainlinkAdaptor).addAsset(
-                    param.asset,
-                    param.chainlinkUsd,
-                    0,
-                    true
-                );
-            }
-        }
-
-        if (!OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)) {
-            OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
-        }
-
-        try
-            OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
-        returns (address feed) {} catch {
-            OracleRouter(oracleRouter).addAssetPriceFeed(
-                param.asset,
-                chainlinkAdaptor
+        for (uint256 i = 0; i < collateralTokens.length; i++) {
+            _deployCToken(
+                collateralTokens[i].name,
+                collateralTokens[i].token,
+                collateralTokens[i].chainlinkEthAggregator,
+                collateralTokens[i].chainlinkUsdAggregator,
+                cr,
+                market
             );
         }
 
-        // Deploy CToken
-        address cToken = address(
-            new CTokenPrimitive(cr, IERC20(param.asset), address(market))
+        for (uint256 i = 0; i < debtTokens.length; i++) {
+            _deployDToken(
+                debtTokens[i].name,
+                debtTokens[i].token,
+                debtTokens[i].chainlinkEthAggregator,
+                debtTokens[i].chainlinkUsdAggregator,
+                cr,
+                market
+            );
+        }
+    }
+
+    function _deployDToken(
+        string memory name,
+        address tokenAddress,
+        address chainlinkEthAggregator,
+        address chainlinkUsdAggregator,
+        ICentralRegistry cr,
+        MarketManager market
+    ) internal returns (address) {
+        address interestRateModel = address(
+            // .markets.dTokens.USDC.interestRateParam
+            new DynamicInterestRateModel(
+                cr,
+                1000,
+                1000,
+                5000,
+                43200,
+                5000,
+                100000000,
+                100
+            )
+        );
+        address dToken = address(
+            new DToken(cr, tokenAddress, address(market), interestRateModel)
+        );
+        _saveDeployedContracts(name, dToken);
+        _addOracleSupport(
+            chainlinkEthAggregator,
+            chainlinkUsdAggregator,
+            dToken
         );
 
+        MockToken(tokenAddress).approve(dToken, 1e25);
+        market.listToken(dToken);
+
+        return dToken;
+    }
+
+    function _deployCToken(
+        string memory name,
+        address tokenAddress,
+        address chainlinkEthAggregator,
+        address chainlinkUsdAggregator,
+        ICentralRegistry cr,
+        MarketManager market
+    ) internal returns (address) {
+        IERC20 underlying = IERC20(tokenAddress);
+        address cToken = address(
+            new CTokenPrimitive(cr, underlying, address(market))
+        );
         _saveDeployedContracts(name, cToken);
 
-        if (!OracleRouter(oracleRouter).isSupportedAsset(cToken)) {
-            OracleRouter(oracleRouter).addMTokenSupport(cToken);
-        }
+        _addOracleSupport(
+            chainlinkEthAggregator,
+            chainlinkUsdAggregator,
+            cToken
+        );
 
-        MockToken(asset).approve(cToken, 52e25);
+        MockToken(tokenAddress).approve(cToken, 1e25);
         market.listToken(cToken);
         market.updateCollateralToken(
+            // From FuzzMarketManager -> setup()
             IMToken(cToken),
             7000,
             4000,
@@ -254,105 +366,60 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address[] memory mTokens = new address[](1);
         mTokens[0] = cToken;
         uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = 1e25;
+        newCollateralCaps[0] = 1000000 * 10 ** underlying.decimals(); //1m tokens
         market.setCTokenCollateralCaps(mTokens, newCollateralCaps);
 
         return cToken;
     }
 
-    function _deployDTokenAndList(
-        string memory name,
-        address asset,
-        ICentralRegistry cr,
-        MarketManager market
-    ) internal returns (address) {
+    function _addOracleSupport(
+        address chainlinkEth,
+        address chainlinkUsd,
+        address mToken
+    ) internal {
         address oracleRouter = _getDeployedContract("oracleRouter");
-        address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
+        address chainlinkAdaptor = _getDeployedContract(
+            "Div-chainlinkAdaptor"
+        );
+        address underlying = IMToken(mToken).underlying();
 
-        DTokenParam memory param = DTokenParam({
-            asset: asset,
-            chainlinkEth: _readConfigAddress(
-                ".markets.dTokens.USDC.chainlinkEth"
-            ),
-            chainlinkUsd: _readConfigAddress(
-                ".markets.dTokens.USDC.chainlinkUsd"
-            ),
-            interestRateParam: DTokenInterestRateParam({
-                adjustmentRate: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.adjustmentRate"
-                ),
-                adjustmentVelocity: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.adjustmentVelocity"
-                ),
-                baseRatePerYear: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.baseRatePerYear"
-                ),
-                decayRate: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.decayRate"
-                ),
-                vertexMultiplierMax: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.vertexMultiplierMax"
-                ),
-                vertexRatePerYear: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.vertexRatePerYear"
-                ),
-                vertexUtilizationStart: _readConfigUint256(
-                    ".markets.dTokens.USDC.interestRateParam.vertexUtilizationStart"
-                )
-            })
-        });
+        if (!ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(underlying)) {
+            if (chainlinkEth != address(0)) {
+                ChainlinkAdaptor(chainlinkAdaptor).addAsset(
+                    underlying,
+                    chainlinkEth,
+                    0,
+                    false
+                );
+            }
 
-        // Setup chainlink adapters
-        if (!ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(asset)) {
-            ChainlinkAdaptor(chainlinkAdaptor).addAsset(
-                asset,
-                address(0),
-                0,
-                false
-            );
+            if (chainlinkUsd != address(0)) {
+                ChainlinkAdaptor(chainlinkAdaptor).addAsset(
+                    underlying,
+                    chainlinkUsd,
+                    0,
+                    true
+                );
+            }
         }
 
         if (!OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)) {
             OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
-            console.log("oracleRouter.addApprovedAdaptor: ", chainlinkAdaptor);
         }
 
-        try OracleRouter(oracleRouter).assetPriceFeeds(asset, 0) returns (
+        try OracleRouter(oracleRouter).assetPriceFeeds(underlying, 0) returns (
             address feed
         ) {} catch {
             OracleRouter(oracleRouter).addAssetPriceFeed(
-                asset,
+                underlying,
                 chainlinkAdaptor
             );
-            console.log("oracleRouter.addAssetPriceFeed: ", asset);
         }
 
-        // Create DToken
-        address interestRateModel = address(
-            new DynamicInterestRateModel(
-                cr,
-                param.interestRateParam.baseRatePerYear,
-                param.interestRateParam.vertexRatePerYear,
-                param.interestRateParam.vertexUtilizationStart,
-                param.interestRateParam.adjustmentRate,
-                param.interestRateParam.adjustmentVelocity,
-                param.interestRateParam.vertexMultiplierMax,
-                param.interestRateParam.decayRate
-            )
-        );
-        address dToken = address(
-            new DToken(cr, param.asset, address(market), interestRateModel)
-        );
-        _saveDeployedContracts(name, dToken);
-
-        if (!OracleRouter(oracleRouter).isSupportedAsset(dToken)) {
-            OracleRouter(oracleRouter).addMTokenSupport(dToken);
+        // Link mToken
+        if (!OracleRouter(oracleRouter).isSupportedAsset(mToken)) {
+            OracleRouter(oracleRouter).addMTokenSupport(mToken);
         }
-
-        MockToken(asset).approve(dToken, 52e25);
-        market.listToken(dToken);
-
-        return dToken;
     }
 
     function _loadFaucet() internal {

@@ -53,8 +53,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// EVENTS ///
 
     event ChainlinkAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event ChainlinkAssetRemoved(address asset);
@@ -85,14 +85,14 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     function getPrice(
         address asset,
         bool inUSD,
-        bool  /* getLower */
+        bool /* getLower */
     ) external view override returns (PriceReturnData memory) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
             revert ChainlinkAdaptor__AssetIsNotSupported();
         }
 
-        // Check whether we want the pricing in USD first, 
+        // Check whether we want the pricing in USD first,
         // otherwise price in terms of the gas token.
         if (inUSD) {
             return _getPriceInUSD(asset);
@@ -111,9 +111,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or ETH (inUSD = false).
     function addAsset(
-        address asset, 
-        address aggregator, 
-        uint256 heartbeat, 
+        address asset,
+        address aggregator,
+        uint256 heartbeat,
         bool inUSD
     ) external {
         _checkElevatedPermissions();
@@ -167,9 +167,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         data.decimals = feedAggregator.decimals();
         data.max = bufferedMaxPrice;
         data.min = bufferedMinPrice;
-        data.heartbeat = heartbeat != 0
-            ? heartbeat
-            : DEFAULT_HEART_BEAT;
+        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
         data.aggregator = IChainlink(aggregator);
         data.isConfigured = true;
 
@@ -251,7 +249,9 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
-        if (!IOracleRouter(centralRegistry.oracleRouter()).isSequencerValid()) {
+        if (
+            !IOracleRouter(centralRegistry.oracleRouter()).isSequencerValid()
+        ) {
             pData.hadError = true;
             return pData;
         }
@@ -269,12 +269,12 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         pData.price = uint240(newPrice);
         pData.hadError = _verifyData(
-                        uint256(price),
-                        updatedAt,
-                        data.max,
-                        data.min,
-                        data.heartbeat
-                    );
+            uint256(price),
+            updatedAt,
+            data.max,
+            data.min,
+            data.heartbeat
+        );
     }
 
     /// @notice Validates the feed data based on various constraints.
