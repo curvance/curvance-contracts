@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData, OmnichainData, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
@@ -176,7 +176,7 @@ contract CentralRegistry is ERC165 {
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
 
-    /// @notice Address => chainID => Curvance identification information.
+    /// @notice Address => chainId => Curvance identification information.
     mapping(address => mapping(uint256 => OmnichainData))
         public omnichainOperators;
     mapping(uint16 => uint256) public messagingToGETHChainId;
@@ -184,11 +184,8 @@ contract CentralRegistry is ERC165 {
 
     // WORMHOLE/CCTP MAPPINGS
 
-    /// @notice Wormhole specific chain ID for evm chain ID.
-    mapping(uint256 => uint16) public wormholeChainId;
-
-    /// @notice Wormhole relayer for evm chain ID.
-    mapping(uint256 => IWormholeRelayer) public wormholeRelayers;
+    /// @notice Wormhole data for evm chain ID.
+    mapping(uint256 => WormholeData) public wormholeData;
 
     /// @notice CCTP domain for evm chain ID.
     mapping(uint256 => uint32) public cctpDomain;
@@ -230,9 +227,8 @@ contract CentralRegistry is ERC165 {
     event FeeTokenSet(address newAddress);
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
-    event WormholeRelayersSet(uint256[] chainIds, address[] newAddresses);
+    event WormholeDataSet(uint256[] chainIds, WormholeData[] newData);
     event CircleTokenMessengerSet(address newAddress);
-    event WormholeChainIDsSet(uint256[] chainIds, uint16[] wormholeChainIds);
     event CCTPDomainsSet(uint256[] chainIds, uint32[] cctpDomains);
     event TokenBridgeSet(address newAddress);
     event NewChainAdded(uint256 chainId, address operatorAddress);
@@ -458,22 +454,23 @@ contract CentralRegistry is ERC165 {
         emit TokenBridgeSet(newTokenBridge);
     }
 
-    /// @notice Registers wormhole specific chain IDs for evm chain IDs.
+    /// @notice Registers wormhole specific data for evm chain IDs.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {WormholeChainIDsSet} event.
     /// @param chainIds Array of EVM chain IDs to register.
-    /// @param wormholeChainIds Array of Wormhole specific chain IDs.
-    function registerWormholeChainIDs(
+    /// @param data Array of Wormhole specific data.
+    function registerWormholeData(
         uint256[] calldata chainIds,
-        uint16[] calldata wormholeChainIds
+        WormholeData[] calldata data
     ) external {
         _checkElevatedPermissions();
 
         uint256 numChainIds = chainIds.length;
         for (uint256 i; i < numChainIds; ++i) {
-            wormholeChainId[chainIds[i]] = wormholeChainIds[i];
+            wormholeData[chainIds[i]] = data[i];
         }
-        emit WormholeChainIDsSet(chainIds, wormholeChainIds);
+
+        emit WormholeDataSet(chainIds, data);
     }
 
     /// @notice Registers CCTP domains for EVM chain IDs.
@@ -493,28 +490,6 @@ contract CentralRegistry is ERC165 {
             cctpDomain[chainIds[i]] = cctpDomains[i];
         }
         emit CCTPDomainsSet(chainIds, cctpDomains);
-    }
-
-    /// @notice Sets new WormholeRelayer contract addresses.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeRelayerSet} event.
-    /// @param chainIds The chain ID for each wormholeRelayer.
-    /// @param newWormholeRelayers The new addresses of wormholeRelayer.
-    function registerWormholeRelayers(
-        uint256[] calldata chainIds,
-        address[] calldata newWormholeRelayers
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numChainIds = chainIds.length;
-
-        for (uint256 i = 0; i < numChainIds; i++) {
-            wormholeRelayers[chainIds[i]] = IWormholeRelayer(
-                newWormholeRelayers[i]
-            );
-        }
-
-        emit WormholeRelayersSet(chainIds, newWormholeRelayers);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas
@@ -1072,9 +1047,9 @@ contract CentralRegistry is ERC165 {
 
     function getOmnichainOperators(
         address _address,
-        uint256 chainID
+        uint256 chainId
     ) external view returns (OmnichainData memory) {
-        return omnichainOperators[_address][chainID];
+        return omnichainOperators[_address][chainId];
     }
 
     /// PUBLIC FUNCTIONS ///

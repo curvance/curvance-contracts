@@ -4,16 +4,16 @@ pragma solidity ^0.8.17;
 import { ProtocolMessagingHub, ICentralRegistry } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
-contract BlastProtocolMessagingHub is ProtocolMessagingHub, BlastYieldDelegable {
-
+contract BlastProtocolMessagingHub is
+    ProtocolMessagingHub,
+    BlastYieldDelegable
+{
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address wormhole_
-    ) ProtocolMessagingHub(
-        centralRegistry_,
-        wormhole_
-    ) BlastYieldDelegable (centralRegistry_) {}
-
+        ICentralRegistry centralRegistry_
+    )
+        ProtocolMessagingHub(centralRegistry_)
+        BlastYieldDelegable(centralRegistry_)
+    {}
 }
