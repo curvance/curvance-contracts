@@ -27,6 +27,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
 
     error FeeTokenBridgingHub__InvalidCentralRegistry();
     error FeeTokenBridgingHub__InsufficientGasToken();
+    error FeeTokenBridgingHub__CCTPIsNotConfigured();
 
     /// CONSTRUCTOR ///
 
@@ -107,15 +108,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
                 gasLimit
             );
         } else {
-            _transferTokenViaWormhole(
-                feeToken,
-                dstChainId,
-                to,
-                amount,
-                payload,
-                wormholeFee,
-                gasLimit
-            );
+            revert FeeTokenBridgingHub__CCTPIsNotConfigured();
         }
     }
 
