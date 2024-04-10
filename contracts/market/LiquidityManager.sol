@@ -516,15 +516,17 @@ abstract contract LiquidityManager {
                 // If the asset has a CR increment their collateral.
                 if (tokenData[snapshot.asset].collRatio != 0) {
                     (
-                        accountCollateralSoft,
-                        accountCollateralHard
+                        uint256 accountCollateralSoft_,
+                        uint256 accountCollateralHard_
                     ) = _addLiquidationValues(
-                        snapshot,
-                        account,
-                        underlyingPrices[i],
-                        accountCollateralSoft,
-                        accountCollateralHard
-                    );
+                            snapshot,
+                            account,
+                            underlyingPrices[i],
+                            accountCollateralSoft,
+                            accountCollateralHard
+                        );
+                    accountCollateralSoft += accountCollateralSoft_;
+                    accountCollateralHard += accountCollateralHard_;
                 }
             } else {
                 if (snapshot.asset == debtToken) {
