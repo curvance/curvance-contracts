@@ -336,7 +336,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             locker.recordEpochRewards(amount);
             return;
         } else if (payloadType == 2) {
-            // PayloadID = 2: Crosschain Gauge Emission Configuration.
+            // payloadType = 2: Crosschain Gauge Emission Configuration.
 
             (, bytes memory emissionData) = abi.decode(
                 payload,
@@ -353,7 +353,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                     (address[], uint256[], address[][], uint256[][])
                 );
 
-            // Use scoping for stack too deep logic.
             uint256 numPools = gaugePools.length;
             GaugeController gaugePool;
 
@@ -374,7 +373,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             }
             return;
         } else if (payloadType == 3) {
-            // PayloadID = 3: Receive finalized epoch rewards data.
+            // payloadType = 3: Receive finalized epoch rewards data.
 
             (, uint256 chainLockedAmount) = abi.decode(
                 payload,
@@ -386,8 +385,8 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             );
             return;
         } else if (payloadType == 4) {
-            // PayloadID = 4: Indicates migrating a veCVE lock from the source
-            //                chain to this destination chain.
+            // payloadType = 4: Indicates migrating a veCVE lock from the source
+            //                  chain to this destination chain.
 
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));

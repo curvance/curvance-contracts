@@ -6,7 +6,6 @@ import { GaugeController, GaugeErrors, IGaugePool } from "contracts/gauge/GaugeC
 import { DENOMINATOR, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
