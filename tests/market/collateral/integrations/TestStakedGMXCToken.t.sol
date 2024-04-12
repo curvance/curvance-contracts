@@ -112,8 +112,6 @@ contract TestStakedGMXCToken is TestBaseMarket {
             params
         );
 
-        centralRegistry.addSwapper(_UNISWAP_V3_ROUTER);
-
         cStakedGMX.harvest(abi.encode(swapData));
 
         assertEq(
@@ -122,9 +120,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
             "New Total Assets should equal user deposit plus initial mint."
         );
 
-        uint256 updatedStakedBalance = IStakedGMX(_GMX_STAKED_GMX_TRACKER).stakedAmounts(
-            address(cStakedGMX)
-        );
+        uint256 updatedStakedBalance = IStakedGMX(_GMX_STAKED_GMX_TRACKER)
+            .stakedAmounts(address(cStakedGMX));
 
         skip(8 days);
 

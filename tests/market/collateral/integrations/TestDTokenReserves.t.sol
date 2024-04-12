@@ -107,8 +107,6 @@ contract TestDTokenReserves is TestBaseMarket {
             caps[0] = 100_000e18;
             marketManager.setCTokenCollateralCaps(tokens, caps);
         }
-
-        centralRegistry.addSwapper(_UNISWAP_V2_ROUTER);
     }
 
     function testInitialize() public {

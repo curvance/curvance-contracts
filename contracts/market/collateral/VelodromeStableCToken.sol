@@ -61,7 +61,6 @@ contract VelodromeStableCToken is CTokenCompounding {
     error VelodromeStableCToken__StakingTokenIsNotAsset(address stakingToken);
     error VelodromeStableCToken__AssetIsNotStable();
     error VelodromeStableCToken__SlippageError();
-    error VelodromeStableCToken__InvalidSwapper(address invalidSwapper);
     error VelodromeStableCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -115,6 +114,10 @@ contract VelodromeStableCToken is CTokenCompounding {
         rewardTokenIsUnderlying = (address(rewardToken) ==
             strategyData.token0 ||
             address(rewardToken) == strategyData.token1);
+
+        if (address(rewardToken) != asset()) {
+            isApprovedAsset[address(rewardToken)] = true;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -172,13 +175,8 @@ contract VelodromeStableCToken is CTokenCompounding {
                             (SwapperLib.Swap)
                         );
 
-                        if (!centralRegistry.isSwapper(swapData.target)) {
-                            revert VelodromeStableCToken__InvalidSwapper(
-                                swapData.target
-                            );
-                        }
-
-                        if (swapData.inputToken != address(rewardToken)) {
+                        if (!isApprovedAsset[swapData.inputToken]) {
+                            // this will be the same check: `swapData.inputToken != rewardToken`
                             revert VelodromeStableCToken__InvalidSwapData();
                         }
 

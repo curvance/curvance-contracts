@@ -57,7 +57,6 @@ contract AuraCToken is CTokenCompounding {
     /// ERRORS ///
 
     error AuraCToken__InvalidVaultConfig();
-    error AuraCToken__InvalidSwapper(uint256 index, address invalidSwapper);
     error AuraCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -90,27 +89,7 @@ contract AuraCToken is CTokenCompounding {
         );
         strategyData.balancerPoolId = IBalancerPool(pidToken).getPoolId();
 
-        // Add BAL as a reward token, then let Aura tell you what rewards
-        // the vault will receive.
-        strategyData.rewardTokens.push() = _BAL;
-        // Add AURA as a reward token, since some vaults do not list AURA
-        // as a reward token.
-        strategyData.rewardTokens.push() = _AURA;
-
-        uint256 extraRewardsLength = IBaseRewardPool(rewarder_)
-            .extraRewardsLength();
-        for (uint256 i; i < extraRewardsLength; ) {
-            unchecked {
-                address rewardToken = IStashWrapper(
-                    IRewards(IBaseRewardPool(rewarder_).extraRewards(i++))
-                        .rewardToken()
-                ).baseToken();
-
-                if (rewardToken != _AURA && rewardToken != _BAL) {
-                    strategyData.rewardTokens.push() = rewardToken;
-                }
-            }
-        }
+        reQueryRewardTokens();
 
         // Query liquidity pool's underlying tokens from the Balancer vault.
         (address[] memory queriedTokens, , ) = strategyData
@@ -124,6 +103,14 @@ contract AuraCToken is CTokenCompounding {
                 isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
             }
         }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (address(rewardToken) != asset()) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -133,7 +120,7 @@ contract AuraCToken is CTokenCompounding {
     /// @notice Requeries reward tokens directly from Aura smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameters.
-    function reQueryRewardTokens() external {
+    function reQueryRewardTokens() public {
         delete strategyData.rewardTokens;
 
         // Add BAL as a reward token, then let Aura tell you what rewards
@@ -230,9 +217,6 @@ contract AuraCToken is CTokenCompounding {
             // Claim pending Aura rewards.
             sd.rewarder.getReward(address(this), true);
 
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
-                .decode(data, (SwapperLib.Swap[], uint256));
-
             {
                 // Use scoping to avoid stack too deep.
                 uint256 numRewardTokens = sd.rewardTokens.length;
@@ -269,26 +253,19 @@ contract AuraCToken is CTokenCompounding {
                         feeAccumulator,
                         protocolFee
                     );
+                }
+            }
 
-                    // Swap from rewardToken to underlying LP token, if necessary.
-                    if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            !centralRegistry.isSwapper(swapDataArray[i].target)
-                        ) {
-                            revert AuraCToken__InvalidSwapper(
-                                i,
-                                swapDataArray[i].target
-                            );
-                        }
-
-                        if (
-                            swapDataArray[i].inputToken != address(rewardToken)
-                        ) {
-                            revert AuraCToken__InvalidSwapData();
-                        }
-
-                        SwapperLib.swap(centralRegistry, swapDataArray[i]);
+            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+                .decode(data, (SwapperLib.Swap[], uint256));
+            {
+                uint256 numSwapData = swapDataArray.length;
+                for (uint256 i; i < numSwapData; ++i) {
+                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                        revert AuraCToken__InvalidSwapData();
                     }
+
+                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
                 }
             }
 
