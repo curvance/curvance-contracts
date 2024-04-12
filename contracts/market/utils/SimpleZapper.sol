@@ -27,7 +27,7 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 shares;
         bool forceRedeemCollateral;
     }
-    
+
     /// CONSTANTS ///
 
     /// @notice Curvance DAO hub.
@@ -44,7 +44,6 @@ contract SimpleZapper is ReentrancyGuard {
     error SimpleZapper__InvalidMarketManager();
     error SimpleZapper__Unauthorized();
     error SimpleZapper__InsufficientToRepay();
-    error SimpleZapper__InvalidZapper(address invalidZapper);
 
     /// CONSTRUCTOR ///
 
@@ -110,11 +109,6 @@ contract SimpleZapper is ReentrancyGuard {
             revert SimpleZapper__Unauthorized();
         }
 
-        // Validate target contract is an approved Zapper.
-        if (!centralRegistry.isSwapper(swapZap.target)) {
-            revert SimpleZapper__InvalidZapper(swapZap.target);
-        }
-
         // Execute Zap.
         SwapperLib.swap(centralRegistry, swapZap);
 
@@ -156,11 +150,6 @@ contract SimpleZapper is ReentrancyGuard {
             revert SimpleZapper__Unauthorized();
         }
 
-        // Validate target contract is an approved swapper.
-        if (!centralRegistry.isSwapper(swapperData.target)) {
-            revert SimpleZapper__InvalidZapper(swapperData.target);
-        }
-
         // Execute swap into dToken underlying.
         SwapperLib.swap(centralRegistry, swapperData);
 
@@ -194,19 +183,10 @@ contract SimpleZapper is ReentrancyGuard {
             swapperData.inputAmount
         );
 
-        // Validate target contract is an approved swapper.
-        if (!centralRegistry.isSwapper(swapperData.target)) {
-            revert SimpleZapper__InvalidZapper(swapperData.target);
-        }
-
         // Execute swap into `swapperData.outputToken`.
         uint256 outAmount = SwapperLib.swap(centralRegistry, swapperData);
 
-        _transferToRecipient(
-            swapperData.outputToken, 
-            recipient, 
-            outAmount
-        );
+        _transferToRecipient(swapperData.outputToken, recipient, outAmount);
 
         return outAmount;
     }
@@ -269,11 +249,7 @@ contract SimpleZapper is ReentrancyGuard {
                 msg.sender
             );
         } else {
-            assets = mToken.redeemFor(
-                shares,
-                address(this),
-                msg.sender
-            );
+            assets = mToken.redeemFor(shares, address(this), msg.sender);
         }
 
         // Validate that output of redemption is sufficient.
@@ -299,7 +275,7 @@ contract SimpleZapper is ReentrancyGuard {
         // since the Zapper should never be holding any dToken underlying
         // itself.
         outAmount = IERC20(dTokenUnderlying).balanceOf(address(this));
-        
+
         // Revert if the swap experienced too much slippage.
         if (outAmount < repayAmount) {
             revert SimpleZapper__InsufficientToRepay();
@@ -322,17 +298,13 @@ contract SimpleZapper is ReentrancyGuard {
 
         // Transfer any remaining `dTokenUnderlying` to `recipient`.
         if (outAmount > 0) {
-            _transferToRecipient(
-                dTokenUnderlying, 
-                recipient, 
-                outAmount
-            );
+            _transferToRecipient(dTokenUnderlying, recipient, outAmount);
         }
     }
 
     /// @notice Helper function for efficiently transferring tokens
     ///         to desired user.
-    /// @param token The token to transfer to `recipient`, 
+    /// @param token The token to transfer to `recipient`,
     ///              this can be the network gas token.
     /// @param recipient The user receiving `token`.
     /// @param amount The amount of `token` to be transferred to `recipient`.
@@ -344,7 +316,7 @@ contract SimpleZapper is ReentrancyGuard {
         if (CommonLib.isETH(token)) {
             return SafeTransferLib.forceSafeTransferETH(recipient, amount);
         }
-            
+
         SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 }

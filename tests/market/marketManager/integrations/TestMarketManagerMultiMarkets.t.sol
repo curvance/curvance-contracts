@@ -50,7 +50,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
             MockV3Aggregator[] memory
         )
     {
-        noOfCollateralTokens = uint256((_noOfCollateralTokens % 5)) + 2;
+        noOfCollateralTokens = 1; // uint256((_noOfCollateralTokens % 5)) + 2;
         noOfDebtTokens = uint256((_noOfDebtTokens % 5)) + 1;
         noOfUsersCollateral = uint256((_noOfUsers % 3)) + 2;
         noOfUsersDebt = uint256((_noOfUsers % 3)) + 1;

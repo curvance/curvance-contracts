@@ -189,7 +189,6 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACT MAPPINGS
 
-    mapping(address => bool) public isSwapper;
     mapping(address => bool) public isVeCVELocker;
     mapping(address => bool) public isGaugeController;
     mapping(address => bool) public isHarvester;
@@ -885,44 +884,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
-    }
-
-    /// @notice Adds a Swapper contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Swapper contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newSwapper The new Swapper contract to support for use
-    ///                   in Curvance.
-    function addSwapper(address newSwapper) external {
-        _checkElevatedPermissions();
-
-        // Validate `newSwapper` is not currently supported.
-        if (isSwapper[newSwapper]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isSwapper[newSwapper] = true;
-
-        emit NewCurvanceContract("Swapper", newSwapper);
-    }
-
-    /// @notice Removes a Swapper contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Swapper contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentSwapper The supported Swapper contract to remove from
-    ///                       Curvance.
-    function removeSwapper(address currentSwapper) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentSwapper` is currently supported.
-        if (!isSwapper[currentSwapper]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isSwapper[currentSwapper];
-
-        emit RemovedCurvanceContract("Swapper", currentSwapper);
     }
 
     /// @notice Adds an approved VeCVE locker contract for use in Curvance.

@@ -13,7 +13,7 @@ contract GMCToken is CTokenCompounding {
 
     /// @notice Chain ID for Arbitrum Mainnet where this should be deployed.
     uint256 internal constant _ARBITRUM_CHAIN_ID = 42161;
-    
+
     /// STORAGE ///
 
     /// @notice The address of GMX Deposit Vault.
@@ -322,16 +322,15 @@ contract GMCToken is CTokenCompounding {
     /// @notice Claims rewards from the GM pool.
     /// @return rewardAmounts The reward amounts claimed from the GM pool.
     function _claimReward() internal returns (uint256[] memory rewardAmounts) {
-        
         address[] memory markets = new address[](2);
         markets[0] = asset();
         markets[1] = asset();
 
         // Claim GM pool rewards.
         rewardAmounts = IGMXExchangeRouter(gmxExchangeRouter).claimFundingFees(
-            markets,
-            underlyingTokens,
-            address(this)
-        );
+                markets,
+                underlyingTokens,
+                address(this)
+            );
     }
 }

@@ -80,7 +80,6 @@ contract ComplexZapper is ReentrancyGuard {
     error ComplexZapper__CTokenUnderlyingIsNotInputToken();
     error ComplexZapper__Unauthorized();
     error ComplexZapper__SlippageError();
-    error ComplexZapper__InvalidSwapper(uint256 index, address invalidSwapper);
 
     /// CONSTRUCTOR ///
 
@@ -631,15 +630,8 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 numTokenSwaps = tokenSwaps.length;
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(tokenSwaps[i].target)) {
-                revert ComplexZapper__InvalidSwapper(i, tokenSwaps[i].target);
-            }
-
             // Execute swap(s) into `zapData.outputToken`.
-            unchecked {
-                SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
-            }
+            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -692,15 +684,8 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 numTokenSwaps = tokenSwaps.length;
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(tokenSwaps[i].target)) {
-                revert ComplexZapper__InvalidSwapper(i, tokenSwaps[i].target);
-            }
-
             // Execute swap(s) into `zapData.outputToken`.
-            unchecked {
-                SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
-            }
+            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -736,15 +721,8 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 numTokenSwaps = tokenSwaps.length;
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(tokenSwaps[i].target)) {
-                revert ComplexZapper__InvalidSwapper(i, tokenSwaps[i].target);
-            }
-
             // Execute swap(s) into `zapData.outputToken`.
-            unchecked {
-                SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
-            }
+            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -794,11 +772,6 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 numTokenSwaps = tokenSwaps.length;
         // Swap `inputToken` into desired cToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(tokenSwaps[i].target)) {
-                revert ComplexZapper__InvalidSwapper(i, tokenSwaps[i].target);
-            }
-
             if (
                 CommonLib.isETH(tokenSwaps[i].inputToken) && depositInputAsWETH
             ) {

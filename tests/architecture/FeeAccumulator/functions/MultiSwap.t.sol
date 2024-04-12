@@ -46,7 +46,6 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
 
         feeAccumulator.addRewardTokens(rewardTokens);
 
-        centralRegistry.addSwapper(_UNISWAP_V2_ROUTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
@@ -134,34 +133,6 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
                 0,
                 _USDT_ADDRESS,
                 _USDC_ADDRESS
-            )
-        );
-
-        vm.prank(harvester);
-        feeAccumulator.multiSwap(abi.encode(swapData), tokens);
-    }
-
-    function test_multiSwap_fail_whenSwapTargetIsInvalidSwapper() public {
-        swapData[0] = SwapperLib.Swap({
-            inputToken: _WETH_ADDRESS,
-            inputAmount: _ONE,
-            outputToken: _USDC_ADDRESS,
-            target: address(1),
-            call: abi.encodeWithSignature(
-                "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-                _ONE,
-                0,
-                path,
-                address(feeAccumulator),
-                block.timestamp
-            )
-        });
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                FeeAccumulator.FeeAccumulator__SwapDataInvalidSwapper.selector,
-                0,
-                address(1)
             )
         );
 

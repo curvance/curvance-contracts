@@ -48,11 +48,6 @@ contract PendleLPCToken is CTokenCompounding {
     event Harvest(uint256 yield);
 
     /// ERRORS ///
-
-    error PendleLPCToken__InvalidSwapper(
-        uint256 index,
-        address invalidSwapper
-    );
     error PendleLPCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -79,6 +74,14 @@ contract PendleLPCToken is CTokenCompounding {
         for (uint256 i; i < numUnderlyingTokens; ) {
             unchecked {
                 isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
+            }
+        }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (rewardToken != asset()) {
+                isApprovedAsset[rewardToken] = true;
             }
         }
     }
@@ -210,26 +213,17 @@ contract PendleLPCToken is CTokenCompounding {
                         feeAccumulator,
                         protocolFee
                     );
+                }
+            }
 
-                    // Swap from reward token to underlying tokens, if necessary.
-                    if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            !centralRegistry.isSwapper(swapDataArray[i].target)
-                        ) {
-                            revert PendleLPCToken__InvalidSwapper(
-                                i,
-                                swapDataArray[i].target
-                            );
-                        }
-
-                        if (
-                            swapDataArray[i].inputToken != address(rewardToken)
-                        ) {
-                            revert PendleLPCToken__InvalidSwapData();
-                        }
-
-                        SwapperLib.swap(centralRegistry, swapDataArray[i]);
+            {
+                uint256 numSwapData = swapDataArray.length;
+                for (uint256 i; i < numSwapData; ++i) {
+                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                        revert PendleLPCToken__InvalidSwapData();
                     }
+
+                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
                 }
             }
 

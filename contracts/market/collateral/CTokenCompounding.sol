@@ -59,7 +59,7 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @notice Whether there is a pending update to vesting period,
     ///         after this vesting period ends.
     NewVestingData public pendingVestUpdate;
-    /// @notice Whether compounding is currently paused. 
+    /// @notice Whether compounding is currently paused.
     /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
     uint256 public compoundingPaused = 2;
 
@@ -69,6 +69,9 @@ abstract contract CTokenCompounding is CTokenBase {
     ///      - [128..191] `vestingPeriodEnd`.
     ///      - [192..255] `lastVestClaim`.
     uint256 internal _vaultData;
+
+    /// @dev Approved assets for swap input.
+    mapping(address => bool) public isApprovedAsset;
 
     /// EVENTS ///
 
@@ -82,6 +85,7 @@ abstract contract CTokenCompounding is CTokenBase {
     error CTokenCompounding__WithdrawMoreThanMax();
     error CTokenCompounding__ZeroShares();
     error CTokenCompounding__ZeroAssets();
+    error CTokenCompounding__InvalidApprovedAsset();
 
     /// CONSTRUCTOR ///
 
@@ -198,6 +202,24 @@ abstract contract CTokenCompounding is CTokenBase {
         return true;
     }
 
+    /// @notice Set approved assets
+    /// @param assets Assets list
+    /// @param approved approved or not
+    function setApprovedAssets(
+        address[] memory assets,
+        bool approved
+    ) external {
+        _checkDaoPermissions();
+
+        for (uint256 i = 0; i < assets.length; ++i) {
+            if (approved && assets[i] == asset()) {
+                revert CTokenCompounding__InvalidApprovedAsset();
+            }
+
+            isApprovedAsset[assets[i]] = approved;
+        }
+    }
+
     /// @notice Permissioned function to set a new compounding vesting period.
     /// @dev Requires dao authority, `newVestingPeriod` cannot be longer
     ///      than a week (7 days).
@@ -267,7 +289,13 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @notice Returns the total amount of the underlying asset in the vault,
     ///         including pending rewards that are vested, safely.
     /// @return The total number of underlying assets.
-    function totalAssetsSafe() public view override nonReadReentrant returns (uint256) {
+    function totalAssetsSafe()
+        public
+        view
+        override
+        nonReadReentrant
+        returns (uint256)
+    {
         return _totalAssets + _calculatePendingRewards();
     }
 
@@ -382,7 +410,7 @@ abstract contract CTokenCompounding is CTokenBase {
                 _spendAllowance(owner, msg.sender, allowed - shares);
             }
         }
-        
+
         // Validate that `owner` can redeem `shares`.
         marketManager.canRedeemWithCollateralRemoval(
             address(this),
@@ -408,7 +436,7 @@ abstract contract CTokenCompounding is CTokenBase {
 
     /// @notice Redeems assets to `receiver` from the market and burns
     ///         `owner` `shares`.
-    /// @dev Redemption calls support the delegation system, allowing 
+    /// @dev Redemption calls support the delegation system, allowing
     ///      an alternative approval system in parallel with the native
     ///      erc20 system.
     /// @param shares The amount of shares to burn to withdraw assets.
@@ -443,7 +471,7 @@ abstract contract CTokenCompounding is CTokenBase {
                 }
             }
         }
-        
+
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
             // revert with "CTokenCompounding__RedeemMoreThanMax".
@@ -601,7 +629,7 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @param periodToVest The period in which `yieldToVest` is vested
     ///                     over to users.
     function _setNewVaultData(
-        uint256 yieldToVest, 
+        uint256 yieldToVest,
         uint256 periodToVest
     ) internal {
         // Set rewardRate equal to prorated `yieldToVest` over `periodToVest`,
@@ -609,7 +637,7 @@ abstract contract CTokenCompounding is CTokenBase {
         _vaultData = _packVaultData(
             FixedPointMathLib.mulDiv(yieldToVest, 1e18, periodToVest),
             block.timestamp + periodToVest
-            );
+        );
     }
 
     /// @notice Packs parameters together with current block timestamp to
@@ -623,7 +651,7 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 newVestPeriod
     ) internal view returns (uint256 result) {
         assembly {
-            // Mask `newRewardRate` to the lower 128 bits, 
+            // Mask `newRewardRate` to the lower 128 bits,
             // in case the upper bits somehow aren't clean.
             newRewardRate := and(newRewardRate, _BITMASK_REWARD_RATE)
             // Equal to `newRewardRate | (newVestPeriod << _BITPOS_VEST_END) |
@@ -701,7 +729,7 @@ abstract contract CTokenCompounding is CTokenBase {
             vaultData.lastVestClaim < vaultData.vestingPeriodEnd
         ) {
             // When calculating pending rewards:
-            // pendingRewards = 
+            // pendingRewards =
             // If the vesting period has not ended:
             // PR = rewardRate * (block.timestamp - lastTimeVestClaimed).
             // If the vesting period has ended:
