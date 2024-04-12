@@ -280,10 +280,10 @@ abstract contract LiquidityManager {
         {
             // Use scoping to avoid stack too deep.
             AccountSnapshot memory snapshot;
-            uint256 posted;
-            uint256 cr;
 
             for (uint256 i; i < numAssets; ++i) {
+                uint256 posted;
+                uint256 cr;
                 snapshot = snapshots[i];
 
                 if (snapshot.isCToken) {
@@ -314,7 +314,7 @@ abstract contract LiquidityManager {
                         } else {
                             // There is collateral posted in this cToken, and the user
                             // can take on more debt.
-                            maxDebt = _liquidityValue(
+                            maxDebt += _liquidityValue(
                                 maxDebt,
                                 posted,
                                 snapshot.exchangeRate,
