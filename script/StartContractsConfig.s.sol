@@ -16,7 +16,7 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
-import { MockToken } from "contracts/mocks/MockToken.sol";
+import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
@@ -102,6 +102,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
+        _deployMockTokens();
         _createTestMarkets();
         _createRealTestMarkets();
         _loadFaucet();
@@ -110,12 +111,30 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
         CVE cve = CVE(_getDeployedContract("cve"));
         VeCVE veCVE = VeCVE(centralRegistry.veCVE());
-
         uint256 lockAmount = cve.balanceOf(deployer) / 4;
         cve.approve(address(veCVE), lockAmount);
-
         RewardsData memory rewardsData;
         veCVE.createLock(lockAmount, true, rewardsData, "", 0);
+    }
+
+    function _deployMockTokens() internal {
+        address l_usd = address(
+            new TestnetToken("LUSD Stablecoin", "LUSD", 18)
+        );
+        address m_eth = address(new TestnetToken("mETH", "mETH", 18));
+        address m_usd = address(new TestnetToken("mUSD", "mUSD", 18));
+        address mk_usd = address(
+            new TestnetToken("Prisma mkUSD", "mkUSD", 18)
+        );
+        address usdc = address(new TestnetToken("USD Coin", "USDC", 6));
+        address wbtc = address(new TestnetToken("Wrapped Bitcoin", "WBTC", 8));
+
+        _saveDeployedContracts("LUSD", l_usd);
+        _saveDeployedContracts("mETH", m_eth);
+        _saveDeployedContracts("mUSD", m_usd);
+        _saveDeployedContracts("mkUSD", mk_usd);
+        _saveDeployedContracts("WBTC", wbtc);
+        _saveDeployedContracts("USDC", usdc);
     }
 
     function _createRealTestMarkets() internal {
@@ -127,10 +146,10 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address m_eth = _getDeployedContract("mETH");
         address m_usd = _getDeployedContract("mUSD");
         address mk_usd = _getDeployedContract("mkUSD");
-        MockToken(l_usd).mint(52e25);
-        MockToken(m_eth).mint(52e25);
-        MockToken(m_usd).mint(52e25);
-        MockToken(mk_usd).mint(52e25);
+        // MockToken(l_usd).mint(52e25);
+        // MockToken(m_eth).mint(52e25);
+        // MockToken(m_usd).mint(52e25);
+        // MockToken(mk_usd).mint(52e25);
 
         address chainlinkUsdcFeedInUsd = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
         address chainlinkEthFeedInUsd = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
@@ -191,10 +210,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
             _getDeployedContract("centralRegistry")
         );
 
-        // address usdc = _readConfigAddress(".markets.dTokens.USDC.asset");
-        // address wbtc = _readConfigAddress(".markets.cTokens.WBTC.asset");
-        // MockToken(usdc).mint(52e25);
-        // MockToken(wbtc).mint(52e25);
+        address usdc = _getDeployedContract("USDC");
+        address wbtc = _getDeployedContract("WBTC");
 
         MarketManager firstMarket = _createMarket("firstTestMarket", cr);
         MarketTokenDeploy[]
@@ -204,13 +221,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
         firstCollateralTokens[0] = MarketTokenDeploy(
             "Div-CToken-WBTC",
-            _readConfigAddress(".markets.cTokens.WBTC.asset"),
+            wbtc,
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
         );
         firstDebtTokens[0] = MarketTokenDeploy(
             "Div-DToken-USDC",
-            _readConfigAddress(".markets.dTokens.USDC.asset"),
+            usdc,
             _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
             _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
         );
