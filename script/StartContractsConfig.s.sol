@@ -146,10 +146,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address m_eth = _getDeployedContract("mETH");
         address m_usd = _getDeployedContract("mUSD");
         address mk_usd = _getDeployedContract("mkUSD");
-        // MockToken(l_usd).mint(52e25);
-        // MockToken(m_eth).mint(52e25);
-        // MockToken(m_usd).mint(52e25);
-        // MockToken(mk_usd).mint(52e25);
 
         address chainlinkUsdcFeedInUsd = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
         address chainlinkEthFeedInUsd = 0x694AA1769357215DE4FAC081bf1f309aDC325306;

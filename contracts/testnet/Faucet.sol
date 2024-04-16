@@ -46,4 +46,22 @@ contract Faucet is Ownable {
 
         userLastClaimed[user][token] = block.timestamp;
     }
+
+    function multiClaim(
+        address user,
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    ) external {
+        require(
+            tokens.length == amounts.length,
+            "Not enough tokens OR amounts provided"
+        );
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
+
+            claim(user, token, amount);
+        }
+    }
 }
