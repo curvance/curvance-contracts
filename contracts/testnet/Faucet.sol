@@ -26,6 +26,28 @@ contract Faucet is Ownable {
     }
 
     function claim(address user, address token, uint256 amount) external {
+        _claim(user, token, amount);
+    }
+
+    function multiClaim(
+        address user,
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    ) external {
+        require(
+            tokens.length == amounts.length,
+            "Not enough tokens OR amounts provided"
+        );
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
+
+            _claim(user, token, amount);
+        }
+    }
+
+    function _claim(address user, address token, uint256 amount) internal {
         require(
             userLastClaimed[user][token] + 24 hours <= block.timestamp,
             "Wait 24 hours"
@@ -45,23 +67,5 @@ contract Faucet is Ownable {
         }
 
         userLastClaimed[user][token] = block.timestamp;
-    }
-
-    function multiClaim(
-        address user,
-        address[] calldata tokens,
-        uint256[] calldata amounts
-    ) external {
-        require(
-            tokens.length == amounts.length,
-            "Not enough tokens OR amounts provided"
-        );
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            address token = tokens[i];
-            uint256 amount = amounts[i];
-
-            claim(user, token, amount);
-        }
     }
 }
