@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -883,7 +883,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _burn(msg.sender, amount);
         _removeLock(locks, lockIndex);
 
-        // Penalty value = lock amount * penalty multiplier, in `WAD`,
+        // Penalty value = lock amount * penalty multiplier,
         // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         uint256 penaltyAmount = _getUnlockPenalty(
@@ -1124,8 +1124,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param user The address of the user whose lock is being used
     ///              for the calculation.
     /// @param lockIndex The index of the lock to calculate penalty for.
-    /// @return The penalty associated with immediately unlocking `lockIndex`,
-    ///         in `WAD`.
+    /// @return The penalty associated with immediately unlocking `lockIndex`.
     function getUnlockPenalty(
         address user,
         uint256 lockIndex
@@ -1481,7 +1480,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         a lock expiring at `unlockTime`
     /// @param amount The token amount to calculate the penalty against.
     /// @param penalty The current early unlock penalty,
-    ///                for full length locks, in `WAD`.
+    ///                for full length locks, in basis points.
     /// @param unlockTime The unlock timestamp to calculate the penalty for.
     /// @return The early unlock penalty for a `amount` lock,
     ///         unlocking at `unlockTime`.
@@ -1490,13 +1489,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 penalty,
         uint256 unlockTime
     ) internal view returns (uint256) {
-        // Penalty value = lock amount * penalty multiplier, in `WAD`,
+        // Penalty value = lock amount * penalty multiplier,
         // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         return
             (amount *
-                ((penalty * (LOCK_DURATION - (unlockTime - block.timestamp))) /
-                    LOCK_DURATION)) / WAD;
+                ((penalty * (unlockTime - block.timestamp)) /
+                    LOCK_DURATION)) / DENOMINATOR;
     }
 
     /// @dev Internal helper for reverting efficiently.
