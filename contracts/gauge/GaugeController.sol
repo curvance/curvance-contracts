@@ -105,7 +105,7 @@ abstract contract GaugeController is IGaugePool {
         for (uint256 i; i < numTokens; ) {
             // We sort the token addresses offchain from smallest to largest
             // to validate there are no duplicates.
-            if (priorAddress > tokens[i]) {
+            if (priorAddress >= tokens[i]) {
                 revert GaugeErrors.InvalidToken();
             }
 
