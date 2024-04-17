@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { CurvanceMulticall } from "contracts/market/CurvanceMulticall.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626, SafeTransferLib } from "contracts/libraries/ERC4626.sol";
@@ -53,7 +53,7 @@ abstract contract CTokenBase is
     ERC4626,
     Delegable,
     ReentrancyGuard,
-    CurvanceMulticall
+    Multicall
 {
     /// CONSTANTS ///
 
@@ -955,7 +955,7 @@ abstract contract CTokenBase is
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 assets) {}
 
-    /// @dev from CurvanceMulticall
+    /// @dev from Multicall
     function _getCentralRegistry()
         internal
         view

@@ -8,15 +8,15 @@ import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/BaseRedstoneCoreAdaptor.sol";
 
 /// @title Curvance Multicall Plugin
-abstract contract CurvanceMulticall {
+abstract contract Multicall {
     struct MulticallData {
         address target;
         bytes data;
         bool isPriceUpdate;
     }
 
-    error InvalidTarget();
-    error InvalidCallData();
+    error Multicall__InvalidTarget();
+    error Multicall__InvalidCallData();
 
     /// @notice Queries the function signature of `_data`, this is used
     ///         to check against an expected selector.
@@ -36,10 +36,10 @@ abstract contract CurvanceMulticall {
         OracleRouter oracleRouter = OracleRouter(
             centralRegistry.oracleRouter()
         );
-        for (uint256 i = 0; i < calls.length; ++i) {
+        for (uint256 i; i < calls.length; ++i) {
             if (calls[i].isPriceUpdate) {
                 if (!oracleRouter.isApprovedAdaptor(calls[i].target)) {
-                    revert InvalidTarget();
+                    revert Multicall__InvalidTarget();
                 }
 
                 bytes4 functionSig = getFuncSigHash(calls[i].data);
@@ -48,7 +48,7 @@ abstract contract CurvanceMulticall {
                     BaseRedstoneCoreAdaptor.writePrice.selector &&
                     functionSig != PythAdaptor.updateFeeds.selector
                 ) {
-                    revert InvalidCallData();
+                    revert Multicall__InvalidCallData();
                 }
 
                 results[i] = Address.functionCall(
@@ -57,7 +57,7 @@ abstract contract CurvanceMulticall {
                 );
             } else {
                 if (address(this) != calls[i].target) {
-                    revert InvalidTarget();
+                    revert Multicall__InvalidTarget();
                 }
 
                 results[i] = Address.functionDelegateCall(

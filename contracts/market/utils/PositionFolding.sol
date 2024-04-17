@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
-import { CurvanceMulticall } from "contracts/market/CurvanceMulticall.sol";
 
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -30,7 +30,7 @@ contract PositionFolding is
     Delegable,
     ERC165,
     ReentrancyGuard,
-    CurvanceMulticall
+    Multicall
 {
     /// TYPES ///
 
@@ -626,7 +626,7 @@ contract PositionFolding is
         }
     }
 
-    /// @dev from CurvanceMulticall
+    /// @dev from Multicall
     function _getCentralRegistry()
         internal
         view
