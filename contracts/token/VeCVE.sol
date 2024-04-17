@@ -983,7 +983,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
             return 0;
         }
 
-        uint256 currentLockBoost = centralRegistry.voteBoostMultiplier();
+        uint256 voteBoost = centralRegistry.voteBoostMultiplier();
+        voteBoost = voteBoost == 0 ? DENOMINATOR : voteBoost;
         uint256 votes;
 
         for (uint256 i; i < numLocks; ) {
@@ -993,7 +994,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                     user,
                     i++,
                     block.timestamp,
-                    currentLockBoost
+                    voteBoost
                 );
             }
         }
@@ -1092,13 +1093,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///              for the calculation.
     /// @param lockIndex The index of the lock to calculate votes for.
     /// @param time The timestamp to use for the calculation.
-    /// @param currentLockBoost The current voting boost a lock gets for being continuous.
+    /// @param voteBoost The current voting boost a lock gets for being continuous.
     /// @return The number of votes for the specified lock at the given timestamp.
     function getVotesForSingleLockForTime(
         address user,
         uint256 lockIndex,
         uint256 time,
-        uint256 currentLockBoost
+        uint256 voteBoost
     ) public view returns (uint256) {
         Lock storage lock = userLocks[user][lockIndex];
 
@@ -1108,7 +1109,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
             unchecked {
-                return ((lock.amount * currentLockBoost) / 10000);
+                return ((lock.amount * voteBoost) / DENOMINATOR);
             }
         }
 
@@ -1185,8 +1186,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             revert VeCVE__PostEpochRestriction();
         }
         if (
-            nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp &&
-            block.timestamp < nextEpochTimestamp
+            nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp
         ) {
             revert VeCVE__PreEpochRestriction();
         }
