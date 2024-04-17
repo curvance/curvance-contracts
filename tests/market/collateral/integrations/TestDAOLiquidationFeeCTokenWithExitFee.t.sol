@@ -109,8 +109,6 @@ contract TestCTokenWithExitFeeReserves is TestBaseMarket {
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
-
-        centralRegistry.addSwapper(_UNISWAP_V2_ROUTER);
     }
 
     function provideEnoughLiquidityForLeverage() internal {

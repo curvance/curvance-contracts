@@ -169,9 +169,6 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is an approved swapper.
-    function isSwapper(address addressToCheck) external view returns (bool);
-
     /// @notice Returns whether the inputted address is an approved veCVELocker.
     function isVeCVELocker(
         address addressToCheck

@@ -124,7 +124,6 @@ contract DeployCurvance is
             marketManager,
             _readConfigAddress(".zapper.weth")
         );
-        _addSwapper(complexZapper);
 
         // Deploy PositionFolding
 

@@ -47,7 +47,6 @@ contract TestSimpleZapper is TestBaseMarket {
             address(marketManager),
             _WETH_ADDRESS
         );
-        centralRegistry.addSwapper(address(simpleZapper));
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeAccumulator(address(this));
@@ -230,7 +229,6 @@ contract TestSimpleZapper is TestBaseMarket {
         // skip min hold period
         skip(20 minutes);
 
-        centralRegistry.addSwapper(_UNISWAP_V3_SWAP_ROUTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))

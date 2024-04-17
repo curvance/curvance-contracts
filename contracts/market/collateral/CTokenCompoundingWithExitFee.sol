@@ -124,4 +124,17 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         return value * 1e14;
     }
 
+    function previewWithdraw(
+        uint256 assets
+    ) public view override returns (uint256 shares) {
+        assets = FixedPointMathLib.mulDivUp(assets, 1e18, 1e18 - exitFee);
+        shares = super.previewWithdraw(assets);
+    }
+
+    function previewRedeem(
+        uint256 shares
+    ) public view override returns (uint256 assets) {
+        assets = super.previewRedeem(shares);
+        assets = _removeExitFeeFromAssets(assets);
+    }
 }

@@ -30,7 +30,6 @@ contract StakedGMXCToken is CTokenCompounding {
     error StakedGMXCToken__SlippageError();
     error StakedGMXCToken__InvalidRewardRouter();
     error StakedGMXCToken__InvalidWETH();
-    error StakedGMXCToken__InvalidSwapper(address invalidSwapper);
     error StakedGMXCToken__ChainIsNotSupported();
     error StakedGMXCToken__InvalidSwapData();
 
@@ -53,6 +52,8 @@ contract StakedGMXCToken is CTokenCompounding {
         _setRewardRouter(rewardRouter_);
 
         WETH = IERC20(weth_);
+
+        isApprovedAsset[weth_] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -114,11 +115,8 @@ contract StakedGMXCToken is CTokenCompounding {
                     (SwapperLib.Swap)
                 );
 
-                if (!centralRegistry.isSwapper(swapData.target)) {
-                    revert StakedGMXCToken__InvalidSwapper(swapData.target);
-                }
-
-                if (swapData.inputToken != address(WETH)) {
+                if (!isApprovedAsset[swapData.inputToken]) {
+                    // this will be the same check: `swapData.inputToken != address(WETH)`
                     revert StakedGMXCToken__InvalidSwapData();
                 }
 

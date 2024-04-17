@@ -54,10 +54,6 @@ contract Convex3PoolCToken is CTokenCompounding {
     error Convex3PoolCToken__UnsafePool();
     error Convex3PoolCToken__InvalidVaultConfig();
     error Convex3PoolCToken__InvalidCoinLength();
-    error Convex3PoolCToken__InvalidSwapper(
-        uint256 index,
-        address invalidSwapper
-    );
     error Convex3PoolCToken__NoYield();
     error Convex3PoolCToken__InvalidSwapData();
 
@@ -129,6 +125,14 @@ contract Convex3PoolCToken is CTokenCompounding {
                 ++i;
             }
         }
+
+        // updated approved token list
+        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
+            address rewardToken = strategyData.rewardTokens[i];
+            if (rewardToken != asset()) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -194,9 +198,6 @@ contract Convex3PoolCToken is CTokenCompounding {
             // Claim pending Convex rewards.
             sd.rewarder.getReward(address(this), true);
 
-            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
-                .decode(data, (SwapperLib.Swap[], uint256));
-
             uint256 numRewardTokens = sd.rewardTokens.length;
             address rewardToken;
             uint256 rewardAmount;
@@ -237,17 +238,12 @@ contract Convex3PoolCToken is CTokenCompounding {
             }
 
             // Prep liquidity for Curve Pool.
+            (SwapperLib.Swap[] memory swapDataArray, uint256 minLPAmount) = abi
+                .decode(data, (SwapperLib.Swap[], uint256));
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (!centralRegistry.isSwapper(swapDataArray[i].target)) {
-                        revert Convex3PoolCToken__InvalidSwapper(
-                            i,
-                            swapDataArray[i].target
-                        );
-                    }
-
-                    if (swapDataArray[i].inputToken == asset()) {
+                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
                         revert Convex3PoolCToken__InvalidSwapData();
                     }
 

@@ -23,8 +23,13 @@ import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.s
 ///      namely leveraging a position up or deleveraging it for withdrawal.
 ///
 ///      CToken and DToken contracts facilitate these operations through
-///      integration with Position Foldings callback functions. 
-contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard {
+///      integration with Position Foldings callback functions.
+contract PositionFolding is
+    IPositionFolding,
+    Delegable,
+    ERC165,
+    ReentrancyGuard
+{
     /// TYPES ///
 
     /// @param borrowToken Address of dToken that will be borrowed from.
@@ -91,7 +96,6 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
     error PositionFolding__InvalidSlippage();
     error PositionFolding__InvalidCentralRegistry();
     error PositionFolding__InvalidMarketManager();
-    error PositionFolding__InvalidSwapper(address invalidSwapper);
     error PositionFolding__InvalidSwapperParam();
     error PositionFolding__InvalidParam();
     error PositionFolding__InvalidAmount();
@@ -300,13 +304,6 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
 
         // Check to make sure there is calldata attached to execute the swap.
         if (leverageData.swapData.call.length > 0) {
-            // Validate that the target Swapper is approved inside Curvance.
-            if (!centralRegistry.isSwapper(leverageData.swapData.target)) {
-                revert PositionFolding__InvalidSwapper(
-                    leverageData.swapData.target
-                );
-            }
-
             // Swap borrow underlying to Zapper input token.
             SwapperLib.swap(centralRegistry, leverageData.swapData);
         }
@@ -316,13 +313,6 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
 
         // Check to make sure there is calldata attached to execute the zap.
         if (swapZap.call.length > 0) {
-            // Validate that the target Zapper is approved inside Curvance.
-            if (!centralRegistry.isSwapper(leverageData.swapZap.target)) {
-                revert PositionFolding__InvalidSwapper(
-                    leverageData.swapZap.target
-                );
-            }
-
             // Execute Zap from `borrowToken` underlying into cToken
             // underlying.
             SwapperLib.swap(centralRegistry, swapZap);
@@ -333,7 +323,7 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
         // token here the post conditional solvency check will revert
         // the whole operation.
         CTokenPrimitive collateralToken = leverageData.collateralToken;
-        
+
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = collateralToken.underlying();
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
@@ -451,26 +441,12 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
                 revert PositionFolding__InvalidSwapperParam();
             }
 
-            // Validate that the target Zapper is approved inside Curvance.
-            if (!centralRegistry.isSwapper(deleverageData.swapZap.target)) {
-                revert PositionFolding__InvalidSwapper(
-                    deleverageData.swapZap.target
-                );
-            }
-
             // Execute Zap from cToken underlying into unwrapped assets.
             SwapperLib.swap(centralRegistry, swapZap);
         }
 
         // Check to make sure there is calldata attached to execute the swap.
         if (deleverageData.swapData.call.length > 0) {
-            // Validate that the target Swapper is approved inside Curvance.
-            if (!centralRegistry.isSwapper(deleverageData.swapData.target)) {
-                revert PositionFolding__InvalidSwapper(
-                    deleverageData.swapData.target
-                );
-            }
-
             // Swap Swapper input token for borrow underlying.
             SwapperLib.swap(centralRegistry, deleverageData.swapData);
         }
@@ -547,16 +523,16 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
 
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV). 
-        // 
+        // in the equation 1 / (1 - LTV).
+        //
         // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage. 
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
         // The equation below is equal to this equation,
         // just extrapolated for an account's collateral vs debt.
         //
         // We also embed a `MAX_LEVERAGE` dampening effect to minimize
         // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees. 
+        // such as price fluctuations, and AMM fees.
         uint256 maxLeverage = ((sumCollateral - sumDebt) *
             MAX_LEVERAGE *
             sumCollateral) /
@@ -573,7 +549,9 @@ contract PositionFolding is IPositionFolding, Delegable, ERC165, ReentrancyGuard
             revert PositionFolding__InvalidTokenPrice();
         }
 
-        return ((maxLeverage - sumDebt) * 1e18) / price;
+        return
+            ((((maxLeverage - sumDebt) * 1e18) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / 1e18;
     }
 
     /// @inheritdoc ERC165

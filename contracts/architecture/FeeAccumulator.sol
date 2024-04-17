@@ -99,10 +99,6 @@ contract FeeAccumulator is ReentrancyGuard {
         address inputToken,
         address currentToken
     );
-    error FeeAccumulator__SwapDataInvalidSwapper(
-        uint256 index,
-        address invalidSwapper
-    );
     error FeeAccumulator__SwapDataCurrentTokenIsNotRewardToken(
         uint256 index,
         address currentToken
@@ -203,12 +199,6 @@ contract FeeAccumulator is ReentrancyGuard {
                     i,
                     swapDataArray[i].outputToken,
                     feeToken
-                );
-            }
-            if (!centralRegistry.isSwapper(swapDataArray[i].target)) {
-                revert FeeAccumulator__SwapDataInvalidSwapper(
-                    i,
-                    swapDataArray[i].target
                 );
             }
 

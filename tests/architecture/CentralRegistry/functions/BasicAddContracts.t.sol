@@ -16,21 +16,18 @@ contract BasicAddContractsTest is TestBaseMarket {
         super.setUp();
 
         addFuncs = [
-            "addSwapper(address)",
             "addVeCVELocker(address)",
             "addGaugeController(address)",
             "addHarvester(address)",
             "addEndpoint(address)"
         ];
         maps = [
-            "isSwapper(address)",
             "isVeCVELocker(address)",
             "isGaugeController(address)",
             "isHarvester(address)",
             "isEndpoint(address)"
         ];
         expectedLogs = [
-            "Swapper",
             "VeCVELocker",
             "Gauge Controller",
             "Harvestor",

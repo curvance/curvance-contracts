@@ -48,7 +48,6 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
     /// ERRORS ///
 
     error AuraCToken__InvalidVaultConfig();
-    error AuraCToken__InvalidSwapper(uint256 index, address invalidSwapper);
 
     /// CONSTRUCTOR ///
 
@@ -241,15 +240,6 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
 
                     // swap from rewardToken to underlying LP token if necessary
                     if (!isUnderlyingToken[rewardToken]) {
-                        if (
-                            !centralRegistry.isSwapper(swapDataArray[i].target)
-                        ) {
-                            revert AuraCToken__InvalidSwapper(
-                                i,
-                                swapDataArray[i].target
-                            );
-                        }
-
                         SwapperLib.swap(centralRegistry, swapDataArray[i]);
                     }
                 }

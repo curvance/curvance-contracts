@@ -495,7 +495,6 @@ contract TestBaseMarket is TestBase {
             address(marketManager),
             _WETH_ADDRESS
         );
-        centralRegistry.addSwapper(address(complexZapper));
         centralRegistry.setExternalCallDataChecker(
             address(complexZapper),
             address(

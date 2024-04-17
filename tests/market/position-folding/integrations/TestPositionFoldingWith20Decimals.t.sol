@@ -7,19 +7,19 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockToken } from "contracts/mocks/MockToken.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
-contract TestPositionFolding is TestBaseMarket {
+contract TestPositionFoldingWith20Decimals is TestBaseMarket {
     address internal constant _UNISWAP_V2_ROUTER =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     address public owner;
     address public user;
     MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
@@ -28,6 +28,8 @@ contract TestPositionFolding is TestBaseMarket {
     fallback() external payable {}
 
     function setUp() public override {
+        _USDC_ADDRESS = address(new MockToken("USDC", "USDC", 20));
+
         super.setUp();
 
         owner = address(this);
@@ -44,14 +46,6 @@ contract TestPositionFolding is TestBaseMarket {
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             address(mockUsdcFeed),
-            0,
-            true
-        );
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
             0,
             true
         );
@@ -82,8 +76,7 @@ contract TestPositionFolding is TestBaseMarket {
             false
         );
 
-        _prepareUSDC(user, 200000e6);
-        _prepareDAI(user, 200000e18);
+        _prepareUSDC(user, 200000e20);
         _prepareBALRETH(user, 1 ether);
 
         // start epoch
@@ -92,20 +85,19 @@ contract TestPositionFolding is TestBaseMarket {
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // setup dDAI
+        // setup dUSDC
         {
-            _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            _prepareUSDC(owner, 200000e20);
+            usdc.approve(address(dUSDC), 200000e20);
+            marketManager.listToken(address(dUSDC));
+            // // add MToken support on price router
+            // oracleRouter.addMTokenSupport(address(dUSDC));
         }
 
         // setup CBALRETH
@@ -137,22 +129,6 @@ contract TestPositionFolding is TestBaseMarket {
             address(positionFolding)
         );
 
-        // vm.warp(gaugePool.startTime());
-        // vm.roll(block.number + 1000);
-
-        // // set gauge settings of next epoch
-        // address[] memory tokensParam = new address[](2);
-        // tokensParam[0] = address(dDAI);
-        // tokensParam[1] = address(cBALRETH);
-        // uint256[] memory poolWeights = new uint256[](2);
-        // poolWeights[0] = 100;
-        // poolWeights[1] = 100;
-        // vm.prank(protocolMessagingHub);
-        // gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        // vm.prank(protocolMessagingHub);
-        // cve.mintGaugeEmissions(300 * 2 weeks, address(gaugePool));
-        // vm.warp(gaugePool.startTime() + 1 * 2 weeks);
-
         // provide enough liquidity for leverage
         provideEnoughLiquidityForLeverage();
 
@@ -164,16 +140,31 @@ contract TestPositionFolding is TestBaseMarket {
 
     function provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareDAI(liquidityProvider, 200000e18);
+        _prepareUSDC(liquidityProvider, 200000e20);
         _prepareBALRETH(liquidityProvider, 10 ether);
-        // mint dDAI
+        // mint dUSDC
         vm.startPrank(liquidityProvider);
-        dai.approve(address(dDAI), 200000 ether);
-        dDAI.mint(200000 ether);
+        usdc.approve(address(dUSDC), 200000e20);
+        dUSDC.mint(200000e20);
         // mint cBALETH
         balRETH.approve(address(cBALRETH), 10 ether);
         cBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
+
+        deal(_USDC_ADDRESS, address(this), 300000e20);
+        deal(_WETH_ADDRESS, address(this), 100e18);
+        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 300000e20);
+        IERC20(_WETH_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100e18);
+        IUniswapV2Router(_UNISWAP_V2_ROUTER).addLiquidity(
+            address(usdc),
+            _WETH_ADDRESS,
+            200000e20,
+            100e18,
+            0,
+            0,
+            address(this),
+            block.timestamp
+        );
     }
 
     function testInitialize() public {
@@ -198,26 +189,26 @@ contract TestPositionFolding is TestBaseMarket {
         marketManager.postCollateral(user, address(cBALRETH), 1 ether);
         assertEq(cBALRETH.balanceOf(user), 1 ether);
 
-        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        uint256 balanceBeforeBorrow = usdc.balanceOf(user);
         // borrow
-        dDAI.borrow(100 ether);
-        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+        dUSDC.borrow(100e20);
+        assertEq(balanceBeforeBorrow + 100e20, usdc.balanceOf(user));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionFolding
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user, address(dUSDC)) * 50) /
             100;
 
         PositionFolding.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
+        leverageData.borrowToken = dUSDC;
         leverageData.borrowAmount = amountForLeverage;
         leverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
-        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputToken = address(usdc);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
         leverageData.swapData.target = _UNISWAP_V2_ROUTER;
         address[] memory path = new address[](2);
-        path[0] = address(dai);
+        path[0] = address(usdc);
         path[1] = _WETH_ADDRESS;
         leverageData.swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
@@ -254,11 +245,13 @@ contract TestPositionFolding is TestBaseMarket {
             address(positionFolding)
         );
 
-        positionFolding.leverage(leverageData, 500);
+        positionFolding.leverage(leverageData, 1500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+        (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
+            user
+        );
+        assertEq(dUSDCBalance, 0);
+        assertEq(dUSDCBorrowed, 100e20 + amountForLeverage);
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
             .getSnapshot(user);
@@ -272,18 +265,18 @@ contract TestPositionFolding is TestBaseMarket {
         testLeverage();
         // Warp until collateral posting wait time ends
         vm.warp(block.timestamp + 20 minutes);
-        dDAI.accrueInterest();
+        dUSDC.accrueInterest();
 
         vm.startPrank(user);
 
         PositionFolding.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
+        (, uint256 dUSDCBorrowedBefore, ) = dUSDC.getSnapshot(user);
         (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user);
 
         deleverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
         deleverageData.collateralAmount = 0.3 ether;
-        deleverageData.borrowToken = dDAI;
+        deleverageData.borrowToken = dUSDC;
 
         deleverageData.swapZap.inputToken = address(balRETH);
         deleverageData.swapZap.inputAmount = deleverageData.collateralAmount;
@@ -316,11 +309,11 @@ contract TestPositionFolding is TestBaseMarket {
         uint256 amountForDeleverage = 0.3 ether;
         deleverageData.swapData.inputToken = _WETH_ADDRESS;
         deleverageData.swapData.inputAmount = amountForDeleverage;
-        deleverageData.swapData.outputToken = address(dai);
+        deleverageData.swapData.outputToken = address(usdc);
         deleverageData.swapData.target = _UNISWAP_V2_ROUTER;
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
-        path[1] = address(dai);
+        path[1] = address(usdc);
         deleverageData.swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForDeleverage,
@@ -334,13 +327,15 @@ contract TestPositionFolding is TestBaseMarket {
         deleverageData.repayAmount = amountsOut[1];
 
         cBALRETH.approve(address(positionFolding), type(uint256).max);
-        positionFolding.deleverage(deleverageData, 500);
+        positionFolding.deleverage(deleverageData, 1500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
+        (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
+            user
+        );
+        assertEq(dUSDCBalance, 0);
         assertEq(
-            dDAIBorrowed,
-            dDAIBorrowedBefore - deleverageData.repayAmount
+            dUSDCBorrowed,
+            dUSDCBorrowedBefore - deleverageData.repayAmount
         );
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH

@@ -663,7 +663,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
     /// @return The assets received quoted as shares for withdrawing `assets`.
     function previewWithdraw(
         uint256 assets
-    ) public view override returns (uint256) {
+    ) public view override virtual returns (uint256) {
         return _previewWithdraw(assets, totalAssets());
     }
 
@@ -674,7 +674,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
     /// @return The assets received for withdrawing `shares`.
     function previewRedeem(
         uint256 shares
-    ) public view override returns (uint256) {
+    ) public view override virtual returns (uint256) {
         return _previewRedeem(shares, totalAssets());
     }
 

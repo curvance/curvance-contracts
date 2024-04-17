@@ -60,7 +60,6 @@ contract AerodromeStableCToken is CTokenCompounding {
     error AerodromeStableCToken__StakingTokenIsNotAsset(address stakingToken);
     error AerodromeStableCToken__AssetIsNotStable();
     error AerodromeStableCToken__SlippageError();
-    error AerodromeStableCToken__InvalidSwapper(address invalidSwapper);
     error AerodromeStableCToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -114,6 +113,10 @@ contract AerodromeStableCToken is CTokenCompounding {
         rewardTokenIsUnderlying = (address(rewardToken) ==
             strategyData.token0 ||
             address(rewardToken) == strategyData.token1);
+
+        if (address(rewardToken) != asset()) {
+            isApprovedAsset[address(rewardToken)] = true;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -172,13 +175,8 @@ contract AerodromeStableCToken is CTokenCompounding {
                             (SwapperLib.Swap)
                         );
 
-                        if (!centralRegistry.isSwapper(swapData.target)) {
-                            revert AerodromeStableCToken__InvalidSwapper(
-                                swapData.target
-                            );
-                        }
-
-                        if (swapData.inputToken != address(rewardToken)) {
+                        if (!isApprovedAsset[swapData.inputToken]) {
+                            // this will be the same check: `swapData.inputToken != rewardToken`
                             revert AerodromeStableCToken__InvalidSwapData();
                         }
 

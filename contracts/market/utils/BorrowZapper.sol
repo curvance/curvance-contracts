@@ -12,7 +12,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract BorrowZapper is FeeTokenBridgingHub {
     /// ERRORS ///
 
-    error BorrowZapper__InvalidSwapper(address invalidSwapper);
     error BorrowZapper__InvalidSwapData();
 
     /// CONSTRUCTOR ///
@@ -60,13 +59,7 @@ contract BorrowZapper is FeeTokenBridgingHub {
                 revert BorrowZapper__InvalidSwapData();
             }
 
-            // Validate target contract is an approved swapper.
-            if (!centralRegistry.isSwapper(swapData.target)) {
-                revert BorrowZapper__InvalidSwapper(swapData.target);
-            }
-            unchecked {
-                SwapperLib.swap(centralRegistry, swapData);
-            }
+            SwapperLib.swap(centralRegistry, swapData);
         } else {
             if (swapData.target != address(0)) {
                 revert BorrowZapper__InvalidSwapData();
