@@ -1111,7 +1111,6 @@ contract CentralRegistry is ERC165 {
     /// @param currentMarketManager The supported Market Manager contract
     ///                             to remove from Curvance.
     function removeMarketManager(address currentMarketManager) public virtual {
-    function removeMarketManager(address currentMarketManager) public virtual {
         _checkElevatedPermissions();
 
         // Validate `currentMarketManager` is currently supported.
