@@ -170,8 +170,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("0x01")
         );
 
+        uint256 oneBalanceFee = (100e6 *
+            centralRegistry.protocolCompoundFee()) /
+            centralRegistry.protocolHarvestFee();
+
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(cveLocker)), 100e6);
+        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee);
+        assertEq(usdc.balanceOf(address(cveLocker)), 100e6 - oneBalanceFee);
 
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
@@ -189,7 +194,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
+        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee * 2);
+        assertEq(
+            usdc.balanceOf(centralRegistry.daoAddress()),
+            100e6 - oneBalanceFee
+        );
     }
 
     function test_receiveWormholeMessages_success_whenPayloadIdIs4() public {

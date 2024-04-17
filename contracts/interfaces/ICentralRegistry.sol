@@ -84,6 +84,11 @@ interface ICentralRegistry {
     /// @notice Returns WormholeRelayer contract address.
     function wormholeRelayer() external view returns (IWormholeRelayer);
 
+    /// @notice Returns WormholeRelayer contract address for chain ID.
+    function wormholeRelayers(
+        uint256 chainId
+    ) external view returns (IWormholeRelayer);
+
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
@@ -126,6 +131,10 @@ interface ICentralRegistry {
 
     /// @notice Returns how many other chains are supported
     function supportedChains() external view returns (uint256);
+
+    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
+    ///         format.
+    function foreignChainIDs() external view returns (uint256[] memory);
 
     /// @notice Address array for all Curvance Market Managers on this chain.
     function marketManagers() external view returns (address[] memory);

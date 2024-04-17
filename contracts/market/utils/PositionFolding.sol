@@ -423,7 +423,7 @@ contract PositionFolding is
         }
 
         // Take protocol fee, if any.
-        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / 10000;
+        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
         if (fee > 0) {
             collateralAmount -= fee;
             SafeTransferLib.safeTransfer(

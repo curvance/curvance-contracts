@@ -12,17 +12,10 @@ import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMe
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 contract FeeTokenBridgingHub is ReentrancyGuard {
-    /// TYPES ///
-
-    enum Transfer {
-        TOKEN_BRIDGE,
-        CCTP
-    }
-
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _GAS_LIMIT = 250_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -55,15 +48,17 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Quotes gas cost and token fee for executing crosschain
-    ///         wormhole deposit and messaging.
+    ///         deposit and messaging.
     /// @param dstChainId GETH destination chain ID.
     /// @param transferToken Whether deliver token or not.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Total gas cost to send a message to `dstChainId`.
-    function quoteWormholeFee(
+    function quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken
+        bool transferToken,
+        uint256 gasLimit
     ) external view returns (uint256) {
-        return _quoteWormholeFee(dstChainId, transferToken);
+        return _quoteMessageFee(dstChainId, transferToken, gasLimit);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -72,12 +67,14 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// @param dstChainId GETH destination chain ID.
     /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
         address to,
-        uint256 amount
+        uint256 amount,
+        uint256 gasLimit
     ) internal {
-        uint256 wormholeFee = _quoteWormholeFee(dstChainId, true);
+        uint256 wormholeFee = _quoteMessageFee(dstChainId, true, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -99,7 +96,8 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
                 dstChainId,
                 to,
                 amount,
-                wormholeFee
+                wormholeFee,
+                gasLimit
             );
         } else {
             _transferTokenViaWormhole(
@@ -107,7 +105,8 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
                 dstChainId,
                 to,
                 amount,
-                wormholeFee
+                wormholeFee,
+                gasLimit
             );
         }
     }
@@ -120,12 +119,14 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// @param amount The amount of token to transfer.
     /// @param wormholeFee Total gas cost to attach send a CCTP message
     ///                    to `dstChainId`.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function _transferFeeTokenViaCCTP(
         ITokenMessenger circleTokenMessenger,
         uint256 dstChainId,
         address to,
         uint256 amount,
-        uint256 wormholeFee
+        uint256 wormholeFee,
+        uint256 gasLimit
     ) internal {
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
         uint16 wormholeChainId = centralRegistry.wormholeChainId(dstChainId);
@@ -141,7 +142,13 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
             centralRegistry.cctpDomain(dstChainId),
             bytes32(uint256(uint160(to))),
             feeToken,
-            bytes32(uint256(uint160(to)))
+            bytes32(
+                uint256(
+                    uint160(
+                        address(centralRegistry.wormholeRelayers(dstChainId))
+                    )
+                )
+            )
         );
 
         IWormholeRelayer.MessageKey[]
@@ -160,7 +167,7 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
             abi.encode(uint8(1), feeToken, amount),
             0,
             0,
-            _GAS_LIMIT,
+            gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
             wormholeChainId,
             address(0),
             defaultDeliveryProvider,
@@ -176,24 +183,25 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
     /// @param amount The amount of token to transfer.
     /// @param wormholeFee Total gas cost to attach send a Wormhole message
     ///                    to `dstChainId`.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     function _transferTokenViaWormhole(
         address token,
         uint256 dstChainId,
         address to,
         uint256 amount,
-        uint256 wormholeFee
+        uint256 wormholeFee,
+        uint256 gasLimit
     ) internal returns (uint64) {
         ITokenBridge tokenBridge = centralRegistry.tokenBridge();
         uint16 wormholeChainId = centralRegistry.wormholeChainId(dstChainId);
         IWormhole wormholeCore = centralRegistry.wormholeCore();
-        uint256 messageFee = wormholeCore.messageFee();
 
         SwapperLib._approveTokenIfNeeded(token, address(tokenBridge), amount);
 
         bytes memory payload = abi.encode(uint8(1), feeToken, amount);
 
         uint64 sequence = tokenBridge.transferTokensWithPayload{
-            value: messageFee
+            value: wormholeCore.messageFee()
         }(
             token,
             amount,
@@ -213,31 +221,37 @@ contract FeeTokenBridgingHub is ReentrancyGuard {
 
         return
             centralRegistry.wormholeRelayer().sendVaasToEvm{
-                value: wormholeFee - messageFee
-            }(wormholeChainId, to, payload, 0, _GAS_LIMIT, vaaKeys);
+                value: wormholeFee - wormholeCore.messageFee()
+            }(
+                wormholeChainId,
+                to,
+                payload,
+                0,
+                gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
+                vaaKeys
+            );
     }
 
     /// @notice Quotes gas cost and token fee for executing crosschain
-    ///         wormhole deposit and messaging.
+    ///         deposit and messaging.
     /// @param dstChainId GETH destination chain ID.
     /// @param transferToken Whether deliver token or not.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost.
-    function _quoteWormholeFee(
+    function _quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken
+        bool transferToken,
+        uint256 gasLimit
     ) internal view returns (uint256 nativeFee) {
-        IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
-        IWormhole wormholeCore = centralRegistry.wormholeCore();
-
-        (nativeFee, ) = wormholeRelayer.quoteEVMDeliveryPrice(
+        (nativeFee, ) = centralRegistry.wormholeRelayer().quoteEVMDeliveryPrice(
             centralRegistry.wormholeChainId(dstChainId),
             0,
-            _GAS_LIMIT
+            gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
         );
 
         if (transferToken) {
             // Add cost of publishing the 'sending token' wormhole message.
-            nativeFee += wormholeCore.messageFee();
+            nativeFee += centralRegistry.wormholeCore().messageFee();
         }
     }
 }

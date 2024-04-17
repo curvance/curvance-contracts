@@ -424,7 +424,10 @@ contract DynamicInterestRateModel is ERC165 {
             return 0;
         }
 
-        return (borrows * WAD) / (cash + borrows - reserves);
+        uint256 utilRate = (borrows * WAD) / (cash + borrows - reserves);
+        // If reserves end up growing too much and cause util > 100%,
+        // cap it to 100%.
+        return utilRate > WAD ? WAD : utilRate;
     }
 
     /// @notice Calculates the current borrow rate per compound,
@@ -632,6 +635,7 @@ contract DynamicInterestRateModel is ERC165 {
             _SECONDS_PER_YEAR;
 
         config.vertexStartingPoint = vertexUtilStart;
+        config.vertexMultiplierMax = vertexMultiplierMax;
         config.adjustmentRate = adjustmentRate;
         config.adjustmentVelocity = adjustmentVelocity;
 

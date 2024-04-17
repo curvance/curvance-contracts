@@ -32,12 +32,14 @@ contract BorrowZapper is FeeTokenBridgingHub {
     /// @param borrowAmount The amount of dToken underlying to borrow.
     /// @param swapData Swap instruction data to route from dToken underlying
     ///                 to `feeToken`.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
     function borrowAndBridge(
         address dToken,
         uint256 borrowAmount,
         SwapperLib.Swap memory swapData,
-        uint256 dstChainId
+        uint256 dstChainId,
+        uint256 gasLimit
     ) external payable nonReentrant {
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
@@ -68,7 +70,8 @@ contract BorrowZapper is FeeTokenBridgingHub {
         _sendFeeToken(
             dstChainId,
             msg.sender,
-            IERC20(feeToken).balanceOf(address(this)) - balancePrior
+            IERC20(feeToken).balanceOf(address(this)) - balancePrior,
+            gasLimit
         );
     }
 }

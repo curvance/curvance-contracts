@@ -94,30 +94,40 @@ contract CVE is ERC20 {
     /// @param dstChainId Chain ID of the target blockchain.
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridge(
         uint256 dstChainId,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        uint256 gasLimit
     ) external payable returns (uint64) {
         address messagingHub = centralRegistry.protocolMessagingHub();
         _burn(msg.sender, amount);
         _mint(messagingHub, amount);
 
         return
-            IProtocolMessagingHub(messagingHub).bridgeCVE{ value: msg.value }(
+            IProtocolMessagingHub(messagingHub).bridgeToken{ value: msg.value }(
                 dstChainId,
                 recipient,
-                amount
+                amount,
+                gasLimit,
+                0,
+                false
             );
     }
 
     /// @notice Returns required amount of native asset for message fee.
+    /// @param dstChainId Chain ID of the target blockchain.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Required fee.
-    function bridgeFee() external view returns (uint256) {
+    function bridgeFee(
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) external view returns (uint256) {
         return
             IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                .cveBridgeFee();
+                .quoteMessageFee(dstChainId, true, gasLimit);
     }
 
     /// PUBLIC FUNCTIONS ///

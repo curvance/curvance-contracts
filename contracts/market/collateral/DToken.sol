@@ -1113,7 +1113,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         }
 
         // Fails if transfer not allowed.
-        marketManager.canTransfer(address(this), from, tokens);
+        marketManager.canTransferDToken(address(this), from, tokens);
 
         // Get the allowance, if the spender is not the `from` address.
         if (spender != from) {

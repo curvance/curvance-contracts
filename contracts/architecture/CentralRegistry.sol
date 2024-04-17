@@ -170,6 +170,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Number of chains supported.
     uint256 public supportedChains;
+    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
+    ///         format.
+    uint256[] public foreignChainIDs;
     /// @notice Address array for all Curvance markets on this chain.
     address[] public marketManagers;
 
@@ -186,6 +189,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Wormhole specific chain ID for evm chain ID.
     mapping(uint256 => uint16) public wormholeChainId;
+
+    /// @notice Wormhole relayer for evm chain ID.
+    mapping(uint256 => IWormholeRelayer) public wormholeRelayers;
 
     /// @notice CCTP domain for evm chain ID.
     mapping(uint256 => uint32) public cctpDomain;
@@ -227,6 +233,7 @@ contract CentralRegistry is ERC165 {
     event FeeTokenSet(address newAddress);
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
+    event WormholeRelayersSet(uint256[] chainIds, address[] newAddresses);
     event CircleTokenMessengerSet(address newAddress);
     event WormholeChainIDsSet(uint256[] chainIds, uint16[] wormholeChainIds);
     event CCTPDomainsSet(uint256[] chainIds, uint32[] cctpDomains);
@@ -489,6 +496,28 @@ contract CentralRegistry is ERC165 {
             cctpDomain[chainIds[i]] = cctpDomains[i];
         }
         emit CCTPDomainsSet(chainIds, cctpDomains);
+    }
+
+    /// @notice Sets new WormholeRelayer contract addresses.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {WormholeRelayerSet} event.
+    /// @param chainIds The chain ID for each wormholeRelayer.
+    /// @param newWormholeRelayers The new addresses of wormholeRelayer.
+    function registerWormholeRelayers(
+        uint256[] calldata chainIds,
+        address[] calldata newWormholeRelayers
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 numChainIds = chainIds.length;
+
+        for (uint256 i = 0; i < numChainIds; i++) {
+            wormholeRelayers[chainIds[i]] = IWormholeRelayer(
+                newWormholeRelayers[i]
+            );
+        }
+
+        emit WormholeRelayersSet(chainIds, newWormholeRelayers);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas

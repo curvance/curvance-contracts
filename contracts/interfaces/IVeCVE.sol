@@ -50,6 +50,11 @@ interface IVeCVE {
         address user
     ) external view returns (uint256[] memory, uint256[] memory);
 
+    /// @notice Returns the current epoch for the given time.
+    /// @param time The timestamp for which to calculate the epoch.
+    /// @return The current epoch.
+    function currentEpoch(uint256 time) external view returns (uint256);
+
     /// @notice Returns the chain's current token points for
     function chainPoints() external view returns (uint256);
 
@@ -79,6 +84,13 @@ interface IVeCVE {
     ///      userUnlocksByEpoch[user][epoch] > 0
     ///      so we do not need to check here.
     function updateUserPoints(address user, uint256 epoch) external;
+
+    /// @notice Updates chain points by reducing the amount that gets unlocked
+    ///         in a specific epoch.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
+    /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
+    ///      so we do not need for equal 0 here.
+    function updateChainPoints(uint256 epoch) external;
 
     /// @notice Returns the timestamp of when the next epoch begins.
     /// @return The calculated next epoch start timestamp.

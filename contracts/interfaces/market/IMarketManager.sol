@@ -150,23 +150,23 @@ interface IMarketManager {
     /// @param debtToken Asset which was borrowed by the account.
     function canSeize(address collateralToken, address debtToken) external;
 
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
+    /// @notice Checks if the account should be allowed to transfer debt
+    ///         tokens in the given market.
     /// @param mToken The market to verify the transfer against.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransfer(
+    function canTransferDToken(
         address mToken,
         address from,
         uint256 amount
     ) external;
 
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
+    /// @notice Checks if the account should be allowed to transfer collateral
+    ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransferWithPrune(
+    function canTransferCToken(
         address mToken,
         address from,
         uint256 amount

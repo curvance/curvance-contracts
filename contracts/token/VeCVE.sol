@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -100,6 +100,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
     struct Lock {
         uint216 amount;
         uint40 unlockTime;
+    }
+
+    /// @notice Stores instructions for bridging a voting escrow CVE position
+    ///         to another chain.
+    struct BridgeData {
+        uint256 dstChainId;
+        uint256 gasLimit;
+        bool continuousLock;
     }
 
     /// CONSTANTS ///
@@ -746,16 +754,21 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Moves a lock from this chain to `dstChainId`,
     ///         and processes any pending locker rewards.
     /// @param lockIndex The index of the lock to bridge.
-    /// @param dstChainId The Chain ID of the desired destination chain.
-    /// @param continuousLock Whether the bridged lock should be continuous
-    ///                       or not.
+    /// @param bridgeData Struct containing instructions for moving a
+    ///                   voting escrow lock to a desired destination chain.
+    ///                   Contains:
+    ///                   dstChainId The Chain ID of the desired destination
+    ///                              chain.
+    ///                   continuousLock Whether the bridged lock should be
+    ///                                  continuous or not.
+    ///                   gasLimit Gas limit with which to call on destination
+    ///                            chain.                   
     /// @param rewardsData Rewards data for CVE rewards locker.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
-    function bridgeVeCVELock(
+    function bridgeLock(
         uint256 lockIndex,
-        uint256 dstChainId,
-        bool continuousLock,
+        BridgeData calldata bridgeData,     
         RewardsData calldata rewardsData,
         bytes calldata params,
         uint256 aux
@@ -783,11 +796,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
-        Lock memory lock = locks[lockIndex];
-        uint256 amount = lock.amount;
+        uint256 amount = locks[lockIndex].amount;
 
         // Update their points to reflect the removed lock.
-        _updateDataFromEarlyUnlock(msg.sender, amount, lock.unlockTime);
+        _updateDataFromEarlyUnlock(
+            msg.sender,
+            amount,
+            locks[lockIndex].unlockTime
+        );
 
         // Burn their VeCVE.
         _burn(msg.sender, amount);
@@ -796,11 +812,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Burn the CVE for bridged lock.
         ICVE(cve).burnVeCVELock(amount);
 
-        address messagingHub = centralRegistry.protocolMessagingHub();
-
-        sequence = IProtocolMessagingHub(messagingHub).bridgeVeCVELock{
-            value: msg.value
-        }(dstChainId, msg.sender, amount, continuousLock);
+        sequence = IProtocolMessagingHub(
+            centralRegistry.protocolMessagingHub()
+        ).bridgeToken{ value: msg.value }(
+            bridgeData.dstChainId,
+            msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
+            amount,
+            bridgeData.gasLimit,
+            4,
+            bridgeData.continuousLock
+        );
 
         // Check whether the user has no remaining locks and reset their
         // index, that way if in the future they create a new lock,
@@ -862,7 +883,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _burn(msg.sender, amount);
         _removeLock(locks, lockIndex);
 
-        // Penalty value = lock amount * penalty multiplier, in `WAD`,
+        // Penalty value = lock amount * penalty multiplier,
         // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         uint256 penaltyAmount = _getUnlockPenalty(
@@ -896,8 +917,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param user The address of the user whose points are to be updated.
     /// @param epoch The epoch from which the unlock amount will be reduced.
     /// @dev This function is only called when
-    ///      userUnlocksByEpoch[user][epoch] > 0
-    ///      so we do not need to check here.
+    ///      userUnlocksByEpoch[user][epoch] > 0 so we do not need to check
+    ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
         _checkEpochStatus();
 
@@ -909,11 +930,24 @@ contract VeCVE is ERC20, ReentrancyGuard {
             }
         }
 
-        unchecked {
-            userPoints[user] =
-                userPoints[user] -
-                userUnlocksByEpoch[user][epoch];
+        userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
+    }
+
+    /// @notice Updates chain points by reducing the amount that gets unlocked
+    ///         in a specific epoch.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
+    /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
+    ///      so we do not need for equal 0 here.
+    function updateChainPoints(uint256 epoch) external {
+        address _cveLocker = address(cveLocker);
+        assembly {
+            if iszero(eq(caller(), _cveLocker)) {
+                mstore(0x00, _UNAUTHORIZED_SELECTOR)
+                revert(0x1c, 0x04)
+            }
         }
+        
+        chainPoints = chainPoints - chainUnlocksByEpoch[epoch];
     }
 
     /// View Functions ///
@@ -1090,8 +1124,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param user The address of the user whose lock is being used
     ///              for the calculation.
     /// @param lockIndex The index of the lock to calculate penalty for.
-    /// @return The penalty associated with immediately unlocking `lockIndex`,
-    ///         in `WAD`.
+    /// @return The penalty associated with immediately unlocking `lockIndex`.
     function getUnlockPenalty(
         address user,
         uint256 lockIndex
@@ -1141,19 +1174,19 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Check whether it should restrict state changes or not.
-    function _checkEpochStatus() internal {
-        uint256 nextEpochStartTime = nextEpochStartTime();
-        uint256 currentEpochStartTime = nextEpochStartTime - EPOCH_DURATION;
+    function _checkEpochStatus() internal view {
+        uint256 nextEpochTimestamp = nextEpochStartTime();
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
         if (
-            currentEpochStartTime <= block.timestamp &&
-            block.timestamp <= currentEpochStartTime + RESTRICTION_DURATION
+            currentEpochTimestamp <= block.timestamp &&
+            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
         ) {
             revert VeCVE__PostEpochRestriction();
         }
         if (
-            nextEpochStartTime - RESTRICTION_DURATION <= block.timestamp &&
-            block.timestamp < nextEpochStartTime
+            nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp &&
+            block.timestamp < nextEpochTimestamp
         ) {
             revert VeCVE__PreEpochRestriction();
         }
@@ -1447,7 +1480,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///         a lock expiring at `unlockTime`
     /// @param amount The token amount to calculate the penalty against.
     /// @param penalty The current early unlock penalty,
-    ///                for full length locks, in `WAD`.
+    ///                for full length locks, in basis points.
     /// @param unlockTime The unlock timestamp to calculate the penalty for.
     /// @return The early unlock penalty for a `amount` lock,
     ///         unlocking at `unlockTime`.
@@ -1456,13 +1489,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 penalty,
         uint256 unlockTime
     ) internal view returns (uint256) {
-        // Penalty value = lock amount * penalty multiplier, in `WAD`,
+        // Penalty value = lock amount * penalty multiplier,
         // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
         return
             (amount *
-                ((penalty * (LOCK_DURATION - (unlockTime - block.timestamp))) /
-                    LOCK_DURATION)) / WAD;
+                ((penalty * (unlockTime - block.timestamp)) /
+                    LOCK_DURATION)) / DENOMINATOR;
     }
 
     /// @dev Internal helper for reverting efficiently.

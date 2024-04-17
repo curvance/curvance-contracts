@@ -27,10 +27,18 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _deal(1000000000000013658 + 1524395970892188412);
+        veCVE.createLock(1000000000000013658, true, rewardsData, "", 0);
+        veCVE.createLock(
+            1524395970892188412,
+            false,
+            rewardsData,
+            "",
+            31449600
+        );
         veCVE.shutdown();
-
         vm.expectRevert(VeCVE.VeCVE__VeCVEShutdown.selector);
-        veCVE.bridgeVeCVELock(0, 42161, true, rewardsData, "", 0);
+        veCVE.combineAllLocks(true, rewardsData, "", 0);
     }
 
     function test_combineAllLocks_fail_whenCombineOneLock(
