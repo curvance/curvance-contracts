@@ -162,6 +162,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
         }
 
         veCVE = IVeCVE(centralRegistry.veCVE());
+        nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
         lockerStarted = 2;
     }
 
@@ -357,14 +358,23 @@ contract CVELocker is Delegable, ReentrancyGuard {
     ///      distributing rewards to a user directly.
     ///      Emits a {ClaimApproval} event.
     /// @param user The address of the user having rewards managed.
-    /// @param epochs The number of epochs for which to manage rewards.
     /// @return How much rewards were claimed for `user` from the locker.
     function manageRewardsFor(
-        address user,
-        uint256 epochs
+        address user
     ) external nonReentrant returns (uint256) {
         if (!_checkIsDelegate(user, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        uint256 epochs = epochsToClaim(user);
+
+        // If there are no epoch rewards to claim, revert.
+        assembly {
+            if iszero(epochs) {
+                mstore(0x00, _NO_EPOCH_REWARDS_SELECTOR)
+                // Return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
         }
 
         // We check whether there are epochs to claim in reward manager
