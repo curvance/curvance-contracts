@@ -136,6 +136,14 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.InvalidAddress();
         }
 
+        // Validate that `marketManager_` is connected to this Gauge Pool.
+        if (
+            address(IMarketManager(marketManager_).gaugePool()) !=
+            address(this)
+            ) {
+            revert GaugeErrors.InvalidAddress();
+        }
+
         startTime = veCVE.nextEpochStartTime();
         marketManager = marketManager_;
     }

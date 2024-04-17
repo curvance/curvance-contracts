@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -15,10 +16,80 @@ import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-/// @notice An auxiliary contract for querying nuanced data 
+import "forge-std/console.sol";
+
+/// @notice An auxiliary contract for querying nuanced data
 ///         inside the Curvance ecosystem.
 contract CurvanceAuxiliaryData {
+    /// TYPES ///
+    struct AccountMarketPosition {
+        uint256 debt;
+        uint256 collateral;
+        uint256 maxDebt;
+    }
+
+    struct MarketData {
+        address marketAddress;
+        uint256 totalTVL;
+        uint256 collateralTVL;
+        uint256 lendingTVL;
+        uint256 borrows;
+        uint256 borrowsAvailable;
+        uint256 collateralPostedByUsd;
+        address[] tokensListed;
+        AccountMarketPosition userMarketPosition;
+    }
+
+    struct AccountAssetPosition {
+        bool hasPosition;
+        uint256 tokenAmount;
+        uint256 collateralOrDebtAmount;
+    }
+
+    struct MarketDTokenData {
+        address assetAddress;
+        address marketAddress;
+        address underlyingAddress;
+        uint256 underlyingBalance;
+        string underlyingName;
+        string underlyingSymbol;
+        uint8 underlyingDecimal;
+        uint256 tvl;
+        uint256 borrows;
+        uint256 supplyRatePerYear;
+        uint256 borrowRatePerYear;
+        uint256 predictedBorrowRatePerYear;
+        uint256 utilizationRate;
+        uint256 liquidityAvailable;
+        uint256 price;
+        AccountAssetPosition userTokenPosition;
+    }
+
+    struct MarketCTokenData {
+        address assetAddress;
+        address marketAddress;
+        address underlyingAddress;
+        uint256 underlyingBalance;
+        string underlyingName;
+        string underlyingSymbol;
+        uint8 underlyingDecimal;
+        uint256 totalCollateralTokens;
+        uint256 totalCollateralPosted;
+        uint256 collateralCap;
+        uint256 price;
+        AccountAssetPosition userTokenPosition;
+    }
+
+    struct AllMarketData {
+        MarketData marketData;
+        MarketDTokenData[] dTokenData;
+        MarketCTokenData[] cTokenData;
+    }
+
+    /// CONSTANTS ///
+    uint256 public constant MARKET_ASSET_RESERVE = 42069;
 
     /// STORAGE ///
 
@@ -43,7 +114,7 @@ contract CurvanceAuxiliaryData {
             revert CurvanceAuxiliaryData__InvalidCentralRegistry();
         }
 
-        centralRegistry = centralRegistry_; 
+        centralRegistry = centralRegistry_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -53,7 +124,7 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current TVL inside Curvance.
     /// @return result The current TVL inside Curvance, in `WAD`.
     function getTotalTVL() external view returns (uint256 result) {
-        address[] memory markets =  centralRegistry.marketManagers();
+        address[] memory markets = this.getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -64,7 +135,7 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current collateral TVL inside Curvance.
     /// @return result The current collateral TVL inside Curvance, in `WAD`.
     function getTotalCollateralTVL() external view returns (uint256 result) {
-        address[] memory markets =  centralRegistry.marketManagers();
+        address[] memory markets = this.getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -75,7 +146,7 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current lending TVL inside Curvance.
     /// @return result The current lending TVL inside Curvance, in `WAD`.
     function getTotalLendingTVL() external view returns (uint256 result) {
-        address[] memory markets =  centralRegistry.marketManagers();
+        address[] memory markets = this.getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -86,7 +157,7 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current outstanding borrows inside Curvance.
     /// @return result The current outstanding borrows inside Curvance, in `WAD`.
     function getTotalBorrows() external view returns (uint256 result) {
-        address[] memory markets =  centralRegistry.marketManagers();
+        address[] memory markets = this.getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -95,25 +166,39 @@ contract CurvanceAuxiliaryData {
     }
 
     function getMarketManagers() external view returns (address[] memory) {
-        return centralRegistry.marketManagers();
+        return centralRegistry.queryMarketManagers();
     }
 
     /// EXTERNAL ACCOUNT-SPECIFIC FUNCTIONS ///
 
-    
-
     /// EXTERNAL TOKEN-SPECIFIC FUNCTIONS ///
 
-    /// @notice Returns if an account has an active position in `token`, 
+    /// @notice Returns if an account has an active position in `token`,
     ///         and any user balances or collateral posted in `token`.
     /// @param account The address of the account to check token data of.
     /// @param token The address of the market token.
     function getAccountTokenData(
-        address account, 
+        address account,
         address token
-    ) external view returns (bool, uint256, uint256) {
-        IMarketManager marketManager = IMarketManager(IMToken(token).marketManager());
-        return marketManager.tokenDataOf(account, token);
+    )
+        external
+        view
+        returns (
+            bool hasPosition,
+            uint256 balanceOf,
+            uint256 collateralOrDebtAmount
+        )
+    {
+        IMarketManager marketManager = IMarketManager(
+            IMToken(token).marketManager()
+        );
+        bool isCToken = IMToken(token).isCToken();
+
+        (hasPosition, balanceOf, collateralOrDebtAmount) = marketManager
+            .tokenDataOf(account, token);
+        collateralOrDebtAmount = isCToken
+            ? collateralOrDebtAmount
+            : IMToken(token).debtBalanceCached(account);
     }
 
     /// @notice Return the debt balance of `account` based on stored data.
@@ -158,13 +243,9 @@ contract CurvanceAuxiliaryData {
         return IMToken(token).supplyRatePerYear();
     }
 
-    function getBaseRewards(address token) external view returns (uint256) {
+    function getBaseRewards(address token) external view returns (uint256) {}
 
-    }
-
-    function getCVERewards(address token) external view returns (uint256) {
-
-    }
+    function getCVERewards(address token) external view returns (uint256) {}
 
     /// ORACLE ROUTER FUNCTIONS ///
 
@@ -183,6 +264,143 @@ contract CurvanceAuxiliaryData {
     /// PUBLIC FUNCTIONS ///
 
     /// MARKET-SPECIFIC FUNCTIONS ///
+    function getAllMarketData(
+        address account
+    ) external view returns (AllMarketData[] memory) {
+        address[] memory markets = this.getMarketManagers();
+        uint256 numMarkets = markets.length;
+        AllMarketData[] memory results = new AllMarketData[](numMarkets);
+
+        for (uint256 i; i < numMarkets; i++) {
+            (
+                MarketDTokenData[] memory dTokenData,
+                MarketCTokenData[] memory cTokenData
+            ) = this.getMarketAssetData(markets[i], account);
+            results[i] = AllMarketData(
+                this.getMarketData(markets[i], account),
+                dTokenData,
+                cTokenData
+            );
+        }
+
+        return results;
+    }
+
+    function getMarketData(
+        address market,
+        address account
+    ) external view returns (MarketData memory result) {
+        if (account != address(0)) {
+            try MarketManager(market).statusOf(account) returns (
+                uint256 collateral,
+                uint256 maxDebt,
+                uint256 debt
+            ) {
+                result.userMarketPosition.collateral = collateral;
+                result.userMarketPosition.maxDebt = maxDebt;
+                result.userMarketPosition.debt = debt;
+            } catch {}
+        }
+
+        result.marketAddress = market;
+        result.totalTVL = getMarketTVL(market);
+        result.collateralTVL = getMarketCollateralTVL(market);
+        result.lendingTVL = getMarketLendingTVL(market);
+        result.borrows = getMarketBorrows(market);
+        result.borrowsAvailable = result.lendingTVL - result.borrows;
+        result.collateralPostedByUsd = getMarketCollateralPostedByUsd(market);
+        result.tokensListed = getMarketAssets(market);
+    }
+
+    function getMarketAssetData(
+        address market,
+        address account
+    )
+        external
+        view
+        returns (MarketDTokenData[] memory, MarketCTokenData[] memory)
+    {
+        address[] memory cTokens = getMarketCollateralAssets(market);
+        MarketCTokenData[] memory cResults = new MarketCTokenData[](
+            cTokens.length
+        );
+        for (uint256 i = 0; i < cTokens.length; i++) {
+            IERC20 token = IERC20(IMToken(cTokens[i]).underlying());
+            MarketCTokenData memory cTokenData;
+
+            if (account != address(0)) {
+                cTokenData.underlyingBalance = token.balanceOf(account);
+
+                (
+                    cTokenData.userTokenPosition.hasPosition,
+                    cTokenData.userTokenPosition.tokenAmount,
+                    cTokenData.userTokenPosition.collateralOrDebtAmount
+                ) = this.getAccountTokenData(account, cTokens[i]);
+            }
+
+            cTokenData.assetAddress = cTokens[i];
+            cTokenData.marketAddress = market;
+            cTokenData.underlyingAddress = address(token);
+            cTokenData.underlyingName = token.name();
+            cTokenData.underlyingSymbol = token.symbol();
+            cTokenData.underlyingDecimal = token.decimals();
+            cTokenData.totalCollateralTokens =
+                IMToken(cTokens[i]).totalSupply() -
+                MARKET_ASSET_RESERVE;
+            cTokenData.totalCollateralPosted = MarketManager(market)
+                .collateralPosted(cTokens[i]);
+            cTokenData.collateralCap = MarketManager(market).collateralCaps(
+                cTokens[i]
+            );
+            cTokenData.price = _getTokenPrice(cTokens[i], true);
+
+            cResults[i] = cTokenData;
+        }
+
+        address[] memory dTokens = getMarketDebtAssets(market);
+        MarketDTokenData[] memory dResults = new MarketDTokenData[](
+            dTokens.length
+        );
+        for (uint256 i = 0; i < dTokens.length; i++) {
+            IERC20 token = IERC20(IMToken(dTokens[i]).underlying());
+            MarketDTokenData memory dTokenData;
+
+            if (account != address(0)) {
+                dTokenData.underlyingBalance = token.balanceOf(account);
+                (
+                    dTokenData.userTokenPosition.hasPosition,
+                    dTokenData.userTokenPosition.tokenAmount,
+                    dTokenData.userTokenPosition.collateralOrDebtAmount
+                ) = this.getAccountTokenData(account, dTokens[i]);
+            }
+
+            dTokenData.assetAddress = dTokens[i];
+            dTokenData.marketAddress = market;
+            dTokenData.underlyingAddress = address(token);
+            dTokenData.underlyingName = token.name();
+            dTokenData.underlyingSymbol = token.symbol();
+            dTokenData.underlyingDecimal = token.decimals();
+            dTokenData.tvl = this.getTokenTVL(dTokens[i], false);
+            dTokenData.borrows = this.getTokenBorrows(dTokens[i]);
+            dTokenData.supplyRatePerYear = this.getSupplyRatePerYear(
+                dTokens[i]
+            );
+            dTokenData.borrowRatePerYear = this.getBorrowRatePerYear(
+                dTokens[i]
+            );
+            dTokenData.predictedBorrowRatePerYear = this
+                .getPredictedBorrowRatePerYear(dTokens[i]);
+            dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
+            dTokenData.liquidityAvailable =
+                dTokenData.tvl -
+                dTokenData.borrows;
+            dTokenData.price = _getTokenPrice(dTokens[i], false);
+
+            dResults[i] = dTokenData;
+        }
+
+        return (dResults, cResults);
+    }
 
     /// @notice Returns the current TVL inside a Curvance market.
     /// @param market The market to query TVL for.
@@ -195,7 +413,7 @@ contract CurvanceAuxiliaryData {
         address token;
         bool getLower;
 
-        for (uint256 i; i < numAssets; ++i) {
+        for (uint256 i; i < numAssets; ) {
             token = assets[i++];
             getLower = IMToken(token).isCToken() ? true : false;
             result += getTokenTVL(token, getLower);
@@ -211,8 +429,24 @@ contract CurvanceAuxiliaryData {
         address[] memory assets = getMarketCollateralAssets(market);
         uint256 numAssets = assets.length;
 
-        for (uint256 i; i < numAssets; ++i) {
+        for (uint256 i; i < numAssets; ) {
             result += getTokenTVL(assets[i++], true);
+        }
+    }
+
+    function getMarketCollateralPostedByUsd(
+        address market
+    ) public view returns (uint256 result) {
+        address[] memory assets = getMarketCollateralAssets(market);
+        uint256 numAssets = assets.length;
+
+        for (uint256 i; i < numAssets; ) {
+            address assetAddress = assets[i++];
+            uint256 price = _getTokenPrice(assetAddress, true);
+            result +=
+                (price *
+                    MarketManager(market).collateralPosted(assetAddress)) /
+                10 ** IMToken(assetAddress).decimals();
         }
     }
 
@@ -233,7 +467,9 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current outstanding borrows inside a Curvance market.
     /// @param market The market to query outstanding borrows for.
     /// @return result The current outstanding borrows inside `market`, in `WAD`.
-    function getMarketBorrows(address market) public view returns (uint256 result) {
+    function getMarketBorrows(
+        address market
+    ) public view returns (uint256 result) {
         address[] memory assets = getMarketDebtAssets(market);
         uint256 numAssets = assets.length;
 
@@ -255,17 +491,18 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isCToken()){
+            if (IMToken(asset).isCToken()) {
                 ++numCollateralAssets;
             }
         }
 
         address[] memory collateralAssets = new address[](numCollateralAssets);
+        uint256 collateralAssetsIndex = 0;
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isCToken()){
-                collateralAssets[i] = asset;
+            if (IMToken(asset).isCToken()) {
+                collateralAssets[collateralAssetsIndex++] = asset;
             }
         }
 
@@ -285,17 +522,18 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isCToken()){
+            if (!IMToken(asset).isCToken()) {
                 ++numDebtAssets;
             }
         }
 
         address[] memory debtAssets = new address[](numDebtAssets);
+        uint256 debtAssetsIndex = 0;
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isCToken()){
-                debtAssets[i] = asset;
+            if (!IMToken(asset).isCToken()) {
+                debtAssets[debtAssetsIndex++] = asset;
             }
         }
 
@@ -307,7 +545,7 @@ contract CurvanceAuxiliaryData {
     function getMarketAssets(
         address market
     ) public view returns (address[] memory) {
-        return IMarketManager(market).tokensListed();
+        return IMarketManager(market).queryTokensListed();
     }
 
     /// PUBLIC ACCOUNT-SPECIFIC FUNCTIONS ///
@@ -318,9 +556,7 @@ contract CurvanceAuxiliaryData {
         return IVeCVE(centralRegistry.veCVE()).queryUserLocks(account);
     }
 
-    function getUserLockLength(
-        address account
-    ) public view returns (uint256) {
+    function getUserLockLength(address account) public view returns (uint256) {
         (uint256[] memory lockAmounts, ) = getUserLocks(account);
         return lockAmounts.length;
     }
@@ -338,20 +574,33 @@ contract CurvanceAuxiliaryData {
     /// @param token The token to query TVL for.
     /// @return result The current TVL inside `token`, in `WAD`.
     function getTokenTVL(
-        address token, 
+        address token,
         bool getLower
     ) public view returns (uint256 result) {
         // Get current shares total supply then query price and return.
-        result = _getTokenPrice(token, getLower) * IMToken(token).totalSupply();
+        result =
+            (_getTokenPrice(token, getLower) *
+                (IMToken(token).totalSupply() - MARKET_ASSET_RESERVE)) /
+            10 ** IMToken(token).decimals();
     }
 
     /// @notice Returns the outstanding underlying tokens borrowed from a DToken market.
     /// @param token The token to query outstanding borrows for.
     /// @return result The outstanding underlying tokens, in `WAD`.
-    function getTokenBorrows(address token) public view returns (uint256 result) {
+    function getTokenBorrows(
+        address token
+    ) public view returns (uint256 result) {
         IMToken mToken = IMToken(token);
+
         // Get outstanding borrows then query price and return.
-        result = _getTokenPrice(mToken.underlying(), false) * mToken.totalBorrows();
+        result =
+            (_getTokenPrice(mToken.underlying(), false) *
+                mToken.totalBorrows()) /
+            10 ** mToken.decimals();
+    }
+
+    function getTokenPrice(address token) public view returns (uint256) {
+        return _getTokenPrice(token, IMToken(token).isCToken() ? true : false);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -365,16 +614,19 @@ contract CurvanceAuxiliaryData {
     }
 
     function _getTokenPrice(
-        address mToken, 
+        address mToken,
         bool getLower
     ) internal view returns (uint256 price) {
         uint256 errorCode;
-        (price, errorCode) = _getOracleRouter().getPrice(mToken, true, getLower);
+        (price, errorCode) = _getOracleRouter().getPrice(
+            mToken,
+            true,
+            getLower
+        );
         // If we could not price the asset, bubble up a price of 0.
-        if  (errorCode == 2) {
+        if (errorCode == 2) {
             price = 0;
             return price;
         }
     }
-
 }

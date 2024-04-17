@@ -8,7 +8,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract Faucet is Ownable {
-
     /// Maximum faucet erc20 claim amount
     uint256 public maxClaim = 10 ether;
     /// /// Maximum faucet sepETH claim amount
@@ -19,24 +18,40 @@ contract Faucet is Ownable {
     constructor() Ownable() {}
 
     function setMaxClaimAmounts(
-        uint256 amountERC20, 
+        uint256 amountERC20,
         uint256 amountSepETH
     ) external onlyOwner {
         maxClaim = amountERC20;
         maxSepETHClaim = amountSepETH;
     }
 
-    function claim(
+    function claim(address user, address token, uint256 amount) external {
+        _claim(user, token, amount);
+    }
+
+    function multiClaim(
         address user,
-        address token,
-        uint256 amount
+        address[] calldata tokens,
+        uint256[] calldata amounts
     ) external {
+        require(
+            tokens.length == amounts.length,
+            "Not enough tokens OR amounts provided"
+        );
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
+
+            _claim(user, token, amount);
+        }
+    }
+
+    function _claim(address user, address token, uint256 amount) internal {
         require(
             userLastClaimed[user][token] + 24 hours <= block.timestamp,
             "Wait 24 hours"
         );
-
-        
 
         if (token == address(0)) {
             require(amount < maxSepETHClaim, "Excessive desired claim amount");

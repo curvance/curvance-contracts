@@ -3,7 +3,7 @@
     "daoAddress": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
     "timelock": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
     "emergencyCouncil": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
-    "genesisEpoch": 0,
+    "genesisEpoch": 1711849632,
     "lockBoostMultiplier": 10000,
     "harvester": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
     "sequencer": "0x0000000000000000000000000000000000000000",

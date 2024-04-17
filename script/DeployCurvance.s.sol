@@ -16,6 +16,7 @@ import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
 import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
+import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 
 contract DeployCurvance is
     DeployConfiguration,
@@ -30,7 +31,8 @@ contract DeployCurvance is
     ComplexZapperDeployer,
     PositionFoldingDeployer,
     OracleRouterDeployer,
-    AuxiliaryDataDeployer
+    AuxiliaryDataDeployer,
+    StartContractsConfig
 {
     function run() external {
         _deploy("ethereum");
@@ -98,7 +100,6 @@ contract DeployCurvance is
         _setFeeAccumulator(feeAccumulator);
 
         // Deploy VeCVE
-
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
@@ -148,6 +149,9 @@ contract DeployCurvance is
         // _transferEmergencyCouncil(
         //     _readConfigAddress(".centralRegistry.emergencyCouncil")
         // );
+
+        // Setup
+        _after_deploy_config(network);
 
         vm.stopBroadcast();
     }

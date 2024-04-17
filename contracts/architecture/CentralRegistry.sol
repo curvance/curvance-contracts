@@ -36,10 +36,13 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 ///        operating team for any action, or the "Emergency Council" made up
 ///        of both Curvance Collective members and external stakeholders.
 ///
+///
 ///      All values inside Curvance are entered in basis point form. However,
+///      Fees are recorded internally in `WAD` format, or 1e18, rather than
 ///      Fees are recorded internally in `WAD` format, or 1e18, rather than
 ///      basis points, or 1e4. This is for greater precision in computations.
 ///      As a result, you will see multiplier values stored in 1e4 form,
+///      and fees stored in 1e18 form.
 ///      and fees stored in 1e18 form.
 ///
 ///      The Central Registry also manages the delegation system, creating
@@ -1048,6 +1051,9 @@ contract CentralRegistry is ERC165 {
         return omnichainOperators[_address][chainID];
     }
 
+    function queryMarketManagers() external view returns (address[] memory) {
+        return marketManagers;
+    }
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Adds a new Market Manager and associated fee configurations.
@@ -1104,6 +1110,7 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {RemovedCurvanceContract} event.
     /// @param currentMarketManager The supported Market Manager contract
     ///                             to remove from Curvance.
+    function removeMarketManager(address currentMarketManager) public virtual {
     function removeMarketManager(address currentMarketManager) public virtual {
         _checkElevatedPermissions();
 

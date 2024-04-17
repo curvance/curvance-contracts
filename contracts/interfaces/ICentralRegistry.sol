@@ -129,6 +129,7 @@ interface ICentralRegistry {
 
     /// @notice Address array for all Curvance Market Managers on this chain.
     function marketManagers() external view returns (address[] memory);
+    function queryMarketManagers() external view returns (address[] memory);
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
