@@ -75,6 +75,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @dev Reward tokens attached to this Gauge Pool.
     address[] public rewardTokens;
 
+    mapping(address => bool) public isRewardToken;
+
     /// @notice The total supply of a token deposited.
     /// @dev mToken => total supply.
     mapping(address => uint256) public totalSupply;
@@ -96,13 +98,13 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @dev mToken => user => rewardToken => info.
     mapping(address => mapping(address => mapping(address => UserRewardInfo)))
         public userDebtInfo;
-    
+
     /// @notice The amount of rewards streamed per second, of a particular
     ///         reward token, during an epoch, for a specific token.
     /// @dev mToken => epoch => rewardToken => rewardPerSec.
     mapping(address => mapping(uint256 => mapping(address => uint256)))
         internal _epochRewardPerSec;
-    
+
     /// EVENTS ///
 
     event AddExtraReward(address newReward);
@@ -115,6 +117,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         ICentralRegistry centralRegistry_
     ) GaugeController(centralRegistry_) {
         rewardTokens.push(cve);
+        isRewardToken[cve] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -158,6 +161,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         }
 
         rewardTokens.push(newReward);
+        isRewardToken[newReward] = true;
 
         emit AddExtraReward(newReward);
     }
@@ -184,6 +188,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             rewardTokens[index] = rewardTokens[rewardTokensLength - 1];
         }
         rewardTokens.pop();
+        isRewardToken[newReward] = false;
 
         emit RemoveExtraReward(newReward);
     }
@@ -213,6 +218,10 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         // the protocol messaging hub in setEmissionRates().
         if (rewardToken == cve) {
             revert GaugeErrors.Unauthorized();
+        }
+
+        if (!isRewardToken[rewardToken]) {
+            revert GaugeErrors.InvalidRewardToken();
         }
 
         if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {

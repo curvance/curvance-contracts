@@ -11,4 +11,5 @@ interface GaugeErrors {
     error InvalidToken();
     error InvalidAmount();
     error NoReward();
+    error InvalidRewardToken();
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626, SafeTransferLib } from "contracts/libraries/ERC4626.sol";
@@ -48,7 +49,12 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
 ///
-abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
+abstract contract CTokenBase is
+    ERC4626,
+    Delegable,
+    ReentrancyGuard,
+    Multicall
+{
     /// CONSTANTS ///
 
     /// @dev `bytes4(keccak256(bytes("CTokenBase__Unauthorized()")))`
@@ -663,7 +669,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
     /// @return The assets received quoted as shares for withdrawing `assets`.
     function previewWithdraw(
         uint256 assets
-    ) public view override virtual returns (uint256) {
+    ) public view virtual override returns (uint256) {
         return _previewWithdraw(assets, totalAssets());
     }
 
@@ -674,7 +680,7 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
     /// @return The assets received for withdrawing `shares`.
     function previewRedeem(
         uint256 shares
-    ) public view override virtual returns (uint256) {
+    ) public view virtual override returns (uint256) {
         return _previewRedeem(shares, totalAssets());
     }
 
@@ -948,4 +954,14 @@ abstract contract CTokenBase is ERC4626, Delegable, ReentrancyGuard {
         bool delegatedAction,
         bool forceRedeemCollateral
     ) internal virtual returns (uint256 assets) {}
+
+    /// @dev from Multicall
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return ICentralRegistry(centralRegistry);
+    }
 }
