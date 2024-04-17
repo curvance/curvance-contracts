@@ -168,6 +168,27 @@ contract PositionFolding is
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Deposits into a Curvance position and then leverages in favor
+    ///         of increasing both collateral and debt inside the system.
+    /// @dev Measures slippage through pre/post conditional slippage check
+    ///      in `checkSlippage` modifier.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param leverageData Struct containing instructions on desired
+    ///                     leverage action.
+    /// @param slippage Slippage accepted by the user for execution of
+    ///                 `leverageData` leverage action, in basis points.
+    function depositAndleverage(
+        uint256 assets,
+        LeverageStruct calldata leverageData,
+        uint256 slippage
+    ) external checkSlippage(msg.sender, slippage) nonReentrant {
+        CTokenPrimitive cToken = leverageData.collateralToken;
+        SafeTransferLib.safeTransferFrom(cToken.asset(), msg.sender, address(this), assets);
+        
+        cToken.depositAsCollateralFor(assets, msg.sender);
+        _leverage(leverageData, msg.sender);
+    }
+
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
