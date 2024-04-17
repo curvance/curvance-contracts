@@ -307,9 +307,14 @@ contract CurvanceAuxiliaryData {
         result.collateralTVL = getMarketCollateralTVL(market);
         result.lendingTVL = getMarketLendingTVL(market);
         result.borrows = getMarketBorrows(market);
-        result.borrowsAvailable = result.lendingTVL - result.borrows;
         result.collateralPostedByUsd = getMarketCollateralPostedByUsd(market);
         result.tokensListed = getMarketAssets(market);
+
+        if(result.lendingTVL > result.borrows) {
+            result.borrowsAvailable = result.lendingTVL - result.borrows;
+        } else {
+            result.borrowsAvailable = 0;
+        }
     }
 
     function getMarketAssetData(
@@ -391,10 +396,15 @@ contract CurvanceAuxiliaryData {
             dTokenData.predictedBorrowRatePerYear = this
                 .getPredictedBorrowRatePerYear(dTokens[i]);
             dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
-            dTokenData.liquidityAvailable =
-                dTokenData.tvl -
-                dTokenData.borrows;
             dTokenData.price = _getTokenPrice(dTokens[i], false);
+
+            if(dTokenData.tvl > dTokenData.borrows) {
+                dTokenData.liquidityAvailable =
+                    dTokenData.tvl -
+                    dTokenData.borrows;
+            } else {
+                dTokenData.liquidityAvailable = 0;
+            }
 
             dResults[i] = dTokenData;
         }
