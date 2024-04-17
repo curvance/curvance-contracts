@@ -13,7 +13,6 @@ import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
@@ -21,6 +20,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import "forge-std/console.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -111,7 +111,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             signatures
         );
         uint256 numResponses = r.responses.length;
-        uint256[] memory chainIds = centralRegistry.foreignChainIDs();
+        uint256[] memory chainIds = centralRegistry.getForeignChainIds();
         if (numResponses != chainIds.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -121,7 +121,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 totalPoints;
 
         for (uint256 i; i < numResponses; ++i) {
-            if (r.responses[i].chainId != chainIds[i]) {
+            if (
+                r.responses[i].chainId !=
+                centralRegistry.GETHToMessagingChainId(chainIds[i])
+            ) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
@@ -143,9 +146,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // Validate our responses came from the expected contract (Messaging Hub),
             // and expected function.
             validAddresses[0] = centralRegistry
-                .supportedChainData(
-                    centralRegistry.messagingToGETHChainId(uint16(chainIds[i]))
-                )
+                .supportedChainData(chainIds[i])
                 .messagingHub;
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
             validateMultipleEthCallData(
@@ -655,7 +656,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 epochRewardsPerCVE = (feeTokensOverall * WAD) / totalPoints;
 
         uint256 feeTokensForChain;
-        uint256 currentChainID;
+        uint256 currentChainId;
 
         ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
 
@@ -683,7 +684,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
-            currentChainID = chainIds[i];
+            currentChainId = chainIds[i];
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
                 (((feeTokensOverall * WAD) / totalPoints) * chainPoints[i]) /
@@ -691,11 +692,11 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
             // Send fees and information.
             _sendFeeToken(
-                uint256(currentChainID),
+                currentChainId,
                 centralRegistry
-                    .supportedChainData(currentChainID)
+                    .supportedChainData(currentChainId)
                     .messagingHub,
-                _quoteMessageFee(uint256(currentChainID), false, gasLimit),
+                feeTokensForChain,
                 abi.encode(3, epochRewardsPerCVE),
                 gasLimit
             );

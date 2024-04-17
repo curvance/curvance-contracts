@@ -169,7 +169,7 @@ contract CentralRegistry is ERC165 {
     uint256 public supportedChains;
     /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
     ///         format.
-    uint256[] public foreignChainIDs;
+    uint256[] public foreignChainIds;
     /// @notice Address array for all Curvance markets on this chain.
     address[] public marketManagers;
 
@@ -233,6 +233,7 @@ contract CentralRegistry is ERC165 {
     event TokenBridgeSet(address newAddress);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
+    event ForeignChainIdsSet(uint256[] chainIds);
 
     /// ERRORS ///
 
@@ -456,7 +457,7 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Registers wormhole specific data for evm chain IDs.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeChainIDsSet} event.
+    ///      Emits a {WormholeChainIdsSet} event.
     /// @param chainIds Array of EVM chain IDs to register.
     /// @param data Array of Wormhole specific data.
     function registerWormholeData(
@@ -873,6 +874,14 @@ contract CentralRegistry is ERC165 {
         emit RemovedChain(chainId, currentOmnichainOperator);
     }
 
+    function updateForeignChainIds(uint256[] calldata newChainIds) external {
+        _checkElevatedPermissions();
+
+        foreignChainIds = newChainIds;
+
+        emit ForeignChainIdsSet(newChainIds);
+    }
+
     /// CONTRACT MAPPING LOGIC
 
     /// @notice Sets an external calldata checker contract.
@@ -1052,6 +1061,12 @@ contract CentralRegistry is ERC165 {
         return omnichainOperators[_address][chainId];
     }
 
+    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
+    ///         Chain ID format.
+    function getForeignChainIds() external view returns (uint256[] memory) {
+        return foreignChainIds;
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Adds a new Market Manager and associated fee configurations.
@@ -1144,8 +1159,6 @@ contract CentralRegistry is ERC165 {
 
         emit RemovedCurvanceContract("Market Manager", currentMarketManager);
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns true if this contract implements the interface defined
     ///         by `interfaceId`.
