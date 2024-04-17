@@ -20,7 +20,6 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
-import "forge-std/console.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -196,7 +195,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 feeToken,
                 feeAccumulator,
                 address(this),
-                compoundingFee
+                feeTokenBalance
             );
         }
 
@@ -335,7 +334,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // Transfer fees to locker and record newest epoch rewards.
             SafeTransferLib.safeTransfer(feeToken, address(locker), amount);
             locker.recordEpochRewards(amount);
-            return;
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
@@ -372,7 +370,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                     ++i;
                 }
             }
-            return;
         } else if (payloadType == 3) {
             // payloadType = 3: Receive finalized epoch rewards data.
 
@@ -384,7 +381,6 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(
                 chainLockedAmount
             );
-            return;
         } else if (payloadType == 4) {
             // payloadType = 4: Indicates migrating a veCVE lock from the source
             //                  chain to this destination chain.
