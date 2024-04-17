@@ -24,6 +24,8 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
+
+        centralRegistry.transferDaoOwnership(user1);
     }
 
     function test_earlyExpireLock_fail_whenVeCVEIsShutdown(
@@ -49,23 +51,6 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         veCVE.earlyExpireLock(0, rewardsData, "", 0);
     }
 
-    function test_earlyExpireLock_success(
-        uint16 penaltyMultiplier,
-        bool shouldLock,
-        bool isFreshLock,
-        bool isFreshLockContinuous
-    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        penaltyMultiplier = uint16(bound(penaltyMultiplier, 3000, 9000));
-        centralRegistry.setEarlyUnlockPenaltyMultiplier(penaltyMultiplier);
-
-        uint256 penaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
-
-        vm.expectEmit(true, true, true, true, address(veCVE));
-        emit UnlockedWithPenalty(address(this), 30e18, penaltyAmount);
-
-        veCVE.earlyExpireLock(0, rewardsData, "", 0);
-    }
-
     function test_earlyExpireLock_fail_expired() public {
         // no need to set rewardsData because it will revert before
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
@@ -86,6 +71,46 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         // cannot early expire expired lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.earlyExpireLock(0, rewardsData, "", 0);
+    }
+
+    function test_earlyExpireLock_success(
+        uint16 penaltyMultiplier,
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        penaltyMultiplier = uint16(bound(penaltyMultiplier, 3000, 9000));
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(penaltyMultiplier);
+
+        uint256 prevPenaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
+
+        skip(1000000);
+
+        uint256 penaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
+
+        assertLt(penaltyAmount, prevPenaltyAmount);
+
+        uint256 daoCveBalance = cve.balanceOf(centralRegistry.daoAddress());
+        uint256 cveBalance = cve.balanceOf(address(this));
+
+        assertGt(penaltyAmount, 0);
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit UnlockedWithPenalty(address(this), 30e18, penaltyAmount);
+
+        veCVE.earlyExpireLock(0, rewardsData, "", 0);
+
+        vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
+        veCVE.getUnlockPenalty(address(this), 0);
+
+        assertEq(
+            cve.balanceOf(address(this)),
+            cveBalance + 30e18 - penaltyAmount
+        );
+        assertEq(
+            cve.balanceOf(centralRegistry.daoAddress()),
+            daoCveBalance + penaltyAmount
+        );
     }
 
     function test_getUnlockPenalty_expiredLock() public {

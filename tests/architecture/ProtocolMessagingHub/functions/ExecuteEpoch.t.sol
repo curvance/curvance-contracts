@@ -5,12 +5,9 @@ import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.so
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
-import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
-    using stdStorage for StdStorage;
-
     uint8 public version = 0x01;
     uint16 public senderChainId = 0x0000;
     bytes public signature =
