@@ -47,7 +47,6 @@ contract SimpleRewardZapper is ReentrancyGuard {
     error SimpleRewardZapper__IsNotAuthorized();
     error SimpleRewardZapper__InvalidInputAmount();
     error SimpleRewardZapper__InsufficientToRepay();
-    error SimpleRewardZapper__NoRewardsToClaim();
     error SimpleRewardZapper__ExecutionError();
     error SimpleRewardZapper__Unauthorized();
     error SimpleRewardZapper__InvalidMarketManager();
@@ -414,14 +413,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// @param user The address of the user to process rewards for.
     /// @return The amount of rewards received from processing.
     function _processRewards(address user) internal returns (uint256) {
-        uint256 epochs = cveLocker.epochsToClaim(user);
-
-        // Validate that the caller actually has rewards to claim.
-        if (epochs == 0) {
-            revert SimpleRewardZapper__NoRewardsToClaim();
-        }
-
-        return cveLocker.manageRewardsFor(user, epochs);
+        return cveLocker.manageRewardsFor(user);
     }
 
     /// @notice Helper function for efficiently transferring tokens

@@ -76,11 +76,7 @@ interface ICVELocker {
     ///      distributing rewards to a user directly.
     ///      Emits a {ClaimApproval} event.
     /// @param user The address of the user having rewards managed.
-    /// @param epochs The number of epochs for which to manage rewards.
-    function manageRewardsFor(
-        address user,
-        uint256 epochs
-    ) external returns (uint256);
+    function manageRewardsFor(address user) external returns (uint256);
 
     /// @notice Checks if a user has any CVE locker rewards to claim.
     /// @dev Even if a users lock is expiring the next lock resulting
