@@ -34,7 +34,6 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         swapData.outputToken = address(cve);
         swapData.target = _UNISWAP_V2_ROUTER;
 
-        centralRegistry.addSwapper(_UNISWAP_V2_ROUTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
