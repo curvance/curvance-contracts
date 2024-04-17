@@ -1,4 +1,7 @@
 {
+  "protocolMessagingHub": {
+    "wormhole": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"
+  },
   "centralRegistry": {
     "daoAddress": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
     "timelock": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
