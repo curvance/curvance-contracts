@@ -18,7 +18,7 @@ contract ManageRewardsForTest is TestBaseCVELocker {
 
     function test_manageRewardsFor_fail_whenNotDelegated() public {
         vm.expectRevert(CVELocker.CVELocker__Unauthorized.selector);
-        cveLocker.manageRewardsFor(user1, 0);
+        cveLocker.manageRewardsFor(user1);
     }
 
     function test_manageRewardsFor_success() public {
@@ -45,12 +45,10 @@ contract ManageRewardsForTest is TestBaseCVELocker {
 
         assertEq(usdc.balanceOf(address(this)), 0);
 
-        uint256 epoch = cveLocker.epochsToClaim(user1);
-
         vm.expectEmit(true, true, true, true);
         emit RewardPaid(user1, _USDC_ADDRESS, 100e6);
 
-        cveLocker.manageRewardsFor(user1, epoch);
+        cveLocker.manageRewardsFor(user1);
 
         assertEq(usdc.balanceOf(address(this)), 100e6);
     }

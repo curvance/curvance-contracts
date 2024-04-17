@@ -1192,7 +1192,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (cveLocker.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
-            revert VeCVE__EpochNotDelivered();
+            if (block.timestamp >= genesisEpoch) {
+                revert VeCVE__EpochNotDelivered();
+            }
         }
     }
 
