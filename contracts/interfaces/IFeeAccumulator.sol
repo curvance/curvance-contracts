@@ -17,4 +17,11 @@ struct LockData {
 interface IFeeAccumulator {
     /// @notice Updates to new messaging hub and moves fee token approval
     function notifyUpdatedMessagingHub() external;
+
+    /// @notice Sends collected fee tokens ex compounding bot stipend to the
+    ///         Protocol Messaging Hub.
+    /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
+    ///      collected equal 0.
+    /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
+    function pullFees() external returns (uint256);
 }

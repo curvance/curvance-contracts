@@ -30,13 +30,6 @@ contract FeeAccumulatorDeploymentTest is TestBaseFeeAccumulator {
         );
         assertEq(feeAccumulator.feeToken(), _USDC_ADDRESS);
         assertEq(
-            usdc.allowance(
-                address(feeAccumulator),
-                centralRegistry.protocolMessagingHub()
-            ),
-            type(uint256).max
-        );
-        assertEq(
             feeAccumulator.vaultCompoundFee(),
             centralRegistry.protocolCompoundFee()
         );
