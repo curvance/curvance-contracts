@@ -14,12 +14,12 @@ import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
+import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
+import { ICVELocker, RewardsData } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -96,9 +96,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     function executeEpoch(
         bytes memory response,
         IWormhole.Signature[] memory signatures,
+        uint256 chainFeeAmount,
         uint256 gasLimit
     ) external {
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        ICVELocker locker = _getCVELocker();
         uint256 epoch = locker.nextEpochToDeliver();
 
         if (locker.currentEpoch(block.timestamp) <= epoch) {
@@ -169,35 +170,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         // Add this chains points to sum.
         totalPoints += currentPoints;
 
-        // Scoping to avoid stack too deep.
-        {
-            address feeAccumulator = centralRegistry.feeAccumulator();
-            uint256 feeTokenBalance = IERC20(feeToken).balanceOf(
-                feeAccumulator
-            );
-            uint256 compoundingFee = (feeTokenBalance *
-                centralRegistry.protocolCompoundFee()) /
-                centralRegistry.protocolHarvestFee();
-
-            // Move 1% of fees accumulated to central registry to be used
-            // for Gelato Network bots.
-            SafeTransferLib.safeTransferFrom(
-                feeToken,
-                feeAccumulator,
-                address(centralRegistry),
-                compoundingFee
-            );
-
-            feeTokenBalance -= compoundingFee;
-
-            // Move remaining fees on this chain to PMH to distribute.
-            SafeTransferLib.safeTransferFrom(
-                feeToken,
-                feeAccumulator,
-                address(this),
-                feeTokenBalance
-            );
-        }
+        _pullFees(chainFeeAmount);
 
         // Execute crosschain fee distribution.
         _executeCrosschainEpoch(
@@ -263,7 +236,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         isDeliveredMessageHash[deliveryHash] = true;
 
         // Validate that the Wormhole Relayer is the caller.
-        if (msg.sender != address(centralRegistry.wormholeRelayer())) {
+        if (msg.sender != address(_getWormholeRelayer())) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -305,20 +278,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             }
 
             address feeToken = centralRegistry.feeToken();
-            ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-
-            // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
-            // should be sent and deposited to Gelato 1Balance on polygon.
-            uint256 oneBalanceFee = (amount *
-                centralRegistry.protocolCompoundFee()) /
-                centralRegistry.protocolHarvestFee();
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                address(centralRegistry),
-                oneBalanceFee
-            );
-
-            amount -= oneBalanceFee;
+            ICVELocker locker = _getCVELocker();
 
             // If the locker is shutdown, transfer fees to DAO
             // instead of recording epoch rewards.
@@ -378,9 +338,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 (uint8, uint256)
             );
 
-            ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(
-                chainLockedAmount
-            );
+            _getCVELocker().recordEpochRewards(chainLockedAmount);
         } else if (payloadType == 4) {
             // payloadType = 4: Indicates migrating a veCVE lock from the source
             //                  chain to this destination chain.
@@ -428,9 +386,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
         );
-        uint256 messagingChainId = centralRegistry.GETHToMessagingChainId(
-            dstChainId
-        );
+
         OmnichainData memory operator = centralRegistry.getOmnichainOperators(
             chainData.messagingHub,
             dstChainId
@@ -444,21 +400,15 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         // Validate that the operator messaging chain matches
         // the destination chain id and we are aiming for a supported chain.
         if (
-            operator.messagingChainId != messagingChainId ||
+            operator.messagingChainId != centralRegistry.GETHToMessagingChainId(
+            dstChainId
+        ) ||
             chainData.isSupported < 2
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Pull the fee token from the fee accumulator.
-        // This will revert if we've misconfigured fee token contract supply
-        // by `amount`.
-        SafeTransferLib.safeTransferFrom(
-            centralRegistry.feeToken(),
-            centralRegistry.feeAccumulator(),
-            address(this),
-            amount
-        );
+        amount = _pullFees(amount);
 
         _sendFeeToken(
             dstChainId,
@@ -521,7 +471,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             }
 
             return
-                centralRegistry.wormholeRelayer().sendPayloadToEvm{
+                _getWormholeRelayer().sendPayloadToEvm{
                     value: msg.value
                 }(
                     wormholeChainId,
@@ -565,7 +515,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         });
 
         return
-            centralRegistry.wormholeRelayer().sendVaasToEvm{
+            _getWormholeRelayer().sendVaasToEvm{
                 value: msg.value - wormholeCore.messageFee()
             }(wormholeChainId, recipient, "", 0, gasLimit, vaaKeys);
     }
@@ -624,7 +574,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        ICVELocker locker = _getCVELocker();
         uint256 epoch = locker.nextEpochToDeliver();
 
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
@@ -654,7 +604,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 feeTokensForChain;
         uint256 currentChainId;
 
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
+        ICVELocker locker = _getCVELocker();
 
         feeTokensForChain =
             (((feeTokensOverall * WAD) / totalPoints) * thisChainsPoints) /
@@ -697,6 +647,21 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 gasLimit
             );
         }
+    }
+
+    /// @dev Pulls `amount` fee tokens from the fee accumulator to aggregate fees.
+    function _pullFees(uint256 amount) internal returns (uint256) {
+        return IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
+    }
+
+    /// @dev Returns the current CVE locker address to call.
+    function _getCVELocker() internal view returns (ICVELocker) {
+        return ICVELocker(centralRegistry.cveLocker());
+    }
+
+    /// @dev Returns the current Wormhole Relayer address to call.
+    function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
+        return centralRegistry.wormholeRelayer();
     }
 
     /// @dev Internal helper for reverting efficiently.

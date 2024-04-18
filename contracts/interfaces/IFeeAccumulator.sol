@@ -22,6 +22,7 @@ interface IFeeAccumulator {
     ///         Protocol Messaging Hub.
     /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
     ///      collected equal 0.
+    /// @param amount The amount of token to transfer.
     /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
-    function pullFees() external returns (uint256);
+    function pullFees(uint256 amount) external returns (uint256);
 }

@@ -243,21 +243,26 @@ contract FeeAccumulator is ReentrancyGuard {
     ///         Protocol Messaging Hub.
     /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
     ///      collected equal 0.
+    /// @param amount The amount of token to transfer.
     /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
-    function pullFees() external returns (uint256) {
+    function pullFees(uint256 amount) external returns (uint256) {
         address messagingHub = centralRegistry.protocolMessagingHub();
 
         if (msg.sender != messagingHub) {
             revert FeeAccumulator__Unauthorized();
         }
 
-        uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
+        uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
-        if (feeTokenBalance == 0) {
+        // If the amount desired is greater than what is available, move all fees.
+        feeTokens = amount > feeTokens ? feeTokens : amount;
+
+        // If there are no fees collected, can just return.
+        if (feeTokens == 0) {
             return 0;
         }
 
-        uint256 compoundingFee = (feeTokenBalance *
+        uint256 compoundingFee = (feeTokens *
                 vaultCompoundFee()) /
                 vaultYieldFee();
 
@@ -271,18 +276,18 @@ contract FeeAccumulator is ReentrancyGuard {
             );
         }
         
-        feeTokenBalance -= compoundingFee;
+        feeTokens -= compoundingFee;
 
-        if (feeTokenBalance > 0) {
+        if (feeTokens > 0) {
             // Move remaining fees on this chain to PMH to distribute.
             SafeTransferLib.safeTransfer(
                 feeToken,
                 messagingHub,
-                feeTokenBalance
+                feeTokens
             );
         }
 
-        return feeTokenBalance;
+        return feeTokens;
     }
 
     /// @notice Sends all left over fees to new fee accumulator.
