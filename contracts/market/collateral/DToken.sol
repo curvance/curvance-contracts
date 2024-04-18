@@ -481,7 +481,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             msg.sender,
             msg.sender,
             tokens,
-            (exchangeRateCached() * tokens) / WAD
+            convertToAssets(tokens)
         );
     }
 
@@ -514,7 +514,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             account,
             recipient,
             tokens,
-            (exchangeRateCached() * tokens) / WAD
+            convertToAssets(tokens)
         );
     }
 
@@ -544,7 +544,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         _redeem(
             account,
             msg.sender,
-            (amount * WAD) / exchangeRateCached(),
+            convertToShares(amount),
             amount
         );
 
@@ -598,7 +598,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         accrueInterest();
 
         // Calculate asset -> shares exchange rate.
-        uint256 tokens = (amount * WAD) / exchangeRateCached();
+        uint256 tokens = convertToShares(amount);
 
         // On success, the market will deposit `amount` to the market.
         SafeTransferLib.safeTransferFrom(
@@ -637,7 +637,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
 
         // Convert `amount` assets to shares to match totalReserves
         // denomination.
-        uint256 tokens = (amount * WAD) / exchangeRateCached();
+        uint256 tokens = convertToShares(amount);
 
         // Update reserves with underflow check.
         totalReserves = totalReserves - tokens;
@@ -666,7 +666,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         accrueInterest();
 
         uint256 totalReservesCached = totalReserves;
-        uint256 amount = (totalReservesCached * exchangeRateCached()) / WAD;
+        uint256 amount = convertToAssets(totalReservesCached);
 
         // Make sure we have enough underlying held to cover withdrawal.
         if (marketUnderlyingHeld() < amount) {
@@ -959,6 +959,26 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             totalSupply;
     }
 
+    /// @notice Returns the amount of tokens that would be exchanged
+    ///         by the vault for `amount` provided.
+    /// @param amount The number of underlying to theoretically use
+    ///               for conversion to tokens.
+    /// @return The number of tokens a user would receive for converting
+    ///         `amount`.
+    function convertToShares(uint256 amount) public view returns (uint256) {
+        return FixedPointMathLib.mulDiv(amount, WAD, exchangeRateCached());
+    }
+
+    /// @notice Returns the amount of underlying that would be exchanged
+    ///         by the vault for `tokens` provided.
+    /// @param tokens The number of tokens to theoretically use
+    ///               for conversion to underlying.
+    /// @return The number of underlying a user would receive for converting
+    ///         `tokens`.
+    function convertToAssets(uint256 tokens) public view returns (uint256) {
+        return FixedPointMathLib.mulDiv(tokens, exchangeRateCached(), WAD);
+    }
+
     /// @inheritdoc ERC165
     function supportsInterface(
         bytes4 interfaceId
@@ -1157,8 +1177,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         // Fail if mint not allowed.
         marketManager.canMint(address(this));
 
-        // Get exchange rate before mint.
-        uint256 er = exchangeRateCached();
+        // Calculate dTokens to be minted.
+        uint256 tokens = convertToShares(amount);
 
         // Transfer underlying into the dToken contract.
         SafeTransferLib.safeTransferFrom(
@@ -1167,9 +1187,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             address(this),
             amount
         );
-
-        // Calculate dTokens to be minted.
-        uint256 tokens = (amount * WAD) / er;
 
         // Update totalSupply, and recipient balance.
         unchecked {
