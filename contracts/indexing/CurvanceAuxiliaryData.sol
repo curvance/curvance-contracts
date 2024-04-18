@@ -51,7 +51,6 @@ contract CurvanceAuxiliaryData {
     struct MarketDTokenData {
         address assetAddress;
         address marketAddress;
-        uint256 shareExchangeRate;
         address underlyingAddress;
         uint256 underlyingBalance;
         string underlyingName;
@@ -71,7 +70,6 @@ contract CurvanceAuxiliaryData {
     struct MarketCTokenData {
         address assetAddress;
         address marketAddress;
-        uint256 shareExchangeRate;
         address underlyingAddress;
         uint256 underlyingBalance;
         string underlyingName;
@@ -335,7 +333,6 @@ contract CurvanceAuxiliaryData {
             IMToken marketToken = IMToken(cTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
             MarketCTokenData memory cTokenData;
-            uint256 exchangeRate = marketToken.exchangeRateCached();
 
             if (account != address(0)) {
                 cTokenData.underlyingBalance = token.balanceOf(account);
@@ -345,16 +342,10 @@ contract CurvanceAuxiliaryData {
                     cTokenData.userTokenPosition.tokenAmount,
                     cTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, cTokens[i]);
-
-                // Convert shares
-                cTokenData.userTokenPosition.tokenAmount =
-                    (cTokenData.userTokenPosition.tokenAmount * exchangeRate) /
-                    WAD;
             }
 
             cTokenData.assetAddress = cTokens[i];
             cTokenData.marketAddress = market;
-            cTokenData.shareExchangeRate = exchangeRate;
             cTokenData.underlyingAddress = address(token);
             cTokenData.underlyingName = token.name();
             cTokenData.underlyingSymbol = token.symbol();
@@ -380,7 +371,6 @@ contract CurvanceAuxiliaryData {
             MarketDTokenData memory dTokenData;
             IMToken marketToken = IMToken(dTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
-            uint256 exchangeRate = marketToken.exchangeRateCached();
 
             if (account != address(0)) {
                 dTokenData.underlyingBalance = token.balanceOf(account);
@@ -389,17 +379,10 @@ contract CurvanceAuxiliaryData {
                     dTokenData.userTokenPosition.tokenAmount,
                     dTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, dTokens[i]);
-
-
-                // Convert shares
-                dTokenData.userTokenPosition.tokenAmount =
-                    (dTokenData.userTokenPosition.tokenAmount * exchangeRate) /
-                    WAD;
             }
 
             dTokenData.assetAddress = dTokens[i];
             dTokenData.marketAddress = market;
-            dTokenData.shareExchangeRate = exchangeRate;
             dTokenData.underlyingAddress = address(token);
             dTokenData.underlyingName = token.name();
             dTokenData.underlyingSymbol = token.symbol();
