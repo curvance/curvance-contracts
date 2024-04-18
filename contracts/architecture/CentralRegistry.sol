@@ -1061,7 +1061,7 @@ contract CentralRegistry is ERC165 {
         address _address,
         uint256 chainId
     ) external view returns (OmnichainData memory) {
-        return omnichainOperators[_address][chainID];
+        return omnichainOperators[_address][chainId];
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
