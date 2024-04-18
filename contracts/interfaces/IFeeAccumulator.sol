@@ -15,15 +15,6 @@ struct LockData {
 }
 
 interface IFeeAccumulator {
-    /// @notice Receive finalized epoch rewards data
-    function receiveExecutableLockData(uint256 lockValue) external;
-
-    /// @notice Receive feeAccumulator information of locked tokens on a chain for the epoch
-    function receiveCrossChainLockData(EpochRolloverData memory data) external;
-
     /// @notice Updates to new messaging hub and moves fee token approval
     function notifyUpdatedMessagingHub() external;
-
-    /// @notice Address of OneBalanceFeeManager contract.
-    function oneBalanceFeeManager() external view returns (address);
 }

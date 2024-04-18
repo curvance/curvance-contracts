@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
-
 interface IProtocolMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         wormhole deposit and messaging.

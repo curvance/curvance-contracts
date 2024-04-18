@@ -5,17 +5,17 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract RegisterCCTPDomainsTest is TestBaseMarket {
-    uint256[] public chainIDs;
+    uint256[] public chainIds;
     uint32[] public cctpDomains;
 
     function setUp() public override {
         super.setUp();
 
-        chainIDs.push(1);
+        chainIds.push(1);
         cctpDomains.push(0);
-        chainIDs.push(42161);
+        chainIds.push(42161);
         cctpDomains.push(3);
-        chainIDs.push(43114);
+        chainIds.push(43114);
         cctpDomains.push(1);
     }
 
@@ -25,14 +25,14 @@ contract RegisterCCTPDomainsTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.registerCCTPDomains(chainIDs, cctpDomains);
+        centralRegistry.registerCCTPDomains(chainIds, cctpDomains);
     }
 
     function test_registerCCTPDomains_success() public {
-        centralRegistry.registerCCTPDomains(chainIDs, cctpDomains);
+        centralRegistry.registerCCTPDomains(chainIds, cctpDomains);
 
-        for (uint256 i = 0; i < chainIDs.length; i++) {
-            assertEq(centralRegistry.cctpDomain(chainIDs[i]), cctpDomains[i]);
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            assertEq(centralRegistry.cctpDomain(chainIds[i]), cctpDomains[i]);
         }
     }
 }

@@ -762,13 +762,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///                   continuousLock Whether the bridged lock should be
     ///                                  continuous or not.
     ///                   gasLimit Gas limit with which to call on destination
-    ///                            chain.                   
+    ///                            chain.
     /// @param rewardsData Rewards data for CVE rewards locker.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function bridgeLock(
         uint256 lockIndex,
-        BridgeData calldata bridgeData,     
+        BridgeData calldata bridgeData,
         RewardsData calldata rewardsData,
         bytes calldata params,
         uint256 aux
@@ -946,7 +946,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 revert(0x1c, 0x04)
             }
         }
-        
+
         chainPoints = chainPoints - chainUnlocksByEpoch[epoch];
     }
 
@@ -1185,9 +1185,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         ) {
             revert VeCVE__PostEpochRestriction();
         }
-        if (
-            nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp
-        ) {
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
             revert VeCVE__PreEpochRestriction();
         }
 
@@ -1496,8 +1494,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         return
             (amount *
-                ((penalty * (unlockTime - block.timestamp)) /
-                    LOCK_DURATION)) / DENOMINATOR;
+                ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
+            DENOMINATOR;
     }
 
     /// @dev Internal helper for reverting efficiently.

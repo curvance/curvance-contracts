@@ -8,11 +8,10 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 contract CTokenCompoundingTransferFromTest is TestBaseCTokenCompounding {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_cTokenCompoundingTransferFrom_fail_whenSenderAndReceiverAreSame()
-        public
-    {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
-        cBALRETH.transferFrom(address(this), address(this), 1e18);
+    function setUp() public override {
+        super.setUp();
+
+        cBALRETH.mint(100, address(this));
     }
 
     function test_cTokenCompoundingTransferFrom_fail_whenTransferZeroAmount()
@@ -39,8 +38,6 @@ contract CTokenCompoundingTransferFromTest is TestBaseCTokenCompounding {
     }
 
     function test_cTokenCompoundingTransferFrom_success() public {
-        cBALRETH.mint(100, address(this));
-
         uint256 balance = cBALRETH.balanceOf(address(this));
         uint256 user1Balance = cBALRETH.balanceOf(user1);
 

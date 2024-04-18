@@ -147,7 +147,7 @@ contract TestBoostedLock is TestBaseMarket {
         );
 
         for (uint256 i = 0; i < 3; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(1e6);
         }
 

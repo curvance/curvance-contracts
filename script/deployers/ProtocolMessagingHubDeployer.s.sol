@@ -12,15 +12,11 @@ import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 contract ProtocolMessagingHubDeployer is DeployConfiguration {
     address protocolMessagingHub;
 
-    function _deployProtocolMessagingHub(address centralRegistry, address wormhole) internal {
+    function _deployProtocolMessagingHub(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(wormhole != address(0), "Set Wormhole Core Contract!");
 
         protocolMessagingHub = address(
-            new ProtocolMessagingHub(
-                ICentralRegistry(centralRegistry),
-                wormhole
-            )
+            new ProtocolMessagingHub(ICentralRegistry(centralRegistry))
         );
 
         console.log("protocolMessagingHub: ", protocolMessagingHub);

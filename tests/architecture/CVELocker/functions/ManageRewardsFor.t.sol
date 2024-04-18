@@ -23,7 +23,7 @@ contract ManageRewardsForTest is TestBaseCVELocker {
 
     function test_manageRewardsFor_success() public {
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(1e6);
         }
 
