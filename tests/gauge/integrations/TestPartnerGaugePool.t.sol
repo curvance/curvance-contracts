@@ -157,6 +157,25 @@ contract TestPartnerGaugePool is TestBaseMarket {
         }
     }
 
+    function testRevertSetRewardPerSecInvalidRewardToken() public {
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(protocolMessagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
+        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
+            vm.expectRevert(GaugeErrors.InvalidRewardToken.selector);
+            gaugePool.setRewardPerSec(tokens[0], 1, address(this), 300);
+        }
+    }
+
     function testUpdateRewardPerSec() public {
         // set gauge weights
         address[] memory tokensParam = new address[](2);

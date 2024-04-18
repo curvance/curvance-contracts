@@ -1185,9 +1185,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         ) {
             revert VeCVE__PostEpochRestriction();
         }
-        if (
-            nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp
-        ) {
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
             revert VeCVE__PreEpochRestriction();
         }
 
@@ -1496,8 +1494,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // down to 0.
         return
             (amount *
-                ((penalty * (unlockTime - block.timestamp)) /
-                    LOCK_DURATION)) / DENOMINATOR;
+                ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
+            DENOMINATOR;
     }
 
     /// @dev Internal helper for reverting efficiently.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -10,11 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
-import { EpochRolloverData } from "contracts/interfaces/IFeeAccumulator.sol";
-import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { LockData } from "contracts/interfaces/IFeeAccumulator.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title Curvance Fee Accumulator.
 /// @notice A system for managing fee collected through Curvance DAO
@@ -71,8 +66,6 @@ contract FeeAccumulator is ReentrancyGuard {
     /// @notice Cached Protocol Messaging Hub address.
     address internal _messagingHubStored;
 
-    LockData[] public crossChainLockData;
-
     /// @notice We store token data semi redundantly to save gas
     ///         on daily operations and to help with gelato network structure
     ///         Used for Gelato Network bots to check what tokens to swap.
@@ -104,12 +97,7 @@ contract FeeAccumulator is ReentrancyGuard {
         address currentToken
     );
     error FeeAccumulator__TokenIsNotEarmarked();
-    error FeeAccumulator__ChainIsNotSupported();
     error FeeAccumulator__ConfigurationError();
-    error FeeAccumulator__CurrentEpochError(
-        uint256 currentEpoch,
-        uint256 nextEpochToDeliver
-    );
     error FeeAccumulator__NewFeeAccumulatorIsNotChanged();
     error FeeAccumulator__TokenLengthIsZero();
     error FeeAccumulator__RemovalTokenIsNotRewardToken();
@@ -278,103 +266,6 @@ contract FeeAccumulator is ReentrancyGuard {
         // Give DAO the OTC'd tokens
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
-
-    /// @notice Receives and records the epoch rewards for CVE from
-    ///         the protocol messaging hub.
-    /// @param amount The rewards per CVE for the previous epoch.
-    function receiveExecutableLockData(uint256 amount) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        // We validate nextEpochToDeliver in receiveCrossChainLockData on
-        // the chain calculating values.
-        ICVELocker(centralRegistry.cveLocker()).recordEpochRewards(amount);
-    }
-
-    /// @notice Receives and processes cross-chain lock data for
-    ///         the next undelivered epoch.
-    /// @param data Struct containing ChainID and value, with extra room for
-    ///             epoch, and number of chains.
-    ///             This is to avoid stack too deep issues in the function.
-    /// @dev This function handles cross-chain communication and
-    ///      the coordination of fee routing, as well as recording and
-    ///      reporting epoch rewards on those fees.
-    ///      Uses both Layerzero and Stargate to execute all necessary actions.
-    ///      If sufficient chains have reported, it calculates rewards,
-    ///      notifies other chains, and executes crosschain fee routing.
-    function receiveCrossChainLockData(
-        EpochRolloverData memory data
-    ) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            data.chainId
-        );
-        if (chainData.isSupported < 2) {
-            return;
-        }
-
-        uint256 epoch = ICVELocker(centralRegistry.cveLocker())
-            .nextEpochToDeliver();
-
-        _validateAndRecordChainData(
-            data.value,
-            data.chainId,
-            crossChainLockData.length,
-            epoch
-        );
-    }
-
-    /// @notice Records a Curvance reward epoch, if all chains have been
-    ///         recorded executes system wide reporting and distribution
-    ///         to all chains within the Curvance Protocol system.
-    // function executeEpochFeeRouter(
-    //     uint256 chainId,
-    //     uint256 gasLimit
-    // ) external {
-    //     ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-    //     uint256 epoch = locker.nextEpochToDeliver();
-
-    //     if (locker.currentEpoch(block.timestamp) <= epoch) {
-    //         revert FeeAccumulator__CurrentEpochError(
-    //             locker.currentEpoch(block.timestamp),
-    //             epoch
-    //         );
-    //     }
-
-    //     ChainData memory chainData = centralRegistry.supportedChainData(
-    //         chainId
-    //     );
-    //     if (chainData.isSupported < 2) {
-    //         return;
-    //     }
-
-    //     uint256 numChainData = crossChainLockData.length;
-
-    //     // If we have sufficient chains reported,
-    //     // time to execute epoch fee routing.
-    //     if (numChainData == centralRegistry.supportedChains()) {
-    //         // Execute Fee Routing to each chain.
-    //         uint256 epochRewardsPerCVE = _executeEpochFeeRouter(
-    //             chainData,
-    //             numChainData,
-    //             epoch,
-    //             gasLimit
-    //         );
-
-    //         IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-    //             .sendEpochRewardData(
-    //                 crossChainLockData,
-    //                 epochRewardsPerCVE,
-    //                 gasLimit
-    //             );
-
-    //         delete crossChainLockData;
-    //     }
-    // }
 
     /// @notice Sends all left over fees to new fee accumulator.
     /// @dev This does not need to be permissioned as it pulls data
@@ -585,165 +476,6 @@ contract FeeAccumulator is ReentrancyGuard {
             isRewardToken: 2,
             forOTC: 1
         });
-    }
-
-    /// @notice Validates the inbound chain data and records it in the
-    ///         crossChainLockData.
-    /// @param value The locked amount value to record.
-    /// @param chainId The ID of the chain where the data is coming from.
-    /// @param numChainData Number of data entries in the crossChainLockData.
-    /// @param epoch The current epoch number.
-    /// @dev This function also serves the purpose of validating that
-    ///      the current data structure. If the data is stale or a repeat
-    ///      of the same chain, it resets and starts over.
-    function _validateAndRecordChainData(
-        uint256 value,
-        uint256 chainId,
-        uint256 numChainData,
-        uint256 epoch
-    ) internal {
-        if (numChainData > 0) {
-            for (uint256 i; i < numChainData; ) {
-                // If somehow the data is stale or we are repeat adding
-                // the same chain, reset and start over.
-                if (
-                    crossChainLockData[i].epoch < epoch ||
-                    crossChainLockData[i].chainId == chainId
-                ) {
-                    delete crossChainLockData;
-                    break;
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-
-        // Add the new chain recorded data.
-        crossChainLockData.push() = LockData({
-            lockAmount: uint224(value),
-            epoch: uint16(epoch),
-            chainId: uint16(chainId)
-        });
-    }
-
-    /// @notice Executes a Curvance reward epoch, by recording rewards on this
-    ///         chain and then distributing information and rewards to all
-    ///         other chains within the system.
-    /// @param chainData Struct containing chain data to cache execution
-    ///                  instructions.
-    /// @param numChains The number of chains to distribute rewards to.
-    /// @param epoch The epoch to distribute rewards for.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return The rewards this epoch for having 1 CVE locked as veCVE,
-    ///         in reward tokens in `WAD` form.
-    function _executeEpochFeeRouter(
-        ChainData memory chainData,
-        uint256 numChains,
-        uint256 epoch,
-        uint256 gasLimit
-    ) internal returns (uint256) {
-        IProtocolMessagingHub messagingHub = IProtocolMessagingHub(
-            centralRegistry.protocolMessagingHub()
-        );
-
-        IVeCVE veCVE = IVeCVE(centralRegistry.veCVE());
-        uint256 lockedTokens = (veCVE.chainPoints() -
-            veCVE.chainUnlocksByEpoch(epoch));
-
-        uint256 totalLockedTokens = lockedTokens;
-
-        // Record this chains reward data and prep remaining data for
-        // other chains.
-        for (uint256 i; i < numChains; ) {
-            totalLockedTokens += crossChainLockData[i].lockAmount;
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
-
-        // In terms of funds inside fee accumulator, 1/16 or 6.25% of fee token
-        // should be sent.
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            address(centralRegistry),
-            (feeTokenBalance * vaultCompoundFee()) /
-                centralRegistry.protocolHarvestFee()
-        );
-
-        feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
-
-        uint256 chainId;
-        uint256 feeTokenBalanceForChain;
-
-        // Messaging Hub can pull fee token directly so we do not
-        // need to queue up any safe transfers.
-        for (uint256 i; i < numChains; ) {
-            chainId = crossChainLockData[i].chainId;
-            chainData = centralRegistry.supportedChainData(chainId);
-            // WAD is used here redundantly, this is intentional, to match
-            // the precision when calculating epochRewardsPerCVE below.
-            // On the surface this looks like precision loss, but if we do
-            // not take these extra steps its possible that
-            // feeTokenBalanceForChain ends up too high relative to what
-            // epochRewardsPerCVE expects in aggregate, making the last
-            // individual or individuals unable to claim their rewards.
-            feeTokenBalanceForChain =
-                (((feeTokenBalance * WAD) / totalLockedTokens) *
-                    crossChainLockData[i].lockAmount) /
-                WAD;
-
-            messagingHub.sendFees(
-                chainId,
-                chainData.messagingHub,
-                feeTokenBalanceForChain,
-                gasLimit
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // WAD is used here redundantly, this is intentional, to match
-        // the precision when calculating epochRewardsPerCVE below.
-        // On the surface this looks like precision loss, but if we do
-        // not take these extra steps its possible that
-        // feeTokenBalanceForChain ends up too high relative to what
-        // epochRewardsPerCVE expects in aggregate, making the last
-        // individual or individuals unable to claim their rewards.
-        feeTokenBalanceForChain =
-            (((feeTokenBalance * WAD) / totalLockedTokens) * lockedTokens) /
-            WAD;
-        uint256 epochRewardsPerCVE = (feeTokenBalance * WAD) /
-            totalLockedTokens;
-
-        ICVELocker locker = ICVELocker(centralRegistry.cveLocker());
-
-        // If the locker is shutdown, transfer fees to DAO
-        // instead of recording epoch rewards.
-        if (locker.isShutdown() == 2) {
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                centralRegistry.daoAddress(),
-                feeTokenBalanceForChain
-            );
-            return epochRewardsPerCVE;
-        }
-
-        // Transfer fees to locker and record newest epoch rewards.
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            address(locker),
-            feeTokenBalanceForChain
-        );
-        ICVELocker(locker).recordEpochRewards(epochRewardsPerCVE);
-
-        return epochRewardsPerCVE;
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

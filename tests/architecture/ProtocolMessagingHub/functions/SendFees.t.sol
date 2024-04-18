@@ -9,6 +9,21 @@ import { stdStorage, StdStorage } from "forge-std/Test.sol";
 contract SendFeesTest is TestBaseProtocolMessagingHub {
     using stdStorage for StdStorage;
 
+    function setUp() public override {
+        super.setUp();
+
+        centralRegistry.addChainSupport(
+            address(this),
+            address(this),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            1,
+            1,
+            23
+        );
+    }
+
     function test_sendFees_fail_whenMessagingHubIsPaused() public {
         protocolMessagingHub.flipMessagingHubStatus();
 
@@ -17,43 +32,28 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__MessagingHubPaused
                 .selector
         );
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenCallerIsNotAuthorized() public {
+        vm.prank(user1);
+
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenOperatorIsNotAuthorized() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__Unauthorized
-                    .selector,
-                address(this),
-                42161
-            )
-        );
+        centralRegistry.removeChainSupport(address(this), 42161);
 
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        vm.expectRevert(
+            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
+        );
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenMessagingChainIdIsInvalid() public {
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            1,
-            1,
-            23
-        );
-
         stdstore
             .target(address(centralRegistry))
             .sig("GETHToMessagingChainId(uint256)")
@@ -61,31 +61,14 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             .checked_write(22);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__InvalidParameter
-                    .selector,
-                23,
-                22
-            )
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            1,
-            1,
-            23
-        );
-
         stdstore
             .target(address(centralRegistry))
             .sig("supportedChainData(uint256)")
@@ -94,16 +77,11 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             .checked_write(1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__InvalidParameter
-                    .selector,
-                42161
-            )
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughNativeAssetForMessageFee()
@@ -111,66 +89,42 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
     {
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
 
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            1,
-            1,
-            23
-        );
-
         vm.expectRevert(
             FeeTokenBridgingHub
                 .FeeTokenBridgingHub__InsufficientGasToken
                 .selector
         );
-
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughFeeToken() public {
         deal(address(protocolMessagingHub), _ONE);
 
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            1,
-            1,
-            23
-        );
-
         vm.expectRevert(bytes4(keccak256("TransferFromFailed()")));
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
+    }
 
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 0);
+    function test_sendFees_fail_whenCCTPIsNotConfigured() public {
+        deal(address(protocolMessagingHub), _ONE);
+        deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
+
+        centralRegistry.setCircleTokenMessenger(address(0));
+
+        vm.expectRevert(
+            FeeTokenBridgingHub
+                .FeeTokenBridgingHub__CCTPIsNotConfigured
+                .selector
+        );
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_success() public {
         deal(address(protocolMessagingHub), _ONE);
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
 
-        centralRegistry.addChainSupport(
-            address(this),
-            address(this),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            1,
-            1,
-            23
-        );
-
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE);
 
-        vm.prank(address(feeAccumulator));
-        protocolMessagingHub.sendFees(42161, address(this), 10e6, 250_000);
+        protocolMessagingHub.sendFees(42161, 10e6, 250_000);
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE - 10e6);
     }

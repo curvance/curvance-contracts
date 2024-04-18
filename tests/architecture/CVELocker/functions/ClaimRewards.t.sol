@@ -68,7 +68,7 @@ contract ClaimRewardsTest is TestBaseCVELocker {
         cveLocker.updateUserClaimIndex(user1, 1);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(_ONE);
         }
 
@@ -80,7 +80,7 @@ contract ClaimRewardsTest is TestBaseCVELocker {
 
     function test_claimRewards_fail_whenSwapDataIsInvalid() public {
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(_ONE);
         }
 
@@ -127,7 +127,7 @@ contract ClaimRewardsTest is TestBaseCVELocker {
         assertEq(cveLocker.hypotheticalRewardsClaim(user1), 0);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(_ONE);
         }
 

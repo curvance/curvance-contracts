@@ -35,6 +35,13 @@ struct ChainData {
     address feeTokenAddress;
 }
 
+/// @param chainId Wormhole specific chain ID for evm chain ID.
+/// @param relayer Wormhole relayer for evm chain ID.
+struct WormholeData {
+    uint16 chainId;
+    address relayer;
+}
+
 interface ICentralRegistry {
     /// @notice Returns Genesis Epoch Timestamp of Curvance.
     function genesisEpoch() external view returns (uint256);
@@ -84,20 +91,17 @@ interface ICentralRegistry {
     /// @notice Returns WormholeRelayer contract address.
     function wormholeRelayer() external view returns (IWormholeRelayer);
 
-    /// @notice Returns WormholeRelayer contract address for chain ID.
-    function wormholeRelayers(
+    /// @notice Returns wormhole specific chain ID and
+    ///         WormholeRelayer contract address for chain ID.
+    function wormholeData(
         uint256 chainId
-    ) external view returns (IWormholeRelayer);
+    ) external view returns (WormholeData memory);
 
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);
-
-    /// @notice Returns wormhole specific chain ID for evm chain ID.
-    /// @param chainId Evm chain ID.
-    function wormholeChainId(uint256 chainId) external view returns (uint16);
 
     /// @notice Returns CCTP domain for evm chain ID.
     /// @param chainId Evm chain ID.
@@ -132,9 +136,12 @@ interface ICentralRegistry {
     /// @notice Returns how many other chains are supported
     function supportedChains() external view returns (uint256);
 
+    /// @notice Chain ID recorded in the Messaging Layers Chain ID format.
+    function foreignChainIds(uint256) external view returns (uint256);
+
     /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
     ///         format.
-    function foreignChainIDs() external view returns (uint256[] memory);
+    function getForeignChainIds() external view returns (uint256[] memory);
 
     /// @notice Address array for all Curvance Market Managers on this chain.
     function marketManagers() external view returns (address[] memory);
@@ -151,13 +158,13 @@ interface ICentralRegistry {
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.
     function supportedChainData(
-        uint256 chainID
+        uint256 chainId
     ) external view returns (ChainData memory);
 
-    // Address => chainID => Curvance identification information.
+    // Address => chainId => Curvance identification information.
     function getOmnichainOperators(
         address _address,
-        uint256 chainID
+        uint256 chainId
     ) external view returns (OmnichainData memory);
 
     // Messaging specific ChainId => GETH comparable ChainId.

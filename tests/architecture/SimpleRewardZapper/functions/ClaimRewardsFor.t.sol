@@ -51,7 +51,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(_ONE);
         }
 
@@ -87,7 +87,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZaper {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(_ONE);
         }
 

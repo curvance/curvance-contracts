@@ -5,7 +5,7 @@ import { TestBaseCVELocker } from "../TestBaseCVELocker.sol";
 import { CVELocker } from "contracts/architecture/CVELocker.sol";
 
 contract RecordEpochRewardsTest is TestBaseCVELocker {
-    uint256 nextEpochToDeliver;
+    uint256 public nextEpochToDeliver;
 
     function setUp() public override {
         super.setUp();
@@ -23,7 +23,7 @@ contract RecordEpochRewardsTest is TestBaseCVELocker {
     function test_recordEpochRewards_success() public {
         assertEq(cveLocker.epochRewardsPerCVE(nextEpochToDeliver), 0);
 
-        vm.prank(centralRegistry.feeAccumulator());
+        vm.prank(centralRegistry.protocolMessagingHub());
         cveLocker.recordEpochRewards(_ONE);
 
         assertEq(cveLocker.epochRewardsPerCVE(nextEpochToDeliver), _ONE);

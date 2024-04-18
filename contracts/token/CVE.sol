@@ -4,7 +4,6 @@ pragma solidity ^0.8.17;
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
 
@@ -238,14 +237,9 @@ contract CVE is ERC20 {
         _mint(messagingHub, amount);
 
         return
-            IProtocolMessagingHub(messagingHub).bridgeToken{ value: msg.value }(
-                dstChainId,
-                recipient,
-                amount,
-                gasLimit,
-                0,
-                false
-            );
+            IProtocolMessagingHub(messagingHub).bridgeToken{
+                value: msg.value
+            }(dstChainId, recipient, amount, gasLimit, 0, false);
     }
 
     /// @notice Returns required amount of native asset for message fee.

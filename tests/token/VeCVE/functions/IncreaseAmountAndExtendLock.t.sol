@@ -13,7 +13,7 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
         cve.approve(address(veCVE), 100e18);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(1e6);
         }
 
@@ -63,7 +63,7 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
-            vm.prank(centralRegistry.feeAccumulator());
+            vm.prank(centralRegistry.protocolMessagingHub());
             cveLocker.recordEpochRewards(1e6);
         }
 

@@ -6,29 +6,27 @@ import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
+contract InvalidCentralRegistry {
+    function wormholeCore() external view returns (address) {}
+}
+
 contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {
     function test_protocolMessagingHubDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
+        address invalidCentralRegistry = address(new InvalidCentralRegistry());
+
         vm.expectRevert(
             FeeTokenBridgingHub
                 .FeeTokenBridgingHub__InvalidCentralRegistry
                 .selector
         );
-        new ProtocolMessagingHub(ICentralRegistry(address(0)), address(1));
-    }
-
-    function test_protocolMessagingHubDeployment_fail_whenWormholeAddressIsInvalid()
-        public
-    {
-        vm.expectRevert(0x8ef9698f); // bytes4(keccak(EmptyWormholeAddress()))
-        new ProtocolMessagingHub(ICentralRegistry(address(1)), address(0));
+        new ProtocolMessagingHub(ICentralRegistry(invalidCentralRegistry));
     }
 
     function test_protocolMessagingHubDeployment_success() public {
         protocolMessagingHub = new ProtocolMessagingHub(
-            ICentralRegistry(address(centralRegistry)),
-            address(1)
+            ICentralRegistry(address(centralRegistry))
         );
 
         assertEq(
