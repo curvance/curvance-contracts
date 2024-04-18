@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
+import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
@@ -45,6 +46,7 @@ contract CurvanceAuxiliaryData {
     struct AccountAssetPosition {
         bool hasPosition;
         uint256 tokenAmount;
+        uint256 shareAmount;
         uint256 collateralOrDebtAmount;
     }
 
@@ -330,7 +332,7 @@ contract CurvanceAuxiliaryData {
             cTokens.length
         );
         for (uint256 i = 0; i < cTokens.length; i++) {
-            IMToken marketToken = IMToken(cTokens[i]);
+            CTokenBase marketToken = CTokenBase(cTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
             MarketCTokenData memory cTokenData;
 
@@ -339,9 +341,13 @@ contract CurvanceAuxiliaryData {
 
                 (
                     cTokenData.userTokenPosition.hasPosition,
-                    cTokenData.userTokenPosition.tokenAmount,
+                    cTokenData.userTokenPosition.shareAmount,
                     cTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, cTokens[i]);
+
+                cTokenData.userTokenPosition.tokenAmount = marketToken.convertToAssets(
+                    cTokenData.userTokenPosition.shareAmount
+                );
             }
 
             cTokenData.assetAddress = cTokens[i];
@@ -369,16 +375,20 @@ contract CurvanceAuxiliaryData {
         );
         for (uint256 i = 0; i < dTokens.length; i++) {
             MarketDTokenData memory dTokenData;
-            IMToken marketToken = IMToken(dTokens[i]);
+            DToken marketToken = DToken(dTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
 
             if (account != address(0)) {
                 dTokenData.underlyingBalance = token.balanceOf(account);
                 (
                     dTokenData.userTokenPosition.hasPosition,
-                    dTokenData.userTokenPosition.tokenAmount,
+                    dTokenData.userTokenPosition.shareAmount,
                     dTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, dTokens[i]);
+
+                dTokenData.userTokenPosition.tokenAmount = marketToken.convertToAssets(
+                    dTokenData.userTokenPosition.shareAmount
+                );
             }
 
             dTokenData.assetAddress = dTokens[i];
