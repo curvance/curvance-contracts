@@ -55,7 +55,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         // Lend so there is something to borrow
         dUSDC.mint(100_000e6);
         // Do a partial borrow
-        dUSDC.borrow(10_000e6);
+        dUSDC.borrow(750e6);
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
         // Withdraw 1 CBALRETH (which has not been collateralized yet)
