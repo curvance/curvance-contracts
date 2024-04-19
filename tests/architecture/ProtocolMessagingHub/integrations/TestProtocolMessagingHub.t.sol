@@ -117,7 +117,12 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);

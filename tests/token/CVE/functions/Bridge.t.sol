@@ -25,7 +25,7 @@ contract BridgeTest is TestBaseMarket {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         cve.bridge(138, user1, _ONE, 0);
@@ -36,7 +36,7 @@ contract BridgeTest is TestBaseMarket {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidRecipient
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         cve.bridge(137, address(0), _ONE, 0);
