@@ -63,7 +63,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         protocolMessagingHub.bridgeToken(138, user1, _ONE, 0, 0, false);
@@ -113,7 +113,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         protocolMessagingHub.bridgeToken(138, user1, _ONE, 0, 4, true);
