@@ -41,10 +41,11 @@ contract TestBoostedLock is TestBaseMarket {
             users[i] = address(new User());
             _prepareDAI(users[i], 200000e18);
         }
-
         for (uint256 i = 0; i < 10; i++) {
             tokens[i] = address(_deployDDAI());
+        }
 
+        for (uint256 i = 0; i < 10; i++) {
             // support market
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
