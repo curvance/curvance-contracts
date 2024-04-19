@@ -1440,6 +1440,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         uint256 amount,
         bool forceRedeemCollateral
     ) internal {
+        // Check how much collateral should be removed, if any.
         (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
             account,
             cToken,
@@ -1448,6 +1449,7 @@ contract MarketManager is LiquidityManager, ERC165 {
             forceRedeemCollateral
         );
 
+        // Execute removal of collateral posted, if needed.
         if (collateralToRemove > 0) {
             (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
                 cToken,
@@ -1608,6 +1610,7 @@ contract MarketManager is LiquidityManager, ERC165 {
             account
         ];
 
+        // If amount is 0 for a post conditional check 
         if (amount == 0) {
             return (0, accountPositions);
         }

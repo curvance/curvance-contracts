@@ -70,9 +70,6 @@ interface ICentralRegistry {
     /// @notice Returns veCVE address.
     function veCVE() external view returns (address);
 
-    /// @notice Returns oCVE address.
-    function oCVE() external view returns (address);
-
     /// @notice Returns Protocol Messaging Hub address.
     function protocolMessagingHub() external view returns (address);
 
