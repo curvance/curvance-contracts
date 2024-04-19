@@ -54,10 +54,8 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         cBALRETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow
         dUSDC.mint(100_000e6);
-        // Borrow 25% of maxBorrow
-        (uint256 collateral, uint256 maxDebt, uint256 debt) = marketManager.statusOf(address(this));
-        uint256 usdcPrice = aux.getTokenPrice(address(dUSDC));
-        dUSDC.borrow(maxDebt / 4 / usdcPrice);
+        // Do a partial borrow
+        dUSDC.borrow(10_000e6);
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
         // Withdraw 1 CBALRETH (which has not been collateralized yet)
