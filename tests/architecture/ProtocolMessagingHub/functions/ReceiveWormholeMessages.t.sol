@@ -266,7 +266,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         emissions[0] = new uint256[](1);
 
         gaugePools[0] = address(gaugePool);
-
+        tokens[0][0] = address(dDAI);
         gaugePool.start(address(marketManager));
 
         vm.warp(gaugePool.startTime());
