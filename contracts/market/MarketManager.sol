@@ -203,7 +203,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     function isListed(address mToken) external view returns (bool) {
         return (tokenData[mToken].isListed);
     }
-
+    
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
     }
@@ -225,17 +225,12 @@ contract MarketManager is LiquidityManager, ERC165 {
     function tokenDataOf(
         address account,
         address mToken
-    ) 
-        external
-        view
-        returns (
-            bool hasPosition, 
-            uint256 balanceOf, 
-            uint256 collateralPostedOf
-        )
-    {
-        AccountPosition memory accountPositions = tokenData[mToken]
-            .accountPositions[account];
+    ) external view returns (
+        bool hasPosition, 
+        uint256 balanceOf, 
+        uint256 collateralPostedOf
+    ) {
+        AccountPosition memory accountPositions = tokenData[mToken].accountPositions[account];
         hasPosition = accountPositions.activePosition == 2;
         balanceOf = IMToken(mToken).balanceOf(account);
         collateralPostedOf = accountPositions.collateralPosted;
@@ -344,8 +339,9 @@ contract MarketManager is LiquidityManager, ERC165 {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        AccountPosition storage accountPositions = tokenData[cToken]
-            .accountPositions[account];
+        AccountPosition storage accountPositions = tokenData[cToken].accountPositions[
+            account
+        ];
 
         // Precondition invariant check.
         if (
@@ -362,13 +358,17 @@ contract MarketManager is LiquidityManager, ERC165 {
     /// @param cToken The address of the cToken to remove collateral for.
     /// @param tokens The number of tokens that are posted of collateral
     ///               that should be removed, in shares.
-    function removeCollateral(address cToken, uint256 tokens) external {
+    function removeCollateral(
+        address cToken,
+        uint256 tokens
+    ) external {
         if (tokens == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        AccountPosition storage accountPositions = tokenData[cToken]
-            .accountPositions[msg.sender];
+        AccountPosition storage accountPositions = tokenData[cToken].accountPositions[
+            msg.sender
+        ];
 
         // We can check this instead of .isListed because any unlisted token
         // will always have activePosition == 0,
@@ -388,7 +388,12 @@ contract MarketManager is LiquidityManager, ERC165 {
         // Fail if the sender is not permitted to redeem `tokens`.
         // Note: `tokens` is in shares.
         _canRedeem(cToken, msg.sender, tokens);
-        _removeCollateral(msg.sender, accountPositions, cToken, tokens);
+        _removeCollateral(
+            msg.sender,
+            accountPositions,
+            cToken,
+            tokens
+        );
     }
 
     /// @notice Reduces `accounts`'s posted collateral, if necessary, for their
@@ -406,10 +411,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     ) external {
         _checkIsToken(cToken);
 
-        (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
+        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
             account,
             cToken,
             balance,
@@ -418,12 +420,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         );
 
         if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                cToken,
-                collateralToRemove
-            );
+            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
         }
     }
 
@@ -657,10 +654,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
-        (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
+        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
             account,
             cToken,
             0,
@@ -668,12 +662,7 @@ contract MarketManager is LiquidityManager, ERC165 {
             true
         );
         if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                cToken,
-                collateralToRemove
-            );
+            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
         }
 
         return (dTokenRepaid, cTokenLiquidated, protocolTokens);
@@ -841,9 +830,8 @@ contract MarketManager is LiquidityManager, ERC165 {
             // Cache `account` mToken.
             mToken = accountAssetsPrior[i];
             if (mToken.isCToken()) {
-                AccountPosition storage collateralData = tokenData[
-                    address(mToken)
-                ].accountPositions[account];
+                AccountPosition storage collateralData = tokenData[address(mToken)]
+                .accountPositions[account];
                 // Cache `account` collateral posted.
                 collateral = collateralData.collateralPosted;
 
@@ -859,6 +847,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                 // but this would cause a user to be immune to bad debt
                 // liquidation.
                 if (collateral > 0) {
+                    
                     // Remove `account` posted collateral,
                     // as their account is completely closed out.
                     delete collateralData.collateralPosted;
@@ -867,11 +856,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                     collateralPosted[address(mToken)] =
                         collateralPosted[address(mToken)] -
                         collateral;
-                    emit CollateralRemoved(
-                        account,
-                        address(mToken),
-                        collateral
-                    );
+                    emit CollateralRemoved(account, address(mToken), collateral);
                     // Seize `account`'s collateral and give to caller.
                     mToken.seizeAccountLiquidation(
                         msg.sender,
@@ -1285,9 +1270,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         // We need to flip their cooldown flag to prevent flashloan attacks.
         accountAssets[account].cooldownTimestamp = block.timestamp;
         collateralPosted[cToken] = collateralPosted[cToken] + tokens;
-        accountPositions.collateralPosted =
-            accountPositions.collateralPosted +
-            tokens;
+        accountPositions.collateralPosted = accountPositions.collateralPosted + tokens;
         emit CollateralPosted(account, cToken, tokens);
 
         // If `account` does not have a position in `cToken`, open one.
@@ -1314,9 +1297,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         address cToken,
         uint256 tokens
     ) internal {
-        accountPositions.collateralPosted =
-            accountPositions.collateralPosted -
-            tokens;
+        accountPositions.collateralPosted = accountPositions.collateralPosted - tokens;
         collateralPosted[cToken] = collateralPosted[cToken] - tokens;
         emit CollateralRemoved(account, cToken, tokens);
 
@@ -1390,6 +1371,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         address account,
         bool[] memory positionsToClose
     ) internal {
+
         // Cache asset list.
         IMToken[] memory userAssets = accountAssets[account].assets;
     
@@ -1429,9 +1411,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                 cachedToken = address(userAssets[i]);
 
                 // Remove `mToken` account position flag.
-                tokenData[cachedToken]
-                    .accountPositions[account]
-                    .activePosition = 1;
+                tokenData[cachedToken].accountPositions[account].activePosition = 1;
                 emit TokenPositionClosed(cachedToken, account);
             }
         }
@@ -1447,7 +1427,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         address dToken,
         address account,
         uint256 amount
-    ) internal returns (uint256, bool[] memory) {
+    ) internal returns (uint256, bool[] memory){
         if (borrowPaused[dToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -1469,10 +1449,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         // Check if the user has sufficient liquidity to borrow,
         // with heavier error code scrutiny.
-        (
-            HypotheticalData memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
+        (HypotheticalData memory result, bool[] memory positionsToClose) = _hypotheticalLiquidityOf(
             account,
             HypotheticalAction({
                     mTokenModified: dToken,
@@ -1501,7 +1478,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         address mToken,
         address account,
         uint256 amount
-    ) internal view returns (uint256, bool[] memory) {
+    ) internal view returns (uint256, bool[] memory){
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -1530,10 +1507,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         // Check account liquidity with hypothetical redemption.
         // We check liquidity even for dToken redemptions to prevent any
         // potential invariant manipulation creating a scenario of insolvency.
-        (
-            HypotheticalData memory result,
-            bool[] memory positionsToClose
-        ) = _hypotheticalLiquidityOf(
+        (HypotheticalData memory result, bool[] memory positionsToClose) = _hypotheticalLiquidityOf(
             account,
             HypotheticalAction({
                     mTokenModified: mToken,
@@ -1570,10 +1544,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         uint256 amount,
         bool forceRedeemCollateral
     ) internal {
-        (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
+        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
             account,
             cToken,
             balance,
@@ -1581,23 +1552,18 @@ contract MarketManager is LiquidityManager, ERC165 {
             forceRedeemCollateral
         );
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            cToken,
-            account,
-            collateralToRemove
-        );
-
         if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
+            (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
                 cToken,
+                account,
                 collateralToRemove
             );
-        }
 
-        if (updateNeeded == 1) {
-            _closePositions(account, positionsToClose);
+            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
+
+            if (updateNeeded == 1) {
+                _closePositions(account, positionsToClose);
+            }
         }
     }
 
@@ -1731,7 +1697,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     /// @param account The account to potential reduce posted collateral for.
     /// @param cToken The cToken address to potentially reduce collateral for.
     /// @param balance The cToken share balance of `account`.
-    /// @param tokens The maximum amount of shares that could be removed as
+    /// @param amount The maximum amount of shares that could be removed as
     ///               collateral.
     /// @param forceReduce Whether to force reduce `account`'s collateral
     ///                    for not.
@@ -1739,24 +1705,34 @@ contract MarketManager is LiquidityManager, ERC165 {
         address account,
         address cToken,
         uint256 balance,
-        uint256 tokens,
+        uint256 amount,
         bool forceReduce
     ) internal view returns (uint256, AccountPosition storage) {
-        AccountPosition storage accountPositions = tokenData[cToken]
-            .accountPositions[account];
+        AccountPosition storage accountPositions = tokenData[cToken].accountPositions[
+            account
+        ];
+
+        if (amount == 0) {
+            return (0, accountPositions);
+        }
 
         // If collateral is being directly removed by user intention,
         // or liquidation we can skip balance checks.
         if (forceReduce) {
-            return (tokens, accountPositions);
+            return (amount, accountPositions);
+        }
+
+        uint256 reductionAmount;
+
+        // If they want to redeem more shares than they have in excess,
+        // calculate the delta.
+        if (accountPositions.collateralPosted + amount >= balance) {
+            reductionAmount = (accountPositions.collateralPosted + amount) - balance;
         }
 
         // Calculate how much `cToken` `account` needs to have in order
         // to avoid reducing collateral.
-        return (
-            (accountPositions.collateralPosted + tokens) - balance,
-            accountPositions
-        );
+        return (reductionAmount, accountPositions);
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
