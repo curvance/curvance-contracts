@@ -21,15 +21,15 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      Unique to Curvance, rehypothecation of collateral token deposits
 ///      is disabled, this decision was made to allow for vastly improved
 ///      market risk modeling and the expansion of supportable assets to
-///      nearly any erc20 in existence.
-///
+///      nearly any erc20 in existence. 
+///      
 ///      All management of both cTokens and dTokens actions are managed by
 ///      the Market Manager. These tokens are collectively referred to as
 ///      Market Tokens, or mTokens. All cTokens and dTokens are mTokens but,
-///      not all cTokens are dTokens, and vice versa.
+///      not all cTokens are dTokens, and vice versa. 
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
-///      cToken contracts while restricting the scale of exogenous risk.
+///      cToken contracts while restricting the scale of exogenous risk. 
 ///      Every collateral asset as a "Collateral Cap", measured in shares.
 ///      As collateral is posted, the `collateralPosted` invariant increases,
 ///      and is compared to `collateralCaps`. By measuring collateral posted
@@ -44,29 +44,29 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      Curvance also employs a 20-minute minimum duration of posting of
 ///      cToken collateral, and lending of dTokens. This restriction improves
 ///      the security model of Curvance and allows for more mature interest
-///      rate models.
+///      rate models. 
 ///
 ///      Additionally, a new "Dynamic Liquidation Engine" or DLE
 ///      allows for more nuanced position management inside the system.
 ///      The DLE facilitates aggressive asset support and elevated
 ///      collateralization ratios paired with reduced base liquidation
 ///      penalties. In periods of low volatility, users will experience soft
-///      liquidations. But, when volatility is elevated, users may experience
+///      liquidations. But, when volatility is elevated, users may experience 
 ///      more aggressive or complete liquidation of positions.
-///
+///      
 ///      Bad debt is minimized via a "Bad Debt Socialization" system.
-///      When a user's debt is greater than their collateral assets,
+///      When a user's debt is greater than their collateral assets, 
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
-///
+///      
 contract MarketManager is LiquidityManager, ERC165 {
     /// CONSTANTS ///
 
-    /// @notice Maximum collateral requirement to avoid liquidation.
+    /// @notice Maximum collateral requirement to avoid liquidation. 
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
     uint256 public constant MAX_COLLATERAL_REQUIREMENT = 2.34e18;
-    /// @notice Minimum excess collateral requirement
+    /// @notice Minimum excess collateral requirement 
     ///         on top of liquidation incentive.
     /// @dev .015e18 = 1.5%.
     uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .015e18;
@@ -91,7 +91,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     /// @notice Minimum hold time to minimize external risks, in seconds.
     /// @dev 20 minutes = 1,200 seconds.
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
-
+    
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
@@ -116,19 +116,19 @@ contract MarketManager is LiquidityManager, ERC165 {
     address public positionFolding;
 
     /// MARKET STATE
-    /// @notice Whether mToken transfers are paused.
+    /// @notice Whether mToken transfers are paused. 
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public transferPaused = 1;
-    /// @notice Whether cToken liquidations are paused.
+    /// @notice Whether cToken liquidations are paused. 
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public seizePaused = 1;
-    /// @notice Whether mToken redemptions are paused.
+    /// @notice Whether mToken redemptions are paused. 
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public redeemPaused = 1;
-    /// @notice Whether mToken minting is paused.
+    /// @notice Whether mToken minting is paused. 
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public mintPaused;
-    /// @notice Whether dToken borrowing is paused.
+    /// @notice Whether dToken borrowing is paused. 
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public borrowPaused;
 
@@ -204,6 +204,10 @@ contract MarketManager is LiquidityManager, ERC165 {
         return (tokenData[mToken].isListed);
     }
 
+    function queryTokensListed() external view returns (address[] memory) {
+        return tokensListed;
+    }
+
     /// ACCOUNT SPECIFIC FUNCTIONS ///
 
     /// @notice Returns the assets an account has entered.
@@ -221,12 +225,12 @@ contract MarketManager is LiquidityManager, ERC165 {
     function tokenDataOf(
         address account,
         address mToken
-    )
+    ) 
         external
         view
         returns (
-            bool hasPosition,
-            uint256 balanceOf,
+            bool hasPosition, 
+            uint256 balanceOf, 
             uint256 collateralPostedOf
         )
     {
@@ -302,10 +306,10 @@ contract MarketManager is LiquidityManager, ERC165 {
         (HypotheticalData memory result, bool [] memory positionsToClose) = _hypotheticalLiquidityOf(
             account,
             HypotheticalAction({
-                mTokenModified: mTokenModified,
-                redeemTokens: redeemTokens,
-                borrowAmount: borrowAmount,
-                errorCodeBreakpoint: 2
+                    mTokenModified: mTokenModified,
+                    redeemTokens: redeemTokens,
+                    borrowAmount: borrowAmount,
+                    errorCodeBreakpoint: 2
             })
         );
         return (result.collateralSurplus, result.liquidityDeficit, positionsToClose);
@@ -401,7 +405,26 @@ contract MarketManager is LiquidityManager, ERC165 {
         uint256 tokens
     ) external {
         _checkIsToken(cToken);
-        _reduceCollateralIfNecessary(account, cToken, balance, tokens, false);
+
+        (
+            uint256 collateralToRemove,
+            AccountPosition storage accountPositions
+        ) = _checkCollateralToRemove(
+            account,
+            cToken,
+            balance,
+            tokens,
+            false
+        );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(
+                account,
+                accountPositions,
+                cToken,
+                collateralToRemove
+            );
+        }
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -456,7 +479,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself
+    /// @dev This can only be called by the mToken itself 
     ///      (specifically cTokens, because dTokens are never collateral).
     /// @param mToken The market token to verify the redemption against.
     /// @param account The account which would redeem the tokens.
@@ -634,18 +657,26 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
-        _reduceCollateralIfNecessary(
+        (
+            uint256 collateralToRemove,
+            AccountPosition storage accountPositions
+        ) = _checkCollateralToRemove(
             account,
             cToken,
             0,
             cTokenLiquidated,
             true
         );
-        return (dTokenRepaid, cTokenLiquidated, protocolTokens);
-    }
+        if (collateralToRemove > 0) {
+            _removeCollateral(
+                account,
+                accountPositions,
+                cToken,
+                collateralToRemove
+            );
+        }
 
-    function queryTokensListed() external view returns (address[] memory) {
-        return tokensListed;
+        return (dTokenRepaid, cTokenLiquidated, protocolTokens);
     }
 
     /// @notice Checks if the seizing of `collateral` by repayment of
@@ -698,7 +729,7 @@ contract MarketManager is LiquidityManager, ERC165 {
             from,
             amount
         );
-
+        
         if (updateNeeded == 1) {
             _closePositions(from, positionsToClose);
         }
@@ -773,7 +804,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
         uint256 debt;
-
+        
         // Repay `account`'s debt and recognize bad debt.
         for (uint256 i = 0; i < numAssetsPrior; ++i) {
             // Cache `account` mToken.
@@ -847,7 +878,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                         account,
                         collateral
                     );
-                }
+                }  
             }
         }
 
@@ -914,15 +945,15 @@ contract MarketManager is LiquidityManager, ERC165 {
     /// @param mToken The market to set the collateralization ratio on.
     /// @param collRatio The ratio at which $1 of collateral can be borrowed
     ///                  against, for `mToken`, in basis points.
-    /// @param collReqSoft The premium of excess collateral required to
+    /// @param collReqSoft The premium of excess collateral required to 
     ///                    avoid soft liquidation, in basis points.
-    /// @param collReqHard The premium of excess collateral required to
+    /// @param collReqHard The premium of excess collateral required to 
     ///                    avoid hard liquidation, in basis points.
-    /// @param liqIncSoft The soft liquidation incentive for `mToken`,
+    /// @param liqIncSoft The soft liquidation incentive for `mToken`, 
     ///                   in basis points.
-    /// @param liqIncHard The hard liquidation incentive for `mToken`,
+    /// @param liqIncHard The hard liquidation incentive for `mToken`, 
     ///                   in basis points.
-    /// @param liqFee The protocol liquidation fee for `mToken`,
+    /// @param liqFee The protocol liquidation fee for `mToken`, 
     ///               in basis points.
     function updateCollateralToken(
         IMToken mToken,
@@ -968,21 +999,21 @@ contract MarketManager is LiquidityManager, ERC165 {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate hard liquidation incentive is
+        // Validate hard liquidation incentive is 
         // not above the maximum allowed.
         if (liqIncHard > MAX_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate hard liquidation collateral requirement is not above
-        // the soft liquidation requirement. Liquidations occur when
+        // the soft liquidation requirement. Liquidations occur when 
         // collateral dries up so hard liquidation should be less collateral
         // than soft liquidation.
         if (collReqHard >= collReqSoft) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate hard liquidation incentive is
+        // Validate hard liquidation incentive is 
         // higher than the soft liquidation incentive. Give heavier incentives
         // when collateral is running out to reduce delta exposure.
         if (liqIncSoft >= liqIncHard) {
@@ -1294,7 +1325,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         if (
             accountPositions.collateralPosted == 0 &&
             accountPositions.activePosition == 2
-        ) {
+            ) {
             _closePosition(account, accountPositions, IMToken(cToken));
         }
     }
@@ -1361,7 +1392,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     ) internal {
         // Cache asset list.
         IMToken[] memory userAssets = accountAssets[account].assets;
-
+    
         // Cache asset array characteristics.
         uint256 numAssets = userAssets.length;
         uint256 lastAssetIndex = userAssets.length - 1;
@@ -1371,7 +1402,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         IMToken[] storage storedAssets = accountAssets[account].assets;
 
         // Go backwards through position list so swap and pop maintains
-        // continuity.
+        // continuity. 
         for (uint256 i = numAssets; i > 0; ) {
             // Subtract 1 from i prior since length starts at 1 but array
             // indices start at 0.
@@ -1391,7 +1422,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                     if (lastAssetIndex != 0) {
                         --lastAssetIndex;
                     }
-
+                    
                     storedAssets.pop();
                 }
 
@@ -1428,7 +1459,7 @@ contract MarketManager is LiquidityManager, ERC165 {
         if (tokenData[dToken].accountPositions[account].activePosition != 2) {
             // Only mTokens may call borrowAllowed if account not in market.
             _checkIsToken(dToken);
-
+            
             // The account is not in the market yet, so make them enter.
             tokenData[dToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(dToken));
@@ -1442,14 +1473,14 @@ contract MarketManager is LiquidityManager, ERC165 {
             HypotheticalData memory result,
             bool[] memory positionsToClose
         ) = _hypotheticalLiquidityOf(
-                account,
-                HypotheticalAction({
+            account,
+            HypotheticalAction({
                     mTokenModified: dToken,
                     redeemTokens: 0,
                     borrowAmount: amount,
                     errorCodeBreakpoint: 1
-                })
-            );
+            })
+        );
 
         // Validate that `account` will not run out of collateral based
         // on their collateralization ratio(s).
@@ -1503,14 +1534,14 @@ contract MarketManager is LiquidityManager, ERC165 {
             HypotheticalData memory result,
             bool[] memory positionsToClose
         ) = _hypotheticalLiquidityOf(
-                account,
-                HypotheticalAction({
+            account,
+            HypotheticalAction({
                     mTokenModified: mToken,
                     redeemTokens: amount,
                     borrowAmount: 0,
                     errorCodeBreakpoint: 2
-                })
-            );
+            })
+        );
 
         // Validate that `account` will not run out of collateral based
         // on their collateralization ratio(s).
@@ -1525,7 +1556,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the mToken itself 
     ///      (specifically cTokens, because dTokens are never collateral).
-    /// @param mToken The market token to verify the redemption against.
+    /// @param cToken The collateral token to verify the redemption against.
     /// @param account The account which would redeem the tokens.
     /// @param balance The current mTokens balance of `account`.
     /// @param amount The number of mTokens to exchange
@@ -1533,29 +1564,41 @@ contract MarketManager is LiquidityManager, ERC165 {
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function _canRedeemWithCollateralRemoval(
-        address mToken,
+        address cToken,
         address account,
         uint256 balance,
         uint256 amount,
         bool forceRedeemCollateral
     ) internal {
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            mToken,
+        (
+            uint256 collateralToRemove,
+            AccountPosition storage accountPositions
+        ) = _checkCollateralToRemove(
             account,
-            amount
-        );
-
-        if (updateNeeded == 1) {
-            _closePositions(account, positionsToClose);
-        }
-
-        _reduceCollateralIfNecessary(
-            account,
-            mToken,
+            cToken,
             balance,
             amount,
             forceRedeemCollateral
         );
+
+        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
+            cToken,
+            account,
+            collateralToRemove
+        );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(
+                account,
+                accountPositions,
+                cToken,
+                collateralToRemove
+            );
+        }
+
+        if (updateNeeded == 1) {
+            _closePositions(account, positionsToClose);
+        }
     }
 
     /// @notice Helper function for checking if the liquidation should be
@@ -1626,7 +1669,7 @@ contract MarketManager is LiquidityManager, ERC165 {
                 (cFactor * IMToken(debtToken).debtBalanceCached(account)) /
                 WAD;
 
-            // Get the exchange rate, and calculate the number of
+            // Get the exchange rate, and calculate the number of 
             // collateral tokens to seize.
             debtToCollateralRatio =
                 (incentive * data.debtTokenPrice * WAD) /
@@ -1653,7 +1696,7 @@ contract MarketManager is LiquidityManager, ERC165 {
             .accountPositions[account]
             .collateralPosted;
         // If the user wants to liquidate an exact amount, make sure theres
-        // enough collateral available to liquidate,
+        // enough collateral available to liquidate, 
         // otherwise liquidate as much as possible.
         if (liquidateExact) {
             if (
@@ -1682,8 +1725,9 @@ contract MarketManager is LiquidityManager, ERC165 {
         );
     }
 
-    /// @notice Helper function to remove `accounts`'s posted collateral,
-    ///         if necessary, for their desired action.
+
+    /// @notice Helper function to calculate how much collateral should
+    ///         be removed for their desired action.
     /// @param account The account to potential reduce posted collateral for.
     /// @param cToken The cToken address to potentially reduce collateral for.
     /// @param balance The cToken share balance of `account`.
@@ -1691,36 +1735,28 @@ contract MarketManager is LiquidityManager, ERC165 {
     ///               collateral.
     /// @param forceReduce Whether to force reduce `account`'s collateral
     ///                    for not.
-    function _reduceCollateralIfNecessary(
+    function _checkCollateralToRemove(
         address account,
         address cToken,
         uint256 balance,
         uint256 tokens,
         bool forceReduce
-    ) internal {
+    ) internal view returns (uint256, AccountPosition storage) {
         AccountPosition storage accountPositions = tokenData[cToken]
             .accountPositions[account];
 
-        // Check if they want to force a collateral redemption of `cToken`.
+        // If collateral is being directly removed by user intention,
+        // or liquidation we can skip balance checks.
         if (forceReduce) {
-            _removeCollateral(account, accountPositions, cToken, tokens);
-            return;
+            return (tokens, accountPositions);
         }
 
         // Calculate how much `cToken` `account` needs to have in order
         // to avoid reducing collateral.
-        uint256 balanceRequired = accountPositions.collateralPosted + tokens;
-
-        // If `account` does not have a high enough balance to avoid
-        // collateral reduction, reduce by the minimum necessary.
-        if (balance < balanceRequired) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                cToken,
-                balanceRequired - balance
-            );
-        }
+        return (
+            (accountPositions.collateralPosted + tokens) - balance,
+            accountPositions
+        );
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
