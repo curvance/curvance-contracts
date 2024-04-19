@@ -76,7 +76,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidRecipient
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         protocolMessagingHub.bridgeToken(137, address(0), _ONE, 0, 0, false);
