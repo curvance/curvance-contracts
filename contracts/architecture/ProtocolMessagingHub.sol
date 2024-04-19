@@ -118,7 +118,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         ICVELocker locker = _getCVELocker();
-        uint256 epoch = locker.nextEpochToDeliver();
+        uint256 epoch = _getNextEpochToDeliver(locker);
 
         if (locker.currentEpoch(block.timestamp) <= epoch) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -279,30 +279,24 @@ contract ProtocolMessagingHub is QueryResponse {
         uint8 payloadType = abi.decode(payload, (uint8));
 
         if (payloadType == 1) {
-            // PayloadType = 1: Submitting fees and epoch lock data for THIS chain,
+            // PayloadType = 1: Submitting fees from a foreign chain,
             //                  for a reported epoch.
 
             (, address srcFeeToken, uint256 amount) = abi.decode(
                 payload,
                 (uint8, address, uint256)
             );
-            // Validate fee token address
+            // Validate fee token address.
             if (chainData.feeTokenAddress != srcFeeToken) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            ICVELocker locker = _getCVELocker();
-
             // If the locker is shutdown, transfer fees to DAO
             // instead of recording epoch rewards.
-            if (locker.isShutdown() == 2) {
+            if (_checkLockerStatus(_getCVELocker())) {
                 _transferFeeTokens(amount, _getDaoAddress());
                 return;
             }
-
-            // Transfer fees to locker and record newest epoch rewards.
-            _transferFeeTokens(amount, address(locker));
-            locker.recordEpochRewards(amount);
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
@@ -347,7 +341,7 @@ contract ProtocolMessagingHub is QueryResponse {
                 (uint8, uint256)
             );
 
-            _getCVELocker().recordEpochRewards(chainLockedAmount);
+            _recordEpochRewards(_getCVELocker(), chainLockedAmount);
         } else if (payloadType == 4) {
             // payloadType = 4: Indicates migrating a veCVE lock from the source
             //                  chain to this destination chain.
@@ -544,7 +538,7 @@ contract ProtocolMessagingHub is QueryResponse {
         _checkDaoPermissions();
 
         uint256 gasTokenBalance = address(this).balance;
-        uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
+        uint256 feeTokenBalance = _getFeeTokenHeld();
 
         if (gasTokenBalance > 0) {
             SafeTransferLib.forceSafeTransferETH(
@@ -561,9 +555,7 @@ contract ProtocolMessagingHub is QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
-        ICVELocker locker = _getCVELocker();
-        uint256 epoch = locker.nextEpochToDeliver();
-
+        uint256 epoch = _getNextEpochToDeliver(_getCVELocker());
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
@@ -708,7 +700,7 @@ contract ProtocolMessagingHub is QueryResponse {
         gasLimit = _getGasLimit(gasLimit);
 
         // Query rewards for this epoch.
-        uint256 feeTokensOverall = IERC20(feeToken).balanceOf(address(this));
+        uint256 feeTokensOverall = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
         uint256 epochRewardsPerCVE = (feeTokensOverall * WAD) / totalPoints;
 
@@ -723,12 +715,12 @@ contract ProtocolMessagingHub is QueryResponse {
 
         // If the locker is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
-        if (locker.isShutdown() == 2) {
+        if (_checkLockerStatus(locker)) {
             _transferFeeTokens(feeTokensForChain, _getDaoAddress());
         } else {
             // Transfer fees to locker and record newest epoch rewards.
             _transferFeeTokens(feeTokensForChain, address(locker));
-            locker.recordEpochRewards(epochRewardsPerCVE);
+            _recordEpochRewards(locker, epochRewardsPerCVE);
         }
 
         // Notify the other chains of the per epoch rewards.
@@ -760,6 +752,10 @@ contract ProtocolMessagingHub is QueryResponse {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
     }
 
+    function _recordEpochRewards(ICVELocker locker, uint256 epochRewardsPerCVE) internal {
+        locker.recordEpochRewards(epochRewardsPerCVE);
+    }
+
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
     function _approveTokenIfNeeded(
         address token,
@@ -786,7 +782,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @dev Returns the current standard wormhole message fee.
     function _getMessageFee() internal view returns (uint256) {
-        _getWormholeCore().messageFee();
+        return _getWormholeCore().messageFee();
     }
 
     /// @dev Returns ChainData struct for `chainId`.
@@ -809,6 +805,16 @@ contract ProtocolMessagingHub is QueryResponse {
         return centralRegistry.daoAddress();
     }
 
+    /// @dev Returns the amount of fee tokens currently held in this Protocol Messaging Hub.
+    function _getFeeTokenHeld() internal view returns (uint256) {
+        return IERC20(feeToken).balanceOf(address(this));
+    }
+
+    /// @dev Returns the next protocol epoch to deliver rewards for.
+    function _getNextEpochToDeliver(ICVELocker locker) internal view returns (uint256) {
+        return locker.nextEpochToDeliver();
+    }
+
     /// @dev Returns the proper gas limit to use based on parameter input.
     ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is 0.
     function _getGasLimit(uint256 gasLimit) internal pure returns (uint256) {
@@ -820,6 +826,12 @@ contract ProtocolMessagingHub is QueryResponse {
         if (isPaused == 2) {
             revert ProtocolMessagingHub__MessagingHubPaused();
         }
+    }
+
+    /// @dev Checks whether the CVE Locker is shutdown or not.
+    /// @return Returns true if locker is shutdown.
+    function _checkLockerStatus(ICVELocker locker) internal view returns (bool) {
+        return locker.isShutdown() == 2;
     }
 
     /// @dev Internal helper for reverting efficiently.
