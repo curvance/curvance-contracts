@@ -1067,6 +1067,11 @@ contract CentralRegistry is ERC165 {
         return foreignChainIds;
     }
 
+    /// @notice Returns an array of Curvance markets on this chain.
+    function getMarketManagers() external view returns (address[] memory) {
+        return marketManagers;
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Adds a new Market Manager and associated fee configurations.

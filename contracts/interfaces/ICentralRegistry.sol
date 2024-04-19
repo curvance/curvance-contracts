@@ -139,12 +139,12 @@ interface ICentralRegistry {
     /// @notice Chain ID recorded in the Messaging Layers Chain ID format.
     function foreignChainIds(uint256) external view returns (uint256);
 
-    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
-    ///         format.
+    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
+    ///         Chain ID format.
     function getForeignChainIds() external view returns (uint256[] memory);
 
-    /// @notice Address array for all Curvance Market Managers on this chain.
-    function marketManagers() external view returns (address[] memory);
+    /// @notice Returns an array of Curvance markets on this chain.
+    function getMarketManagers() external view returns (address[] memory);
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.

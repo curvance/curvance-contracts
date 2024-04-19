@@ -91,7 +91,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         centralRegistry = centralRegistry_;
 
-        address[] memory marketManagers = centralRegistry_.marketManagers();
+        address[] memory marketManagers = centralRegistry_.getMarketManagers();
         uint256 numMarkets = marketManagers.length;
 
         // Register any previously configured markets here, if any.

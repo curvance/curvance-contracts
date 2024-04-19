@@ -168,7 +168,7 @@ contract CurvanceAuxiliaryData {
     }
 
     function getMarketManagers() external view returns (address[] memory) {
-        return centralRegistry.queryMarketManagers();
+        return centralRegistry.getMarketManagers();
     }
 
     /// EXTERNAL ACCOUNT-SPECIFIC FUNCTIONS ///
