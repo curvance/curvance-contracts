@@ -102,7 +102,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
-        _deployMockTokens();
+        // _deployMockTokens();
         _createTestMarkets();
         _createRealTestMarkets();
         _loadFaucet();
@@ -242,13 +242,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
         secondCollateralTokens[0] = MarketTokenDeploy(
             "Div-CToken-USDC",
-            _readConfigAddress(".markets.dTokens.USDC.asset"),
+            usdc,
             _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
             _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
         );
         secondDebtTokens[0] = MarketTokenDeploy(
             "Div-DToken-WBTC",
-            _readConfigAddress(".markets.cTokens.WBTC.asset"),
+            wbtc,
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
         );
