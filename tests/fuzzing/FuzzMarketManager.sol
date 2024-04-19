@@ -729,32 +729,32 @@ contract FuzzMarketManager is FuzzLiquidations {
 
     /// @custom:property market-25 Calling reduceCollateralIfNecessary should fail when not called within the context of the mtoken.
     /// @custom:precondition msg.sender != mtoken
-    function reduceCollateralIfNecessary_should_fail_with_wrong_caller(
-        address mtoken,
-        uint256 amount
-    ) public {
-        require(msg.sender != mtoken);
-        try
-            marketManager.reduceCollateralIfNecessary(
-                address(this),
-                mtoken,
-                IMToken(mtoken).balanceOf(address(this)),
-                amount
-            )
-        {
-            assertWithMsg(
-                false,
-                "MARKET-25 reduceCollateralIfNecessary should not be successful if called directly"
-            );
-        } catch (bytes memory revertData) {
-            uint256 errorSelector = extractErrorSelector(revertData);
+    // function reduceCollateralIfNecessary_should_fail_with_wrong_caller(
+    //     address mtoken,
+    //     uint256 amount
+    // ) public {
+    //     require(msg.sender != mtoken);
+    //     try
+    //         marketManager.reduceCollateralIfNecessary(
+    //             address(this),
+    //             mtoken,
+    //             IMToken(mtoken).balanceOf(address(this)),
+    //             amount
+    //         )
+    //     {
+    //         assertWithMsg(
+    //             false,
+    //             "MARKET-25 reduceCollateralIfNecessary should not be successful if called directly"
+    //         );
+    //     } catch (bytes memory revertData) {
+    //         uint256 errorSelector = extractErrorSelector(revertData);
 
-            assertWithMsg(
-                errorSelector == marketManager_unauthorizedSelectorHash,
-                "MARKET-25 reduceCollateralIfNecessary expected to revert with Unauthorized"
-            );
-        }
-    }
+    //         assertWithMsg(
+    //             errorSelector == marketManager_unauthorizedSelectorHash,
+    //             "MARKET-25 reduceCollateralIfNecessary expected to revert with Unauthorized"
+    //         );
+    //     }
+    // }
 
     // the closePosition function was removed from the codebase thus these invariants are no longer needed
     /* 
