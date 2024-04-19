@@ -19,20 +19,6 @@ interface IMarketManager {
         uint256 tokens
     ) external;
 
-    /// @notice Reduces `accounts`'s posted collateral if necessary for their
-    ///         desired action.
-    /// @param account The account to potential reduce posted collateral for.
-    /// @param cToken The cToken address to potentially reduce collateral for.
-    /// @param balance The cToken share balance of `account`.
-    /// @param amount The maximum amount of shares that could be removed as
-    ///               collateral.
-    function reduceCollateralIfNecessary(
-        address account,
-        address cToken,
-        uint256 balance,
-        uint256 amount
-    ) external;
-
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
     /// @param mToken The token to verify mints against.
@@ -45,18 +31,6 @@ interface IMarketManager {
     /// @param amount The number of mTokens to exchange
     ///               for the underlying asset in the market.
     function canRedeem(
-        address mToken,
-        address account,
-        uint256 amount
-    ) external;
-
-    /// @notice Checks if the account should be allowed to redeem `amount`
-    ///         of `mToken` in the given market state.
-    /// @param mToken The market token to verify the redemption for.
-    /// @param account The account which would redeem the tokens.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
-    function canRedeemWithPrune(
         address mToken,
         address account,
         uint256 amount
@@ -180,7 +154,6 @@ interface IMarketManager {
 
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
-    function tokensListed() external view returns (address[] memory);
     function queryTokensListed() external view returns (address[] memory);
 
     /// @notice Returns whether `mToken` is listed in the lending market.
