@@ -39,6 +39,9 @@ contract TestGaugePool is TestBaseMarket {
             users[i] = address(new User());
             _prepareDAI(users[i], 200000e18);
         }
+        for (uint256 i = 0; i < 10; i++) {
+            tokens[i] = address(_deployDDAI());
+        }
 
         address[] memory tokensParam = new address[](1);
         tokensParam[0] = tokens[0];
@@ -52,8 +55,6 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.start(address(marketManager));
 
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
-
             // support market
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
