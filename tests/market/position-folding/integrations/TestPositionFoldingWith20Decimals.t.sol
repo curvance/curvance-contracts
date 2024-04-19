@@ -28,9 +28,11 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
     fallback() external payable {}
 
     function setUp() public override {
+        _fork(18031848);
+
         _USDC_ADDRESS = address(new MockToken("USDC", "USDC", 20));
 
-        super.setUp();
+        _init();
 
         owner = address(this);
         user = user1;

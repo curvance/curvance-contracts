@@ -2,7 +2,6 @@
 pragma solidity ^0.8.15;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
@@ -50,17 +49,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
 
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = tokens[0];
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100;
-
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
-
-        // start epoch
-        gaugePool.start(address(marketManager));
-
         for (uint256 i = 0; i < 10; i++) {
             tokens[i] = address(_deployDDAI());
 
@@ -88,6 +76,17 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 }
             }
         }
+
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = tokens[0];
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 100;
+
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+
+        // start epoch
+        gaugePool.start(address(marketManager));
 
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
