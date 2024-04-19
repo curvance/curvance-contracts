@@ -146,16 +146,14 @@ abstract contract CTokenCompounding is CTokenBase {
             params
         );
 
-        // Fails if redeem not allowed.
-        marketManager.reduceCollateralIfNecessary(
-            owner,
+        // Fails if redemption not allowed.
+        marketManager.canRedeemWithCollateralRemoval(
             address(this),
+            owner,
             balancePrior,
-            shares
+            shares,
+            false
         );
-
-        // Checks whether callback or slippage has broken invariants.
-        marketManager.canRedeemWithPrune(address(this), owner, 0);
     }
 
     /// @notice Returns the current cToken yield status information.
