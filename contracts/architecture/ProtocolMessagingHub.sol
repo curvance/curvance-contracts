@@ -5,21 +5,23 @@ import { GaugeController } from "contracts/gauge/GaugeController.sol";
 import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData, OmnichainData, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { ICVELocker, RewardsData } from "contracts/interfaces/ICVELocker.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
+import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
 /// @title Curvance Protocol Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
@@ -36,23 +38,29 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///      At this time, payload/MessageType configuration + encoding/decoding
 ///      are not production ready.
 ///
-contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
+contract ProtocolMessagingHub is QueryResponse {
     using BytesParsing for bytes;
 
     /// CONSTANTS ///
 
-    /// @notice CVE contract address.
-    ICVE public immutable cve;
-    /// @notice veCVE contract address.
-    IVeCVE public immutable veCVE;
-
-    /// @dev `keccak256(bytes("queryLockPoints()"))`.
-    bytes4 internal _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
+    /// @notice Gas limit with which to call `targetAddress` via wormhole.
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
 
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
     /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
+    /// @dev `keccak256(bytes("queryLockPoints()"))`.
+    bytes4 internal constant _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
+
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+    /// @notice Address of fee token.
+    address public immutable feeToken;
+    /// @notice CVE contract address.
+    ICVE public immutable cve;
+    /// @notice veCVE contract address.
+    IVeCVE public immutable veCVE;
 
     /// STORAGE ///
 
@@ -71,8 +79,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
         bytes32 messageHash
     );
-    error ProtocolMessagingHub__InvalidWormholeChainId();
-    error ProtocolMessagingHub__InvalidRecipient();
+    error ProtocolMessagingHub__InsufficientGasToken();
 
     receive() external payable {}
 
@@ -81,9 +88,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     constructor(
         ICentralRegistry centralRegistry_
     )
-        FeeTokenBridgingHub(centralRegistry_)
         QueryResponse(address(centralRegistry_.wormholeCore()))
     {
+        if (
+            !ERC165Checker.supportsInterface(
+                address(centralRegistry_),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        centralRegistry = centralRegistry_;
+
+        feeToken = centralRegistry.feeToken();
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
     }
@@ -145,9 +163,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
 
             // Validate our responses came from the expected contract (Messaging Hub),
             // and expected function.
-            validAddresses[0] = centralRegistry
-                .supportedChainData(chainIds[i])
-                .messagingHub;
+            validAddresses[0] = _getChainData(chainIds[i]).messagingHub;
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
             validateMultipleEthCallData(
                 eqr.result,
@@ -254,9 +270,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             return;
         }
 
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            gethChainId
-        );
+        ChainData memory chainData = _getChainData(gethChainId);
         // Validate message came directly from MessagingHub on the source chain.
         if (chainData.messagingHub != srcAddr) {
             return;
@@ -277,22 +291,17 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            address feeToken = centralRegistry.feeToken();
             ICVELocker locker = _getCVELocker();
 
             // If the locker is shutdown, transfer fees to DAO
             // instead of recording epoch rewards.
             if (locker.isShutdown() == 2) {
-                SafeTransferLib.safeTransfer(
-                    feeToken,
-                    centralRegistry.daoAddress(),
-                    amount
-                );
+                _transferFeeTokens(amount, _getDaoAddress());
                 return;
             }
 
             // Transfer fees to locker and record newest epoch rewards.
-            SafeTransferLib.safeTransfer(feeToken, address(locker), amount);
+            _transferFeeTokens(amount, address(locker));
             locker.recordEpochRewards(amount);
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
@@ -347,7 +356,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
                 .decode(payload, (uint8, address, uint256, bool));
 
             cve.mintVeCVELock(amount);
-            cve.approve(address(veCVE), amount);
+            _approveTokenIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
 
@@ -383,9 +392,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        ChainData memory chainData = centralRegistry.supportedChainData(
-            dstChainId
-        );
+        ChainData memory chainData = _getChainData(dstChainId);
 
         OmnichainData memory operator = centralRegistry.getOmnichainOperators(
             chainData.messagingHub,
@@ -441,29 +448,23 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     ) external payable returns (uint64) {
         _checkMessagingHubStatus();
 
-        uint16 wormholeChainId = centralRegistry
-            .wormholeData(dstChainId)
-            .chainId;
+        uint16 wormholeChainId = _getWormholeData(dstChainId).chainId;
 
         if (wormholeChainId == 0) {
-            revert ProtocolMessagingHub__InvalidWormholeChainId();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
         if (recipient == address(0)) {
-            revert ProtocolMessagingHub__InvalidRecipient();
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (gasLimit == 0) {
-            gasLimit = _DEFAULT_GAS_LIMIT;
-        }
+        gasLimit = _getGasLimit(gasLimit);
 
         if (payloadType == 4) {
             if (msg.sender != address(veCVE)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            ChainData memory chainData = centralRegistry.supportedChainData(
-                dstChainId
-            );
+            ChainData memory chainData = _getChainData(dstChainId);
 
             // Validate that we are aiming for a supported chain.
             if (chainData.isSupported < 2) {
@@ -487,16 +488,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
 
         ITokenBridge tokenBridge = centralRegistry.tokenBridge();
-        IWormhole wormholeCore = centralRegistry.wormholeCore();
-
-        SwapperLib._approveTokenIfNeeded(
-            address(cve),
-            address(tokenBridge),
-            amount
-        );
+        _approveTokenIfNeeded(address(cve), address(tokenBridge), amount);
 
         uint64 sequence = tokenBridge.transferTokensWithPayload{
-            value: wormholeCore.messageFee()
+            value: _getMessageFee()
         }(
             address(cve),
             amount,
@@ -510,13 +505,13 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
         vaaKeys[0] = IWormholeRelayer.VaaKey({
             emitterAddress: bytes32(uint256(uint160(address(tokenBridge)))),
-            chainId: wormholeCore.chainId(),
+            chainId: _getWormholeCore().chainId(),
             sequence: sequence
         });
 
         return
             _getWormholeRelayer().sendVaasToEvm{
-                value: msg.value - wormholeCore.messageFee()
+                value: msg.value - _getMessageFee()
             }(wormholeChainId, recipient, "", 0, gasLimit, vaaKeys);
     }
 
@@ -525,10 +520,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @notice Permissioned function that flips the pause status of the
     ///         Messaging Hub.
     function flipMessagingHubStatus() external {
-        // If the messaging hub is currently paused,
-        // then we are turning pause state off.
-        bool state = isPaused == 2 ? false : true;
-        _checkAuthorizedPermissions(state);
+        _checkDaoPermissions();
 
         // Possible outcomes:
         // If pause state is being turned off (state = false), then the
@@ -538,7 +530,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         // If pause state is being turned on (state = true), then the
         // Messaging Hub is being turned off which means isPaused will be
         // set to 2.
-        isPaused = state ? 2 : 1;
+        isPaused = isPaused == 2 ? 1 : 2;
     }
 
     /// @notice Withdraws gas tokens and fee tokens from the Protocol Messaging Hub
@@ -549,25 +541,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     ///      funds a malicious actor would have had to compromise the whole
     ///      system already. Thus, we only need to check for DAO perms here.
     function withdrawDeposited() external {
-        _checkAuthorizedPermissions(true);
+        _checkDaoPermissions();
 
-        address feeToken = centralRegistry.feeToken();
         uint256 gasTokenBalance = address(this).balance;
         uint256 feeTokenBalance = IERC20(feeToken).balanceOf(address(this));
 
         if (gasTokenBalance > 0) {
             SafeTransferLib.forceSafeTransferETH(
-                centralRegistry.daoAddress(),
+                _getDaoAddress(),
                 gasTokenBalance
             );
         }
 
         if (feeTokenBalance > 0) {
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                centralRegistry.daoAddress(),
-                feeTokenBalance
-            );
+            _transferFeeTokens(feeTokenBalance, _getDaoAddress());
         }
     }
 
@@ -580,7 +567,133 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
+    /// @notice Quotes gas cost and token fee for executing crosschain
+    ///         deposit and messaging.
+    /// @param dstChainId GETH destination chain ID.
+    /// @param transferToken Whether deliver token or not.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @return nativeFee Total gas cost to send a message to `dstChainId`.
+    function quoteMessageFee(
+        uint256 dstChainId,
+        bool transferToken,
+        uint256 gasLimit
+    ) public view returns (uint256 nativeFee) {
+        (nativeFee, ) = _getWormholeRelayer()
+            .quoteEVMDeliveryPrice(
+                _getWormholeData(dstChainId).chainId,
+                0,
+                _getGasLimit(gasLimit)
+            );
+
+        if (transferToken) {
+            // Add cost of publishing the 'sending token' wormhole message.
+            nativeFee += _getMessageFee();
+        }
+    }
+
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Sends fee tokens to the receiver on `dstChainId`.
+    /// @param dstChainId GETH destination chain ID.
+    /// @param to The address of receiver on `dstChainId`.
+    /// @param amount The amount of token to transfer.
+    /// @param payload The payload data that is sent along with the message.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    function _sendFeeToken(
+        uint256 dstChainId,
+        address to,
+        uint256 amount,
+        bytes memory payload,
+        uint256 gasLimit
+    ) internal {
+        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+
+        // Validate that we have sufficient fees to send crosschain.
+        if (address(this).balance < wormholeFee) {
+            revert ProtocolMessagingHub__InsufficientGasToken();
+        }
+
+        ITokenMessenger circleTokenMessenger = centralRegistry
+            .circleTokenMessenger();
+
+        if (payload.length == 0) {
+            payload = abi.encode(uint8(1), feeToken, amount);
+        }
+
+        if (
+            address(circleTokenMessenger) != address(0) &&
+            circleTokenMessenger.remoteTokenMessengers(
+                _getCCTPDomain(dstChainId)
+            ) !=
+            bytes32(0)
+        ) {
+            _transferFeeTokenViaCCTP(
+                circleTokenMessenger,
+                dstChainId,
+                to,
+                amount,
+                payload,
+                wormholeFee,
+                gasLimit
+            );
+        } else {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+    }
+
+    /// @notice Sends fee tokens to the receiver on `dstChainId`.
+    /// @param circleTokenMessenger Token Messenger contract to submit
+    ///                             transfer message to.
+    /// @param dstChainId GETH destination chain ID.
+    /// @param to The address of receiver on `dstChainId`.
+    /// @param amount The amount of token to transfer.
+    /// @param payload The payload data that is sent along with the message.
+    /// @param wormholeFee Total gas cost to attach send a CCTP message
+    ///                    to `dstChainId`.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    function _transferFeeTokenViaCCTP(
+        ITokenMessenger circleTokenMessenger,
+        uint256 dstChainId,
+        address to,
+        uint256 amount,
+        bytes memory payload,
+        uint256 wormholeFee,
+        uint256 gasLimit
+    ) internal {
+        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
+        WormholeData memory wormholeData = _getWormholeData(dstChainId);
+
+        _approveTokenIfNeeded(feeToken, address(circleTokenMessenger), amount);
+
+        uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
+            amount,
+            _getCCTPDomain(dstChainId),
+            bytes32(uint256(uint160(to))),
+            feeToken,
+            bytes32(uint256(uint160(wormholeData.relayer)))
+        );
+
+        IWormholeRelayer.MessageKey[]
+            memory messageKeys = new IWormholeRelayer.MessageKey[](1);
+        messageKeys[0] = IWormholeRelayer.MessageKey(
+            2, // CCTP_KEY_TYPE
+            abi.encodePacked(_getCCTPDomain(block.chainid), nonce)
+        );
+
+        wormholeRelayer.sendToEvm{ value: wormholeFee }(
+            wormholeData.chainId,
+            to,
+            payload,
+            0,
+            0,
+            _getGasLimit(gasLimit),
+            wormholeData.chainId,
+            address(0),
+            wormholeRelayer.getDefaultDeliveryProvider(),
+            messageKeys,
+            15
+        );
+    }
 
     /// @notice Executes protocol-wide reporting and distribution of epoch
     ///         results, to all chains within the Curvance Protocol system.
@@ -592,9 +705,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 totalPoints,
         uint256 gasLimit
     ) internal {
-        if (gasLimit == 0) {
-            gasLimit = _DEFAULT_GAS_LIMIT;
-        }
+        gasLimit = _getGasLimit(gasLimit);
 
         // Query rewards for this epoch.
         uint256 feeTokensOverall = IERC20(feeToken).balanceOf(address(this));
@@ -604,27 +715,19 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         uint256 feeTokensForChain;
         uint256 currentChainId;
 
-        ICVELocker locker = _getCVELocker();
-
         feeTokensForChain =
             (((feeTokensOverall * WAD) / totalPoints) * thisChainsPoints) /
             WAD;
 
+        ICVELocker locker = _getCVELocker();
+
         // If the locker is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
         if (locker.isShutdown() == 2) {
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                centralRegistry.daoAddress(),
-                feeTokensForChain
-            );
+            _transferFeeTokens(feeTokensForChain, _getDaoAddress());
         } else {
             // Transfer fees to locker and record newest epoch rewards.
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                address(locker),
-                feeTokensForChain
-            );
+            _transferFeeTokens(feeTokensForChain, address(locker));
             locker.recordEpochRewards(epochRewardsPerCVE);
         }
 
@@ -639,9 +742,7 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
-                centralRegistry
-                    .supportedChainData(currentChainId)
-                    .messagingHub,
+                _getChainData(currentChainId).messagingHub,
                 feeTokensForChain,
                 abi.encode(3, epochRewardsPerCVE),
                 gasLimit
@@ -654,6 +755,20 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         return IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
     }
 
+    /// @dev Transfers `amount` `feeToken` to `recipient`.
+    function _transferFeeTokens(uint256 amount, address recipient) internal {
+        SafeTransferLib.safeTransfer(feeToken, recipient, amount);
+    }
+
+    /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
+    function _approveTokenIfNeeded(
+        address token,
+        address spender,
+        uint256 amount
+    ) internal {
+        SwapperLib._approveTokenIfNeeded(token, spender, amount);
+    }
+
     /// @dev Returns the current CVE locker address to call.
     function _getCVELocker() internal view returns (ICVELocker) {
         return ICVELocker(centralRegistry.cveLocker());
@@ -662,6 +777,49 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
     /// @dev Returns the current Wormhole Relayer address to call.
     function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
         return centralRegistry.wormholeRelayer();
+    }
+
+    /// @dev Returns the current Wormhole Core address to call.
+    function _getWormholeCore() internal view returns (IWormhole) {
+        return centralRegistry.wormholeCore();
+    }
+
+    /// @dev Returns the current standard wormhole message fee.
+    function _getMessageFee() internal view returns (uint256) {
+        _getWormholeCore().messageFee();
+    }
+
+    /// @dev Returns ChainData struct for `chainId`.
+    function _getChainData(uint256 chainId) internal view returns (ChainData memory) {
+        return centralRegistry.supportedChainData(chainId);
+    }
+
+    /// @dev Returns WormholeData struct for `chainId`.
+    function _getWormholeData(uint256 chainId) internal view returns (WormholeData memory) {
+        return centralRegistry.wormholeData(chainId);
+    }
+
+    /// @dev Returns the CCTP domain for `chainId`.
+    function _getCCTPDomain(uint256 chainId) internal view returns (uint32) {
+        return centralRegistry.cctpDomain(chainId);
+    }
+
+    /// @dev Returns the current Curvance DAO address.
+    function _getDaoAddress() internal view returns (address) {
+        return centralRegistry.daoAddress();
+    }
+
+    /// @dev Returns the proper gas limit to use based on parameter input.
+    ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is 0.
+    function _getGasLimit(uint256 gasLimit) internal pure returns (uint256) {
+        return gasLimit == 0 ? _DEFAULT_GAS_LIMIT : gasLimit;
+    }
+
+    /// @dev Checks whether the Messaging Hub is paused or not.
+    function _checkMessagingHubStatus() internal view {
+        if (isPaused == 2) {
+            revert ProtocolMessagingHub__MessagingHubPaused();
+        }
     }
 
     /// @dev Internal helper for reverting efficiently.
@@ -673,26 +831,10 @@ contract ProtocolMessagingHub is FeeTokenBridgingHub, QueryResponse {
         }
     }
 
-    /// @dev Checks whether the Messaging Hub is paused or not.
-    function _checkMessagingHubStatus() internal view {
-        if (isPaused == 2) {
-            revert ProtocolMessagingHub__MessagingHubPaused();
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissions
-    ///      based on `state`, turning something off is less "risky" than
-    ///      enabling something, so `state` = true has reduced permissioning
-    ///      compared to `state` = false.
-    function _checkAuthorizedPermissions(bool state) internal view {
-        if (state) {
-            if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-        } else {
-            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 }
