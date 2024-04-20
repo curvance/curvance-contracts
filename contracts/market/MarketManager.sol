@@ -480,6 +480,8 @@ contract MarketManager is LiquidityManager, ERC165 {
         address account,
         uint256 amount
     ) external {
+        _checkIsToken(dToken);
+        
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,

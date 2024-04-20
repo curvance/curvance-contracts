@@ -136,6 +136,18 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        // Cache Gauge Pool.
+        IGaugePool gaugePool = IMarketManager(marketManager).gaugePool();
+        uint256 nextEpoch = gaugePool.currentEpoch() + 1;
+
+        // Validate that the Gauge Pool has not already set gauge rewards
+        // for the next epoch.
+        if (epochReported[msg.sender][nextEpoch]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        epochReported[msg.sender][nextEpoch] = true;
+
         uint256 gasYield = CHAIN_YIELD_MANAGER.claimMaxGas(
             msg.sender,
             address(this)
@@ -181,16 +193,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         // Validate yield was actually claimed.
         if (USDBYield == 0 && WETHYield == 0) {
             revert BlastNativeYieldManager__NoYieldToClaim();
-        }
-
-        // Cache Gauge Pool.
-        IGaugePool gaugePool = IMarketManager(marketManager).gaugePool();
-        uint256 nextEpoch = gaugePool.currentEpoch() + 1;
-
-        // Validate that the Gauge Pool has not already set gauge rewards
-        // for the next epoch.
-        if (epochReported[msg.sender][nextEpoch]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // Its theoretically possible that the rewards per second round down

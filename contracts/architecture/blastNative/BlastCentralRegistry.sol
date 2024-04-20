@@ -91,7 +91,7 @@ contract BlastCentralRegistry is CentralRegistry {
             );
             // If the call was successful we called a Curvance mToken which
             // DAO should not be able to claim rewards for.
-            if (success) {
+            if (success && nonMToken.code.length > 0) {
                 revert BlastCentralRegistry__Unauthorized();
             }
         }
@@ -150,6 +150,6 @@ contract BlastCentralRegistry is CentralRegistry {
     ) public pure override returns (bool) {
         return
             interfaceId == type(IBlastCentralRegistry).interfaceId ||
-            interfaceId == type(ICentralRegistry).interfaceId;
+            super.supportsInterface(interfaceId);
     }
 }
