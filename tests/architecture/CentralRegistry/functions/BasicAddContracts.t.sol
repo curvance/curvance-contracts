@@ -16,19 +16,19 @@ contract BasicAddContractsTest is TestBaseMarket {
         super.setUp();
 
         addFuncs = [
-            "addVeCVELocker(address)",
+            "addLockingPermissions(address)",
             "addGaugeController(address)",
             "addHarvester(address)",
             "addEndpoint(address)"
         ];
         maps = [
-            "isVeCVELocker(address)",
+            "hasLockingPermissions(address)",
             "isGaugeController(address)",
             "isHarvester(address)",
             "isEndpoint(address)"
         ];
         expectedLogs = [
-            "VeCVELocker",
+            "Locking Permissions",
             "Gauge Controller",
             "Harvestor",
             "Endpoint"

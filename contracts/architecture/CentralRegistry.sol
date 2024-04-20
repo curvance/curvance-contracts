@@ -159,6 +159,9 @@ contract CentralRegistry is ERC165 {
     /// @notice Whether an address has Elevated DAO permissioning or not.
     /// @dev Address => Elevated DAO permission status.
     mapping(address => bool) public hasElevatedPermissions;
+    /// @notice Whether an address has lock creation permissioning or not.
+    /// @dev Address => Lock creation permission status.
+    mapping(address => bool) public hasLockingPermissions;
 
     // MULTICHAIN CONFIGURATION DATA
 
@@ -192,7 +195,6 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACT MAPPINGS
 
-    mapping(address => bool) public isVeCVELocker;
     mapping(address => bool) public isGaugeController;
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
@@ -768,6 +770,52 @@ contract CentralRegistry is ERC165 {
         );
     }
 
+    
+    /// @notice Adds an approved address to create locks for other
+    ///         addresses inside Curvance.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot be an approved VeCVE locker contract prior.
+    ///      Emits a {NewCurvanceContract} event.
+    /// @param newApprovedAddress The new address to approve lock
+    ///                           creation authority inside Curvance.
+    function addLockingPermissions(address newApprovedAddress) external {
+        _checkElevatedPermissions();
+
+        // Validate `newApprovedAddress` is not currently supported.
+        if (hasLockingPermissions[newApprovedAddress]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        hasLockingPermissions[newApprovedAddress] = true;
+
+        emit NewCurvanceContract("Locking Permissions", newApprovedAddress);
+    }
+
+    /// @notice Removes an approved address to create locks for other
+    ///         addresses inside Curvance.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Has to be an approved VeCVE locker contract prior.
+    ///      Emits a {RemovedCurvanceContract} event.
+    /// @param currentApprovedAddress The approved address to remove lock
+    ///                               creation authority inside Curvance.
+    function removeLockingPermissions(
+        address currentApprovedAddress
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `currentApprovedAddress` is currently supported.
+        if (!hasLockingPermissions[currentApprovedAddress]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        delete hasLockingPermissions[currentApprovedAddress];
+
+        emit RemovedCurvanceContract(
+            "Locking Permissions",
+            currentApprovedAddress
+        );
+    }
+
     /// MULTICHAIN SUPPORT LOGIC
 
     /// @notice Adds support for a new chain.
@@ -897,44 +945,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
-    }
-
-    /// @notice Adds an approved VeCVE locker contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be an approved VeCVE locker contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newVeCVELocker The new VeCVE locker contract to approve for use
-    ///                       in Curvance.
-    function addVeCVELocker(address newVeCVELocker) external {
-        _checkElevatedPermissions();
-
-        // Validate `newVeCVELocker` is not currently supported.
-        if (isVeCVELocker[newVeCVELocker]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isVeCVELocker[newVeCVELocker] = true;
-
-        emit NewCurvanceContract("VeCVELocker", newVeCVELocker);
-    }
-
-    /// @notice Removes an approved VeCVE locker contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be an approved VeCVE locker contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentVeCVELocker The approved VeCVE locker contract to remove
-    ///                           from Curvance.
-    function removeVeCVELocker(address currentVeCVELocker) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentVeCVELocker` is currently supported.
-        if (!isVeCVELocker[currentVeCVELocker]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isVeCVELocker[currentVeCVELocker];
-
-        emit RemovedCurvanceContract("VeCVELocker", currentVeCVELocker);
     }
 
     /// @notice Adds a Gauge Controller contract for use in Curvance.

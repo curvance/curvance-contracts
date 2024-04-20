@@ -61,6 +61,12 @@ interface ICentralRegistry {
         address _address
     ) external view returns (bool);
 
+    /// @notice Returns whether the inputted has lock creation permissioning
+    ///         or not.
+    function hasLockingPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
     /// @notice Returns CVE Locker address.
     function cveLocker() external view returns (address);
 
@@ -172,11 +178,6 @@ interface ICentralRegistry {
     function GETHToMessagingChainId(
         uint256 chainId
     ) external view returns (uint16);
-
-    /// @notice Returns whether the inputted address is an approved veCVELocker.
-    function isVeCVELocker(
-        address addressToCheck
-    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Gauge Controller.
     function isGaugeController(

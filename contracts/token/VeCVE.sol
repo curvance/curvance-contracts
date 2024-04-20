@@ -319,7 +319,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         if (
-            !centralRegistry.isVeCVELocker(msg.sender) &&
+            !centralRegistry.hasLockingPermissions(msg.sender) &&
             !centralRegistry.isGaugeController(msg.sender)
         ) {
             _revert(_INVALID_LOCK_SELECTOR);
@@ -467,7 +467,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         if (
-            !centralRegistry.isVeCVELocker(msg.sender) &&
+            !centralRegistry.hasLockingPermissions(msg.sender) &&
             !centralRegistry.isGaugeController(msg.sender)
         ) {
             _revert(_INVALID_LOCK_SELECTOR);
