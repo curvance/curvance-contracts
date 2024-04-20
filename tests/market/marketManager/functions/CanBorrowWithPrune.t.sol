@@ -28,10 +28,13 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
     }
 
     function test_canBorrowWithPrune_fail_whenMTokenIsNotListed() public {
-        vm.prank(address(dUSDC));
+        marketManager.listToken(address(dDAI));
+
+        vm.prank(address(dDAI));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canBorrowWithPrune(address(dDAI), user1, 100e6);
+        
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
 
     function test_canBorrowWithPrune_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()

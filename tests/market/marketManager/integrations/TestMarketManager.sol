@@ -442,8 +442,9 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
             address(dTokens[1])
         );
         assertEq(hasPosition, true);
-
+        vm.prank(address(dTokens[1]));
         marketManager.canBorrowWithPrune(address(dTokens[1]), users[0], 0);
+        vm.prank(users[0]);
 
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
