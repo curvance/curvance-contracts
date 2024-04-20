@@ -159,6 +159,14 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry._setOracleRouter: ", oracleRouter);
     }
 
+    function _addLockingPermissions(address newApprovedAddress) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+        require(newApprovedAddress != address(0), "Set the newApprovedAddress!");
+
+        CentralRegistry(centralRegistry).addLockingPermissions(newApprovedAddress);
+        console.log("centralRegistry.addLockingPermissions: ", newApprovedAddress);
+    }
+
     function _addGaugeController(address gaugePool) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(gaugePool != address(0), "Set the gaugePool!");

@@ -112,7 +112,7 @@ contract ClaimRewardsTest is TestBaseCVELocker {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public {
-        centralRegistry.addVeCVELocker(address(cveLocker));
+        centralRegistry.addLockingPermissions(address(cveLocker));
 
         rewardsData = RewardsData(
             true,

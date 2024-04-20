@@ -267,7 +267,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
-        centralRegistry.addVeCVELocker(address(protocolMessagingHub));
+        centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 
         assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), 0);

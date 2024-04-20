@@ -408,6 +408,7 @@ contract TestBaseMarket is TestBase {
 
     function _deployGaugePool() internal {
         gaugePool = new GaugePool(ICentralRegistry(address(centralRegistry)));
+        centralRegistry.addLockingPermissions(address(gaugePool));
         centralRegistry.addGaugeController(address(gaugePool));
     }
 
