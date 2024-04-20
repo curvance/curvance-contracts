@@ -49,7 +49,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert();
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_fail_whenResultIsNotNumber() public {
@@ -67,7 +72,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_fail_whenBlockTimeIsStale() public {
@@ -81,7 +91,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("StaleBlockTime()")));
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_fail_whenChainIdIsInvalid() public {
@@ -99,7 +114,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_fail_whenToAddressIsInvalid() public {
@@ -113,7 +133,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("InvalidContractAddress()")));
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_fail_whenCallDataIsInvalid() public {
@@ -127,7 +152,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("InvalidFunctionSignature()")));
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
     }
 
     function test_executeEpoch_success() public {
@@ -151,7 +181,12 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
-        protocolMessagingHub.executeEpoch(response, signatures, 250_000);
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);

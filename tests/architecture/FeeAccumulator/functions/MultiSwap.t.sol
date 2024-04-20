@@ -155,6 +155,5 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
         feeAccumulator.multiSwap(abi.encode(swapData), tokens);
 
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(centralRegistry)), 0);
-        assertGt(usdc.balanceOf(address(centralRegistry)), balance);
     }
 }

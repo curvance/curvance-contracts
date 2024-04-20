@@ -119,7 +119,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         veCVE.bridgeLock{ value: messageFee }(

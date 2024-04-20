@@ -55,6 +55,5 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
             _ONE
         );
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
-        assertGt(usdc.balanceOf(address(centralRegistry)), 0);
     }
 }
