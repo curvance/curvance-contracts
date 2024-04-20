@@ -147,7 +147,7 @@ contract BlastCentralRegistry is CentralRegistry {
     /// @return Whether `interfaceId` is implemented or not.
     function supportsInterface(
         bytes4 interfaceId
-    ) public pure override returns (bool) {
+    ) public view override returns (bool) {
         return
             interfaceId == type(IBlastCentralRegistry).interfaceId ||
             super.supportsInterface(interfaceId);

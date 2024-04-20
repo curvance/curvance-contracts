@@ -457,20 +457,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev May emit a {TokenPositionCreated} event.
-    /// @param dToken The debt token to verify the borrow of.
-    /// @param account The account which would borrow the asset.
-    /// @param amount The amount of underlying the account would borrow.
-    function canBorrow(
-        address dToken,
-        address account,
-        uint256 amount
-    ) external {
-        _canBorrow(dToken, account, amount);
-    }
-
-    /// @notice Checks if the account should be allowed to borrow
-    ///         the underlying asset of the given market.
+    ///         Prunes unused positions in `account` data.
     /// @dev May emit a {TokenPositionCreated} event.
     /// @param dToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
@@ -507,6 +494,7 @@ contract MarketManager is LiquidityManager, ERC165 {
     ) external {
         _checkIsToken(dToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
+        
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,
@@ -1335,9 +1323,6 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
 
         if (tokenData[dToken].accountPositions[account].activePosition != 2) {
-            // Only mTokens may call borrowAllowed if account not in market.
-            _checkIsToken(dToken);
-            
             // The account is not in the market yet, so make them enter.
             tokenData[dToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(dToken));
