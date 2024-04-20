@@ -32,7 +32,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
 
         vm.prank(address(dDAI));
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         
         marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
