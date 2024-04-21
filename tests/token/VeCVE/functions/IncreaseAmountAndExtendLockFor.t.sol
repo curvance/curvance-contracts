@@ -23,7 +23,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
 
         veCVE.createLockFor(address(1), 50e18, false, rewardsData, "", 0);
 
-        centralRegistry.removeVeCVELocker(address(this));
+        centralRegistry.removeLockingPermissions(address(this));
     }
 
     function test_increaseAmountAndExtendLockFor_fail_whenVeCVEShutdown()
