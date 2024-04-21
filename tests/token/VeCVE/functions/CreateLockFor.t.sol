@@ -51,7 +51,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
@@ -62,7 +62,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
 
@@ -76,7 +76,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
@@ -124,7 +124,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
