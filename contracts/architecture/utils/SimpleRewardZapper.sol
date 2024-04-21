@@ -67,17 +67,17 @@ contract SimpleRewardZapper is ReentrancyGuard {
             revert SimpleRewardZapper__InvalidCentralRegistry();
         }
 
-        address rewardManager = centralRegistry_.rewardManager();
+        address rewardManager_ = centralRegistry_.rewardManager();
 
         // Validate that Reward Manager is properly configured inside
         // the Central Registry.
-        if (rewardManager == address(0)) {
+        if (rewardManager_ == address(0)) {
             revert SimpleRewardZapper__InvalidRewardManager();
         }
 
         centralRegistry = centralRegistry_;
-        rewardManager = IRewardManager(rewardManager);
-        rewardToken = IRewardManager(rewardManager).rewardToken();
+        rewardManager = IRewardManager(rewardManager_);
+        rewardToken = IRewardManager(rewardManager_).rewardToken();
         WETH = WETH_;
     }
 
