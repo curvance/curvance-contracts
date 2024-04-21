@@ -8,7 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 
 contract CVEInitialDistribution is ReentrancyGuard {
     /// CONSTANTS ///

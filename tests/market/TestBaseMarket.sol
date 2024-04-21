@@ -7,7 +7,7 @@ import { TestBase } from "tests/utils/TestBase.sol";
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
@@ -77,7 +77,7 @@ contract TestBaseMarket is TestBase {
 
     CVE public cve;
     VeCVE public veCVE;
-    CVELocker public cveLocker;
+    RewardManager public rewardManager;
     SimpleRewardZapper public simpleRewardZapper;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
@@ -154,7 +154,7 @@ contract TestBaseMarket is TestBase {
     function _deployBaseContracts() internal {
         _deployCentralRegistry();
         _deployCVE();
-        _deployCVELocker();
+        _deployRewardManager();
         _deployVeCVE();
         _deployProtocolMessagingHub();
         _deployFeeAccumulator();
@@ -205,12 +205,12 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setCVE(address(cve));
     }
 
-    function _deployCVELocker() internal {
-        cveLocker = new CVELocker(
+    function _deployRewardManager() internal {
+        rewardManager = new RewardManager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS
         );
-        centralRegistry.setCVELocker(address(cveLocker));
+        centralRegistry.setRewardManager(address(rewardManager));
 
         simpleRewardZapper = new SimpleRewardZapper(
             ICentralRegistry(address(centralRegistry)),
@@ -222,7 +222,7 @@ contract TestBaseMarket is TestBase {
         veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
-        cveLocker.startLocker();
+        rewardManager.startRewardManager();
     }
 
     function _deployOracleRouter() internal {

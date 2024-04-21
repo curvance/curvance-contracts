@@ -31,13 +31,13 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         chainIds[0] = 42161;
         centralRegistry.updateForeignChainIds(chainIds);
 
-        skip(cveLocker.EPOCH_DURATION() * 2);
+        skip(rewardManager.EPOCH_DURATION() * 2);
     }
 
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
         public
     {
-        vm.warp(block.timestamp - cveLocker.EPOCH_DURATION() * 2);
+        vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
 
         _prepareResponseAndSignatures(
             abi.encode(_ONE),

@@ -14,12 +14,12 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(cveLocker), 100e18);
+        deal(_USDC_ADDRESS, address(rewardManager), 100e18);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
@@ -61,7 +61,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6);
         }
 
         vm.warp(unlockTime);

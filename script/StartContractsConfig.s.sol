@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Script.sol";
 
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
@@ -29,22 +29,22 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        _startLocker();
+        _startRewardManager();
 
         vm.stopBroadcast();
     }
 
-    function _startLocker() internal {
+    function _startRewardManager() internal {
         address centralRegistry = _getDeployedContract("centralRegistry");
         console.log("centralRegistry =", centralRegistry);
-        address payable cveLocker = payable(_getDeployedContract("cveLocker"));
-        console.log("cveLocker =", cveLocker);
+        address payable rewardManager = payable(_getDeployedContract("rewardManager"));
+        console.log("rewardManager =", rewardManager);
         
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(CVELocker(cveLocker).lockerStarted() != 2, "Locker already started!");
+        require(RewardManager(rewardManager).rewardManagerStarted() != 2, "Reward Manager already started!");
         require(CentralRegistry(centralRegistry).veCVE() != address(0), "Set veCVE!");
 
-        CVELocker(cveLocker).startLocker();
-        console.log("startLocker");
+        RewardManager(rewardManager).startRewardManager();
+        console.log("startRewardManager");
     }
 }

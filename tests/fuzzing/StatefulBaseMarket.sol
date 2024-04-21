@@ -14,7 +14,7 @@ import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.s
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { Reward Manager } from "contracts/architecture/Reward Manager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
@@ -48,7 +48,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     CVE public cve;
     VeCVE public veCVE;
-    CVELocker public cveLocker;
+    Reward Manager public rewardManager;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
     ProtocolMessagingHub public protocolMessagingHub;
@@ -107,8 +107,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployCentralRegistry();
         emit LogString("DEPLOYED: CVE");
         _deployCVE();
-        emit LogString("DEPLOYED: CVELocker");
-        _deployCVELocker();
+        emit LogString("DEPLOYED: Reward Manager");
+        _deployReward Manager();
         emit LogString("DEPLOYED: ProtocolMessagingHub");
         _deployProtocolMessagingHub();
         emit LogString("DEPLOYED: FeeAccumulator");
@@ -163,19 +163,19 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setCVE(address(cve));
     }
 
-    function _deployCVELocker() internal {
-        cveLocker = new CVELocker(
+    function _deployReward Manager() internal {
+        rewardManager = new Reward Manager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS
         );
-        centralRegistry.setCVELocker(address(cveLocker));
+        centralRegistry.setReward Manager(address(rewardManager));
     }
 
     function _deployVeCVE() internal {
         veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
-        cveLocker.startLocker();
+        rewardManager.startRewardManager();
     }
 
     function _deployOracleRouter() internal {

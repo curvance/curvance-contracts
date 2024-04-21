@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.sol";
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
-import { CveLockerDeployer } from "./deployers/CveLockerDeployer.s.sol";
+import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { ProtocolMessagingHubDeployer } from "./deployers/ProtocolMessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
@@ -21,7 +21,7 @@ contract DeployCurvance is
     DeployConfiguration,
     CentralRegistryDeployer,
     CveDeployer,
-    CveLockerDeployer,
+    RewardManagerDeployer,
     ProtocolMessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
@@ -79,13 +79,13 @@ contract DeployCurvance is
         _setCVE(cve);
         // TODO: set some params for cross-chain
 
-        // Deploy CveLocker
+        // Deploy Reward Manager
 
-        _deployCveLocker(
+        _deployRewardManager(
             centralRegistry,
-            _readConfigAddress(".cveLocker.rewardToken")
+            _readConfigAddress(".rewardManager.rewardToken")
         );
-        _setCVELocker(cveLocker);
+        _setRewardManager(rewardManager);
 
         // Deploy ProtocolMessagingHub
 

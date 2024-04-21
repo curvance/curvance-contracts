@@ -29,7 +29,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      all supported chains inside the Curvance Protocol system.
 ///
 ///      These fees are distributed pro-rata based on the under of locked
-///      veCVE tokens on each chain, see "CVELocker.sol" for more information
+///      veCVE tokens on each chain, see "RewardManager.sol" for more information
 ///      on this.
 ///
 ///      Native gas tokens are stored inside the contract to pay for all

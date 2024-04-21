@@ -12,7 +12,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         super.setUp();
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
@@ -37,7 +37,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         veCVE.createLockFor(user1, 0, true, rewardsData, "", 0);
     }
 
-    function test_createLockFor_fail_whenLockerIsNotApproved(
+    function test_createLockFor_fail_whenRewardManagerIsNotApproved(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous

@@ -11,7 +11,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
     function setUp() public override {
         _deployCentralRegistry();
         _deployCVE();
-        _deployCVELocker();
+        _deployRewardManager();
         _deployVeCVE();
         _deployGaugePool();
         _deployMarketManager();

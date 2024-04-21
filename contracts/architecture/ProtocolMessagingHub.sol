@@ -16,7 +16,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry, ChainData, OmnichainData, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
-import { ICVELocker, RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
@@ -117,10 +117,10 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 chainFeeAmount,
         uint256 gasLimit
     ) external {
-        ICVELocker locker = _getCVELocker();
-        uint256 epoch = _getNextEpochToDeliver(locker);
+        IRewardManager rewardManager = _getRewardManager();
+        uint256 epoch = _getNextEpochToDeliver(rewardManager);
 
-        if (locker.currentEpoch(block.timestamp) <= epoch) {
+        if (rewardManager.currentEpoch(block.timestamp) <= epoch) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -291,9 +291,9 @@ contract ProtocolMessagingHub is QueryResponse {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            // If the locker is shutdown, transfer fees to DAO
+            // If the Reward Manager is shutdown, transfer fees to DAO
             // instead of recording epoch rewards.
-            if (_checkLockerStatus(_getCVELocker())) {
+            if (_checkRewardManagerStatus(_getRewardManager())) {
                 _transferFeeTokens(amount, _getDaoAddress());
                 return;
             }
@@ -341,7 +341,7 @@ contract ProtocolMessagingHub is QueryResponse {
                 (uint8, uint256)
             );
 
-            _recordEpochRewards(_getCVELocker(), chainLockedAmount);
+            _recordEpochRewards(_getRewardManager(), chainLockedAmount);
         } else if (payloadType == 4) {
             // payloadType = 4: Indicates migrating a veCVE lock from the source
             //                  chain to this destination chain.
@@ -555,7 +555,7 @@ contract ProtocolMessagingHub is QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
-        uint256 epoch = _getNextEpochToDeliver(_getCVELocker());
+        uint256 epoch = _getNextEpochToDeliver(_getRewardManager());
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
@@ -711,16 +711,16 @@ contract ProtocolMessagingHub is QueryResponse {
             (((feeTokensOverall * WAD) / totalPoints) * thisChainsPoints) /
             WAD;
 
-        ICVELocker locker = _getCVELocker();
+        IRewardManager rewardManager = _getRewardManager();
 
-        // If the locker is shutdown, transfer fees to DAO
+        // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
-        if (_checkLockerStatus(locker)) {
+        if (_checkRewardManagerStatus(rewardManager)) {
             _transferFeeTokens(feeTokensForChain, _getDaoAddress());
         } else {
-            // Transfer fees to locker and record newest epoch rewards.
-            _transferFeeTokens(feeTokensForChain, address(locker));
-            _recordEpochRewards(locker, epochRewardsPerCVE);
+            // Transfer fees to Reward Manager, and record newest epoch rewards.
+            _transferFeeTokens(feeTokensForChain, address(rewardManager));
+            _recordEpochRewards(rewardManager, epochRewardsPerCVE);
         }
 
         // Notify the other chains of the per epoch rewards.
@@ -752,8 +752,8 @@ contract ProtocolMessagingHub is QueryResponse {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
     }
 
-    function _recordEpochRewards(ICVELocker locker, uint256 epochRewardsPerCVE) internal {
-        locker.recordEpochRewards(epochRewardsPerCVE);
+    function _recordEpochRewards(IRewardManager rewardManager, uint256 epochRewardsPerCVE) internal {
+        rewardManager.recordEpochRewards(epochRewardsPerCVE);
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
@@ -765,9 +765,9 @@ contract ProtocolMessagingHub is QueryResponse {
         SwapperLib._approveTokenIfNeeded(token, spender, amount);
     }
 
-    /// @dev Returns the current CVE locker address to call.
-    function _getCVELocker() internal view returns (ICVELocker) {
-        return ICVELocker(centralRegistry.cveLocker());
+    /// @dev Returns the current Reward Manager address to call.
+    function _getRewardManager() internal view returns (IRewardManager) {
+        return IRewardManager(centralRegistry.rewardManager());
     }
 
     /// @dev Returns the current Wormhole Relayer address to call.
@@ -811,8 +811,8 @@ contract ProtocolMessagingHub is QueryResponse {
     }
 
     /// @dev Returns the next protocol epoch to deliver rewards for.
-    function _getNextEpochToDeliver(ICVELocker locker) internal view returns (uint256) {
-        return locker.nextEpochToDeliver();
+    function _getNextEpochToDeliver(IRewardManager rewardManager) internal view returns (uint256) {
+        return rewardManager.nextEpochToDeliver();
     }
 
     /// @dev Returns the proper gas limit to use based on parameter input.
@@ -828,10 +828,10 @@ contract ProtocolMessagingHub is QueryResponse {
         }
     }
 
-    /// @dev Checks whether the CVE Locker is shutdown or not.
-    /// @return Returns true if locker is shutdown.
-    function _checkLockerStatus(ICVELocker locker) internal view returns (bool) {
-        return locker.isShutdown() == 2;
+    /// @dev Checks whether the Reward Manager is shutdown or not.
+    /// @return Returns true if the Reward Manager is shutdown.
+    function _checkRewardManagerStatus(IRewardManager rewardManager) internal view returns (bool) {
+        return rewardManager.isShutdown() == 2;
     }
 
     /// @dev Internal helper for reverting efficiently.

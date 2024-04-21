@@ -5,11 +5,11 @@ import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.so
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
@@ -53,7 +53,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         chainIds[0] = 42161;
         centralRegistry.updateForeignChainIds(chainIds);
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         deal(_USDC_ADDRESS, address(this), 10000e6);
         deal(address(cve), address(this), 100e18);
 
@@ -76,7 +76,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(_ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -90,7 +90,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         vm.stopPrank();
 
-        skip(cveLocker.EPOCH_DURATION() * 3);
+        skip(rewardManager.EPOCH_DURATION() * 3);
     }
 
     function test_executeEpoch_receiveWormholeMessages_claimReward_success()
@@ -128,13 +128,13 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
 
-        uint256 nextEpoch = cveLocker.nextEpochToDeliver();
-        uint256 hypotheticalRewardsClaim = cveLocker.hypotheticalRewardsClaim(
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+        uint256 hypotheticalRewardsClaim = rewardManager.hypotheticalRewardsClaim(
             user1
         );
 
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), 0);
-        assertTrue(cveLocker.hasRewardsToClaim(user1));
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
+        assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
@@ -145,18 +145,18 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             bytes32("0x01")
         );
 
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), epochRewardsPerCVE);
-        assertEq(cveLocker.nextEpochToDeliver(), nextEpoch + 1);
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), epochRewardsPerCVE);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        assertTrue(cveLocker.hasRewardsToClaim(user1));
+        assertTrue(rewardManager.hasRewardsToClaim(user1));
         assertEq(
-            cveLocker.hypotheticalRewardsClaim(user1),
+            rewardManager.hypotheticalRewardsClaim(user1),
             hypotheticalRewardsClaim + epochRewardsPerCVE
         );
 
         uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
 
-        deal(_USDC_ADDRESS, address(cveLocker), rewards);
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
 
         swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
@@ -164,20 +164,20 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             rewards,
             0,
             path,
-            address(cveLocker),
+            address(rewardManager),
             block.timestamp
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
-        uint256 baseRewardBalance = usdc.balanceOf(address(cveLocker));
+        uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
         uint256 desiredTokenBalance = cve.balanceOf(user1);
 
         vm.prank(user1);
-        cveLocker.claimRewards(rewardsData, abi.encode(swapData), 0);
+        rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
 
         assertEq(
-            usdc.balanceOf(address(cveLocker)),
+            usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
 

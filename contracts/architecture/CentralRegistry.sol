@@ -85,8 +85,8 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACTS DATA
 
-    /// @notice CVE Locker contract address.
-    address public cveLocker;
+    /// @notice Reward Manager contract address.
+    address public rewardManager;
     /// @notice This chain's Protocol Messaging Hub contract address.
     address public protocolMessagingHub;
     /// @notice Oracle Router contract address.
@@ -353,15 +353,15 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("VeCVE", newVeCVE);
     }
 
-    /// @notice Sets a new CVE locker contract address
+    /// @notice Sets a new Reward Manager contract address
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newCVELocker The new address of cveLocker.
-    function setCVELocker(address newCVELocker) external {
+    /// @param newRewardManager The new address of rewardManager.
+    function setRewardManager(address newRewardManager) external {
         _checkElevatedPermissions();
 
-        cveLocker = newCVELocker;
-        emit CoreContractSet("CVE Locker", newCVELocker);
+        rewardManager = newRewardManager;
+        emit CoreContractSet("Reward Manager", newRewardManager);
     }
 
     /// @notice Sets a new protocol messaging hub contract address.
@@ -772,7 +772,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds an approved address to create locks for other
     ///         addresses inside Curvance.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be an approved VeCVE locker contract prior.
+    ///      Cannot have locking permissions prior.
     ///      Emits a {NewCurvanceContract} event.
     /// @param newApprovedAddress The new address to approve lock
     ///                           creation authority inside Curvance.
@@ -792,7 +792,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Removes an approved address to create locks for other
     ///         addresses inside Curvance.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be an approved VeCVE locker contract prior.
+    ///      Has to have locking permissions prior.
     ///      Emits a {RemovedCurvanceContract} event.
     /// @param currentApprovedAddress The approved address to remove lock
     ///                               creation authority inside Curvance.

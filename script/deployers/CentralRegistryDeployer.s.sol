@@ -66,12 +66,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setCVE: ", cve);
     }
 
-    function _setCVELocker(address cveLocker) internal {
+    function _setRewardManager(address rewardManager) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(cveLocker != address(0), "Set the cveLocker!");
+        require(rewardManager != address(0), "Set the rewardManager!");
 
-        CentralRegistry(centralRegistry).setCVELocker(cveLocker);
-        console.log("centralRegistry.setCVELocker: ", cveLocker);
+        CentralRegistry(centralRegistry).setRewardManager(rewardManager);
+        console.log("centralRegistry.setRewardManager: ", rewardManager);
     }
 
     function _setProtocolMessagingHub(address protocolMessagingHub) internal {

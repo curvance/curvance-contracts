@@ -127,7 +127,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
     }
 
     function test_receiveWormholeMessages_success_whenOperatorIsNotAuthorized()
@@ -153,13 +153,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
@@ -176,13 +176,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee);
-        assertEq(usdc.balanceOf(address(cveLocker)), 100e6 - oneBalanceFee);
+        assertEq(usdc.balanceOf(address(rewardManager)), 100e6 - oneBalanceFee);
 
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
-        cveLocker.notifyLockerShutdown();
+        rewardManager.notifyShutdown();
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
@@ -244,9 +244,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_success_whenPayloadTypeIs3() public {
         uint256 chainLockedAmount = _ONE;
 
-        uint256 nextEpoch = cveLocker.nextEpochToDeliver();
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
 
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), 0);
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
@@ -257,13 +257,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("0x01")
         );
 
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), _ONE);
-        assertEq(cveLocker.nextEpochToDeliver(), nextEpoch + 1);
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), _ONE);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 

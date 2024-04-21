@@ -67,8 +67,8 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns CVE Locker address.
-    function cveLocker() external view returns (address);
+    /// @notice Returns Reward Manager address.
+    function rewardManager() external view returns (address);
 
     /// @notice Returns CVE address.
     function cve() external view returns (address);

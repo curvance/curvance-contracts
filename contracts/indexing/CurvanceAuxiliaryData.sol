@@ -15,7 +15,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
-import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
+import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -260,7 +260,7 @@ contract CurvanceAuxiliaryData {
     }
 
     function hasRewards(address user) external view returns (bool) {
-        return _getCVELocker().hasRewardsToClaim(user);
+        return _getRewardManager().hasRewardsToClaim(user);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -627,8 +627,8 @@ contract CurvanceAuxiliaryData {
 
     /// INTERNAL FUNCTIONS ///
 
-    function _getCVELocker() internal view returns (ICVELocker) {
-        return ICVELocker(centralRegistry.cveLocker());
+    function _getRewardManager() internal view returns (IRewardManager) {
+        return IRewardManager(centralRegistry.rewardManager());
     }
 
     function _getOracleRouter() internal view returns (IOracleRouter) {

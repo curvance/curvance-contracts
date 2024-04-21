@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { TestBaseSimpleRewardZaper } from "../TestBaseSimpleRewardZaper.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 
 contract RemoveAuthorizedRewardTokenTest is TestBaseSimpleRewardZaper {

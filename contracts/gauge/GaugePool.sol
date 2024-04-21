@@ -8,7 +8,7 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -484,7 +484,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @param token Pool token address.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function claimAndExtendLock(
@@ -549,7 +549,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     ///      DAO Central Registry.
     /// @param token Pool token address.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function claimAndLock(

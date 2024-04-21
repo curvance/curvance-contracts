@@ -10,12 +10,12 @@ contract CombineAllLocksTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(cveLocker), 30e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 30e6);
         deal(address(cve), address(this), _INITIAL_AMOUNT);
         cve.approve(address(veCVE), _INITIAL_AMOUNT);
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(1e6);
+        rewardManager.recordEpochRewards(1e6);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
