@@ -53,9 +53,9 @@ contract RewardManager is Delegable, ReentrancyGuard {
     uint256 public immutable genesisEpoch;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x82274acf;
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
     /// @dev `bytes4(keccak256(bytes("RewardManager__NoEpochRewards()")))`.
-    uint256 internal constant _NO_EPOCH_REWARDS_SELECTOR = 0x95721ba7;
+    uint256 internal constant _NO_EPOCH_REWARDS_SELECTOR = 0x0a2e9ede;
 
     /// STORAGE ///
 
