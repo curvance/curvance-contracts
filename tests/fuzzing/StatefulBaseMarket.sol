@@ -14,7 +14,7 @@ import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.s
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { Reward Manager } from "contracts/architecture/Reward Manager.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
@@ -48,7 +48,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     CVE public cve;
     VeCVE public veCVE;
-    Reward Manager public rewardManager;
+    RewardManager public rewardManager;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
     ProtocolMessagingHub public protocolMessagingHub;
@@ -164,7 +164,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     }
 
     function _deployReward Manager() internal {
-        rewardManager = new Reward Manager(
+        rewardManager = new RewardManager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS
         );
