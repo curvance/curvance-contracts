@@ -6,6 +6,8 @@ import { CVE } from "contracts/token/CVE.sol";
 
 contract MintLockBoostTest is TestBaseMarket {
     function test_mintLockBoost_fail_whenUnauthorized() public {
+        vm.prank(address(0));
+
         vm.expectRevert(CVE.CVE__Unauthorized.selector);
         cve.mintLockBoost(1000);
     }

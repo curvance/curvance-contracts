@@ -17,18 +17,15 @@ contract BasicAddContractsTest is TestBaseMarket {
 
         addFuncs = [
             "addLockingPermissions(address)",
-            "addHarvester(address)",
-            "addEndpoint(address)"
+            "addHarvester(address)"
         ];
         maps = [
             "hasLockingPermissions(address)",
-            "isHarvester(address)",
-            "isEndpoint(address)"
+            "isHarvester(address)"
         ];
         expectedLogs = [
             "Locking Permissions",
-            "Harvestor",
-            "Endpoint"
+            "Harvestor"
         ];
     }
 

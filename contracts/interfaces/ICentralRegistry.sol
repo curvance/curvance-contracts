@@ -179,11 +179,6 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is a Gauge Controller.
-    function isGaugeController(
-        address addressToCheck
-    ) external view returns (bool);
-
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
 
@@ -191,9 +186,6 @@ interface ICentralRegistry {
     function isMarketManager(
         address addressToCheck
     ) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is an Approved Endpoint.
-    function isEndpoint(address addressToCheck) external view returns (bool);
 
     function externalCallDataChecker(
         address addressToCheck

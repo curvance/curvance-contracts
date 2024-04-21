@@ -197,7 +197,6 @@ contract CentralRegistry is ERC165 {
 
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
-    mapping(address => bool) public isEndpoint;
     mapping(address => address) public externalCallDataChecker;
 
     /// EVENTS ///
@@ -982,44 +981,6 @@ contract CentralRegistry is ERC165 {
         delete isHarvester[currentHarvester];
 
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
-    }
-
-    /// @notice Adds an Endpoint contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Endpoint contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newEndpoint The new Endpoint contract to support for use
-    ///                    in Curvance.
-    function addEndpoint(address newEndpoint) external {
-        _checkElevatedPermissions();
-
-        // Validate `newEndpoint` is not currently supported.
-        if (isEndpoint[newEndpoint]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isEndpoint[newEndpoint] = true;
-
-        emit NewCurvanceContract("Endpoint", newEndpoint);
-    }
-
-    /// @notice Removes an Endpoint contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Endpoint contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentEndpoint The supported Endpoint contract to remove
-    ///                        from Curvance.
-    function removeEndpoint(address currentEndpoint) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentEndpoint` is currently supported.
-        if (!isEndpoint[currentEndpoint]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isEndpoint[currentEndpoint];
-
-        emit RemovedCurvanceContract("Endpoint", currentEndpoint);
     }
 
     function getOmnichainOperators(
