@@ -17,19 +17,16 @@ contract BasicAddContractsTest is TestBaseMarket {
 
         addFuncs = [
             "addLockingPermissions(address)",
-            "addGaugeController(address)",
             "addHarvester(address)",
             "addEndpoint(address)"
         ];
         maps = [
             "hasLockingPermissions(address)",
-            "isGaugeController(address)",
             "isHarvester(address)",
             "isEndpoint(address)"
         ];
         expectedLogs = [
             "Locking Permissions",
-            "Gauge Controller",
             "Harvestor",
             "Endpoint"
         ];

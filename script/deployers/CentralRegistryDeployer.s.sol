@@ -167,14 +167,6 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.addLockingPermissions: ", newApprovedAddress);
     }
 
-    function _addGaugeController(address gaugePool) internal {
-        require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(gaugePool != address(0), "Set the gaugePool!");
-
-        CentralRegistry(centralRegistry).addGaugeController(gaugePool);
-        console.log("centralRegistry.addGaugeController: ", gaugePool);
-    }
-
     function _addMarketManager(
         address marketManager,
         uint256 marketInterestFactor

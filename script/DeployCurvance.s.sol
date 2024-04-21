@@ -106,7 +106,6 @@ contract DeployCurvance is
 
         _deployGaugePool(centralRegistry);
         _addLockingPermissions(gaugePool);
-        _addGaugeController(gaugePool);
 
         // Deploy MarketManager
 

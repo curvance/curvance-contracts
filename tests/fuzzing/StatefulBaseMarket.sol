@@ -351,7 +351,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     function _deployGaugePool() internal {
         gaugePool = new GaugePool(ICentralRegistry(address(centralRegistry)));
         centralRegistry.addLockingPermissions(address(gaugePool));
-        centralRegistry.addGaugeController(address(gaugePool));
 
         // Additional logic for partner gauge pool fuzzing logic
         // partnerGaugePool = new PartnerGaugePool(

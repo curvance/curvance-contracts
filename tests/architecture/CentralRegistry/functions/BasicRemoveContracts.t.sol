@@ -21,13 +21,11 @@ contract BasicRemoveContractsTest is TestBaseMarket {
 
         removeFuncs = [
             "removeLockingPermissions(address)",
-            "removeGaugeController(address)",
             "removeHarvester(address)",
             "removeEndpoint(address)"
         ];
         maps = [
             "hasLockingPermissions(address)",
-            "isGaugeController(address)",
             "isHarvester(address)",
             "isEndpoint(address)"
         ];
@@ -39,7 +37,6 @@ contract BasicRemoveContractsTest is TestBaseMarket {
         ];
         addFuncs = [
             "addLockingPermissions(address)",
-            "addGaugeController(address)",
             "addHarvester(address)",
             "addEndpoint(address)"
         ];

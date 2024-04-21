@@ -195,7 +195,6 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACT MAPPINGS
 
-    mapping(address => bool) public isGaugeController;
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
     mapping(address => bool) public isEndpoint;
@@ -945,47 +944,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
-    }
-
-    /// @notice Adds a Gauge Controller contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Gauge Controller contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newGaugeController The new Gauge Controller contract to support
-    ///                           for use in Curvance.
-    function addGaugeController(address newGaugeController) external {
-        _checkElevatedPermissions();
-
-        // Validate `newGaugeController` is not currently supported.
-        if (isGaugeController[newGaugeController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isGaugeController[newGaugeController] = true;
-
-        emit NewCurvanceContract("Gauge Controller", newGaugeController);
-    }
-
-    /// @notice Removes a Gauge Controller contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Gauge Controller contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentGaugeController The supported Gauge Controller contract
-    ///                               to remove from Curvance.
-    function removeGaugeController(address currentGaugeController) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentGaugeController` is currently supported.
-        if (!isGaugeController[currentGaugeController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isGaugeController[currentGaugeController];
-
-        emit RemovedCurvanceContract(
-            "Gauge Controller",
-            currentGaugeController
-        );
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
