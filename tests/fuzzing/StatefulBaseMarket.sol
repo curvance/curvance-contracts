@@ -108,7 +108,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         emit LogString("DEPLOYED: CVE");
         _deployCVE();
         emit LogString("DEPLOYED: Reward Manager");
-        _deployReward Manager();
+        _deployRewardManager();
         emit LogString("DEPLOYED: ProtocolMessagingHub");
         _deployProtocolMessagingHub();
         emit LogString("DEPLOYED: FeeAccumulator");
@@ -163,12 +163,12 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setCVE(address(cve));
     }
 
-    function _deployReward Manager() internal {
+    function _deployRewardManager() internal {
         rewardManager = new RewardManager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS
         );
-        centralRegistry.setReward Manager(address(rewardManager));
+        centralRegistry.setRewardManager(address(rewardManager));
     }
 
     function _deployVeCVE() internal {
