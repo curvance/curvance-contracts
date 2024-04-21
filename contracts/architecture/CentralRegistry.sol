@@ -353,7 +353,7 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("VeCVE", newVeCVE);
     }
 
-    /// @notice Sets a new Reward Manager contract address
+    /// @notice Sets a new Reward Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
     /// @param newRewardManager The new address of rewardManager.

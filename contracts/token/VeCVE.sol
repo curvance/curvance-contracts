@@ -281,7 +281,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
@@ -315,7 +314,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
         _canLock(amount);
 
         if (!centralRegistry.hasLockingPermissions(msg.sender)) {
@@ -351,11 +349,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        if (isShutdown == 2) {
-            _revert(_VECVE_SHUTDOWN_SELECTOR);
-        }
-
-        _checkEpochStatus();
+        _canModifyLocks();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -420,7 +414,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
@@ -460,7 +453,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
         _canLock(amount);
 
         if (!centralRegistry.hasLockingPermissions(msg.sender)) {
@@ -537,11 +529,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        if (isShutdown == 2) {
-            _revert(_VECVE_SHUTDOWN_SELECTOR);
-        }
-
-        _checkEpochStatus();
+        _canModifyLocks();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -768,11 +756,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external payable nonReentrant returns (uint64 sequence) {
-        if (isShutdown == 2) {
-            _revert(_VECVE_SHUTDOWN_SELECTOR);
-        }
-
-        _checkEpochStatus();
+        _canModifyLocks();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -838,11 +822,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        if (isShutdown == 2) {
-            _revert(_VECVE_SHUTDOWN_SELECTOR);
-        }
-
-        _checkEpochStatus();
+        _canModifyLocks();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -985,45 +965,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
         for (uint256 i; i < numLocks; ) {
             // Based on CVE maximum supply this cannot overflow.
             unchecked {
-                votes += getVotesForSingleLockForTime(
+                votes += _getVotesForLock(
                     user,
                     i++,
-                    block.timestamp,
                     voteBoost
-                );
-            }
-        }
-
-        return votes;
-    }
-
-    /// @notice Calculates the total votes for a user based
-    ///         on their locks at a specific epoch.
-    /// @param user The address of the user to calculate votes for.
-    /// @param epoch The epoch for which the votes are calculated.
-    /// @return The total number of votes for the user at the specified epoch.
-    function getVotesForEpoch(
-        address user,
-        uint256 epoch
-    ) external view returns (uint256) {
-        uint256 numLocks = userLocks[user].length;
-
-        if (numLocks == 0) {
-            return 0;
-        }
-
-        uint256 timestamp = genesisEpoch + (EPOCH_DURATION * epoch);
-        uint256 currentLockBoost = centralRegistry.voteBoostMultiplier();
-        uint256 votes;
-
-        for (uint256 i; i < numLocks; ) {
-            // Based on CVE maximum supply this cannot overflow.
-            unchecked {
-                votes += getVotesForSingleLockForTime(
-                    user,
-                    i++,
-                    timestamp,
-                    currentLockBoost
                 );
             }
         }
@@ -1082,39 +1027,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
             );
     }
 
-    /// @notice Calculates the votes for a single lock of a user based
-    ///         on a specific timestamp.
-    /// @param user The address of the user whose lock is being used
-    ///              for the calculation.
-    /// @param lockIndex The index of the lock to calculate votes for.
-    /// @param time The timestamp to use for the calculation.
-    /// @param voteBoost The current voting boost a lock gets for being continuous.
-    /// @return The number of votes for the specified lock at the given timestamp.
-    function getVotesForSingleLockForTime(
-        address user,
-        uint256 lockIndex,
-        uint256 time,
-        uint256 voteBoost
-    ) public view returns (uint256) {
-        Lock storage lock = userLocks[user][lockIndex];
-
-        if (lock.unlockTime < time) {
-            return 0;
-        }
-
-        if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
-            unchecked {
-                return ((lock.amount * voteBoost) / DENOMINATOR);
-            }
-        }
-
-        // Equal to epochsLeft = (lock.unlockTime - time) / EPOCH_DURATION
-        // (lock.amount * epochsLeft) / LOCK_DURATION_EPOCHS.
-        return
-            (lock.amount * ((lock.unlockTime - time) / EPOCH_DURATION)) /
-            LOCK_DURATION_EPOCHS;
-    }
-
     /// @notice Calculates the penalty to `lockIndex`'s underlying CVE
     ///         position for an immediate lock unlock.
     /// @param user The address of the user whose lock is being used
@@ -1169,26 +1081,36 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Check whether it should restrict state changes or not.
-    function _checkEpochStatus() internal view {
-        uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
+    /// @notice Calculates the votes for a single lock of a user based
+    ///         on a specific timestamp.
+    /// @param user The address of the user whose lock is being used
+    ///              for the calculation.
+    /// @param lockIndex The index of the lock to calculate votes for.
+    /// @param voteBoost The current voting boost a lock gets for being continuous.
+    /// @return The number of votes for the specified lock at the given timestamp.
+    function _getVotesForLock(
+        address user,
+        uint256 lockIndex,
+        uint256 voteBoost
+    ) internal view returns (uint256) {
+        Lock memory lock = userLocks[user][lockIndex];
 
-        if (
-            currentEpochTimestamp <= block.timestamp &&
-            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
-        ) {
-            revert VeCVE__PostEpochRestriction();
-        }
-        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
-            revert VeCVE__PreEpochRestriction();
+        if (lock.unlockTime < block.timestamp) {
+            return 0;
         }
 
-        if (rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
-            if (block.timestamp >= genesisEpoch) {
-                revert VeCVE__EpochNotDelivered();
+        if (lock.unlockTime == CONTINUOUS_LOCK_VALUE) {
+            unchecked {
+                return ((lock.amount * voteBoost) / DENOMINATOR);
             }
         }
+
+        // Equal to:
+        // epochsLeft = (lock.unlockTime - time) / EPOCH_DURATION
+        // votes = (lock.amount * epochsLeft) / LOCK_DURATION_EPOCHS.
+        return
+            (lock.amount * ((lock.unlockTime - block.timestamp) / EPOCH_DURATION)) /
+            LOCK_DURATION_EPOCHS;
     }
 
     /// @notice Claims rewards for any unclaimed reward epochs.
@@ -1502,7 +1424,31 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
     }
 
-    /// @dev Internal helper for checking whether a lock is allowed.
+    /// @dev Check whether state changes are restricted due to epoch
+    ///      structure or not.
+    function _checkEpochStatus() internal view {
+        uint256 nextEpochTimestamp = nextEpochStartTime();
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
+
+        if (
+            currentEpochTimestamp <= block.timestamp &&
+            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
+        ) {
+            revert VeCVE__PostEpochRestriction();
+        }
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
+            revert VeCVE__PreEpochRestriction();
+        }
+
+        if (rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
+            if (block.timestamp >= genesisEpoch) {
+                revert VeCVE__EpochNotDelivered();
+            }
+        }
+    }
+
+    /// @dev Internal helper for checking whether creating a lock
+    ///      is allowed.
     ///      Requires a minimum lock size of 1 CVE, in `WAD`.
     function _canLock(uint256 amount) internal view {
         assembly {
@@ -1516,5 +1462,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
         if (isShutdown == 2) {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
+
+        _checkEpochStatus();
+    }
+
+    /// @dev Internal helper for checking whether a lock position
+    ///      can be modified.
+    function _canModifyLocks() internal view {
+        if (isShutdown == 2) {
+            _revert(_VECVE_SHUTDOWN_SELECTOR);
+        }
+
+        _checkEpochStatus();
     }
 }
