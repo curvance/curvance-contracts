@@ -108,7 +108,7 @@ contract CreateLockTest is TestBaseVeCVE {
 
         assertEq(lockAmounts.length, 0);
         assertEq(lockTimestamps.length, 0);
-        assertEq(veCVE.getVotesForEpoch(address(this), 0), 0);
+        assertEq(veCVE.getVotes(address(this)), 0);
 
         vm.assume(amount > 1e18 && amount <= 100e18);
 
@@ -145,7 +145,7 @@ contract CreateLockTest is TestBaseVeCVE {
         );
 
         assertEq(
-            veCVE.getVotesForEpoch(address(this), 0),
+            veCVE.getVotes(address(this)),
             amount + amount / 10
         );
     }
