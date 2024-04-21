@@ -13,6 +13,7 @@ contract MintGaugeEmissionsTest is TestBaseChildCVE {
     function test_mintGaugeEmissions_success() public {
         assertEq(childCVE.balanceOf(address(gaugePool)), 0);
         vm.prank(centralRegistry.protocolMessagingHub());
+        
         childCVE.mintGaugeEmissions(address(gaugePool), 1000);
         assertEq(childCVE.balanceOf(address(gaugePool)), 1000);
     }

@@ -12,8 +12,8 @@ contract MintLockBoostTest is TestBaseChildCVE {
     }
 
     function test_mintLockBoost_success() public {
-        centralRegistry.addGaugeController(user1);
-        assertTrue(centralRegistry.isGaugeController(user1));
+        centralRegistry.addLockingPermissions(user1);
+        assertTrue(centralRegistry.hasLockingPermissions(user1));
 
         assertEq(childCVE.balanceOf(user1), 0);
         vm.prank(user1);
