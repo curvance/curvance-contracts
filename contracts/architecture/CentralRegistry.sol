@@ -107,7 +107,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
 
-    // PROTOCOL FEES
+    // PROTOCOL FEE VALUES
 
     // Values are always set in `Basis Points` (1e4), fee values are converted
     // and stored in `WAD` while multipliers stay in `DENOMINATOR`.
@@ -122,7 +122,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Protocol fee on leverage usage.
     uint256 public protocolLeverageFee;
 
-    // ACTION MULTIPLIERS
+    // ACTION MULTIPLIER VALUES
 
     /// @notice Penalty multiplier for unlocking a veCVE lock early.
     uint256 public earlyUnlockPenaltyMultiplier;
@@ -131,7 +131,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Gauge rewards multiplier for locking gauge emissions.
     uint256 public lockBoostMultiplier;
 
-    // PROTOCOL MONEY MARKET FEES
+    // PROTOCOL INTEREST RATE FEES
 
     /// @notice Debt token fee on interest generated.
     /// @dev Market Manager => Protocol Interest Factor, in `WAD`.
@@ -148,7 +148,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => uint256) public userApprovalIndex;
 
     /// @notice Whether a user wants to allow new delegating to be disabled.
-    /// @dev User => Has new delegation  disabled.
+    /// @dev User => Has new delegation disabled.
     mapping(address => bool) public delegatingDisabled;
 
     // DAO PERMISSION DATA

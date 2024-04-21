@@ -9,26 +9,23 @@ import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/Bas
 
 /// @title Curvance Multicall Plugin
 abstract contract Multicall {
+    /// TYPES ///
     struct MulticallData {
         address target;
         bytes data;
         bool isPriceUpdate;
     }
 
+    /// ERRORS ///
+
     error Multicall__InvalidTarget();
     error Multicall__InvalidCallData();
 
-    /// @notice Queries the function signature of `_data`, this is used
-    ///         to check against an expected selector.
-    /// @param _data The bytes array to pull a function signature from.
-    function getFuncSigHash(
-        bytes memory _data
-    ) internal pure returns (bytes4 sig) {
-        assembly {
-            sig := mload(add(_data, add(32, 0)))
-        }
-    }
+    /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Executes multiple calls in a single transaction.
+    ///         This can be used to update oracle prices before
+    ///         a liquidity dependent action.
     function multicall(
         MulticallData[] memory calls
     ) external returns (bytes[] memory results) {
@@ -68,6 +65,21 @@ abstract contract Multicall {
         }
     }
 
+    /// INTERNAL FUNCTIONS ///
+
+    /// @dev Queries the function signature of `_data`, this is used
+    ///      to check against an expected selector.
+    /// @param _data The bytes array to pull a function signature from.
+    function getFuncSigHash(
+        bytes memory _data
+    ) internal pure returns (bytes4 sig) {
+        assembly {
+            sig := mload(add(_data, add(32, 0)))
+        }
+    }
+
+    /// @dev Returns the central registry interface,
+    ///      overridden in child contract.
     function _getCentralRegistry()
         internal
         view

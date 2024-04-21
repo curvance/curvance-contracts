@@ -108,9 +108,9 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Executes a protocol epoch via CCQ by querying `queryLockPoints`
-    ///         on all other chains, stores the results for the other chains,
-    ///         and updates the data for this chain.
+    /// @notice Executes a protocol epoch via CCQ by querying
+    ///         `queryLockPoints` on all other chains, stores the results for
+    ///         the other chains, and updates the data for this chain.
     function executeEpoch(
         bytes memory response,
         IWormhole.Signature[] memory signatures,
@@ -161,8 +161,8 @@ contract ProtocolMessagingHub is QueryResponse {
             address[] memory validAddresses = new address[](1);
             bytes4[] memory validFunctionSignatures = new bytes4[](1);
 
-            // Validate our responses came from the expected contract (Messaging Hub),
-            // and expected function.
+            // Validate our responses came from the
+            // expected contract (Messaging Hub), and expected function.
             validAddresses[0] = _getChainData(chainIds[i]).messagingHub;
             validFunctionSignatures[0] = _QUERY_POINTS_SELECTOR;
             validateMultipleEthCallData(
@@ -527,13 +527,14 @@ contract ProtocolMessagingHub is QueryResponse {
         isPaused = isPaused == 2 ? 1 : 2;
     }
 
-    /// @notice Withdraws gas tokens and fee tokens from the Protocol Messaging Hub
-    ///         to the DAO address in order to depreciate or rebalance the
-    ///         Protocol Messaging Hub.
+    /// @notice Withdraws gas tokens and fee tokens from the
+    ///         Protocol Messaging Hub to the DAO address in order to
+    ///         depreciate or rebalance the Protocol Messaging Hub.
     /// @dev This does not allow any loss of funds as authorized perms are
-    ///      required to change the Protocol Messaging Hub, meaning in order to steal
-    ///      funds a malicious actor would have had to compromise the whole
-    ///      system already. Thus, we only need to check for DAO perms here.
+    ///      required to change the Protocol Messaging Hub, meaning in order
+    ///      to steal funds a malicious actor would have had to compromise
+    ///      the whole system already. Thus, we only need to check for DAO
+    ///      permissions here.
     function withdrawDeposited() external {
         _checkDaoPermissions();
 
@@ -655,7 +656,11 @@ contract ProtocolMessagingHub is QueryResponse {
         IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
         WormholeData memory wormholeData = _getWormholeData(dstChainId);
 
-        _approveTokenIfNeeded(feeToken, address(circleTokenMessenger), amount);
+        _approveTokenIfNeeded(
+            feeToken,
+            address(circleTokenMessenger),
+            amount
+        );
 
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
@@ -742,9 +747,12 @@ contract ProtocolMessagingHub is QueryResponse {
         }
     }
 
-    /// @dev Pulls `amount` fee tokens from the fee accumulator to aggregate fees.
+    /// @dev Pulls `amount` fee tokens from the fee accumulator to
+    ///      aggregate fees.
     function _pullFees(uint256 amount) internal returns (uint256) {
-        return IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
+        return IFeeAccumulator(
+            centralRegistry.feeAccumulator()
+        ).pullFees(amount);
     }
 
     /// @dev Transfers `amount` `feeToken` to `recipient`.
@@ -752,7 +760,10 @@ contract ProtocolMessagingHub is QueryResponse {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
     }
 
-    function _recordEpochRewards(IRewardManager rewardManager, uint256 epochRewardsPerCVE) internal {
+    function _recordEpochRewards(
+        IRewardManager rewardManager,
+        uint256 epochRewardsPerCVE
+    ) internal {
         rewardManager.recordEpochRewards(epochRewardsPerCVE);
     }
 
@@ -786,12 +797,16 @@ contract ProtocolMessagingHub is QueryResponse {
     }
 
     /// @dev Returns ChainData struct for `chainId`.
-    function _getChainData(uint256 chainId) internal view returns (ChainData memory) {
+    function _getChainData(
+        uint256 chainId
+    ) internal view returns (ChainData memory) {
         return centralRegistry.supportedChainData(chainId);
     }
 
     /// @dev Returns WormholeData struct for `chainId`.
-    function _getWormholeData(uint256 chainId) internal view returns (WormholeData memory) {
+    function _getWormholeData(
+        uint256 chainId
+    ) internal view returns (WormholeData memory) {
         return centralRegistry.wormholeData(chainId);
     }
 
@@ -805,13 +820,16 @@ contract ProtocolMessagingHub is QueryResponse {
         return centralRegistry.daoAddress();
     }
 
-    /// @dev Returns the amount of fee tokens currently held in this Protocol Messaging Hub.
+    /// @dev Returns the amount of fee tokens currently held in this
+    ///      Protocol Messaging Hub.
     function _getFeeTokenHeld() internal view returns (uint256) {
         return IERC20(feeToken).balanceOf(address(this));
     }
 
     /// @dev Returns the next protocol epoch to deliver rewards for.
-    function _getNextEpochToDeliver(IRewardManager rewardManager) internal view returns (uint256) {
+    function _getNextEpochToDeliver(
+        IRewardManager rewardManager
+    ) internal view returns (uint256) {
         return rewardManager.nextEpochToDeliver();
     }
 
@@ -830,7 +848,9 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @dev Checks whether the Reward Manager is shutdown or not.
     /// @return Returns true if the Reward Manager is shutdown.
-    function _checkRewardManagerStatus(IRewardManager rewardManager) internal view returns (bool) {
+    function _checkRewardManagerStatus(
+        IRewardManager rewardManager
+    ) internal view returns (bool) {
         return rewardManager.isShutdown() == 2;
     }
 
