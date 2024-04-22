@@ -746,12 +746,3 @@ contract TestGaugePool is TestBaseMarket {
         );
     }
 }
-
-/*
-Encountered 5 failing tests in tests/gauge/integrations/TestGaugePool.t.sol:TestGaugePool
-[FAIL. Reason: assertion failed] testMassUpdatePoolDoesNotMessUpTheRewardCalculation() (gas: 583221)
-[FAIL. Reason: assertion failed] testPendingRewardsReturnsAllRewards() (gas: 595822)
-[FAIL. Reason: assertion failed] testRewardCalculationWithDifferentEpoch() (gas: 822906)
-[FAIL. Reason: assertion failed] testRewardRatioOfDifferentPools() (gas: 1285422)
-[FAIL. Reason: assertion failed] testUpdatePoolDoesNotMessUpTheRewardCalculation() (gas: 1295430)
-*/
