@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -17,8 +16,8 @@ contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {
         address invalidCentralRegistry = address(new InvalidCentralRegistry());
 
         vm.expectRevert(
-            FeeTokenBridgingHub
-                .FeeTokenBridgingHub__InvalidCentralRegistry
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         new ProtocolMessagingHub(ICentralRegistry(invalidCentralRegistry));
