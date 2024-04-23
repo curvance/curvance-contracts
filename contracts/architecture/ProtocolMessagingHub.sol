@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import { GaugeController } from "contracts/gauge/GaugeController.sol";
-import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -65,8 +64,11 @@ contract ProtocolMessagingHub is QueryResponse {
     /// STORAGE ///
 
     /// @notice Whether the Protocol Messaging Hub is paused or not.
-    /// @dev 1 = activate; 2 = paused.
-    uint256 public isPaused = 1;
+    /// @dev messagingStatus can have three separate values:
+    ///      1 = Messages can be created and executed
+    ///      2 = Messages cannot be created, but can be executed.
+    ///      3 = Messages can be neither created nor executed.
+    uint256 public messagingStatus = 1;
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
     mapping(bytes32 => bool) public isDeliveredMessageHash;
@@ -117,6 +119,8 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 chainFeeAmount,
         uint256 gasLimit
     ) external {
+        _checkMessagingStatus(1);
+        
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
 
@@ -240,7 +244,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint16 srcChainId,
         bytes32 deliveryHash
     ) external payable {
-        _checkMessagingHubStatus();
+        _checkMessagingStatus(2);
 
         // Validate that this is not a replay attack.
         if (isDeliveredMessageHash[deliveryHash]) {
@@ -377,7 +381,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 amount,
         uint256 gasLimit
     ) external {
-        _checkMessagingHubStatus();
+        _checkMessagingStatus(1);
 
         if (
             !centralRegistry.isHarvester(msg.sender) &&
@@ -440,7 +444,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 payloadType,
         bool aux
     ) external payable returns (uint64) {
-        _checkMessagingHubStatus();
+        _checkMessagingStatus(1);
 
         uint16 wormholeChainId = _getWormholeData(dstChainId).chainId;
 
@@ -513,18 +517,20 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Permissioned function that flips the pause status of the
     ///         Messaging Hub.
-    function flipMessagingHubStatus() external {
-        _checkDaoPermissions();
+    function setMessagingHubStatus(uint256 newMessagingStatus) external {
+        if (newMessagingStatus == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
-        // Possible outcomes:
-        // If pause state is being turned off (state = false), then the
-        // Messaging Hub is being turned back on which means isPaused will be
-        // set to 1.
-        //
-        // If pause state is being turned on (state = true), then the
-        // Messaging Hub is being turned off which means isPaused will be
-        // set to 2.
-        isPaused = isPaused == 2 ? 1 : 2;
+        if (newMessagingStatus > 2) {
+            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+        } else {
+            _checkDaoPermissions();
+        }
+
+        messagingStatus = newMessagingStatus > 2 ? 3 : newMessagingStatus;
     }
 
     /// @notice Withdraws gas tokens and fee tokens from the
@@ -840,8 +846,8 @@ contract ProtocolMessagingHub is QueryResponse {
     }
 
     /// @dev Checks whether the Messaging Hub is paused or not.
-    function _checkMessagingHubStatus() internal view {
-        if (isPaused == 2) {
+    function _checkMessagingStatus(uint256 messageType) internal view {
+        if (messagingStatus > messageType) {
             revert ProtocolMessagingHub__MessagingHubPaused();
         }
     }
