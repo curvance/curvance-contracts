@@ -49,10 +49,6 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             23
         );
 
-        uint256[] memory chainIds = new uint256[](1);
-        chainIds[0] = 42161;
-        centralRegistry.updateForeignChainIds(chainIds);
-
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         deal(_USDC_ADDRESS, address(this), 10000e6);
         deal(address(cve), address(this), 100e18);
@@ -129,9 +125,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
-        uint256 hypotheticalRewardsClaim = rewardManager.hypotheticalRewardsClaim(
-            user1
-        );
+        uint256 hypotheticalRewardsClaim = rewardManager
+            .hypotheticalRewardsClaim(user1);
 
         assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
         assertTrue(rewardManager.hasRewardsToClaim(user1));
@@ -145,7 +140,10 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             bytes32("0x01")
         );
 
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), epochRewardsPerCVE);
+        assertEq(
+            rewardManager.epochRewardsPerCVE(nextEpoch),
+            epochRewardsPerCVE
+        );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
         assertTrue(rewardManager.hasRewardsToClaim(user1));

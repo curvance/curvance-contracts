@@ -27,9 +27,6 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             1,
             23
         );
-        uint256[] memory chainIds = new uint256[](1);
-        chainIds[0] = 42161;
-        centralRegistry.updateForeignChainIds(chainIds);
 
         skip(rewardManager.EPOCH_DURATION() * 2);
     }

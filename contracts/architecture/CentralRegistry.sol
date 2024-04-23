@@ -233,7 +233,6 @@ contract CentralRegistry is ERC165 {
     event TokenBridgeSet(address newAddress);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
-    event ForeignChainIdsSet(uint256[] chainIds);
 
     /// ERRORS ///
 
@@ -768,7 +767,6 @@ contract CentralRegistry is ERC165 {
         );
     }
 
-    
     /// @notice Adds an approved address to create locks for other
     ///         addresses inside Curvance.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
@@ -869,6 +867,7 @@ contract CentralRegistry is ERC165 {
             messagingChainId: messagingChainId,
             cveAddress: cveAddress
         });
+        foreignChainIds.push(chainId);
 
         emit NewChainAdded(chainId, newOmnichainOperator);
     }
@@ -917,15 +916,9 @@ contract CentralRegistry is ERC165 {
         ];
         delete messagingToGETHChainId[operatorToRemove.messagingChainId];
 
+        _removeForeignChainId(chainId);
+
         emit RemovedChain(chainId, currentOmnichainOperator);
-    }
-
-    function updateForeignChainIds(uint256[] calldata newChainIds) external {
-        _checkElevatedPermissions();
-
-        foreignChainIds = newChainIds;
-
-        emit ForeignChainIdsSet(newChainIds);
     }
 
     /// CONTRACT MAPPING LOGIC
@@ -1107,6 +1100,27 @@ contract CentralRegistry is ERC165 {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Remove Chain ID from foreign chain id array.
+    /// @param chainId Chain ID to remove.
+    function _removeForeignChainId(uint256 chainId) internal {
+        uint256 i;
+        uint256 numForeignChainIds = foreignChainIds.length;
+
+        for (; i < numForeignChainIds; ++i) {
+            if (foreignChainIds[i] == chainId) {
+                break;
+            }
+        }
+
+        numForeignChainIds--;
+
+        for (; i < numForeignChainIds; ++i) {
+            foreignChainIds[i] = foreignChainIds[i + 1];
+        }
+
+        foreignChainIds.pop();
+    }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.
