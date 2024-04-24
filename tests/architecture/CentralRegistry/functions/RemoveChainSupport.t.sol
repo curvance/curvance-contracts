@@ -83,8 +83,8 @@ contract RemoveChainSupportTest is TestBaseMarket {
         assertEq(centralRegistry.GETHToMessagingChainId(42161), 23);
 
         vm.expectEmit(true, true, true, true);
-        emit RemovedChain(42161, user1);
-        centralRegistry.removeChainSupport(user1, 42161);
+        emit RemovedChain(42161, messagingHub);
+        centralRegistry.removeChainSupport(messagingHub, 42161);
 
         (isSupported, , , , , , ) = centralRegistry.supportedChainData(
             42161
