@@ -251,6 +251,7 @@ contract ProtocolMessagingHub is QueryResponse {
             );
         }
 
+        // Document messageHash as delivered to prevent replays.
         isDeliveredMessageHash[deliveryHash] = true;
 
         // Validate that the Wormhole Relayer is the caller.
@@ -262,13 +263,8 @@ contract ProtocolMessagingHub is QueryResponse {
             srcChainId
         );
         address srcAddr = address(uint160(uint256(srcAddress)));
-
         ChainData memory chainData = _getChainData(gethChainId);
 
-        // Validate the operator is authorized.
-        if (chainData.omnichainOperator != srcAddr) {
-            return;
-        }
         // Validate message came directly from MessagingHub on the source chain.
         if (chainData.messagingHub != srcAddr) {
             return;

@@ -17,12 +17,9 @@ contract AddChainSupportTest is TestBaseMarket {
         );
         centralRegistry.addChainSupport(
             address(this),
-            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -32,12 +29,9 @@ contract AddChainSupportTest is TestBaseMarket {
     function test_addChainSupport_fail_whenChainOperatorAlreadyAdded() public {
         centralRegistry.addChainSupport(
             address(this),
-            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -47,12 +41,9 @@ contract AddChainSupportTest is TestBaseMarket {
         );
         centralRegistry.addChainSupport(
             address(this),
-            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -62,12 +53,9 @@ contract AddChainSupportTest is TestBaseMarket {
     function test_addChainSupport_fail_whenChainAlreadyAdded() public {
         centralRegistry.addChainSupport(
             address(this),
-            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -76,13 +64,10 @@ contract AddChainSupportTest is TestBaseMarket {
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.addChainSupport(
-            user1,
             address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -97,13 +82,10 @@ contract AddChainSupportTest is TestBaseMarket {
         vm.expectEmit(true, true, true, true);
         emit NewChainAdded(42161, user1);
         centralRegistry.addChainSupport(
-            user1,
             address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             relayer,
             3
@@ -111,10 +93,7 @@ contract AddChainSupportTest is TestBaseMarket {
 
         (
             uint256 isSupported,
-            address omnichainOperator,
             address messagingHub,
-            uint256 asSourceAux,
-            uint256 asDestinationAux,
             address cveAddress,
             address feeTokenAddress,
             uint16 messagingChainId,
@@ -123,10 +102,7 @@ contract AddChainSupportTest is TestBaseMarket {
         ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 2);
-        assertEq(omnichainOperator, user1);
         assertEq(messagingHub, address(this));
-        assertEq(asSourceAux, 1);
-        assertEq(asDestinationAux, 1);
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESS);
         assertEq(messagingChainId, 23);

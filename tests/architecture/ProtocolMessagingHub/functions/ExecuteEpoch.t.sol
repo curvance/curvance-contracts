@@ -18,13 +18,10 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         _init();
 
         centralRegistry.addChainSupport(
-            address(this),
             srcMessagingHub,
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             makeAddr("Wormhole Relayer"),
             3

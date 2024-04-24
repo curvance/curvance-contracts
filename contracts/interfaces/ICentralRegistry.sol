@@ -12,8 +12,6 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///                    2 = yes
 ///                    0 or 1 = no
 /// @param messagingHub Messaging Hub address on the chain.
-/// @param asSourceAux Auxilliary data when chain is source.
-/// @param asDestinationAux Auxilliary data when chain is destination.
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param messagingChainId Messaging Chain ID where this address authorized.
@@ -21,10 +19,7 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 /// @param cctpDomain CCTP domain for the chain.
 struct ChainData {
     uint256 isSupported;
-    address omnichainOperator;
     address messagingHub;
-    uint256 asSourceAux;
-    uint256 asDestinationAux;
     address cveAddress;
     address feeTokenAddress;
     uint16 messagingChainId;

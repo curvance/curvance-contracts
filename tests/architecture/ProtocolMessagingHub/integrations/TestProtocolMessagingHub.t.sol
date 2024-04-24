@@ -40,12 +40,9 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         );
         centralRegistry.addChainSupport(
             address(protocolMessagingHub),
-            address(protocolMessagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             makeAddr("Wormhole Relayer"),
             3

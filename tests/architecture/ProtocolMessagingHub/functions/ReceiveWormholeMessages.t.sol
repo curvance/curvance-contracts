@@ -19,12 +19,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         centralRegistry.addChainSupport(
             address(srcMessagingHub),
-            address(srcMessagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             makeAddr("Wormhole Relayer"),
             3

@@ -774,26 +774,18 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param newOmnichainOperator The address that will be the source
-    ///                             address sending messaging to this chain
-    ///                             for validation.
-    /// @param messagingHub Contract address for new chains Messaging Hub.
+    /// @param messagingHub Address for new chains Protocol Messaging Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
-    /// @param sourceAux Auxilliary data when the chain is source.
-    /// @param destinationAux Auxilliary data when the chain is destination.
     /// @param messagingChainId Messaging Chain ID where this address authorized.
     /// @param relayer Wormhole relayer address on the chain.
     /// @param domain CCTP domain for the chain.
     function addChainSupport(
-        address newOmnichainOperator,
         address messagingHub,
         address cveAddress,
         address feeTokenAddress,
         uint256 chainId,
-        uint256 sourceAux,
-        uint256 destinationAux,
         uint16 messagingChainId,
         address relayer,
         uint32 domain
@@ -807,19 +799,17 @@ contract CentralRegistry is ERC165 {
 
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
-            omnichainOperator: newOmnichainOperator,
             messagingHub: messagingHub,
-            asSourceAux: sourceAux,
-            asDestinationAux: destinationAux,
             cveAddress: cveAddress,
             feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
             wormholeRelayer: relayer,
             cctpDomain: domain
         });
+
         messagingToGETHChainId[messagingChainId] = chainId;
         GETHToMessagingChainId[chainId] = messagingChainId;
-        supportedChains++;
+        ++supportedChains;
         foreignChainIds.push(chainId);
 
         emit NewChainAdded(chainId, newOmnichainOperator);
@@ -828,13 +818,11 @@ contract CentralRegistry is ERC165 {
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentOmnichainOperator The current address that is the source
-    ///                                 address sending messaging to this
-    ///                                 chain for validation.
-    /// @param chainId GETH Chain ID where `currentOmnichainOperator` is
+    /// @param currentMessagingHub Address for chains Protocol Messaging Hub.
+    /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(
-        address currentOmnichainOperator,
+        address currentMessagingHub,
         uint256 chainId
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
@@ -843,8 +831,8 @@ contract CentralRegistry is ERC165 {
 
         ChainData memory chainDataToRemove = supportedChainData[chainId];
 
-        // Validate that `currentOmnichainOperator` is currently supported.
-        if (chainDataToRemove.omnichainOperator != currentOmnichainOperator) {
+        // Validate that `currentMessagingHub` is currently supported.
+        if (chainDataToRemove.messagingHub != currentMessagingHub) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -856,7 +844,7 @@ contract CentralRegistry is ERC165 {
         // Remove chain support from protocol.
         supportedChainData[chainId].isSupported = 1;
         // Decrease supportedChains.
-        supportedChains--;
+        --supportedChains;
         // Remove messagingChainId <> GETH chainId mapping table references.
         delete GETHToMessagingChainId[
             messagingToGETHChainId[chainDataToRemove.messagingChainId]
@@ -865,7 +853,7 @@ contract CentralRegistry is ERC165 {
 
         _removeForeignChainId(chainId);
 
-        emit RemovedChain(chainId, currentOmnichainOperator);
+        emit RemovedChain(chainId, currentMessagingHub);
     }
 
     /// CONTRACT MAPPING LOGIC
@@ -1047,8 +1035,8 @@ contract CentralRegistry is ERC165 {
         uint256 i;
         uint256 numForeignChainIds = foreignChainIds.length;
 
-        for (; i < numForeignChainIds; ++i) {
-            if (foreignChainIds[i] == chainId) {
+        for (; i < numForeignChainIds; ) {
+            if (foreignChainIds[i++] == chainId) {
                 break;
             }
         }
