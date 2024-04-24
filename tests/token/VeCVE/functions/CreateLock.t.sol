@@ -14,7 +14,7 @@ contract CreateLockTest is TestBaseVeCVE {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(_ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -108,7 +108,7 @@ contract CreateLockTest is TestBaseVeCVE {
 
         assertEq(lockAmounts.length, 0);
         assertEq(lockTimestamps.length, 0);
-        assertEq(veCVE.getVotesForEpoch(address(this), 0), 0);
+        assertEq(veCVE.getVotes(address(this)), 0);
 
         vm.assume(amount > 1e18 && amount <= 100e18);
 
@@ -145,7 +145,7 @@ contract CreateLockTest is TestBaseVeCVE {
         );
 
         assertEq(
-            veCVE.getVotesForEpoch(address(this), 0),
+            veCVE.getVotes(address(this)),
             amount + amount / 10
         );
     }
@@ -216,18 +216,18 @@ contract CreateLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        deal(_USDC_ADDRESS, address(cveLocker), amount);
+        deal(_USDC_ADDRESS, address(rewardManager), amount);
 
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount / 2);
 
         veCVE.createLock(amount / 2, false, rewardsData, "", 0);
 
-        vm.prank(address(cveLocker.veCVE()));
-        cveLocker.updateUserClaimIndex(address(this), 1);
+        vm.prank(address(rewardManager.veCVE()));
+        rewardManager.updateUserClaimIndex(address(this), 1);
 
         // verify that rewards are delivered
-        vm.expectEmit(true, true, true, true, address(cveLocker));
+        vm.expectEmit(true, true, true, true, address(rewardManager));
         emit RewardPaid(address(this), _USDC_ADDRESS, amount / 2);
 
         veCVE.createLock(amount / 2, false, rewardsData, "", 0);

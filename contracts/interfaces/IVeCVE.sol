@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import "contracts/token/VeCVE.sol";
 
 interface IVeCVE {
 
     /// @notice Locks a given amount of cve tokens on behalf of another user,
-    ///         and processes any pending locker rewards.
+    ///         and processes any pending rewards.
     /// @param recipient The address to lock tokens for.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function createLockFor(
@@ -25,12 +25,12 @@ interface IVeCVE {
 
     /// @notice Increases the locked amount and extends the lock
     ///         for the specified lock index, and processes any pending
-    ///         locker rewards.
+    ///         rewards.
     /// @param recipient The address to lock and extend tokens for.
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function increaseAmountAndExtendLockFor(

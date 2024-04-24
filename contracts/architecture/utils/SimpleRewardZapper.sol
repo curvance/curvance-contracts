@@ -12,7 +12,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
+import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 
 contract SimpleRewardZapper is ReentrancyGuard {
@@ -20,9 +20,9 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice Curvance CVE locker.
-    ICVELocker public immutable cveLocker;
-    /// @notice The address of the CVE locker reward token on this chain.
+    /// @notice Curvance Reward Manager.
+    IRewardManager public immutable rewardManager;
+    /// @notice The address of the Reward Manager Reward Token on this chain.
     address public immutable rewardToken;
     /// @notice The address of WETH on this chain.
     address public immutable WETH;
@@ -51,7 +51,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
     error SimpleRewardZapper__Unauthorized();
     error SimpleRewardZapper__InvalidMarketManager();
     error SimpleRewardZapper__InvalidCentralRegistry();
-    error SimpleRewardZapper__InvalidCVELocker();
+    error SimpleRewardZapper__InvalidRewardManager();
 
     /// CONSTRUCTOR ///
 
@@ -67,23 +67,23 @@ contract SimpleRewardZapper is ReentrancyGuard {
             revert SimpleRewardZapper__InvalidCentralRegistry();
         }
 
-        address locker = centralRegistry_.cveLocker();
+        address rewardManager_ = centralRegistry_.rewardManager();
 
-        // Validate that CVE locker is properly configured inside
+        // Validate that Reward Manager is properly configured inside
         // the Central Registry.
-        if (locker == address(0)) {
-            revert SimpleRewardZapper__InvalidCVELocker();
+        if (rewardManager_ == address(0)) {
+            revert SimpleRewardZapper__InvalidRewardManager();
         }
 
         centralRegistry = centralRegistry_;
-        cveLocker = ICVELocker(locker);
-        rewardToken = ICVELocker(locker).rewardToken();
+        rewardManager = IRewardManager(rewardManager_);
+        rewardToken = IRewardManager(rewardManager_).rewardToken();
         WETH = WETH_;
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Claims CVE locker rewards, then swaps and transfers
+    /// @notice Claims Reward Manager rewards, then swaps and transfers
     ///         `swapperData.outputToken` to `recipient`.
     /// @param swapperData Swap instruction data.
     /// @param recipient Address that should receive swapped output.
@@ -92,12 +92,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         SwapperLib.Swap memory swapperData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
-        // Normally in swappers we check whether the input is a networks gas
-        // token, but we use cve lockers are built with non gas token
-        // stablecoins as reward tokens. This means we do not need to check
+        // Normally in swappers we check whether the input is a network's gas
+        // token, but the Reward Manager is built with non gas token
+        // stablecoins as reward tokens. Thus we do not need to check
         // CommonLib.isETH here.
 
-        // Swap input token must match the reward token from the CVE locker,
+        // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
         if (swapperData.inputToken != rewardToken) {
@@ -131,7 +131,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         _transferToRecipient(swapperData.outputToken, recipient, outAmount);
     }
 
-    /// @notice Claims CVE locker rewards, then Zaps, then deposits
+    /// @notice Claims Reward Manager rewards, then Zaps, then deposits
     ///         `zapperCall.inputToken`, a cToken underlying, and enters
     ///         into Curvance collateral position.
     /// @param swapZap Zap instruction data to execute the Zap.
@@ -146,12 +146,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         address cToken,
         address recipient
     ) external nonReentrant returns (uint256) {
-        // Normally in swappers we check whether the input is a networks gas
-        // token, but we use cve lockers are built with non gas token
-        // stablecoins as reward tokens. This means we do not need to check
+        // Normally in swappers we check whether the input is a network's gas
+        // token, but the Reward Manager is built with non gas token
+        // stablecoins as reward tokens. Thus we do not need to check
         // CommonLib.isETH here.
 
-        // Swap input token must match the reward token from the CVE locker,
+        // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
         if (swapZap.inputToken != rewardToken) {
@@ -187,7 +187,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         return _enterCurvance(cToken, recipient);
     }
 
-    /// @notice Claims CVE locker rewards, then may swap, then repays
+    /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         dToken debt inside Curvance.
     /// @dev Sends any excess dToken underlying to `recipient`.
     ///      Only needs to swap if `rewardToken` != dToken underlying.
@@ -206,12 +206,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 repayAmount,
         address recipient
     ) external nonReentrant returns (uint256) {
-        // Normally in swappers we check whether the input is a networks gas
-        // token, but we use cve lockers are built with non gas token
-        // stablecoins as reward tokens. This means we do not need to check
+        // Normally in swappers we check whether the input is a network's gas
+        // token, but the Reward Manager is built with non gas token
+        // stablecoins as reward tokens. Thus we do not need to check
         // CommonLib.isETH here.
 
-        // Swap input token must match the reward token from the CVE locker,
+        // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
         if (swapperData.inputToken != rewardToken) {
@@ -413,7 +413,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// @param user The address of the user to process rewards for.
     /// @return The amount of rewards received from processing.
     function _processRewards(address user) internal returns (uint256) {
-        return cveLocker.manageRewardsFor(user);
+        return rewardManager.manageRewardsFor(user);
     }
 
     /// @notice Helper function for efficiently transferring tokens

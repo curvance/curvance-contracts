@@ -152,7 +152,7 @@ contract FuzzDToken is FuzzMarketManager {
         require(_mintAndApprove(DToken(dtoken).underlying(), dtoken, amount));
         (bool borrowPossible, ) = address(marketManager).call(
             abi.encodeWithSignature(
-                "canBorrow(address,address,uint256)",
+                "canBorrowWithPrune(address,address,uint256)",
                 dtoken,
                 address(this),
                 amount
@@ -218,7 +218,7 @@ contract FuzzDToken is FuzzMarketManager {
         require(marketManager.isListed(dtoken));
         (bool borrowPossible, ) = address(marketManager).call(
             abi.encodeWithSignature(
-                "canBorrow(address,address,uint256)",
+                "canBorrowWithPrune(address,address,uint256)",
                 dtoken,
                 address(this),
                 amount

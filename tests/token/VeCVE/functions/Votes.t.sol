@@ -9,7 +9,7 @@ contract VotesTest is TestBaseVeCVE {
         super.setUp();
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }

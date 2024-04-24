@@ -10,20 +10,19 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-/// @title Curvance Voting Escrow CVE Reward Locker.
-/// @notice A system for managing the Voting Escrow Reward System within
-///         Curvance Protocol.
-/// @dev The CVELocker acts a unified interface for distributing rewards to
+/// @title Curvance Reward Manager.
+/// @notice A system for managing rewards within the Curvance Protocol.
+/// @dev The RewardManager acts a unified interface for distributing rewards to
 ///      Curvance DAO users. This system works in collaboration with the VeCVE
 ///      smart contract. Rewards are distributed biweekly and pile up for each
 ///      user, allowing them to claim rewards whenever they want. Rewards can
 ///      be routed directly into other tokens. CVE can be directly routed to,
 ///      other tokens can be routed into through the delegation system.
 ///
-///      Rewards are distributed pro-rata to each chain's CVE locker every
+///      Rewards are distributed pro-rata to each chain's Reward Manager every
 ///      two weeks. Fees are moved to some unified chain (can change) along
 ///      with information corresponding to the number of veCVE locked on a
 ///      chain. This means, for example, if 10 million reward tokens are to
@@ -40,7 +39,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      Such as routing a distributed reward token into a chain specific
 ///      stablecoin after a Wormhole message is delivered.
 ///
-contract CVELocker is Delegable, ReentrancyGuard {
+contract RewardManager is Delegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice Protocol epoch length.
@@ -48,24 +47,24 @@ contract CVELocker is Delegable, ReentrancyGuard {
 
     /// @notice The address of the CVE contract.
     address public immutable cve;
-    /// @notice CVE Locker Reward token.
+    /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
 
-    /// @dev `bytes4(keccak256(bytes("CVELocker__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x82274acf;
-    /// @dev `bytes4(keccak256(bytes("CVELocker__NoEpochRewards()")))`.
-    uint256 internal constant _NO_EPOCH_REWARDS_SELECTOR = 0x95721ba7;
+    /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
+    /// @dev `bytes4(keccak256(bytes("RewardManager__NoEpochRewards()")))`.
+    uint256 internal constant _NO_EPOCH_REWARDS_SELECTOR = 0x0a2e9ede;
 
     /// STORAGE ///
 
     /// @notice The address of the veCVE contract.
     IVeCVE public veCVE;
-    /// @notice Whether the CVE Locker has been started or not.
+    /// @notice Whether the Reward Manager has been started or not.
     /// @dev 2 = yes; 1 = no.
-    uint256 public lockerStarted = 1;
-    /// @notice Whether the CVE Locker is shut down or not.
+    uint256 public rewardManagerStarted = 1;
+    /// @notice Whether the Reward Manager is shut down or not.
     /// @dev 2 = yes; 1 = no.
     uint256 public isShutdown = 1;
 
@@ -89,12 +88,12 @@ contract CVELocker is Delegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error CVELocker__InvalidCentralRegistry();
-    error CVELocker__RewardTokenIsZeroAddress();
-    error CVELocker__SwapDataIsInvalid();
-    error CVELocker__Unauthorized();
-    error CVELocker__NoEpochRewards();
-    error CVELocker__LockerIsAlreadyStarted();
+    error RewardManager__InvalidCentralRegistry();
+    error RewardManager__RewardTokenIsZeroAddress();
+    error RewardManager__SwapDataIsInvalid();
+    error RewardManager__Unauthorized();
+    error RewardManager__NoEpochRewards();
+    error RewardManager__RewardManagerIsAlreadyStarted();
 
     receive() external payable {}
 
@@ -110,11 +109,11 @@ contract CVELocker is Delegable, ReentrancyGuard {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert CVELocker__InvalidCentralRegistry();
+            revert RewardManager__InvalidCentralRegistry();
         }
 
         if (rewardToken_ == address(0)) {
-            revert CVELocker__RewardTokenIsZeroAddress();
+            revert RewardManager__RewardTokenIsZeroAddress();
         }
 
         genesisEpoch = centralRegistry.genesisEpoch();
@@ -132,9 +131,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
     function recordEpochRewards(uint256 rewardsPerCVE) external {
         // Validate the caller reporting epoch data is the fee accumulator,
         // or protocol messaging hub.
-        if (
-            msg.sender != centralRegistry.protocolMessagingHub()
-        ) {
+        if (msg.sender != centralRegistry.protocolMessagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -151,19 +148,19 @@ contract CVELocker is Delegable, ReentrancyGuard {
         epochRewardsPerCVE[nextEpochToDeliver++] = rewardsPerCVE;
     }
 
-    /// @notice Starts the CVE locker, called by the DAO after setting up
-    ///         both CVELocker and veCVE contracts.
+    /// @notice Starts the Reward Manager, called by the DAO after setting up
+    ///         both RewardManager and veCVE contracts.
     /// @dev Only callable on by an entity with DAO permissions or higher.
-    function startLocker() external {
+    function startRewardManager() external {
         _checkDaoPermissions();
 
-        if (lockerStarted == 2) {
-            revert CVELocker__LockerIsAlreadyStarted();
+        if (rewardManagerStarted == 2) {
+            revert RewardManager__RewardManagerIsAlreadyStarted();
         }
 
         veCVE = IVeCVE(centralRegistry.veCVE());
-        // nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
-        lockerStarted = 2;
+        nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
+        rewardManagerStarted = 2;
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -192,10 +189,10 @@ contract CVELocker is Delegable, ReentrancyGuard {
         }
     }
 
-    /// @notice Shuts down the CVELocker and prevents future reward
+    /// @notice Shuts down the RewardManager and prevents future reward
     /// distributions.
     /// @dev Should only be used to facilitate migration to a new system.
-    function notifyLockerShutdown() external {
+    function notifyShutdown() external {
         if (
             msg.sender != address(veCVE) &&
             !centralRegistry.hasElevatedPermissions(msg.sender)
@@ -217,7 +214,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
         return ((time - genesisEpoch) / EPOCH_DURATION);
     }
 
-    /// @notice Checks if a user has any CVE locker rewards to claim.
+    /// @notice Checks if a user has any rewards to claim.
     /// @dev Even if a users lock is expiring the next lock resulting
     ///      in 0 points, we want their data updated so data is properly
     ///      adjusted on unlock.
@@ -235,7 +232,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
         return false;
     }
 
-    /// @notice Calculates a hypothetical CVE locker rewards claim by `user`.
+    /// @notice Calculates a hypothetical rewards claim by `user`.
     ///         Returns 0 if there are no rewards to claim.
     /// @param user The user who should have their hypothetical rewards
     ///             calculated.
@@ -300,8 +297,9 @@ contract CVELocker is Delegable, ReentrancyGuard {
     /// REWARD FUNCTIONS ///
 
     /// @notice Claims rewards for multiple epochs.
-    /// @param rewardsData Rewards data for CVE rewards locker.
-    /// @param params Swap data for token swapping rewards to desiredRewardToken.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param params Swap data for token swapping rewards to
+    ///               desiredRewardToken.
     /// @param aux Auxiliary data for wrapped assets such as veCVE.
     function claimRewards(
         RewardsData calldata rewardsData,
@@ -332,7 +330,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
     /// @notice Claims rewards for multiple epochs.
     /// @param user The address of the user claiming rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
@@ -358,7 +356,8 @@ contract CVELocker is Delegable, ReentrancyGuard {
     ///      distributing rewards to a user directly.
     ///      Emits a {ClaimApproval} event.
     /// @param user The address of the user having rewards managed.
-    /// @return How much rewards were claimed for `user` from the locker.
+    /// @return How much rewards were claimed for `user` from the
+    ///         Reward Manager.
     function manageRewardsFor(
         address user
     ) external nonReentrant returns (uint256) {
@@ -384,7 +383,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Checks if a user has any CVE locker rewards to claim.
+    /// @notice Checks if a user has any rewards to claim.
     /// @dev Even if a users lock is expiring the next lock resulting
     ///      in 0 points, we want their data updated so data is properly
     ///      adjusted on unlock.
@@ -410,7 +409,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
     /// @param user The address of the user claiming rewards.
     /// @param recipient The address receiving rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
@@ -450,7 +449,8 @@ contract CVELocker is Delegable, ReentrancyGuard {
     /// @dev May emit a {RewardPaid} event.
     /// @param user The address of the user claiming rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @return rewards How much rewards were claimed for `user` from the locker.
+    /// @return rewards How much rewards were claimed for `user` from the
+    ///                 Reward Manager.
     function _claimRewardsDirect(
         address user,
         uint256 epochs
@@ -526,7 +526,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
     ///         the rewards are locked as VeCVE.
     /// @param recipient The address receiving processed rewards.
     /// @param rewards The amount of rewards to process for `recipient`.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to cve,
     ///               if necessary.
     /// @param aux Auxiliary data for veCVE.
@@ -558,7 +558,7 @@ contract CVELocker is Delegable, ReentrancyGuard {
                 swapData.outputToken != cve ||
                 swapData.inputAmount != rewards
             ) {
-                revert CVELocker__SwapDataIsInvalid();
+                revert RewardManager__SwapDataIsInvalid();
             }
 
             // Swap to CVE and update reward amount based on CVE received.

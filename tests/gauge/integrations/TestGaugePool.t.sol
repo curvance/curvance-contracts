@@ -69,13 +69,13 @@ contract TestGaugePool is TestBaseMarket {
             }
         }
 
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = tokens[0];
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100;
+        // address[] memory tokensParam = new address[](1);
+        // tokensParam[0] = tokens[0];
+        // uint256[] memory poolWeights = new uint256[](1);
+        // poolWeights[0] = 100;
 
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+        // vm.prank(address(protocolMessagingHub));
+        // gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
         gaugePool.start(address(marketManager));

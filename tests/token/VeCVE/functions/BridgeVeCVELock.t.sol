@@ -14,22 +14,21 @@ contract BridgeLockTest is TestBaseVeCVE {
         super.setUp();
 
         centralRegistry.addChainSupport(
-            address(this),
             address(protocolMessagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(1e6);
+        rewardManager.recordEpochRewards(1e6);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
@@ -70,7 +69,7 @@ contract BridgeLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6);
         }
 
         vm.warp(unlockTime);
@@ -119,7 +118,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         veCVE.bridgeLock{ value: messageFee }(

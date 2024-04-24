@@ -7,7 +7,6 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
-import { ICVELocker } from "contracts/interfaces/ICVELocker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -30,7 +29,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      all supported chains inside the Curvance Protocol system.
 ///
 ///      These fees are distributed pro-rata based on the under of locked
-///      veCVE tokens on each chain, see "CVELocker.sol" for more information
+///      veCVE tokens on each chain, see "RewardManager.sol" for more information
 ///      on this.
 ///
 ///      Native gas tokens are stored inside the contract to pay for all
@@ -62,9 +61,6 @@ contract FeeAccumulator is ReentrancyGuard {
     uint256 internal immutable _feeTokenUnit;
 
     /// STORAGE ///
-
-    /// @notice Cached Protocol Messaging Hub address.
-    address internal _messagingHubStored;
 
     /// @notice We store token data semi redundantly to save gas
     ///         on daily operations and to help with gelato network structure
@@ -102,7 +98,6 @@ contract FeeAccumulator is ReentrancyGuard {
     error FeeAccumulator__TokenLengthIsZero();
     error FeeAccumulator__RemovalTokenIsNotRewardToken();
     error FeeAccumulator__RemovalTokenDoesNotExist();
-    error FeeAccumulator__MessagingHubHasNotChanged();
 
     receive() external payable {}
 
@@ -121,17 +116,6 @@ contract FeeAccumulator is ReentrancyGuard {
         centralRegistry = centralRegistry_;
         feeToken = centralRegistry.feeToken();
         _feeTokenUnit = 10 ** IERC20(feeToken).decimals();
-        // We document this incase we ever need to update messaging hub
-        // and want to revoke.
-        _messagingHubStored = centralRegistry.protocolMessagingHub();
-
-        // We infinite approve fee token so that protocol messaging hub
-        // can drag funds to proper chain.
-        SafeTransferLib.safeApprove(
-            feeToken,
-            _messagingHubStored,
-            type(uint256).max
-        );
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -198,13 +182,6 @@ contract FeeAccumulator is ReentrancyGuard {
             //       for slippage here.
             SwapperLib.swap(centralRegistry, swapDataArray[i]);
         }
-
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            address(centralRegistry),
-            (IERC20(feeToken).balanceOf(address(this)) * vaultCompoundFee()) /
-                vaultYieldFee()
-        );
     }
 
     /// @notice Performs an (OTC) operation for a specific token,
@@ -257,14 +234,59 @@ contract FeeAccumulator is ReentrancyGuard {
             feeTokenRequiredForOTC
         );
 
-        SafeTransferLib.safeTransfer(
-            feeToken,
-            address(centralRegistry),
-            (feeTokenRequiredForOTC * vaultCompoundFee()) / vaultYieldFee()
-        );
-
         // Give DAO the OTC'd tokens
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
+    }
+
+    /// @notice Sends collected fee tokens ex compounding bot stipend to the
+    ///         Protocol Messaging Hub.
+    /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
+    ///      collected equal 0.
+    /// @param amount The amount of token to transfer.
+    /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
+    function pullFees(uint256 amount) external returns (uint256) {
+        address messagingHub = centralRegistry.protocolMessagingHub();
+
+        if (msg.sender != messagingHub) {
+            revert FeeAccumulator__Unauthorized();
+        }
+
+        uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
+
+        // If the amount desired is greater than what is available, move all fees.
+        feeTokens = amount > feeTokens ? feeTokens : amount;
+
+        // If there are no fees collected, can just return.
+        if (feeTokens == 0) {
+            return 0;
+        }
+
+        uint256 compoundingFee = (feeTokens *
+                vaultCompoundFee()) /
+                vaultYieldFee();
+
+        // Move compounding fee accumulated to central registry to be used
+        // for offchain harvester bots.
+        if (compoundingFee > 0) {
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                address(centralRegistry),
+                compoundingFee
+            );
+        }
+        
+        feeTokens -= compoundingFee;
+
+        if (feeTokens > 0) {
+            // Move remaining fees on this chain to PMH to distribute.
+            SafeTransferLib.safeTransfer(
+                feeToken,
+                messagingHub,
+                feeTokens
+            );
+        }
+
+        return feeTokens;
     }
 
     /// @notice Sends all left over fees to new fee accumulator.
@@ -318,29 +340,6 @@ contract FeeAccumulator is ReentrancyGuard {
         _checkDaoPermissions();
 
         rewardTokenInfo[token].forOTC = state ? 2 : 1;
-    }
-
-    /// @notice Moves fee token approval to new messaging hub.
-    /// @dev Removes prior messaging hub approval for maximum safety.
-    function notifyUpdatedMessagingHub() external {
-        if (msg.sender != address(centralRegistry)) {
-            revert FeeAccumulator__Unauthorized();
-        }
-
-        address messagingHub = centralRegistry.protocolMessagingHub();
-
-        if (messagingHub == _messagingHubStored) {
-            revert FeeAccumulator__MessagingHubHasNotChanged();
-        }
-
-        // Revoke previous approval.
-        SafeTransferLib.safeApprove(feeToken, _messagingHubStored, 0);
-
-        // We infinite approve fee token so that protocol messaging hub can
-        // drag funds to proper chain.
-        SafeTransferLib.safeApprove(feeToken, messagingHub, type(uint256).max);
-
-        _messagingHubStored = messagingHub;
     }
 
     /// @notice Adds multiple reward tokens to the contract for Gelato Network

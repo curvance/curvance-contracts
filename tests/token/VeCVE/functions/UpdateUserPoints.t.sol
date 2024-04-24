@@ -9,7 +9,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
         super.setUp();
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        cveLocker.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
@@ -28,7 +28,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
         veCVE.createLock(100e18, false, rewardsData, "", 0);
         assertEq(veCVE.userPoints(address(this)), 100e18);
 
-        vm.startPrank(address(cveLocker));
+        vm.startPrank(address(rewardManager));
         // invalid epoch won't change user points
         veCVE.updateUserPoints(address(this), 10);
         assertEq(veCVE.userPoints(address(this)), 100e18);

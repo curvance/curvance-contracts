@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-import { TestBaseCVELocker } from "../TestBaseCVELocker.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
-contract ClaimRewardsForTest is TestBaseCVELocker {
+contract ClaimRewardsForTest is TestBaseRewardManager {
     address internal constant _UNISWAP_V2_ROUTER =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     RewardsData public rewardsData = RewardsData(true, false, false, false);
@@ -31,7 +31,7 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
             100e6,
             0,
             path,
-            address(cveLocker),
+            address(rewardManager),
             block.timestamp
         );
 
@@ -40,7 +40,7 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
 
         deal(_USDC_ADDRESS, address(this), 10000e6);
         deal(address(cve), address(this), 100e18);
@@ -64,10 +64,10 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
     }
 
     function test_claimRewardsFor_fail_whenCallerIsNotVeCVE() public {
-        uint256 epoch = cveLocker.epochsToClaim(user1);
+        uint256 epoch = rewardManager.epochsToClaim(user1);
 
-        vm.expectRevert(CVELocker.CVELocker__Unauthorized.selector);
-        cveLocker.claimRewardsFor(
+        vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
+        rewardManager.claimRewardsFor(
             user1,
             epoch,
             rewardsData,
@@ -81,7 +81,7 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(_ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -96,11 +96,11 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
         vm.stopPrank();
 
         vm.prank(address(veCVE));
-        cveLocker.updateUserClaimIndex(user1, 1);
+        rewardManager.updateUserClaimIndex(user1, 1);
 
-        assertTrue(cveLocker.hasRewardsToClaim(user1));
+        assertTrue(rewardManager.hasRewardsToClaim(user1));
 
-        deal(_USDC_ADDRESS, address(cveLocker), amount);
+        deal(_USDC_ADDRESS, address(rewardManager), amount);
 
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSignature(
@@ -108,20 +108,20 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
             amount,
             0,
             path,
-            address(cveLocker),
+            address(rewardManager),
             block.timestamp
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(amount, path);
-        uint256 baseRewardBalance = usdc.balanceOf(address(cveLocker));
+        uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
         uint256 desiredTokenBalance = cve.balanceOf(user1);
-        uint256 epoch = cveLocker.epochsToClaim(user1);
+        uint256 epoch = rewardManager.epochsToClaim(user1);
 
-        assertEq(cveLocker.currentEpoch(block.timestamp) + 1, epoch);
+        assertEq(rewardManager.currentEpoch(block.timestamp) + 1, epoch);
 
         vm.prank(address(veCVE));
-        cveLocker.claimRewardsFor(
+        rewardManager.claimRewardsFor(
             user1,
             epoch,
             rewardsData,
@@ -130,7 +130,7 @@ contract ClaimRewardsForTest is TestBaseCVELocker {
         );
 
         assertEq(
-            usdc.balanceOf(address(cveLocker)),
+            usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
         assertEq(cve.balanceOf(user1), desiredTokenBalance + amountsOut[1]);

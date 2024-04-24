@@ -5,7 +5,7 @@ import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
-contract CanBorrowTest is TestBaseMarketManager {
+contract CanBorrowWithPruneTest is TestBaseMarketManager {
     event MarketEntered(address mToken, address account);
 
     function setUp() public override {
@@ -18,23 +18,26 @@ contract CanBorrowTest is TestBaseMarketManager {
         mockRethFeed.setMockUpdatedAt(block.timestamp);
     }
 
-    function test_canBorrow_fail_whenBorrowPaused() public {
+    function test_canBorrowWithPrune_fail_whenBorrowPaused() public {
         marketManager.setBorrowPaused(address(dUSDC), true);
 
         vm.prank(address(dUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canBorrow(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenMTokenIsNotListed() public {
-        vm.prank(address(dUSDC));
+    function test_canBorrowWithPrune_fail_whenMTokenIsNotListed() public {
+        marketManager.listToken(address(dDAI));
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canBorrow(address(dDAI), user1, 100e6);
+        vm.prank(address(dDAI));
+
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
+    function test_canBorrowWithPrune_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
         public
     {
         marketManager.listToken(address(dDAI));
@@ -42,10 +45,10 @@ contract CanBorrowTest is TestBaseMarketManager {
         vm.prank(address(dUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(dDAI), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(dDAI), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenInsufficientLiquidity() public {
+    function test_canBorrowWithPrune_fail_whenInsufficientLiquidity() public {
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -63,10 +66,10 @@ contract CanBorrowTest is TestBaseMarketManager {
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(address(dUSDC));
-        marketManager.canBorrow(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
 
-    function test_canBorrow_success_whenSufficientLiquidity() public {
+    function test_canBorrowWithPrune_success_whenSufficientLiquidity() public {
         chainlinkEthUsd.updateRoundData(
             0,
             1500e8,
@@ -112,7 +115,7 @@ contract CanBorrowTest is TestBaseMarketManager {
         vm.stopPrank();
 
         vm.prank(address(dUSDC));
-        marketManager.canBorrow(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
 
         AccountSnapshot memory snapshot = cBALRETH.getSnapshotPacked(user1);
         (uint256 price, ) = oracleRouter.getPrice(cBALRETH.asset(), true, true);
@@ -128,17 +131,17 @@ contract CanBorrowTest is TestBaseMarketManager {
         uint256 borrowInUSDC = (maxBorrow / 10 ** cBALRETH.decimals()) *
             10 ** dUSDC.decimals();
         vm.prank(address(dUSDC));
-        marketManager.canBorrow(address(dUSDC), user1, borrowInUSDC);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, borrowInUSDC);
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(address(dUSDC));
-        marketManager.canBorrow(address(dUSDC), user1, borrowInUSDC + 1e6);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, borrowInUSDC + 1e6);
     }
 
-    function test_canBorrow_fail_entersUserInMarket() external {
+    function test_canBorrowWithPrune_fail_entersUserInMarket() external {
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -153,10 +156,10 @@ contract CanBorrowTest is TestBaseMarketManager {
         );
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(dUSDC), user1, 0);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 0);
     }
 
-    function test_canBorrow_success_entersUserInMarket() external {
+    function test_canBorrowWithPrune_success_entersUserInMarket() external {
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -178,7 +181,7 @@ contract CanBorrowTest is TestBaseMarketManager {
         assertEq(accountAssets.length, 0);
 
         vm.prank(address(dUSDC));
-        marketManager.canBorrow(address(dUSDC), user1, 0);
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 0);
 
         (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
 
@@ -189,7 +192,7 @@ contract CanBorrowTest is TestBaseMarketManager {
         assertEq(address(accountAssets[0]), address(dUSDC));
     }
 
-    // function test_canBorrow_fail_whenExceedsBorrowCap() external {
+    // function test_canBorrowWithPrune_fail_whenExceedsBorrowCap() external {
     //     chainlinkUsdcUsd.updateRoundData(
     //         0,
     //         1e8,
@@ -213,10 +216,10 @@ contract CanBorrowTest is TestBaseMarketManager {
 
     //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
     //     vm.prank(address(cBALRETH));
-    //     marketManager.canBorrow(address(cBALRETH), user1, 100e6);
+    //     marketManager.canBorrowWithPrune(address(cBALRETH), user1, 100e6);
     // }
 
-    // function test_canBorrow_success_whenCapNotExceeded() external {
+    // function test_canBorrowWithPrune_success_whenCapNotExceeded() external {
     //     chainlinkUsdcUsd.updateRoundData(
     //         0,
     //         1e8,
@@ -239,6 +242,6 @@ contract CanBorrowTest is TestBaseMarketManager {
     //     marketManager.setCTokenCollateralCaps(mTokens, borrowCaps);
 
     //     vm.prank(address(cBALRETH));
-    //     marketManager.canBorrow(address(cBALRETH), user1, borrowCaps[0] - 1);
+    //     marketManager.canBorrowWithPrune(address(cBALRETH), user1, borrowCaps[0] - 1);
     // }
 }

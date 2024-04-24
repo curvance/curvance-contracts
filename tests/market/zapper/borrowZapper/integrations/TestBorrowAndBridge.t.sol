@@ -122,6 +122,16 @@ contract TestBorrowAndBridge is TestBaseMarket {
         borrowZapper = new BorrowZapper(
             ICentralRegistry(address(centralRegistry))
         );
+
+        centralRegistry.addChainSupport(
+            address(protocolMessagingHub),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
     }
 
     function _provideEnoughLiquidityForLeverage() internal {
@@ -175,7 +185,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             params
         );
 
-        uint256 messageFee = borrowZapper.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
 
         // try borrow()
         vm.startPrank(user1);

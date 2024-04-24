@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 
@@ -26,7 +26,7 @@ contract TestBoostedLock is TestBaseMarket {
         _prepareUSDC(user1, 200000e6);
         _prepareUSDC(user2, 200000e6);
         _prepareUSDC(liquidator, 200000e6);
-        _prepareUSDC(address(cveLocker), 10000000e6);
+        _prepareUSDC(address(rewardManager), 10000000e6);
 
         // prepare 1 BAL-RETH/WETH
         _prepareBALRETH(user1, 1 ether);
@@ -149,7 +149,7 @@ contract TestBoostedLock is TestBaseMarket {
 
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
