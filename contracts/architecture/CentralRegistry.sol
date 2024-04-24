@@ -812,7 +812,7 @@ contract CentralRegistry is ERC165 {
         ++supportedChains;
         foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, newOmnichainOperator);
+        emit NewChainAdded(chainId, messagingHub);
     }
 
     /// @notice Removes support for a chain.
