@@ -43,17 +43,6 @@ contract TestGaugePool is TestBaseMarket {
             tokens[i] = address(_deployDDAI());
         }
 
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = tokens[0];
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100;
-
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
-
-        // start epoch
-        gaugePool.start(address(marketManager));
-
         for (uint256 i = 0; i < 10; i++) {
             // support market
             dai.approve(address(tokens[i]), 200000e18);
@@ -79,6 +68,17 @@ contract TestGaugePool is TestBaseMarket {
                 }
             }
         }
+
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = tokens[0];
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 100;
+
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+
+        // start epoch
+        gaugePool.start(address(marketManager));
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
