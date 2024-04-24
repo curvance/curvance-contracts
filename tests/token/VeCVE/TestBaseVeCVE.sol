@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 
 contract TestBaseVeCVE is TestBaseMarket {
     RewardsData public rewardsData;

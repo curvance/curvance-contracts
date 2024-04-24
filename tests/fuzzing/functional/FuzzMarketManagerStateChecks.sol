@@ -285,13 +285,23 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             .solvencyOf(address(this));
         require(accountDebt != 0);
         amount = clampBetween(amount, 1, accountCollateral);
+        bool cToken = IMToken(mtoken).isCToken();
 
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch {
-            assertWithMsg(
-                false,
-                "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
-            );
-        }
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch {
+                assertWithMsg(
+                    false,
+                    "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch {
+                assertWithMsg(
+                    false,
+                    "SC-MARKET-10 canTransfer() canTransfer should succeed with correct preconditions"
+                );
+            }
+        } 
     }
 
     /// @custom:property sc-market-11 canTransfer should fail with PAUSED when transferPaused = 2
@@ -305,16 +315,33 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() == 2);
         require(marketManager.redeemPaused() != 2);
         require(marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_pausedSelectorHash,
-                "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-11 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
         }
     }
 
@@ -329,16 +356,33 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() != 2);
         require(marketManager.redeemPaused() != 2);
         require(!marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_tokenNotListedSelectorHash,
-                "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with NOTLISTED
+                assertWithMsg(
+                    errorSelector == marketManager_tokenNotListedSelectorHash,
+                    "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with NOTLISTED
+                assertWithMsg(
+                    errorSelector == marketManager_tokenNotListedSelectorHash,
+                    "SC-MARKET-12 canTransfer() expected NOTLISTED selector hash on failure"
+                );
+            }
         }
     }
 
@@ -353,25 +397,42 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.transferPaused() != 2);
         require(marketManager.redeemPaused() == 2);
         require(marketManager.isListed(mtoken));
-        try marketManager.canTransfer(mtoken, address(this), amount) {} catch (
-            bytes memory revertData
-        ) {
-            uint256 errorSelector = extractErrorSelector(revertData);
 
-            // canTransfer should have reverted with PAUSED
-            assertWithMsg(
-                errorSelector == marketManager_pausedSelectorHash,
-                "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
-            );
+        bool cToken = IMToken(mtoken).isCToken();
+
+        if (cToken) {
+            try marketManager.canTransferCToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
+        } else {
+            try marketManager.canTransferDToken(mtoken, address(this), amount) {} catch (
+                bytes memory revertData
+            ) {
+                uint256 errorSelector = extractErrorSelector(revertData);
+
+                // canTransfer should have reverted with PAUSED
+                assertWithMsg(
+                    errorSelector == marketManager_pausedSelectorHash,
+                    "SC-MARKET-13 canTransfer() expected PAUSED selector hash on failure"
+                );
+            }
         }
     }
 
-    /// @custom:property sc-market-14 canBorrow should succeed when borrow is not paused and mtoken is listed
+    /// @custom:property sc-market-14 canBorrowWithPrune should succeed when borrow is not paused and mtoken is listed
     /// @custom:precondition borrowPaused != 2
     /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
     /// @custom:precondition require that the mtoken has a position in the market
-    function canBorrow_should_succeed(address mtoken, uint256 amount) public {
+    function canBorrowWithPrune_should_succeed(address mtoken, uint256 amount) public {
         _isSupportedDToken(mtoken);
         require(marketManager.borrowPaused(mtoken) != 2);
         require(marketManager.isListed(mtoken));
@@ -383,16 +444,16 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             amount
         );
         require(liquidityDeficit == 0);
-        try marketManager.canBorrow(mtoken, address(this), amount) {} catch {
-            assertWithMsg(false, "SC-MARKET-14 canBorrow() should succeed");
+        try marketManager.canBorrowWithPrune(mtoken, address(this), amount) {} catch {
+            assertWithMsg(false, "SC-MARKET-14 canBorrowWithPrune() should succeed");
         }
     }
 
-    /// @custom:property sc-market-15 canBorrow should fail with PAUSED when borrow is paused
+    /// @custom:property sc-market-15 canBorrowWithPrune should fail with PAUSED when borrow is paused
     /// @custom:precondition borrowPaused = 2
     /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
-    function canBorrow_should_fail_when_borrow_is_paused(
+    function canBorrowWithPrune_should_fail_when_borrow_is_paused(
         address mtoken,
         uint256 amount
     ) public {
@@ -405,46 +466,46 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             amount
         );
         require(liquidityDeficit == 0);
-        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
+        try marketManager.canBorrowWithPrune(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
                 errorSelector == marketManager_pausedSelectorHash,
-                "SC-MARKET-15 canBorrow() expected PAUSED selector hash on failure"
+                "SC-MARKET-15 canBorrowWithPrune() expected PAUSED selector hash on failure"
             );
         }
     }
 
-    /// @custom:property sc-market-16 canBorrow should fail with token is not listed
+    /// @custom:property sc-market-16 canBorrowWithPrune should fail with token is not listed
     /// @custom:precondition borrowPaused != 2
     /// @custom:precondition mtoken is not listed in MarketManager
     /// @custom:precondition liquidityDeficit == 0
-    function canBorrow_should_fail_when_token_is_unlisted(
+    function canBorrowWithPrune_should_fail_when_token_is_unlisted(
         address mtoken,
         uint256 amount
     ) public {
         require(marketManager.borrowPaused(mtoken) != 2);
         require(!marketManager.isListed(mtoken));
-        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
+        try marketManager.canBorrowWithPrune(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
 
             assertWithMsg(
                 errorSelector == marketManager_tokenNotListedSelectorHash,
-                "SC-MARKET-16 canBorrow() expected TOKEN NOT LISTED selector hash on failure"
+                "SC-MARKET-16 canBorrowWithPrune() expected TOKEN NOT LISTED selector hash on failure"
             );
         }
     }
 
-    /// @custom:property sc-market-17 canBorrow should fail with liquidityDeficity >0
+    /// @custom:property sc-market-17 canBorrowWithPrune should fail with liquidityDeficity >0
     /// @custom:precondition borrowPaused != 2
     /// @custom:precondition mtoken is listed in MarketManager
     /// @custom:precondition liquidityDeficit > 0
     /// @custom:precondition account has active position
-    function canBorrow_should_fail_liquidity_deficit_exists(
+    function canBorrowWithPrune_should_fail_liquidity_deficit_exists(
         address mtoken,
         uint256 amount
     ) public {
@@ -458,7 +519,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             amount
         );
         require(liquidityDeficit == 0);
-        try marketManager.canBorrow(mtoken, address(this), amount) {} catch (
+        try marketManager.canBorrowWithPrune(mtoken, address(this), amount) {} catch (
             bytes memory revertData
         ) {
             uint256 errorSelector = extractErrorSelector(revertData);
@@ -466,7 +527,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             assertWithMsg(
                 errorSelector ==
                     marketManager_insufficientCollateralSelectorHash,
-                "SC-MARKET-17 canBorrow() expected INSUFFICIENT COLLATERAL selector hash on failure"
+                "SC-MARKET-17 canBorrowWithPrune() expected INSUFFICIENT COLLATERAL selector hash on failure"
             );
         }
     }

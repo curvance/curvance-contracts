@@ -14,11 +14,11 @@ contract ShutdownTest is TestBaseVeCVE {
 
     function test_shutdown_success() public {
         assertEq(veCVE.isShutdown(), 1);
-        assertEq(cveLocker.isShutdown(), 1);
+        assertEq(rewardManager.isShutdown(), 1);
 
         veCVE.shutdown();
 
         assertEq(veCVE.isShutdown(), 2);
-        assertEq(cveLocker.isShutdown(), 2);
+        assertEq(rewardManager.isShutdown(), 2);
     }
 }

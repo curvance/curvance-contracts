@@ -2,6 +2,26 @@
 pragma solidity ^0.8.17;
 
 interface IInterestRateModel {
+    /// @notice Calculates the current borrow rate, per compound.
+    /// @param cash The amount of cash in the market.
+    /// @param borrows The amount of borrows in the market.
+    /// @param reserves The amount of reserves in the market.
+    /// @return The borrow rate percentage, per compound, in `WAD`.
+    function getBorrowRate(
+        uint256 cash,
+        uint256 borrows,
+        uint256 reserves
+    ) external view returns (uint256);
+    /// @notice Calculates the current borrow rate per year.
+    /// @param cash The amount of cash in the market.
+    /// @param borrows The amount of borrows in the market.
+    /// @param reserves The amount of reserves in the market.
+    /// @return The borrow rate percentage per year, in `WAD`.
+    function getBorrowRatePerYear(
+        uint256 cash,
+        uint256 borrows,
+        uint256 reserves
+    ) external view returns (uint256);
     /// @notice Calculates the current borrow rate per year,
     ///         with updated vertex multiplier applied.
     /// @param cash The amount of cash in the market.
@@ -24,16 +44,6 @@ interface IInterestRateModel {
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256);
-    /// @notice Calculates the current borrow rate per year.
-    /// @param cash The amount of cash in the market.
-    /// @param borrows The amount of borrows in the market.
-    /// @param reserves The amount of reserves in the market.
-    /// @return The borrow rate percentage per year, in `WAD`.
-    function getBorrowRatePerYear(
-        uint256 cash,
-        uint256 borrows,
-        uint256 reserves
-    ) external view returns (uint256);
     /// @notice Calculates the current supply rate per year.
     /// @param cash The amount of cash in the market.
     /// @param borrows The amount of borrows in the market.

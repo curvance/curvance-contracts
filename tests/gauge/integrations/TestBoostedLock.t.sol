@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 
@@ -26,7 +26,7 @@ contract TestBoostedLock is TestBaseMarket {
         _prepareUSDC(user1, 200000e6);
         _prepareUSDC(user2, 200000e6);
         _prepareUSDC(liquidator, 200000e6);
-        _prepareUSDC(address(cveLocker), 10000000e6);
+        _prepareUSDC(address(rewardManager), 10000000e6);
 
         // prepare 1 BAL-RETH/WETH
         _prepareBALRETH(user1, 1 ether);
@@ -44,17 +44,6 @@ contract TestBoostedLock is TestBaseMarket {
         for (uint256 i = 0; i < 10; i++) {
             tokens[i] = address(_deployDDAI());
         }
-
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = tokens[0];
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100;
-
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
-
-        // start epoch
-        gaugePool.start(address(marketManager));
 
         for (uint256 i = 0; i < 10; i++) {
             // support market
@@ -81,6 +70,17 @@ contract TestBoostedLock is TestBaseMarket {
                 }
             }
         }
+ 
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = tokens[0];
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 100;
+
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+
+        // start epoch
+        gaugePool.start(address(marketManager));
 
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
@@ -148,8 +148,8 @@ contract TestBoostedLock is TestBaseMarket {
         );
 
         for (uint256 i = 0; i < 3; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(1e6);
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);

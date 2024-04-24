@@ -22,7 +22,7 @@ contract VeCVEDeploymentTest is TestBaseVeCVE {
         assertEq(address(veCVE.centralRegistry()), address(centralRegistry));
         assertEq(veCVE.genesisEpoch(), centralRegistry.genesisEpoch());
         assertEq(veCVE.cve(), centralRegistry.cve());
-        assertEq(address(veCVE.cveLocker()), centralRegistry.cveLocker());
+        assertEq(address(veCVE.rewardManager()), centralRegistry.rewardManager());
         assertEq(veCVE.CL_POINT_MULTIPLIER(), 2);
     }
 }

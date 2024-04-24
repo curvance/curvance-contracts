@@ -203,6 +203,10 @@ contract MarketManager is LiquidityManager, ERC165 {
     function isListed(address mToken) external view returns (bool) {
         return (tokenData[mToken].isListed);
     }
+    
+    function queryTokensListed() external view returns (address[] memory) {
+        return tokensListed;
+    }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
 
@@ -383,30 +387,17 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         // Fail if the sender is not permitted to redeem `tokens`.
         // Note: `tokens` is in shares.
-        _canRedeem(cToken, msg.sender, tokens);
+        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(cToken, msg.sender, tokens);
         _removeCollateral(
             msg.sender,
             accountPositions,
             cToken,
             tokens
         );
-    }
 
-    /// @notice Reduces `accounts`'s posted collateral, if necessary, for their
-    ///         desired action.
-    /// @param account The account to potential reduce posted collateral for.
-    /// @param cToken The cToken address to potentially reduce collateral for.
-    /// @param balance The cToken share balance of `account`.
-    /// @param tokens The maximum amount of shares that could be removed as
-    ///               collateral.
-    function reduceCollateralIfNecessary(
-        address account,
-        address cToken,
-        uint256 balance,
-        uint256 tokens
-    ) external {
-        _checkIsToken(cToken);
-        _reduceCollateralIfNecessary(account, cToken, balance, tokens, false);
+        if (updateNeeded == 2) {
+            _closePositions(msg.sender, positionsToClose);
+        }
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -436,29 +427,6 @@ contract MarketManager is LiquidityManager, ERC165 {
         _canRedeem(mToken, account, amount);
     }
 
-    /// @notice Checks if the account should be allowed to redeem `amount`
-    ///         of `mToken` in the given market state.
-    /// @param mToken The market token to verify the redemption for.
-    /// @param account The account which would redeem the tokens.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
-    function canRedeemWithPrune(
-        address mToken,
-        address account,
-        uint256 amount
-    ) external {
-        _checkIsToken(mToken);
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            mToken,
-            account,
-            amount
-        );
-
-        if (updateNeeded == 1) {
-            _closePositions(account, positionsToClose);
-        }
-    }
-
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the mToken itself 
@@ -478,19 +446,9 @@ contract MarketManager is LiquidityManager, ERC165 {
         bool forceRedeemCollateral
     ) external {
         _checkIsToken(mToken);
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
+        _canRedeemWithCollateralRemoval(
             mToken,
             account,
-            amount
-        );
-
-        if (updateNeeded == 1) {
-            _closePositions(account, positionsToClose);
-        }
-
-        _reduceCollateralIfNecessary(
-            account,
-            mToken,
             balance,
             amount,
             forceRedeemCollateral
@@ -499,20 +457,7 @@ contract MarketManager is LiquidityManager, ERC165 {
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev May emit a {TokenPositionCreated} event.
-    /// @param dToken The debt token to verify the borrow of.
-    /// @param account The account which would borrow the asset.
-    /// @param amount The amount of underlying the account would borrow.
-    function canBorrow(
-        address dToken,
-        address account,
-        uint256 amount
-    ) external {
-        _canBorrow(dToken, account, amount);
-    }
-
-    /// @notice Checks if the account should be allowed to borrow
-    ///         the underlying asset of the given market.
+    ///         Prunes unused positions in `account` data.
     /// @dev May emit a {TokenPositionCreated} event.
     /// @param dToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
@@ -522,13 +467,15 @@ contract MarketManager is LiquidityManager, ERC165 {
         address account,
         uint256 amount
     ) external {
+        _checkIsToken(dToken);
+        
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,
             amount
         );
 
-        if (updateNeeded == 1) {
+        if (updateNeeded == 2) {
             _closePositions(account, positionsToClose);
         }
     }
@@ -547,13 +494,14 @@ contract MarketManager is LiquidityManager, ERC165 {
     ) external {
         _checkIsToken(dToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
+        
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,
             amount
         );
 
-        if (updateNeeded == 1) {
+        if (updateNeeded == 2) {
             _closePositions(account, positionsToClose);
         }
     }
@@ -649,13 +597,17 @@ contract MarketManager is LiquidityManager, ERC165 {
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
-        _reduceCollateralIfNecessary(
+        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
             account,
             cToken,
             0,
             cTokenLiquidated,
             true
         );
+        if (collateralToRemove > 0) {
+            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
+        }
+
         return (dTokenRepaid, cTokenLiquidated, protocolTokens);
     }
 
@@ -689,29 +641,12 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
     }
 
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
+    /// @notice Checks if the account should be allowed to transfer debt
+    ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransfer(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external view {
-        if (transferPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        _canRedeem(mToken, from, amount);
-    }
-
-    /// @notice Checks if the account should be allowed to transfer tokens
-    ///         in the given market.
-    /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferWithPrune(
+    function canTransferDToken(
         address mToken,
         address from,
         uint256 amount
@@ -727,9 +662,33 @@ contract MarketManager is LiquidityManager, ERC165 {
             amount
         );
         
-        if (updateNeeded == 1) {
+        if (updateNeeded == 2) {
             _closePositions(from, positionsToClose);
         }
+    }
+
+    /// @notice Checks if the account should be allowed to transfer collateral
+    ///         tokens in the given market.
+    /// @param mToken The market token to verify the transfer of.
+    /// @param from The account which sources the tokens.
+    /// @param amount The number of mTokens to transfer.
+    function canTransferCToken(
+        address mToken,
+        address from,
+        uint256 amount
+    ) external {
+        _checkIsToken(mToken);
+        if (transferPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        _canRedeemWithCollateralRemoval(
+            mToken,
+            from,
+            IMToken(mToken).balanceOf(from),
+            amount,
+            false
+        );
     }
 
     /// @notice Liquidates an entire account by partially paying down debts,
@@ -1284,63 +1243,6 @@ contract MarketManager is LiquidityManager, ERC165 {
         accountPositions.collateralPosted = accountPositions.collateralPosted - tokens;
         collateralPosted[cToken] = collateralPosted[cToken] - tokens;
         emit CollateralRemoved(account, cToken, tokens);
-
-        // We add the activePosition check here since the position may have
-        // been called from post conditional canRedeem position pruning.
-        if (
-            accountPositions.collateralPosted == 0 &&
-            accountPositions.activePosition == 2
-            ) {
-            _closePosition(account, accountPositions, IMToken(cToken));
-        }
-    }
-
-    /// @notice Helper function for removing an asset from
-    ///         an account's liquidity calculation.
-    /// @dev Sender must not have an outstanding borrow balance in the asset,
-    ///      or be providing necessary collateral for an outstanding borrow.
-    ///      Emits a {TokenPositionClosed} event.
-    /// @param account The address of the account to close a
-    ///        `mToken` position for.
-    /// @param accountPositions Cached account metadata of `account.`
-    /// @param mToken The address of the asset to be removed.
-    function _closePosition(
-        address account,
-        AccountPosition storage accountPositions,
-        IMToken mToken
-    ) internal {
-        // Delete mToken from the account’s list of assets.
-        IMToken[] memory userAssetList = accountAssets[account].assets;
-
-        // Cache asset list.
-        uint256 numUserAssets = userAssetList.length;
-        uint256 assetIndex = numUserAssets;
-
-        for (uint256 i; i < numUserAssets; ++i) {
-            if (userAssetList[i] == mToken) {
-                assetIndex = i;
-                break;
-            }
-        }
-
-        // Validate we found the asset and remove 1 from numUserAssets
-        // so it corresponds to index 0 starting point.
-        // This is an additional runtime invariant check for extra security.
-        if (assetIndex >= numUserAssets--) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
-
-        // Remove `mToken` account position flag.
-        accountPositions.activePosition = 1;
-
-        // Copy last item in list to location of item to be removed.
-        IMToken[] storage storedList = accountAssets[account].assets;
-        // Copy the last market index slot to assetIndex.
-        storedList[assetIndex] = storedList[numUserAssets];
-        // Remove the last element to remove `mToken` from account asset list.
-        storedList.pop();
-
-        emit TokenPositionClosed(address(mToken), account);
     }
 
     /// @notice Helper function for closing user positions after liquidity
@@ -1421,9 +1323,6 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
 
         if (tokenData[dToken].accountPositions[account].activePosition != 2) {
-            // Only mTokens may call borrowAllowed if account not in market.
-            _checkIsToken(dToken);
-            
             // The account is not in the market yet, so make them enter.
             tokenData[dToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(dToken));
@@ -1508,6 +1407,49 @@ contract MarketManager is LiquidityManager, ERC165 {
         }
 
         return (result.updateNeeded, positionsToClose);
+    }
+
+    /// @notice Checks if the account should be allowed to redeem tokens
+    ///         in the given market, and then redeems.
+    /// @dev This can only be called by the mToken itself 
+    ///      (specifically cTokens, because dTokens are never collateral).
+    /// @param cToken The collateral token to verify the redemption against.
+    /// @param account The account which would redeem the tokens.
+    /// @param balance The current mTokens balance of `account`.
+    /// @param amount The number of mTokens to exchange
+    ///               for the underlying asset in the market.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced.
+    function _canRedeemWithCollateralRemoval(
+        address cToken,
+        address account,
+        uint256 balance,
+        uint256 amount,
+        bool forceRedeemCollateral
+    ) internal {
+        // Check how much collateral should be removed, if any.
+        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
+            account,
+            cToken,
+            balance,
+            amount,
+            forceRedeemCollateral
+        );
+
+        // Execute removal of collateral posted, if needed.
+        if (collateralToRemove > 0) {
+            (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
+                cToken,
+                account,
+                collateralToRemove
+            );
+
+            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
+
+            if (updateNeeded == 2) {
+                _closePositions(account, positionsToClose);
+            }
+        }
     }
 
     /// @notice Helper function for checking if the liquidation should be
@@ -1634,46 +1576,49 @@ contract MarketManager is LiquidityManager, ERC165 {
         );
     }
 
-    /// @notice Helper function to remove `accounts`'s posted collateral, 
-    ///         if necessary, for their desired action.
+
+    /// @notice Helper function to calculate how much collateral should
+    ///         be removed for their desired action.
     /// @param account The account to potential reduce posted collateral for.
     /// @param cToken The cToken address to potentially reduce collateral for.
     /// @param balance The cToken share balance of `account`.
-    /// @param tokens The maximum amount of shares that could be removed as
+    /// @param amount The maximum amount of shares that could be removed as
     ///               collateral.
     /// @param forceReduce Whether to force reduce `account`'s collateral
     ///                    for not.
-    function _reduceCollateralIfNecessary(
+    function _checkCollateralToRemove(
         address account,
         address cToken,
         uint256 balance,
-        uint256 tokens,
+        uint256 amount,
         bool forceReduce
-    ) internal {
+    ) internal view returns (uint256, AccountPosition storage) {
         AccountPosition storage accountPositions = tokenData[cToken].accountPositions[
             account
         ];
 
-        // Check if they want to force a collateral redemption of `cToken`.
+        // If amount is 0 for a post conditional check 
+        if (amount == 0) {
+            return (0, accountPositions);
+        }
+
+        // If collateral is being directly removed by user intention,
+        // or liquidation we can skip balance checks.
         if (forceReduce) {
-            _removeCollateral(account, accountPositions, cToken, tokens);
-            return;
+            return (amount, accountPositions);
+        }
+
+        uint256 reductionAmount;
+
+        // If they want to redeem more shares than they have in excess,
+        // calculate the delta.
+        if (accountPositions.collateralPosted + amount >= balance) {
+            reductionAmount = (accountPositions.collateralPosted + amount) - balance;
         }
 
         // Calculate how much `cToken` `account` needs to have in order
         // to avoid reducing collateral.
-        uint256 balanceRequired = accountPositions.collateralPosted + tokens;
-
-        // If `account` does not have a high enough balance to avoid
-        // collateral reduction, reduce by the minimum necessary.
-        if (balance < balanceRequired) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                cToken,
-                balanceRequired - balance
-            );
-        }
+        return (reductionAmount, accountPositions);
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

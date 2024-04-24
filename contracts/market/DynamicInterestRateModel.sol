@@ -124,7 +124,7 @@ contract DynamicInterestRateModel is ERC165 {
     uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 12 hours;
     /// @notice The minimum frequency in which the vertex can have
     ///         between adjustments.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 1 hours;
+    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 30 minutes;
     /// @notice The maximum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 2 * WAD = 300% increase to vertex interest rate per
@@ -424,7 +424,10 @@ contract DynamicInterestRateModel is ERC165 {
             return 0;
         }
 
-        return (borrows * WAD) / (cash + borrows - reserves);
+        uint256 utilRate = (borrows * WAD) / (cash + borrows - reserves);
+        // If reserves end up growing too much and cause util > 100%,
+        // cap it to 100%.
+        return utilRate > WAD ? WAD : utilRate;
     }
 
     /// @notice Calculates the current borrow rate per compound,
@@ -632,6 +635,7 @@ contract DynamicInterestRateModel is ERC165 {
             _SECONDS_PER_YEAR;
 
         config.vertexStartingPoint = vertexUtilStart;
+        config.vertexMultiplierMax = vertexMultiplierMax;
         config.adjustmentRate = adjustmentRate;
         config.adjustmentVelocity = adjustmentVelocity;
 

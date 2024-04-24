@@ -78,13 +78,13 @@ The Fee Accumulator acts as a unified hub for collecting and transforming fees c
 Fees can be marked for OTC which will allow the Curvance DAO to purchase them, at fair market value. The Fee accumulator also works in collaboration with the Protocol Messaging Hub to manage system information and fees. Epoch fee distributions are distributed once a single chain has recorded fees accumulated and tokens locked across
 all supported chains inside the Curvance Protocol system.
 
-These fees are distributed pro-rata based on the under of locked veCVE tokens on each chain, see "CVELocker.sol" for more information on this.
+These fees are distributed pro-rata based on the under of locked veCVE tokens on each chain, see "RewardManager.sol" for more information on this.
 
-#### CVE Locker
+#### Reward Manager
 
-The CVELocker acts a unified interface for distributing rewards to Curvance DAO users. This system works in collaboration with the VeCVE smart contract. Rewards are distributed biweekly and pile up for each user, allowing them to claim rewards whenever they want. Rewards can be routed directly into other tokens. CVE can be directly routed to; other tokens can be routed into through the delegation system.
+The Reward Manager acts a unified interface for distributing rewards to Curvance DAO users. This system works in collaboration with the VeCVE smart contract. Rewards are distributed biweekly and pile up for each user, allowing them to claim rewards whenever they want. Rewards can be routed directly into other tokens. CVE can be directly routed to; other tokens can be routed into through the delegation system.
 
-Rewards are distributed pro-rata to each chain's CVE locker every two weeks. Fees are moved to some unified chain (can change) along with information corresponding to the number of veCVE locked on a chain. This means, for example, if 10 million reward tokens are to be distributed during an epoch that had 100 million veCVE locked, every user would receive 0.1 reward tokens for each veCVE they had locked during that period. This creates a direct incentive for chains to provide exogenous rewards to Curvance DAO users to move their locks over to their chain, increases the rewards to be distributed on that chain.
+Rewards are distributed pro-rata to each chain's Reward Manager every two weeks. Fees are moved to some unified chain (can change) along with information corresponding to the number of veCVE locked on a chain. This means, for example, if 10 million reward tokens are to be distributed during an epoch that had 100 million veCVE locked, every user would receive 0.1 reward tokens for each veCVE they had locked during that period. This creates a direct incentive for chains to provide exogenous rewards to Curvance DAO users to move their locks over to their chain, increases the rewards to be distributed on that chain.
 
 Currently rewards/fees are distributed as USDC and are moved through either Circle's CCTP or Wormhole's automatic relayer, other solutions may also be integrated to facilitate a wider range of chain support. Such as routing a distributed reward token into a chain specific stablecoin after a Wormhole message is delivered.
 
@@ -93,7 +93,7 @@ Currently rewards/fees are distributed as USDC and are moved through either Circ
 
 #### CVE
 
-CVE is the native token of Curvance Protocol. It is natively Multichain and can be time locked in a voting escrow position, in exchange for veCVE, which can be used to direct gauge system emissions through offchain voting, and receives protocol fees via the CVE locker. CVE can be received as emissions through the protocol gauge system (more on this below), these emissions can be claimed directly as liquid CVE or can be locked in a voting escrow position, with a multiplier applied to these emissions.
+CVE is the native token of Curvance Protocol. It is natively Multichain and can be time locked in a voting escrow position, in exchange for veCVE, which can be used to direct gauge system emissions through offchain voting, and receives protocol fees via the Reward Manager. CVE can be received as emissions through the protocol gauge system (more on this below), these emissions can be claimed directly as liquid CVE or can be locked in a voting escrow position, with a multiplier applied to these emissions.
 
 #### VeCVE
 
@@ -113,7 +113,7 @@ These changes include:
   A mode that every lock can be set to that eliminates the need to continually relock voting escrow positions, minimizing friction for users. Also comes with a bonus to system fees and DAO voting power to give a boost to users who have opted for longer term duration risk. Continuous lock mode can be turned on or off at any time. When shutting off continuous lock mode, a lock becomes a natural 1 year duration lock.
 
 - Multichain fees:
-  This is talked about in greater detail inside "CVELocker.sol", system fees are distributed pro-rata across all chains rather than isolated chain fee distributions.
+  This is talked about in greater detail inside "RewardManager.sol", system fees are distributed pro-rata across all chains rather than isolated chain fee distributions.
 
 - Multichain locks:
   A voting escrow lock can be moved from any chain to any chain inside the Curvance Protocol system. The nature of multichain fees allows for chains themselves to participate in incentive markets in attracting Curvance DAO members to migrate their locks on to their chain, attracting more fees, and as a result, volume (in theory).
@@ -179,7 +179,7 @@ There is inherent trust for particular integration contract owners, i.e. if Chai
 
 ### Technical rollout strategy
 
-Curvance will be deployed in waves with initial support on a minimum of 6 chains day one. The initial launch will be done with CVE out of circulation, with the gauge system off. This will be done by setting the genesisEpoch exactly 8 weeks from the start of the initial launch ("The Beta"). Once beta concludes CVE initial distribution recipients will have a few days to choose to lock their tokens to participate in the first epoch of rewards. Epochs will take place every 2 weeks with the fee accumulator/protocol messaging hub/CTokenCompounding functions managed by Gelato Network. These function calls will be funded by USDC deposited into OneBalance on Polygon PoS, either via OneBalanceFeeManager (or by Curvance DAO if this contract is depreciated). Gelato will trigger gauge emission data porting on the conclusion of each Snapshot Gauge Voting proposal, with Fee Accumulator and CTokenCompounding calls driven by fees accumulated/owned by the corresponding contracts. The primary distribution of USDC for CVE Locker rewards will be via Circle's CCTP via Wormhole's automatic relayer. The alternative of using Wormhole's native bridge is may be used but will be implemented on a case-by-case basis for each chain.   
+Curvance will be deployed in waves with initial support on a minimum of 6 chains day one. The initial launch will be done with CVE out of circulation, with the gauge system off. This will be done by setting the genesisEpoch exactly 8 weeks from the start of the initial launch ("The Beta"). Once beta concludes CVE initial distribution recipients will have a few days to choose to lock their tokens to participate in the first epoch of rewards. Epochs will take place every 2 weeks with the fee accumulator/protocol messaging hub/CTokenCompounding functions managed by Gelato Network. These function calls will be funded by USDC deposited into OneBalance on Polygon PoS, either via OneBalanceFeeManager (or by Curvance DAO if this contract is depreciated). Gelato will trigger gauge emission data porting on the conclusion of each Snapshot Gauge Voting proposal, with Fee Accumulator and CTokenCompounding calls driven by fees accumulated/owned by the corresponding contracts. The primary distribution of USDC for Reward Manager rewards will be via Circle's CCTP via Wormhole's automatic relayer. The alternative of using Wormhole's native bridge is may be used but will be implemented on a case-by-case basis for each chain.   
 
 ### Attack Vectors
 
@@ -187,8 +187,8 @@ Curvance's main attack vectors are mainly around crosschain action staleness, Mo
 
 - Are there bugs/exploits available to whether fee are transferred but lock data is not transferred somehow (1 message fails, other succeeds).
 - Are there bugs if multiple epochs of rewards/information (gauge emissions) have not been delivered.
-- Does a user allowing many epochs to pile up create opportunities for them to exploit their reward allocation to CVE locker.
-- Is there a way for users to manipulate their userNextClaimIndex invariant to claim an epoch or epochs multiple times from the CVE Locker.
+- Does a user allowing many epochs to pile up create opportunities for them to exploit their reward allocation to Reward Manager.
+- Is there a way for users to manipulate their userNextClaimIndex invariant to claim an epoch or epochs multiple times from the Reward Manager.
 - Is there a way to manipulate totalBorrows/debtBalanceCached in dToken to drain a market.
 - Is there a way to manipulate _totalAssets in cTokenBase (and other cToken contracts) to drain a vault.
 - What happens if a sequencer for a network goes down and a crosschain message cannot be delivered.
@@ -208,7 +208,7 @@ Curvance's main attack vectors are mainly around crosschain action staleness, Mo
 - Is there a way to liquidate more than expected of a certain user?
 - Is all arithmetic always rounding in directions to benefit the protocol?
 - Are there economical attacks on the liquidation curve that could make liquidation unattractive for liquidators to spur bad debt?
-- Are there cross-contract reentrancy attacks on the CVELocker / VeCVE pair ?
+- Are there cross-contract reentrancy attacks on the RewardManager / VeCVE pair ?
 - Are there locations where market listing checks / market pause / health checks / access checks are forgotten?
 - Are there contracts which through reasonable use could suffer from stuck funds?
 - Could cross chain messaging fail due to misaccuracies in bridging fees?

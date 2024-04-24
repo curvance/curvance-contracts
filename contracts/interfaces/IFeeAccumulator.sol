@@ -8,11 +8,21 @@ struct EpochRolloverData {
     uint256 epoch;
 }
 
+struct LockData {
+    uint224 lockAmount;
+    uint16 epoch;
+    uint16 chainId;
+}
+
 interface IFeeAccumulator {
-    /// @notice Receive finalized epoch rewards data
-    function receiveExecutableLockData(uint256 lockValue) external;
-    /// @notice Receive feeAccumulator information of locked tokens on a chain for the epoch
-    function receiveCrossChainLockData(EpochRolloverData memory data) external;
     /// @notice Updates to new messaging hub and moves fee token approval
     function notifyUpdatedMessagingHub() external;
+
+    /// @notice Sends collected fee tokens ex compounding bot stipend to the
+    ///         Protocol Messaging Hub.
+    /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
+    ///      collected equal 0.
+    /// @param amount The amount of token to transfer.
+    /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
+    function pullFees(uint256 amount) external returns (uint256);
 }

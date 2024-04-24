@@ -10,11 +10,10 @@ contract CTokenCompoundingWithExitFeeTransferFromTest is
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_cTokenCompoundingWithExitFeeTransferFrom_fail_whenSenderAndReceiverAreSame()
-        public
-    {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
-        cBALRETHWithExitFee.transferFrom(address(this), address(this), 1e18);
+    function setUp() public override {
+        super.setUp();
+
+        cBALRETHWithExitFee.mint(100, address(this));
     }
 
     function test_cTokenCompoundingWithExitFeeTransferFrom_fail_whenTransferZeroAmount()
@@ -41,8 +40,6 @@ contract CTokenCompoundingWithExitFeeTransferFromTest is
     }
 
     function test_cTokenCompoundingWithExitFeeTransferFrom_success() public {
-        cBALRETHWithExitFee.mint(100, address(this));
-
         uint256 balance = cBALRETHWithExitFee.balanceOf(address(this));
         uint256 user1Balance = cBALRETHWithExitFee.balanceOf(user1);
 

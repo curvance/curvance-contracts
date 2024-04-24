@@ -4,7 +4,6 @@ pragma solidity ^0.8.17;
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
 
@@ -58,7 +57,7 @@ contract CVE is ERC20 {
     ///         lock boost.
     /// @param amount The amount of tokens to be minted
     function mintLockBoost(uint256 amount) external {
-        if (!centralRegistry.isGaugeController(msg.sender)) {
+        if (!centralRegistry.hasLockingPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -94,30 +93,35 @@ contract CVE is ERC20 {
     /// @param dstChainId Chain ID of the target blockchain.
     /// @param recipient The address of recipient on destination chain.
     /// @param amount The amount of token to bridge.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridge(
         uint256 dstChainId,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        uint256 gasLimit
     ) external payable returns (uint64) {
         address messagingHub = centralRegistry.protocolMessagingHub();
         _burn(msg.sender, amount);
         _mint(messagingHub, amount);
 
         return
-            IProtocolMessagingHub(messagingHub).bridgeCVE{ value: msg.value }(
-                dstChainId,
-                recipient,
-                amount
-            );
+            IProtocolMessagingHub(messagingHub).bridgeToken{
+                value: msg.value
+            }(dstChainId, recipient, amount, gasLimit, 0, false);
     }
 
     /// @notice Returns required amount of native asset for message fee.
+    /// @param dstChainId Chain ID of the target blockchain.
+    /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Required fee.
-    function bridgeFee() external view returns (uint256) {
+    function bridgeFee(
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) external view returns (uint256) {
         return
             IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                .cveBridgeFee();
+                .quoteMessageFee(dstChainId, true, gasLimit);
     }
 
     /// PUBLIC FUNCTIONS ///

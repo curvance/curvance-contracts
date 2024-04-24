@@ -19,13 +19,12 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         centralRegistry.addChainSupport(
             address(srcMessagingHub),
-            address(srcMessagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
     }
 
@@ -45,6 +44,8 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_fail_whenNotReceivedToken() public {
+        rewardManager.notifyShutdown();
+
         vm.prank(_WORMHOLE_RELAYER);
 
         vm.expectRevert();
@@ -60,7 +61,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_fail_whenMessagingHubIsPaused()
         public
     {
-        protocolMessagingHub.flipMessagingHubStatus();
+        protocolMessagingHub.setMessagingHubStatus(3);
 
         vm.prank(_WORMHOLE_RELAYER);
 
@@ -127,20 +128,28 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
     }
 
     function test_receiveWormholeMessages_success_whenOperatorIsNotAuthorized()
         public
     {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("omnichainOperators(address,uint256)")
-            .with_key(address(srcMessagingHub))
-            .with_key(42161)
-            .depth(0)
-            .checked_write(1);
+        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
+        vm.prank(_WORMHOLE_RELAYER);
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            new bytes[](0),
+            bytes32(uint256(uint160(address(address(1))))),
+            23,
+            bytes32("0x01")
+        );
+
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
+    }
+
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
@@ -153,31 +162,12 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
-    }
-
-    function test_receiveWormholeMessages_success_whenPayloadIdIs1() public {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
-
-        assertEq(usdc.balanceOf(address(cveLocker)), 0);
-
-        vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
-            23,
-            bytes32("0x01")
-        );
-
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(cveLocker)), 100e6);
 
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
-        cveLocker.notifyLockerShutdown();
+        rewardManager.notifyShutdown();
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
@@ -192,31 +182,29 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
     }
 
-    function test_receiveWormholeMessages_success_whenPayloadIdIs4() public {
-        address[] memory gaugePools;
-        uint256[] memory emissionTotals;
-        address[][] memory tokens;
-        uint256[][] memory emissions;
-        uint256 chainLockedAmount = _ONE;
-        uint256 messageType = 1;
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
+        address[] memory gaugePools = new address[](1);
+        uint256[] memory emissionTotals = new uint256[](1);
+        address[][] memory tokens = new address[][](1);
+        uint256[][] memory emissions = new uint256[][](1);
 
-        vm.expectRevert();
-        feeAccumulator.crossChainLockData(0);
+        tokens[0] = new address[](1);
+        emissions[0] = new uint256[](1);
 
-        uint256 nextEpoch = cveLocker.nextEpochToDeliver();
+        gaugePools[0] = address(gaugePool);
+        emissionTotals[0] = _ONE;
+        tokens[0][0] = _USDC_ADDRESS;
+        emissions[0][0] = _ONE;
+
+        gaugePool.start(address(marketManager));
+
+        vm.warp(veCVE.nextEpochStartTime() + 100);
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(
-                4,
-                abi.encode(
-                    gaugePools,
-                    emissionTotals,
-                    tokens,
-                    emissions,
-                    chainLockedAmount,
-                    messageType
-                )
+                2,
+                abi.encode(gaugePools, emissionTotals, tokens, emissions)
             ),
             new bytes[](0),
             bytes32(uint256(uint160(address(srcMessagingHub)))),
@@ -224,80 +212,43 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("0x01")
         );
 
-        (uint224 lockAmount, uint16 epoch, uint16 chainId) = feeAccumulator
-            .crossChainLockData(0);
-
-        assertEq(lockAmount, _ONE);
-        assertEq(chainId, 42161);
-        assertEq(epoch, nextEpoch);
-
-        messageType = 2;
-
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), 0);
-
-        vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(
-                4,
-                abi.encode(
-                    gaugePools,
-                    emissionTotals,
-                    tokens,
-                    emissions,
-                    chainLockedAmount,
-                    messageType
-                )
-            ),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
-            23,
-            bytes32("0x02")
+        (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
+            gaugePool.currentEpoch() + 1,
+            _USDC_ADDRESS
         );
 
-        assertEq(cveLocker.epochRewardsPerCVE(nextEpoch), _ONE);
-        assertEq(cveLocker.nextEpochToDeliver(), nextEpoch + 1);
-
-        messageType = 3;
-        gaugePools = new address[](1);
-        emissionTotals = new uint256[](1);
-        tokens = new address[][](1);
-        tokens[0] = new address[](1);
-        emissions = new uint256[][](1);
-        emissions[0] = new uint256[](1);
-
-        gaugePools[0] = address(gaugePool);
-        tokens[0][0] = address(dDAI);
-        gaugePool.start(address(marketManager));
-
-        vm.warp(gaugePool.startTime());
-
-        vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(
-                4,
-                abi.encode(
-                    gaugePools,
-                    emissionTotals,
-                    tokens,
-                    emissions,
-                    chainLockedAmount,
-                    messageType
-                )
-            ),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
-            23,
-            bytes32("0x03")
-        );
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
     }
 
-    function test_receiveWormholeMessages_success_whenPayloadIdIs5() public {
-        vm.prank(centralRegistry.feeAccumulator());
-        cveLocker.recordEpochRewards(_ONE);
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs3() public {
+        uint256 chainLockedAmount = _ONE;
+
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
+
+        vm.prank(_WORMHOLE_RELAYER);
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(3, chainLockedAmount),
+            new bytes[](0),
+            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            23,
+            bytes32("0x01")
+        );
+
+        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), _ONE);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
+    }
+
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
+        vm.prank(centralRegistry.protocolMessagingHub());
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
-        centralRegistry.addVeCVELocker(address(protocolMessagingHub));
+        centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 
         assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), 0);
@@ -308,7 +259,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(5, abi.encode(recipient, amount, continuousLock)),
+            abi.encode(4, recipient, amount, continuousLock),
             new bytes[](0),
             bytes32(uint256(uint160(address(srcMessagingHub)))),
             23,

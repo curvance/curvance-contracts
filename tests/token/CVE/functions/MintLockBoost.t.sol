@@ -6,13 +6,15 @@ import { CVE } from "contracts/token/CVE.sol";
 
 contract MintLockBoostTest is TestBaseMarket {
     function test_mintLockBoost_fail_whenUnauthorized() public {
+        vm.prank(address(0));
+
         vm.expectRevert(CVE.CVE__Unauthorized.selector);
         cve.mintLockBoost(1000);
     }
 
     function test_mintLockBoost_success() public {
-        centralRegistry.addGaugeController(user1);
-        assertTrue(centralRegistry.isGaugeController(user1));
+        centralRegistry.addLockingPermissions(user1);
+        assertTrue(centralRegistry.hasLockingPermissions(user1));
 
         assertEq(cve.balanceOf(user1), 0);
         vm.prank(user1);

@@ -37,7 +37,7 @@ contract TestPendleLPCToken is TestBaseMarket {
 
         _deployCentralRegistry();
         _deployCVE();
-        _deployCVELocker();
+        _deployRewardManager();
         _deployVeCVE();
         _deployGaugePool();
         _deployMarketManager();

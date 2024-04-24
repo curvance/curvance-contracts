@@ -481,7 +481,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             msg.sender,
             msg.sender,
             tokens,
-            (exchangeRateCached() * tokens) / WAD
+            convertToAssets(tokens)
         );
     }
 
@@ -514,7 +514,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             account,
             recipient,
             tokens,
-            (exchangeRateCached() * tokens) / WAD
+            convertToAssets(tokens)
         );
     }
 
@@ -544,7 +544,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         _redeem(
             account,
             msg.sender,
-            (amount * WAD) / exchangeRateCached(),
+            convertToShares(amount),
             amount
         );
 
@@ -598,7 +598,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         accrueInterest();
 
         // Calculate asset -> shares exchange rate.
-        uint256 tokens = (amount * WAD) / exchangeRateCached();
+        uint256 tokens = convertToShares(amount);
 
         // On success, the market will deposit `amount` to the market.
         SafeTransferLib.safeTransferFrom(
@@ -637,7 +637,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
 
         // Convert `amount` assets to shares to match totalReserves
         // denomination.
-        uint256 tokens = (amount * WAD) / exchangeRateCached();
+        uint256 tokens = convertToShares(amount);
 
         // Update reserves with underflow check.
         totalReserves = totalReserves - tokens;
@@ -666,7 +666,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         accrueInterest();
 
         uint256 totalReservesCached = totalReserves;
-        uint256 amount = (totalReservesCached * exchangeRateCached()) / WAD;
+        uint256 amount = convertToAssets(totalReservesCached);
 
         // Make sure we have enough underlying held to cover withdrawal.
         if (marketUnderlyingHeld() < amount) {
@@ -873,7 +873,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
 
     /// @notice Updates pending interest and returns the current debt balance
     ///         for `account`, safely.
-    /// @param account The address whose balance should be calculated.
+    /// @param account The address whose debt balance should be calculated.
     /// @return The current balance index of `account`, with pending interest
     ///         applied.
     function debtBalanceWithUpdateSafe(
@@ -885,15 +885,74 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         return debtBalanceCached(account);
     }
 
+    /// @notice Returns the future debt balance for `account` assuming
+    ///         interest rates do not change.
+    /// @param account The address whose debt balance should be calculated.
+    /// @param timestamp The unix timestamp to calculate `account` debt
+    ///                  balance with.
+    function debtBalanceAtTimestamp(
+        address account,
+        uint256 timestamp
+    ) public view returns (uint256) {
+        // Cache current exchange rate data.
+        MarketData memory cachedData = marketData;
+        // If `timestamp` is before block.timestamp, round up.
+        timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
+
+        // If we are up to date there is no reason to continue.
+        if (
+            cachedData.lastTimestampUpdated + cachedData.compoundRate >
+            timestamp
+        ) {
+            return debtBalanceCached(account);
+        }
+
+        // Cache borrow data to save gas.
+        DebtData memory accountDebt = _debtOf[account];
+
+        if (accountDebt.principal == 0) {
+            return 0;
+        }
+
+        // Cache current values to save gas.
+        uint256 borrowsPrior = totalBorrows;
+        uint256 reservesPrior = totalReserves;
+        uint256 exchangeRatePrior = cachedData.exchangeRate;
+
+        // Calculate the current borrow interest rate.
+        uint256 borrowRate = interestRateModel.getBorrowRate(
+            marketUnderlyingHeld(),
+            borrowsPrior,
+            reservesPrior
+        );
+
+        // Calculate the interest compound cycles to update,
+        // in `interestCompounds`. Rounds down natively.
+        uint256 interestCompounds = (timestamp -
+            cachedData.lastTimestampUpdated) / cachedData.compoundRate;
+        // Calculate the interest and debt accumulated.
+        uint256 interestAccumulated = borrowRate * interestCompounds;
+        uint256 exchangeRateNew = ((interestAccumulated * exchangeRatePrior) /
+            WAD) + exchangeRatePrior;
+
+        // Calculate debt balance using the interest index:
+        // debtBalanceCached calculation:
+        // ((Account's principal * DToken's exchange rate) /
+        // Account's exchange rate).
+        return
+            (accountDebt.principal * exchangeRateNew) /
+            accountDebt.accountExchangeRate;
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
-    /// @param account The address whose balance should be calculated.
+    /// @param account The address whose debt balance should be calculated.
     /// @return The current balance index of `account`.
     function debtBalanceCached(address account) public view returns (uint256) {
         // Cache borrow data to save gas.
-        DebtData storage accountDebt = _debtOf[account];
+        DebtData memory accountDebt = _debtOf[account];
 
         // If theres no principal owed, can return immediately.
         if (accountDebt.principal == 0) {
@@ -957,6 +1016,26 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         return
             ((marketUnderlyingHeld() + totalBorrows - totalReserves) * WAD) /
             totalSupply;
+    }
+
+    /// @notice Returns the amount of tokens that would be exchanged
+    ///         by the vault for `amount` provided.
+    /// @param amount The number of underlying to theoretically use
+    ///               for conversion to tokens.
+    /// @return The number of tokens a user would receive for converting
+    ///         `amount`.
+    function convertToShares(uint256 amount) public view returns (uint256) {
+        return FixedPointMathLib.mulDiv(amount, WAD, exchangeRateCached());
+    }
+
+    /// @notice Returns the amount of underlying that would be exchanged
+    ///         by the vault for `tokens` provided.
+    /// @param tokens The number of tokens to theoretically use
+    ///               for conversion to underlying.
+    /// @return The number of underlying a user would receive for converting
+    ///         `tokens`.
+    function convertToAssets(uint256 tokens) public view returns (uint256) {
+        return FixedPointMathLib.mulDiv(tokens, exchangeRateCached(), WAD);
     }
 
     /// @inheritdoc ERC165
@@ -1113,7 +1192,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         }
 
         // Fails if transfer not allowed.
-        marketManager.canTransfer(address(this), from, tokens);
+        marketManager.canTransferDToken(address(this), from, tokens);
 
         // Get the allowance, if the spender is not the `from` address.
         if (spender != from) {
@@ -1157,8 +1236,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         // Fail if mint not allowed.
         marketManager.canMint(address(this));
 
-        // Get exchange rate before mint.
-        uint256 er = exchangeRateCached();
+        // Calculate dTokens to be minted.
+        uint256 tokens = convertToShares(amount);
 
         // Transfer underlying into the dToken contract.
         SafeTransferLib.safeTransferFrom(
@@ -1167,9 +1246,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             address(this),
             amount
         );
-
-        // Calculate dTokens to be minted.
-        uint256 tokens = (amount * WAD) / er;
 
         // Update totalSupply, and recipient balance.
         unchecked {

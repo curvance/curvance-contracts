@@ -58,8 +58,6 @@ contract StakedGMXCToken is CTokenCompounding {
 
     /// EXTERNAL FUNCTIONS ///
 
-    receive() external payable {}
-
     // REWARD AND HARVESTING LOGIC
 
     /// @notice Harvests and compounds outstanding vault rewards
@@ -84,13 +82,13 @@ contract StakedGMXCToken is CTokenCompounding {
 
             // Claim pending Staked GMX rewards.
             rewardRouter.handleRewards(
-                true,
-                true,
-                true,
-                true,
-                true,
-                true,
-                false
+                false, //shouldClaimGmx
+                false, //shouldStakeGmx
+                false, //shouldClaimEsGmx
+                false, //shouldStakeEsGmx
+                true, //shouldStakeMultiplierPoints
+                true, //shouldClaimWeth
+                false //shouldConvertWethToETH
             );
             uint256 rewardAmount = WETH.balanceOf(address(this));
 

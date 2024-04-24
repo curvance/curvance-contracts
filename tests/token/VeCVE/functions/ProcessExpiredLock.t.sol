@@ -11,13 +11,13 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e18);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e18);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(_ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -31,8 +31,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(_ONE);
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(_ONE);
         }
     }
 

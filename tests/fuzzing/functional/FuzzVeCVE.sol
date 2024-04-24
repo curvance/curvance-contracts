@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 
 contract FuzzVeCVE is StatefulBaseMarket {
@@ -1010,8 +1010,8 @@ contract FuzzVeCVE is StatefulBaseMarket {
             );
             // VECVE-27
             assertWithMsg(
-                cveLocker.isShutdown() == 2,
-                "VECVE-27 - shutdown() should also set cveLocker"
+                rewardManager.isShutdown() == 2,
+                "VECVE-27 - shutdown() should also set rewardManager"
             );
         } catch {
             // VECVE-28
@@ -1317,6 +1317,6 @@ contract FuzzVeCVE is StatefulBaseMarket {
     }
 
     function _has_epochs_to_claim() private view returns (bool) {
-        return cveLocker.epochsToClaim(address(this)) > 0;
+        return rewardManager.epochsToClaim(address(this)) > 0;
     }
 }
