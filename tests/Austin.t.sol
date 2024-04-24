@@ -36,6 +36,11 @@ contract Austin is TestBaseMarket {
         aux = new CurvanceAuxiliaryData(ICentralRegistry(address(centralRegistry)));
     }
 
+    function test_marketGetAllData() public {
+        test_collateralizedWithdraw();
+        aux.getAllMarketData(address(this));
+    }
+
     function test_collateralizedWithdraw() public {
         // Get underlying
         MockERC20Token balRETH = MockERC20Token(cBALRETH.underlying());

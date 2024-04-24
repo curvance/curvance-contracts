@@ -22,6 +22,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { Faucet } from "contracts/testnet/Faucet.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
     struct DTokenInterestRateParam {
@@ -55,9 +56,11 @@ contract StartContractsConfig is Script, DeployConfiguration {
     }
 
     function _is_testnet(string memory network) internal pure returns (bool) {
+
         return
-            keccak256(abi.encodePacked(network)) ==
-            keccak256(abi.encodePacked("sepolia"));
+            keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("sepolia"))
+                ||
+            keccak256(abi.encodePacked(network)) == keccak256(abi.encodePacked("localhost"));
     }
 
     function _after_deploy_config(string memory network) internal {
@@ -102,7 +105,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
-        // _deployMockTokens();
+        _deployMockTokens();
         _createTestMarkets();
         _createRealTestMarkets();
         _loadFaucet();
@@ -135,6 +138,10 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _saveDeployedContracts("mkUSD", mk_usd);
         _saveDeployedContracts("WBTC", wbtc);
         _saveDeployedContracts("USDC", usdc);
+
+        // Create faucet for tokens
+        address faucet = address(new Faucet());
+        _saveDeployedContracts("faucet", faucet);
     }
 
     function _createRealTestMarkets() internal {
@@ -268,7 +275,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         GaugePool gp = new GaugePool(cr);
         market = new MarketManager(cr, address(gp));
-        console.log(marketName, " created =", address(market));
         _saveDeployedContracts(marketName, address(market));
         CentralRegistry(address(cr)).addMarketManager(
             address(market),
@@ -444,8 +450,20 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         // Load with 10M CVE
         CVE cve = CVE(cve_addr);
-        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
-        console.log("Balance", cve.balanceOf(deployer));
         cve.transfer(faucet_addr, 1e25);
+
+        // Load with 5M tokens from testnet tokens
+        address[] memory mockTokens = new address[](6);
+        mockTokens[0] = _getDeployedContract("LUSD");
+        mockTokens[1] = _getDeployedContract("mETH");
+        mockTokens[2] = _getDeployedContract("mUSD");
+        mockTokens[3] = _getDeployedContract("mkUSD");
+        mockTokens[4] = _getDeployedContract("USDC");
+        mockTokens[5] = _getDeployedContract("WBTC");
+        for(uint256 i = 0; i < mockTokens.length; i++) {
+            TestnetToken t = TestnetToken(mockTokens[i]);
+            uint256 decimals = t.decimals();
+            t.transfer(faucet_addr, 5_000_000 * (10 ** decimals));
+        }
     }
 }

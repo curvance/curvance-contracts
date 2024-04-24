@@ -50,6 +50,18 @@ contract CurvanceAuxiliaryData {
         uint256 collateralOrDebtAmount;
     }
 
+    struct MarketAssetConfig {
+        bool isListed;
+        uint256 collRatio;
+        uint256 collReqSoft;
+        uint256 collReqHard;
+        uint256 liqBaseIncentive;
+        uint256 liqCurve;
+        uint256 liqFee;
+        uint256 baseCFactor;
+        uint256 cFactorCurve;
+    }
+
     struct MarketDTokenData {
         address assetAddress;
         address marketAddress;
@@ -66,6 +78,7 @@ contract CurvanceAuxiliaryData {
         uint256 utilizationRate;
         uint256 liquidityAvailable;
         uint256 price;
+        MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
 
@@ -81,6 +94,7 @@ contract CurvanceAuxiliaryData {
         uint256 totalCollateralPosted;
         uint256 collateralCap;
         uint256 price;
+        MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
 
@@ -327,6 +341,7 @@ contract CurvanceAuxiliaryData {
         view
         returns (MarketDTokenData[] memory, MarketCTokenData[] memory)
     {
+        MarketManager mm = MarketManager(market);
         address[] memory cTokens = getMarketCollateralAssets(market);
         MarketCTokenData[] memory cResults = new MarketCTokenData[](
             cTokens.length
@@ -359,12 +374,12 @@ contract CurvanceAuxiliaryData {
             cTokenData.totalCollateralTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            cTokenData.totalCollateralPosted = MarketManager(market)
-                .collateralPosted(cTokens[i]);
-            cTokenData.collateralCap = MarketManager(market).collateralCaps(
+            cTokenData.totalCollateralPosted = mm.collateralPosted(cTokens[i]);
+            cTokenData.collateralCap = mm.collateralCaps(
                 cTokens[i]
             );
             cTokenData.price = _getTokenPrice(cTokens[i], true);
+            cTokenData.config = _getTokenConfig(cTokens[i], mm);
 
             cResults[i] = cTokenData;
         }
@@ -409,6 +424,7 @@ contract CurvanceAuxiliaryData {
                 .getPredictedBorrowRatePerYear(dTokens[i]);
             dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
             dTokenData.price = _getTokenPrice(dTokens[i], false);
+            dTokenData.config = _getTokenConfig(dTokens[i], mm);
 
             if(dTokenData.tvl > dTokenData.borrows) {
                 dTokenData.liquidityAvailable =
@@ -417,6 +433,7 @@ contract CurvanceAuxiliaryData {
             } else {
                 dTokenData.liquidityAvailable = 0;
             }
+
 
             dResults[i] = dTokenData;
         }
@@ -626,6 +643,33 @@ contract CurvanceAuxiliaryData {
     }
 
     /// INTERNAL FUNCTIONS ///
+    function _getTokenConfig(address token, MarketManager mm) internal view returns (MarketAssetConfig memory) {
+        MarketAssetConfig memory config;
+
+        (
+            bool isListed,
+            uint256 collRatio,
+            uint256 collReqSoft,
+            uint256 collReqHard,
+            uint256 liqBaseIncentive,
+            uint256 liqCurve,
+            uint256 liqFee,
+            uint256 baseCFactor,
+            uint256 cFactorCurve
+        ) = mm.tokenData(token);
+
+        config.isListed = isListed;
+        config.collRatio = collRatio;
+        config.collReqSoft = collReqSoft;
+        config.collReqHard = collReqHard;
+        config.liqBaseIncentive = liqBaseIncentive;
+        config.liqCurve = liqCurve;
+        config.liqFee = liqFee;
+        config.baseCFactor = baseCFactor;
+        config.cFactorCurve = cFactorCurve;
+
+        return config;
+    }
 
     function _getCVELocker() internal view returns (ICVELocker) {
         return ICVELocker(centralRegistry.cveLocker());

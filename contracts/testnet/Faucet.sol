@@ -9,7 +9,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract Faucet is Ownable {
     /// Maximum faucet erc20 claim amount
-    uint256 public maxClaim = 10 ether;
+    uint256 public maxClaim = 1000 ether;
     /// /// Maximum faucet sepETH claim amount
     uint256 public maxSepETHClaim = 0.1 ether;
     /// user => token => last claimed timestamp
@@ -58,7 +58,7 @@ contract Faucet is Ownable {
             require(address(this).balance >= amount, "Not enough ETH");
             SafeTransferLib.safeTransferETH(user, amount);
         } else {
-            require(amount < maxClaim, "Excessive desired claim amount");
+            require(amount <= maxClaim, "Excessive desired claim amount");
             require(
                 IERC20(token).balanceOf(address(this)) >= amount,
                 "Not enough Token"
