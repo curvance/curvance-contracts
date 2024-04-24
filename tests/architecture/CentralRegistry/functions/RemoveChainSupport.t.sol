@@ -86,7 +86,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         emit RemovedChain(42161, user1);
         centralRegistry.removeChainSupport(user1, 42161);
 
-        (isSupported, , , , , , , ) = centralRegistry.supportedChainData(
+        (isSupported, , , , , , ) = centralRegistry.supportedChainData(
             42161
         );
 
