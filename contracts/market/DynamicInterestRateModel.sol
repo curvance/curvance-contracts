@@ -124,7 +124,7 @@ contract DynamicInterestRateModel is ERC165 {
     uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 12 hours;
     /// @notice The minimum frequency in which the vertex can have
     ///         between adjustments.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 1 hours;
+    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 30 minutes;
     /// @notice The maximum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
     ///         E.g. 2 * WAD = 300% increase to vertex interest rate per

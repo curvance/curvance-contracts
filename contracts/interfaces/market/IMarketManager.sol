@@ -57,17 +57,6 @@ interface IMarketManager {
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @param mToken The market to verify the borrow against.
-    /// @param account The account which would borrow the asset.
-    /// @param amount The amount of underlying the account would borrow.
-    function canBorrow(
-        address mToken,
-        address account,
-        uint256 amount
-    ) external;
-
-    /// @notice Checks if the account should be allowed to borrow
-    ///         the underlying asset of the given market.
     /// @dev May emit a {TokenPositionCreated} event.
     /// @param dToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.

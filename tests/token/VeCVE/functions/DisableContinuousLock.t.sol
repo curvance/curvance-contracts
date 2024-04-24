@@ -15,14 +15,14 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(_ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(50e18, true, rewardsData, "", 0);
 
-        deal(_USDC_ADDRESS, address(cveLocker), 200e18);
+        deal(_USDC_ADDRESS, address(rewardManager), 200e18);
     }
 
     function test_disableContinuousLock_fail_whenLockIndexIsInvalid() public {
@@ -60,11 +60,11 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
             0
         );
 
-        vm.prank(address(cveLocker.veCVE()));
-        cveLocker.updateUserClaimIndex(address(this), 1);
+        vm.prank(address(rewardManager.veCVE()));
+        rewardManager.updateUserClaimIndex(address(this), 1);
 
         // verify that rewards are delivered
-        vm.expectEmit(true, true, true, true, address(cveLocker));
+        vm.expectEmit(true, true, true, true, address(rewardManager));
         emit RewardPaid(address(this), _USDC_ADDRESS, 100e18);
         veCVE.disableContinuousLock(0, rewardsData, "", 0);
 

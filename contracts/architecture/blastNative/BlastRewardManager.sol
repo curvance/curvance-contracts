@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { CVELocker, ICentralRegistry } from "contracts/architecture/CVELocker.sol";
+import { RewardManager, ICentralRegistry } from "contracts/architecture/RewardManager.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
-contract BlastCVELocker is CVELocker, BlastYieldDelegable {
+contract BlastRewardManager is RewardManager, BlastYieldDelegable {
 
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_, 
         address rewardToken_
-    ) CVELocker(centralRegistry_, rewardToken_) BlastYieldDelegable (centralRegistry_) {}
+    ) RewardManager(centralRegistry_, rewardToken_) BlastYieldDelegable (centralRegistry_) {}
 
 }

@@ -8,13 +8,13 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
@@ -64,7 +64,7 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            cveLocker.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6);
         }
 
         vm.warp(unlockTime + 1);

@@ -66,12 +66,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setCVE: ", cve);
     }
 
-    function _setCVELocker(address cveLocker) internal {
+    function _setRewardManager(address rewardManager) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(cveLocker != address(0), "Set the cveLocker!");
+        require(rewardManager != address(0), "Set the rewardManager!");
 
-        CentralRegistry(centralRegistry).setCVELocker(cveLocker);
-        console.log("centralRegistry.setCVELocker: ", cveLocker);
+        CentralRegistry(centralRegistry).setRewardManager(rewardManager);
+        console.log("centralRegistry.setRewardManager: ", rewardManager);
     }
 
     function _setProtocolMessagingHub(address protocolMessagingHub) internal {
@@ -159,12 +159,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry._setOracleRouter: ", oracleRouter);
     }
 
-    function _addGaugeController(address gaugePool) internal {
+    function _addLockingPermissions(address newApprovedAddress) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(gaugePool != address(0), "Set the gaugePool!");
+        require(newApprovedAddress != address(0), "Set the newApprovedAddress!");
 
-        CentralRegistry(centralRegistry).addGaugeController(gaugePool);
-        console.log("centralRegistry.addGaugeController: ", gaugePool);
+        CentralRegistry(centralRegistry).addLockingPermissions(newApprovedAddress);
+        console.log("centralRegistry.addLockingPermissions: ", newApprovedAddress);
     }
 
     function _addMarketManager(

@@ -20,28 +20,20 @@ contract BasicRemoveContractsTest is TestBaseMarket {
         super.setUp();
 
         removeFuncs = [
-            "removeVeCVELocker(address)",
-            "removeGaugeController(address)",
-            "removeHarvester(address)",
-            "removeEndpoint(address)"
+            "removeLockingPermissions(address)",
+            "removeHarvester(address)"
         ];
         maps = [
-            "isVeCVELocker(address)",
-            "isGaugeController(address)",
-            "isHarvester(address)",
-            "isEndpoint(address)"
+            "hasLockingPermissions(address)",
+            "isHarvester(address)"
         ];
         expectedLogs = [
-            "VeCVELocker",
-            "Gauge Controller",
-            "Harvestor",
-            "Endpoint"
+            "Locking Permissions",
+            "Harvestor"
         ];
         addFuncs = [
-            "addVeCVELocker(address)",
-            "addGaugeController(address)",
-            "addHarvester(address)",
-            "addEndpoint(address)"
+            "addLockingPermissions(address)",
+            "addHarvester(address)"
         ];
     }
 

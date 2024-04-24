@@ -3,4 +3,4 @@ pragma solidity 0.8.17;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-contract TestBaseSimpleRewardZaper is TestBaseMarket {}
+contract TestBaseSimpleRewardZapper is TestBaseMarket {}

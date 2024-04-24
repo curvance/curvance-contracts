@@ -8,7 +8,7 @@ import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2Pool
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
 import "tests/market/TestBaseMarket.sol";
 
-contract ConvexLPCollateral is TestBaseMarket {
+contract TestConvexLPCollateral is TestBaseMarket {
     event Repay(address payer, address borrower, uint256 repayAmount);
 
     address internal constant _STETH_ADDRESS =

@@ -17,7 +17,7 @@ contract BridgeTest is TestBaseMarket {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        cve.bridge(137, user1, _ONE + 1, 0);
+        cve.bridge(42161, user1, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
@@ -25,7 +25,7 @@ contract BridgeTest is TestBaseMarket {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidWormholeChainId
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
         cve.bridge(138, user1, _ONE, 0);
@@ -36,22 +36,32 @@ contract BridgeTest is TestBaseMarket {
 
         vm.expectRevert(
             ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidRecipient
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        cve.bridge(137, address(0), _ONE, 0);
+        cve.bridge(42161, address(0), _ONE, 0);
     }
 
     function test_bridge_success() public {
+        centralRegistry.addChainSupport(
+            address(protocolMessagingHub),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
+
         uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            137,
+            42161,
             true,
             0
         );
 
         vm.prank(user1);
 
-        cve.bridge{ value: messageFee }(137, user1, _ONE, 0);
+        cve.bridge{ value: messageFee }(42161, user1, _ONE, 0);
 
         assertEq(cve.balanceOf(user1), 0);
         assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);

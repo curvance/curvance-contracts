@@ -17,7 +17,7 @@ contract BasicSettersTest is TestBaseMarket {
         setters = [
             "setCVE(address)",
             "setVeCVE(address)",
-            "setCVELocker(address)",
+            "setRewardManager(address)",
             "setProtocolMessagingHub(address)",
             "setOracleRouter(address)",
             "setFeeAccumulator(address)"
@@ -25,7 +25,7 @@ contract BasicSettersTest is TestBaseMarket {
         getters = [
             "cve()",
             "veCVE()",
-            "cveLocker()",
+            "rewardManager()",
             "protocolMessagingHub()",
             "oracleRouter()",
             "feeAccumulator()"
@@ -33,7 +33,7 @@ contract BasicSettersTest is TestBaseMarket {
         expectedLogs = [
             "CVE",
             "VeCVE",
-            "CVE Locker",
+            "Reward Manager",
             "Protocol Messaging Hub",
             "Oracle Router",
             "Fee Accumulator"

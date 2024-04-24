@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-/// @notice Rewards data for CVE rewards locker.
+/// @notice Rewards data for desired Reward Manager action.
 /// @param asCVE Whether rewards to be routed into CVE or not.
 /// @param shouldLock Indicator of whether rewards should be locked,
 ///                   if applicable.
@@ -15,8 +15,8 @@ struct RewardsData {
     bool isFreshLockContinuous;
 }
 
-interface ICVELocker {
-    /// @notice Returns the reward token for the CVE locker.
+interface IRewardManager {
+    /// @notice Returns the reward token for the Reward Manager.
     function rewardToken() external view returns (address);
 
     /// @notice Called by the fee accumulator to record rewards allocated to
@@ -56,7 +56,7 @@ interface ICVELocker {
     /// @notice Claims rewards for multiple epochs.
     /// @param user The address of the user claiming rewards.
     /// @param epochs The number of epochs for which to claim rewards.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Swap data for token swapping rewards to
     ///               rewardsData.desiredRewardToken, if necessary.
     /// @param aux Auxiliary data for wrapped assets such as veCVE.
@@ -78,7 +78,7 @@ interface ICVELocker {
     /// @param user The address of the user having rewards managed.
     function manageRewardsFor(address user) external returns (uint256);
 
-    /// @notice Checks if a user has any CVE locker rewards to claim.
+    /// @notice Checks if a user has any rewards to claim.
     /// @dev Even if a users lock is expiring the next lock resulting
     ///      in 0 points, we want their data updated so data is properly
     ///      adjusted on unlock.
@@ -87,7 +87,7 @@ interface ICVELocker {
     ///         to claim.
     function hasRewardsToClaim(address user) external view returns (bool);
 
-    /// @notice Checks if a user has any CVE locker rewards to claim.
+    /// @notice Checks if a user has any rewards to claim.
     /// @dev Even if a users lock is expiring the next lock resulting
     ///      in 0 points, we want their data updated so data is properly
     ///      adjusted on unlock.
@@ -95,12 +95,12 @@ interface ICVELocker {
     /// @return A value indicating if the user has any rewards to claim.
     function epochsToClaim(address user) external view returns (uint256);
 
-    /// @notice Whether the CVE Locker is shut down or not.
+    /// @notice Whether the Reward Manager is shut down or not.
     /// @dev 2 = yes; 1 = no.
     function isShutdown() external view returns (uint256);
 
-    /// @notice Shuts down the CVELocker and prevents future reward
+    /// @notice Shuts down the RewardManager and prevents future reward
     /// distributions.
     /// @dev Should only be used to facilitate migration to a new system.
-    function notifyLockerShutdown() external;
+    function notifyShutdown() external;
 }
