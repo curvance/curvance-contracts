@@ -104,7 +104,7 @@ abstract contract CTokenCompounding is CTokenBase {
     function withdrawByPositionFolding(
         address owner,
         uint256 assets,
-        bytes calldata params
+        IPositionFolding.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
@@ -145,7 +145,7 @@ abstract contract CTokenCompounding is CTokenBase {
             address(this),
             owner,
             assets,
-            params
+            deleverageData
         );
 
         // Fails if redeem not allowed.

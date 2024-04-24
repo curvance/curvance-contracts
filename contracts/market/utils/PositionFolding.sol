@@ -32,51 +32,6 @@ contract PositionFolding is
     ReentrancyGuard,
     Multicall
 {
-    /// TYPES ///
-
-    /// @param borrowToken Address of dToken that will be borrowed from.
-    /// @param borrowAmount The amount of underlying tokens from dToken
-    ///                     that will be borrowed.
-    /// @param collateralToken Address of cToken that will borrowed funds
-    ///                        will be routed into.
-    /// @param swapData Swapperlib swapping struct containing instructions
-    ///                 on how to handle the necessary dToken swap
-    ///                 to facilitate leveraging.
-    /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                   on how to handle the necessary cToken zap
-    ///                   to facilitate leveraging.
-    struct LeverageStruct {
-        DToken borrowToken;
-        uint256 borrowAmount;
-        CTokenPrimitive collateralToken;
-        SwapperLib.Swap swapData;
-        SwapperLib.Swap swapZap;
-    }
-
-    /// @param collateralToken Address of cToken that will be routed into
-    ///                        dToken underlying to repay debt.
-    /// @param collateralAmount The amount of cTokens that will be
-    ///                         deleveraged.
-    /// @param borrowToken Address of dToken that will have its underlying
-    ///                    token debt repaid.
-    /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                   on how to handle the necessary cToken outward zap
-    ///                   to a single token (e.g. dToken underlying) to
-    ///                   facilitate deleveraging.
-    /// @param swapData Optional Swapperlib swapping struct containing
-    ///                 instructions on how to handle zapping into dToken
-    ///                 underlying to facilitate deleveraging.
-    /// @param repayAmount The amount of underlying tokens from dToken that
-    ///                    will be repaid.
-    struct DeleverageStruct {
-        CTokenPrimitive collateralToken;
-        uint256 collateralAmount;
-        DToken borrowToken;
-        SwapperLib.Swap swapZap;
-        SwapperLib.Swap swapData;
-        uint256 repayAmount;
-    }
-
     /// CONSTANTS ///
 
     /// @notice Maximum desired leverage output, we choose 99% of what is
@@ -283,12 +238,12 @@ contract PositionFolding is
     /// @param borrower The account borrowing that will be swapped into
     ///                 collateral assets deposited into Curvance.
     /// @param borrowAmount The amount of `borrowToken`'s underlying borrowed.
-    /// @param params Swap and deposit instructions.
+    /// @param leverageData Swap and deposit instructions.
     function onBorrow(
         address borrowToken,
         address borrower,
         uint256 borrowAmount,
-        bytes calldata params
+        LeverageStruct memory leverageData
     ) external override {
         // Validate that the debt token itself is executing
         // the callback.
@@ -301,11 +256,6 @@ contract PositionFolding is
         if (!marketManager.isListed(borrowToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-
-        LeverageStruct memory leverageData = abi.decode(
-            params,
-            (LeverageStruct)
-        );
 
         if (
             borrowToken != address(leverageData.borrowToken) ||
@@ -407,12 +357,12 @@ contract PositionFolding is
     ///                 repay their active debt.
     /// @param collateralAmount The amount of `collateralToken` underlying
     ///                         redeemed.
-    /// @param params Swap and repayment instructions.
+    /// @param deleverageData Swap and repayment instructions.
     function onRedeem(
         address collateralToken,
         address redeemer,
         uint256 collateralAmount,
-        bytes calldata params
+        DeleverageStruct memory deleverageData
     ) external override {
         // Validate that the collateral token itself is executing
         // the callback.
@@ -425,11 +375,6 @@ contract PositionFolding is
         if (!marketManager.isListed(collateralToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-
-        DeleverageStruct memory deleverageData = abi.decode(
-            params,
-            (DeleverageStruct)
-        );
 
         if (
             collateralToken != address(deleverageData.collateralToken) ||
@@ -622,7 +567,7 @@ contract PositionFolding is
         borrowToken.borrowForPositionFolding(
             account,
             borrowAmount,
-            abi.encode(leverageData)
+            leverageData
         );
     }
 
@@ -639,7 +584,7 @@ contract PositionFolding is
         deleverageData.collateralToken.withdrawByPositionFolding(
             account,
             deleverageData.collateralAmount,
-            abi.encode(deleverageData)
+            deleverageData
         );
     }
 

@@ -323,11 +323,11 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     ///      Updates pending interest before executing the borrow.
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
-    /// @param params Callback calldata to execute after borrow.
+    /// @param leverageData Callback calldata to execute after borrow.
     function borrowForPositionFolding(
         address account,
         uint256 amount,
-        bytes calldata params
+        IPositionFolding.LeverageStruct memory leverageData
     ) external nonReentrant {
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -347,7 +347,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             address(this),
             account,
             amount,
-            params
+            leverageData
         );
 
         // Fail if terminal position is not allowed with no additional
@@ -517,48 +517,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             tokens,
             (exchangeRateCached() * tokens) / WAD
         );
-    }
-
-    /// @notice Used by the position folding contract to redeem underlying tokens
-    ///         from the market, on behalf of `account` to apply a complex action.
-    /// @dev Only Position folding contract can call this function.
-    ///      Updates interest before executing the redemption.
-    ///      This function may seem weird at first since dTokens can not be
-    ///      collateralized, but with this technology a user can redeem lent
-    ///      assets and route them directly into collateral deposits in a
-    ///      single transaction.
-    /// @param account The account address to redeem dTokens on behalf of.
-    /// @param amount The amount of the underlying asset to redeem.
-    /// @param params Callback calldata to execute after redemption.
-    function redeemUnderlyingForPositionFolding(
-        address account,
-        uint256 amount,
-        bytes calldata params
-    ) external nonReentrant {
-        if (msg.sender != marketManager.positionFolding()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Update pending interest.
-        accrueInterest();
-
-        _redeem(
-            account,
-            msg.sender,
-            (amount * WAD) / exchangeRateCached(),
-            amount
-        );
-
-        IPositionFolding(msg.sender).onRedeem(
-            address(this),
-            account,
-            amount,
-            params
-        );
-
-        // Fail if redeem not allowed, after position folding
-        // has executed `account`'s extra actions.
-        marketManager.canRedeem(address(this), account, 0);
     }
 
     /// @notice Deposits underlying assets into the market,
