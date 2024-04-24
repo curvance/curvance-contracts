@@ -57,7 +57,7 @@ contract BorrowZapper is FeeTokenBridgingHub {
                 revert BorrowZapper__InvalidSwapData();
             }
 
-            SwapperLib.swap(centralRegistry, swapData);
+            SwapperLib.swapUnsafe(centralRegistry, swapData);
         } else {
             if (swapData.target != address(0)) {
                 revert BorrowZapper__InvalidSwapData();

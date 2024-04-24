@@ -120,7 +120,7 @@ contract StakedGMXCToken is CTokenCompounding {
                     revert StakedGMXCToken__InvalidSwapData();
                 }
 
-                yield = SwapperLib.swap(centralRegistry, swapData);
+                yield = SwapperLib.swapSafe(centralRegistry, swapData);
 
                 // Make sure swap was routed into GMX.
                 if (yield == 0) {

@@ -119,7 +119,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib.swap(centralRegistry, swapperData);
+        outAmount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -182,7 +182,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Execute Zap into cToken underlying.
-        SwapperLib.swap(centralRegistry, swapZap);
+        SwapperLib.swapUnsafe(centralRegistry, swapZap);
 
         // Enter Curvance cToken position.
         return _enterCurvance(cToken, recipient);
@@ -249,7 +249,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
             }
 
             // Swap from reward token into `dTokenUnderlying`.
-            SwapperLib.swap(centralRegistry, swapperData);
+            SwapperLib.swapUnsafe(centralRegistry, swapperData);
         }
 
         // Repay Curvance dToken debt.

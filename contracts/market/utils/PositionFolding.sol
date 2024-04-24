@@ -183,8 +183,13 @@ contract PositionFolding is
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         CTokenPrimitive cToken = leverageData.collateralToken;
-        SafeTransferLib.safeTransferFrom(cToken.asset(), msg.sender, address(this), assets);
-        
+        SafeTransferLib.safeTransferFrom(
+            cToken.asset(),
+            msg.sender,
+            address(this),
+            assets
+        );
+
         cToken.depositAsCollateralFor(assets, msg.sender);
         _leverage(leverageData, msg.sender);
     }
@@ -328,7 +333,7 @@ contract PositionFolding is
         // Check to make sure there is calldata attached to execute the swap.
         if (leverageData.swapData.call.length > 0) {
             // Swap borrow underlying to Zapper input token.
-            SwapperLib.swap(centralRegistry, leverageData.swapData);
+            SwapperLib.swapUnsafe(centralRegistry, leverageData.swapData);
         }
 
         // Prepare cToken underlying.
@@ -338,7 +343,7 @@ contract PositionFolding is
         if (swapZap.call.length > 0) {
             // Execute Zap from `borrowToken` underlying into cToken
             // underlying.
-            SwapperLib.swap(centralRegistry, swapZap);
+            SwapperLib.swapUnsafe(centralRegistry, swapZap);
         }
 
         // We do not need to check whether collateralToken is listed
@@ -465,13 +470,13 @@ contract PositionFolding is
             }
 
             // Execute Zap from cToken underlying into unwrapped assets.
-            SwapperLib.swap(centralRegistry, swapZap);
+            SwapperLib.swapUnsafe(centralRegistry, swapZap);
         }
 
         // Check to make sure there is calldata attached to execute the swap.
         if (deleverageData.swapData.call.length > 0) {
             // Swap Swapper input token for borrow underlying.
-            SwapperLib.swap(centralRegistry, deleverageData.swapData);
+            SwapperLib.swapUnsafe(centralRegistry, deleverageData.swapData);
         }
 
         // We do not need to check whether borrowToken is listed

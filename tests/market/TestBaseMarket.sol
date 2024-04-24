@@ -131,9 +131,6 @@ contract TestBaseMarket is TestBase {
 
         _deployBaseContracts();
 
-        chainlinkEthUsd = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
-        _deployOracleRouter();
-        _deployChainlinkAdaptors();
         _deployGaugePool();
 
         _deployMarketManager();
@@ -158,6 +155,12 @@ contract TestBaseMarket is TestBase {
         _deployVeCVE();
         _deployProtocolMessagingHub();
         _deployFeeAccumulator();
+
+        chainlinkEthUsd = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
+        _deployOracleRouter();
+        _deployChainlinkAdaptors();
+
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function _deployCentralRegistry() internal {
@@ -394,8 +397,8 @@ contract TestBaseMarket is TestBase {
         adapterData.poolDecimals = 18;
         adapterData.rateProviderDecimals[0] = 18;
         adapterData.rateProviders[
-            0
-        ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
+                0
+            ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
         adapterData.underlyingOrConstituent[0] = _RETH_ADDRESS;
         adapterData.underlyingOrConstituent[1] = _WETH_ADDRESS;
         balRETHAdapter.addAsset(_BALANCER_WETH_RETH, adapterData);

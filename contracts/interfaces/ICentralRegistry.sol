@@ -110,6 +110,9 @@ interface ICentralRegistry {
     /// @notice Returns protocolLeverageFee, in `WAD`.
     function protocolLeverageFee() external view returns (uint256);
 
+    /// @notice Returns slippage limit, in `WAD`.
+    function slippageLimit() external view returns (uint256);
+
     /// @notice Lending Market => Protocol Reserve Factor on interest generated.
     function protocolInterestFactor(
         address market

@@ -121,6 +121,8 @@ contract CentralRegistry is ERC165 {
     uint256 public protocolHarvestFee = protocolCompoundFee + protocolYieldFee;
     /// @notice Protocol fee on leverage usage.
     uint256 public protocolLeverageFee;
+    /// @notice Protocol slippage limit for safe swap.
+    uint256 public slippageLimit = 1000 * 1e14;
 
     // ACTION MULTIPLIERS
 
@@ -199,6 +201,7 @@ contract CentralRegistry is ERC165 {
     /// EVENTS ///
 
     event FeeSet(string indexed fee, uint256 newFee);
+    event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
@@ -558,6 +561,24 @@ contract CentralRegistry is ERC165 {
         protocolLeverageFee = _bpToWad(value);
 
         emit FeeSet("Leverage", value);
+    }
+
+    /// @notice Sets the fee taken by Curvance DAO on leverage/deleverage
+    ///         via position folding.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    ///      can only have a maximum value of 2%.
+    ///      Emits a {FeeSet} event.
+    /// @param value The new fee to take on leverage/deleverage when done
+    ///              by position folding, in `basis points`.
+    function setSlippageLimit(uint256 value) external {
+        _checkElevatedPermissions();
+
+        // Convert the parameters from basis points to `WAD` format
+        // while inefficient we want to minimize potential human error
+        // as much as possible, even if it costs a bit extra gas on config.
+        slippageLimit = _bpToWad(value);
+
+        emit SlippageLimit(value);
     }
 
     /// @notice Sets the fee taken by Curvance DAO from interest generated.

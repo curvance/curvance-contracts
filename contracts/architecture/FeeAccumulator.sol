@@ -219,7 +219,7 @@ contract FeeAccumulator is ReentrancyGuard {
             //       We route liquidity to 1Inch with tight slippage
             //       requirement, meaning we do not need to separately check
             //       for slippage here.
-            SwapperLib.swap(centralRegistry, swapDataArray[i]);
+            SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
         }
 
         SafeTransferLib.safeTransfer(

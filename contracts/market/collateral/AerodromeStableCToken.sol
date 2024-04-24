@@ -180,7 +180,7 @@ contract AerodromeStableCToken is CTokenCompounding {
                             revert AerodromeStableCToken__InvalidSwapData();
                         }
 
-                        SwapperLib.swap(centralRegistry, swapData);
+                        SwapperLib.swapSafe(centralRegistry, swapData);
                     }
                 }
             }

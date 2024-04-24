@@ -223,7 +223,7 @@ contract PendleLPCToken is CTokenCompounding {
                         revert PendleLPCToken__InvalidSwapData();
                     }
 
-                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 
