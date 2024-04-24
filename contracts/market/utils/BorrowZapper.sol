@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 
@@ -138,7 +138,7 @@ contract BorrowZapper is ReentrancyGuard {
         if (
             address(circleTokenMessenger) != address(0) &&
             circleTokenMessenger.remoteTokenMessengers(
-                centralRegistry.cctpDomain(dstChainId)
+                centralRegistry.supportedChainData(dstChainId).cctpDomain
             ) !=
             bytes32(0)
         ) {
@@ -170,7 +170,7 @@ contract BorrowZapper is ReentrancyGuard {
         uint256 gasLimit
     ) internal {
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
-        WormholeData memory wormholeData = centralRegistry.wormholeData(
+        ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
         );
 
@@ -182,30 +182,30 @@ contract BorrowZapper is ReentrancyGuard {
 
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
-            centralRegistry.cctpDomain(dstChainId),
+            chainData.cctpDomain,
             bytes32(uint256(uint160(msg.sender))),
             feeToken,
-            bytes32(uint256(uint160(wormholeData.relayer)))
+            bytes32(uint256(uint160(chainData.wormholeRelayer)))
         );
 
         IWormholeRelayer.MessageKey[]
             memory messageKeys = new IWormholeRelayer.MessageKey[](1);
         messageKeys[0] = IWormholeRelayer.MessageKey(
             2, // CCTP_KEY_TYPE
-            abi.encodePacked(centralRegistry.cctpDomain(block.chainid), nonce)
+            abi.encodePacked(centralRegistry.cctpDomain(), nonce)
         );
 
         address defaultDeliveryProvider = wormholeRelayer
             .getDefaultDeliveryProvider();
 
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
-            wormholeData.chainId,
+            chainData.messagingChainId,
             msg.sender,
             abi.encode(uint8(1), feeToken, amount),
             0,
             0,
             gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
-            wormholeData.chainId,
+            chainData.messagingChainId,
             address(0),
             defaultDeliveryProvider,
             messageKeys,
@@ -225,7 +225,9 @@ contract BorrowZapper is ReentrancyGuard {
         (nativeFee, ) = centralRegistry
             .wormholeRelayer()
             .quoteEVMDeliveryPrice(
-                centralRegistry.wormholeData(dstChainId).chainId,
+                centralRegistry
+                    .supportedChainData(dstChainId)
+                    .messagingChainId,
                 0,
                 gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
             );

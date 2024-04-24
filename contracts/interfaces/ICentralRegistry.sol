@@ -8,38 +8,28 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 
 /// TYPES ///
 
-/// @param isAuthorized Whether the contract is supported or not.
-///                     2 = yes
-///                     0 or 1 = no
-/// @param messagingChainId Messaging Chain ID where this address authorized.
-/// @param cveAddress CVE address on the chain.
-struct OmnichainData {
-    uint256 isAuthorized;
-    uint16 messagingChainId;
-    address cveAddress;
-}
-
 /// @param isSupported Whether the chain is supported or not.
 ///                    2 = yes
 ///                    0 or 1 = no
-/// @param messagingHub Contract address for destination chains Messaging Hub.
+/// @param messagingHub Messaging Hub address on the chain.
 /// @param asSourceAux Auxilliary data when chain is source.
 /// @param asDestinationAux Auxilliary data when chain is destination.
 /// @param cveAddress CVE address on the chain.
+/// @param feeTokenAddress Fee token address on the chain.
+/// @param messagingChainId Messaging Chain ID where this address authorized.
+/// @param wormholeRelayer Wormhole relayer address on the chain.
+/// @param cctpDomain CCTP domain for the chain.
 struct ChainData {
     uint256 isSupported;
+    address omnichainOperator;
     address messagingHub;
     uint256 asSourceAux;
     uint256 asDestinationAux;
     address cveAddress;
     address feeTokenAddress;
-}
-
-/// @param chainId Wormhole specific chain ID for evm chain ID.
-/// @param relayer Wormhole relayer for evm chain ID.
-struct WormholeData {
-    uint16 chainId;
-    address relayer;
+    uint16 messagingChainId;
+    address wormholeRelayer;
+    uint32 cctpDomain;
 }
 
 interface ICentralRegistry {
@@ -94,21 +84,14 @@ interface ICentralRegistry {
     /// @notice Returns WormholeRelayer contract address.
     function wormholeRelayer() external view returns (IWormholeRelayer);
 
-    /// @notice Returns wormhole specific chain ID and
-    ///         WormholeRelayer contract address for chain ID.
-    function wormholeData(
-        uint256 chainId
-    ) external view returns (WormholeData memory);
-
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);
 
-    /// @notice Returns CCTP domain for evm chain ID.
-    /// @param chainId Evm chain ID.
-    function cctpDomain(uint256 chainId) external view returns (uint16);
+    /// @notice Returns CCTP domain.
+    function cctpDomain() external view returns (uint32);
 
     /// @notice Returns protocolCompoundFee, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
@@ -162,12 +145,6 @@ interface ICentralRegistry {
     function supportedChainData(
         uint256 chainId
     ) external view returns (ChainData memory);
-
-    // Address => chainId => Curvance identification information.
-    function getOmnichainOperators(
-        address _address,
-        uint256 chainId
-    ) external view returns (OmnichainData memory);
 
     // Messaging specific ChainId => GETH comparable ChainId.
     function messagingToGETHChainId(

@@ -13,7 +13,7 @@ import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { ICentralRegistry, ChainData, OmnichainData, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
@@ -89,9 +89,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
     constructor(
         ICentralRegistry centralRegistry_
-    )
-        QueryResponse(address(centralRegistry_.wormholeCore()))
-    {
+    ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -120,7 +118,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-        
+
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
 
@@ -265,16 +263,12 @@ contract ProtocolMessagingHub is QueryResponse {
         );
         address srcAddr = address(uint160(uint256(srcAddress)));
 
-        OmnichainData memory operator = centralRegistry.getOmnichainOperators(
-            srcAddr,
-            gethChainId
-        );
+        ChainData memory chainData = _getChainData(gethChainId);
+
         // Validate the operator is authorized.
-        if (operator.isAuthorized < 2) {
+        if (chainData.omnichainOperator != srcAddr) {
             return;
         }
-
-        ChainData memory chainData = _getChainData(gethChainId);
         // Validate message came directly from MessagingHub on the source chain.
         if (chainData.messagingHub != srcAddr) {
             return;
@@ -392,24 +386,9 @@ contract ProtocolMessagingHub is QueryResponse {
 
         ChainData memory chainData = _getChainData(dstChainId);
 
-        OmnichainData memory operator = centralRegistry.getOmnichainOperators(
-            chainData.messagingHub,
-            dstChainId
-        );
-
-        // Validate that the operator is authorized.
-        if (operator.isAuthorized < 2) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
         // Validate that the operator messaging chain matches
         // the destination chain id and we are aiming for a supported chain.
-        if (
-            operator.messagingChainId != centralRegistry.GETHToMessagingChainId(
-            dstChainId
-        ) ||
-            chainData.isSupported < 2
-        ) {
+        if (chainData.isSupported < 2) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -446,7 +425,8 @@ contract ProtocolMessagingHub is QueryResponse {
     ) external payable returns (uint64) {
         _checkMessagingStatus(1);
 
-        uint16 wormholeChainId = _getWormholeData(dstChainId).chainId;
+        ChainData memory chainData = _getChainData(dstChainId);
+        uint16 wormholeChainId = chainData.messagingChainId;
 
         if (wormholeChainId == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -462,17 +442,13 @@ contract ProtocolMessagingHub is QueryResponse {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            ChainData memory chainData = _getChainData(dstChainId);
-
             // Validate that we are aiming for a supported chain.
             if (chainData.isSupported < 2) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             return
-                _getWormholeRelayer().sendPayloadToEvm{
-                    value: msg.value
-                }(
+                _getWormholeRelayer().sendPayloadToEvm{ value: msg.value }(
                     wormholeChainId,
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
@@ -577,12 +553,11 @@ contract ProtocolMessagingHub is QueryResponse {
         bool transferToken,
         uint256 gasLimit
     ) public view returns (uint256 nativeFee) {
-        (nativeFee, ) = _getWormholeRelayer()
-            .quoteEVMDeliveryPrice(
-                _getWormholeData(dstChainId).chainId,
-                0,
-                _getGasLimit(gasLimit)
-            );
+        (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
+            _getChainData(dstChainId).messagingChainId,
+            0,
+            _getGasLimit(gasLimit)
+        );
 
         if (transferToken) {
             // Add cost of publishing the 'sending token' wormhole message.
@@ -622,7 +597,7 @@ contract ProtocolMessagingHub is QueryResponse {
         if (
             address(circleTokenMessenger) != address(0) &&
             circleTokenMessenger.remoteTokenMessengers(
-                _getCCTPDomain(dstChainId)
+                _getChainData(dstChainId).cctpDomain
             ) !=
             bytes32(0)
         ) {
@@ -660,37 +635,33 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) internal {
         IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
-        WormholeData memory wormholeData = _getWormholeData(dstChainId);
+        ChainData memory chainData = _getChainData(dstChainId);
 
-        _approveTokenIfNeeded(
-            feeToken,
-            address(circleTokenMessenger),
-            amount
-        );
+        _approveTokenIfNeeded(feeToken, address(circleTokenMessenger), amount);
 
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
-            _getCCTPDomain(dstChainId),
+            chainData.cctpDomain,
             bytes32(uint256(uint160(to))),
             feeToken,
-            bytes32(uint256(uint160(wormholeData.relayer)))
+            bytes32(uint256(uint160(chainData.wormholeRelayer)))
         );
 
         IWormholeRelayer.MessageKey[]
             memory messageKeys = new IWormholeRelayer.MessageKey[](1);
         messageKeys[0] = IWormholeRelayer.MessageKey(
             2, // CCTP_KEY_TYPE
-            abi.encodePacked(_getCCTPDomain(block.chainid), nonce)
+            abi.encodePacked(centralRegistry.cctpDomain(), nonce)
         );
 
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
-            wormholeData.chainId,
+            chainData.messagingChainId,
             to,
             payload,
             0,
             0,
             _getGasLimit(gasLimit),
-            wormholeData.chainId,
+            chainData.messagingChainId,
             address(0),
             wormholeRelayer.getDefaultDeliveryProvider(),
             messageKeys,
@@ -756,9 +727,8 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Pulls `amount` fee tokens from the fee accumulator to
     ///      aggregate fees.
     function _pullFees(uint256 amount) internal returns (uint256) {
-        return IFeeAccumulator(
-            centralRegistry.feeAccumulator()
-        ).pullFees(amount);
+        return
+            IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
     }
 
     /// @dev Transfers `amount` `feeToken` to `recipient`.
@@ -807,18 +777,6 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 chainId
     ) internal view returns (ChainData memory) {
         return centralRegistry.supportedChainData(chainId);
-    }
-
-    /// @dev Returns WormholeData struct for `chainId`.
-    function _getWormholeData(
-        uint256 chainId
-    ) internal view returns (WormholeData memory) {
-        return centralRegistry.wormholeData(chainId);
-    }
-
-    /// @dev Returns the CCTP domain for `chainId`.
-    function _getCCTPDomain(uint256 chainId) internal view returns (uint32) {
-        return centralRegistry.cctpDomain(chainId);
     }
 
     /// @dev Returns the current Curvance DAO address.

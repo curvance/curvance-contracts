@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry, ChainData, OmnichainData, WormholeData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
@@ -107,6 +107,9 @@ contract CentralRegistry is ERC165 {
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
 
+    /// @notice CCTP Domain.
+    uint32 public cctpDomain;
+
     // PROTOCOL FEE VALUES
 
     // Values are always set in `Basis Points` (1e4), fee values are converted
@@ -179,19 +182,8 @@ contract CentralRegistry is ERC165 {
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
 
-    /// @notice Address => chainId => Curvance identification information.
-    mapping(address => mapping(uint256 => OmnichainData))
-        public omnichainOperators;
     mapping(uint16 => uint256) public messagingToGETHChainId;
     mapping(uint256 => uint16) public GETHToMessagingChainId;
-
-    // WORMHOLE/CCTP MAPPINGS
-
-    /// @notice Wormhole data for evm chain ID.
-    mapping(uint256 => WormholeData) public wormholeData;
-
-    /// @notice CCTP domain for evm chain ID.
-    mapping(uint256 => uint32) public cctpDomain;
 
     // DAO CONTRACT MAPPINGS
 
@@ -224,13 +216,11 @@ contract CentralRegistry is ERC165 {
         string indexed contractType,
         address removedAddress
     );
-    event FeeTokenSet(address newAddress);
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
-    event WormholeDataSet(uint256[] chainIds, WormholeData[] newData);
     event CircleTokenMessengerSet(address newAddress);
-    event CCTPDomainsSet(uint256[] chainIds, uint32[] cctpDomains);
     event TokenBridgeSet(address newAddress);
+    event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
 
@@ -373,13 +363,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         protocolMessagingHub = newProtocolMessagingHub;
-
-        // If the feeAccumulator is already set up,
-        // notify it that the messaging hub has been updated.
-        if (feeAccumulator != address(0)) {
-            IFeeAccumulator(feeAccumulator).notifyUpdatedMessagingHub();
-        }
-
         emit CoreContractSet(
             "Protocol Messaging Hub",
             newProtocolMessagingHub
@@ -454,42 +437,16 @@ contract CentralRegistry is ERC165 {
         emit TokenBridgeSet(newTokenBridge);
     }
 
-    /// @notice Registers wormhole specific data for evm chain IDs.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeChainIdsSet} event.
-    /// @param chainIds Array of EVM chain IDs to register.
-    /// @param data Array of Wormhole specific data.
-    function registerWormholeData(
-        uint256[] calldata chainIds,
-        WormholeData[] calldata data
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numChainIds = chainIds.length;
-        for (uint256 i; i < numChainIds; ++i) {
-            wormholeData[chainIds[i]] = data[i];
-        }
-
-        emit WormholeDataSet(chainIds, data);
-    }
-
-    /// @notice Registers CCTP domains for EVM chain IDs.
+    /// @notice Registers CCTP domain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CCTPDomainsSet} event.
-    /// @param chainIds EVM chain IDs.
-    /// @param cctpDomains CCTP domains.
-    function registerCCTPDomains(
-        uint256[] calldata chainIds,
-        uint32[] calldata cctpDomains
-    ) external {
+    /// @param newDomain CCTP domain.
+    function setCCTPDomain(uint32 newDomain) external {
         _checkElevatedPermissions();
 
-        uint256 numChainIds = chainIds.length;
+        cctpDomain = newDomain;
 
-        for (uint256 i; i < numChainIds; ++i) {
-            cctpDomain[chainIds[i]] = cctpDomains[i];
-        }
-        emit CCTPDomainsSet(chainIds, cctpDomains);
+        emit CCTPDomainSet(newDomain);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas
@@ -827,6 +784,8 @@ contract CentralRegistry is ERC165 {
     /// @param sourceAux Auxilliary data when the chain is source.
     /// @param destinationAux Auxilliary data when the chain is destination.
     /// @param messagingChainId Messaging Chain ID where this address authorized.
+    /// @param relayer Wormhole relayer address on the chain.
+    /// @param domain CCTP domain for the chain.
     function addChainSupport(
         address newOmnichainOperator,
         address messagingHub,
@@ -835,16 +794,11 @@ contract CentralRegistry is ERC165 {
         uint256 chainId,
         uint256 sourceAux,
         uint256 destinationAux,
-        uint16 messagingChainId
+        uint16 messagingChainId,
+        address relayer,
+        uint32 domain
     ) external {
         _checkElevatedPermissions();
-
-        // Validate Chain Operator has not been added already.
-        if (
-            omnichainOperators[newOmnichainOperator][chainId].isAuthorized == 2
-        ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
 
         // Validate this "new" chain is not currently supported.
         if (supportedChainData[chainId].isSupported == 2) {
@@ -853,20 +807,19 @@ contract CentralRegistry is ERC165 {
 
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
+            omnichainOperator: newOmnichainOperator,
             messagingHub: messagingHub,
             asSourceAux: sourceAux,
             asDestinationAux: destinationAux,
             cveAddress: cveAddress,
-            feeTokenAddress: feeTokenAddress
+            feeTokenAddress: feeTokenAddress,
+            messagingChainId: messagingChainId,
+            wormholeRelayer: relayer,
+            cctpDomain: domain
         });
         messagingToGETHChainId[messagingChainId] = chainId;
         GETHToMessagingChainId[chainId] = messagingChainId;
         supportedChains++;
-        omnichainOperators[newOmnichainOperator][chainId] = OmnichainData({
-            isAuthorized: 2,
-            messagingChainId: messagingChainId,
-            cveAddress: cveAddress
-        });
         foreignChainIds.push(chainId);
 
         emit NewChainAdded(chainId, newOmnichainOperator);
@@ -888,33 +841,27 @@ contract CentralRegistry is ERC165 {
         // the system.
         _checkDaoPermissions();
 
-        OmnichainData storage operatorToRemove = omnichainOperators[
-            currentOmnichainOperator
-        ][chainId];
+        ChainData memory chainDataToRemove = supportedChainData[chainId];
+
         // Validate that `currentOmnichainOperator` is currently supported.
-        if (
-            omnichainOperators[currentOmnichainOperator][chainId]
-                .isAuthorized < 2
-        ) {
+        if (chainDataToRemove.omnichainOperator != currentOmnichainOperator) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         // Validate that `chainId` is currently supported.
-        if (supportedChainData[chainId].isSupported < 2) {
+        if (chainDataToRemove.isSupported < 2) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         // Remove chain support from protocol.
         supportedChainData[chainId].isSupported = 1;
-        // Remove operator support from protocol.
-        operatorToRemove.isAuthorized = 1;
         // Decrease supportedChains.
         supportedChains--;
         // Remove messagingChainId <> GETH chainId mapping table references.
         delete GETHToMessagingChainId[
-            messagingToGETHChainId[operatorToRemove.messagingChainId]
+            messagingToGETHChainId[chainDataToRemove.messagingChainId]
         ];
-        delete messagingToGETHChainId[operatorToRemove.messagingChainId];
+        delete messagingToGETHChainId[chainDataToRemove.messagingChainId];
 
         _removeForeignChainId(chainId);
 
@@ -974,13 +921,6 @@ contract CentralRegistry is ERC165 {
         delete isHarvester[currentHarvester];
 
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
-    }
-
-    function getOmnichainOperators(
-        address _address,
-        uint256 chainId
-    ) external view returns (OmnichainData memory) {
-        return omnichainOperators[_address][chainId];
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
