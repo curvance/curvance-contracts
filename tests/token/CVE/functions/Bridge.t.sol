@@ -44,13 +44,10 @@ contract BridgeTest is TestBaseMarket {
 
     function test_bridge_success() public {
         centralRegistry.addChainSupport(
-            address(this),
             address(protocolMessagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
             23,
             makeAddr("Wormhole Relayer"),
             3
