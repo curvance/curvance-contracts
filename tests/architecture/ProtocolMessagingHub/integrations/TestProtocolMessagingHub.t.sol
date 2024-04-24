@@ -46,7 +46,9 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
 
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
@@ -106,7 +108,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolHarvestFee();
+            centralRegistry.protocolYieldFee();
         uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) / _ONE;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);

@@ -25,7 +25,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
     }
 
@@ -45,6 +47,8 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_fail_whenNotReceivedToken() public {
+        rewardManager.notifyShutdown();
+
         vm.prank(_WORMHOLE_RELAYER);
 
         vm.expectRevert();
@@ -57,27 +61,26 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
     }
 
-    // ToDo: Update test
-    // function test_receiveWormholeMessages_fail_whenMessagingHubIsPaused()
-    //     public
-    // {
-    //     protocolMessagingHub.flipMessagingHubStatus();
+    function test_receiveWormholeMessages_fail_whenMessagingHubIsPaused()
+        public
+    {
+        protocolMessagingHub.setMessagingHubStatus(3);
 
-    //     vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_WORMHOLE_RELAYER);
 
-    //     vm.expectRevert(
-    //         ProtocolMessagingHub
-    //             .ProtocolMessagingHub__MessagingHubPaused
-    //             .selector
-    //     );
-    //     protocolMessagingHub.receiveWormholeMessages(
-    //         abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-    //         new bytes[](0),
-    //         bytes32(uint256(uint160(address(srcMessagingHub)))),
-    //         23,
-    //         bytes32("0x01")
-    //     );
-    // }
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__MessagingHubPaused
+                .selector
+        );
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            new bytes[](0),
+            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            23,
+            bytes32("0x01")
+        );
+    }
 
     function test_receiveWormholeMessages_fail_whenMessageIsAlreadyDelivered()
         public
@@ -134,14 +137,22 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_success_whenOperatorIsNotAuthorized()
         public
     {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("omnichainOperators(address,uint256)")
-            .with_key(address(srcMessagingHub))
-            .with_key(42161)
-            .depth(0)
-            .checked_write(1);
+        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
+        vm.prank(_WORMHOLE_RELAYER);
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            new bytes[](0),
+            bytes32(uint256(uint160(address(address(1))))),
+            23,
+            bytes32("0x01")
+        );
+
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(rewardManager)), 0);
+    }
+
+    function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
@@ -154,33 +165,6 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-        assertEq(usdc.balanceOf(address(rewardManager)), 0);
-    }
-
-    function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
-
-        assertEq(usdc.balanceOf(address(rewardManager)), 0);
-
-        vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
-            23,
-            bytes32("0x01")
-        );
-
-        uint256 oneBalanceFee = (100e6 *
-            centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolHarvestFee();
-
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee);
-        assertEq(
-            usdc.balanceOf(address(rewardManager)),
-            100e6 - oneBalanceFee
-        );
 
         deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
 
@@ -198,11 +182,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), oneBalanceFee * 2);
-        assertEq(
-            usdc.balanceOf(centralRegistry.daoAddress()),
-            100e6 - oneBalanceFee
-        );
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {

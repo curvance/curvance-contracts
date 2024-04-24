@@ -6,7 +6,9 @@ import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHu
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract InvalidCentralRegistry {
-    function wormholeCore() external view returns (address) {}
+    function wormholeCore() external view returns (address) {
+        return address(1);
+    }
 }
 
 contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {

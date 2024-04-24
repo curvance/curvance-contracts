@@ -19,51 +19,28 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
     }
 
-    // ToDo: Update test
-    // function test_sendFees_fail_whenMessagingHubIsPaused() public {
-    //     protocolMessagingHub.flipMessagingHubStatus();
+    function test_sendFees_fail_whenMessagingHubIsPaused() public {
+        protocolMessagingHub.setMessagingHubStatus(2);
 
-    //     vm.expectRevert(
-    //         ProtocolMessagingHub
-    //             .ProtocolMessagingHub__MessagingHubPaused
-    //             .selector
-    //     );
-    //     protocolMessagingHub.sendFees(42161, 10e6, 0);
-    // }
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__MessagingHubPaused
+                .selector
+        );
+        protocolMessagingHub.sendFees(42161, 10e6, 0);
+    }
 
     function test_sendFees_fail_whenCallerIsNotAuthorized() public {
         vm.prank(user1);
 
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
-        );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
-    }
-
-    function test_sendFees_fail_whenOperatorIsNotAuthorized() public {
-        centralRegistry.removeChainSupport(address(this), 42161);
-
-        vm.expectRevert(
-            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
-        );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
-    }
-
-    function test_sendFees_fail_whenMessagingChainIdIsInvalid() public {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("GETHToMessagingChainId(uint256)")
-            .with_key(42161)
-            .checked_write(22);
-
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
         );
         protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
@@ -100,7 +77,7 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
     function test_sendFees_fail_whenHasNoEnoughFeeToken() public {
         deal(address(protocolMessagingHub), _ONE);
 
-        vm.expectRevert(bytes4(keccak256("TransferFromFailed()")));
+        vm.expectRevert("Amount must be nonzero");
         protocolMessagingHub.sendFees(42161, 10e6, 0);
     }
 

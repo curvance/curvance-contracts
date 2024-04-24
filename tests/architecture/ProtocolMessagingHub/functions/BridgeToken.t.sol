@@ -17,7 +17,9 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
 
         deal(address(cve), address(protocolMessagingHub), _ONE);
@@ -25,19 +27,18 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
         deal(address(veCVE), _ONE);
     }
 
-    // ToDo: Update test
-    // function test_bridgeToken_fail_whenMessagingHubIsPaused() public {
-    //     protocolMessagingHub.flipMessagingHubStatus();
+    function test_bridgeToken_fail_whenMessagingHubIsPaused() public {
+        protocolMessagingHub.setMessagingHubStatus(2);
 
-    //     vm.prank(address(cve));
+        vm.prank(address(cve));
 
-    //     vm.expectRevert(
-    //         ProtocolMessagingHub
-    //             .ProtocolMessagingHub__MessagingHubPaused
-    //             .selector
-    //     );
-    //     protocolMessagingHub.bridgeToken(137, user1, _ONE, 0, 0, false);
-    // }
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__MessagingHubPaused
+                .selector
+        );
+        protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
+    }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenCallerIsNotCVE()
         public
@@ -45,7 +46,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
         vm.expectRevert(
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
-        protocolMessagingHub.bridgeToken(137, user1, _ONE, 0, 0, false);
+        protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenMessagingHubHasNoEnoughCVE()
@@ -54,7 +55,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
         vm.prank(address(cve));
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        protocolMessagingHub.bridgeToken(137, user1, _ONE * 5, 0, 0, false);
+        protocolMessagingHub.bridgeToken(42161, user1, _ONE * 5, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenDestinationChainIsNotRegistered()
@@ -67,7 +68,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        protocolMessagingHub.bridgeToken(138, user1, _ONE, 0, 0, false);
+        protocolMessagingHub.bridgeToken(42162, user1, _ONE, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenRecipientIsZeroAddress()
@@ -80,7 +81,7 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        protocolMessagingHub.bridgeToken(137, address(0), _ONE, 0, 0, false);
+        protocolMessagingHub.bridgeToken(42161, address(0), _ONE, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIs4_whenCallerIsNotVeCVE()
@@ -92,21 +93,20 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
         protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 4, true);
     }
 
-    // ToDo: Update test
-    // function test_bridgeToken_fail_whenPayloadIs4_whenMessagingHubIsPaused()
-    //     public
-    // {
-    //     protocolMessagingHub.flipMessagingHubStatus();
+    function test_bridgeToken_fail_whenPayloadIs4_whenMessagingHubIsPaused()
+        public
+    {
+        protocolMessagingHub.setMessagingHubStatus(2);
 
-    //     vm.prank(address(veCVE));
+        vm.prank(address(veCVE));
 
-    //     vm.expectRevert(
-    //         ProtocolMessagingHub
-    //             .ProtocolMessagingHub__MessagingHubPaused
-    //             .selector
-    //     );
-    //     protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 4, true);
-    // }
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__MessagingHubPaused
+                .selector
+        );
+        protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 4, true);
+    }
 
     function test_bridgeToken_fail_whenPayloadIs4_whenDestinationChainIsNotRegistered()
         public
@@ -145,17 +145,17 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
 
     function test_bridgeToken_success_whenBridgeCVE() public {
         uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            137,
+            42161,
             true,
             0
         );
 
-        assertEq(cve.bridgeFee(137, 0), messageFee);
+        assertEq(cve.bridgeFee(42161, 0), messageFee);
 
         vm.prank(address(cve));
 
         protocolMessagingHub.bridgeToken{ value: messageFee }(
-            137,
+            42161,
             user1,
             _ONE,
             0,

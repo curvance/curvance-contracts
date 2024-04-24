@@ -122,6 +122,19 @@ contract TestBorrowAndBridge is TestBaseMarket {
         borrowZapper = new BorrowZapper(
             ICentralRegistry(address(centralRegistry))
         );
+
+        centralRegistry.addChainSupport(
+            address(this),
+            address(protocolMessagingHub),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            1,
+            1,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

@@ -25,7 +25,9 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
 
         skip(rewardManager.EPOCH_DURATION() * 2);
@@ -172,7 +174,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolHarvestFee();
+            centralRegistry.protocolYieldFee();
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);

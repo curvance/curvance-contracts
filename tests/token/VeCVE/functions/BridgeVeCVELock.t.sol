@@ -21,7 +21,9 @@ contract BridgeLockTest is TestBaseVeCVE {
             42161,
             1,
             1,
-            23
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
         );
 
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
