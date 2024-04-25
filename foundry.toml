@@ -13,7 +13,10 @@ out = 'artifacts'
 fs_permissions = [{ access = "read-write", path = "./" }]
 
 # ignore_warnings
-ignored_error_codes = [9302, 1878]
+# 9302 - Unused low level call return data
+# 1878 - Did not set license type for contract
+# 5574 - Getting close to contract limit
+ignored_error_codes = [9302, 1878, 5574]
 
 # Sets the concrete solc version to use
 # This overrides the `auto_detect_solc` value

@@ -27,7 +27,7 @@
     "clPointMultiplier": 11000,
     "voteBoostMultiplier": 11000
   },
-  "cveLocker": {
+  "rewardManager": {
     "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
   },
   "feeAccumulator": {

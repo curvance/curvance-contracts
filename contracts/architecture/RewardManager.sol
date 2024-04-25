@@ -159,7 +159,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
         }
 
         veCVE = IVeCVE(centralRegistry.veCVE());
-        nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
+        // nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
         rewardManagerStarted = 2;
     }
 
