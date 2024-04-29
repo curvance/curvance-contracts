@@ -489,7 +489,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
+        _canModifyState();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -655,7 +655,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkEpochStatus();
+        _canModifyState();
 
         // Claim any pending rewards.
         _claimRewards(msg.sender, rewardsData, params, aux);
@@ -895,7 +895,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      userUnlocksByEpoch[user][epoch] > 0 so we do not need to check
     ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
-        _checkEpochStatus();
+        _canModifyState();
 
         address _rewardManager = address(rewardManager);
         assembly {
@@ -926,6 +926,39 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// View Functions ///
+
+    /// @notice Returns whether state changes are allowed or not based on epoch
+    ///         status.
+    function canModifyState() external view returns (bool) {
+        uint256 nextEpochTimestamp = nextEpochStartTime();
+        uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
+
+        if (
+            currentEpochTimestamp <= block.timestamp &&
+            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
+        ) {
+            return false;
+        }
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
+            return false;
+        }
+
+        if (
+            rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
+        ) {
+            if (rewardManager.nextEpochToDeliver() != 0) {
+                return false;
+            }
+        }
+
+        // if (rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
+        //     if (block.timestamp >= genesisEpoch) {
+        //         return false;
+        //     }
+        // }
+
+        return true;
+    }
 
     /// @notice Used for frontend, needed due to array of structs.
     /// @param user The user to query veCVE locks for.
@@ -1429,7 +1462,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @dev Check whether state changes are restricted due to epoch
     ///      structure or not.
-    function _checkEpochStatus() internal view {
+    function _canModifyState() internal view {
         uint256 nextEpochTimestamp = nextEpochStartTime();
         uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
@@ -1475,7 +1508,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
 
-        _checkEpochStatus();
+        _canModifyState();
     }
 
     /// @dev Internal helper for checking whether a lock position
@@ -1485,6 +1518,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_VECVE_SHUTDOWN_SELECTOR);
         }
 
-        _checkEpochStatus();
+        _canModifyState();
     }
 }
