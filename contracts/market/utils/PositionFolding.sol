@@ -144,7 +144,11 @@ contract PositionFolding is
             address(this),
             assets
         );
-
+        SwapperLib._approveTokenIfNeeded(
+            cToken.asset(),
+            address(cToken),
+            assets
+        );
         cToken.depositAsCollateralFor(assets, msg.sender);
         _leverage(leverageData, msg.sender);
     }
