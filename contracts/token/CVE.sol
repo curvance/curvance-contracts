@@ -239,7 +239,7 @@ contract CVE is ERC20 {
         return
             IProtocolMessagingHub(messagingHub).bridgeToken{
                 value: msg.value
-            }(dstChainId, recipient, amount, gasLimit, 0, false);
+            }(dstChainId, recipient, amount, gasLimit, 5, false);
     }
 
     /// @notice Returns required amount of native asset for message fee.

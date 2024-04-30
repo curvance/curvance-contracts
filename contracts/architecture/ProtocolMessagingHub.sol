@@ -214,7 +214,7 @@ contract ProtocolMessagingHub is QueryResponse {
         // Validate destination caller
         if (
             destinationCaller != bytes32(0) &&
-            destinationCaller == bytes32(uint256(uint160(msg.sender)))
+            destinationCaller == _addressToBytes32(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -231,13 +231,15 @@ contract ProtocolMessagingHub is QueryResponse {
     ///                by the requester. This message's signature will already
     ///                have been verified (as long as msg.sender is
     ///                the Wormhole Relayer contract).
+    /// @param additionalMessages Additional messages which were requested to be
+    ///                           included in this delivery.
     /// @param srcAddress The (wormhole format) address on the sending chain
     ///                   which requested this delivery.
     /// @param srcChainId The wormhole chain ID where delivery was requested.
     /// @param deliveryHash The VAA hash of the deliveryVAA.
     function receiveWormholeMessages(
         bytes memory payload,
-        bytes[] memory /* additionalMessages */,
+        bytes[] memory additionalMessages,
         bytes32 srcAddress,
         uint16 srcChainId,
         bytes32 deliveryHash
@@ -359,6 +361,39 @@ contract ProtocolMessagingHub is QueryResponse {
                 "",
                 0
             );
+        } else if (payloadType == 5) {
+            // payloadType = 5: Receive bridged CVE.
+
+            IWormhole wormhole = _getWormholeCore();
+            ITokenBridge tokenBridge = _getTokenBridge();
+
+            (IWormhole.VM memory parsed, bool valid, ) = wormhole
+                .parseAndVerifyVM(additionalMessages[0]);
+            ITokenBridge.TransferWithPayload memory transfer = tokenBridge
+                .parseTransferWithPayload(parsed.payload);
+
+            if (
+                !valid ||
+                parsed.emitterAddress !=
+                tokenBridge.bridgeContracts(parsed.emitterChainId) ||
+                transfer.to != _addressToBytes32(address(this)) ||
+                transfer.toChain != wormhole.chainId() ||
+                transfer.tokenAddress !=
+                _addressToBytes32(chainData.cveAddress)
+            ) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            _getTokenBridge().completeTransferWithPayload(
+                additionalMessages[0]
+            );
+
+            (, address recipient, uint256 amount) = abi.decode(
+                payload,
+                (uint8, address, uint256)
+            );
+
+            SafeTransferLib.safeTransfer(address(cve), recipient, amount);
         }
     }
 
@@ -457,32 +492,44 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        ITokenBridge tokenBridge = centralRegistry.tokenBridge();
-        _approveTokenIfNeeded(address(cve), address(tokenBridge), amount);
-
-        uint64 sequence = tokenBridge.transferTokensWithPayload{
-            value: _getMessageFee()
-        }(
-            address(cve),
-            amount,
-            wormholeChainId,
-            bytes32(uint256(uint160(recipient))),
-            0,
-            ""
-        );
-
         IWormholeRelayer.VaaKey[]
             memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
-        vaaKeys[0] = IWormholeRelayer.VaaKey({
-            emitterAddress: bytes32(uint256(uint160(address(tokenBridge)))),
-            chainId: _getWormholeCore().chainId(),
-            sequence: sequence
-        });
+        uint256 messageFee = _getMessageFee();
+
+        // Scoping to avoid stack too deep.
+        {
+            ITokenBridge tokenBridge = _getTokenBridge();
+            _approveTokenIfNeeded(address(cve), address(tokenBridge), amount);
+
+            uint64 sequence = tokenBridge.transferTokensWithPayload{
+                value: messageFee
+            }(
+                address(cve),
+                amount,
+                wormholeChainId,
+                _addressToBytes32(chainData.messagingHub),
+                0,
+                ""
+            );
+
+            vaaKeys[0] = IWormholeRelayer.VaaKey({
+                emitterAddress: _addressToBytes32(address(tokenBridge)),
+                chainId: _getWormholeCore().chainId(),
+                sequence: sequence
+            });
+        }
 
         return
             _getWormholeRelayer().sendVaasToEvm{
-                value: msg.value - _getMessageFee()
-            }(wormholeChainId, recipient, "", 0, gasLimit, vaaKeys);
+                value: msg.value - messageFee
+            }(
+                wormholeChainId,
+                chainData.messagingHub,
+                abi.encode(5, recipient, amount),
+                0,
+                gasLimit,
+                vaaKeys
+            );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -638,9 +685,9 @@ contract ProtocolMessagingHub is QueryResponse {
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
             chainData.cctpDomain,
-            bytes32(uint256(uint160(to))),
+            _addressToBytes32(to),
             feeToken,
-            bytes32(uint256(uint160(chainData.wormholeRelayer)))
+            _addressToBytes32(chainData.wormholeRelayer)
         );
 
         IWormholeRelayer.MessageKey[]
@@ -748,6 +795,10 @@ contract ProtocolMessagingHub is QueryResponse {
         SwapperLib._approveTokenIfNeeded(token, spender, amount);
     }
 
+    function _addressToBytes32(address addr) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(addr)));
+    }
+
     /// @dev Returns the current Reward Manager address to call.
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
@@ -761,6 +812,11 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Returns the current Wormhole Core address to call.
     function _getWormholeCore() internal view returns (IWormhole) {
         return centralRegistry.wormholeCore();
+    }
+
+    /// @dev Returns the current Wormhole TokenBridge address to call.
+    function _getTokenBridge() internal view returns (ITokenBridge) {
+        return centralRegistry.tokenBridge();
     }
 
     /// @dev Returns the current standard wormhole message fee.

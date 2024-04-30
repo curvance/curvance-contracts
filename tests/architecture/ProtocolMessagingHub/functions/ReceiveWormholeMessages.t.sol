@@ -18,7 +18,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         srcMessagingHub = makeAddr("SrcMessagingHub");
 
         centralRegistry.addChainSupport(
-            address(srcMessagingHub),
+            srcMessagingHub,
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -35,9 +35,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -50,9 +50,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.expectRevert();
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -71,9 +71,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
                 .selector
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -87,9 +87,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.startPrank(_WORMHOLE_RELAYER);
 
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -103,9 +103,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             )
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -120,7 +120,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
             bytes32(0),
             23,
@@ -138,9 +138,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(address(1))))),
+            _addressToBytes32(address(1)),
             23,
             bytes32("0x01")
         );
@@ -154,9 +154,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -171,9 +171,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x02")
         );
@@ -207,7 +207,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
                 abi.encode(gaugePools, emissionTotals, tokens, emissions)
             ),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -233,7 +233,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(3, chainLockedAmount),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
@@ -261,7 +261,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(4, recipient, amount, continuousLock),
             new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            _addressToBytes32(srcMessagingHub),
             23,
             bytes32("0x01")
         );
