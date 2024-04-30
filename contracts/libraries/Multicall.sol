@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/BaseRedstoneCoreAdaptor.sol";
@@ -11,8 +12,10 @@ import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/Bas
 abstract contract Multicall {
     struct MulticallData {
         address target;
-        bytes data;
         bool isPriceUpdate;
+        address feeToken; // fees to update adaptor
+        uint256 feeAmount; // fees to update adaptor
+        bytes data;
     }
 
     error Multicall__InvalidTarget();
@@ -36,6 +39,8 @@ abstract contract Multicall {
         OracleRouter oracleRouter = OracleRouter(
             centralRegistry.oracleRouter()
         );
+
+        results = new bytes[](calls.length);
         for (uint256 i; i < calls.length; ++i) {
             if (calls[i].isPriceUpdate) {
                 if (!oracleRouter.isApprovedAdaptor(calls[i].target)) {
@@ -44,17 +49,29 @@ abstract contract Multicall {
 
                 bytes4 functionSig = getFuncSigHash(calls[i].data);
                 if (
-                    functionSig !=
-                    BaseRedstoneCoreAdaptor.writePrice.selector &&
-                    functionSig != PythAdaptor.updateFeeds.selector
+                    functionSig == BaseRedstoneCoreAdaptor.writePrice.selector
                 ) {
+                    results[i] = Address.functionCall(
+                        calls[i].target,
+                        calls[i].data
+                    );
+                } else if (
+                    functionSig == PythAdaptor.updateFeedsWithWETH.selector
+                ) {
+                    SafeTransferLib.safeTransferFrom(
+                        calls[i].feeToken,
+                        msg.sender,
+                        calls[i].target,
+                        calls[i].feeAmount
+                    );
+
+                    results[i] = Address.functionCall(
+                        calls[i].target,
+                        calls[i].data
+                    );
+                } else {
                     revert Multicall__InvalidCallData();
                 }
-
-                results[i] = Address.functionCall(
-                    calls[i].target,
-                    calls[i].data
-                );
             } else {
                 if (address(this) != calls[i].target) {
                     revert Multicall__InvalidTarget();
