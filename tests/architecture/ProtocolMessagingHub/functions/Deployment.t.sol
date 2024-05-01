@@ -2,20 +2,27 @@
 pragma solidity 0.8.17;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { FeeTokenBridgingHub } from "contracts/architecture/FeeTokenBridgingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+contract InvalidCentralRegistry {
+    function wormholeCore() external view returns (address) {
+        return address(1);
+    }
+}
 
 contract ProtocolMessagingHubDeploymentTest is TestBaseProtocolMessagingHub {
     function test_protocolMessagingHubDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
+        address invalidCentralRegistry = address(new InvalidCentralRegistry());
+
         vm.expectRevert(
-            FeeTokenBridgingHub
-                .FeeTokenBridgingHub__InvalidCentralRegistry
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        new ProtocolMessagingHub(ICentralRegistry(address(0)));
+        new ProtocolMessagingHub(ICentralRegistry(invalidCentralRegistry));
     }
 
     function test_protocolMessagingHubDeployment_success() public {

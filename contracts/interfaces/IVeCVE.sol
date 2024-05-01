@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { RewardsData } from "contracts/interfaces/ICVELocker.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import "contracts/token/VeCVE.sol";
 
 interface IVeCVE {
 
     /// @notice Locks a given amount of cve tokens on behalf of another user,
-    ///         and processes any pending locker rewards.
+    ///         and processes any pending rewards.
     /// @param recipient The address to lock tokens for.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function createLockFor(
@@ -25,12 +25,12 @@ interface IVeCVE {
 
     /// @notice Increases the locked amount and extends the lock
     ///         for the specified lock index, and processes any pending
-    ///         locker rewards.
+    ///         rewards.
     /// @param recipient The address to lock and extend tokens for.
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for CVE rewards locker.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function increaseAmountAndExtendLockFor(
@@ -49,6 +49,11 @@ interface IVeCVE {
     function queryUserLocks(
         address user
     ) external view returns (uint256[] memory, uint256[] memory);
+
+    /// @notice Returns the current epoch for the given time.
+    /// @param time The timestamp for which to calculate the epoch.
+    /// @return The current epoch.
+    function currentEpoch(uint256 time) external view returns (uint256);
 
     /// @notice Returns the chain's current token points for
     function chainPoints() external view returns (uint256);
@@ -79,6 +84,13 @@ interface IVeCVE {
     ///      userUnlocksByEpoch[user][epoch] > 0
     ///      so we do not need to check here.
     function updateUserPoints(address user, uint256 epoch) external;
+
+    /// @notice Updates chain points by reducing the amount that gets unlocked
+    ///         in a specific epoch.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
+    /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
+    ///      so we do not need for equal 0 here.
+    function updateChainPoints(uint256 epoch) external;
 
     /// @notice Returns the timestamp of when the next epoch begins.
     /// @return The calculated next epoch start timestamp.

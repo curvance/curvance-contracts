@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { ICentralRegistry, ChainData, OmnichainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
@@ -85,8 +85,8 @@ contract CentralRegistry is ERC165 {
 
     // DAO CONTRACTS DATA
 
-    /// @notice CVE Locker contract address.
-    address public cveLocker;
+    /// @notice Reward Manager contract address.
+    address public rewardManager;
     /// @notice This chain's Protocol Messaging Hub contract address.
     address public protocolMessagingHub;
     /// @notice Oracle Router contract address.
@@ -107,7 +107,10 @@ contract CentralRegistry is ERC165 {
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
 
-    // PROTOCOL FEES
+    /// @notice CCTP Domain.
+    uint32 public cctpDomain;
+
+    // PROTOCOL FEE VALUES
 
     // Values are always set in `Basis Points` (1e4), fee values are converted
     // and stored in `WAD` while multipliers stay in `DENOMINATOR`.
@@ -124,7 +127,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Protocol slippage limit for safe swap.
     uint256 public slippageLimit = 1000 * 1e14;
 
-    // ACTION MULTIPLIERS
+    // ACTION MULTIPLIER VALUES
 
     /// @notice Penalty multiplier for unlocking a veCVE lock early.
     uint256 public earlyUnlockPenaltyMultiplier;
@@ -133,7 +136,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Gauge rewards multiplier for locking gauge emissions.
     uint256 public lockBoostMultiplier;
 
-    // PROTOCOL MONEY MARKET FEES
+    // PROTOCOL INTEREST RATE FEES
 
     /// @notice Debt token fee on interest generated.
     /// @dev Market Manager => Protocol Interest Factor, in `WAD`.
@@ -150,7 +153,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => uint256) public userApprovalIndex;
 
     /// @notice Whether a user wants to allow new delegating to be disabled.
-    /// @dev User => Has new delegation  disabled.
+    /// @dev User => Has new delegation disabled.
     mapping(address => bool) public delegatingDisabled;
 
     // DAO PERMISSION DATA
@@ -161,6 +164,9 @@ contract CentralRegistry is ERC165 {
     /// @notice Whether an address has Elevated DAO permissioning or not.
     /// @dev Address => Elevated DAO permission status.
     mapping(address => bool) public hasElevatedPermissions;
+    /// @notice Whether an address has lock creation permissioning or not.
+    /// @dev Address => Lock creation permission status.
+    mapping(address => bool) public hasLockingPermissions;
 
     // MULTICHAIN CONFIGURATION DATA
 
@@ -169,33 +175,22 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Number of chains supported.
     uint256 public supportedChains;
+    /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
+    ///         format.
+    uint256[] public foreignChainIds;
     /// @notice Address array for all Curvance markets on this chain.
     address[] public marketManagers;
 
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
 
-    /// @notice Address => chainID => Curvance identification information.
-    mapping(address => mapping(uint256 => OmnichainData))
-        public omnichainOperators;
     mapping(uint16 => uint256) public messagingToGETHChainId;
     mapping(uint256 => uint16) public GETHToMessagingChainId;
 
-    // WORMHOLE/CCTP MAPPINGS
-
-    /// @notice Wormhole specific chain ID for evm chain ID.
-    mapping(uint256 => uint16) public wormholeChainId;
-
-    /// @notice CCTP domain for evm chain ID.
-    mapping(uint256 => uint32) public cctpDomain;
-
     // DAO CONTRACT MAPPINGS
 
-    mapping(address => bool) public isVeCVELocker;
-    mapping(address => bool) public isGaugeController;
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
-    mapping(address => bool) public isEndpoint;
     mapping(address => address) public externalCallDataChecker;
 
     /// EVENTS ///
@@ -224,13 +219,11 @@ contract CentralRegistry is ERC165 {
         string indexed contractType,
         address removedAddress
     );
-    event FeeTokenSet(address newAddress);
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
     event CircleTokenMessengerSet(address newAddress);
-    event WormholeChainIDsSet(uint256[] chainIds, uint16[] wormholeChainIds);
-    event CCTPDomainsSet(uint256[] chainIds, uint32[] cctpDomains);
     event TokenBridgeSet(address newAddress);
+    event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
 
@@ -352,15 +345,15 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("VeCVE", newVeCVE);
     }
 
-    /// @notice Sets a new CVE locker contract address
+    /// @notice Sets a new Reward Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newCVELocker The new address of cveLocker.
-    function setCVELocker(address newCVELocker) external {
+    /// @param newRewardManager The new address of rewardManager.
+    function setRewardManager(address newRewardManager) external {
         _checkElevatedPermissions();
 
-        cveLocker = newCVELocker;
-        emit CoreContractSet("CVE Locker", newCVELocker);
+        rewardManager = newRewardManager;
+        emit CoreContractSet("Reward Manager", newRewardManager);
     }
 
     /// @notice Sets a new protocol messaging hub contract address.
@@ -373,13 +366,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         protocolMessagingHub = newProtocolMessagingHub;
-
-        // If the feeAccumulator is already set up,
-        // notify it that the messaging hub has been updated.
-        if (feeAccumulator != address(0)) {
-            IFeeAccumulator(feeAccumulator).notifyUpdatedMessagingHub();
-        }
-
         emit CoreContractSet(
             "Protocol Messaging Hub",
             newProtocolMessagingHub
@@ -454,41 +440,16 @@ contract CentralRegistry is ERC165 {
         emit TokenBridgeSet(newTokenBridge);
     }
 
-    /// @notice Registers wormhole specific chain IDs for evm chain IDs.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {WormholeChainIDsSet} event.
-    /// @param chainIds Array of EVM chain IDs to register.
-    /// @param wormholeChainIds Array of Wormhole specific chain IDs.
-    function registerWormholeChainIDs(
-        uint256[] calldata chainIds,
-        uint16[] calldata wormholeChainIds
-    ) external {
-        _checkElevatedPermissions();
-
-        uint256 numChainIds = chainIds.length;
-        for (uint256 i; i < numChainIds; ++i) {
-            wormholeChainId[chainIds[i]] = wormholeChainIds[i];
-        }
-        emit WormholeChainIDsSet(chainIds, wormholeChainIds);
-    }
-
-    /// @notice Registers CCTP domains for EVM chain IDs.
+    /// @notice Registers CCTP domain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CCTPDomainsSet} event.
-    /// @param chainIds EVM chain IDs.
-    /// @param cctpDomains CCTP domains.
-    function registerCCTPDomains(
-        uint256[] calldata chainIds,
-        uint32[] calldata cctpDomains
-    ) external {
+    /// @param newDomain CCTP domain.
+    function setCCTPDomain(uint32 newDomain) external {
         _checkElevatedPermissions();
 
-        uint256 numChainIds = chainIds.length;
+        cctpDomain = newDomain;
 
-        for (uint256 i; i < numChainIds; ++i) {
-            cctpDomain[chainIds[i]] = cctpDomains[i];
-        }
-        emit CCTPDomainsSet(chainIds, cctpDomains);
+        emit CCTPDomainSet(newDomain);
     }
 
     /// @notice Sets the fee from yield by Curvance DAO to use as gas
@@ -784,39 +745,73 @@ contract CentralRegistry is ERC165 {
         );
     }
 
+    /// @notice Adds an approved address to create locks for other
+    ///         addresses inside Curvance.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot have locking permissions prior.
+    ///      Emits a {NewCurvanceContract} event.
+    /// @param newApprovedAddress The new address to approve lock
+    ///                           creation authority inside Curvance.
+    function addLockingPermissions(address newApprovedAddress) external {
+        _checkElevatedPermissions();
+
+        // Validate `newApprovedAddress` is not currently supported.
+        if (hasLockingPermissions[newApprovedAddress]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        hasLockingPermissions[newApprovedAddress] = true;
+
+        emit NewCurvanceContract("Locking Permissions", newApprovedAddress);
+    }
+
+    /// @notice Removes an approved address to create locks for other
+    ///         addresses inside Curvance.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Has to have locking permissions prior.
+    ///      Emits a {RemovedCurvanceContract} event.
+    /// @param currentApprovedAddress The approved address to remove lock
+    ///                               creation authority inside Curvance.
+    function removeLockingPermissions(
+        address currentApprovedAddress
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `currentApprovedAddress` is currently supported.
+        if (!hasLockingPermissions[currentApprovedAddress]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        delete hasLockingPermissions[currentApprovedAddress];
+
+        emit RemovedCurvanceContract(
+            "Locking Permissions",
+            currentApprovedAddress
+        );
+    }
+
     /// MULTICHAIN SUPPORT LOGIC
 
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param newOmnichainOperator The address that will be the source
-    ///                             address sending messaging to this chain
-    ///                             for validation.
-    /// @param messagingHub Contract address for new chains Messaging Hub.
+    /// @param messagingHub Address for new chains Protocol Messaging Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
-    /// @param sourceAux Auxilliary data when the chain is source.
-    /// @param destinationAux Auxilliary data when the chain is destination.
     /// @param messagingChainId Messaging Chain ID where this address authorized.
+    /// @param relayer Wormhole relayer address on the chain.
+    /// @param domain CCTP domain for the chain.
     function addChainSupport(
-        address newOmnichainOperator,
         address messagingHub,
         address cveAddress,
         address feeTokenAddress,
         uint256 chainId,
-        uint256 sourceAux,
-        uint256 destinationAux,
-        uint16 messagingChainId
+        uint16 messagingChainId,
+        address relayer,
+        uint32 domain
     ) external {
         _checkElevatedPermissions();
-
-        // Validate Chain Operator has not been added already.
-        if (
-            omnichainOperators[newOmnichainOperator][chainId].isAuthorized == 2
-        ) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
 
         // Validate this "new" chain is not currently supported.
         if (supportedChainData[chainId].isSupported == 2) {
@@ -826,68 +821,60 @@ contract CentralRegistry is ERC165 {
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
             messagingHub: messagingHub,
-            asSourceAux: sourceAux,
-            asDestinationAux: destinationAux,
             cveAddress: cveAddress,
-            feeTokenAddress: feeTokenAddress
-        });
-        messagingToGETHChainId[messagingChainId] = chainId;
-        GETHToMessagingChainId[chainId] = messagingChainId;
-        supportedChains++;
-        omnichainOperators[newOmnichainOperator][chainId] = OmnichainData({
-            isAuthorized: 2,
+            feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
-            cveAddress: cveAddress
+            wormholeRelayer: relayer,
+            cctpDomain: domain
         });
 
-        emit NewChainAdded(chainId, newOmnichainOperator);
+        messagingToGETHChainId[messagingChainId] = chainId;
+        GETHToMessagingChainId[chainId] = messagingChainId;
+        ++supportedChains;
+        foreignChainIds.push(chainId);
+
+        emit NewChainAdded(chainId, messagingHub);
     }
 
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentOmnichainOperator The current address that is the source
-    ///                                 address sending messaging to this
-    ///                                 chain for validation.
-    /// @param chainId GETH Chain ID where `currentOmnichainOperator` is
+    /// @param currentMessagingHub Address for chains Protocol Messaging Hub.
+    /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(
-        address currentOmnichainOperator,
+        address currentMessagingHub,
         uint256 chainId
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
         // the system.
         _checkDaoPermissions();
 
-        OmnichainData storage operatorToRemove = omnichainOperators[
-            currentOmnichainOperator
-        ][chainId];
-        // Validate that `currentOmnichainOperator` is currently supported.
-        if (
-            omnichainOperators[currentOmnichainOperator][chainId]
-                .isAuthorized < 2
-        ) {
+        ChainData memory chainDataToRemove = supportedChainData[chainId];
+
+        // Validate that `currentMessagingHub` is currently supported.
+        if (chainDataToRemove.messagingHub != currentMessagingHub) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         // Validate that `chainId` is currently supported.
-        if (supportedChainData[chainId].isSupported < 2) {
+        if (chainDataToRemove.isSupported < 2) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         // Remove chain support from protocol.
         supportedChainData[chainId].isSupported = 1;
-        // Remove operator support from protocol.
-        operatorToRemove.isAuthorized = 1;
         // Decrease supportedChains.
-        supportedChains--;
+        --supportedChains;
         // Remove messagingChainId <> GETH chainId mapping table references.
         delete GETHToMessagingChainId[
-            messagingToGETHChainId[operatorToRemove.messagingChainId]
+            messagingToGETHChainId[chainDataToRemove.messagingChainId]
         ];
-        delete messagingToGETHChainId[operatorToRemove.messagingChainId];
+        delete messagingToGETHChainId[chainDataToRemove.messagingChainId];
 
-        emit RemovedChain(chainId, currentOmnichainOperator);
+        _removeForeignChainId(chainId);
+
+        emit RemovedChain(chainId, currentMessagingHub);
     }
 
     /// CONTRACT MAPPING LOGIC
@@ -905,85 +892,6 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
-    }
-
-    /// @notice Adds an approved VeCVE locker contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be an approved VeCVE locker contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newVeCVELocker The new VeCVE locker contract to approve for use
-    ///                       in Curvance.
-    function addVeCVELocker(address newVeCVELocker) external {
-        _checkElevatedPermissions();
-
-        // Validate `newVeCVELocker` is not currently supported.
-        if (isVeCVELocker[newVeCVELocker]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isVeCVELocker[newVeCVELocker] = true;
-
-        emit NewCurvanceContract("VeCVELocker", newVeCVELocker);
-    }
-
-    /// @notice Removes an approved VeCVE locker contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be an approved VeCVE locker contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentVeCVELocker The approved VeCVE locker contract to remove
-    ///                           from Curvance.
-    function removeVeCVELocker(address currentVeCVELocker) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentVeCVELocker` is currently supported.
-        if (!isVeCVELocker[currentVeCVELocker]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isVeCVELocker[currentVeCVELocker];
-
-        emit RemovedCurvanceContract("VeCVELocker", currentVeCVELocker);
-    }
-
-    /// @notice Adds a Gauge Controller contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Gauge Controller contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newGaugeController The new Gauge Controller contract to support
-    ///                           for use in Curvance.
-    function addGaugeController(address newGaugeController) external {
-        _checkElevatedPermissions();
-
-        // Validate `newGaugeController` is not currently supported.
-        if (isGaugeController[newGaugeController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isGaugeController[newGaugeController] = true;
-
-        emit NewCurvanceContract("Gauge Controller", newGaugeController);
-    }
-
-    /// @notice Removes a Gauge Controller contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Gauge Controller contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentGaugeController The supported Gauge Controller contract
-    ///                               to remove from Curvance.
-    function removeGaugeController(address currentGaugeController) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentGaugeController` is currently supported.
-        if (!isGaugeController[currentGaugeController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isGaugeController[currentGaugeController];
-
-        emit RemovedCurvanceContract(
-            "Gauge Controller",
-            currentGaugeController
-        );
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
@@ -1024,49 +932,15 @@ contract CentralRegistry is ERC165 {
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
     }
 
-    /// @notice Adds an Endpoint contract for use in Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Endpoint contract prior.
-    ///      Emits a {NewCurvanceContract} event.
-    /// @param newEndpoint The new Endpoint contract to support for use
-    ///                    in Curvance.
-    function addEndpoint(address newEndpoint) external {
-        _checkElevatedPermissions();
-
-        // Validate `newEndpoint` is not currently supported.
-        if (isEndpoint[newEndpoint]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        isEndpoint[newEndpoint] = true;
-
-        emit NewCurvanceContract("Endpoint", newEndpoint);
+    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
+    ///         Chain ID format.
+    function getForeignChainIds() external view returns (uint256[] memory) {
+        return foreignChainIds;
     }
 
-    /// @notice Removes an Endpoint contract from Curvance.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Endpoint contract prior.
-    ///      Emits a {RemovedCurvanceContract} event.
-    /// @param currentEndpoint The supported Endpoint contract to remove
-    ///                        from Curvance.
-    function removeEndpoint(address currentEndpoint) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentEndpoint` is currently supported.
-        if (!isEndpoint[currentEndpoint]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete isEndpoint[currentEndpoint];
-
-        emit RemovedCurvanceContract("Endpoint", currentEndpoint);
-    }
-
-    function getOmnichainOperators(
-        address _address,
-        uint256 chainID
-    ) external view returns (OmnichainData memory) {
-        return omnichainOperators[_address][chainID];
+    /// @notice Returns an array of Curvance markets on this chain.
+    function getMarketManagers() external view returns (address[] memory) {
+        return marketManagers;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1162,8 +1036,6 @@ contract CentralRegistry is ERC165 {
         emit RemovedCurvanceContract("Market Manager", currentMarketManager);
     }
 
-    /// PUBLIC FUNCTIONS ///
-
     /// @notice Returns true if this contract implements the interface defined
     ///         by `interfaceId`.
     /// @param interfaceId The interface to check for implementation.
@@ -1177,6 +1049,27 @@ contract CentralRegistry is ERC165 {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Remove Chain ID from foreign chain id array.
+    /// @param chainId Chain ID to remove.
+    function _removeForeignChainId(uint256 chainId) internal {
+        uint256 i;
+        uint256 numForeignChainIds = foreignChainIds.length;
+
+        for (; i < numForeignChainIds; ) {
+            if (foreignChainIds[i++] == chainId) {
+                break;
+            }
+        }
+
+        numForeignChainIds--;
+
+        for (; i < numForeignChainIds; ++i) {
+            foreignChainIds[i] = foreignChainIds[i + 1];
+        }
+
+        foreignChainIds.pop();
+    }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.

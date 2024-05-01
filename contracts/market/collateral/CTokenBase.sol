@@ -438,7 +438,7 @@ abstract contract CTokenBase is
         uint256 amount
     ) public override nonReentrant returns (bool) {
         // Fails if transfer not allowed.
-        marketManager.canTransferWithPrune(address(this), msg.sender, amount);
+        marketManager.canTransferCToken(address(this), msg.sender, amount);
 
         // Cache gaugePool, then update gauge pool values for caller.
         IGaugePool gaugePool = _gaugePool();
@@ -465,7 +465,7 @@ abstract contract CTokenBase is
         uint256 amount
     ) public override nonReentrant returns (bool) {
         // Fails if transfer not allowed.
-        marketManager.canTransferWithPrune(address(this), from, amount);
+        marketManager.canTransferCToken(address(this), from, amount);
 
         // Cache gaugePool, then update gauge pool values for `from`.
         IGaugePool gaugePool = _gaugePool();

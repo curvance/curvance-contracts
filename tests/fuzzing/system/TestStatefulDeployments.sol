@@ -44,7 +44,7 @@ contract TestStatefulDeployments is StatefulBaseMarket {
 
     /// @custom:property curv-8 The central registry has the cve address setup correctly.
     /// @custom:property curv-9 The central registry has the veCVE address setup correctly.
-    /// @custom:property curv-10 The central registry has the cveLocker setup correctly.
+    /// @custom:property curv-10 The central registry has the rewardManager setup correctly.
     /// @custom:property curv-11 The central registry has the protocol messaging hub setup correctly.
     function CentralRegistry_is_setup() public {
         assertWithMsg(
@@ -56,8 +56,8 @@ contract TestStatefulDeployments is StatefulBaseMarket {
             "CURV-9: CentralRegistry.veCVE() == vecve failed"
         );
         assertWithMsg(
-            address(centralRegistry.cveLocker()) == address(cveLocker),
-            "CURV-10: CentralRegistry.cveLocker != cveLocker"
+            address(centralRegistry.rewardManager()) == address(rewardManager),
+            "CURV-10: CentralRegistry.rewardManager != rewardManager"
         );
         assertWithMsg(
             address(centralRegistry.protocolMessagingHub()) ==

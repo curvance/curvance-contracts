@@ -308,7 +308,7 @@ abstract contract LiquidityManager {
                             if (action.mTokenModified != snapshot.asset) {
                                 positionsToClose[i] = true;
                                 if (result.updateNeeded == 0) {
-                                    result.updateNeeded = 1;
+                                    result.updateNeeded = 2;
                                 }
                             }
                         } else {
@@ -339,7 +339,7 @@ abstract contract LiquidityManager {
                         if (action.mTokenModified != snapshot.asset) {
                             positionsToClose[i] = true;
                             if (result.updateNeeded == 0) {
-                                result.updateNeeded = 1;
+                                result.updateNeeded = 2;
                             }
                         }
                     }
@@ -362,7 +362,7 @@ abstract contract LiquidityManager {
                             if (posted == action.redeemTokens) {
                                 positionsToClose[i] = true;
                                 if (result.updateNeeded == 0) {
-                                    result.updateNeeded = 1;
+                                    result.updateNeeded = 2;
                                 }
                             }
 

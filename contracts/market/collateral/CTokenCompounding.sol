@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import { CTokenBase, FixedPointMathLib, SafeTransferLib, ERC4626 } from "contracts/market/collateral/CTokenBase.sol";
-
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CTokenBase, FixedPointMathLib, SafeTransferLib, WAD } from "contracts/market/collateral/CTokenBase.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -23,9 +21,9 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @param vestingPeriodEnd When the current vesting period ends.
     /// @param lastVestClaim Last time vesting rewards were claimed.
     struct VaultData {
-        uint128 rewardRate;
-        uint64 vestingPeriodEnd;
-        uint64 lastVestClaim;
+        uint176 rewardRate;
+        uint40 vestingPeriodEnd;
+        uint40 lastVestClaim;
     }
 
     /// @notice Storage configuration for pending vesting update.
@@ -40,16 +38,16 @@ abstract contract CTokenCompounding is CTokenBase {
     /// CONSTANTS ///
 
     /// @dev Mask of reward rate entry in packed vault data.
-    uint256 private constant _BITMASK_REWARD_RATE = (1 << 128) - 1;
+    uint256 private constant _BITMASK_REWARD_RATE = (1 << 176) - 1;
     /// @dev Mask of a timestamp entry in packed vault data.
-    uint256 private constant _BITMASK_TIMESTAMP = (1 << 64) - 1;
-    /// @dev Mask of all bits in packed vault data except the 64 bits
+    uint256 private constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
+    /// @dev Mask of all bits in packed vault data except the 40 bits
     ///      for `lastVestClaim`.
-    uint256 private constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 192) - 1;
+    uint256 private constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 216) - 1;
     /// @dev The bit position of `vestingPeriodEnd` in packed vault data.
-    uint256 private constant _BITPOS_VEST_END = 128;
+    uint256 private constant _BITPOS_VEST_END = 176;
     /// @dev The bit position of `lastVestClaim` in packed vault data.
-    uint256 private constant _BITPOS_LAST_VEST = 192;
+    uint256 private constant _BITPOS_LAST_VEST = 216;
 
     /// STORAGE ///
 
@@ -148,16 +146,14 @@ abstract contract CTokenCompounding is CTokenBase {
             deleverageData
         );
 
-        // Fails if redeem not allowed.
-        marketManager.reduceCollateralIfNecessary(
-            owner,
+        // Fails if redemption not allowed.
+        marketManager.canRedeemWithCollateralRemoval(
             address(this),
+            owner,
             balancePrior,
-            shares
+            shares,
+            false
         );
-
-        // Checks whether callback or slippage has broken invariants.
-        marketManager.canRedeemWithPrune(address(this), owner, 0);
     }
 
     /// @notice Returns the current cToken yield status information.
@@ -197,7 +193,7 @@ abstract contract CTokenCompounding is CTokenBase {
     ) external override nonReentrant returns (bool) {
         _startMarket(by);
         _afterDeposit(42069, 42069);
-        _setlastVestClaim(uint64(block.timestamp));
+        _setlastVestClaim(uint40(block.timestamp));
         compoundingPaused = 1;
         return true;
     }
@@ -283,7 +279,7 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @return The timestamp when the last claim occurred,
     ///         in Unix time.
     function lastVestClaim() public view returns (uint256) {
-        return uint64(_vaultData >> _BITPOS_LAST_VEST);
+        return uint40(_vaultData >> _BITPOS_LAST_VEST);
     }
 
     /// @notice Returns the total amount of the underlying asset in the vault,
@@ -635,7 +631,7 @@ abstract contract CTokenCompounding is CTokenBase {
         // Set rewardRate equal to prorated `yieldToVest` over `periodToVest`,
         // in `WAD` (1e18).
         _vaultData = _packVaultData(
-            FixedPointMathLib.mulDiv(yieldToVest, 1e18, periodToVest),
+            FixedPointMathLib.mulDiv(yieldToVest, WAD, periodToVest),
             block.timestamp + periodToVest
         );
     }
@@ -651,7 +647,7 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 newVestPeriod
     ) internal view returns (uint256 result) {
         assembly {
-            // Mask `newRewardRate` to the lower 128 bits,
+            // Mask `newRewardRate` to the lower 176 bits,
             // in case the upper bits somehow aren't clean.
             newRewardRate := and(newRewardRate, _BITMASK_REWARD_RATE)
             // Equal to `newRewardRate | (newVestPeriod << _BITPOS_VEST_END) |
@@ -674,9 +670,9 @@ abstract contract CTokenCompounding is CTokenBase {
     function _unpackedVaultData(
         uint256 packedVaultData
     ) internal pure returns (VaultData memory vault) {
-        vault.rewardRate = uint128(packedVaultData);
-        vault.vestingPeriodEnd = uint64(packedVaultData >> _BITPOS_VEST_END);
-        vault.lastVestClaim = uint64(packedVaultData >> _BITPOS_LAST_VEST);
+        vault.rewardRate = uint176(packedVaultData);
+        vault.vestingPeriodEnd = uint40(packedVaultData >> _BITPOS_VEST_END);
+        vault.lastVestClaim = uint40(packedVaultData >> _BITPOS_LAST_VEST);
     }
 
     /// @notice Returns whether the current vesting period has ended,
@@ -687,14 +683,14 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 packedVaultData
     ) internal pure returns (bool) {
         return
-            uint64(packedVaultData >> _BITPOS_LAST_VEST) >=
-            uint64(packedVaultData >> _BITPOS_VEST_END);
+            uint40(packedVaultData >> _BITPOS_LAST_VEST) >=
+            uint40(packedVaultData >> _BITPOS_VEST_END);
     }
 
     /// @notice Sets the last vest claim data for the vault.
     /// @param newVestClaim The new timestamp to record as
     ///                     the last vesting claim.
-    function _setlastVestClaim(uint64 newVestClaim) internal {
+    function _setlastVestClaim(uint40 newVestClaim) internal {
         // Cache vault data.
         uint256 packedVaultData = _vaultData;
         uint256 lastVestClaimCasted;
@@ -745,7 +741,7 @@ abstract contract CTokenCompounding is CTokenBase {
                             (vaultData.vestingPeriodEnd -
                                 vaultData.lastVestClaim))
                 ) /
-                1e18;
+                WAD;
         }
     }
 
@@ -764,7 +760,7 @@ abstract contract CTokenCompounding is CTokenBase {
     /// @param currentAssets The current assets of the vault.
     function _vestRewards(uint256 currentAssets) internal {
         // Update the lastVestClaim timestamp.
-        _setlastVestClaim(uint64(block.timestamp));
+        _setlastVestClaim(uint40(block.timestamp));
 
         // Set internal _totalAssets balance to `currentAssets`.
         _totalAssets = currentAssets;

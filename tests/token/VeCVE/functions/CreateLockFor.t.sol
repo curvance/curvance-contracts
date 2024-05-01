@@ -11,8 +11,8 @@ contract CreateLockForTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        vm.prank(centralRegistry.feeAccumulator());
-        cveLocker.recordEpochRewards(_ONE);
+        vm.prank(centralRegistry.protocolMessagingHub());
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
@@ -37,7 +37,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         veCVE.createLockFor(user1, 0, true, rewardsData, "", 0);
     }
 
-    function test_createLockFor_fail_whenLockerIsNotApproved(
+    function test_createLockFor_fail_whenRewardManagerIsNotApproved(
         bool shouldLock,
         bool isFreshLock,
         bool isFreshLockContinuous
@@ -51,7 +51,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         veCVE.createLockFor(user1, 100e18, true, rewardsData, "", 0);
@@ -62,7 +62,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
 
@@ -76,7 +76,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
@@ -124,7 +124,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);

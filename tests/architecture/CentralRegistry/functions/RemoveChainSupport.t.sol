@@ -10,18 +10,19 @@ contract RemoveChainSupportTest is TestBaseMarket {
 
     event RemovedChain(uint256 chainId, address operatorAddress);
 
+    address public relayer = makeAddr("Wormhole Relayer");
+
     function setUp() public override {
         super.setUp();
 
         centralRegistry.addChainSupport(
-            user1,
             address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
-            1,
-            1,
-            23
+            23,
+            relayer,
+            3
         );
     }
 
@@ -63,32 +64,33 @@ contract RemoveChainSupportTest is TestBaseMarket {
         (
             uint256 isSupported,
             address messagingHub,
-            uint256 asSourceAux,
-            uint256 asDestinationAux,
             address cveAddress,
+            address feeTokenAddress,
+            uint16 messagingChainId,
+            address wormholeRelayer,
+            uint32 cctpDomain
         ) = centralRegistry.supportedChainData(42161);
+
         assertEq(isSupported, 2);
         assertEq(messagingHub, address(this));
-        assertEq(asSourceAux, 1);
-        assertEq(asDestinationAux, 1);
         assertEq(cveAddress, address(1));
-
-        (
-            uint256 isAuthorized,
-            uint256 messagingChainId,
-            address cveAddress_
-        ) = centralRegistry.omnichainOperators(user1, 42161);
-        assertEq(isAuthorized, 2);
+        assertEq(feeTokenAddress, _USDC_ADDRESS);
         assertEq(messagingChainId, 23);
-        assertEq(cveAddress_, address(1));
+        assertEq(wormholeRelayer, relayer);
+        assertEq(cctpDomain, 3);
 
         assertEq(centralRegistry.messagingToGETHChainId(23), 42161);
         assertEq(centralRegistry.GETHToMessagingChainId(42161), 23);
 
         vm.expectEmit(true, true, true, true);
-        emit RemovedChain(42161, user1);
-        centralRegistry.removeChainSupport(user1, 42161);
+        emit RemovedChain(42161, messagingHub);
+        centralRegistry.removeChainSupport(messagingHub, 42161);
 
+        (isSupported, , , , , , ) = centralRegistry.supportedChainData(
+            42161
+        );
+
+        assertEq(isSupported, 1);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);
         assertEq(centralRegistry.GETHToMessagingChainId(23), 0);
 

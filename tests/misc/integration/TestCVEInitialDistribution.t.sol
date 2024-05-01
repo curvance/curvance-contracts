@@ -96,10 +96,10 @@ contract TestCVEInitialDistribution is TestBaseMarket {
         distributor.setMerkleRoot(root);
         distributor.setPauseState(false);
 
-        centralRegistry.addVeCVELocker(address(distributor));
+        centralRegistry.addLockingPermissions(address(distributor));
 
-        vm.prank(centralRegistry.feeAccumulator());
-        cveLocker.recordEpochRewards(_ONE);
+        vm.prank(centralRegistry.protocolMessagingHub());
+        rewardManager.recordEpochRewards(_ONE);
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 

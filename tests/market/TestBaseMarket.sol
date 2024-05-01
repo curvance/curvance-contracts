@@ -7,7 +7,7 @@ import { TestBase } from "tests/utils/TestBase.sol";
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { CVELocker } from "contracts/architecture/CVELocker.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
@@ -77,7 +77,7 @@ contract TestBaseMarket is TestBase {
 
     CVE public cve;
     VeCVE public veCVE;
-    CVELocker public cveLocker;
+    RewardManager public rewardManager;
     SimpleRewardZapper public simpleRewardZapper;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
@@ -151,7 +151,7 @@ contract TestBaseMarket is TestBase {
     function _deployBaseContracts() internal {
         _deployCentralRegistry();
         _deployCVE();
-        _deployCVELocker();
+        _deployRewardManager();
         _deployVeCVE();
         _deployProtocolMessagingHub();
         _deployFeeAccumulator();
@@ -178,23 +178,6 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
         centralRegistry.setWormholeCore(_WORMHOLE_CORE);
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
-
-        uint256[] memory chainIds = new uint256[](3);
-        uint16[] memory wormholeChainIds = new uint16[](3);
-        uint32[] memory cctpDomains = new uint32[](3);
-
-        chainIds[0] = 1;
-        wormholeChainIds[0] = 2;
-        cctpDomains[0] = 0;
-        chainIds[1] = 137;
-        wormholeChainIds[1] = 5;
-        cctpDomains[1] = 7;
-        chainIds[2] = 42161;
-        wormholeChainIds[2] = 23;
-        cctpDomains[2] = 3;
-
-        centralRegistry.registerWormholeChainIDs(chainIds, wormholeChainIds);
-        centralRegistry.registerCCTPDomains(chainIds, cctpDomains);
     }
 
     function _deployCVE() internal {
@@ -208,12 +191,12 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setCVE(address(cve));
     }
 
-    function _deployCVELocker() internal {
-        cveLocker = new CVELocker(
+    function _deployRewardManager() internal {
+        rewardManager = new RewardManager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS
         );
-        centralRegistry.setCVELocker(address(cveLocker));
+        centralRegistry.setRewardManager(address(rewardManager));
 
         simpleRewardZapper = new SimpleRewardZapper(
             ICentralRegistry(address(centralRegistry)),
@@ -225,7 +208,7 @@ contract TestBaseMarket is TestBase {
         veCVE = new VeCVE(ICentralRegistry(address(centralRegistry)));
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
-        cveLocker.startLocker();
+        rewardManager.startRewardManager();
     }
 
     function _deployOracleRouter() internal {
@@ -411,7 +394,7 @@ contract TestBaseMarket is TestBase {
 
     function _deployGaugePool() internal {
         gaugePool = new GaugePool(ICentralRegistry(address(centralRegistry)));
-        centralRegistry.addGaugeController(address(gaugePool));
+        centralRegistry.addLockingPermissions(address(gaugePool));
     }
 
     function _deployMarketManager() internal {

@@ -8,22 +8,22 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(1e6);
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLockFor(address(1), 50e18, false, rewardsData, "", 0);
 
-        centralRegistry.removeVeCVELocker(address(this));
+        centralRegistry.removeLockingPermissions(address(this));
     }
 
     function test_increaseAmountAndExtendLockFor_fail_whenVeCVEShutdown()
@@ -58,7 +58,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         );
     }
 
-    function test_lockFor_fail_whenLockerIsNotApproved() public {
+    function test_lockFor_fail_whenRewardManagerIsNotApproved() public {
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLockFor(
             address(1),
@@ -76,7 +76,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLockFor(
@@ -95,7 +95,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         (, uint40 unlockTime) = veCVE.userLocks(address(1), 0);
 
@@ -104,8 +104,8 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
-            vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(1e6);
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6);
         }
 
         vm.warp(unlockTime + 1);
@@ -129,7 +129,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         veCVE.increaseAmountAndExtendLockFor(
             address(1),
@@ -150,7 +150,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         veCVE.increaseAmountAndExtendLockFor(
             address(1),
@@ -169,7 +169,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     function test_increaseAmountAndExtendLockFor_fail_startContinuousLock()
         public
     {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
 
@@ -190,7 +190,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
     function test_increaseAmountAndExtendLockFor_success_startContinuousLock()
         public
     {
-        centralRegistry.addVeCVELocker(address(this));
+        centralRegistry.addLockingPermissions(address(this));
 
         veCVE.createLockFor(address(2), 10e18, true, rewardsData, "", 0);
 

@@ -8,31 +8,23 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 
 /// TYPES ///
 
-/// @param isAuthorized Whether the contract is supported or not.
-///                     2 = yes
-///                     0 or 1 = no
-/// @param messagingChainId Messaging Chain ID where this address authorized.
-/// @param cveAddress CVE address on the chain.
-struct OmnichainData {
-    uint256 isAuthorized;
-    uint16 messagingChainId;
-    address cveAddress;
-}
-
 /// @param isSupported Whether the chain is supported or not.
 ///                    2 = yes
 ///                    0 or 1 = no
-/// @param messagingHub Contract address for destination chains Messaging Hub.
-/// @param asSourceAux Auxilliary data when chain is source.
-/// @param asDestinationAux Auxilliary data when chain is destination.
+/// @param messagingHub Messaging Hub address on the chain.
 /// @param cveAddress CVE address on the chain.
+/// @param feeTokenAddress Fee token address on the chain.
+/// @param messagingChainId Messaging Chain ID where this address authorized.
+/// @param wormholeRelayer Wormhole relayer address on the chain.
+/// @param cctpDomain CCTP domain for the chain.
 struct ChainData {
     uint256 isSupported;
     address messagingHub;
-    uint256 asSourceAux;
-    uint256 asDestinationAux;
     address cveAddress;
     address feeTokenAddress;
+    uint16 messagingChainId;
+    address wormholeRelayer;
+    uint32 cctpDomain;
 }
 
 interface ICentralRegistry {
@@ -54,17 +46,20 @@ interface ICentralRegistry {
         address _address
     ) external view returns (bool);
 
-    /// @notice Returns CVE Locker address.
-    function cveLocker() external view returns (address);
+    /// @notice Returns whether the inputted has lock creation permissioning
+    ///         or not.
+    function hasLockingPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Returns Reward Manager address.
+    function rewardManager() external view returns (address);
 
     /// @notice Returns CVE address.
     function cve() external view returns (address);
 
     /// @notice Returns veCVE address.
     function veCVE() external view returns (address);
-
-    /// @notice Returns oCVE address.
-    function oCVE() external view returns (address);
 
     /// @notice Returns Protocol Messaging Hub address.
     function protocolMessagingHub() external view returns (address);
@@ -90,13 +85,8 @@ interface ICentralRegistry {
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);
 
-    /// @notice Returns wormhole specific chain ID for evm chain ID.
-    /// @param chainId Evm chain ID.
-    function wormholeChainId(uint256 chainId) external view returns (uint16);
-
-    /// @notice Returns CCTP domain for evm chain ID.
-    /// @param chainId Evm chain ID.
-    function cctpDomain(uint256 chainId) external view returns (uint16);
+    /// @notice Returns CCTP domain.
+    function cctpDomain() external view returns (uint32);
 
     /// @notice Returns protocolCompoundFee, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
@@ -130,8 +120,15 @@ interface ICentralRegistry {
     /// @notice Returns how many other chains are supported
     function supportedChains() external view returns (uint256);
 
-    /// @notice Address array for all Curvance Market Managers on this chain.
-    function marketManagers() external view returns (address[] memory);
+    /// @notice Chain ID recorded in the Messaging Layers Chain ID format.
+    function foreignChainIds(uint256) external view returns (uint256);
+
+    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
+    ///         Chain ID format.
+    function getForeignChainIds() external view returns (uint256[] memory);
+
+    /// @notice Returns an array of Curvance markets on this chain.
+    function getMarketManagers() external view returns (address[] memory);
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
@@ -144,14 +141,8 @@ interface ICentralRegistry {
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.
     function supportedChainData(
-        uint256 chainID
+        uint256 chainId
     ) external view returns (ChainData memory);
-
-    // Address => chainID => Curvance identification information.
-    function getOmnichainOperators(
-        address _address,
-        uint256 chainID
-    ) external view returns (OmnichainData memory);
 
     // Messaging specific ChainId => GETH comparable ChainId.
     function messagingToGETHChainId(
@@ -163,16 +154,6 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is an approved veCVELocker.
-    function isVeCVELocker(
-        address addressToCheck
-    ) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is a Gauge Controller.
-    function isGaugeController(
-        address addressToCheck
-    ) external view returns (bool);
-
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
 
@@ -180,9 +161,6 @@ interface ICentralRegistry {
     function isMarketManager(
         address addressToCheck
     ) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is an Approved Endpoint.
-    function isEndpoint(address addressToCheck) external view returns (bool);
 
     function externalCallDataChecker(
         address addressToCheck

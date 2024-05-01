@@ -122,6 +122,16 @@ contract TestBorrowAndBridge is TestBaseMarket {
         borrowZapper = new BorrowZapper(
             ICentralRegistry(address(centralRegistry))
         );
+
+        centralRegistry.addChainSupport(
+            address(protocolMessagingHub),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
     }
 
     function _provideEnoughLiquidityForLeverage() internal {
@@ -175,7 +185,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             params
         );
 
-        uint256 messageFee = borrowZapper.quoteWormholeFee(42161, false);
+        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
 
         // try borrow()
         vm.startPrank(user1);
@@ -185,7 +195,8 @@ contract TestBorrowAndBridge is TestBaseMarket {
             address(dDAI),
             500e18,
             swapData,
-            42161
+            42161,
+            0
         );
         dDAI.borrow(500e18);
 

@@ -13,7 +13,7 @@ contract TestERC4626CToken is TestERC4626, TestBaseMarket {
     function setUp() public override(TestERC4626, TestBaseMarket) {
         _deployCentralRegistry();
         _deployCVE();
-        _deployCVELocker();
+        _deployRewardManager();
         _deployVeCVE();
         _deployGaugePool();
         _deployMarketManager();

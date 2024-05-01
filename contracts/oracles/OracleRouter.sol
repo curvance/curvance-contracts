@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
-import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -811,7 +810,7 @@ contract OracleRouter {
             errorCode = BAD_SOURCE;
         }
 
-        return (price, errorCode == BAD_SOURCE);
+        return (price, errorCode != NO_ERROR);
     }
 
     /// @notice Check whether sequencer is valid or down.
