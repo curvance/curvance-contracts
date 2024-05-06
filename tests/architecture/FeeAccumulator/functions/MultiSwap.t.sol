@@ -36,7 +36,8 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
                     path,
                     address(feeAccumulator),
                     block.timestamp
-                )
+                ),
+                slippage: 10e16
             })
         );
 
@@ -122,7 +123,8 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
                 path,
                 address(feeAccumulator),
                 block.timestamp
-            )
+            ),
+            slippage: 10e16
         });
 
         vm.expectRevert(

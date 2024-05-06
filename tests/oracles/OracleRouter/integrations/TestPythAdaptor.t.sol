@@ -15,7 +15,7 @@ contract TestPythAdaptor is TestBaseOracleRouter {
     address private PYTH = 0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
     PythAdaptor public adapter;
 
-    fallback() external {}
+    receive() external payable {}
 
     function setUp() public override {
         _fork(18031848);

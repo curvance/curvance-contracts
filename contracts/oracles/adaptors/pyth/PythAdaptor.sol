@@ -99,7 +99,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         // refund remaining eth
         uint256 remaining = address(this).balance;
         if (remaining > 0) {
-            payable(refundAddress).call{ value: remaining }("");
+            SafeTransferLib.safeTransferETH(refundAddress, remaining);
         }
 
         remaining = IWETH(weth).balanceOf(address(this));
@@ -118,8 +118,9 @@ contract PythAdaptor is BaseOracleAdaptor {
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
         // refund remaining eth
-        if (address(this).balance > 0) {
-            payable(msg.sender).call{ value: address(this).balance }("");
+        uint256 remaining = address(this).balance;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, remaining);
         }
     }
 

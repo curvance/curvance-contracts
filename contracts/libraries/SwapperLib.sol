@@ -25,6 +25,7 @@ library SwapperLib {
         uint256 inputAmount;
         address outputToken;
         address target;
+        uint256 slippage;
         bytes call;
     }
 
@@ -172,7 +173,7 @@ library SwapperLib {
                 ? outputValue - inputValue
                 : inputValue - outputValue;
             uint256 slippage = (diff * WAD) / inputValue;
-            if (slippage > centralRegistry.slippageLimit()) {
+            if (swapData.slippage > swapData.slippage || slippage > centralRegistry.slippageLimit()) {
                 revert SwapperLib__Slippage(slippage);
             }
         }
