@@ -429,7 +429,7 @@ contract ProtocolMessagingHub is QueryResponse {
             dstChainId,
             chainData.messagingHub,
             amount,
-            "",
+            abi.encode(uint8(1), feeToken, amount),
             gasLimit
         );
     }
@@ -632,10 +632,6 @@ contract ProtocolMessagingHub is QueryResponse {
 
         ITokenMessenger circleTokenMessenger = centralRegistry
             .circleTokenMessenger();
-
-        if (payload.length == 0) {
-            payload = abi.encode(uint8(1), feeToken, amount);
-        }
 
         if (
             address(circleTokenMessenger) != address(0) &&
