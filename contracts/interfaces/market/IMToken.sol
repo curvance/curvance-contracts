@@ -19,6 +19,19 @@ interface IMToken {
     /// @param by The account initializing the market.
     function startMarket(address by) external returns (bool);
 
+    /// @notice Applies pending interest to all holders, updating
+    ///         `totalBorrows` and `totalReserves`.
+    /// @dev This calculates interest accrued from the last checkpoint
+    ///      up to the latest available checkpoint, if `compoundRate`
+    ///      seconds has passed.
+    ///      Emits a {InterestAccrued} event.
+    function accrueInterest() external;
+
+    /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the dToken.
+    /// @return Calculated exchange rate, in `WAD`.
+    function exchangeRateWithUpdate() external returns (uint256);
+
     /// @notice Returns the address of the underlying asset.
     function underlying() external view returns (address);
 
@@ -34,14 +47,6 @@ interface IMToken {
     /// @return Whether this token is a cToken or not.
     function isCToken() external view returns (bool);
 
-    /// @notice Applies pending interest to all holders, updating
-    ///         `totalBorrows` and `totalReserves`.
-    /// @dev This calculates interest accrued from the last checkpoint
-    ///      up to the latest available checkpoint, if `compoundRate`
-    ///      seconds has passed.
-    ///      Emits a {InterestAccrued} event.
-    function accrueInterest() external;
-
     /// @notice The dToken balance of an account.
     /// @dev Account address => account token balance.
     /// @param user User to query dToken balance for.
@@ -52,13 +57,14 @@ interface IMToken {
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
-    /// @return Returns true on success.
-    function mint(uint256 amount) external returns (bool);
+    /// @return Returns the amount of dTokens minted.
+    function mint(uint256 amount) external returns (uint256);
 
     /// @notice Redeems dTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of dTokens to redeem for underlying tokens.
-    function redeem(uint256 tokens) external;
+    /// @return Returns amount of underlying asset redeemed.
+    function redeem(uint256 tokens) external returns (uint256);
 
     /// @notice Transfers collateral tokens (this cToken) from `account`
     ///         to `liquidator`.

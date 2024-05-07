@@ -470,7 +470,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice Redeems dTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of dTokens to redeem for underlying tokens.
-    function redeem(uint256 tokens) external nonReentrant {
+    /// @return amount Returns amount of underlying asset redeemed.
+    function redeem(uint256 tokens) external nonReentrant returns (uint256 amount) {
         // Update pending interest.
         accrueInterest();
 
@@ -478,7 +479,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // requirements.
         marketManager.canRedeem(address(this), msg.sender, tokens);
 
-        _redeem(
+        amount = _redeem(
             msg.sender,
             msg.sender,
             tokens,
@@ -495,11 +496,12 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account who will have their dTokens redeemed.
     /// @param recipient The account who will receive the underlying assets.
     /// @param tokens The number of dTokens to redeem for underlying tokens.
+    /// @return amount Returns amount of underlying asset redeemed.
     function redeemFor(
         address account,
         address recipient,
         uint256 tokens
-    ) external nonReentrant {
+    ) external nonReentrant returns (uint256 amount) {
         if (!_checkIsDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -511,7 +513,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // requirements.
         marketManager.canRedeem(address(this), account, tokens);
 
-        _redeem(
+        amount = _redeem(
             account,
             recipient,
             tokens,
@@ -566,10 +568,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
-    /// @return Returns true on success.
-    function mint(uint256 amount) external nonReentrant returns (bool) {
-        _mint(msg.sender, msg.sender, amount);
-        return true;
+    /// @return tokens Returns the amount of dTokens minted.
+    function mint(uint256 amount) external nonReentrant returns (uint256 tokens) {
+        tokens = _mint(msg.sender, msg.sender, amount);
     }
 
     /// @notice Deposits underlying assets into the market,
@@ -578,13 +579,12 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
     /// @param recipient The account that should receive the dTokens.
-    /// @return Returns true on success.
+    /// @return tokens Returns the amount of dTokens minted.
     function mintFor(
         uint256 amount,
         address recipient
-    ) external nonReentrant returns (bool) {
-        _mint(msg.sender, recipient, amount);
-        return true;
+    ) external nonReentrant returns (uint256 tokens){
+        tokens = _mint(msg.sender, recipient, amount);
     }
 
     /// @notice Adds reserves by transferring from Curvance DAO
@@ -994,6 +994,18 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the dToken.
+    /// @return Calculated exchange rate, in `WAD`.
+    function exchangeRateWithUpdate()
+        public
+        returns (uint256)
+    {
+        // Update pending interest.
+        accrueInterest();
+        return exchangeRateCached();
+    }
+
+    /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the dToken, safely.
     /// @return Calculated exchange rate, in `WAD`.
     function exchangeRateWithUpdateSafe()
@@ -1230,7 +1242,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address minter,
         address recipient,
         uint256 amount
-    ) internal {
+    ) internal returns (uint256) {
         // Update pending interest.
         accrueInterest();
 
@@ -1259,6 +1271,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         _gaugePool().deposit(address(this), recipient, tokens);
 
         emit Transfer(address(0), recipient, tokens);
+        return tokens;
     }
 
     /// @notice Redeems dTokens, in exchange for the underlying asset.
@@ -1273,7 +1286,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 tokens,
         uint256 amount
-    ) internal {
+    ) internal returns (uint256) {
         // Check if we have enough underlying held to support the redemption.
         // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
         // because the startMarket() assets can never be withdraw since the
@@ -1298,6 +1311,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
         emit Transfer(account, address(0), tokens);
+        return amount;
     }
 
     /// @notice Executes borrowing of assets for `account` from lenders.

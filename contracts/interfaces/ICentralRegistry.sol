@@ -117,12 +117,6 @@ interface ICentralRegistry {
     /// @notice Returns lockBoostMultiplier value, in `Basis Points`
     function lockBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns how many other chains are supported
-    function supportedChains() external view returns (uint256);
-
-    /// @notice Chain ID recorded in the Messaging Layers Chain ID format.
-    function foreignChainIds(uint256) external view returns (uint256);
-
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
     ///         Chain ID format.
     function getForeignChainIds() external view returns (uint256[] memory);

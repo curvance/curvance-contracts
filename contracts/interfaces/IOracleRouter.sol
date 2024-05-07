@@ -64,6 +64,11 @@ interface IOracleRouter {
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external;
 
+    /// @notice Address => Adaptor approval status.
+    /// @param adaptor The address of the adaptor to check.
+    /// @return True if the adaptor is supported, false otherwise.
+    function isSupportedAdaptor(address adaptor) external view returns (bool);
+
     /// @notice Checks if a given asset is supported by the Oracle Router.
     /// @dev An asset is considered supported if it has one
     ///      or more associated price feeds.
