@@ -192,6 +192,12 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         emit RemoveExtraReward(newReward);
     }
 
+    /// @notice Returns the active reward tokens on the gauge pool,
+    ///         for ease of integration by third parties.
+    function getRewardTokens() external view returns (address[] memory) {
+        return rewardTokens;
+    }
+
     /// @notice Returns the number of active reward tokens on the gauge pool,
     ///         for ease of integration by third parties.
     function getRewardTokensLength() external view returns (uint256) {
