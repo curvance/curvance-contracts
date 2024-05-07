@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract Faucet is Ownable {
+    using Strings for uint256;
+
     /// Maximum faucet erc20 claim amount
-    uint256 public maxClaim = 1000 ether;
+    uint256 public maxClaim = 1000;
+    mapping(address => uint256) public overrideMaxClaim;
+
     /// /// Maximum faucet sepETH claim amount
     uint256 public maxSepETHClaim = 0.1 ether;
     /// user => token => last claimed timestamp
@@ -48,6 +53,7 @@ contract Faucet is Ownable {
     }
 
     function _claim(address user, address token, uint256 amount) internal {
+        uint256 tokenMaxClaim = _getMaxClaim(token);
         require(
             userLastClaimed[user][token] + 24 hours <= block.timestamp,
             "Wait 24 hours"
@@ -58,7 +64,13 @@ contract Faucet is Ownable {
             require(address(this).balance >= amount, "Not enough ETH");
             SafeTransferLib.safeTransferETH(user, amount);
         } else {
-            require(amount <= maxClaim, "Excessive desired claim amount");
+            require(
+                amount <= tokenMaxClaim,
+                string.concat(
+                    "Excessive desired claim amount, cannot claim more than: ",
+                    tokenMaxClaim.toString()
+                )
+            );
             require(
                 IERC20(token).balanceOf(address(this)) >= amount,
                 "Not enough Token"
@@ -67,5 +79,23 @@ contract Faucet is Ownable {
         }
 
         userLastClaimed[user][token] = block.timestamp;
+    }
+
+    function setMaxClaimAmounts(
+        address token,
+        uint256 amount
+    ) external onlyOwner {
+        overrideMaxClaim[token] = amount;
+    }
+
+    // By default users can claim 1000 of a specific token -- unless overriden by the owner
+    function _getMaxClaim(address token) internal view returns (uint256) {
+        uint256 decimal = IERC20(token).decimals();
+        uint256 default_claim = maxClaim * (10 ** decimal);
+
+        return
+            overrideMaxClaim[token] == 0
+                ? default_claim
+                : overrideMaxClaim[token];
     }
 }
