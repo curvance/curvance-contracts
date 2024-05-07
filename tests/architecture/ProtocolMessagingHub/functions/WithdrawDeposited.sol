@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
@@ -12,10 +12,10 @@ contract WithdrawDepositedTest is TestBaseProtocolMessagingHub {
         deal(_USDC_ADDRESS, address(protocolMessagingHub), _ONE);
     }
 
-    function test_withdrawDeposited_fail_whenCallerIsNotAuthorized()
-        public
-    {
-        vm.expectRevert(ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector);
+    function test_withdrawDeposited_fail_whenCallerIsNotAuthorized() public {
+        vm.expectRevert(
+            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
+        );
 
         vm.prank(address(1));
         protocolMessagingHub.withdrawDeposited();

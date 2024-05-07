@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 // @dev Interface of the ERC20 standard
 interface IERC20 {
-
     // @dev Returns the name of the token.
     function name() external view returns (string memory);
 
@@ -66,6 +65,4 @@ interface IERC20 {
     //       https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
     // Emits an {Approval} event.
     function approve(address spender, uint256 amount) external returns (bool);
-
-    
 }

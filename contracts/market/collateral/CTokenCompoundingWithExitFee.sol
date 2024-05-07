@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20 } from "contracts/market/collateral/CTokenCompounding.sol";
 
@@ -10,7 +10,6 @@ import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20 } from "
 ///      is not actually using the balances stored in the position,
 ///      rather it only uses an internal balance.
 abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
-
     /// CONSTANTS ///
 
     /// @notice Maximum exit fee configurable by DAO.
@@ -60,7 +59,9 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
     ///         with corresponding exit fee removed.
     /// @param assets The number of assets to remove exit fee from.
     /// @return The number of assets remaining after removing the exit fee.
-    function _removeExitFeeFromAssets(uint256 assets) internal view returns (uint256) {
+    function _removeExitFeeFromAssets(
+        uint256 assets
+    ) internal view returns (uint256) {
         // Rounds up with an enforced minimum of assets = 1,
         // so this can never underflow.
         return assets - FixedPointMathLib.mulDivUp(exitFee, assets, 1e18);
@@ -97,7 +98,7 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
     /// @notice Helper function for setting the exit fee on redemption
     ///         of shares for assets.
     /// @dev Parameter passed in basis points and converted to `WAD`.
-    ///      Has a maximum value of `MAXIMUM_EXIT_FEE`. 
+    ///      Has a maximum value of `MAXIMUM_EXIT_FEE`.
     /// @param newExitFee The new exit fee to set for redemption of assets,
     ///                   in basis points.
     function _setExitFee(uint256 newExitFee) internal {

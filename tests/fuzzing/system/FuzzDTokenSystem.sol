@@ -1,4 +1,4 @@
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";

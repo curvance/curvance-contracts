@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";

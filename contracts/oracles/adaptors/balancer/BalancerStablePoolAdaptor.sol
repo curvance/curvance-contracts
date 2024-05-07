@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BalancerBaseAdaptor, IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { WAD, BAD_SOURCE } from "contracts/libraries/Constants.sol";
@@ -40,8 +40,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     /// EVENTS ///
 
     event BalancerStablePoolAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event BalancerStablePoolAssetRemoved(address asset);
@@ -87,7 +87,9 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         IBalancerPool pool = IBalancerPool(asset);
 
         pData.inUSD = inUSD;
-        IOracleRouter oracleRouter = IOracleRouter(centralRegistry.oracleRouter());
+        IOracleRouter oracleRouter = IOracleRouter(
+            centralRegistry.oracleRouter()
+        );
 
         // Find the minimum price of all the pool tokens.
         uint256 numUnderlyingOrConstituent = data
@@ -114,23 +116,22 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             if (errorCode > 0) {
                 pData.hadError = true;
                 return pData;
-            } 
-            
+            }
+
             // We did not have an error, so we can add the price
             // to the average, and increment number of prices.
             averagePrice += price;
             ++numPrices;
-            
         }
 
         // If we were not able to price anything, bubble up an error.
         if (averagePrice == 0) {
             pData.hadError = true;
             return pData;
-        } 
+        }
 
         averagePrice = ((averagePrice / numPrices) * pool.getRate()) / WAD;
-        
+
         // Validate price will not overflow on conversion to uint240.
         if (_checkOracleOverflow(averagePrice)) {
             pData.hadError = true;
@@ -166,9 +167,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             }
 
             if (
-                !IOracleRouter(centralRegistry.oracleRouter()).isSupportedAsset(
-                    data.underlyingOrConstituent[i]
-                )
+                !IOracleRouter(centralRegistry.oracleRouter())
+                    .isSupportedAsset(data.underlyingOrConstituent[i])
             ) {
                 revert BalancerStablePoolAdaptor__ConfigurationError();
             }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
@@ -161,10 +161,18 @@ contract CentralRegistryDeployer is DeployConfiguration {
 
     function _addLockingPermissions(address newApprovedAddress) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(newApprovedAddress != address(0), "Set the newApprovedAddress!");
+        require(
+            newApprovedAddress != address(0),
+            "Set the newApprovedAddress!"
+        );
 
-        CentralRegistry(centralRegistry).addLockingPermissions(newApprovedAddress);
-        console.log("centralRegistry.addLockingPermissions: ", newApprovedAddress);
+        CentralRegistry(centralRegistry).addLockingPermissions(
+            newApprovedAddress
+        );
+        console.log(
+            "centralRegistry.addLockingPermissions: ",
+            newApprovedAddress
+        );
     }
 
     function _addMarketManager(

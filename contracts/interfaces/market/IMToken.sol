@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 
@@ -38,7 +38,7 @@ interface IMToken {
     /// @notice Returns the decimals of the mToken.
     /// @dev We pull directly from underlying incase its a proxy contract,
     ///      and changes decimals on us.
-    /// @return The number of decimals for this mToken, 
+    /// @return The number of decimals for this mToken,
     ///         matching the underlying token.
     function decimals() external view returns (uint8);
 
@@ -52,7 +52,7 @@ interface IMToken {
     /// @param user User to query dToken balance for.
     function balanceOf(address user) external view returns (uint256);
 
-    /// @notice Deposits underlying assets into the market, 
+    /// @notice Deposits underlying assets into the market,
     ///         and receives dTokens.
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
@@ -85,17 +85,17 @@ interface IMToken {
     ///         of underlying token debt to lenders, remaining debt shortfall
     ///        is recognized equally by lenders due to `account` default.
     /// @dev Only market manager contract can call this function.
-    ///      Updates pending interest prior to execution of the repay, 
+    ///      Updates pending interest prior to execution of the repay,
     ///      inside the market manager contract.
-    /// @param liquidator The account liquidating `account`'s collateral, 
+    /// @param liquidator The account liquidating `account`'s collateral,
     ///                   and repaying a portion of `account`'s debt.
     /// @param account The account being liquidated and repaid on behalf of.
     /// @param repayRatio The ratio of outstanding debt that `liquidator`
     ///                   will repay from `account`'s obligations,
     ///                   out of 100%, in `WAD`.
     function repayWithBadDebt(
-        address liquidator, 
-        address account, 
+        address liquidator,
+        address account,
         uint256 repayRatio
     ) external;
 
@@ -108,8 +108,8 @@ interface IMToken {
     /// @param account The account having collateral seized.
     /// @param shares The total number of cTokens shares to seize.
     function seizeAccountLiquidation(
-        address liquidator, 
-        address account, 
+        address liquidator,
+        address account,
         uint256 shares
     ) external;
 
@@ -125,7 +125,7 @@ interface IMToken {
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// @param account Address of the account to snapshot.
     /// @return Current account shares balance.
-    /// @return Current account borrow balance, which will be 0, 
+    /// @return Current account borrow balance, which will be 0,
     ///         kept for composability.
     /// @return Current exchange rate between assets and shares, in `WAD`.
     function getSnapshot(

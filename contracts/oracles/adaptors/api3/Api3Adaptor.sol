@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
@@ -49,8 +49,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
     /// EVENTS ///
 
     event Api3AssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event Api3AssetRemoved(address asset);
@@ -107,9 +107,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
     ///              or ETH (inUSD = false).
     function addAsset(
         address asset,
-        string memory ticker, 
-        address proxyFeed, 
-        uint256 heartbeat, 
+        string memory ticker,
+        address proxyFeed,
+        uint256 heartbeat,
         bool inUSD
     ) external {
         _checkElevatedPermissions();
@@ -137,13 +137,11 @@ contract Api3Adaptor is BaseOracleAdaptor {
             data = adaptorDataNonUSD[asset];
         }
 
-        data.heartbeat = heartbeat != 0
-            ? heartbeat
-            : DEFAULT_HEART_BEAT;
+        data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
 
         // Save adaptor data and update mapping that we support `asset` now.
 
-        // Add a ~10% buffer to maximum price allowed from Api3 can stop 
+        // Add a ~10% buffer to maximum price allowed from Api3 can stop
         // updating its price before/above the min/max price. We use a maximum
         // buffered price of 2^224 - 1, which could overflow when trying to
         // save the final value into an uint240.
@@ -184,7 +182,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         // Notify the Oracle Router that we are going to stop supporting the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
-        
+
         emit Api3AssetRemoved(asset);
     }
 
@@ -239,11 +237,11 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         pData.price = uint240(uint256(price));
         pData.hadError = _verifyData(
-                        uint256(price),
-                        updatedAt,
-                        data.max,
-                        data.heartbeat
-                    );
+            uint256(price),
+            updatedAt,
+            data.max,
+            data.heartbeat
+        );
         pData.inUSD = inUSD;
     }
 

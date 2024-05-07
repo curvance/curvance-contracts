@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
@@ -11,7 +11,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -17,7 +17,9 @@ contract listTokenTest is TestBaseMarketManager {
     function test_listToken_fail_whenMTokenIsAlreadyListed() public {
         marketManager.listToken(address(dUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.listToken(address(dUSDC));
     }
 

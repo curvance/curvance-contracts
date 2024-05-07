@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -10,7 +10,7 @@ contract TestBaseFeeAccumulator is TestBaseMarket {
 
         usdc = IERC20(_USDC_ADDRESS);
         dai = IERC20(_DAI_ADDRESS);
-        balRETH = IERC20(_BALANCER_WETH_RETH);
+        balRETH = IERC20(_BAL_WETH_RETH_ADDRESS);
 
         _deployBaseContracts();
     }

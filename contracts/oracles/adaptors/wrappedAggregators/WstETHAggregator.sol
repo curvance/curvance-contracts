@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
@@ -7,7 +7,7 @@ import { IWstETH } from "contracts/interfaces/external/wsteth/IWstETH.sol";
 
 contract WstETHAggregator is BaseWrappedAggregator {
     /// STORAGE ///
-    
+
     address public wstETH;
     address public stETH;
     address public stETHAggregator;

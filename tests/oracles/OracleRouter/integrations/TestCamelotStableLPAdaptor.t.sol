@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CamelotStableLPAdaptor } from "contracts/oracles/adaptors/camelot/CamelotStableLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -9,17 +9,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestCamelotStableLPAdaptor is TestBaseOracleRouter {
-    address private DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-    address private USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+    address internal _BRIDGED_USDC_ADDRESS =
+        0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
 
-    address private CHAINLINK_PRICE_FEED_ETH =
-        0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
-    address private CHAINLINK_PRICE_FEED_DAI =
-        0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB;
-    address private CHAINLINK_PRICE_FEED_USDC =
-        0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
-
-    address private DAI_USDC = 0x01efEd58B534d7a7464359A6F8d14D986125816B;
+    address internal _CAMELOT_DAI_USDC =
+        0x01efEd58B534d7a7464359A6F8d14D986125816B;
 
     CamelotStableLPAdaptor public adaptor;
 
@@ -39,39 +33,45 @@ contract TestCamelotStableLPAdaptor is TestBaseOracleRouter {
         adaptor = new CamelotStableLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        adaptor.addAsset(DAI_USDC);
+        adaptor.addAsset(_CAMELOT_DAI_USDC);
 
+        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(_DAI_ADDRESS, _CHAINLINK_DAI_USD, 0, true);
         chainlinkAdaptor.addAsset(
-            _ETH_ADDRESS,
-            CHAINLINK_PRICE_FEED_ETH,
+            _BRIDGED_USDC_ADDRESS,
+            _CHAINLINK_USDC_USD,
             0,
             true
         );
-        chainlinkAdaptor.addAsset(DAI, CHAINLINK_PRICE_FEED_DAI, 0, true);
-        chainlinkAdaptor.addAsset(USDC, CHAINLINK_PRICE_FEED_USDC, 0, true);
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleRouter.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(DAI, address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(USDC, address(chainlinkAdaptor));
+        oracleRouter.addAssetPriceFeed(
+            _DAI_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleRouter.addAssetPriceFeed(
+            _BRIDGED_USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
 
         oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(DAI_USDC, address(adaptor));
+        oracleRouter.addAssetPriceFeed(_CAMELOT_DAI_USDC, address(adaptor));
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {
-        chainlinkAdaptor.removeAsset(DAI);
+        chainlinkAdaptor.removeAsset(_DAI_ADDRESS);
 
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
-        oracleRouter.getPrice(DAI_USDC, true, false);
+        oracleRouter.getPrice(_CAMELOT_DAI_USDC, true, false);
     }
 
     function testReturnsCorrectPrice() public {
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
-            DAI_USDC,
+            _CAMELOT_DAI_USDC,
             true,
             false
         );
@@ -82,9 +82,9 @@ contract TestCamelotStableLPAdaptor is TestBaseOracleRouter {
     function testRevertAfterAssetRemove() public {
         testReturnsCorrectPrice();
 
-        adaptor.removeAsset(DAI_USDC);
+        adaptor.removeAsset(_CAMELOT_DAI_USDC);
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
-        oracleRouter.getPrice(DAI_USDC, true, false);
+        oracleRouter.getPrice(_CAMELOT_DAI_USDC, true, false);
     }
 
     function testRevertAddAsset__AssetIsNotStableLP() public {
@@ -97,8 +97,8 @@ contract TestCamelotStableLPAdaptor is TestBaseOracleRouter {
     }
 
     function testCanUpdateAsset() public {
-        adaptor.addAsset(DAI_USDC);
-        adaptor.addAsset(DAI_USDC);
+        adaptor.addAsset(_CAMELOT_DAI_USDC);
+        adaptor.addAsset(_CAMELOT_DAI_USDC);
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {

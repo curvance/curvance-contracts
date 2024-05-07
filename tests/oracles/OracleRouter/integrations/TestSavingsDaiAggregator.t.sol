@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBase } from "tests/utils/TestBase.sol";
 
@@ -9,11 +9,8 @@ import { IPotLike } from "contracts/interfaces/external/maker/IPotLike.sol";
 import { ISavingsDai } from "contracts/interfaces/external/maker/ISavingsDai.sol";
 
 contract TestSavingsDaiAggregator is TestBase {
-    address private SDAI = 0x83F20F44975D03b1b09e64809B757c47f942BEeA;
-    address private DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-
-    address private CHAINLINK_PRICE_FEED_DAI =
-        0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9;
+    address internal _SDAI_ADDRESS =
+        0x83F20F44975D03b1b09e64809B757c47f942BEeA;
 
     SavingsDaiAggregator public aggregator;
 
@@ -21,9 +18,9 @@ contract TestSavingsDaiAggregator is TestBase {
         _fork();
 
         aggregator = new SavingsDaiAggregator(
-            SDAI,
-            DAI,
-            CHAINLINK_PRICE_FEED_DAI
+            _SDAI_ADDRESS,
+            _DAI_ADDRESS,
+            _CHAINLINK_DAI_USD
         );
     }
 
@@ -35,12 +32,12 @@ contract TestSavingsDaiAggregator is TestBase {
 
     function testLatestRoundData() public {
         (, int256 sdaiPrice, , , ) = aggregator.latestRoundData();
-        (, int256 daiPrice, , , ) = IChainlink(CHAINLINK_PRICE_FEED_DAI)
+        (, int256 daiPrice, , , ) = IChainlink(_CHAINLINK_DAI_USD)
             .latestRoundData();
         assertEq(
             uint256(sdaiPrice),
-            ((uint256(daiPrice) * IPotLike(ISavingsDai(SDAI).pot()).chi()) /
-                1e9) / 1e18
+            ((uint256(daiPrice) *
+                IPotLike(ISavingsDai(_SDAI_ADDRESS).pot()).chi()) / 1e9) / 1e18
         );
     }
 }

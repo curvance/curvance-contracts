@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 import { IPotLike } from "contracts/interfaces/external/maker/IPotLike.sol";
@@ -7,7 +7,7 @@ import { ISavingsDai } from "contracts/interfaces/external/maker/ISavingsDai.sol
 
 contract SavingsDaiAggregator is BaseWrappedAggregator {
     /// STORAGE ///
-    
+
     address public sDai;
     address public dai;
     address public daiAggregator;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
@@ -11,11 +11,14 @@ import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
+import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { Vm } from "forge-std/Vm.sol";
 
-contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
+contract TestProtocolMessagingHub is
+    TestBaseProtocolMessagingHub,
+    WormholeHelper
+{
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     SwapperLib.Swap public swapData;
     address[] public path;
 
@@ -112,6 +115,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
+        vm.recordLogs();
+
         protocolMessagingHub.executeEpoch(
             response,
             signatures,
@@ -129,6 +134,14 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
         assertTrue(rewardManager.hasRewardsToClaim(user1));
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        _fork("ETH_NODE_URI_ARBITRUM", 180000000);
+
+        _init();
+
+        // help(2, )
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(

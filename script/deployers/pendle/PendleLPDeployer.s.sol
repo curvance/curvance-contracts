@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
@@ -90,7 +90,9 @@ contract PendleLPDeployer is DeployConfiguration {
             if (
                 !OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
+                OracleRouter(oracleRouter).addApprovedAdaptor(
+                    chainlinkAdaptor
+                );
                 console.log(
                     "oracleRouter.addApprovedAdaptor: ",
                     chainlinkAdaptor
@@ -145,7 +147,9 @@ contract PendleLPDeployer is DeployConfiguration {
                 console.log("pendleLpAdapter.addAsset");
             }
 
-            if (!OracleRouter(oracleRouter).isApprovedAdaptor(pendleLpAdapter)) {
+            if (
+                !OracleRouter(oracleRouter).isApprovedAdaptor(pendleLpAdapter)
+            ) {
                 OracleRouter(oracleRouter).addApprovedAdaptor(pendleLpAdapter);
                 console.log(
                     "oracleRouter.addApprovedAdaptor: ",

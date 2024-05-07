@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 interface ICurvePool {
     function balances(uint256 i) external view returns (uint256);

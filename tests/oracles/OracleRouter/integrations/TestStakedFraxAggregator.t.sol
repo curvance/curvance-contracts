@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBase } from "tests/utils/TestBase.sol";
 
@@ -8,11 +8,8 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { IStakedFrax } from "contracts/interfaces/external/frax/IStakedFrax.sol";
 
 contract TestStakedFraxAggregator is TestBase {
-    address private SFRAX = 0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
-    address private FRAX = 0x853d955aCEf822Db058eb8505911ED77F175b99e;
-
-    address private CHAINLINK_PRICE_FEED_FRAX =
-        0xB9E1E3A9feFf48998E45Fa90847ed4D467E8BcfD;
+    address internal _SFRAX_ADDRESS =
+        0xA663B02CF0a4b149d2aD41910CB81e23e1c41c32;
 
     StakedFraxAggregator public aggregator;
 
@@ -20,9 +17,9 @@ contract TestStakedFraxAggregator is TestBase {
         _fork();
 
         aggregator = new StakedFraxAggregator(
-            SFRAX,
-            FRAX,
-            CHAINLINK_PRICE_FEED_FRAX
+            _SFRAX_ADDRESS,
+            _FRAX_ADDRESS,
+            _CHAINLINK_FRAX_USD
         );
     }
 
@@ -34,11 +31,12 @@ contract TestStakedFraxAggregator is TestBase {
 
     function testLatestRoundData() public {
         (, int256 sfraxPrice, , , ) = aggregator.latestRoundData();
-        (, int256 fraxPrice, , , ) = IChainlink(CHAINLINK_PRICE_FEED_FRAX)
+        (, int256 fraxPrice, , , ) = IChainlink(_CHAINLINK_FRAX_USD)
             .latestRoundData();
         assertEq(
             uint256(sfraxPrice),
-            (uint256(fraxPrice) * IStakedFrax(SFRAX).pricePerShare()) / 1e18
+            (uint256(fraxPrice) *
+                IStakedFrax(_SFRAX_ADDRESS).pricePerShare()) / 1e18
         );
     }
 }

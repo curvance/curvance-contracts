@@ -1,4 +1,4 @@
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";

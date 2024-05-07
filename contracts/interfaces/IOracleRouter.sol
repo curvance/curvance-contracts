@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
@@ -13,7 +13,7 @@ interface IOracleRouter {
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price. 
+    /// @return errorCode An error code related to fetching the price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving

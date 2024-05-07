@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -59,8 +59,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     /// EVENTS ///
 
     event CurvePoolAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event CurvePoolAssetRemoved(address asset);
@@ -109,7 +109,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         bool getLower
     ) external view override returns (PriceReturnData memory pData) {
         AdaptorData memory data = adaptorData[asset];
-        
+
         // Validate we support this pool and that this is not
         // a reeentrant call.
         if (isLocked(data.pool, 2)) {
@@ -206,21 +206,13 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
 
         // Make sure that the underlying asset is supported
         // by the Oracle Router.
-        if (
-            !IOracleRouter(oracleRouter).isSupportedAsset(
-                data.underlying0
-            )
-        ) {
+        if (!IOracleRouter(oracleRouter).isSupportedAsset(data.underlying0)) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 
         // Make sure that the underlying asset is supported
         // by the Oracle Router.
-        if (
-            !IOracleRouter(oracleRouter).isSupportedAsset(
-                data.underlying1
-            )
-        ) {
+        if (!IOracleRouter(oracleRouter).isSupportedAsset(data.underlying1)) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 
@@ -392,7 +384,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     }
 
     /// @notice Helper function to check if `price` is within a reasonable
-    ///         bound. 
+    ///         bound.
     /// @dev Reverts if bounds are breached.
     /// @param virtualPrice The virtual price to check against `lowerBound`
     ///                     and `upperBound`.

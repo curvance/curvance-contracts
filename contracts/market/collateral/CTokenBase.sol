@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /**
  * @dev Interface of the ERC165 standard, as defined in the
@@ -19,5 +19,7 @@ interface IERC165 {
      *
      * This function call must use less than 30 000 gas.
      */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external view returns (bool);
 }

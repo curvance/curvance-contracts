@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -21,7 +21,9 @@ contract CanRedeemTest is TestBaseMarketManager {
         vm.prank(address(dUSDC));
         marketManager.notifyBorrow(address(dUSDC), user1);
 
-        vm.expectRevert(MarketManager.MarketManager__MinimumHoldPeriod.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
         marketManager.canRedeem(address(dUSDC), user1, 100e6);
     }
 
@@ -35,7 +37,7 @@ contract CanRedeemTest is TestBaseMarketManager {
 
     function test_canRedeem_success_whenRedeemerNotInMarket() public {
         bool hasPosition;
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertFalse(hasPosition);
         marketManager.canRedeem(address(dUSDC), user1, 100e6);
@@ -81,7 +83,10 @@ contract CanRedeemTest is TestBaseMarketManager {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(cBALRETH));
+        (hasPosition, , ) = marketManager.tokenDataOf(
+            user1,
+            address(cBALRETH)
+        );
 
         assertTrue(hasPosition);
 

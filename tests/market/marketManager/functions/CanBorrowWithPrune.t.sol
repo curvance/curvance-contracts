@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -33,7 +33,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         vm.prank(address(dDAI));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        
+
         marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
     }
 
@@ -118,7 +118,11 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
 
         AccountSnapshot memory snapshot = cBALRETH.getSnapshotPacked(user1);
-        (uint256 price, ) = oracleRouter.getPrice(cBALRETH.asset(), true, true);
+        (uint256 price, ) = oracleRouter.getPrice(
+            cBALRETH.asset(),
+            true,
+            true
+        );
         (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
             address(cBALRETH)
         );
@@ -138,7 +142,11 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(address(dUSDC));
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, borrowInUSDC + 1e6);
+        marketManager.canBorrowWithPrune(
+            address(dUSDC),
+            user1,
+            borrowInUSDC + 1e6
+        );
     }
 
     function test_canBorrowWithPrune_fail_entersUserInMarket() external {
@@ -174,7 +182,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         );
 
         bool hasPosition;
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
@@ -183,7 +191,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         vm.prank(address(dUSDC));
         marketManager.canBorrowWithPrune(address(dUSDC), user1, 0);
 
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertTrue(hasPosition);
 

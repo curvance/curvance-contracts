@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
@@ -99,10 +99,7 @@ library SwapperLib {
     /// @notice Removes `token` spending allowance, if needed.
     /// @param token The token address to remove approval.
     /// @param spender The spender address.
-    function _removeApprovalIfNeeded(
-        address token, 
-        address spender
-    ) internal {
+    function _removeApprovalIfNeeded(address token, address spender) internal {
         if (!CommonLib.isETH(token)) {
             if (IERC20(token).allowance(address(this), spender) > 0) {
                 SafeTransferLib.safeApprove(token, spender, 0);
@@ -113,12 +110,9 @@ library SwapperLib {
     /// @dev Propagates an error message.
     /// @param success If transaction was successful.
     /// @param data The transaction result data.
-    function propagateError(
-        bool success,
-        bytes memory data
-    ) internal pure {
+    function propagateError(bool success, bytes memory data) internal pure {
         if (!success) {
-            if (data.length == 0){
+            if (data.length == 0) {
                 revert SwapperLib__SwapError();
             }
             assembly {

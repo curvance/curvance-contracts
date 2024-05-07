@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CentralRegistry, ICentralRegistry, IMToken } from "contracts/architecture/CentralRegistry.sol";
 
@@ -11,11 +11,11 @@ import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract BlastCentralRegistry is CentralRegistry {
-
     /// CONSTANT ///
 
     /// @notice The address is managing WETH yield, also the token itself.
-    IWETH public constant WETH = IWETH(0x4300000000000000000000000000000000000004);
+    IWETH public constant WETH =
+        IWETH(0x4300000000000000000000000000000000000004);
 
     /// STORAGE ///
 
@@ -37,14 +37,16 @@ contract BlastCentralRegistry is CentralRegistry {
         address sequencer_,
         address feeToken_,
         address nativeYieldManager_
-    ) CentralRegistry (
-        daoAddress_,
-        timelock_,
-        emergencyCouncil_,
-        genesisEpoch_,
-        sequencer_,
-        feeToken_
-    ){
+    )
+        CentralRegistry(
+            daoAddress_,
+            timelock_,
+            emergencyCouncil_,
+            genesisEpoch_,
+            sequencer_,
+            feeToken_
+        )
+    {
         if (nativeYieldManager_ == address(0)) {
             revert CentralRegistry__InvalidFeeToken();
         }
@@ -54,7 +56,9 @@ contract BlastCentralRegistry is CentralRegistry {
         // so that it can register native yield rewards in the gauge system.
         hasDaoPermissions[nativeYieldManager] = true;
 
-        IBlast yieldConfiguration = IBlast(0x4300000000000000000000000000000000000002);
+        IBlast yieldConfiguration = IBlast(
+            0x4300000000000000000000000000000000000002
+        );
 
         // Set gas fees yield to claimable and then pass Governor
         // permissioning to native yield manager.
@@ -77,7 +81,7 @@ contract BlastCentralRegistry is CentralRegistry {
         }
 
         // Cache Yield Manager storage value.
-        IBlastNativeYieldManager yieldManager =IBlastNativeYieldManager(
+        IBlastNativeYieldManager yieldManager = IBlastNativeYieldManager(
             nativeYieldManager
         );
         address nonMToken;
@@ -101,7 +105,7 @@ contract BlastCentralRegistry is CentralRegistry {
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Adds a new Market Manager and associated fee configurations. 
+    /// @notice Adds a new Market Manager and associated fee configurations.
     ///         Then notifies the native yield router of the Market Manager
     ///         addition.
     /// @dev Only callable on a 7 day delay or by the Emergency Council,
@@ -128,11 +132,13 @@ contract BlastCentralRegistry is CentralRegistry {
     ///         Then notifies the native yield router of the Market Manager
     ///         removal.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Has to be a supported Market Manager contract prior. 
+    ///      Has to be a supported Market Manager contract prior.
     ///      Emits a {RemovedCurvanceContract} event.
     /// @param currentMarketManager The supported Market Manager contract
     ///                             to remove from Curvance.
-    function removeMarketManager(address currentMarketManager) public override {
+    function removeMarketManager(
+        address currentMarketManager
+    ) public override {
         super.removeMarketManager(currentMarketManager);
 
         IBlastNativeYieldManager(nativeYieldManager).notifyIsMarketManager(

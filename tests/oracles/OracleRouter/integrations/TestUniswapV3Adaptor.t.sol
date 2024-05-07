@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { UniswapV3Adaptor } from "contracts/oracles/adaptors/uniswap/UniswapV3Adaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -7,22 +7,15 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
 
 contract TestUniswapV3Adaptor is TestBaseOracleRouter {
-    address private WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address private WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
-    address private USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-    address private CHAINLINK_PRICE_FEED_USDC =
-        0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6;
-
-    address private uniswapV3Oracle =
+    address internal _UNISWAP_V3_ORACLE =
         0xB210CE856631EeEB767eFa666EC7C1C57738d438;
-    address private WBTC_WETH = 0xCBCdF9626bC03E24f779434178A73a0B4bad62eD;
-    address private WBTC_USDC = 0x9a772018FbD77fcD2d25657e5C547BAfF3Fd7D16;
+
+    address internal _WBTC_WETH = 0xCBCdF9626bC03E24f779434178A73a0B4bad62eD;
+    address internal _WBTC_USDC = 0x9a772018FbD77fcD2d25657e5C547BAfF3Fd7D16;
 
     UniswapV3Adaptor public adaptor;
 
@@ -40,41 +33,51 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
         centralRegistry.setOracleRouter(address(oracleRouter));
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(WETH, _CHAINLINK_ETH_USD, 0, true);
-        chainlinkAdaptor.addAsset(USDC, CHAINLINK_PRICE_FEED_USDC, 0, true);
+        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
 
         adaptor = new UniswapV3Adaptor(
             ICentralRegistry(address(centralRegistry)),
-            IStaticOracle(uniswapV3Oracle),
-            WETH
+            IStaticOracle(_UNISWAP_V3_ORACLE),
+            _WETH_ADDRESS
         );
         UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = WBTC_WETH;
+        adaptorData.priceSource = _WBTC_WETH;
         adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(WBTC, adaptorData);
+        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleRouter.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(WETH, address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(USDC, address(chainlinkAdaptor));
+        oracleRouter.addAssetPriceFeed(
+            _WETH_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleRouter.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
 
         oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(WBTC, address(adaptor));
+        oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {
-        chainlinkAdaptor.removeAsset(WETH);
+        chainlinkAdaptor.removeAsset(_WETH_ADDRESS);
 
-        (, uint256 errorCode) = oracleRouter.getPrice(WBTC, true, false);
+        (, uint256 errorCode) = oracleRouter.getPrice(
+            _WBTC_ADDRESS,
+            true,
+            false
+        );
         assertEq(errorCode, 2);
     }
 
     function testReturnsCorrectPriceInUSD() public {
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
-            WBTC,
+            _WBTC_ADDRESS,
             true,
             false
         );
@@ -84,7 +87,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
 
     function testReturnsCorrectPriceInETH() public {
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
-            WBTC,
+            _WBTC_ADDRESS,
             false,
             false
         );
@@ -96,9 +99,9 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
         testReturnsCorrectPriceInUSD();
         testReturnsCorrectPriceInETH();
 
-        adaptor.removeAsset(WBTC);
+        adaptor.removeAsset(_WBTC_ADDRESS);
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
-        oracleRouter.getPrice(WBTC, true, false);
+        oracleRouter.getPrice(_WBTC_ADDRESS, true, false);
     }
 
     function testRevertGetPriceInETH__NotSupported() public {
@@ -110,7 +113,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
 
     function testRevertAddAsset__SecondsAgoIsLessThanMinimum() public {
         UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = WBTC_WETH;
+        adaptorData.priceSource = _WBTC_WETH;
         adaptorData.secondsAgo = 240;
 
         vm.expectRevert(
@@ -118,17 +121,17 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
                 .UniswapV3Adaptor__SecondsAgoIsLessThanMinimum
                 .selector
         );
-        adaptor.addAsset(WBTC, adaptorData);
+        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
     }
 
     function testRevertAddAsset__AssetIsNotSupported() public {
         UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = WBTC_WETH;
+        adaptorData.priceSource = _WBTC_WETH;
         adaptorData.secondsAgo = 3600;
         vm.expectRevert(
             UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
         );
-        adaptor.addAsset(USDC, adaptorData);
+        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
     }
 
     function testAddAssetForDifferentPair() public {
@@ -136,30 +139,34 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
         testReturnsCorrectPriceInETH();
 
         UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = WBTC_USDC;
+        adaptorData.priceSource = _WBTC_USDC;
         adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(WBTC, adaptorData);
+        adaptor.addAsset(_WBTC_ADDRESS, adaptorData);
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
         vm.expectRevert(
             UniswapV3Adaptor.UniswapV3Adaptor__AssetIsNotSupported.selector
         );
-        adaptor.removeAsset(USDC);
+        adaptor.removeAsset(_USDC_ADDRESS);
     }
 
     function testGetPriceFromDifferentPair() public {
         UniswapV3Adaptor.AdaptorData memory adaptorData;
-        adaptorData.priceSource = WBTC_USDC;
+        adaptorData.priceSource = _WBTC_USDC;
         adaptorData.secondsAgo = 3600;
-        adaptor.addAsset(USDC, adaptorData);
+        adaptor.addAsset(_USDC_ADDRESS, adaptorData);
 
-        PriceReturnData memory data = adaptor.getPrice(USDC, true, false);
+        PriceReturnData memory data = adaptor.getPrice(
+            _USDC_ADDRESS,
+            true,
+            false
+        );
         assertGt(data.price, 0);
         assertEq(data.hadError, false);
         assertEq(data.inUSD, true);
 
-        data = adaptor.getPrice(USDC, false, false);
+        data = adaptor.getPrice(_USDC_ADDRESS, false, false);
         assertGt(data.price, 0);
         assertEq(data.hadError, false);
         assertEq(data.inUSD, false);
@@ -170,7 +177,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
         vm.startPrank(address(0));
-        adaptor.removeAsset(WBTC);
+        adaptor.removeAsset(_WBTC_ADDRESS);
         vm.stopPrank();
     }
 }

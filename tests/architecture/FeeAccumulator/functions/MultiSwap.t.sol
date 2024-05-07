@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -8,9 +8,6 @@ import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract MultiSwapTest is TestBaseFeeAccumulator {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
     SwapperLib.Swap[] public swapData;
     address[] public path;
     address[] public tokens;

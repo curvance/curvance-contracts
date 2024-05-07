@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 interface UniswapV3Pool {
     event Burn(
@@ -115,7 +115,9 @@ interface UniswapV3Pool {
         bytes memory data
     ) external returns (uint256 amount0, uint256 amount1);
 
-    function observations(uint256)
+    function observations(
+        uint256
+    )
         external
         view
         returns (
@@ -125,7 +127,9 @@ interface UniswapV3Pool {
             bool initialized
         );
 
-    function observe(uint32[] memory secondsAgos)
+    function observe(
+        uint32[] memory secondsAgos
+    )
         external
         view
         returns (
@@ -133,7 +137,9 @@ interface UniswapV3Pool {
             uint160[] memory secondsPerLiquidityCumulativeX128s
         );
 
-    function positions(bytes32)
+    function positions(
+        bytes32
+    )
         external
         view
         returns (
@@ -164,7 +170,10 @@ interface UniswapV3Pool {
             bool unlocked
         );
 
-    function snapshotCumulativesInside(int24 tickLower, int24 tickUpper)
+    function snapshotCumulativesInside(
+        int24 tickLower,
+        int24 tickUpper
+    )
         external
         view
         returns (
@@ -185,7 +194,9 @@ interface UniswapV3Pool {
 
     function tickSpacing() external view returns (int24);
 
-    function ticks(int24)
+    function ticks(
+        int24
+    )
         external
         view
         returns (

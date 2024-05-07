@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenBase, SafeTransferLib, ERC4626 } from "contracts/market/collateral/CTokenBase.sol";
 
@@ -30,7 +30,7 @@ contract CTokenPrimitive is CTokenBase {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) CTokenBase(centralRegistry_,  asset_, marketManager_) {}
+    ) CTokenBase(centralRegistry_, asset_, marketManager_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -95,7 +95,9 @@ contract CTokenPrimitive is CTokenBase {
     ///      better safe than sorry.
     /// @param by The account initializing the cToken market.
     /// @return Returns with true when successful.
-    function startMarket(address by) external nonReentrant override returns (bool) {
+    function startMarket(
+        address by
+    ) external override nonReentrant returns (bool) {
         _startMarket(by);
         return true;
     }
@@ -200,7 +202,7 @@ contract CTokenPrimitive is CTokenBase {
                 _spendAllowance(owner, msg.sender, allowed - shares);
             }
         }
-        
+
         // Validate that `owner` can redeem `shares`.
         marketManager.canRedeemWithCollateralRemoval(
             address(this),

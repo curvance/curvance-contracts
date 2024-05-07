@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
@@ -183,8 +183,13 @@ contract PositionFolding is
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         CTokenPrimitive cToken = leverageData.collateralToken;
-        SafeTransferLib.safeTransferFrom(cToken.asset(), msg.sender, address(this), assets);
-        
+        SafeTransferLib.safeTransferFrom(
+            cToken.asset(),
+            msg.sender,
+            address(this),
+            assets
+        );
+
         cToken.depositAsCollateralFor(assets, msg.sender);
         _leverage(leverageData, msg.sender);
     }

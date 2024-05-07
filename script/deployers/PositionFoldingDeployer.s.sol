@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
@@ -20,7 +20,10 @@ contract PositionFoldingDeployer is DeployConfiguration {
         require(marketManager != address(0), "Set the marketManager!");
 
         positionFolding = address(
-            new PositionFolding(ICentralRegistry(centralRegistry), marketManager)
+            new PositionFolding(
+                ICentralRegistry(centralRegistry),
+                marketManager
+            )
         );
 
         console.log("positionFolding: ", positionFolding);

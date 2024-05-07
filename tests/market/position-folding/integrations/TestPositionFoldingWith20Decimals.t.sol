@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
@@ -14,9 +14,6 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestPositionFoldingWith20Decimals is TestBaseMarket {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
     address public owner;
     address public user;
     MockDataFeed public mockUsdcFeed;
@@ -30,7 +27,9 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
     function setUp() public override {
         _fork(18031848);
 
-        _USDC_ADDRESS = address(new MockToken("USDC", "USDC", 20));
+        _USDC_ADDRESSES[block.chainid] = address(
+            new MockToken("USDC", "USDC", 20)
+        );
 
         _init();
 
@@ -241,7 +240,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
                 false
             ),
             new SwapperLib.Swap[](0),
-            _BALANCER_VAULT,
+            _BAL_VAULT_ADDRESS,
             _BAL_WETH_RETH_POOLID,
             tokens,
             address(positionFolding)
@@ -291,7 +290,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         deleverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.exitBalancer.selector,
             ComplexZapper.BPTRedemption(
-                _BALANCER_VAULT,
+                _BAL_VAULT_ADDRESS,
                 _BAL_WETH_RETH_POOLID,
                 true,
                 1

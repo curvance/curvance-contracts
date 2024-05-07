@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -7,12 +7,11 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 /// @title Curvance Delegation Plugin
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
 /// @dev `Delegable` allows Curvance to be a modular system that plugins can
-///      be built on top of. By delegating authority to a secondary address 
+///      be built on top of. By delegating authority to a secondary address
 ///      users can utilize potential third-party features such as limit
 ///      orders, crosschain actions, reward auto compounding,
 ///      chained (multiple) actions, etc.
 abstract contract Delegable {
-
     /// STORAGE ///
 
     /// @notice Curvance DAO Hub.
@@ -70,7 +69,7 @@ abstract contract Delegable {
     ) public view returns (bool) {
         return _checkIsDelegate(user, delegate);
     }
-    
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns `user`'s approval index.
@@ -79,9 +78,7 @@ abstract contract Delegable {
     ///      `user`.
     /// @param user The user to check delegated approval index for.
     /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) public view returns (uint256) {
+    function getUserApprovalIndex(address user) public view returns (uint256) {
         return centralRegistry.userApprovalIndex(user);
     }
 
@@ -90,9 +87,7 @@ abstract contract Delegable {
     ///      an additional wall of defense.
     /// @param user The user to check delegation status for.
     /// @return Whether the user has new delegation disabled or not.
-    function hasDelegatingDisabled(
-        address user
-    ) public view returns (bool) {
+    function hasDelegatingDisabled(address user) public view returns (bool) {
         return centralRegistry.delegatingDisabled(user);
     }
 
@@ -106,10 +101,7 @@ abstract contract Delegable {
     ///                 from delegated actions on behalf of the caller.
     /// @param isApproved Whether `delegate` is being approved or restricted
     ///                   of authority to operate on behalf of caller.
-    function setDelegateApproval(
-        address delegate,
-        bool isApproved
-    ) external {
+    function setDelegateApproval(address delegate, bool isApproved) external {
         if (hasDelegatingDisabled(msg.sender)) {
             revert Delegable__DelegatingDisabled();
         }
@@ -117,12 +109,7 @@ abstract contract Delegable {
         uint256 approvalIndex = getUserApprovalIndex(msg.sender);
         _isDelegate[msg.sender][approvalIndex][delegate] = isApproved;
 
-        emit DelegateApproval(
-            msg.sender, 
-            delegate, 
-            approvalIndex, 
-            isApproved
-        );
+        emit DelegateApproval(msg.sender, delegate, approvalIndex, isApproved);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -140,5 +127,4 @@ abstract contract Delegable {
     ) public view returns (bool) {
         return _isDelegate[user][getUserApprovalIndex(user)][delegate];
     }
-    
 }

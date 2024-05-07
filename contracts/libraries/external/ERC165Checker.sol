@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Modified from OpenZeppelin Contracts (utils/introspection/ERC165Checker.sol)
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
-import {IERC165} from "contracts/interfaces/IERC165.sol";
+import { IERC165 } from "contracts/interfaces/IERC165.sol";
 
 /**
  * @dev Library used to query support of an interface declared via {IERC165}.
@@ -22,7 +22,10 @@ library ERC165Checker {
         // Any contract that implements ERC165 must explicitly indicate support of
         // InterfaceId_ERC165 and explicitly indicate non-support of InterfaceId_Invalid
         return
-            supportsERC165InterfaceUnchecked(account, type(IERC165).interfaceId) &&
+            supportsERC165InterfaceUnchecked(
+                account,
+                type(IERC165).interfaceId
+            ) &&
             !supportsERC165InterfaceUnchecked(account, _INTERFACE_ID_INVALID);
     }
 
@@ -32,9 +35,14 @@ library ERC165Checker {
      *
      * See {IERC165-supportsInterface}.
      */
-    function supportsInterface(address account, bytes4 interfaceId) internal view returns (bool) {
+    function supportsInterface(
+        address account,
+        bytes4 interfaceId
+    ) internal view returns (bool) {
         // query support of both ERC165 as per the spec and support of _interfaceId
-        return supportsERC165(account) && supportsERC165InterfaceUnchecked(account, interfaceId);
+        return
+            supportsERC165(account) &&
+            supportsERC165InterfaceUnchecked(account, interfaceId);
     }
 
     /**
@@ -52,16 +60,29 @@ library ERC165Checker {
      *
      * Interface identification is specified in ERC-165.
      */
-    function supportsERC165InterfaceUnchecked(address account, bytes4 interfaceId) internal view returns (bool) {
+    function supportsERC165InterfaceUnchecked(
+        address account,
+        bytes4 interfaceId
+    ) internal view returns (bool) {
         // prepare call
-        bytes memory encodedParams = abi.encodeCall(IERC165.supportsInterface, (interfaceId));
+        bytes memory encodedParams = abi.encodeCall(
+            IERC165.supportsInterface,
+            (interfaceId)
+        );
 
         // perform static call
         bool success;
         uint256 returnSize;
         uint256 returnValue;
         assembly {
-            success := staticcall(30000, account, add(encodedParams, 0x20), mload(encodedParams), 0x00, 0x20)
+            success := staticcall(
+                30000,
+                account,
+                add(encodedParams, 0x20),
+                mload(encodedParams),
+                0x00,
+                0x20
+            )
             returnSize := returndatasize()
             returnValue := mload(0x00)
         }

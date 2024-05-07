@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /// @notice Rewards data for desired Reward Manager action.
 /// @param asCVE Whether rewards to be routed into CVE or not.

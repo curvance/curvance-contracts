@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestDTokenReserves is TestBaseMarket {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
     address public owner;
     address public dao;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -9,9 +9,6 @@ import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestVelodromeVolatileCToken is TestBaseMarket {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
     IERC20 public WETH = IERC20(0x4200000000000000000000000000000000000006);
     IERC20 public USDC = IERC20(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
     IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);

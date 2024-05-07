@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CallDataCheckerFor1InchAggregationRouterV5 } from "contracts/market/checker/CallDataCheckerFor1Inch.sol";
 import { CallDataCheckerBase } from "contracts/market/checker/CallDataCheckerBase.sol";

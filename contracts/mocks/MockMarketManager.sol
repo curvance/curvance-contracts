@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 contract MockMarketManager {
     mapping(address => bool) private marketListed;
@@ -8,15 +8,9 @@ contract MockMarketManager {
         marketListed[market] = listed;
     }
 
-    function getIsMarkets(address market)
-        external
-        view
-        returns (
-            bool,
-            uint256,
-            bool
-        )
-    {
+    function getIsMarkets(
+        address market
+    ) external view returns (bool, uint256, bool) {
         return (marketListed[market], 0, false);
     }
 }

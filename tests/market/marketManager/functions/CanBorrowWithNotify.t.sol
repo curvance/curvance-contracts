@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -171,7 +171,11 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         assertEq(cooldownTimestamp, block.timestamp);
 
         AccountSnapshot memory snapshot = cBALRETH.getSnapshotPacked(user1);
-        (uint256 price, ) = oracleRouter.getPrice(cBALRETH.asset(), true, true);
+        (uint256 price, ) = oracleRouter.getPrice(
+            cBALRETH.asset(),
+            true,
+            true
+        );
         (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
             address(cBALRETH)
         );
@@ -216,7 +220,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         );
 
         bool hasPosition;
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
@@ -225,7 +229,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         vm.prank(address(dUSDC));
         marketManager.canBorrowWithNotify(address(dUSDC), user1, 0);
 
-        (hasPosition,,)= marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertTrue(hasPosition);
 

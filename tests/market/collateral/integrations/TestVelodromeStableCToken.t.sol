@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -8,11 +8,6 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
 contract TestVelodromeStableCToken is TestBaseMarket {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
-    IERC20 public USDC = IERC20(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
-    IERC20 public DAI = IERC20(0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1);
     IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
     IERC20 public USDC_DAI =
         IERC20(0x19715771E30c93915A5bbDa134d782b81A820076);
@@ -99,11 +94,11 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         SwapperLib.Swap memory swapData;
         swapData.inputToken = address(VELO);
         swapData.inputAmount = amount;
-        swapData.outputToken = address(USDC);
+        swapData.outputToken = _USDC_ADDRESS;
         swapData.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = address(VELO);
-        routes[0].to = address(USDC);
+        routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
         swapData.call = abi.encodeWithSelector(

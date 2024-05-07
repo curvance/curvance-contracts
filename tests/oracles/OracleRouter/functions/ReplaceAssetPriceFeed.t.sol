@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 
 contract ReplaceAssetPriceFeedTest is TestBaseOracleRouter {
-    function test_replaceAssetPriceFeed_fail_whenCallerIsNotAuthorized() public {
+    function test_replaceAssetPriceFeed_fail_whenCallerIsNotAuthorized()
+        public
+    {
         _addSinglePriceFeed();
 
         vm.prank(address(1));
@@ -18,7 +20,9 @@ contract ReplaceAssetPriceFeedTest is TestBaseOracleRouter {
         );
     }
 
-    function test_replaceAssetPriceFeed_fail_whenAdaptorIsNotApproved() public {
+    function test_replaceAssetPriceFeed_fail_whenAdaptorIsNotApproved()
+        public
+    {
         _addSinglePriceFeed();
 
         vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
@@ -29,10 +33,7 @@ contract ReplaceAssetPriceFeedTest is TestBaseOracleRouter {
         );
     }
 
-    function test_replaceAssetPriceFeed_fail_whenNoFeedIsConfigured()
-        public
-    {
-
+    function test_replaceAssetPriceFeed_fail_whenNoFeedIsConfigured() public {
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
         oracleRouter.replaceAssetPriceFeed(
             _USDC_ADDRESS,

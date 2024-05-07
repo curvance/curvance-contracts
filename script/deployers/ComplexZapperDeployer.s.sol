@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
@@ -22,7 +22,11 @@ contract ComplexZapperDeployer is DeployConfiguration {
         require(weth != address(0), "Set the weth!");
 
         complexZapper = address(
-            new ComplexZapper(ICentralRegistry(centralRegistry), marketManager, weth)
+            new ComplexZapper(
+                ICentralRegistry(centralRegistry),
+                marketManager,
+                weth
+            )
         );
 
         console.log("complexZapper: ", complexZapper);

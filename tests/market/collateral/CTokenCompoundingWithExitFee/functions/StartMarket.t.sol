@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseCTokenCompoundingWithExitFee } from "../TestBaseCTokenCompoundingWithExitFee.sol";
 import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
@@ -28,7 +28,7 @@ contract CTokenCompoundingWithExitFeeStartMarketTest is
     function test_cTokenCompoundingWithExitFeeStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
-            _BALANCER_WETH_RETH,
+            _BAL_WETH_RETH_ADDRESS,
             address(cBALRETHWithExitFee),
             1e18
         );
