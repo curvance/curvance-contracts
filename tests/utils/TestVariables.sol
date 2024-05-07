@@ -157,8 +157,7 @@ contract TestVariables {
     uint256 public marketInterestFactor = 1000; // 10%
 
     modifier initMainVariables() {
-        _initMainConstantVariables();
-        _initMainContractVariables();
+        _initMainVariables();
         _;
     }
 
@@ -242,7 +241,7 @@ contract TestVariables {
         ] = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
         _UNISWAP_V2_ROUTERS[
             chainId
-        ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
         _WORMHOLE_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
         _WORMHOLE_RELAYERS[
             chainId
@@ -346,5 +345,10 @@ contract TestVariables {
         rewardToken = rewardTokens[chainId];
         gaugePool = gaugePools[chainId];
         complexZapper = complexZappers[chainId];
+    }
+
+    function _initMainVariables() internal {
+        _initMainConstantVariables();
+        _initMainContractVariables();
     }
 }

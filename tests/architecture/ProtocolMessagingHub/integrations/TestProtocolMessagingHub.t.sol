@@ -14,48 +14,48 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 
-contract TestProtocolMessagingHub is
-    TestBaseProtocolMessagingHub,
-    WormholeHelper
-{
+contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
+    uint256 public srcForkId;
+    uint256 public dstForkId;
+    WormholeHelper public wormholeHelper;
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    SwapperLib.Swap public swapData;
-    address[] public path;
 
     function setUp() public override {
-        _fork(19140000);
+        // Fork Ethereum as source chain and select it
+        srcForkId = _fork(19140000);
 
-        WormholeMock wormholeMock = new WormholeMock();
-        _WORMHOLE_CORE = address(wormholeMock);
+        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
 
+        // Deploy contracts on forked Ethereum
         _init();
 
-        path.push(_USDC_ADDRESS);
-        path.push(address(cve));
+        // Fork Arbitrum as destination chain and select it
+        dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 180000000);
 
-        swapData.inputToken = _USDC_ADDRESS;
-        swapData.outputToken = address(cve);
-        swapData.target = _UNISWAP_V2_ROUTER;
+        wormholeHelper = new WormholeHelper();
+
+        // Deploy contracts on forked Arbitrum
+        _deployBaseContracts();
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
-            address(cve),
-            _USDC_ADDRESS,
-            42161,
-            23,
+            address(protocolMessagingHubs[1]),
+            address(cves[1]),
+            _USDC_ADDRESSES[1],
+            1,
+            2,
             makeAddr("Wormhole Relayer"),
-            3
+            0
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
-        deal(_USDC_ADDRESS, address(this), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        deal(_USDC_ADDRESS, address(this), 100000e6);
         deal(address(cve), address(this), 100e18);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 10000e6);
+        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
 
         _UNISWAP_V2_ROUTER.call(
@@ -63,30 +63,35 @@ contract TestProtocolMessagingHub is
                 "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)",
                 _USDC_ADDRESS,
                 address(cve),
-                10000e6,
+                100000e6,
                 100e18,
                 10000e6,
-                100e18,
+                10e18,
                 address(this),
                 block.timestamp
             )
         );
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
+        _createLock();
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        // Select forked Ethereum
+        vm.selectFork(srcForkId);
 
-        vm.startPrank(user1);
+        _initMainVariables();
 
-        deal(address(cve), user1, 100e18);
-        cve.approve(address(veCVE), 100e18);
+        deal(address(cve), address(this), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "0x", 0);
+        centralRegistry.addChainSupport(
+            address(protocolMessagingHubs[42161]),
+            address(cves[42161]),
+            _USDC_ADDRESSES[42161],
+            42161,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
 
-        vm.stopPrank();
+        _createLock();
 
         skip(rewardManager.EPOCH_DURATION() * 3);
     }
@@ -99,7 +104,7 @@ contract TestProtocolMessagingHub is
             block.number,
             uint64(block.timestamp * 1000000),
             23,
-            address(protocolMessagingHub),
+            address(protocolMessagingHubs[42161]),
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -109,8 +114,9 @@ contract TestProtocolMessagingHub is
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) / _ONE;
-
+        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
+            _ONE /
+            2;
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
@@ -128,29 +134,24 @@ contract TestProtocolMessagingHub is
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
 
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        // Select forked Arbitrum
+        vm.selectFork(dstForkId);
+
+        _initMainVariables();
+
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
             .hypotheticalRewardsClaim(user1);
 
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-
-        _fork("ETH_NODE_URI_ARBITRUM", 180000000);
-
-        _init();
-
-        // help(2, )
-
-        vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(3, epochRewardsPerCVE),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(protocolMessagingHub)))),
-            23,
-            bytes32("0x01")
-        );
+        // Simulate wormhole cross-chain messaging
+        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
 
         assertEq(
             rewardManager.epochRewardsPerCVE(nextEpoch),
@@ -158,16 +159,19 @@ contract TestProtocolMessagingHub is
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        assertTrue(rewardManager.hasRewardsToClaim(user1));
-        assertEq(
-            rewardManager.hypotheticalRewardsClaim(user1),
-            hypotheticalRewardsClaim + epochRewardsPerCVE
-        );
-
         uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
+        SwapperLib.Swap memory swapData;
+        address[] memory path = new address[](2);
+
+        path[0] = _USDC_ADDRESS;
+        path[1] = address(cve);
+
+        swapData.inputToken = _USDC_ADDRESS;
+        swapData.outputToken = address(cve);
+        swapData.target = _UNISWAP_V2_ROUTER;
         swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
@@ -192,5 +196,23 @@ contract TestProtocolMessagingHub is
         );
 
         assertEq(cve.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
+    }
+
+    function _createLock() internal {
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(100e6);
+        }
+
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+
+        vm.startPrank(user1);
+
+        deal(address(cve), user1, 100e18);
+        cve.approve(address(veCVE), 100e18);
+
+        veCVE.createLock(_ONE, false, rewardsData, "0x", 0);
+
+        vm.stopPrank();
     }
 }
