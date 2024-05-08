@@ -9,6 +9,8 @@ import { IStakedGMX } from "contracts/interfaces/external/gmx/IStakedGMX.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { StakedGMXCToken, IERC20 } from "contracts/market/collateral/StakedGMXCToken.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract TestStakedGMXCToken is TestBaseMarket {
     address internal _GMX_REWARD_ROUTER =
@@ -23,6 +25,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
 
     StakedGMXCToken public cStakedGMX;
     IERC20 public gmx = IERC20(_GMX);
+    MockV3Aggregator chainlinkWETH;
+    MockV3Aggregator chainlinkGMX;
 
     receive() external payable {}
 
@@ -50,6 +54,39 @@ contract TestStakedGMXCToken is TestBaseMarket {
         );
 
         gaugePool.start(address(marketManager));
+
+        _deployOracleRouter();
+
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(_WETH),
+            address(chainlinkWETH),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(_WETH),
+            address(chainlinkAdaptor)
+        );
+
+        chainlinkGMX = new MockV3Aggregator(8, 45e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(_GMX),
+            address(chainlinkGMX),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(_GMX),
+            address(chainlinkAdaptor)
+        );
+
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function testGmxStakedGMX() public {
@@ -81,6 +118,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
 
         // Advance time to earn rewards
         skip(1 days);
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
+        chainlinkGMX.updateAnswer(chainlinkGMX.latestAnswer());
 
         IStakedGMX(_GMX_FEE_GMX_TRACKER).updateRewards();
         uint256 amount = IStakedGMX(_GMX_FEE_GMX_TRACKER).claimable(
@@ -110,6 +149,7 @@ contract TestStakedGMXCToken is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
+        swapData.slippage = 50e16;
 
         cStakedGMX.harvest(abi.encode(swapData));
 
@@ -123,6 +163,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
             .stakedAmounts(address(cStakedGMX));
 
         skip(8 days);
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
+        chainlinkGMX.updateAnswer(chainlinkGMX.latestAnswer());
 
         IStakedGMX(_GMX_FEE_GMX_TRACKER).updateRewards();
         amount = IStakedGMX(_GMX_FEE_GMX_TRACKER).claimable(
@@ -154,6 +196,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
         );
 
         skip(7 days);
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
+        chainlinkGMX.updateAnswer(chainlinkGMX.latestAnswer());
 
         assertGt(
             cStakedGMX.totalAssets(),

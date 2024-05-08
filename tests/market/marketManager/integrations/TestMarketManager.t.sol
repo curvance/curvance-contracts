@@ -280,9 +280,10 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         );
         assertEq(hasPosition, false);
 
-        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+        assertEq(collateralSurplus, 0);
+        assertEq(liquidityDeficit, 0);
     }
 
     function testPositionCloseAfterRedeem() public {
@@ -344,9 +345,10 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         );
         assertEq(hasPosition, false);
 
-        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
             .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+        assertEq(collateralSurplus, 0);
+        assertEq(liquidityDeficit, 0);
     }
 
     function testPositionCloseAfterLiquidate() public {

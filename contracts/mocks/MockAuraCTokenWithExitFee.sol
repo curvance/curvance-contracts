@@ -240,7 +240,10 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
 
                     // swap from rewardToken to underlying LP token if necessary
                     if (!isUnderlyingToken[rewardToken]) {
-                        SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                        SwapperLib.swapUnsafe(
+                            centralRegistry,
+                            swapDataArray[i]
+                        );
                     }
                 }
             }

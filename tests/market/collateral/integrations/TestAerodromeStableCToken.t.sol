@@ -6,6 +6,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/AerodromeStableCToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract TestAerodromeStableCToken is TestBaseMarket {
     address internal _AERO_ADDRESS =
@@ -20,6 +22,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
     AerodromeStableCToken cUSDCDAI;
+    MockV3Aggregator chainlinkAero;
+    MockV3Aggregator chainlinkDai;
 
     receive() external payable {}
 
@@ -58,6 +62,39 @@ contract TestAerodromeStableCToken is TestBaseMarket {
 
         gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
+
+        _deployOracleRouter();
+
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        chainlinkAero = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(AERO),
+            address(chainlinkAero),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(AERO),
+            address(chainlinkAdaptor)
+        );
+
+        chainlinkDai = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(DAI),
+            address(chainlinkDai),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(DAI),
+            address(chainlinkAdaptor)
+        );
+
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function testUsdcDaiStablePool() public {
@@ -88,6 +125,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
 
         // Advance time to earn CRV and CVX rewards
         vm.warp(block.timestamp + 1 days);
+        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
+        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
 
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(cUSDCDAI));
@@ -110,6 +149,7 @@ contract TestAerodromeStableCToken is TestBaseMarket {
             address(cUSDCDAI),
             type(uint256).max
         );
+        swapData.slippage = 50e16;
 
         cUSDCDAI.harvest(abi.encode(swapData));
 
@@ -120,6 +160,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         );
 
         vm.warp(block.timestamp + 8 days);
+        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
+        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
 
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(cUSDCDAI));
@@ -136,6 +178,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         cUSDCDAI.harvest(abi.encode(swapData));
 
         vm.warp(block.timestamp + 7 days);
+        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
+        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
 
         assertGt(
             cUSDCDAI.totalAssets(),

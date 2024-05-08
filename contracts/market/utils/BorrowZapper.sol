@@ -87,7 +87,7 @@ contract BorrowZapper is ReentrancyGuard {
                 revert BorrowZapper__InvalidSwapData();
             }
 
-            SwapperLib.swap(centralRegistry, swapData);
+            SwapperLib.swapUnsafe(centralRegistry, swapData);
         } else {
             if (swapData.target != address(0)) {
                 revert BorrowZapper__InvalidSwapData();

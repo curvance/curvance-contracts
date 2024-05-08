@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 interface IGaugePool {
-
     /// @notice Claim all pending rewards for `token` from the gauge pool.
     /// @param token Pool token address.
     function claim(address token) external;

@@ -3,8 +3,11 @@ pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
+import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -22,6 +25,7 @@ library SwapperLib {
         uint256 inputAmount;
         address outputToken;
         address target;
+        uint256 slippage;
         bytes call;
     }
 
@@ -29,13 +33,15 @@ library SwapperLib {
 
     error SwapperLib__SwapError();
     error SwapperLib__UnknownCalldata();
+    error SwapperLib__TokenPrice(address inputToken);
+    error SwapperLib__Slippage(uint256 slippage);
 
     /// FUNCTIONS ///
 
-    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`.
+    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (unsafe)
     /// @param swapData The swap instruction data to execute.
     /// @return The output amount received from swapping.
-    function swap(
+    function swapUnsafe(
         ICentralRegistry centralRegistry,
         Swap memory swapData
     ) internal returns (uint256) {
@@ -80,6 +86,100 @@ library SwapperLib {
         _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
 
         return CommonLib.getTokenBalance(outputToken) - balance;
+    }
+
+    /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (safe: check slippage)
+    /// @param swapData The swap instruction data to execute.
+    /// @return outAmount The output amount received from swapping.
+    function swapSafe(
+        ICentralRegistry centralRegistry,
+        Swap memory swapData
+    ) internal returns (uint256 outAmount) {
+        {
+            address callDataChecker = centralRegistry.externalCallDataChecker(
+                swapData.target
+            );
+
+            // Validate we know how to verify this calldata.
+            if (callDataChecker == address(0)) {
+                revert SwapperLib__UnknownCalldata();
+            }
+
+            // Verify calldata integrity.
+            IExternalCallDataChecker(callDataChecker).checkCallData(
+                swapData,
+                address(this)
+            );
+
+            // Approve `swapData.inputToken` to target contract, if necessary.
+            _approveTokenIfNeeded(
+                swapData.inputToken,
+                swapData.target,
+                swapData.inputAmount
+            );
+
+            // Cache output token from struct for easier querying.
+            uint256 balance = CommonLib.getTokenBalance(swapData.outputToken);
+
+            uint256 value = CommonLib.isETH(swapData.inputToken)
+                ? swapData.inputAmount
+                : 0;
+
+            // Execute the swap.
+            (bool success, bytes memory auxData) = swapData.target.call{
+                value: value
+            }(swapData.call);
+
+            propagateError(success, auxData);
+
+            // Revert if the swap failed.
+            if (!success) {
+                revert SwapperLib__SwapError();
+            }
+
+            // Remove any excess approval.
+            _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
+
+            outAmount =
+                CommonLib.getTokenBalance(swapData.outputToken) -
+                balance;
+        }
+
+        {
+            IOracleRouter oracleRouter = IOracleRouter(
+                centralRegistry.oracleRouter()
+            );
+            (uint256 inputTokenPrice, uint256 errorCode) = oracleRouter
+                .getPrice(swapData.inputToken, true, true);
+            if (errorCode != NO_ERROR) {
+                revert SwapperLib__TokenPrice(swapData.inputToken);
+            }
+
+            uint256 outputTokenPrice;
+            (outputTokenPrice, errorCode) = oracleRouter.getPrice(
+                swapData.outputToken,
+                true,
+                true
+            );
+            if (errorCode != NO_ERROR) {
+                revert SwapperLib__TokenPrice(swapData.outputToken);
+            }
+
+            uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
+                (10 ** IERC20(swapData.inputToken).decimals());
+            uint256 outputValue = (outputTokenPrice * outAmount) /
+                (10 ** IERC20(swapData.outputToken).decimals());
+            uint256 diff = outputValue > inputValue
+                ? outputValue - inputValue
+                : inputValue - outputValue;
+            uint256 slippage = (diff * WAD) / inputValue;
+            if (
+                slippage > swapData.slippage ||
+                slippage > centralRegistry.slippageLimit()
+            ) {
+                revert SwapperLib__Slippage(slippage);
+            }
+        }
     }
 
     /// @notice Approves `token` spending allowance, if needed.

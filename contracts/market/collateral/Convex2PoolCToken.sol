@@ -247,7 +247,7 @@ contract Convex2PoolCToken is CTokenCompounding {
                         revert Convex2PoolCToken__InvalidSwapData();
                     }
 
-                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 

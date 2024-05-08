@@ -5,6 +5,8 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/AerodromeVolatileCToken.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -21,6 +23,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
     AerodromeVolatileCToken cWETHUSDC;
+    MockV3Aggregator chainlinkAERO;
+    MockV3Aggregator chainlinkWETH;
 
     receive() external payable {}
 
@@ -59,6 +63,39 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
         gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
+
+        _deployOracleRouter();
+
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        chainlinkAERO = new MockV3Aggregator(8, 0.08e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(AERO),
+            address(chainlinkAERO),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(AERO),
+            address(chainlinkAdaptor)
+        );
+
+        chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(WETH),
+            address(chainlinkWETH),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(WETH),
+            address(chainlinkAdaptor)
+        );
+
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function testWethUsdcVolatilePool() public {
@@ -89,6 +126,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
         // Advance time to earn CRV and CVX rewards
         vm.warp(block.timestamp + 1 days);
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(cWETHUSDC));
@@ -111,6 +150,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
             address(cWETHUSDC),
             type(uint256).max
         );
+        swapData.slippage = 50e16;
 
         cWETHUSDC.harvest(abi.encode(swapData));
 
@@ -121,6 +161,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         );
 
         vm.warp(block.timestamp + 8 days);
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(cWETHUSDC));
@@ -137,6 +179,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         cWETHUSDC.harvest(abi.encode(swapData));
 
         vm.warp(block.timestamp + 7 days);
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         assertGt(
             cWETHUSDC.totalAssets(),

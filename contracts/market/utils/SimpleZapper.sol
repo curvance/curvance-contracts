@@ -110,7 +110,7 @@ contract SimpleZapper is ReentrancyGuard {
         }
 
         // Execute Zap.
-        SwapperLib.swap(centralRegistry, swapZap);
+        SwapperLib.swapUnsafe(centralRegistry, swapZap);
 
         // Enter Curvance cToken position.
         return _enterCurvance(cToken, recipient);
@@ -151,7 +151,7 @@ contract SimpleZapper is ReentrancyGuard {
         }
 
         // Execute swap into dToken underlying.
-        SwapperLib.swap(centralRegistry, swapperData);
+        SwapperLib.swapUnsafe(centralRegistry, swapperData);
 
         return _repayDebt(dToken, repayAmount, recipient);
     }
@@ -184,7 +184,10 @@ contract SimpleZapper is ReentrancyGuard {
         );
 
         // Execute swap into `swapperData.outputToken`.
-        uint256 outAmount = SwapperLib.swap(centralRegistry, swapperData);
+        uint256 outAmount = SwapperLib.swapUnsafe(
+            centralRegistry,
+            swapperData
+        );
 
         _transferToRecipient(swapperData.outputToken, recipient, outAmount);
 

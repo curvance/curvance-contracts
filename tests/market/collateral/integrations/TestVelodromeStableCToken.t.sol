@@ -6,6 +6,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/VelodromeStableCToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract TestVelodromeStableCToken is TestBaseMarket {
     IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
@@ -20,6 +22,8 @@ contract TestVelodromeStableCToken is TestBaseMarket {
     address public optiSwap = 0x6108FeAA628155b073150F408D0b390eC3121834;
 
     VelodromeStableCToken cUSDCDAI;
+    MockV3Aggregator chainlinkVELO;
+    MockV3Aggregator chainlinkUSDC;
 
     receive() external payable {}
 
@@ -58,6 +62,39 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
         gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
+
+        _deployOracleRouter();
+
+        chainlinkAdaptor = new ChainlinkAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+
+        chainlinkVELO = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(VELO),
+            address(chainlinkVELO),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(VELO),
+            address(chainlinkAdaptor)
+        );
+
+        chainlinkUSDC = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            address(USDC),
+            address(chainlinkUSDC),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            address(USDC),
+            address(chainlinkAdaptor)
+        );
+
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function testUsdcDaiStablePool() public {
@@ -87,6 +124,8 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
         // Advance time to earn CRV and CVX rewards
         vm.warp(block.timestamp + 1 days);
+        chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
+        chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(cUSDCDAI));
@@ -109,6 +148,7 @@ contract TestVelodromeStableCToken is TestBaseMarket {
             address(cUSDCDAI),
             type(uint256).max
         );
+        swapData.slippage = 50e16;
 
         cUSDCDAI.harvest(abi.encode(swapData));
 
@@ -119,6 +159,8 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         );
 
         vm.warp(block.timestamp + 8 days);
+        chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
+        chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(cUSDCDAI));
@@ -135,6 +177,8 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         cUSDCDAI.harvest(abi.encode(swapData));
 
         vm.warp(block.timestamp + 7 days);
+        chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
+        chainlinkUSDC.updateAnswer(chainlinkUSDC.latestAnswer());
 
         assertGt(
             cUSDCDAI.totalAssets(),

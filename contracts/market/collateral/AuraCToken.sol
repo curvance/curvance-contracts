@@ -265,7 +265,7 @@ contract AuraCToken is CTokenCompounding {
                         revert AuraCToken__InvalidSwapData();
                     }
 
-                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 

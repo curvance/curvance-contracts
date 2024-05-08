@@ -174,7 +174,7 @@ contract AerodromeVolatileCToken is CTokenCompounding {
                             revert AerodromeVolatileCToken__InvalidSwapData();
                         }
 
-                        SwapperLib.swap(centralRegistry, swapData);
+                        SwapperLib.swapSafe(centralRegistry, swapData);
                     }
                 }
             }

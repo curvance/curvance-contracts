@@ -41,7 +41,7 @@ contract CTokenPrimitive is CTokenBase {
     function withdrawByPositionFolding(
         address owner,
         uint256 assets,
-        bytes calldata params
+        IPositionFolding.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
@@ -74,7 +74,7 @@ contract CTokenPrimitive is CTokenBase {
             address(this),
             owner,
             assets,
-            params
+            deleverageData
         );
 
         // Fails if redemption not allowed.
