@@ -14,8 +14,6 @@ abstract contract Multicall {
     struct MulticallData {
         address target;
         bool isPriceUpdate;
-        address feeToken; // fees to update adaptor
-        uint256 feeAmount; // fees to update adaptor
         bytes data;
     }
 
@@ -53,15 +51,9 @@ abstract contract Multicall {
                         calls[i].data
                     );
                 } else if (
-                    functionSig == PythAdaptor.updateFeedsWithWETH.selector
+                    functionSig ==
+                    PythAdaptor.updateFeedsFromUniversalBalance.selector
                 ) {
-                    SafeTransferLib.safeTransferFrom(
-                        calls[i].feeToken,
-                        msg.sender,
-                        calls[i].target,
-                        calls[i].feeAmount
-                    );
-
                     results[i] = Address.functionCall(
                         calls[i].target,
                         calls[i].data

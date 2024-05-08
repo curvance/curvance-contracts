@@ -150,6 +150,7 @@ contract TestStakedGMXCToken is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
+        swapData.slippage = 50e16;
 
         cStakedGMX.harvest(abi.encode(swapData));
 

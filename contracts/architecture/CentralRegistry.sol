@@ -192,6 +192,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
     mapping(address => address) public externalCallDataChecker;
+    mapping(address => bool) public isMulticallProvider;
 
     /// EVENTS ///
 
@@ -930,6 +931,20 @@ contract CentralRegistry is ERC165 {
         delete isHarvester[currentHarvester];
 
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
+    }
+
+    function setMulticallProviders(
+        address[] memory providers,
+        bool supported
+    ) external {
+        _checkElevatedPermissions();
+
+        for (uint256 i = 0; i < providers.length; ++i) {
+            if (isMulticallProvider[providers[i]] == supported) {
+                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            }
+            isMulticallProvider[providers[i]] = supported;
+        }
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers

@@ -193,10 +193,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
     function testCTokenMintMulticall() public {
         _prepareWBTC(user1, 2 ether);
-        deal(address(WETH), user1, 2 ether);
 
         vm.startPrank(user1);
-        WETH.approve(address(cWBTC), 2 ether);
         WBTC.approve(address(cWBTC), 1e8);
         vm.stopPrank();
 
@@ -215,8 +213,6 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             redstonePayload
         );
         calls[0].data = encodedFunctionWithRedstonePayload;
-        calls[0].feeToken = address(WETH);
-        calls[0].feeAmount = 1 ether;
         calls[0].isPriceUpdate = true;
 
         calls[1].target = address(cWBTC);
@@ -242,10 +238,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
     function testDTokenMintWithMulticall() public {
         _prepareUSDC(user1, 2e6);
-        deal(address(WETH), user1, 2 ether);
 
         vm.startPrank(user1);
-        WETH.approve(address(dUSDC), 2 ether);
         usdc.approve(address(dUSDC), 1e6);
         vm.stopPrank();
 
@@ -264,8 +258,6 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             redstonePayload
         );
         calls[0].data = encodedFunctionWithRedstonePayload;
-        calls[0].feeToken = address(WETH);
-        calls[0].feeAmount = 1 ether;
         calls[0].isPriceUpdate = true;
 
         calls[1].target = address(dUSDC);

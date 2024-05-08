@@ -13,7 +13,7 @@ interface IOracleRouter {
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price. 
+    /// @return errorCode An error code related to fetching the price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving
@@ -67,7 +67,7 @@ interface IOracleRouter {
     /// @notice Address => Adaptor approval status.
     /// @param adaptor The address of the adaptor to check.
     /// @return True if the adaptor is supported, false otherwise.
-    function isSupportedAdaptor(address adaptor) external view returns (bool);
+    function isApprovedAdaptor(address adaptor) external view returns (bool);
 
     /// @notice Checks if a given asset is supported by the Oracle Router.
     /// @dev An asset is considered supported if it has one

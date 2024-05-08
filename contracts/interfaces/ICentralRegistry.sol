@@ -151,6 +151,11 @@ interface ICentralRegistry {
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
 
+    /// @notice Returns whether the inputted address is a Multicall provider.
+    function isMulticallProvider(
+        address addressToCheck
+    ) external view returns (bool);
+
     /// @notice Returns whether the inputted address is a Market Manager.
     function isMarketManager(
         address addressToCheck

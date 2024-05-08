@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
 
@@ -42,6 +43,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
+    address public universalBalance;
     address public pyth;
     address public weth;
 
@@ -64,6 +66,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
+    error PythAdaptor__Unauthorized();
     error PythAdaptor__AssetIsNotSupported();
     error PythAdaptor__InvalidHeartbeat();
     error PythAdaptor__InvalidMinMaxConfig();
@@ -73,9 +76,11 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
+        address universalBalance_,
         address pyth_,
         address weth_
     ) BaseOracleAdaptor(centralRegistry_) {
+        universalBalance = universalBalance_;
         pyth = pyth_;
         weth = weth_;
     }
@@ -84,14 +89,23 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function updateFeedsWithWETH(
+    function updateFeedsFromUniversalBalance(
         bytes[] calldata priceUpdateData,
-        address refundAddress
+        address user
     ) public {
+        if (!centralRegistry.isMulticallProvider(msg.sender)) {
+            revert PythAdaptor__Unauthorized();
+        }
         // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
         // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
         // See section "How Pyth Works on EVM Chains" below for more information.
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
+
+        // receive fee from universal balance
+        UniversalBalance(payable(universalBalance)).useBalanceForOracleUpdate(
+            user,
+            fee
+        );
 
         IWETH(weth).withdraw(fee);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
@@ -99,12 +113,12 @@ contract PythAdaptor is BaseOracleAdaptor {
         // refund remaining eth
         uint256 remaining = address(this).balance;
         if (remaining > 0) {
-            SafeTransferLib.safeTransferETH(refundAddress, remaining);
+            SafeTransferLib.safeTransferETH(user, remaining);
         }
 
         remaining = IWETH(weth).balanceOf(address(this));
         if (remaining > 0) {
-            SafeTransferLib.safeTransfer(weth, refundAddress, remaining);
+            SafeTransferLib.safeTransfer(weth, user, remaining);
         }
     }
 

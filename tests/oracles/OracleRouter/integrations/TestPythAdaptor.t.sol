@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
@@ -32,6 +33,7 @@ contract TestPythAdaptor is TestBaseOracleRouter {
 
         adapter = new PythAdaptor(
             ICentralRegistry(address(centralRegistry)),
+            address(0),
             PYTH,
             WETH
         );

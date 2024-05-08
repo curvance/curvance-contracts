@@ -155,6 +155,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
             address(cWETHUSDC),
             type(uint256).max
         );
+        swapData.slippage = 50e16;
 
         cWETHUSDC.harvest(abi.encode(swapData));
 

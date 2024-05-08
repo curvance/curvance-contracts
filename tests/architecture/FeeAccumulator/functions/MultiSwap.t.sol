@@ -37,7 +37,7 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
                     address(feeAccumulator),
                     block.timestamp
                 ),
-                slippage: 10e16
+                slippage: 60e16
             })
         );
 

@@ -173,7 +173,10 @@ library SwapperLib {
                 ? outputValue - inputValue
                 : inputValue - outputValue;
             uint256 slippage = (diff * WAD) / inputValue;
-            if (swapData.slippage > swapData.slippage || slippage > centralRegistry.slippageLimit()) {
+            if (
+                slippage > swapData.slippage ||
+                slippage > centralRegistry.slippageLimit()
+            ) {
                 revert SwapperLib__Slippage(slippage);
             }
         }
@@ -207,12 +210,9 @@ library SwapperLib {
     /// @dev Propagates an error message.
     /// @param success If transaction was successful.
     /// @param data The transaction result data.
-    function propagateError(
-        bool success,
-        bytes memory data
-    ) internal pure {
+    function propagateError(bool success, bytes memory data) internal pure {
         if (!success) {
-            if (data.length == 0){
+            if (data.length == 0) {
                 revert SwapperLib__SwapError();
             }
             assembly {

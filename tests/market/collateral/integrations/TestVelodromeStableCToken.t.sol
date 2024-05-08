@@ -153,6 +153,7 @@ contract TestVelodromeStableCToken is TestBaseMarket {
             address(cUSDCDAI),
             type(uint256).max
         );
+        swapData.slippage = 50e16;
 
         cUSDCDAI.harvest(abi.encode(swapData));
 
