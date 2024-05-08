@@ -19,14 +19,14 @@ contract TestStakedGMXCToken is TestBaseMarket {
         0xd2D1162512F927a7e282Ef43a362659E4F2a728F;
     address internal _GMX_STAKED_GMX_TRACKER =
         0x908C4D94D34924765f1eDc22A1DD098397c59dD4;
-    address internal _GMX = 0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a;
+    address internal _GMX_ADDRESS = 0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a;
     address internal _UNISWAP_V3_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     StakedGMXCToken public cStakedGMX;
-    IERC20 public gmx = IERC20(_GMX);
-    MockV3Aggregator chainlinkWETH;
-    MockV3Aggregator chainlinkGMX;
+    IERC20 public gmx = IERC20(_GMX_ADDRESS);
+    MockV3Aggregator public chainlinkWETH;
+    MockV3Aggregator public chainlinkGMX;
 
     receive() external payable {}
 
@@ -64,25 +64,25 @@ contract TestStakedGMXCToken is TestBaseMarket {
 
         chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(_WETH),
+            _WETH_ADDRESS,
             address(chainlinkWETH),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(_WETH),
+            _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
         chainlinkGMX = new MockV3Aggregator(8, 45e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(_GMX),
+            _GMX_ADDRESS,
             address(chainlinkGMX),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(_GMX),
+            _GMX_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -96,8 +96,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
         );
 
         uint256 assets = 100e18;
-        deal(_GMX, user1, assets);
-        deal(_GMX, address(this), 42069);
+        deal(_GMX_ADDRESS, user1, assets);
+        deal(_GMX_ADDRESS, address(this), 42069);
 
         gmx.approve(address(cStakedGMX), 42069);
         marketManager.listToken(address(cStakedGMX));
@@ -134,11 +134,11 @@ contract TestStakedGMXCToken is TestBaseMarket {
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _WETH_ADDRESS;
         swapData.inputAmount = amount;
-        swapData.outputToken = _GMX;
+        swapData.outputToken = _GMX_ADDRESS;
         swapData.target = _UNISWAP_V3_ROUTER;
         IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _WETH_ADDRESS;
-        params.tokenOut = _GMX;
+        params.tokenOut = _GMX_ADDRESS;
         params.fee = 10000;
         params.recipient = address(cStakedGMX);
         params.deadline = block.timestamp;

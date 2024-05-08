@@ -41,7 +41,6 @@ contract TestBaseMarket is TestBase {
 
         _deployBaseContracts();
 
-        chainlinkEthUsds[chainId] = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
         _deployOracleRouter();
         _deployChainlinkAdaptors();
         _deployGaugePool();
@@ -68,12 +67,6 @@ contract TestBaseMarket is TestBase {
         _deployVeCVE();
         _deployProtocolMessagingHub();
         _deployFeeAccumulator();
-
-        chainlinkEthUsd = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
-        _deployOracleRouter();
-        _deployChainlinkAdaptors();
-
-        centralRegistry.setSlippageLimit(6000);
     }
 
     function _deployCentralRegistry() internal initMainVariables {
@@ -93,6 +86,7 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
         centralRegistry.setWormholeCore(_WORMHOLE_CORE);
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function _deployCVE() internal initMainVariables {
@@ -161,6 +155,12 @@ contract TestBaseMarket is TestBase {
     function _deployChainlinkAdaptors() internal initMainVariables {
         uint256 chainId = block.chainid;
 
+        chainlinkEthUsd = chainlinkEthUsds[chainId] = new MockV3Aggregator(
+            8,
+            1500e8,
+            1e50,
+            1e6
+        );
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId] = new MockV3Aggregator(
             8,
             1e8,
@@ -331,8 +331,8 @@ contract TestBaseMarket is TestBase {
         adapterData.poolDecimals = 18;
         adapterData.rateProviderDecimals[0] = 18;
         adapterData.rateProviders[
-                0
-            ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
+            0
+        ] = 0x1a8F81c256aee9C640e14bB0453ce247ea0DFE6F;
         adapterData.underlyingOrConstituent[0] = _RETH_ADDRESS;
         adapterData.underlyingOrConstituent[1] = _WETH_ADDRESS;
         balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, adapterData);

@@ -9,7 +9,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
@@ -18,17 +18,16 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract User {}
 
 contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
 
-    CTokenPrimitive cWETH;
-    IERC20 weth = IERC20(_WETH_ADDRESS);
+    CTokenPrimitive public cWETH;
+    IERC20 public weth;
 
     function setUp() public override {
         super.setUp();
+
+        weth = IERC20(_WETH_ADDRESS);
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,

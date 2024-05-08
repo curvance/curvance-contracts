@@ -73,25 +73,25 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
         chainlinkAERO = new MockV3Aggregator(8, 0.08e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(AERO),
+            _AERO_ADDRESS,
             address(chainlinkAERO),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(AERO),
+            _AERO_ADDRESS,
             address(chainlinkAdaptor)
         );
 
         chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkWETH),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 

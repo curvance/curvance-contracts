@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
-import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 
 contract AddAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {

@@ -5,7 +5,6 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
 contract MigrateTimelockConfigurationTest is TestBaseMarket {
     event NewTimelockConfiguration(

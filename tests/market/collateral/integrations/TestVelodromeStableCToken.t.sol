@@ -21,9 +21,9 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
     address public optiSwap = 0x6108FeAA628155b073150F408D0b390eC3121834;
 
-    VelodromeStableCToken cUSDCDAI;
-    MockV3Aggregator chainlinkVELO;
-    MockV3Aggregator chainlinkUSDC;
+    VelodromeStableCToken public cUSDCDAI;
+    MockV3Aggregator public chainlinkVELO;
+    MockV3Aggregator public chainlinkUSDC;
 
     receive() external payable {}
 
@@ -84,13 +84,13 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
         chainlinkUSDC = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(USDC),
+            _USDC_ADDRESS,
             address(chainlinkUSDC),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(USDC),
+            _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
 
