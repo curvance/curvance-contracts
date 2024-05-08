@@ -167,7 +167,7 @@ contract VelodromeVolatileCToken is CTokenCompounding {
                             revert VelodromeVolatileCToken__InvalidSwapData();
                         }
 
-                        SwapperLib.swap(centralRegistry, swapData);
+                        SwapperLib.swapSafe(centralRegistry, swapData);
                     }
                 }
             }

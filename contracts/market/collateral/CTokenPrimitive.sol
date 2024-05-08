@@ -30,7 +30,7 @@ contract CTokenPrimitive is CTokenBase {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) CTokenBase(centralRegistry_,  asset_, marketManager_) {}
+    ) CTokenBase(centralRegistry_, asset_, marketManager_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -41,7 +41,7 @@ contract CTokenPrimitive is CTokenBase {
     function withdrawByPositionFolding(
         address owner,
         uint256 assets,
-        bytes calldata params
+        IPositionFolding.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
@@ -74,7 +74,7 @@ contract CTokenPrimitive is CTokenBase {
             address(this),
             owner,
             assets,
-            params
+            deleverageData
         );
 
         // Fails if redemption not allowed.
@@ -95,7 +95,9 @@ contract CTokenPrimitive is CTokenBase {
     ///      better safe than sorry.
     /// @param by The account initializing the cToken market.
     /// @return Returns with true when successful.
-    function startMarket(address by) external nonReentrant override returns (bool) {
+    function startMarket(
+        address by
+    ) external override nonReentrant returns (bool) {
         _startMarket(by);
         return true;
     }
@@ -200,7 +202,7 @@ contract CTokenPrimitive is CTokenBase {
                 _spendAllowance(owner, msg.sender, allowed - shares);
             }
         }
-        
+
         // Validate that `owner` can redeem `shares`.
         marketManager.canRedeemWithCollateralRemoval(
             address(this),

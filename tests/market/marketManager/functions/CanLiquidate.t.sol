@@ -62,7 +62,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             1000
         );
 
-        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        vm.expectRevert(MarketManager.MarketManager__NoLiquidationAvailable.selector);
         marketManager.canLiquidate(
             address(dUSDC),
             address(cBALRETH),
@@ -88,7 +88,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
             1000
         );
 
-        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
+        vm.expectRevert(MarketManager.MarketManager__NoLiquidationAvailable.selector);
         marketManager.canLiquidate(
             address(dUSDC),
             address(cBALRETH),

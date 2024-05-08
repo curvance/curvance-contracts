@@ -68,7 +68,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     error UniversalBalance__SlippageError();
 
     receive() external payable {
-        IWETH(WETH).deposit {value: msg.value};
+        IWETH(WETH).deposit{ value: msg.value };
         _deposit(msg.value, true);
     }
 
@@ -99,7 +99,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     /// EXTERNAL FUNCTIONS ///
 
     function depositETH(bool isLent) external payable {
-        IWETH(WETH).deposit {value: msg.value};
+        IWETH(WETH).deposit{ value: msg.value }();
         _deposit(msg.value, isLent);
     }
 
@@ -120,16 +120,16 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     function withdrawAsWETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
-        SafeTransferLib.safeTransfer(
-            WETH,
-            msg.sender,
-            amount
-        );
+        SafeTransferLib.safeTransfer(WETH, msg.sender, amount);
     }
 
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
         // Check for amount == 0 in oracle adaptor.
-        if (!IOracleRouter(centralRegistry.oracleRouter()).isSupportedAdaptor(msg.sender)) {
+        if (
+            !IOracleRouter(centralRegistry.oracleRouter()).isApprovedAdaptor(
+                msg.sender
+            )
+        ) {
             revert UniversalBalance__Unauthorized();
         }
 
@@ -140,14 +140,16 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-            _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
+                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
             amount
-            ) {
-                revert UniversalBalance__InsufficientBalance();
-            }
+        ) {
+            revert UniversalBalance__InsufficientBalance();
+        }
 
         if (userBalance.sittingBalance > 0) {
-            pointerAmount = userBalance.sittingBalance < amount ? userBalance.sittingBalance : amount;
+            pointerAmount = userBalance.sittingBalance < amount
+                ? userBalance.sittingBalance
+                : amount;
             // Reduce user sitting balance.
             userBalances[user].sittingBalance -= pointerAmount;
             remainingAmount = amount - pointerAmount;
@@ -168,11 +170,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         }
 
         // Transfer the WETH to Oracle Adaptor for use in updating oracle feed.
-        SafeTransferLib.safeTransfer(
-            WETH,
-            msg.sender,
-            amount
-        );
+        SafeTransferLib.safeTransfer(WETH, msg.sender, amount);
     }
 
     /// @notice Claims pending gauge rewards from lent balance to the DAO.
@@ -181,12 +179,14 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     function claimForDAO() external {
         IGaugePool gaugePool = linkedDToken.marketManager().gaugePool();
         address[] memory rewardTokens = gaugePool.getRewardTokens();
-        
+
         uint256 numRewardTokens = rewardTokens.length;
         uint256[] memory previousBalances = new uint256[](numRewardTokens);
 
         for (uint256 i = 0; i < numRewardTokens; ++i) {
-            previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(address(this));
+            previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(
+                address(this)
+            );
         }
 
         gaugePool.claim(address(linkedDToken));
@@ -195,9 +195,9 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         // If the contract received rewards in a reward token, transfer them to the DAO.
         // We do a two step process in case a reward token matches a universal balance token.
         for (uint256 i = 0; i < numRewardTokens; ++i) {
-            previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(
-                address(this)
-            ) - previousBalances[i];
+            previousBalances[i] =
+                IERC20(rewardTokens[i]).balanceOf(address(this)) -
+                previousBalances[i];
             if (previousBalances[i] > 0) {
                 SafeTransferLib.safeTransfer(
                     rewardTokens[i],
@@ -228,7 +228,10 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         emit Deposit(msg.sender, msg.sender, amount, amount);
     }
 
-    function _withdraw(uint256 amount, bool isLent) internal returns (uint256) {
+    function _withdraw(
+        uint256 amount,
+        bool isLent
+    ) internal returns (uint256) {
         if (isLent) {
             uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
             // Will natively fail if amount == 0 on gaugePool call.
@@ -237,7 +240,13 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedDToken.redeem(tokensToRedeem);
-            emit Withdraw(msg.sender, msg.sender, msg.sender, amount, tokensToRedeem);
+            emit Withdraw(
+                msg.sender,
+                msg.sender,
+                msg.sender,
+                amount,
+                tokensToRedeem
+            );
             return tokensReceived;
         }
 
@@ -252,7 +261,11 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     /// @dev Returns `floor(x * y / d)`.
     /// Reverts if `x * y` overflows, or `d` is zero.
-    function _mulDiv(uint256 x, uint256 y, uint256 d) internal pure returns (uint256) {
+    function _mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) internal pure returns (uint256) {
         return FixedPointMathLib.mulDiv(x, y, d);
     }
 

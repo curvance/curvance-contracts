@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 interface IGaugePool {
-
     /// @notice Claim all pending rewards for `token` from the gauge pool.
     /// @param token Pool token address.
     function claim(address token) external;
@@ -26,7 +25,7 @@ interface IGaugePool {
         uint256[] memory poolWeights
     ) external;
 
-    /// @notice Used to update gauge pool rewards for `rewardToken`, 
+    /// @notice Used to update gauge pool rewards for `rewardToken`,
     ///         during `epoch` with `newRewardPerSec`.
     /// @dev This is only be used for updating partner gauge rewards.
     /// @param token The token to set rewards for.
@@ -44,11 +43,7 @@ interface IGaugePool {
     /// @param token Pool token address.
     /// @param user User address.
     /// @param amount Amounts to deposit.
-    function deposit(
-        address token,
-        address user,
-        uint256 amount
-    ) external;
+    function deposit(address token, address user, uint256 amount) external;
 
     /// @notice Registers a withdrawal of `token` deposits by `user`
     ///         from the gauge pool.
@@ -58,9 +53,5 @@ interface IGaugePool {
     /// @param token Pool token address.
     /// @param user The user address.
     /// @param amount Amounts to withdraw.
-    function withdraw(
-        address token,
-        address user,
-        uint256 amount
-    ) external;
+    function withdraw(address token, address user, uint256 amount) external;
 }

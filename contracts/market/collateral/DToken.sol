@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 
+import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -41,7 +42,7 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
 ///
-contract DToken is Delegable, ERC165, ReentrancyGuard {
+contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// TYPES ///
 
     /// @param principal Principal total balance (with accrued interest).
@@ -322,11 +323,11 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
     ///      Updates pending interest before executing the borrow.
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
-    /// @param params Callback calldata to execute after borrow.
+    /// @param leverageData Callback calldata to execute after borrow.
     function borrowForPositionFolding(
         address account,
         uint256 amount,
-        bytes calldata params
+        IPositionFolding.LeverageStruct memory leverageData
     ) external nonReentrant {
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -346,7 +347,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
             address(this),
             account,
             amount,
-            params
+            leverageData
         );
 
         // Fail if terminal position is not allowed with no additional
@@ -534,7 +535,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
     function redeemUnderlyingForPositionFolding(
         address account,
         uint256 amount,
-        bytes calldata params
+        IPositionFolding.DeleverageStruct memory params
     ) external nonReentrant {
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -1516,5 +1517,15 @@ contract DToken is Delegable, ERC165, ReentrancyGuard {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+    }
+
+    /// @dev from Multicall
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return ICentralRegistry(centralRegistry);
     }
 }

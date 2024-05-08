@@ -100,6 +100,9 @@ interface ICentralRegistry {
     /// @notice Returns protocolLeverageFee, in `WAD`.
     function protocolLeverageFee() external view returns (uint256);
 
+    /// @notice Returns slippage limit, in `WAD`.
+    function slippageLimit() external view returns (uint256);
+
     /// @notice Lending Market => Protocol Reserve Factor on interest generated.
     function protocolInterestFactor(
         address market
@@ -147,6 +150,11 @@ interface ICentralRegistry {
 
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
+
+    /// @notice Returns whether the inputted address is a Multicall provider.
+    function isMulticallProvider(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Market Manager.
     function isMarketManager(

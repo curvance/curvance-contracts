@@ -564,7 +564,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Swap to CVE and update reward amount based on CVE received.
-            uint256 adjustedRewards = SwapperLib.swap(
+            uint256 adjustedRewards = SwapperLib.swapUnsafe(
                 centralRegistry,
                 swapData
             );

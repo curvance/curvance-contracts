@@ -532,10 +532,6 @@ contract OracleRouter {
         returns (AccountSnapshot[] memory, uint256[] memory, uint256)
     {
         uint256 numAssets = assets.length;
-        // Validate we are not trying to price zero assets.
-        if (numAssets == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
         uint256[] memory underlyingPrices = new uint256[](numAssets);
