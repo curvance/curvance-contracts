@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVE } from "contracts/token/CVE.sol";
@@ -13,7 +13,7 @@ contract MintGaugeEmissionsTest is TestBaseMarket {
     function test_mintGaugeEmissions_success() public {
         assertEq(cve.balanceOf(address(gaugePool)), 0);
         vm.prank(centralRegistry.protocolMessagingHub());
-        
+
         cve.mintGaugeEmissions(address(gaugePool), 1000);
         assertEq(cve.balanceOf(address(gaugePool)), 1000);
     }

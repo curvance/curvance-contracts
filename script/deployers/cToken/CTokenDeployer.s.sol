@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
@@ -78,9 +78,9 @@ contract CTokenDeployer is DeployConfiguration {
             console.log("oracleRouter.addApprovedAdaptor: ", chainlinkAdaptor);
         }
 
-        try OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0) returns (
-            address feed
-        ) {} catch {
+        try
+            OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
+        returns (address feed) {} catch {
             OracleRouter(oracleRouter).addAssetPriceFeed(
                 param.asset,
                 chainlinkAdaptor

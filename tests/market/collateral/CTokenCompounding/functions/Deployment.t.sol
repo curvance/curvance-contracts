@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
 import { TestBaseCTokenCompounding } from "../TestBaseCTokenCompounding.sol";
@@ -17,12 +17,10 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
     function test_cTokenCompoundingDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(
-            Delegable.Delegable__InvalidCentralRegistry.selector
-        );
+        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
         new AuraCToken(
             ICentralRegistry(address(0)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -36,7 +34,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         vm.expectRevert(CTokenBase.CTokenBase__InvalidMarketManager.selector);
         new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(1),
             109,
             _REWARDER,
@@ -48,7 +46,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         public
     {
         stdstore
-            .target(_BALANCER_WETH_RETH)
+            .target(_BAL_WETH_RETH_ADDRESS)
             .sig(IERC20.totalSupply.selector)
             .checked_write(type(uint232).max);
 
@@ -59,7 +57,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         );
         new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -70,7 +68,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
     function test_cTokenCompoundingDeployment_success() public {
         cBALRETH = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -81,7 +79,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
             address(cBALRETH.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(cBALRETH.underlying(), _BALANCER_WETH_RETH);
+        assertEq(cBALRETH.underlying(), _BAL_WETH_RETH_ADDRESS);
         assertEq(address(cBALRETH.marketManager()), address(marketManager));
         assertEq(
             cBALRETH.name(),

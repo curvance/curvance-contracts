@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -23,18 +23,9 @@ contract BasicRemoveContractsTest is TestBaseMarket {
             "removeLockingPermissions(address)",
             "removeHarvester(address)"
         ];
-        maps = [
-            "hasLockingPermissions(address)",
-            "isHarvester(address)"
-        ];
-        expectedLogs = [
-            "Locking Permissions",
-            "Harvestor"
-        ];
-        addFuncs = [
-            "addLockingPermissions(address)",
-            "addHarvester(address)"
-        ];
+        maps = ["hasLockingPermissions(address)", "isHarvester(address)"];
+        expectedLogs = ["Locking Permissions", "Harvestor"];
+        addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
     }
 
     function test_removeFunc_fail_whenUnauthorized() public {

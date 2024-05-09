@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -48,7 +48,7 @@ abstract contract CurveBaseAdaptor is BaseOracleAdaptor {
     ///         means they currently are in the remove liquidity context and
     ///         are manipulating the virtual price.
     /// @param curvePool The address of the Curve pool to check for Reentry.
-    /// @param coinsLength The number of underlying tokens inside `pool`. 
+    /// @param coinsLength The number of underlying tokens inside `pool`.
     function isLocked(
         address curvePool,
         uint256 coinsLength

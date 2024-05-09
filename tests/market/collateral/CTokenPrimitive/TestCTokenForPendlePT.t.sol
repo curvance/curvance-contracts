@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -24,9 +24,9 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     address internal constant _PT_ORACLE =
         0x14030836AEc15B2ad48bB097bd57032559339c92;
 
-    address private _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address private _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
-    address private _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
+    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
+    address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
     PendlePrincipalTokenAdaptor adapter;
 

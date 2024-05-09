@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ProtocolMessagingHub, ICentralRegistry } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";

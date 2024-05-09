@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -131,9 +131,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     function recordEpochRewards(uint256 rewardsPerCVE) external {
         // Validate the caller reporting epoch data is the fee accumulator,
         // or protocol messaging hub.
-        if (
-            msg.sender != centralRegistry.protocolMessagingHub()
-        ) {
+        if (msg.sender != centralRegistry.protocolMessagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

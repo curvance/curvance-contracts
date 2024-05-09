@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IBlastCentralRegistry } from "contracts/interfaces/blast/IBlastCentralRegistry.sol";
@@ -9,7 +9,6 @@ import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
 /// @title Blast Yield Delegable
 /// @notice Delegates gas refunds to Curvance DAO Central Registry on Blast.
 abstract contract BlastYieldDelegable {
-
     error BlastYieldDelegable__InvalidCentralRegistry();
 
     /// CONSTRUCTOR ///
@@ -30,13 +29,16 @@ abstract contract BlastYieldDelegable {
             revert BlastYieldDelegable__InvalidCentralRegistry();
         }
 
-        IBlast yieldConfiguration = IBlast(0x4300000000000000000000000000000000000002);
+        IBlast yieldConfiguration = IBlast(
+            0x4300000000000000000000000000000000000002
+        );
 
         // Set gas fees yield to claimable and then pass Governor
         // permissioning to native yield manager.
         yieldConfiguration.configureClaimableGas();
         yieldConfiguration.configureGovernor(
-            IBlastCentralRegistry(address(centralRegistry_)).nativeYieldManager()
+            IBlastCentralRegistry(address(centralRegistry_))
+                .nativeYieldManager()
         );
     }
 }

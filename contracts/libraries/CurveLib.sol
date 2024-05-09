@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CommonLib, IERC20 } from "contracts/libraries/CommonLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -40,18 +40,14 @@ library CurveLib {
         uint256[] memory balances = new uint256[](numTokens);
         uint256 value;
         bool containsEth;
-        
+
         // Approve tokens to deposit into Curve lp.
         for (uint256 i; i < numTokens; ++i) {
             balances[i] = CommonLib.getTokenBalance(tokens[i]);
-            SwapperLib._approveTokenIfNeeded(
-                tokens[i], 
-                lpMinter, 
-                balances[i]
-            );
+            SwapperLib._approveTokenIfNeeded(tokens[i], lpMinter, balances[i]);
 
             if (CommonLib.isETH(tokens[i])) {
-                // If eth is somehow contained in a pool twice, 
+                // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
                     revert CurveLib__InvalidPoolInvariantError();
@@ -111,7 +107,7 @@ library CurveLib {
     /// @param tokens The underlying coins of the Curve lp token.
     /// @param lpAmount The Curve lp token amount to exit.
     /// @param singleAssetWithdraw Whether lp should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            0 = all tokens.
     ///                            1 = single token; uint256 interface.
     ///                            2+ = single token; int128 interface.
@@ -140,34 +136,38 @@ library CurveLib {
 
             if (numTokens == 4) {
                 uint256[4] memory fourPoolAmounts;
-                return ICurveSwap(lpMinter).remove_liquidity(
-                    lpAmount, 
-                    fourPoolAmounts
-                );
+                return
+                    ICurveSwap(lpMinter).remove_liquidity(
+                        lpAmount,
+                        fourPoolAmounts
+                    );
             }
 
             if (numTokens == 3) {
                 uint256[3] memory threePoolAmounts;
-                return ICurveSwap(lpMinter).remove_liquidity(
-                    lpAmount, 
-                    threePoolAmounts
-                );
+                return
+                    ICurveSwap(lpMinter).remove_liquidity(
+                        lpAmount,
+                        threePoolAmounts
+                    );
             }
 
             uint256[2] memory twoPoolAmounts;
-            return ICurveSwap(lpMinter).remove_liquidity(
-                lpAmount,
-                twoPoolAmounts
-            );
+            return
+                ICurveSwap(lpMinter).remove_liquidity(
+                    lpAmount,
+                    twoPoolAmounts
+                );
         }
 
         // Withdraw as 1 token with uint256 interface.
         if (singleAssetWithdraw == 1) {
-            return ICurveSwap(lpMinter).remove_liquidity_one_coin(
-                lpAmount,
-                singleAssetIndex,
-                0
-            );
+            return
+                ICurveSwap(lpMinter).remove_liquidity_one_coin(
+                    lpAmount,
+                    singleAssetIndex,
+                    0
+                );
         }
 
         // Withdraw as 1 token with int128 interface.

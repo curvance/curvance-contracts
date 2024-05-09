@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
@@ -261,9 +261,8 @@ contract FeeAccumulator is ReentrancyGuard {
             return 0;
         }
 
-        uint256 compoundingFee = (feeTokens *
-                vaultCompoundFee()) /
-                vaultYieldFee();
+        uint256 compoundingFee = (feeTokens * vaultCompoundFee()) /
+            vaultYieldFee();
 
         // Move compounding fee accumulated to central registry to be used
         // for offchain harvester bots.
@@ -274,16 +273,12 @@ contract FeeAccumulator is ReentrancyGuard {
                 compoundingFee
             );
         }
-        
+
         feeTokens -= compoundingFee;
 
         if (feeTokens > 0) {
             // Move remaining fees on this chain to PMH to distribute.
-            SafeTransferLib.safeTransfer(
-                feeToken,
-                messagingHub,
-                feeTokens
-            );
+            SafeTransferLib.safeTransfer(feeToken, messagingHub, feeTokens);
         }
 
         return feeTokens;

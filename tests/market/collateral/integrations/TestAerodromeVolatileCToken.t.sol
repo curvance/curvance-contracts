@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -11,11 +11,10 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import "tests/market/TestBaseMarket.sol";
 
 contract TestAerodromeVolatileCToken is TestBaseMarket {
-    IERC20 public WETH = IERC20(0x4200000000000000000000000000000000000006);
-    IERC20 public USDC = IERC20(0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913);
-    IERC20 public AERO = IERC20(0x940181a94A35A4569E4529A3CDfB74e38FD98631);
-    IERC20 public WETH_USDC =
-        IERC20(0xcDAC0d6c6C59727a65F871236188350531885C43);
+    address internal _AERO_ADDRESS =
+        0x940181a94A35A4569E4529A3CDfB74e38FD98631;
+    address internal _AERODROME_WETH_USDC =
+        0xcDAC0d6c6C59727a65F871236188350531885C43;
     IVeloGauge public gauge =
         IVeloGauge(0x519BBD1Dd8C6A94C46080E24f316c14Ee758C025);
     IVeloPairFactory public veloPairFactory =
@@ -55,7 +54,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
         cWETHUSDC = new AerodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
-            WETH_USDC,
+            IERC20(_AERODROME_WETH_USDC),
             address(marketManager),
             gauge,
             veloPairFactory,
@@ -74,25 +73,25 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
         chainlinkAERO = new MockV3Aggregator(8, 0.08e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(AERO),
+            _AERO_ADDRESS,
             address(chainlinkAERO),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(AERO),
+            _AERO_ADDRESS,
             address(chainlinkAdaptor)
         );
 
         chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkWETH),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -101,14 +100,14 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
 
     function testWethUsdcVolatilePool() public {
         uint256 assets = 0.0001e18;
-        deal(address(WETH_USDC), user1, assets);
-        deal(address(WETH_USDC), address(this), 42069);
+        deal(_AERODROME_WETH_USDC, user1, assets);
+        deal(_AERODROME_WETH_USDC, address(this), 42069);
 
-        WETH_USDC.approve(address(cWETHUSDC), 42069);
+        IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 42069);
         marketManager.listToken(address(cWETHUSDC));
 
         vm.prank(user1);
-        WETH_USDC.approve(address(cWETHUSDC), assets);
+        IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), assets);
 
         vm.prank(user1);
         cWETHUSDC.deposit(assets, user1);
@@ -120,8 +119,8 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         );
 
         vm.startPrank(gauge.voter());
-        deal(address(AERO), gauge.voter(), 10e18);
-        AERO.approve(address(gauge), 10e18);
+        deal(_AERO_ADDRESS, gauge.voter(), 10e18);
+        IERC20(_AERO_ADDRESS).approve(address(gauge), 10e18);
         gauge.notifyRewardAmount(10e18);
         vm.stopPrank();
 
@@ -134,13 +133,13 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         uint256 earned = gauge.earned(address(cWETHUSDC));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
-        swapData.inputToken = address(AERO);
+        swapData.inputToken = _AERO_ADDRESS;
         swapData.inputAmount = amount;
-        swapData.outputToken = address(WETH);
+        swapData.outputToken = _WETH_ADDRESS;
         swapData.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
-        routes[0].from = address(AERO);
-        routes[0].to = address(WETH);
+        routes[0].from = _AERO_ADDRESS;
+        routes[0].to = _WETH_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
         swapData.call = abi.encodeWithSelector(

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
@@ -471,7 +471,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of dTokens to redeem for underlying tokens.
     /// @return amount Returns amount of underlying asset redeemed.
-    function redeem(uint256 tokens) external nonReentrant returns (uint256 amount) {
+    function redeem(
+        uint256 tokens
+    ) external nonReentrant returns (uint256 amount) {
         // Update pending interest.
         accrueInterest();
 
@@ -513,12 +515,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // requirements.
         marketManager.canRedeem(address(this), account, tokens);
 
-        amount = _redeem(
-            account,
-            recipient,
-            tokens,
-            convertToAssets(tokens)
-        );
+        amount = _redeem(account, recipient, tokens, convertToAssets(tokens));
     }
 
     /// @notice Used by the position folding contract to redeem underlying tokens
@@ -544,12 +541,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        _redeem(
-            account,
-            msg.sender,
-            convertToShares(amount),
-            amount
-        );
+        _redeem(account, msg.sender, convertToShares(amount), amount);
 
         IPositionFolding(msg.sender).onRedeem(
             address(this),
@@ -569,7 +561,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
     /// @return tokens Returns the amount of dTokens minted.
-    function mint(uint256 amount) external nonReentrant returns (uint256 tokens) {
+    function mint(
+        uint256 amount
+    ) external nonReentrant returns (uint256 tokens) {
         tokens = _mint(msg.sender, msg.sender, amount);
     }
 
@@ -583,7 +577,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     function mintFor(
         uint256 amount,
         address recipient
-    ) external nonReentrant returns (uint256 tokens){
+    ) external nonReentrant returns (uint256 tokens) {
         tokens = _mint(msg.sender, recipient, amount);
     }
 
@@ -996,10 +990,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the dToken.
     /// @return Calculated exchange rate, in `WAD`.
-    function exchangeRateWithUpdate()
-        public
-        returns (uint256)
-    {
+    function exchangeRateWithUpdate() public returns (uint256) {
         // Update pending interest.
         accrueInterest();
         return exchangeRateCached();

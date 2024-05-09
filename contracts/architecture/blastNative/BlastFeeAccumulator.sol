@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { FeeAccumulator, ICentralRegistry } from "contracts/architecture/FeeAccumulator.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";

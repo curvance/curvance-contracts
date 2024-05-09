@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 interface IBlastNativeYieldManager {
     /// @notice Claims delegated yield on behalf of the caller. Will natively
@@ -16,6 +16,7 @@ interface IBlastNativeYieldManager {
         bool claimWETHYield,
         bool claimUSDBYield
     ) external returns (uint256, uint256);
+
     /// @notice Called by the Central registry on updating isMarketManager on Blast.
     /// @dev Only callable by Curvance Central Registry.
     /// @param notifiedMarketManager The Market Manager contract to modify support
@@ -24,6 +25,7 @@ interface IBlastNativeYieldManager {
         address notifiedMarketManager,
         bool isSupported
     ) external;
+
     /// @notice Used by Curvance mTokens to notify the Yield Manager native
     ///         yield has been claimed to the Yield Manager.
     /// @param marketManager The Market Manager contract associated with
@@ -32,6 +34,7 @@ interface IBlastNativeYieldManager {
         address marketManager,
         uint256 amount
     ) external;
+
     /// @notice Helper function to view pending gas yield available for claim.
     /// @dev Returns 0 if the Yield Manager is not a governor of
     ///      `delegatedAddress`.
@@ -40,6 +43,7 @@ interface IBlastNativeYieldManager {
     function getClaimableNativeYield(
         address delegatedAddress
     ) external view returns (uint256);
+
     /// @notice Claims all pending native yield available for a contract
     ///         inside Curvance.
     /// @dev mTokens cannot be called by this.

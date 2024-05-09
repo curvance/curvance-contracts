@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -33,8 +33,13 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
     function test_setCTokenCollateralCaps_fail_whenMTokenLengthIsZero()
         public
     {
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
-        marketManager.setCTokenCollateralCaps(new address[](0), collateralCaps);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
+        marketManager.setCTokenCollateralCaps(
+            new address[](0),
+            collateralCaps
+        );
     }
 
     function test_setCTokenCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
@@ -42,19 +47,23 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
     {
         mTokens.push(address(dUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.setCTokenCollateralCaps(mTokens, collateralCaps);
         mTokens.pop();
     }
 
     function test_setCTokenCollateralCaps_fail_whenNotCToken() public {
         assertEq(mTokens.length, collateralCaps.length);
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.setCTokenCollateralCaps(mTokens, collateralCaps);
     }
 
     function test_setCTokenCollateralCaps_success() public {
-        deal(_BALANCER_WETH_RETH, address(this), 1 ether);
+        deal(_BAL_WETH_RETH_ADDRESS, address(this), 1 ether);
         balRETH.approve(address(cBALRETH), 1 ether);
         marketManager.listToken(address(cBALRETH));
         marketManager.updateCollateralToken(
@@ -80,7 +89,10 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
             emit NewCollateralCap(validMTokens[i], validCollateralCaps[i]);
         }
 
-        marketManager.setCTokenCollateralCaps(validMTokens, validCollateralCaps);
+        marketManager.setCTokenCollateralCaps(
+            validMTokens,
+            validCollateralCaps
+        );
 
         assertEq(
             marketManager.collateralCaps(address(cBALRETH)),

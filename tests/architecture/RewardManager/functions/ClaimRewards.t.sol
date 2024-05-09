@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -11,8 +11,6 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 
 contract ClaimRewardsTest is TestBaseRewardManager {
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     SwapperLib.Swap public swapData;
     address[] public path;
 
@@ -102,7 +100,9 @@ contract ClaimRewardsTest is TestBaseRewardManager {
 
         vm.prank(user1);
 
-        vm.expectRevert(RewardManager.RewardManager__SwapDataIsInvalid.selector);
+        vm.expectRevert(
+            RewardManager.RewardManager__SwapDataIsInvalid.selector
+        );
         rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
     }
 

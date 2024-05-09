@@ -1,4 +1,4 @@
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 contract ErrorConstants {
     uint256 PANIC_UNDER_OVER_FLOW_CODE = 17;

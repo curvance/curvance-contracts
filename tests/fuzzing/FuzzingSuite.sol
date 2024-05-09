@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestStatefulDeployments } from "tests/fuzzing/system/TestStatefulDeployments.sol";
 import { FuzzVeCVE } from "tests/fuzzing/functional/FuzzVeCVE.sol";

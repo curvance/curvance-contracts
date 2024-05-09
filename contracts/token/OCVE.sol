@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
@@ -234,16 +234,16 @@ contract OCVE is ERC20 {
             }
         } else {
             // Adjust decimals between paymentTokenDecimals,
-            // and default 18 decimals of optionExerciseCost. 
+            // and default 18 decimals of optionExerciseCost.
             uint256 payAmount = _adjustDecimals(
-                optionExerciseCost, 
-                paymentTokenDecimals, 
+                optionExerciseCost,
+                paymentTokenDecimals,
                 18
             );
 
             /// Equivalent to `(optionExerciseCost * amount) / WAD` rounded up.
             payAmount = FixedPointMathLib.mulDivUp(
-                optionExerciseCost, 
+                optionExerciseCost,
                 payAmount,
                 WAD
             );

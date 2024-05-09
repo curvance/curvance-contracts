@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -144,10 +144,7 @@ contract CreateLockTest is TestBaseVeCVE {
             0
         );
 
-        assertEq(
-            veCVE.getVotes(address(this)),
-            amount + amount / 10
-        );
+        assertEq(veCVE.getVotes(address(this)), amount + amount / 10);
     }
 
     function test_createLock_success_withDiscontinuousLock_fuzzed(

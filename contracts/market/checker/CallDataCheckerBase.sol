@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";

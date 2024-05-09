@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -8,8 +8,6 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestComplexZapperCurveETH is TestBaseMarket {
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address _CURVE_STETH_LP = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
     address _CURVE_STETH_MINTER = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
     address _STETH_ADDRESS = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
@@ -29,7 +27,10 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(complexZapper.marketManager()), address(marketManager));
+        assertEq(
+            address(complexZapper.marketManager()),
+            address(marketManager)
+        );
     }
 
     function testEnterCurveWithETH() public {
@@ -69,7 +70,10 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;
         tokens[1] = _STETH_ADDRESS;
-        IERC20(_CURVE_STETH_LP).approve(address(complexZapper), withdrawAmount);
+        IERC20(_CURVE_STETH_LP).approve(
+            address(complexZapper),
+            withdrawAmount
+        );
         complexZapper.exitCurve(
             _CURVE_STETH_MINTER,
             ComplexZapper.ZapperData(

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -16,7 +16,9 @@ contract CanRepayTest is TestBaseMarketManager {
         vm.prank(address(dUSDC));
         marketManager.notifyBorrow(address(dUSDC), user1);
 
-        vm.expectRevert(MarketManager.MarketManager__MinimumHoldPeriod.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
         marketManager.canRepay(address(dUSDC), user1);
     }
 

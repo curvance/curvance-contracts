@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBase } from "tests/utils/TestBase.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -13,23 +13,6 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 contract TestBaseOracleRouter is TestBase {
-    address internal constant _ETH_ADDRESS =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address internal constant _USDC_ADDRESS =
-        0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address internal constant _CHAINLINK_ETH_USD =
-        0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
-    address internal constant _CHAINLINK_USDC_USD =
-        0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6;
-    address internal constant _CHAINLINK_USDC_ETH =
-        0x986b5E1e1755e3C2440e960477f25201B0a8bbD4;
-
-    CentralRegistry public centralRegistry;
-    ChainlinkAdaptor public chainlinkAdaptor;
-    ChainlinkAdaptor public dualChainlinkAdaptor;
-    DynamicInterestRateModel public interestRateModel;
-    MarketManager public marketManager;
-    OracleRouter public oracleRouter;
     DToken public mUSDC;
     MockDataFeed public sequencer;
 

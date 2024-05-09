@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseStableLPAdaptor.sol";
 
@@ -33,9 +33,7 @@ contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
     /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
-    function addAsset(
-        address asset
-    ) external override {
+    function addAsset(address asset) external override {
         _checkElevatedPermissions();
 
         if (!IVeloPool(asset).stable()) {
@@ -47,7 +45,7 @@ contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
         if (isSupportedAsset[asset]) {
             isUpdate = true;
         }
-        
+
         AdaptorData memory data = _addAsset(asset);
         emit VelodromeStableLPAssetAdded(asset, data, isUpdate);
     }

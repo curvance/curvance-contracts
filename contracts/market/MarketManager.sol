@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { LiquidityManager, IOracleRouter, IMToken } from "contracts/market/LiquidityManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -204,7 +204,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     function isListed(address mToken) external view returns (bool) {
         return (tokenData[mToken].isListed);
     }
-    
+
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
     }
@@ -395,13 +395,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         // Fail if the sender is not permitted to redeem `tokens`.
         // Note: `tokens` is in shares.
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(cToken, msg.sender, tokens);
-        _removeCollateral(
-            msg.sender,
-            accountPositions,
+        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
             cToken,
+            msg.sender,
             tokens
         );
+        _removeCollateral(msg.sender, accountPositions, cToken, tokens);
 
         if (updateNeeded == 2) {
             _closePositions(msg.sender, positionsToClose);
@@ -476,7 +475,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         uint256 amount
     ) external {
         _checkIsToken(dToken);
-        
+
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,
@@ -502,7 +501,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ) external {
         _checkIsToken(dToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
-        
+
         (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
             dToken,
             account,
@@ -605,15 +604,23 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
-        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
-            account,
-            cToken,
-            0,
-            cTokenLiquidated,
-            true
-        );
+        (
+            uint256 collateralToRemove,
+            AccountPosition storage accountPositions
+        ) = _checkCollateralToRemove(
+                account,
+                cToken,
+                0,
+                cTokenLiquidated,
+                true
+            );
         if (collateralToRemove > 0) {
-            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
+            _removeCollateral(
+                account,
+                accountPositions,
+                cToken,
+                collateralToRemove
+            );
         }
 
         return (dTokenRepaid, cTokenLiquidated, protocolTokens);
@@ -669,7 +676,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             from,
             amount
         );
-        
+
         if (updateNeeded == 2) {
             _closePositions(from, positionsToClose);
         }
@@ -1434,7 +1441,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself 
+    /// @dev This can only be called by the mToken itself
     ///      (specifically cTokens, because dTokens are never collateral).
     /// @param cToken The collateral token to verify the redemption against.
     /// @param account The account which would redeem the tokens.
@@ -1451,23 +1458,30 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         bool forceRedeemCollateral
     ) internal {
         // Check how much collateral should be removed, if any.
-        (uint256 collateralToRemove, AccountPosition storage accountPositions) = _checkCollateralToRemove(
-            account,
-            cToken,
-            balance,
-            amount,
-            forceRedeemCollateral
-        );
+        (
+            uint256 collateralToRemove,
+            AccountPosition storage accountPositions
+        ) = _checkCollateralToRemove(
+                account,
+                cToken,
+                balance,
+                amount,
+                forceRedeemCollateral
+            );
 
         // Execute removal of collateral posted, if needed.
         if (collateralToRemove > 0) {
-            (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-                cToken,
+            (
+                uint256 updateNeeded,
+                bool[] memory positionsToClose
+            ) = _canRedeem(cToken, account, collateralToRemove);
+
+            _removeCollateral(
                 account,
+                accountPositions,
+                cToken,
                 collateralToRemove
             );
-
-            _removeCollateral(account, accountPositions, cToken, collateralToRemove);
 
             if (updateNeeded == 2) {
                 _closePositions(account, positionsToClose);
@@ -1599,7 +1613,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         );
     }
 
-
     /// @notice Helper function to calculate how much collateral should
     ///         be removed for their desired action.
     /// @param account The account to potential reduce posted collateral for.
@@ -1616,11 +1629,10 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         uint256 amount,
         bool forceReduce
     ) internal view returns (uint256, AccountPosition storage) {
-        AccountPosition storage accountPositions = tokenData[cToken].accountPositions[
-            account
-        ];
+        AccountPosition storage accountPositions = tokenData[cToken]
+            .accountPositions[account];
 
-        // If amount is 0 for a post conditional check 
+        // If amount is 0 for a post conditional check
         if (amount == 0) {
             return (0, accountPositions);
         }
@@ -1636,7 +1648,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         // If they want to redeem more shares than they have in excess,
         // calculate the delta.
         if (accountPositions.collateralPosted + amount >= balance) {
-            reductionAmount = (accountPositions.collateralPosted + amount) - balance;
+            reductionAmount =
+                (accountPositions.collateralPosted + amount) -
+                balance;
         }
 
         // Calculate how much `cToken` `account` needs to have in order

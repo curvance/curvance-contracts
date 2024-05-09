@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
@@ -20,7 +20,9 @@ contract DeployFaucetWithSignature is DeployConfiguration {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        address faucetWithSignature = address(new FaucetWithSignature(deployer));
+        address faucetWithSignature = address(
+            new FaucetWithSignature(deployer)
+        );
 
         console.log("FaucetWithSignature deployed at: ", faucetWithSignature);
         _saveDeployedContracts("faucetWithSignature", faucetWithSignature);

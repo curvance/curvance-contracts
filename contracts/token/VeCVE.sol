@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
@@ -990,11 +990,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         for (uint256 i; i < numLocks; ) {
             // Based on CVE maximum supply this cannot overflow.
             unchecked {
-                votes += _getVotesForLock(
-                    user,
-                    i++,
-                    voteBoost
-                );
+                votes += _getVotesForLock(user, i++, voteBoost);
             }
         }
 
@@ -1134,7 +1130,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // epochsLeft = (lock.unlockTime - time) / EPOCH_DURATION
         // votes = (lock.amount * epochsLeft) / LOCK_DURATION_EPOCHS.
         return
-            (lock.amount * ((lock.unlockTime - block.timestamp) / EPOCH_DURATION)) /
+            (lock.amount *
+                ((lock.unlockTime - block.timestamp) / EPOCH_DURATION)) /
             LOCK_DURATION_EPOCHS;
     }
 
@@ -1152,7 +1149,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ) internal {
         uint256 epochs = rewardManager.epochsToClaim(user);
         if (epochs > 0) {
-            rewardManager.claimRewardsFor(user, epochs, rewardsData, params, aux);
+            rewardManager.claimRewardsFor(
+                user,
+                epochs,
+                rewardsData,
+                params,
+                aux
+            );
         }
     }
 
@@ -1465,7 +1468,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
             revert VeCVE__PreEpochRestriction();
         }
 
-        if (rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
+        if (
+            rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
+        ) {
             if (block.timestamp >= genesisEpoch) {
                 revert VeCVE__EpochNotDelivered();
             }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -108,7 +108,7 @@ contract CVE is ERC20 {
         return
             IProtocolMessagingHub(messagingHub).bridgeToken{
                 value: msg.value
-            }(dstChainId, recipient, amount, gasLimit, 0, false);
+            }(dstChainId, recipient, amount, gasLimit, 5, false);
     }
 
     /// @notice Returns required amount of native asset for message fee.

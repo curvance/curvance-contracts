@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
@@ -20,13 +20,13 @@ contract MigrateFeeAccumulatorTest is TestBaseFeeAccumulator {
     function test_migrateFeeAccumulator_success() public {
         address[] memory rewardTokens = new address[](2);
         rewardTokens[0] = _DAI_ADDRESS;
-        rewardTokens[1] = _BALANCER_WETH_RETH;
+        rewardTokens[1] = _BAL_WETH_RETH_ADDRESS;
 
         feeAccumulator.addRewardTokens(rewardTokens);
 
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
         deal(_DAI_ADDRESS, address(feeAccumulator), _ONE);
-        deal(_BALANCER_WETH_RETH, address(feeAccumulator), _ONE);
+        deal(_BAL_WETH_RETH_ADDRESS, address(feeAccumulator), _ONE);
 
         uint256[] memory rewardTokenBalances = feeAccumulator
             .getRewardTokenBalances();

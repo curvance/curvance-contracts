@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib, IERC20 } from "contracts/libraries/CommonLib.sol";
@@ -46,7 +46,7 @@ library BalancerLib {
             );
 
             if (CommonLib.isETH(tokens[i])) {
-                // If eth is somehow contained in a pool twice, 
+                // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
                     revert BalancerLib__InvalidPoolInvariantError();
@@ -91,7 +91,7 @@ library BalancerLib {
     /// @param tokens The underlying token addresses of the BPT.
     /// @param lpAmount The BPT amount to exit.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
-    ///                            token or not. 
+    ///                            token or not.
     ///                            false = all tokens.
     ///                            true = single token.
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
@@ -114,20 +114,23 @@ library BalancerLib {
 
         // Exit BPT position.
         if (!singleAssetWithdraw) {
-            return IBalancerVault(balancerVault).exitPool(
-                balancerPoolId,
-                address(this),
-                payable(address(this)),
-                IBalancerVault.ExitPoolRequest(
-                    tokens,
-                    balances,
-                    abi.encode(
-                        IBalancerVault.ExitKind.EXACT_BPT_IN_FOR_TOKENS_OUT,
-                        lpAmount
-                    ),
-                    false // Do not use internal balances.
-                )
-            );
+            return
+                IBalancerVault(balancerVault).exitPool(
+                    balancerPoolId,
+                    address(this),
+                    payable(address(this)),
+                    IBalancerVault.ExitPoolRequest(
+                        tokens,
+                        balances,
+                        abi.encode(
+                            IBalancerVault
+                                .ExitKind
+                                .EXACT_BPT_IN_FOR_TOKENS_OUT,
+                            lpAmount
+                        ),
+                        false // Do not use internal balances.
+                    )
+                );
         }
 
         IBalancerVault(balancerVault).exitPool(

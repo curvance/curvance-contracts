@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
@@ -10,7 +10,12 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
     function setUp() public override {
         super.setUp();
 
-        chainlinkEthUsd = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
+        chainlinkEthUsds[block.chainid] = new MockV3Aggregator(
+            8,
+            1500e8,
+            1e50,
+            1e6
+        );
         _deployOracleRouter();
         _deployChainlinkAdaptors();
     }

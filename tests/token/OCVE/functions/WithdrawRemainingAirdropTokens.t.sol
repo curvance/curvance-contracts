@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseOCVE } from "../TestBaseOCVE.sol";
 import { OCVE } from "contracts/token/OCVE.sol";
@@ -27,10 +27,7 @@ contract WithdrawRemainingAirdropTokensTest is TestBaseOCVE {
             true
         );
 
-        oCVE.setOptionsTerms(
-            block.timestamp,
-            paymentTokenCurrentPrice * _ONE
-        );
+        oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
 
         skip(3 weeks);
 
@@ -47,10 +44,7 @@ contract WithdrawRemainingAirdropTokensTest is TestBaseOCVE {
             true
         );
 
-        oCVE.setOptionsTerms(
-            block.timestamp,
-            paymentTokenCurrentPrice * _ONE
-        );
+        oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
 
         skip(4 weeks + 1);
 

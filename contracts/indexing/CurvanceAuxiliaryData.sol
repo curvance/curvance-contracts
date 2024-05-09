@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
@@ -312,7 +312,7 @@ contract CurvanceAuxiliaryData {
         result.collateralPostedByUsd = getMarketCollateralPostedByUsd(market);
         result.tokensListed = getMarketAssets(market);
 
-        if(result.lendingTVL > result.borrows) {
+        if (result.lendingTVL > result.borrows) {
             result.borrowsAvailable = result.lendingTVL - result.borrows;
         } else {
             result.borrowsAvailable = 0;
@@ -345,9 +345,8 @@ contract CurvanceAuxiliaryData {
                     cTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, cTokens[i]);
 
-                cTokenData.userTokenPosition.tokenAmount = marketToken.convertToAssets(
-                    cTokenData.userTokenPosition.shareAmount
-                );
+                cTokenData.userTokenPosition.tokenAmount = marketToken
+                    .convertToAssets(cTokenData.userTokenPosition.shareAmount);
             }
 
             cTokenData.assetAddress = cTokens[i];
@@ -386,9 +385,8 @@ contract CurvanceAuxiliaryData {
                     dTokenData.userTokenPosition.collateralOrDebtAmount
                 ) = this.getAccountTokenData(account, dTokens[i]);
 
-                dTokenData.userTokenPosition.tokenAmount = marketToken.convertToAssets(
-                    dTokenData.userTokenPosition.shareAmount
-                );
+                dTokenData.userTokenPosition.tokenAmount = marketToken
+                    .convertToAssets(dTokenData.userTokenPosition.shareAmount);
             }
 
             dTokenData.assetAddress = dTokens[i];
@@ -410,7 +408,7 @@ contract CurvanceAuxiliaryData {
             dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
             dTokenData.price = _getTokenPrice(dTokens[i], false);
 
-            if(dTokenData.tvl > dTokenData.borrows) {
+            if (dTokenData.tvl > dTokenData.borrows) {
                 dTokenData.liquidityAvailable =
                     dTokenData.tvl -
                     dTokenData.borrows;

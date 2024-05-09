@@ -1,19 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 library Errors {
     // BulkSeller
-    error BulkInsufficientSyForTrade(uint256 currentAmount, uint256 requiredAmount);
-    error BulkInsufficientTokenForTrade(uint256 currentAmount, uint256 requiredAmount);
+    error BulkInsufficientSyForTrade(
+        uint256 currentAmount,
+        uint256 requiredAmount
+    );
+    error BulkInsufficientTokenForTrade(
+        uint256 currentAmount,
+        uint256 requiredAmount
+    );
     error BulkInSufficientSyOut(uint256 actualSyOut, uint256 requiredSyOut);
-    error BulkInSufficientTokenOut(uint256 actualTokenOut, uint256 requiredTokenOut);
-    error BulkInsufficientSyReceived(uint256 actualBalance, uint256 requiredBalance);
+    error BulkInSufficientTokenOut(
+        uint256 actualTokenOut,
+        uint256 requiredTokenOut
+    );
+    error BulkInsufficientSyReceived(
+        uint256 actualBalance,
+        uint256 requiredBalance
+    );
     error BulkNotMaintainer();
     error BulkNotAdmin();
     error BulkSellerAlreadyExisted(address token, address SY, address bulk);
     error BulkSellerInvalidToken(address token, address SY);
-    error BulkBadRateTokenToSy(uint256 actualRate, uint256 currentRate, uint256 eps);
-    error BulkBadRateSyToToken(uint256 actualRate, uint256 currentRate, uint256 eps);
+    error BulkBadRateTokenToSy(
+        uint256 actualRate,
+        uint256 currentRate,
+        uint256 eps
+    );
+    error BulkBadRateSyToToken(
+        uint256 actualRate,
+        uint256 currentRate,
+        uint256 eps
+    );
 
     // APPROX
     error ApproxFail();
@@ -30,9 +50,18 @@ library Errors {
     error MarketZeroAmountsInput();
     error MarketZeroAmountsOutput();
     error MarketZeroLnImpliedRate();
-    error MarketInsufficientPtForTrade(int256 currentAmount, int256 requiredAmount);
-    error MarketInsufficientPtReceived(uint256 actualBalance, uint256 requiredBalance);
-    error MarketInsufficientSyReceived(uint256 actualBalance, uint256 requiredBalance);
+    error MarketInsufficientPtForTrade(
+        int256 currentAmount,
+        int256 requiredAmount
+    );
+    error MarketInsufficientPtReceived(
+        uint256 actualBalance,
+        uint256 requiredBalance
+    );
+    error MarketInsufficientSyReceived(
+        uint256 actualBalance,
+        uint256 requiredBalance
+    );
     error MarketZeroTotalPtOrTotalAsset(int256 totalPt, int256 totalAsset);
     error MarketExchangeRateBelowOne(int256 exchangeRate);
     error MarketProportionMustNotEqualOne();
@@ -48,13 +77,19 @@ library Errors {
     error MarketFactoryInvalidPt();
     error MarketFactoryMarketExists();
 
-    error MarketFactoryLnFeeRateRootTooHigh(uint80 lnFeeRateRoot, uint256 maxLnFeeRateRoot);
+    error MarketFactoryLnFeeRateRootTooHigh(
+        uint80 lnFeeRateRoot,
+        uint256 maxLnFeeRateRoot
+    );
     error MarketFactoryReserveFeePercentTooHigh(
         uint8 reserveFeePercent,
         uint8 maxReserveFeePercent
     );
     error MarketFactoryZeroTreasury();
-    error MarketFactoryInitialAnchorTooLow(int256 initialAnchor, int256 minInitialAnchor);
+    error MarketFactoryInitialAnchorTooLow(
+        int256 initialAnchor,
+        int256 minInitialAnchor
+    );
 
     // ROUTER
     error RouterInsufficientLpOut(uint256 actualLpOut, uint256 requiredLpOut);
@@ -62,12 +97,21 @@ library Errors {
     error RouterInsufficientPtOut(uint256 actualPtOut, uint256 requiredPtOut);
     error RouterInsufficientYtOut(uint256 actualYtOut, uint256 requiredYtOut);
     error RouterInsufficientPYOut(uint256 actualPYOut, uint256 requiredPYOut);
-    error RouterInsufficientTokenOut(uint256 actualTokenOut, uint256 requiredTokenOut);
+    error RouterInsufficientTokenOut(
+        uint256 actualTokenOut,
+        uint256 requiredTokenOut
+    );
     error RouterExceededLimitSyIn(uint256 actualSyIn, uint256 limitSyIn);
     error RouterExceededLimitPtIn(uint256 actualPtIn, uint256 limitPtIn);
     error RouterExceededLimitYtIn(uint256 actualYtIn, uint256 limitYtIn);
-    error RouterInsufficientSyRepay(uint256 actualSyRepay, uint256 requiredSyRepay);
-    error RouterInsufficientPtRepay(uint256 actualPtRepay, uint256 requiredPtRepay);
+    error RouterInsufficientSyRepay(
+        uint256 actualSyRepay,
+        uint256 requiredSyRepay
+    );
+    error RouterInsufficientPtRepay(
+        uint256 actualPtRepay,
+        uint256 requiredPtRepay
+    );
     error RouterNotAllSyUsed(uint256 netSyDesired, uint256 netSyUsed);
 
     error RouterTimeRangeZero();
@@ -90,22 +134,40 @@ library Errors {
     error YCFactoryYieldContractExisted();
     error YCFactoryZeroExpiryDivisor();
     error YCFactoryZeroTreasury();
-    error YCFactoryInterestFeeRateTooHigh(uint256 interestFeeRate, uint256 maxInterestFeeRate);
-    error YCFactoryRewardFeeRateTooHigh(uint256 newRewardFeeRate, uint256 maxRewardFeeRate);
+    error YCFactoryInterestFeeRateTooHigh(
+        uint256 interestFeeRate,
+        uint256 maxInterestFeeRate
+    );
+    error YCFactoryRewardFeeRateTooHigh(
+        uint256 newRewardFeeRate,
+        uint256 maxRewardFeeRate
+    );
 
     // SY
     error SYInvalidTokenIn(address token);
     error SYInvalidTokenOut(address token);
     error SYZeroDeposit();
     error SYZeroRedeem();
-    error SYInsufficientSharesOut(uint256 actualSharesOut, uint256 requiredSharesOut);
-    error SYInsufficientTokenOut(uint256 actualTokenOut, uint256 requiredTokenOut);
+    error SYInsufficientSharesOut(
+        uint256 actualSharesOut,
+        uint256 requiredSharesOut
+    );
+    error SYInsufficientTokenOut(
+        uint256 actualTokenOut,
+        uint256 requiredTokenOut
+    );
 
     // SY-specific
     error SYQiTokenMintFailed(uint256 errCode);
     error SYQiTokenRedeemFailed(uint256 errCode);
-    error SYQiTokenRedeemRewardsFailed(uint256 rewardAccruedType0, uint256 rewardAccruedType1);
-    error SYQiTokenBorrowRateTooHigh(uint256 borrowRate, uint256 borrowRateMax);
+    error SYQiTokenRedeemRewardsFailed(
+        uint256 rewardAccruedType0,
+        uint256 rewardAccruedType1
+    );
+    error SYQiTokenBorrowRateTooHigh(
+        uint256 borrowRate,
+        uint256 borrowRateMax
+    );
 
     error SYCurveInvalidPid();
     error SYCurve3crvPoolNotFound();
@@ -114,7 +176,10 @@ library Errors {
     error SYBalancerInvalidPid();
     error SYInvalidRewardToken(address token);
 
-    error SYStargateRedeemCapExceeded(uint256 amountLpDesired, uint256 amountLpRedeemable);
+    error SYStargateRedeemCapExceeded(
+        uint256 amountLpDesired,
+        uint256 amountLpRedeemable
+    );
 
     error SYBalancerReentrancy();
 
@@ -143,11 +208,17 @@ library Errors {
     error ExpiryInThePast(uint256 expiry);
     error ChainNotSupported(uint256 chainId);
 
-    error FDTotalAmountFundedNotMatch(uint256 actualTotalAmount, uint256 expectedTotalAmount);
+    error FDTotalAmountFundedNotMatch(
+        uint256 actualTotalAmount,
+        uint256 expectedTotalAmount
+    );
     error FDEpochLengthMismatch();
     error FDInvalidPool(address pool);
     error FDPoolAlreadyExists(address pool);
-    error FDInvalidNewFinishedEpoch(uint256 oldFinishedEpoch, uint256 newFinishedEpoch);
+    error FDInvalidNewFinishedEpoch(
+        uint256 oldFinishedEpoch,
+        uint256 newFinishedEpoch
+    );
     error FDInvalidStartEpoch(uint256 startEpoch);
     error FDInvalidWTimeFund(uint256 lastFunded, uint256 wTime);
     error FDFutureFunding(uint256 lastFunded, uint256 currentWTime);
@@ -175,6 +246,10 @@ library Errors {
     error OnlyWhitelisted();
 
     // Swap Aggregator
-    error SAInsufficientTokenIn(address tokenIn, uint256 amountExpected, uint256 amountActual);
+    error SAInsufficientTokenIn(
+        address tokenIn,
+        uint256 amountExpected,
+        uint256 amountActual
+    );
     error UnsupportedSelector(uint256 aggregatorType, bytes4 selector);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
@@ -29,11 +29,14 @@ contract BlastNativeYieldManager is ReentrancyGuard {
     /// BLAST YIELD CONTRACTS ///
 
     /// @notice The address managing ETH/Gas yield.
-    IBlast public constant CHAIN_YIELD_MANAGER = IBlast(0x4300000000000000000000000000000000000002);
+    IBlast public constant CHAIN_YIELD_MANAGER =
+        IBlast(0x4300000000000000000000000000000000000002);
     /// @notice The address managing WETH yield, also the token itself.
-    IERC20Rebasing public constant WETH_YIELD_MANAGER = IERC20Rebasing(0x4300000000000000000000000000000000000004);
+    IERC20Rebasing public constant WETH_YIELD_MANAGER =
+        IERC20Rebasing(0x4300000000000000000000000000000000000004);
     /// @notice The address managing USDB yield, also the token itself.
-    IERC20Rebasing public constant USDB_YIELD_MANAGER = IERC20Rebasing(0x4300000000000000000000000000000000000003);
+    IERC20Rebasing public constant USDB_YIELD_MANAGER =
+        IERC20Rebasing(0x4300000000000000000000000000000000000003);
     /// @notice Protocol epoch length.
     uint256 public constant EPOCH_WINDOW = 2 weeks;
 
@@ -103,7 +106,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         // permissioning to Curvance DAO.
         CHAIN_YIELD_MANAGER.configureClaimableGas();
         CHAIN_YIELD_MANAGER.configureGovernor(centralRegistry_.daoAddress());
-
     }
 
     /// @notice Claims delegated yield on behalf of the caller. Will natively
@@ -120,10 +122,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         address marketManager,
         bool claimWETHYield,
         bool claimUSDBYield
-    ) external nonReentrant returns (
-        uint256 WETHYield,
-        uint256 USDBYield
-    ) {
+    ) external nonReentrant returns (uint256 WETHYield, uint256 USDBYield) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Yield Manager.
         if (!isMarketManager[marketManager]) {
@@ -200,8 +199,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         // stream it, the yield would be infinitesimal so we will just send
         // the dust back to DAO with the logic after check is performed.
 
-
-        if (WETHPerSecond > 0){
+        if (WETHPerSecond > 0) {
             // Approve WETH to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(WETH_YIELD_MANAGER),
@@ -249,7 +247,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             );
         }
 
-        if (USDBPerSecond > 0){
+        if (USDBPerSecond > 0) {
             // Approve USDB to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(USDB_YIELD_MANAGER),
@@ -310,10 +308,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         address marketManager,
         bool claimWETHYield,
         bool claimUSDBYield
-    ) external nonReentrant returns (
-        uint256 WETHYield,
-        uint256 USDBYield
-    ) {
+    ) external nonReentrant returns (uint256 WETHYield, uint256 USDBYield) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Yield Manager.
         if (!isMarketManager[marketManager]) {
@@ -378,19 +373,15 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         _checkElevatedPermissions();
 
         if (
-            IMToken(cToken).marketManager() != 
-            IMToken(dToken).marketManager()
-            ) {
-                revert BlastNativeYieldManager__MarketManagerMismatch();
-            }
-        
-        if (
-            !IMToken(cToken).isCToken() ||
-            IMToken(dToken).isCToken()
-            ) {
-                revert BlastNativeYieldManager__InvalidTokenTypes();
-            }
-        
+            IMToken(cToken).marketManager() != IMToken(dToken).marketManager()
+        ) {
+            revert BlastNativeYieldManager__MarketManagerMismatch();
+        }
+
+        if (!IMToken(cToken).isCToken() || IMToken(dToken).isCToken()) {
+            revert BlastNativeYieldManager__InvalidTokenTypes();
+        }
+
         cTokenToDTokenYieldRouted[cToken] = dToken;
     }
 
@@ -415,7 +406,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
 
         IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: yieldClaimed }();
-        SafeTransferLib.safeTransfer(address(WETH_YIELD_MANAGER), centralRegistry.daoAddress(), yieldClaimed);
+        SafeTransferLib.safeTransfer(
+            address(WETH_YIELD_MANAGER),
+            centralRegistry.daoAddress(),
+            yieldClaimed
+        );
     }
 
     /// @notice Used by Curvance mTokens to notify the Yield Manager native
@@ -444,7 +439,9 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
 
         if (isWETH) {
-            pendingWETHYield[msg.sender] = pendingWETHYield[msg.sender] + amount;
+            pendingWETHYield[msg.sender] =
+                pendingWETHYield[msg.sender] +
+                amount;
             return;
         }
 

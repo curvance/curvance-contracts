@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
@@ -10,7 +10,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// ERRORS ///
 
     error BaseWrappedAggregator__UintToIntError();
-    
+
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns the current phase's aggregator address.
@@ -68,11 +68,11 @@ abstract contract BaseWrappedAggregator is IChainlink {
         return IChainlink(underlyingAssetAggregator()).decimals();
     }
 
-    /// @notice Returns the latest oracle data from the aggregator, 
+    /// @notice Returns the latest oracle data from the aggregator,
     ///         adjusted by the wrapper.
     /// @return roundId The round ID from the aggregator for which the data
     ///                 was retrieved.
-    ///         answer The price returned by the aggregator, 
+    ///         answer The price returned by the aggregator,
     ///                adjusted by the wrapper.
     ///         startedAt The timestamp the current round was started.
     ///         updatedAt The timestamp the current round last was updated.

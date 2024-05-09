@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -248,7 +248,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         uint256 debtAmount = (cFactor * dUSDC.debtBalanceCached(user1)) / WAD;
 
         PriceReturnData memory data = balRETHAdapter.getPrice(
-            _BALANCER_WETH_RETH,
+            _BAL_WETH_RETH_ADDRESS,
             true,
             true
         );

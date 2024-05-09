@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 library CommonLib {
-
     /// @notice Returns whether `token` is referring to network gas token
     ///         or not.
     /// @param token The address to inspect.

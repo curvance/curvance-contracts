@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
 import { TestBaseCTokenCompoundingWithExitFee } from "../TestBaseCTokenCompoundingWithExitFee.sol";
@@ -20,12 +20,10 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
     function test_cTokenCompoundingWithExitFeeDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(
-            Delegable.Delegable__InvalidCentralRegistry.selector
-        );
+        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(0)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -40,7 +38,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         vm.expectRevert(CTokenBase.CTokenBase__InvalidMarketManager.selector);
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(1),
             109,
             _REWARDER,
@@ -53,7 +51,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         public
     {
         stdstore
-            .target(_BALANCER_WETH_RETH)
+            .target(_BAL_WETH_RETH_ADDRESS)
             .sig(IERC20.totalSupply.selector)
             .checked_write(type(uint232).max);
 
@@ -64,7 +62,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         );
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -83,7 +81,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         );
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -95,7 +93,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
     function test_cTokenCompoundingWithExitFeeDeployment_success() public {
         cBALRETHWithExitFee = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BALANCER_WETH_RETH),
+            IERC20(_BAL_WETH_RETH_ADDRESS),
             address(marketManager),
             109,
             _REWARDER,
@@ -107,7 +105,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
             address(cBALRETHWithExitFee.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(cBALRETHWithExitFee.underlying(), _BALANCER_WETH_RETH);
+        assertEq(cBALRETHWithExitFee.underlying(), _BAL_WETH_RETH_ADDRESS);
         assertEq(
             address(cBALRETHWithExitFee.marketManager()),
             address(marketManager)

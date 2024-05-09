@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
 contract MigrateTimelockConfigurationTest is TestBaseMarket {
     event NewTimelockConfiguration(

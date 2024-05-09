@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseWrappedAggregator } from "contracts/oracles/adaptors/wrappedAggregators/BaseWrappedAggregator.sol";
 
@@ -7,7 +7,7 @@ import { IStakedFrax } from "contracts/interfaces/external/frax/IStakedFrax.sol"
 
 contract StakedFraxAggregator is BaseWrappedAggregator {
     /// STORAGE ///
-    
+
     address public sFrax;
     address public frax;
     address public fraxAggregator;

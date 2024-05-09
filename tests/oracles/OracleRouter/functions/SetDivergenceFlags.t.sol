@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
@@ -80,5 +80,4 @@ contract SetDivergenceFlagsTest is TestBaseOracleRouter {
         vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
         oracleRouter.setDivergenceFlags(10500, 10200);
     }
-
 }
