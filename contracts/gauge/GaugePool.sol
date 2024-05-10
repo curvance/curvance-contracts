@@ -7,6 +7,7 @@ import { DENOMINATOR, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { IMToken } from "contracts/market/LiquidityManager.sol";
 
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
@@ -447,7 +448,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
     /// @notice Claim all pending rewards for `token` from the gauge pool.
     /// @param token Pool token address.
-    function claim(address token) external nonReentrant {
+    function claim(address token) public nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeErrors.NotStarted();
         }
@@ -480,6 +481,14 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         _calcDebt(msg.sender, token);
 
         emit Claim(msg.sender, token);
+    }
+
+    /// @notice Claim all pending rewards.
+    function claimAll() external {
+        IMToken[] memory tokens = IMarketManager(marketManager).assetsOf(msg.sender);
+        for(uint256 i = 0 ; i < tokens.length ; ++i) {
+            claim(address(tokens[i]));
+        }
     }
 
     /// @notice Claim rewards from gauge pool and compound any CVE rewards

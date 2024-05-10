@@ -84,23 +84,6 @@ contract TestUniversalBalance is TestBaseMarket {
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
-        // deploy dUSDC
-        {
-            _deployDUSDC();
-            // support market
-            _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(dUSDC), 200000e6);
-            marketManager.listToken(address(dUSDC));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dUSDC));
-            address[] memory markets = new address[](1);
-            markets[0] = address(dUSDC);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
-        }
-
         // deploy dWETH
         {
             // support market
@@ -116,51 +99,6 @@ contract TestUniversalBalance is TestBaseMarket {
             // vm.prank(user2);
             // marketManager.enterMarkets(markets);
         }
-
-        // deploy cWBTC
-        {
-            // deploy aura position vault
-            cWBTC = new CTokenPrimitive(
-                ICentralRegistry(address(centralRegistry)),
-                WBTC,
-                address(marketManager)
-            );
-
-            // support market
-            _prepareWBTC(owner, 1e8);
-            WBTC.approve(address(cWBTC), 1e8);
-            marketManager.listToken(address(cWBTC));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(cWBTC));
-            // set collateral token configuration
-            marketManager.updateCollateralToken(
-                IMToken(address(cWBTC)),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                0,
-                1000
-            );
-
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cWBTC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100e8;
-            marketManager.setCTokenCollateralCaps(mTokens, caps);
-
-            // address[] memory markets = new address[](1);
-            // markets[0] = address(cWBTC);
-            // vm.prank(user1);
-            // marketManager.enterMarkets(markets);
-            // vm.prank(user2);
-            // marketManager.enterMarkets(markets);
-        }
-    }
-
-    function _prepareWBTC(address user, uint256 amount) internal {
-        deal(address(WBTC), user, amount);
     }
 
     function testInitialize() public {
