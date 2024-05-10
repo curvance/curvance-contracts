@@ -7,7 +7,6 @@ import { DENOMINATOR, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
@@ -448,15 +447,32 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
     /// @notice Claim all pending rewards for `token` from the gauge pool.
     /// @param token Pool token address.
-    function claim(address token) public nonReentrant {
+    function claim(address token) external nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeErrors.NotStarted();
         }
 
+        if (!_claim(token)) {
+            revert GaugeErrors.NoReward();
+        }
+    }
+
+    /// @notice Claim all pending rewards.
+    function claimAll() external nonReentrant{
+        if (block.timestamp < startTime) {
+            revert GaugeErrors.NotStarted();
+        }
+        
+        address[] memory tokens = IMarketManager(marketManager).queryTokensListed();
+        for(uint256 i = 0 ; i < tokens.length ; ++i) {
+            _claim(tokens[i]);
+        }
+    }
+
+    function _claim(address token) internal returns(bool hasRewards){
         updatePool(token);
         _calcPending(msg.sender, token);
 
-        bool hasRewards;
         uint256 rewardTokensLength = rewardTokens.length;
 
         for (uint256 i; i < rewardTokensLength; ) {
@@ -474,21 +490,10 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             // Update pending rewards to zero.
             userDebtInfo[token][msg.sender][rewardToken].rewardPending = 0;
         }
-        if (!hasRewards) {
-            revert GaugeErrors.NoReward();
-        }
 
         _calcDebt(msg.sender, token);
 
         emit Claim(msg.sender, token);
-    }
-
-    /// @notice Claim all pending rewards.
-    function claimAll() external {
-        IMToken[] memory tokens = IMarketManager(marketManager).assetsOf(msg.sender);
-        for(uint256 i = 0 ; i < tokens.length ; ++i) {
-            claim(address(tokens[i]));
-        }
     }
 
     /// @notice Claim rewards from gauge pool and compound any CVE rewards
