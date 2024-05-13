@@ -107,10 +107,87 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testDepositETH() public {
-        // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.startPrank(user1);
         universalBalance.depositETH{ value: 1 ether }(false);
         vm.stopPrank();
+
+        vm.deal(user1, 1 ether);
+        vm.startPrank(user1);
+        universalBalance.depositETH{ value: 1 ether }(true);
+        vm.stopPrank();
+
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 1 ether);
+        assertEq(lentBalance, 1 ether);
+    }
+
+    function testDepositWETH() public {
+        deal(_WETH_ADDRESS, user1, 1 ether);
+        vm.startPrank(user1);
+        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        universalBalance.depositWETH(1 ether, false);
+        vm.stopPrank();
+
+        deal(_WETH_ADDRESS, user1, 1 ether);
+        vm.startPrank(user1);
+        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        universalBalance.depositWETH(1 ether, true);
+        vm.stopPrank();
+
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 1 ether);
+        assertEq(lentBalance, 1 ether);
+    }
+
+    function testWithdrawAsETH() public {
+        testDepositWETH();
+
+        vm.expectRevert(bytes4(keccak256("ETHTransferFailed()")));
+        vm.startPrank(user1);
+        universalBalance.withdrawAsETH(1 ether, false);
+        vm.stopPrank();
+    }
+
+    function testWithdrawAsWETH() public {
+        testDepositETH();
+
+        vm.startPrank(user1);
+        universalBalance.withdrawAsWETH(1 ether, false);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        universalBalance.withdrawAsWETH(1 ether, true);
+        vm.stopPrank();
+
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 0);
+    }
+
+    function testClaimForDAO() public {
+        testDepositETH();
+        
+        vm.warp(gaugePool.startTime());
+        vm.roll(block.number + 1000);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = address(dWETH);
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 100 * 2 weeks;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(protocolMessagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
+
+        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+
+        skip(1 weeks);
+
+        uint256 balanceBefore = cve.balanceOf(address(this));
+        universalBalance.claimForDAO();
+        assertEq(cve.balanceOf(address(this)), balanceBefore + 100 * 1 weeks);
     }
 }
