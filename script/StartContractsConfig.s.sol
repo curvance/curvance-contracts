@@ -19,7 +19,10 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _update(network, name);
     }
 
-    function _update(string memory network, string memory name) internal {
+    function _update(
+        string memory network,
+        string memory /* name */
+    ) internal {
         _setConfigurationPath(network);
         _setDeploymentPath(network);
 

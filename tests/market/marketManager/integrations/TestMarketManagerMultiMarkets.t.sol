@@ -39,7 +39,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
     }
 
     function setUpFuzzTest(
-        uint16 _noOfCollateralTokens,
+        uint16 /* _noOfCollateralTokens */,
         uint16 _noOfDebtTokens,
         uint16 _noOfUsers,
         uint16 _entropy
@@ -219,8 +219,8 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
             DToken[] memory dTokens,
             address[] memory users,
             MockV3Aggregator[] memory cTokensAgg,
-            MockV3Aggregator[] memory cTokensUnderlyingAgg,
-            MockV3Aggregator[] memory dTokensAgg
+            ,
+
         ) = setUpFuzzTest(
                 _noOfCollateralTokens,
                 _noOfDebtTokens,
@@ -248,8 +248,8 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
             DToken[] memory dTokens,
             address[] memory users,
             MockV3Aggregator[] memory cTokensAgg,
-            MockV3Aggregator[] memory cTokensUnderlyingAgg,
-            MockV3Aggregator[] memory dTokensAgg
+            ,
+
         ) = setUpFuzzTest(
                 _noOfCollateralTokens,
                 _noOfDebtTokens,
@@ -277,8 +277,8 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
             DToken[] memory dTokens,
             address[] memory users,
             MockV3Aggregator[] memory cTokensAgg,
-            MockV3Aggregator[] memory cTokensUnderlyingAgg,
-            MockV3Aggregator[] memory dTokensAgg
+            ,
+
         ) = setUpFuzzTest(
                 _noOfCollateralTokens,
                 _noOfDebtTokens,

@@ -49,13 +49,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
     function testReturnsCorrectPrice() public {
         bytes memory redstonePayload = getRedstonePayload("WBTC:60000:8");
 
-        (
-            bool isConfigured,
-            bytes32 symbolHash,
-            uint256 max,
-            uint256 decimals,
-            uint256 heartbeat
-        ) = adapter.adaptorDataUSD(_WBTC_ADDRESS);
+        (, bytes32 symbolHash, , , ) = adapter.adaptorDataUSD(_WBTC_ADDRESS);
         assertEq(symbolHash, bytes32("WBTC"));
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
