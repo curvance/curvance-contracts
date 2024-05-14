@@ -747,6 +747,7 @@ contract TestGaugePool is TestBaseMarket {
     }
 
     function testClaimAll() public {
+        address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IMToken(tokens[0]).mint(100 ether);
@@ -813,9 +814,9 @@ contract TestGaugePool is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugePool.claimAll();
+        gaugePool.claimAll(listedTokens);
         vm.prank(users[3]);
-        gaugePool.claimAll();
+        gaugePool.claimAll(listedTokens);
         assertEq(cve.balanceOf(users[0]), 36000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -858,11 +859,11 @@ contract TestGaugePool is TestBaseMarket {
 
         // user0, user1, user2, user3 claims
         vm.prank(users[0]);
-        gaugePool.claimAll();
+        gaugePool.claimAll(listedTokens);
         vm.prank(users[1]);
-        gaugePool.claimAll();
+        gaugePool.claimAll(listedTokens);
         vm.prank(users[3]);
-        gaugePool.claimAll();
+        gaugePool.claimAll(listedTokens);
         assertEq(cve.balanceOf(users[0]), 47111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[3]), 48000);

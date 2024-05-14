@@ -458,12 +458,11 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     }
 
     /// @notice Claim all pending rewards.
-    function claimAll() external nonReentrant{
+    function claimAll(address[] memory tokens) external nonReentrant{
         if (block.timestamp < startTime) {
             revert GaugeErrors.NotStarted();
         }
         
-        address[] memory tokens = IMarketManager(marketManager).queryTokensListed();
         for(uint256 i = 0 ; i < tokens.length ; ++i) {
             _claim(tokens[i]);
         }
