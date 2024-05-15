@@ -452,10 +452,26 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
+        if (!_claim(token)) {
+            revert GaugeErrors.NoReward();
+        }
+    }
+
+    /// @notice Claim all pending rewards.
+    function claimAll(address[] memory tokens) external nonReentrant{
+        if (block.timestamp < startTime) {
+            revert GaugeErrors.NotStarted();
+        }
+        
+        for(uint256 i = 0 ; i < tokens.length ; ++i) {
+            _claim(tokens[i]);
+        }
+    }
+
+    function _claim(address token) internal returns(bool hasRewards){
         updatePool(token);
         _calcPending(msg.sender, token);
 
-        bool hasRewards;
         uint256 rewardTokensLength = rewardTokens.length;
 
         for (uint256 i; i < rewardTokensLength; ) {
@@ -472,9 +488,6 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
             // Update pending rewards to zero.
             userDebtInfo[token][msg.sender][rewardToken].rewardPending = 0;
-        }
-        if (!hasRewards) {
-            revert GaugeErrors.NoReward();
         }
 
         _calcDebt(msg.sender, token);
