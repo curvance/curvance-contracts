@@ -201,7 +201,7 @@ contract BorrowZapper is ReentrancyGuard {
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
             chainData.messagingChainId,
             msg.sender,
-            abi.encode(uint8(1), feeToken, amount),
+            "",
             0,
             0,
             gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
