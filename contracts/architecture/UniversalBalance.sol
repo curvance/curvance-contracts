@@ -94,6 +94,8 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         linkedDToken = IMToken(dToken);
         WETH = WETH_;
+
+        IERC20(WETH_).approve(dToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
