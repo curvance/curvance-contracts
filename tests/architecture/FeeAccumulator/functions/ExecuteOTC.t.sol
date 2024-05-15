@@ -4,22 +4,8 @@ pragma solidity 0.8.19;
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 contract ExecuteOTCTest is TestBaseFeeAccumulator {
-    function setUp() public override {
-        super.setUp();
-
-        chainlinkEthUsds[block.chainid] = new MockV3Aggregator(
-            8,
-            1500e8,
-            1e50,
-            1e6
-        );
-        _deployOracleRouter();
-        _deployChainlinkAdaptors();
-    }
-
     function test_executeOTC_fail_whenCallerIsNotAuthorized() public {
         vm.prank(user1);
 

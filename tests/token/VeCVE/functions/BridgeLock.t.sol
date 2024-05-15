@@ -4,10 +4,8 @@ pragma solidity ^0.8.19;
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 contract BridgeLockTest is TestBaseVeCVE {
-    ITokenBridge public tokenBridge = ITokenBridge(_TOKEN_BRIDGE);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, true);
 
     function setUp() public override {
