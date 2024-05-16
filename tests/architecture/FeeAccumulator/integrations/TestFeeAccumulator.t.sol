@@ -151,7 +151,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
             _ONE /
             2;
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
 
@@ -163,7 +163,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
@@ -265,7 +265,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
             _ONE /
             2;
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+        uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();
 
@@ -277,7 +277,10 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(
+            usdc.balanceOf(address(this)),
+            balanceBefore + compoundingFee
+        );
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
