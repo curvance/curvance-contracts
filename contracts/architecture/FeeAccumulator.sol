@@ -269,7 +269,7 @@ contract FeeAccumulator is ReentrancyGuard {
         if (compoundingFee > 0) {
             SafeTransferLib.safeTransfer(
                 feeToken,
-                address(centralRegistry),
+                centralRegistry.daoAddress(),
                 compoundingFee
             );
         }

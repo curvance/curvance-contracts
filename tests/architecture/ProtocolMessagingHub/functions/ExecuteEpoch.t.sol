@@ -174,7 +174,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
-        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
 
         protocolMessagingHub.executeEpoch(
             response,
@@ -185,6 +185,6 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(usdc.balanceOf(address(this)), compoundingFee);
     }
 }

@@ -119,7 +119,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             2;
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
-        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
 
@@ -132,7 +132,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
