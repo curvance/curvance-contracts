@@ -142,7 +142,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
+                _mulDiv(userBalance.lentBalance, WAD, exchangeRate) <=
             amount
         ) {
             revert UniversalBalance__InsufficientBalance();
@@ -238,7 +238,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
             // Will natively fail if amount == 0 on gaugePool call.
             // Records balance in tokens (shares).
-            uint256 tokensToRedeem = _mulDiv(amount, exchangeRate, WAD);
+            uint256 tokensToRedeem = _mulDiv(amount, WAD, exchangeRate);
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedDToken.redeem(tokensToRedeem);
