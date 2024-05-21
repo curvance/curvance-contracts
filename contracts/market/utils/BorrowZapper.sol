@@ -88,10 +88,8 @@ contract BorrowZapper is ReentrancyGuard {
             }
 
             SwapperLib.swapUnsafe(centralRegistry, swapData);
-        } else {
-            if (swapData.target != address(0)) {
-                revert BorrowZapper__InvalidSwapData();
-            }
+        } else if (swapData.target != address(0)) {
+            revert BorrowZapper__InvalidSwapData();
         }
 
         // Bridge the fee token to `dstChainId` via Wormhole.
@@ -125,16 +123,6 @@ contract BorrowZapper is ReentrancyGuard {
         uint256 amount,
         uint256 gasLimit
     ) internal {
-        uint256 wormholeFee = _quoteMessageFee(dstChainId, gasLimit);
-
-        // Validate that we have sufficient fees to send crosschain.
-        if (msg.value < wormholeFee) {
-            revert BorrowZapper__InsufficientGasToken();
-        }
-        if (msg.value > wormholeFee) {
-            address(msg.sender).call{ value: msg.value - wormholeFee }("");
-        }
-
         ITokenMessenger circleTokenMessenger = centralRegistry
             .circleTokenMessenger();
 
@@ -149,7 +137,6 @@ contract BorrowZapper is ReentrancyGuard {
                 circleTokenMessenger,
                 dstChainId,
                 amount,
-                wormholeFee,
                 gasLimit
             );
         } else {
@@ -162,16 +149,23 @@ contract BorrowZapper is ReentrancyGuard {
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
     /// @param amount The amount of token to transfer.
-    /// @param wormholeFee Total gas cost to attach send a CCTP message
-    ///                    to `dstChainId`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _transferFeeTokenViaCCTP(
         ITokenMessenger circleTokenMessenger,
         uint256 dstChainId,
         uint256 amount,
-        uint256 wormholeFee,
         uint256 gasLimit
     ) internal {
+        uint256 wormholeFee = _quoteMessageFee(dstChainId, gasLimit);
+
+        // Validate that we have sufficient fees to send crosschain.
+        if (msg.value < wormholeFee) {
+            revert BorrowZapper__InsufficientGasToken();
+        }
+        if (msg.value > wormholeFee) {
+            address(msg.sender).call{ value: msg.value - wormholeFee }("");
+        }
+
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
