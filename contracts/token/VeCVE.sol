@@ -1469,11 +1469,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
+            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
         ) {
-            if (block.timestamp >= genesisEpoch) {
-                revert VeCVE__EpochNotDelivered();
-            }
+            revert VeCVE__EpochNotDelivered();
         }
     }
 

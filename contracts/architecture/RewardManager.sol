@@ -69,8 +69,9 @@ contract RewardManager is Delegable, ReentrancyGuard {
     uint256 public isShutdown = 1;
 
     /// @notice The next undelivered epoch index.
-    /// @dev This should be as close to currentEpoch() + 1 as possible,
-    ///      but can lag behind if crosschain systems are strained.
+    /// @dev Records the last epoch rewards delivered + 1, this can lag behind
+    ///      if crosschain systems are strained. This will result in all lock
+    ///      state changes being blocked until the system catches up.
     uint256 public nextEpochToDeliver;
 
     /// @notice The next epoch index to claim for a user.
@@ -390,10 +391,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @param user The address of the user to check for reward claims.
     /// @return A value indicating if the user has any rewards to claim.
     function epochsToClaim(address user) public view returns (uint256) {
-        if (
-            nextEpochToDeliver > userNextClaimIndex[user] &&
-            veCVE.userPoints(user) > 0
-        ) {
+        if (nextEpochToDeliver > userNextClaimIndex[user]) {
             unchecked {
                 return nextEpochToDeliver - (userNextClaimIndex[user]);
             }
