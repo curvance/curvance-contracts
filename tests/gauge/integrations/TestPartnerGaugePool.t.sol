@@ -86,12 +86,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
         vm.prank(address(protocolMessagingHub));
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
-        // start epoch
-        gaugePool.start(address(marketManager));
-
-        vm.warp(gaugePool.startTime());
-        vm.roll(block.number + 1000);
-
         // add partner gauges
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             partnerRewardTokens[i] = address(
@@ -109,7 +103,61 @@ contract TestPartnerGaugePool is TestBaseMarket {
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
 
+    function startGauge() internal {
+        // start epoch
+        gaugePool.start(address(marketManager));
+
+        vm.warp(gaugePool.startTime());
+        vm.roll(block.number + 1000);
+    }
+
+    function testPartnerGaugesRewardsBeforeGaugeStart() public {
+        // start epoch
+        gaugePool.start(address(marketManager));
+
+        assertGt(gaugePool.startTime(), block.timestamp);
+
+        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
+            vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
+            gaugePool.setRewardPerSec(
+                tokens[0],
+                0,
+                partnerRewardTokens[i],
+                100
+            );
+            vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
+            gaugePool.setRewardPerSec(
+                tokens[1],
+                0,
+                partnerRewardTokens[i],
+                200
+            );
+            gaugePool.setRewardPerSec(
+                tokens[0],
+                1,
+                partnerRewardTokens[i],
+                100
+            );
+            gaugePool.setRewardPerSec(
+                tokens[1],
+                1,
+                partnerRewardTokens[i],
+                200
+            );
+        }
+
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user2 deposit 100 token1
+        vm.prank(users[2]);
+        IMToken(tokens[1]).mint(100 ether);
+    }
+
     function testRevertAddExtraRewardInvalidAddress() public {
+        startGauge();
+
         vm.expectRevert(GaugeErrors.InvalidAddress.selector);
         gaugePool.addExtraReward(address(0));
 
@@ -118,6 +166,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testRevertRemoveExtraReward() public {
+        startGauge();
+
         vm.expectRevert(GaugeErrors.Unauthorized.selector);
         gaugePool.removeExtraReward(0, address(cve));
 
@@ -126,6 +176,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testSuccessRevertExtraReward() public {
+        startGauge();
+
         assertEq(gaugePool.getRewardTokensLength(), CHILD_GAUGE_COUNT + 1);
 
         gaugePool.removeExtraReward(1, address(partnerRewardTokens[0]));
@@ -134,6 +186,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testRevertSetRewardPerSecInvalidEpoch() public {
+        startGauge();
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -158,6 +212,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testRevertSetRewardPerSecInvalidRewardToken() public {
+        startGauge();
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -177,6 +233,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testUpdateRewardPerSec() public {
+        startGauge();
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -206,6 +264,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testPartnerGaugesRewardRatioOfDifferentPools() public {
+        startGauge();
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -553,6 +613,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
     }
 
     function testPartnerGaugesRewardCalculationWithDifferentEpoch() public {
+        startGauge();
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
