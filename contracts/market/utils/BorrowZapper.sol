@@ -128,8 +128,11 @@ contract BorrowZapper is ReentrancyGuard {
         uint256 wormholeFee = _quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
-        if (address(this).balance < wormholeFee) {
+        if (msg.value < wormholeFee) {
             revert BorrowZapper__InsufficientGasToken();
+        }
+        if (msg.value > wormholeFee) {
+            address(msg.sender).call{ value: msg.value - wormholeFee }("");
         }
 
         ITokenMessenger circleTokenMessenger = centralRegistry
