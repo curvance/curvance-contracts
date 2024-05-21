@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 
 contract TestVeCVE is TestBaseVeCVE {
     event Locked(address indexed user, uint256 amount);
@@ -27,6 +28,30 @@ contract TestVeCVE is TestBaseVeCVE {
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         centralRegistry.transferDaoOwnership(user1);
+    }
+
+    function test_createLockBeforeGenesisStartTime() public {
+        uint256 amount = 2e18;
+        uint256 penaltyMultiplier = 5000;
+        rewardsData = RewardsData(false, true, true, true);
+
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(penaltyMultiplier);
+
+        (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCVE
+            .queryUserLocks(address(this));
+
+        assertEq(lockAmounts.length, 0);
+        assertEq(lockTimestamps.length, 0);
+        assertEq(veCVE.getVotes(address(this)), 0);
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit Locked(address(this), amount);
+
+        vm.warp(veCVE.genesisEpoch() - 1 hours);
+        veCVE.createLock(amount, true, rewardsData, "", 0);
+
+        assertEq(cve.balanceOf(address(this)), 100e18 - amount);
+        assertEq(veCVE.balanceOf(address(this)), amount);
     }
 
     function test_createLockWithContinuousLock_earlyExpireLock_revert_fuzzed(
