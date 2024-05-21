@@ -17,6 +17,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
@@ -68,6 +69,13 @@ contract PositionFolding is
     ///      leverage/deleverage action, works similar to reentryguard
     ///      with pre and post checks.
     modifier checkSlippage(address account, uint256 slippage) {
+        IMToken[] memory mTokens = marketManager.assetsOf(account);
+        for (uint256 i = 0; i < mTokens.length; ++i) {
+            if (!mTokens[i].isCToken()) {
+                mTokens[i].accrueInterest();
+            }
+        }
+
         (uint256 collateralBefore, uint256 debtBefore) = marketManager
             .solvencyOf(account);
         uint256 liquidityBefore = collateralBefore - debtBefore;
