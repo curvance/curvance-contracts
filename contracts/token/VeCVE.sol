@@ -789,7 +789,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnVeCVELock(amount);
+        ICVE(cve).burnLockedTokens(amount);
 
         sequence = IProtocolMessagingHub(
             centralRegistry.protocolMessagingHub()

@@ -344,7 +344,7 @@ contract ProtocolMessagingHub is QueryResponse {
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));
 
-            cve.mintVeCVELock(amount);
+            cve.mintLockedTokens(amount);
             _approveTokenIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
@@ -361,38 +361,13 @@ contract ProtocolMessagingHub is QueryResponse {
                 0
             );
         } else if (payloadType == 5) {
-            // payloadType = 5: Receive bridged CVE.
+            // payloadType = 5: Indicates receiving CVE from the source
+            //                  chain to this destination chain.
 
-            IWormhole wormhole = _getWormholeCore();
-            ITokenBridge tokenBridge = _getTokenBridge();
+            (, address recipient, uint256 amount) = abi
+                .decode(payload, (uint8, address, uint256));
 
-            (IWormhole.VM memory parsed, bool valid, ) = wormhole
-                .parseAndVerifyVM(additionalMessages[0]);
-            ITokenBridge.TransferWithPayload memory transfer = tokenBridge
-                .parseTransferWithPayload(parsed.payload);
-
-            if (
-                !valid ||
-                parsed.emitterAddress !=
-                tokenBridge.bridgeContracts(parsed.emitterChainId) ||
-                transfer.to != _addressToBytes32(address(this)) ||
-                transfer.toChain != wormhole.chainId() ||
-                transfer.tokenAddress !=
-                _addressToBytes32(chainData.cveAddress)
-            ) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
-
-            _getTokenBridge().completeTransferWithPayload(
-                additionalMessages[0]
-            );
-
-            (, address recipient, uint256 amount) = abi.decode(
-                payload,
-                (uint8, address, uint256)
-            );
-
-            SafeTransferLib.safeTransfer(address(cve), recipient, amount);
+            cve.completeBridge(recipient, amount);
         }
     }
 
@@ -444,7 +419,6 @@ contract ProtocolMessagingHub is QueryResponse {
     ///                    whereas CVE has no payload type because its
     ///                    a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeToken(
         uint256 dstChainId,
         address recipient,
@@ -452,7 +426,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit,
         uint256 payloadType,
         bool aux
-    ) external payable returns (uint64) {
+    ) external payable {
         _checkMessagingStatus(1);
 
         ChainData memory chainData = _getChainData(dstChainId);
@@ -465,70 +439,45 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Validate that we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         gasLimit = _getGasLimit(gasLimit);
+        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
 
         if (payloadType == 4) {
+            // Bridge VeCVE Lock crosschain.
+
             if (msg.sender != address(veCVE)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            // Validate that we are aiming for a supported chain.
-            if (chainData.isSupported < 2) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
+            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                wormholeChainId,
+                chainData.messagingHub,
+                abi.encode(4, recipient, amount, aux), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit
+            );
 
-            return
-                _getWormholeRelayer().sendPayloadToEvm{ value: msg.value }(
-                    wormholeChainId,
-                    chainData.messagingHub,
-                    abi.encode(4, recipient, amount, aux), // payload
-                    0, // No receiver value since we're just passing a message.
-                    gasLimit
-                );
+            return;
         }
+
+        // Bridge CVE crosschain.
 
         if (msg.sender != address(cve)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        IWormholeRelayer.VaaKey[]
-            memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
-        uint256 messageFee = _getMessageFee();
-
-        // Scoping to avoid stack too deep.
-        {
-            ITokenBridge tokenBridge = _getTokenBridge();
-            _approveTokenIfNeeded(address(cve), address(tokenBridge), amount);
-
-            uint64 sequence = tokenBridge.transferTokensWithPayload{
-                value: messageFee
-            }(
-                address(cve),
-                amount,
-                wormholeChainId,
-                _addressToBytes32(chainData.messagingHub),
-                0,
-                ""
-            );
-
-            vaaKeys[0] = IWormholeRelayer.VaaKey({
-                emitterAddress: _addressToBytes32(address(tokenBridge)),
-                chainId: _getWormholeCore().chainId(),
-                sequence: sequence
-            });
-        }
-
-        return
-            _getWormholeRelayer().sendVaasToEvm{
-                value: msg.value - messageFee
-            }(
-                wormholeChainId,
-                chainData.messagingHub,
-                abi.encode(5, recipient, amount),
-                0,
-                gasLimit,
-                vaaKeys
-            );
+        wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+            wormholeChainId,
+            chainData.messagingHub,
+            abi.encode(5, recipient, amount), // payload
+            0, // No receiver value since we're just passing a message.
+            gasLimit
+        );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -807,11 +756,6 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Returns the current Wormhole Core address to call.
     function _getWormholeCore() internal view returns (IWormhole) {
         return centralRegistry.wormholeCore();
-    }
-
-    /// @dev Returns the current Wormhole TokenBridge address to call.
-    function _getTokenBridge() internal view returns (ITokenBridge) {
-        return centralRegistry.tokenBridge();
     }
 
     /// @dev Returns the current standard wormhole message fee.
