@@ -11,28 +11,28 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import "forge-std/console2.sol";
 
 contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
-    uint256 constant MAX_DEPOSIT = 1e26;
-    uint256 constant MIN_WITHDRAW = 1e18;
-    uint256 constant BP = 1e4;
-    uint256 constant MAX_TOKENS = 10;
-    uint256 constant MAX_USERS = 20;
+    uint256 public constant MAX_DEPOSIT = 1e26;
+    uint256 public constant MIN_WITHDRAW = 1e18;
+    uint256 public constant BP = 1e4;
+    uint256 public constant MAX_TOKENS = 10;
+    uint256 public constant MAX_USERS = 20;
 
-    uint256 noOfCollateralTokens;
-    uint256 noOfDebtTokens;
-    uint256 noOfUsersCollateral;
+    uint256 public noOfCollateralTokens;
+    uint256 public noOfDebtTokens;
+    uint256 public noOfUsersCollateral;
 
-    uint256 noOfUsersDebt;
-    uint256 noOfUsersMixed;
-    uint256 noOfUsers;
+    uint256 public noOfUsersDebt;
+    uint256 public noOfUsersMixed;
+    uint256 public noOfUsers;
 
-    uint256 solvency;
-    uint256 debt;
+    uint256 public solvency;
+    uint256 public debt;
 
-    uint256 accCollateral;
-    uint256 accMaxDebt;
-    uint256 accDebt;
+    uint256 public accCollateral;
+    uint256 public accMaxDebt;
+    uint256 public accDebt;
 
-    uint256[MAX_TOKENS] colRatios;
+    uint256[MAX_TOKENS] public colRatios;
 
     function _genDebtToken(
         uint256 _noOfTokens
@@ -139,7 +139,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     function _withdraw(
         address _user,
         MockCTokenPrimitive _cToken,
-        uint256 _amount
+        uint256 /* _amount */
     ) internal {
         vm.prank(_user);
         _cToken.withdraw(1e20, address(_user), address(_user));
@@ -280,7 +280,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         uint256 _collateralAvailable,
         DToken _dToken,
         MockCTokenPrimitive _cToken,
-        uint256 cFactor,
+        uint256 /* cFactor */,
         uint256 debtAmount,
         uint256 price
     )

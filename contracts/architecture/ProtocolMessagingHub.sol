@@ -291,7 +291,6 @@ contract ProtocolMessagingHub is QueryResponse {
             // instead of recording epoch rewards.
             if (_checkRewardManagerStatus(_getRewardManager())) {
                 _transferFeeTokens(amount, _getDaoAddress());
-                return;
             }
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
@@ -429,7 +428,7 @@ contract ProtocolMessagingHub is QueryResponse {
             dstChainId,
             chainData.messagingHub,
             amount,
-            abi.encode(uint8(1), feeToken, amount),
+            abi.encode(1, feeToken, amount),
             gasLimit
         );
     }

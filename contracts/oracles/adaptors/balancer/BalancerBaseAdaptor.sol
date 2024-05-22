@@ -66,7 +66,6 @@ abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
         // IVault.UserBalanceOp[] memory noop = new IVault.UserBalanceOp[](0);
         // _vault.manageUserBalance(noop);
 
-        // solhint-disable-next-line var-name-mixedcase
         bytes32 REENTRANCY_ERROR_HASH = keccak256(
             abi.encodeWithSignature("Error(string)", "BAL#400")
         );

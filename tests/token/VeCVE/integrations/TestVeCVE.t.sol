@@ -90,8 +90,6 @@ contract TestVeCVE is TestBaseVeCVE {
 
         assertLt(penaltyAmount, prevPenaltyAmount);
 
-        uint256 daoCveBalance = cve.balanceOf(centralRegistry.daoAddress());
-
         assertGt(penaltyAmount, 0);
 
         vm.expectRevert(bytes4(keccak256("TransferFailed()")));
