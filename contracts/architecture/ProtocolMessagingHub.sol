@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { GaugeController } from "contracts/gauge/GaugeController.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -722,7 +722,7 @@ contract ProtocolMessagingHub is QueryResponse {
         // Query rewards for this epoch.
         uint256 feeTokensOverall = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
-        uint256 epochRewardsPerCVE = (feeTokensOverall * WAD) / totalPoints;
+        uint256 epochRewardsPerPoint = (feeTokensOverall * WAD_SQUARED) / totalPoints;
 
         uint256 feeTokensForChain;
         uint256 currentChainId;
@@ -740,7 +740,7 @@ contract ProtocolMessagingHub is QueryResponse {
         } else {
             // Transfer fees to Reward Manager, and record newest epoch rewards.
             _transferFeeTokens(feeTokensForChain, address(rewardManager));
-            _recordEpochRewards(rewardManager, epochRewardsPerCVE);
+            _recordEpochRewards(rewardManager, epochRewardsPerPoint);
         }
 
         // Notify the other chains of the per epoch rewards.
@@ -756,7 +756,7 @@ contract ProtocolMessagingHub is QueryResponse {
                 currentChainId,
                 _getChainData(currentChainId).messagingHub,
                 feeTokensForChain,
-                abi.encode(3, epochRewardsPerCVE),
+                abi.encode(3, epochRewardsPerPoint),
                 gasLimit
             );
         }
@@ -776,9 +776,9 @@ contract ProtocolMessagingHub is QueryResponse {
 
     function _recordEpochRewards(
         IRewardManager rewardManager,
-        uint256 epochRewardsPerCVE
+        uint256 epochRewardsPerPoint
     ) internal {
-        rewardManager.recordEpochRewards(epochRewardsPerCVE);
+        rewardManager.recordEpochRewards(epochRewardsPerPoint);
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
