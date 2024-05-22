@@ -12,15 +12,17 @@ import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-contract TestBorrowAndBridge is TestBaseMarket {
+contract BorrowAndBridgeTest is TestBaseMarket {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
-
     BorrowZapper public borrowZapper;
+
+    SwapperLib.Swap public swapData;
+    IUniswapV3Router.ExactInputSingleParams public params;
 
     function setUp() public override {
         _fork(19140000);
@@ -126,9 +128,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             makeAddr("Wormhole Relayer"),
             3
         );
-    }
 
-    function testDTokenBorrowAndBridge() public {
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -146,12 +146,10 @@ contract TestBorrowAndBridge is TestBaseMarket {
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        SwapperLib.Swap memory swapData;
         swapData.inputToken = _DAI_ADDRESS;
         swapData.inputAmount = 500e18;
         swapData.outputToken = _USDC_ADDRESS;
         swapData.target = _UNISWAP_V3_SWAP_ROUTER;
-        IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
@@ -164,14 +162,77 @@ contract TestBorrowAndBridge is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
+    }
 
-        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
+    function test_borrowAndBridge_fail_whenSwapDataIsInvalid() public {
+        swapData.inputToken = _USDC_ADDRESS;
 
-        // try borrow()
         vm.startPrank(user1);
 
         dDAI.setDelegateApproval(address(borrowZapper), true);
-        borrowZapper.borrowAndBridge{ value: messageFee }(
+
+        vm.expectRevert(BorrowZapper.BorrowZapper__InvalidSwapData.selector);
+        borrowZapper.borrowAndBridge{ value: _ONE }(
+            address(dDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_fail_whenCCTPIsNotConfigured() public {
+        centralRegistry.setCircleTokenMessenger(address(0));
+
+        vm.startPrank(user1);
+
+        dDAI.setDelegateApproval(address(borrowZapper), true);
+
+        vm.expectRevert(
+            BorrowZapper.BorrowZapper__CCTPIsNotConfigured.selector
+        );
+        borrowZapper.borrowAndBridge{ value: _ONE }(
+            address(dDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_fail_whenGasTokenIsNotEnough() public {
+        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
+
+        vm.startPrank(user1);
+
+        dDAI.setDelegateApproval(address(borrowZapper), true);
+
+        vm.expectRevert(
+            BorrowZapper.BorrowZapper__InsufficientGasToken.selector
+        );
+        borrowZapper.borrowAndBridge{ value: messageFee - 1 }(
+            address(dDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_success() public {
+        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
+        uint256 balance = address(user1).balance;
+
+        vm.startPrank(user1);
+
+        dDAI.setDelegateApproval(address(borrowZapper), true);
+        borrowZapper.borrowAndBridge{ value: _ONE }(
             address(dDAI),
             500e18,
             swapData,
@@ -181,6 +242,8 @@ contract TestBorrowAndBridge is TestBaseMarket {
         dDAI.borrow(500e18);
 
         vm.stopPrank();
+
+        assertEq(address(user1).balance, balance - messageFee);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

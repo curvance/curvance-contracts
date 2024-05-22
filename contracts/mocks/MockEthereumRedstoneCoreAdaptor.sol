@@ -14,7 +14,7 @@ contract MockEthereumRedstoneCoreAdaptor is EthereumRedstoneCoreAdaptor {
     }
 
     function getAuthorisedSignerIndex(
-        address signerAddress
+        address /* signerAddress */
     ) public view virtual override returns (uint8) {
         // authorize everyone
         return 0;

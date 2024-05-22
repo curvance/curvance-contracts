@@ -20,5 +20,7 @@ contract MockArbSys {
             return
                 0x950cea2980f9a92d1e2c59526071f2d793b9f40d84ca1974948d35a0649c0a15;
         }
+
+        return 0;
     }
 }

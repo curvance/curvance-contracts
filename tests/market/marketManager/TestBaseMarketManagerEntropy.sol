@@ -164,7 +164,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
     function _executeBorrows(
         address[] memory users,
         DToken[] memory dTokens,
-        MockCTokenPrimitive[] memory colToken
+        MockCTokenPrimitive[] memory /* colToken */
     ) internal {
         uint256 amount;
         //uint256 borrowToken;

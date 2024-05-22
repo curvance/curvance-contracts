@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 
@@ -103,7 +101,7 @@ contract PendlePTDeployer is DeployConfiguration {
                     underlyingParam.asset,
                     0
                 )
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
@@ -158,7 +156,7 @@ contract PendlePTDeployer is DeployConfiguration {
 
             try
                 OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     param.asset,
                     pendlePtAdapter

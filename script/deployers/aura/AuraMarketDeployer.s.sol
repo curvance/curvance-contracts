@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
@@ -118,7 +118,7 @@ contract AuraMarketDeployer is DeployConfiguration {
                     underlyingParam.asset,
                     0
                 )
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
@@ -180,7 +180,7 @@ contract AuraMarketDeployer is DeployConfiguration {
 
         try
             OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
-        returns (address feed) {} catch {
+        returns (address /* feed */) {} catch {
             OracleRouter(oracleRouter).addAssetPriceFeed(
                 param.asset,
                 balancerAdaptor
