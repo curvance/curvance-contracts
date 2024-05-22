@@ -13,12 +13,24 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { WormholeHelper as SpecializedWormholeHelper } from "@pigeon/src/wormhole/specialized-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { stdStorage, StdStorage } from "forge-std/Test.sol";
+
+interface ITokenBridge {
+    function attestToken(
+        address tokenAddress,
+        uint32 nonce
+    ) external payable returns (uint64 sequence);
+}
 
 contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
+    using stdStorage for StdStorage;
+
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
+    SpecializedWormholeHelper public specializedHelper;
     RewardsData public rewardsData = RewardsData(true, false, false, false);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, false);
 
@@ -32,9 +44,10 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         _init();
 
         // Fork Arbitrum as destination chain and select it
-        dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 180000000);
+        dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 213946165);
 
         wormholeHelper = new WormholeHelper();
+        specializedHelper = new SpecializedWormholeHelper();
 
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
@@ -358,32 +371,56 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         vm.recordLogs();
 
+        ITokenBridge(_TOKEN_BRIDGE).attestToken(address(cve), 0);
+
+        Vm.Log[] memory attestLogs = vm.getRecordedLogs();
+
         vm.prank(user1);
         cve.bridge{ value: messageFee }(42161, user1, _ONE, 0);
 
         assertEq(cve.balanceOf(user1), 0);
         assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);
 
-        Vm.Log[] memory logs = vm.getRecordedLogs();
+        Vm.Log[] memory bridgeLogs = vm.getRecordedLogs();
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
 
         _initMainVariables();
 
+        deal(address(cve), address(protocolMessagingHub), _ONE);
+
+        assertEq(cve.balanceOf(address(user1)), 0);
+
+        specializedHelper.help(
+            2,
+            dstForkId,
+            _WORMHOLE_CORE,
+            _TOKEN_BRIDGE,
+            attestLogs
+        );
+
         uint256[] memory dstForkIds = new uint256[](1);
         address[] memory expDstAddresses = new address[](1);
         address[] memory dstRelayers = new address[](1);
+        address[] memory dstWormhole = new address[](1);
 
         dstForkIds[0] = dstForkId;
         expDstAddresses[0] = address(protocolMessagingHub);
         dstRelayers[0] = _WORMHOLE_RELAYER;
+        dstWormhole[0] = _WORMHOLE_CORE;
 
-        // Simulate wormhole cross-chain messaging with payloadType 5
-        // Pigeon didn't implement using `additionalMessages` when call
-        // receiveWormholeMessages yet.
+        wormholeHelper.helpWithAdditionalVAA(
+            2,
+            dstForkIds,
+            expDstAddresses,
+            dstRelayers,
+            dstWormhole,
+            bridgeLogs
+        );
 
-        // wormholeHelper.help(2, dstForkIds, expDstAddresses, dstRelayers, logs);
+        assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(cve.balanceOf(address(user1)), _ONE);
     }
 
     function _createLock() internal {
