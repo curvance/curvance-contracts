@@ -755,7 +755,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         RewardsData calldata rewardsData,
         bytes calldata params,
         uint256 aux
-    ) external payable nonReentrant returns (uint64 sequence) {
+    ) external payable nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
@@ -789,9 +789,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnLockedTokens(amount);
+        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId,amount);
 
-        sequence = IProtocolMessagingHub(
+        IProtocolMessagingHub(
             centralRegistry.protocolMessagingHub()
         ).bridgeToken{ value: msg.value }(
             bridgeData.dstChainId,

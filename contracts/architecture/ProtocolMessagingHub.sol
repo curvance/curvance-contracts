@@ -231,15 +231,12 @@ contract ProtocolMessagingHub is QueryResponse {
     ///                by the requester. This message's signature will already
     ///                have been verified (as long as msg.sender is
     ///                the Wormhole Relayer contract).
-    /// @param additionalMessages Additional messages which were requested to be
-    ///                           included in this delivery.
     /// @param srcAddress The (wormhole format) address on the sending chain
     ///                   which requested this delivery.
     /// @param srcChainId The wormhole chain ID where delivery was requested.
     /// @param deliveryHash The VAA hash of the deliveryVAA.
     function receiveWormholeMessages(
         bytes memory payload,
-        bytes[] memory additionalMessages,
         bytes32 srcAddress,
         uint16 srcChainId,
         bytes32 deliveryHash
@@ -344,7 +341,7 @@ contract ProtocolMessagingHub is QueryResponse {
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));
 
-            cve.mintLockedTokens(amount);
+            cve.mintLockedTokens(recipient, amount);
             _approveTokenIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
