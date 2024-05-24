@@ -220,6 +220,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(feeAccumulator)), 0);
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
 
+        uint256 daoBalance = usdc.balanceOf(address(this));
         uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
 
         vm.recordLogs();
@@ -232,7 +233,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         uint256 pullAmount = 1000e6 - compoundingFee;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(usdc.balanceOf(address(this)), daoBalance + compoundingFee);
         assertEq(
             usdc.balanceOf(address(feeAccumulator)),
             usdcBalance - 1000e6
