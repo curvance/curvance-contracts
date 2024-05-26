@@ -56,11 +56,11 @@ contract StartContractsConfig is Script, DeployConfiguration {
     }
 
     function _is_testnet(string memory network) internal pure returns (bool) {
+        bytes32 network_hash = keccak256(abi.encodePacked(network));
         return
-            keccak256(abi.encodePacked(network)) ==
-            keccak256(abi.encodePacked("sepolia")) ||
-            keccak256(abi.encodePacked(network)) ==
-            keccak256(abi.encodePacked("localhost"));
+            network_hash == keccak256(abi.encodePacked("sepolia")) ||
+            network_hash == keccak256(abi.encodePacked("arb_sepolia")) ||
+            network_hash == keccak256(abi.encodePacked("localhost"));
     }
 
     function _after_deploy_config(string memory network) internal {
@@ -107,7 +107,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
-        _deployMockTokens();
+        // _deployMockTokens();
         _createTestMarkets();
         _createRealTestMarkets();
         _loadFaucet();
@@ -126,6 +126,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address l_usd = address(
             new TestnetToken("LUSD Stablecoin", "LUSD", 18)
         );
+        address dai = address(new TestnetToken("Dai Stablecoin", "DAI", 18));
         address m_eth = address(new TestnetToken("mETH", "mETH", 18));
         address m_usd = address(new TestnetToken("mUSD", "mUSD", 18));
         address mk_usd = address(
@@ -140,6 +141,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _saveDeployedContracts("mkUSD", mk_usd);
         _saveDeployedContracts("WBTC", wbtc);
         _saveDeployedContracts("USDC", usdc);
+        _saveDeployedContracts("DAI", dai);
 
         // Create faucet for tokens
         address faucet = address(new Faucet());
@@ -156,8 +158,12 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address m_usd = _getDeployedContract("mUSD");
         address mk_usd = _getDeployedContract("mkUSD");
 
-        address chainlinkUsdcFeedInUsd = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
-        address chainlinkEthFeedInUsd = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
+        address chainlinkUsdcFeedInUsd = _readConfigAddress(
+            ".oracleRouter.chainlinkUsd"
+        );
+        address chainlinkEthFeedInUsd = _readConfigAddress(
+            ".oracleRouter.chainlinkEthUsd"
+        );
 
         MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
         MarketTokenDeploy[]
@@ -467,5 +473,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
             uint256 decimals = t.decimals();
             t.transfer(faucet_addr, 5_000_000 * (10 ** decimals));
         }
+
+        Faucet(faucet_addr).setMaxClaimAmounts(mockTokens[4], 10_000e6);
     }
 }

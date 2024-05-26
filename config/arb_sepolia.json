@@ -41,6 +41,7 @@
     "weth": "0x980B62Da83eFf3D4576C647993b0c1D7faf17c73"
   },
   "oracleRouter": {
+    "chainlinkUsd": "0x0153002d20B96532C639313c2d54c3dA09109309",
     "chainlinkEthUsd": "0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165"
   },
   "markets": {

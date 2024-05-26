@@ -52,15 +52,22 @@ contract DeployCurvance is
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy CentralRegistry
+        address feeToken = _readConfigAddress(".centralRegistry.feeToken");
+        address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
+        if (_is_testnet(network)) {
+            _deployMockTokens();
+            feeToken = _getDeployedContract("USDC");
+            rewardToken = _getDeployedContract("USDC");
+        }
 
+        // Deploy CentralRegistry
         _deployCentralRegistry(
             deployer,
             deployer,
             deployer,
             _readConfigUint256(".centralRegistry.genesisEpoch"),
             _readConfigAddress(".centralRegistry.sequencer"),
-            _readConfigAddress(".centralRegistry.feeToken")
+            feeToken
         );
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
@@ -83,10 +90,7 @@ contract DeployCurvance is
 
         // Deploy Reward Manager
 
-        _deployRewardManager(
-            centralRegistry,
-            _readConfigAddress(".rewardManager.rewardToken")
-        );
+        _deployRewardManager(centralRegistry, rewardToken);
         _setRewardManager(rewardManager);
 
         // Deploy ProtocolMessagingHub

@@ -58,7 +58,7 @@ script="script ./script/DeployCurvance.s.sol \"$network\" --sig \"run(string)\" 
 if [ "${is_sim^^}" == "FALSE" ] || [ "$is_test" == "0" ]
 then
   echo "Deploying to $network"
-  script="forge ${script} --broadcast -vvvv --slow"
+  script="forge ${script} --broadcast -vvvv --slow --retries 20 --skip --skip-simulation -g 200"
 
   echo "REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS ";
   echo "REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS ";
