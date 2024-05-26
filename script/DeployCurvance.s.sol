@@ -93,11 +93,6 @@ contract DeployCurvance is
         _deployRewardManager(centralRegistry, rewardToken);
         _setRewardManager(rewardManager);
 
-        // Deploy ProtocolMessagingHub
-
-        _deployProtocolMessagingHub(centralRegistry);
-        _setProtocolMessagingHub(protocolMessagingHub);
-
         // Deploy FeeAccumulator
 
         _deployFeeAccumulator(centralRegistry);
@@ -106,6 +101,10 @@ contract DeployCurvance is
         // Deploy VeCVE
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
+
+        // Deploy ProtocolMessagingHub
+        _deployProtocolMessagingHub(centralRegistry);
+        _setProtocolMessagingHub(protocolMessagingHub);
 
         // Deploy GaugePool
 

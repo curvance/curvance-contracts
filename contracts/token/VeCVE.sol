@@ -1466,23 +1466,23 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 nextEpochTimestamp = nextEpochStartTime();
         uint256 currentEpochTimestamp = nextEpochTimestamp - EPOCH_DURATION;
 
-        if (
-            currentEpochTimestamp <= block.timestamp &&
-            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
-        ) {
-            revert VeCVE__PostEpochRestriction();
-        }
-        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
-            revert VeCVE__PreEpochRestriction();
-        }
+        // if (
+        //     currentEpochTimestamp <= block.timestamp &&
+        //     block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
+        // ) {
+        //     revert VeCVE__PostEpochRestriction();
+        // }
+        // if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
+        //     revert VeCVE__PreEpochRestriction();
+        // }
 
-        if (
-            rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
-        ) {
-            if (rewardManager.nextEpochToDeliver() != 0) {
-                revert VeCVE__EpochNotDelivered();
-            }
-        }
+        // if (
+        //     rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
+        // ) {
+        //     if (rewardManager.nextEpochToDeliver() != 0) {
+        //         revert VeCVE__EpochNotDelivered();
+        //     }
+        // }
         // if (
         //     rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
         // ) {
