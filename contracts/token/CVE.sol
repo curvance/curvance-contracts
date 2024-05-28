@@ -30,6 +30,8 @@ contract CVE is CVEBase {
 
     /// @notice Builder operating address.
     address public builderAddress;
+    /// @notice Pending Builder operating address.
+    address public pendingBuilderAddress;
     /// @notice Number of DAO treasury tokens minted.
     uint256 public daoTreasuryMinted;
     /// @notice Number of Builder allocation tokens minted.
