@@ -631,7 +631,7 @@ contract ProtocolMessagingHub is QueryResponse {
             chainData.cctpDomain,
             _addressToBytes32(to),
             feeToken,
-            _addressToBytes32(chainData.wormholeRelayer)
+            _addressToBytes32(to)
         );
 
         IWormholeRelayer.MessageKey[]
