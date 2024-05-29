@@ -370,15 +370,15 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         balanceOf[token][user] += amount;
         totalSupply[token] += amount;
 
-        // If the gauge has not started yet no need to check whether
-        // first deposit has been set.
-        if (block.timestamp > startTime) {
-            // If first deposit has not occurred we will need to send
-            // excess rewards to the DAO.
-            if (firstDeposit == 0) {
+        // If first deposit has not occurred we will need to send
+        // excess rewards to the DAO.
+        if (firstDeposit == 0) {
+            firstDeposit = block.timestamp;
+            // If the gauge has not started yet no need to check whether
+            // first deposit has been set.
+            if (block.timestamp > startTime) {
                 // If first deposit, the new rewards from gauge start to this
                 // point will be unallocated rewards.
-                firstDeposit = block.timestamp;
                 updatePool(token);
 
                 uint256 rewardTokensLength = rewardTokens.length;
@@ -458,17 +458,17 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     }
 
     /// @notice Claim all pending rewards.
-    function claimAll(address[] memory tokens) external nonReentrant{
+    function claimAll(address[] memory tokens) external nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeErrors.NotStarted();
         }
-        
-        for(uint256 i = 0 ; i < tokens.length ; ++i) {
+
+        for (uint256 i = 0; i < tokens.length; ++i) {
             _claim(tokens[i]);
         }
     }
 
-    function _claim(address token) internal returns(bool hasRewards){
+    function _claim(address token) internal returns (bool hasRewards) {
         updatePool(token);
         _calcPending(msg.sender, token);
 
