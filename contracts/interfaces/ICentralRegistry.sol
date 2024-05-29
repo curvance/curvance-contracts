@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 /// TYPES ///
@@ -81,6 +82,9 @@ interface ICentralRegistry {
 
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
+
+    /// @notice Returns Circle Token Messenger contract address.
+    function circleMessageTransmitter() external view returns (IMessageTransmitter);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);

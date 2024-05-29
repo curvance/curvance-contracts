@@ -8,14 +8,15 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 /// @title Curvance DAO Central Registry.
 /// @notice Manages permissions and protocol contract registration
@@ -102,6 +103,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Address of Circle Token Messenger.
     ITokenMessenger public circleTokenMessenger;
+
+    /// @notice Address of Circle Token Messenger.
+    IMessageTransmitter public circleMessageTransmitter;
 
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
@@ -222,6 +226,7 @@ contract CentralRegistry is ERC165 {
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
     event CircleTokenMessengerSet(address newAddress);
+    event MessageTransmitterSet(address newAddress);
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address operatorAddress);
@@ -427,6 +432,19 @@ contract CentralRegistry is ERC165 {
 
         circleTokenMessenger = ITokenMessenger(newCircleTokenMessenger);
         emit CircleTokenMessengerSet(newCircleTokenMessenger);
+    }
+
+    /// @notice Sets an address of Circle MessageTransmitter contract.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {MessageTransmitterSet} event.
+    /// @param newMessageTransmitter The new address of Circle MessageTransmitter.
+    function setMessageTransmitter(
+        address newMessageTransmitter
+    ) external {
+        _checkElevatedPermissions();
+
+        circleMessageTransmitter = IMessageTransmitter(newMessageTransmitter);
+        emit MessageTransmitterSet(newMessageTransmitter);
     }
 
     /// @notice Sets an address of Wormhole TokenBridge contract.
