@@ -253,7 +253,9 @@ contract ProtocolMessagingHub is QueryResponse {
         uint8 payloadType = abi.decode(payload, (uint8));
 
         if (payloadType == 1) {
-            // PayloadType = 1: Receiving fees from a foreign chain.
+            // PayloadType = 1: Receiving fees from a foreign chain with no
+            //                  auxilliary payload for purposes of epoch
+            //                  accounting.
 
             // Should only have 1 CCTP transfer.
             if (additionalMessages.length != 1) {
