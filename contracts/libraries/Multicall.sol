@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMulticallDataChecker } from "contracts/interfaces/IMulticallDataChecker.sol";
 import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
@@ -31,44 +32,24 @@ abstract contract Multicall {
         MulticallData[] memory calls
     ) external returns (bytes[] memory results) {
         ICentralRegistry centralRegistry = _getCentralRegistry();
-        OracleRouter oracleRouter = OracleRouter(
-            centralRegistry.oracleRouter()
-        );
 
         results = new bytes[](calls.length);
         for (uint256 i; i < calls.length; ++i) {
             if (calls[i].isPriceUpdate) {
-                if (!oracleRouter.isApprovedAdaptor(calls[i].target)) {
-                    revert Multicall__InvalidTarget();
-                }
+                address callDataChecker = centralRegistry.multicallDataChecker(
+                    calls[i].target
+                );
 
-                bytes4 functionSig = getFuncSigHash(calls[i].data);
-                if (
-                    functionSig == BaseRedstoneCoreAdaptor.writePrice.selector
-                ) {
-                    results[i] = Address.functionCall(
-                        calls[i].target,
-                        calls[i].data
-                    );
-                } else if (
-                    functionSig ==
-                    PythAdaptor.updateFeedsFromUniversalBalance.selector
-                ) {
-                    (, address user) = abi.decode(
-                        getFuncParams(calls[i].data),
-                        (bytes[], address)
-                    );
-                    if (user != msg.sender) {
-                        revert Multicall__InvalidCallData();
-                    }
+                IMulticallDataChecker(callDataChecker).checkCallData(
+                    msg.sender,
+                    calls[i].target,
+                    calls[i].data
+                );
 
-                    results[i] = Address.functionCall(
-                        calls[i].target,
-                        calls[i].data
-                    );
-                } else {
-                    revert Multicall__InvalidCallData();
-                }
+                results[i] = Address.functionCall(
+                    calls[i].target,
+                    calls[i].data
+                );
             } else {
                 if (address(this) != calls[i].target) {
                     revert Multicall__InvalidTarget();
