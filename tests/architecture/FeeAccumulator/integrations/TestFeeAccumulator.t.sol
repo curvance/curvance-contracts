@@ -93,7 +93,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _createLock();
 
-        skip(rewardManager.EPOCH_DURATION() * 3);
+        _skipEpochDuration(3);
     }
 
     function testMultiSwap() public {
@@ -373,7 +373,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
     }
 
     function _createLock() internal {
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 

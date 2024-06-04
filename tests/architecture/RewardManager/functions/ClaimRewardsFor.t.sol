@@ -77,7 +77,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
     function test_claimRewardsFor_success_fuzzed(uint256 amount) public {
         vm.assume(amount > 1e18 && amount <= 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -93,12 +93,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
 
         uint256 rewards = amount /= 1e12;
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6 * _ONE);
-        }
-
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _recordEpochRewards(2, 1e6 * _ONE);
 
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 

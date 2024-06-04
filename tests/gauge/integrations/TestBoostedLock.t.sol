@@ -152,7 +152,7 @@ contract TestBoostedLock is TestBaseMarket {
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         // user0, user3 claims
         RewardsData memory rewardData;

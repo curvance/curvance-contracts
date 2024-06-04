@@ -25,7 +25,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
         veCVE.createLock(30e18, true, rewardsData, "", 0);
@@ -69,7 +69,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.bridgeLock(0, bridgeData, rewardsData, "", 0);

@@ -535,6 +535,26 @@ contract TestBaseMarket is TestBase {
         marketManager.setCTokenCollateralCaps(tokens, caps);
     }
 
+    function _skipRestrictionDuration() internal {
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
+    function _skipEpochDuration(uint256 numEpochs) internal {
+        skip(rewardManager.EPOCH_DURATION() * numEpochs);
+    }
+
+    function _recordEpochRewards(
+        uint256 numEpochs,
+        uint256 epochRewards
+    ) internal {
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(epochRewards);
+        }
+
+        _skipEpochDuration(numEpochs);
+    }
+
     function _addressToBytes32(address addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(addr)));
     }

@@ -14,7 +14,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         deal(address(cve), address(this), _INITIAL_AMOUNT);
         cve.approve(address(veCVE), _INITIAL_AMOUNT);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(_INITIAL_AMOUNT, false, rewardsData, "", 0);
     }

@@ -234,7 +234,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 

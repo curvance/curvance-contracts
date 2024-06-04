@@ -8,7 +8,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
     }
 
     function test_updateUserPoints_fail_unauthorized() public {

@@ -15,7 +15,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
     }
@@ -42,7 +42,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Unlocked(address(this), 30e18);
@@ -60,7 +60,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Unlocked(address(this), 30e18);
@@ -82,7 +82,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         );
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         // Index 0, relock = true, continuous lock mode = true
         veCVE.processExpiredLock(0, true, true, rewardsData, "", 0);
@@ -111,7 +111,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         );
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         // Index 0, relock = true, continuous lock mode = false
         veCVE.processExpiredLock(0, true, false, rewardsData, "", 0);
@@ -137,7 +137,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.shutdown();
 
@@ -163,7 +163,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
         (, uint40 unlockTime2) = veCVE.userLocks(address(this), 1);

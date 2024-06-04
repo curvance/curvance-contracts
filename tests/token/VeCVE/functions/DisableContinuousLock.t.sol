@@ -13,7 +13,7 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(50e18, true, rewardsData, "", 0);
 
@@ -58,12 +58,7 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(address(this), 1);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6 * _ONE);
-        }
-
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _recordEpochRewards(2, 1e6 * _ONE);
 
         // verify that rewards are delivered
         vm.expectEmit(true, true, true, true, address(rewardManager));

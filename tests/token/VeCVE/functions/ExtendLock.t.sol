@@ -12,7 +12,7 @@ contract ExtendLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(50e18, false, rewardsData, "", 0);
     }
@@ -46,7 +46,7 @@ contract ExtendLockTest is TestBaseVeCVE {
 
         vm.warp(unlockTime + 1);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.extendLock(0, true, rewardsData, "", 0);

@@ -20,7 +20,7 @@ contract TestVeCVE is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         centralRegistry.transferDaoOwnership(user1);
     }

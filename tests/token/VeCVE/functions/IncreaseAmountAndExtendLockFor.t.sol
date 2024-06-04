@@ -14,7 +14,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
 
         centralRegistry.addLockingPermissions(address(this));
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLockFor(address(1), 50e18, false, rewardsData, "", 0);
 
@@ -105,7 +105,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
 
         vm.warp(unlockTime + 1);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLockFor(

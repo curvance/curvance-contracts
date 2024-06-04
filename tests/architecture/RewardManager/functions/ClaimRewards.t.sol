@@ -72,7 +72,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
     }
 
     function test_claimRewards_fail_whenSwapDataIsInvalid() public {
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -121,7 +121,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         assertFalse(rewardManager.hasRewardsToClaim(user1));
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), 0);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -138,12 +138,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         uint256 rewards = isFreshLockContinuous ? amount * 2 : amount;
         rewards /= 1e12;
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6 * _ONE);
-        }
-
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _recordEpochRewards(2, 1e6 * _ONE);
 
         assertTrue(rewardManager.hasRewardsToClaim(user1));
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);

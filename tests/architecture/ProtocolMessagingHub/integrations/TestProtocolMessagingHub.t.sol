@@ -98,7 +98,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     {
         _createLock();
 
-        skip(rewardManager.EPOCH_DURATION() * 3);
+        _skipEpochDuration(3);
 
         _prepareResponseAndSignatures(
             abi.encode(_ONE),
@@ -312,7 +312,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCVE
             .queryUserLocks(user1);
@@ -383,7 +383,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     }
 
     function _createLock() internal {
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 

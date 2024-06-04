@@ -12,7 +12,7 @@ contract CreateLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
     }
 
     function test_createLock_fail_whenVeCVEShutdown(
@@ -54,7 +54,7 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
         vm.warp(veCVE.nextEpochStartTime() + veCVE.EPOCH_DURATION());
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__EpochNotDelivered.selector);
         veCVE.createLock(100e18, true, rewardsData, "", 0);
@@ -220,12 +220,7 @@ contract CreateLockTest is TestBaseVeCVE {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(address(this), 1);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6 * _ONE);
-        }
-
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _recordEpochRewards(2, 1e6 * _ONE);
 
         uint256 rewards = lockAmount / 1e12;
 

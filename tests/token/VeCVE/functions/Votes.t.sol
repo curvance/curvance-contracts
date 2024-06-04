@@ -8,7 +8,7 @@ contract VotesTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
     }
 
     function test_getVotes_zero() public {
