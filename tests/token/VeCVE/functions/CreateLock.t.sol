@@ -12,11 +12,6 @@ contract CreateLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
 
@@ -215,20 +210,31 @@ contract CreateLockTest is TestBaseVeCVE {
 
         deal(_USDC_ADDRESS, address(rewardManager), amount);
 
-        vm.expectEmit(true, true, true, true, address(veCVE));
-        emit Locked(address(this), amount / 2);
+        uint256 lockAmount = amount / 2;
 
-        veCVE.createLock(amount / 2, false, rewardsData, "", 0);
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit Locked(address(this), lockAmount);
+
+        veCVE.createLock(lockAmount, false, rewardsData, "", 0);
 
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(address(this), 1);
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        skip(rewardManager.EPOCH_DURATION() * 2);
+
+        uint256 rewards = lockAmount / 1e12;
+
         // verify that rewards are delivered
         vm.expectEmit(true, true, true, true, address(rewardManager));
-        emit RewardPaid(address(this), _USDC_ADDRESS, amount / 2);
+        emit RewardPaid(address(this), _USDC_ADDRESS, rewards);
 
-        veCVE.createLock(amount / 2, false, rewardsData, "", 0);
+        veCVE.createLock(lockAmount, false, rewardsData, "", 0);
 
-        assertEq(usdc.balanceOf(address(this)), amount / 2);
+        assertEq(usdc.balanceOf(address(this)), rewards);
     }
 }

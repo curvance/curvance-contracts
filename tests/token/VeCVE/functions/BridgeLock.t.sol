@@ -25,9 +25,6 @@ contract BridgeLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(1e6);
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
@@ -67,7 +64,7 @@ contract BridgeLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
         vm.warp(unlockTime);

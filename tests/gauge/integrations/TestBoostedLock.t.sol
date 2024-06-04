@@ -70,7 +70,7 @@ contract TestBoostedLock is TestBaseMarket {
                 }
             }
         }
- 
+
         address[] memory tokensParam = new address[](1);
         tokensParam[0] = tokens[0];
         uint256[] memory poolWeights = new uint256[](1);
@@ -147,9 +147,9 @@ contract TestBoostedLock is TestBaseMarket {
             16000e18
         );
 
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
         skip(veCVE.RESTRICTION_DURATION() + 1);

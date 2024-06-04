@@ -18,7 +18,6 @@ import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
 /// @title Curvance Protocol Messaging Hub.
@@ -424,7 +423,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit,
         uint256 payloadType,
         bool aux
-    ) external payable {
+    ) external payable returns (uint64) {
         _checkMessagingStatus(1);
 
         ChainData memory chainData = _getChainData(dstChainId);
@@ -452,15 +451,14 @@ contract ProtocolMessagingHub is QueryResponse {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
-                wormholeChainId,
-                chainData.messagingHub,
-                abi.encode(4, recipient, amount, aux), // payload
-                0, // No receiver value since we're just passing a message.
-                gasLimit
-            );
-
-            return;
+            return
+                wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                    wormholeChainId,
+                    chainData.messagingHub,
+                    abi.encode(4, recipient, amount, aux), // payload
+                    0, // No receiver value since we're just passing a message.
+                    gasLimit
+                );
         }
 
         // Bridge CVE crosschain.
@@ -469,13 +467,14 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
-            wormholeChainId,
-            chainData.messagingHub,
-            abi.encode(5, recipient, amount), // payload
-            0, // No receiver value since we're just passing a message.
-            gasLimit
-        );
+        return
+            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                wormholeChainId,
+                chainData.messagingHub,
+                abi.encode(5, recipient, amount), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit
+            );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///

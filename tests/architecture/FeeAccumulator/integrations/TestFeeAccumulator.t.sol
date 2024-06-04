@@ -147,9 +147,8 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), 0);
 
@@ -175,6 +174,9 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
+        vm.prank(address(protocolMessagingHub));
+        rewardManager.recordEpochRewards(1e6 * _ONE);
+
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
             .hypotheticalRewardsClaim(user1);
@@ -182,15 +184,34 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        uint256[] memory dstForkIds = new uint256[](1);
+        address[] memory expDstAddresses = new address[](1);
+        address[] memory dstRelayers = new address[](1);
+        address[] memory dstWormholes = new address[](1);
+
+        dstForkIds[0] = dstForkId;
+        expDstAddresses[0] = address(protocolMessagingHub);
+        dstRelayers[0] = _WORMHOLE_RELAYER;
+        dstWormholes[0] = _WORMHOLE_CORE;
+
+        wormholeHelper.helpWithAdditionalVAA(
+            2,
+            dstForkIds,
+            expDstAddresses,
+            dstRelayers,
+            dstWormholes,
+            logs
+        );
 
         assertEq(
-            rewardManager.epochRewardsPerCVE(nextEpoch),
-            epochRewardsPerCVE
+            rewardManager.epochRewardsPerPoint(nextEpoch),
+            epochRewardsPerPoint
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            WAD;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -261,10 +282,10 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+
         uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();
@@ -292,6 +313,9 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
+        vm.prank(centralRegistry.protocolMessagingHub());
+        rewardManager.recordEpochRewards(1e6 * _ONE);
+
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
             .hypotheticalRewardsClaim(user1);
@@ -302,12 +326,14 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
 
         assertEq(
-            rewardManager.epochRewardsPerCVE(nextEpoch),
-            epochRewardsPerCVE
+            rewardManager.epochRewardsPerPoint(nextEpoch),
+            epochRewardsPerPoint
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            WAD;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -347,11 +373,6 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
     }
 
     function _createLock() internal {
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(100e6);
-        }
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.startPrank(user1);

@@ -14,9 +14,6 @@ contract CombineAllLocksTest is TestBaseVeCVE {
         deal(address(cve), address(this), _INITIAL_AMOUNT);
         cve.approve(address(veCVE), _INITIAL_AMOUNT);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(1e6);
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(_INITIAL_AMOUNT, false, rewardsData, "", 0);

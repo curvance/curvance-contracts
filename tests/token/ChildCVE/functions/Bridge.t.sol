@@ -21,21 +21,21 @@ contract BridgeTest is TestBaseChildCVE {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        childCVE.bridge(42161, user1, _ONE + 1, 0);
+        childCVE.bridge(user1, 42161, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        childCVE.bridge(138, user1, _ONE, 0);
+        childCVE.bridge(user1, 138, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
         vm.prank(user1);
 
         vm.expectRevert();
-        childCVE.bridge(42161, address(0), _ONE, 0);
+        childCVE.bridge(address(0), 42161, _ONE, 0);
     }
 
     function test_bridge_success() public {
@@ -55,11 +55,13 @@ contract BridgeTest is TestBaseChildCVE {
             0
         );
 
+        uint256 totalSupply = childCVE.totalSupply();
+
         vm.prank(user1);
 
-        childCVE.bridge{ value: messageFee }(42161, user1, _ONE, 0);
+        childCVE.bridge{ value: messageFee }(user1, 42161, _ONE, 0);
 
         assertEq(childCVE.balanceOf(user1), 0);
-        assertEq(childCVE.balanceOf(_TOKEN_BRIDGE), _ONE);
+        assertEq(childCVE.totalSupply(), totalSupply - _ONE);
     }
 }

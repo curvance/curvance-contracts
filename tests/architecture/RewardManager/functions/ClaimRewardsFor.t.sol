@@ -41,10 +41,10 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
 
         deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(address(cve), address(this), 100e18);
+        deal(address(cve), address(this), 1000000e18);
 
         IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 10000e6);
-        cve.approve(_UNISWAP_V2_ROUTER, 100e18);
+        cve.approve(_UNISWAP_V2_ROUTER, 1000000e18);
 
         _UNISWAP_V2_ROUTER.call(
             abi.encodeWithSignature(
@@ -52,9 +52,9 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
                 _USDC_ADDRESS,
                 address(cve),
                 10000e6,
-                100e18,
+                1000000e18,
                 10000e6,
-                100e18,
+                1000000e18,
                 address(this),
                 block.timestamp
             )
@@ -77,11 +77,6 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
     function test_claimRewardsFor_success_fuzzed(uint256 amount) public {
         vm.assume(amount > 1e18 && amount <= 100e18);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.startPrank(user1);
@@ -96,14 +91,23 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         vm.prank(address(veCVE));
         rewardManager.updateUserClaimIndex(user1, 1);
 
+        uint256 rewards = amount /= 1e12;
+
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        skip(rewardManager.EPOCH_DURATION() * 2);
+
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
-        deal(_USDC_ADDRESS, address(rewardManager), amount);
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
 
-        swapData.inputAmount = amount;
+        swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amount,
+            rewards,
             0,
             path,
             address(rewardManager),
@@ -111,12 +115,10 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(amount, path);
+            .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
         uint256 desiredTokenBalance = cve.balanceOf(user1);
         uint256 epoch = rewardManager.epochsToClaim(user1);
-
-        assertEq(rewardManager.currentEpoch(block.timestamp) + 1, epoch);
 
         vm.prank(address(veCVE));
         rewardManager.claimRewardsFor(

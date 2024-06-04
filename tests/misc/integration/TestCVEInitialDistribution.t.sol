@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { CVEInitialDistribution } from "contracts/misc/CVEInitialDistribution.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 import "tests/utils/merkle/Merkle.sol";
@@ -99,9 +98,9 @@ contract TestCVEInitialDistribution is TestBaseMarket {
         centralRegistry.addLockingPermissions(address(distributor));
 
         vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);

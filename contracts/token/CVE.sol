@@ -30,7 +30,7 @@ contract CVE is CVEBase {
 
     /// @notice Builder operating address.
     address public builderAddress;
-    /// @notice Pending Builder operating address.
+    /// @notice Pending builder operating address.
     address public pendingBuilderAddress;
     /// @notice Number of DAO treasury tokens minted.
     uint256 public daoTreasuryMinted;
@@ -48,13 +48,11 @@ contract CVE is CVEBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address builder_
-    ) CVEBase(centralRegistry_){
-
+    ) CVEBase(centralRegistry_) {
         if (builder_ == address(0)) {
             builder_ = msg.sender;
         }
 
-        centralRegistry = centralRegistry_;
         tokenGenerationEventTimestamp = block.timestamp;
         builderAddress = builder_;
 

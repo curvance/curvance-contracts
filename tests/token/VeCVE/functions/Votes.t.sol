@@ -8,9 +8,6 @@ contract VotesTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
     }
 

@@ -70,6 +70,9 @@ contract DeployCurvance is
         _setCircleTokenMessenger(
             _readConfigAddress(".centralRegistry.circleTokenMessenger")
         );
+        _setMessageTransmitter(
+            _readConfigAddress(".centralRegistry.messageTransmitter")
+        );
         _setTokenBridge(_readConfigAddress(".centralRegistry.tokenBridge"));
         _addHarvester(_readConfigAddress(".centralRegistry.harvester"));
 

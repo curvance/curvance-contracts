@@ -22,11 +22,6 @@ contract ManageRewardsForTest is TestBaseRewardManager {
     }
 
     function test_manageRewardsFor_success() public {
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
-        }
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         vm.startPrank(user1);
@@ -44,6 +39,13 @@ contract ManageRewardsForTest is TestBaseRewardManager {
         rewardManager.updateUserClaimIndex(user1, 1);
 
         assertEq(usdc.balanceOf(address(this)), 0);
+
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
+        skip(rewardManager.EPOCH_DURATION() * 2);
 
         vm.expectEmit(true, true, true, true);
         emit RewardPaid(user1, _USDC_ADDRESS, 100e6);

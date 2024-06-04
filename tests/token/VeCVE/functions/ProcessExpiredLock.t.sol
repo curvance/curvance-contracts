@@ -15,25 +15,9 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
         skip(veCVE.RESTRICTION_DURATION() + 1);
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
-
-        (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
-
-        for (
-            uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
-            i++
-        ) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
     }
 
     function test_processExpiredLock_fail_whenLockIndexExceeds() public {
@@ -53,6 +37,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _recordEpochs();
+
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
@@ -69,6 +55,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _recordEpochs();
+
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
@@ -86,6 +74,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _recordEpochs();
+
         (uint216 amount, uint40 unlockTime) = veCVE.userLocks(
             address(this),
             0
@@ -113,6 +103,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _recordEpochs();
+
         (uint216 amount, uint40 unlockTime) = veCVE.userLocks(
             address(this),
             0
@@ -140,6 +132,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        _recordEpochs();
+
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
@@ -164,6 +158,8 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     function test_processExpiredLock_sucess_withoutRelock_notLastIndex()
         public
     {
+        _recordEpochs();
+
         (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
         vm.warp(unlockTime);
 
@@ -184,5 +180,18 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
         // except revert for invalid index because expired lock is removed
         vm.expectRevert();
         (, unlockTime) = veCVE.userLocks(address(this), 1);
+    }
+
+    function _recordEpochs() internal {
+        (, uint40 unlockTime) = veCVE.userLocks(address(this), 0);
+
+        for (
+            uint256 i = 0;
+            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i++
+        ) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
     }
 }

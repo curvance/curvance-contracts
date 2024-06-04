@@ -2,13 +2,13 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { CVE } from "contracts/token/CVE.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintLockBoostTest is TestBaseMarket {
     function test_mintLockBoost_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
-        vm.expectRevert(CVE.CVE__Unauthorized.selector);
+        vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintLockBoost(1000);
     }
 
