@@ -141,7 +141,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         UserBalance memory userBalance = userBalances[user];
         uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
         uint256 pointerAmount;
-        uint256 remainingAmount;
+        uint256 remainingAmount = amount;
 
         if (
             userBalance.sittingBalance +
@@ -157,7 +157,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
                 : amount;
             // Reduce user sitting balance.
             userBalances[user].sittingBalance -= pointerAmount;
-            remainingAmount = amount - pointerAmount;
+            remainingAmount -= pointerAmount;
         }
 
         // Check if lent balance needs to be utilized.
