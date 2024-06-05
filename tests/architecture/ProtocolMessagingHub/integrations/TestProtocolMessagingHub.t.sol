@@ -16,13 +16,6 @@ import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeH
 import { Vm } from "forge-std/Vm.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
-interface ITokenBridge {
-    function attestToken(
-        address tokenAddress,
-        uint32 nonce
-    ) external payable returns (uint64 sequence);
-}
-
 contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     using stdStorage for StdStorage;
 
