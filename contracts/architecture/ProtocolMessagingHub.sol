@@ -396,13 +396,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         amount = _pullFees(amount);
 
-        _sendFeeToken(
-            dstChainId,
-            chainData.messagingHub,
-            amount,
-            abi.encode(1),
-            gasLimit
-        );
+        _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -557,13 +551,11 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -588,7 +580,6 @@ contract ProtocolMessagingHub is QueryResponse {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
                 dstChainId,
-                to,
                 amount,
                 payload,
                 wormholeFee,
@@ -603,7 +594,6 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param wormholeFee Total gas cost to attach send a CCTP message
@@ -612,7 +602,6 @@ contract ProtocolMessagingHub is QueryResponse {
     function _transferFeeTokenViaCCTP(
         ITokenMessenger circleTokenMessenger,
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 wormholeFee,
@@ -626,9 +615,9 @@ contract ProtocolMessagingHub is QueryResponse {
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
             chainData.cctpDomain,
-            _addressToBytes32(to),
+            _addressToBytes32(chainData.messagingHub),
             feeToken,
-            _addressToBytes32(to)
+            _addressToBytes32(chainData.messagingHub)
         );
 
         IWormholeRelayer.MessageKey[]
@@ -640,7 +629,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
             chainData.messagingChainId,
-            to,
+            chainData.messagingHub,
             payload,
             0,
             0,
@@ -703,7 +692,6 @@ contract ProtocolMessagingHub is QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
-                _getChainData(currentChainId).messagingHub,
                 feeTokensForChain,
                 abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                 gasLimit

@@ -521,11 +521,12 @@ contract RewardManager is Delegable, ReentrancyGuard {
         }
 
         // Reward for Epoch = (User Points * Reward Per Point) / WAD Precision
-        return FixedPointMathLib.fullMulDiv(
-            veCVE.userPoints(user),
-            epochRewardsPerPoint[epoch],
-            WAD
-        );
+        return
+            FixedPointMathLib.fullMulDiv(
+                veCVE.userPoints(user),
+                epochRewardsPerPoint[epoch],
+                WAD
+            );
     }
 
     /// @notice Processes the rewards and distributes to `recipient`, if any.

@@ -37,6 +37,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
 
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
@@ -184,22 +185,12 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging
-        uint256[] memory dstForkIds = new uint256[](1);
-        address[] memory expDstAddresses = new address[](1);
-        address[] memory dstRelayers = new address[](1);
-        address[] memory dstWormholes = new address[](1);
-
-        dstForkIds[0] = dstForkId;
-        expDstAddresses[0] = address(protocolMessagingHub);
-        dstRelayers[0] = _WORMHOLE_RELAYER;
-        dstWormholes[0] = _WORMHOLE_CORE;
-
-        wormholeHelper.helpWithAdditionalVAA(
+        wormholeHelper.helpWithCctpAndWormhole(
             2,
-            dstForkIds,
-            expDstAddresses,
-            dstRelayers,
-            dstWormholes,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
 
@@ -323,7 +314,15 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        // Simulate wormhole cross-chain messaging
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(
             rewardManager.epochRewardsPerPoint(nextEpoch),

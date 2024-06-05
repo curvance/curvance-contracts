@@ -51,6 +51,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
@@ -114,9 +115,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
@@ -146,6 +146,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
+        _recordEpochRewards(1, 1e6 * _ONE);
+
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
             .hypotheticalRewardsClaim(user1);
@@ -153,7 +155,14 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging with payloadType 3
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(
             rewardManager.epochRewardsPerPoint(nextEpoch),
@@ -161,7 +170,9 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerPoint;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            _ONE;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -218,6 +229,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
 
         uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
+        uint256 usdcDaoBalance = usdc.balanceOf(centralRegistry.daoAddress());
 
         vm.recordLogs();
 
@@ -229,7 +241,10 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         uint256 pullAmount = 1000e6 - compoundingFee;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(
+            usdc.balanceOf(centralRegistry.daoAddress()),
+            usdcDaoBalance + compoundingFee
+        );
         assertEq(
             usdc.balanceOf(address(feeAccumulator)),
             usdcBalance - 1000e6
@@ -249,7 +264,14 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
         // Simulate wormhole cross-chain messaging with payloadType 1
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
     }
