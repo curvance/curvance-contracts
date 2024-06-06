@@ -74,7 +74,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @dev Reward tokens attached to this Gauge Pool.
     address[] public rewardTokens;
 
-    mapping(address => bool) public isRewardToken;
+    uint256 public lastRewardTokenIndex;
+    mapping(address => uint256) public rewardTokenToIndex;
 
     /// @notice The total supply of a token deposited.
     /// @dev mToken => total supply.
@@ -88,20 +89,20 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     mapping(address => uint256) public poolLastRewardTimestamp;
     /// @notice The amount of reward token accumulated per share
     ///         for a token.
-    /// @notice mToken => rewardToken => accRewardPerShare.
-    mapping(address => mapping(address => uint256))
+    /// @notice mToken => rewardToken index => accRewardPerShare.
+    mapping(address => mapping(uint256 => uint256))
         public poolAccRewardPerShare;
     /// @notice Information corresponding to rewards pending/debt pending
     ///         for a reward token, for a particular user, for a particular
     ///         deposited token.
-    /// @dev mToken => user => rewardToken => info.
-    mapping(address => mapping(address => mapping(address => UserRewardInfo)))
+    /// @dev mToken => user => rewardToken index => info.
+    mapping(address => mapping(address => mapping(uint256 => UserRewardInfo)))
         public userDebtInfo;
 
     /// @notice The amount of rewards streamed per second, of a particular
     ///         reward token, during an epoch, for a specific token.
-    /// @dev mToken => epoch => rewardToken => rewardPerSec.
-    mapping(address => mapping(uint256 => mapping(address => uint256)))
+    /// @dev mToken => epoch => rewardToken index => rewardPerSec.
+    mapping(address => mapping(uint256 => mapping(uint256 => uint256)))
         internal _epochRewardPerSec;
 
     /// EVENTS ///
@@ -116,7 +117,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         ICentralRegistry centralRegistry_
     ) GaugeController(centralRegistry_) {
         rewardTokens.push(cve);
-        isRewardToken[cve] = true;
+        rewardTokenToIndex[cve] = ++lastRewardTokenIndex;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -160,7 +161,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         }
 
         rewardTokens.push(newReward);
-        isRewardToken[newReward] = true;
+        rewardTokenToIndex[newReward] = ++lastRewardTokenIndex;
 
         emit AddExtraReward(newReward);
     }
@@ -187,7 +188,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             rewardTokens[index] = rewardTokens[rewardTokensLength - 1];
         }
         rewardTokens.pop();
-        isRewardToken[newReward] = false;
+        rewardTokenToIndex[newReward] = 0;
 
         emit RemoveExtraReward(newReward);
     }
@@ -225,7 +226,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.Unauthorized();
         }
 
-        if (!isRewardToken[rewardToken]) {
+        uint256 index = rewardTokenToIndex[rewardToken];
+        if (index == 0) {
             revert GaugeErrors.InvalidRewardToken();
         }
 
@@ -233,10 +235,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.InvalidEpoch();
         }
 
-        uint256 prevRewardPerSec = _epochRewardPerSec[token][epoch][
-            rewardToken
-        ];
-        _epochRewardPerSec[token][epoch][rewardToken] = newRewardPerSec;
+        uint256 prevRewardPerSec = _epochRewardPerSec[token][epoch][index];
+        _epochRewardPerSec[token][epoch][index] = newRewardPerSec;
 
         if (prevRewardPerSec > newRewardPerSec) {
             SafeTransferLib.safeTransfer(
@@ -267,7 +267,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             return _epochInfo[epoch].poolWeights[token];
         }
 
-        return (EPOCH_WINDOW * _epochRewardPerSec[token][epoch][rewardToken]);
+        return (EPOCH_WINDOW *
+            _epochRewardPerSec[token][epoch][rewardTokenToIndex[rewardToken]]);
     }
 
     /// @notice Returns pending reward of user.
@@ -279,7 +280,12 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         address user,
         address rewardToken
     ) public view returns (uint256) {
-        uint256 accRewardPerShare = poolAccRewardPerShare[token][rewardToken];
+        uint256 index = rewardTokenToIndex[rewardToken];
+        if (index == 0) {
+            revert GaugeErrors.InvalidRewardToken();
+        }
+
+        uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
         if (lastRewardTimestamp == 0) {
@@ -318,7 +324,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
                 totalDeposited;
         }
 
-        UserRewardInfo memory info = userDebtInfo[token][user][rewardToken];
+        UserRewardInfo memory info = userDebtInfo[token][user][index];
         return
             info.rewardPending +
             (balanceOf[token][user] * accRewardPerShare) /
@@ -385,8 +391,9 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
                 for (uint256 i; i < rewardTokensLength; ) {
                     // Query rewardToken then increment i.
                     address rewardToken = rewardTokens[i++];
+                    uint256 index = rewardTokenToIndex[rewardToken];
                     uint256 unallocatedRewards = (poolAccRewardPerShare[token][
-                        rewardToken
+                        index
                     ] * totalSupply[token]) / WAD_SQUARED;
                     if (unallocatedRewards > 0) {
                         SafeTransferLib.safeTransfer(
@@ -477,7 +484,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         for (uint256 i; i < rewardTokensLength; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokens[i++];
-            uint256 rewards = userDebtInfo[token][msg.sender][rewardToken]
+            uint256 index = rewardTokenToIndex[rewardToken];
+            uint256 rewards = userDebtInfo[token][msg.sender][index]
                 .rewardPending;
             // If the caller has rewards, send them,
             // and prevent transaction reversion.
@@ -487,7 +495,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             }
 
             // Update pending rewards to zero.
-            userDebtInfo[token][msg.sender][rewardToken].rewardPending = 0;
+            userDebtInfo[token][msg.sender][index].rewardPending = 0;
         }
 
         _calcDebt(msg.sender, token);
@@ -524,13 +532,14 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         _calcPending(msg.sender, token);
 
         // Check user pending rewards.
-        uint256 rewards = userDebtInfo[token][msg.sender][cve].rewardPending;
+        uint256 index = rewardTokenToIndex[cve];
+        uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
         if (rewards == 0) {
             revert GaugeErrors.NoReward();
         }
 
         // Update pending rewards to zero.
-        userDebtInfo[token][msg.sender][cve].rewardPending = 0;
+        userDebtInfo[token][msg.sender][index].rewardPending = 0;
 
         uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
 
@@ -588,13 +597,14 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         _calcPending(msg.sender, token);
 
         // Check user pending rewards.
-        uint256 rewards = userDebtInfo[token][msg.sender][cve].rewardPending;
+        uint256 index = rewardTokenToIndex[cve];
+        uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
         if (rewards == 0) {
             revert GaugeErrors.NoReward();
         }
 
         // Update pending rewards to zero.
-        userDebtInfo[token][msg.sender][cve].rewardPending = 0;
+        userDebtInfo[token][msg.sender][index].rewardPending = 0;
 
         uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
         // If theres a current lock boost, recognize their bonus rewards.
@@ -657,9 +667,8 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
             // Query rewardToken then increment i.
             address rewardToken = rewardTokens[i++];
-            uint256 accRewardPerShare = poolAccRewardPerShare[token][
-                rewardToken
-            ];
+            uint256 index = rewardTokenToIndex[rewardToken];
+            uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
             uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
             uint256 currentEpoch = currentEpoch();
             uint256 reward;
@@ -692,7 +701,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
                 (reward * (WAD_SQUARED)) /
                 totalDeposited;
 
-            poolAccRewardPerShare[token][rewardToken] = accRewardPerShare;
+            poolAccRewardPerShare[token][index] = accRewardPerShare;
         }
 
         // Update pool storage.
@@ -719,12 +728,11 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         for (uint256 i; i < rewardTokensLength; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokens[i++];
-            UserRewardInfo storage info = userDebtInfo[token][user][
-                rewardToken
-            ];
+            uint256 index = rewardTokenToIndex[rewardToken];
+            UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardPending +=
                 (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][rewardToken]) /
+                    poolAccRewardPerShare[token][index]) /
                 (WAD_SQUARED) -
                 info.rewardDebt;
         }
@@ -739,12 +747,11 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         for (uint256 i; i < rewardTokensLength; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokens[i++];
-            UserRewardInfo storage info = userDebtInfo[token][user][
-                rewardToken
-            ];
+            uint256 index = rewardTokenToIndex[rewardToken];
+            UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardDebt =
                 (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][rewardToken]) /
+                    poolAccRewardPerShare[token][index]) /
                 (WAD_SQUARED);
         }
     }
