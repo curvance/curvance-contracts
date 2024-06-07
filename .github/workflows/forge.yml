@@ -4,7 +4,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04-16core
+    runs-on: ubuntu-latest-16core
     env:
       ETH_NODE_URI_MAINNET: ${{ secrets.ETH_NODE_URI_MAINNET }}
       ETH_NODE_URI_ARBITRUM: ${{ secrets.ETH_NODE_URI_ARBITRUM }}
