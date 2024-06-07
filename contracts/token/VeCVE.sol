@@ -789,11 +789,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId,amount);
+        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
 
-        IProtocolMessagingHub(
-            centralRegistry.protocolMessagingHub()
-        ).bridgeToken{ value: msg.value }(
+        IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+            .bridgeToken{ value: msg.value }(
             bridgeData.dstChainId,
             msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
             amount,
@@ -943,7 +942,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
             return false;
         }
 
-        if (rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)) {
+        if (
+            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+        ) {
             return false;
         }
 

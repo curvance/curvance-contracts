@@ -55,6 +55,7 @@ contract TestVariables {
     address internal _WORMHOLE_CORE;
     address internal _WORMHOLE_RELAYER;
     address internal _CIRCLE_TOKEN_MESSENGER;
+    address internal _CIRCLE_MESSAGE_TRANSMITTER;
     address internal _TOKEN_BRIDGE;
 
     // Chain ID => Data
@@ -81,6 +82,7 @@ contract TestVariables {
     mapping(uint256 => address) internal _WORMHOLE_CORES;
     mapping(uint256 => address) internal _WORMHOLE_RELAYERS;
     mapping(uint256 => address) internal _CIRCLE_TOKEN_MESSENGERS;
+    mapping(uint256 => address) internal _CIRCLE_MESSAGE_TRANSMITTERS;
     mapping(uint256 => address) internal _TOKEN_BRIDGES;
 
     CVE public cve;
@@ -220,6 +222,9 @@ contract TestVariables {
         _CIRCLE_TOKEN_MESSENGERS[
             chainId
         ] = 0xBd3fa81B58Ba92a82136038B25aDec7066af3155;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0x0a992d191DEeC32aFe36203Ad87D7d289a738F81;
         _TOKEN_BRIDGES[chainId] = 0x3ee18B2214AFF97000D974cf647E7C347E8fa585;
     }
 
@@ -249,6 +254,9 @@ contract TestVariables {
         _CIRCLE_TOKEN_MESSENGERS[
             chainId
         ] = 0x19330d10D9Cc8751218eaf51E8885D058642E08A;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca;
         _TOKEN_BRIDGES[chainId] = 0x0b2402144Bb366A632D14B83F244D2e0e21bD39c;
     }
 
@@ -306,6 +314,7 @@ contract TestVariables {
         _WORMHOLE_CORE = _WORMHOLE_CORES[chainId];
         _WORMHOLE_RELAYER = _WORMHOLE_RELAYERS[chainId];
         _CIRCLE_TOKEN_MESSENGER = _CIRCLE_TOKEN_MESSENGERS[chainId];
+        _CIRCLE_MESSAGE_TRANSMITTER = _CIRCLE_MESSAGE_TRANSMITTERS[chainId];
         _TOKEN_BRIDGE = _TOKEN_BRIDGES[chainId];
 
         usdc = IERC20(_USDC_ADDRESS);

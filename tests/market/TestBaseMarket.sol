@@ -23,6 +23,7 @@ import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
+import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -85,8 +86,17 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setCircleTokenMessenger(_CIRCLE_TOKEN_MESSENGER);
         centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
         centralRegistry.setWormholeCore(_WORMHOLE_CORE);
+        centralRegistry.setMessageTransmitter(
+            address(new MockMessageTransmitter())
+        );
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
         centralRegistry.setSlippageLimit(6000);
+
+        deal(
+            _USDC_ADDRESS,
+            address(centralRegistry.circleMessageTransmitter()),
+            1_000_000e6
+        );
     }
 
     function _deployCVE() internal initMainVariables {
@@ -523,6 +533,26 @@ contract TestBaseMarket is TestBase {
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
         marketManager.setCTokenCollateralCaps(tokens, caps);
+    }
+
+    function _skipRestrictionDuration() internal {
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
+    function _skipEpochDuration(uint256 numEpochs) internal {
+        skip(rewardManager.EPOCH_DURATION() * numEpochs);
+    }
+
+    function _recordEpochRewards(
+        uint256 numEpochs,
+        uint256 epochRewards
+    ) internal {
+        for (uint256 i = 0; i < numEpochs; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(epochRewards);
+        }
+
+        _skipEpochDuration(numEpochs);
     }
 
     function _addressToBytes32(address addr) internal pure returns (bytes32) {

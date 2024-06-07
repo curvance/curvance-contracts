@@ -2,19 +2,19 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { CVE } from "contracts/token/CVE.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintBuilderTest is TestBaseMarket {
     function test_mintBuilder_fail_whenUnauthorized() public {
         vm.prank(address(0));
-        vm.expectRevert(CVE.CVE__Unauthorized.selector);
+        vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintBuilder();
     }
 
     function test_mintBuilder_fail_whenCVEParametersAreInvalid() public {
         address builderAddress = cve.builderAddress();
         vm.prank(builderAddress);
-        vm.expectRevert(CVE.CVE__ParametersAreInvalid.selector);
+        vm.expectRevert(CVEBase.CVE__ParametersAreInvalid.selector);
         cve.mintBuilder();
     }
 

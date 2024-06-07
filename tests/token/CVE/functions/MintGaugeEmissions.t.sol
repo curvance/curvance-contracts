@@ -2,11 +2,11 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { CVE } from "contracts/token/CVE.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintGaugeEmissionsTest is TestBaseMarket {
     function test_mintGaugeEmissions_fail_whenUnauthorized() public {
-        vm.expectRevert(CVE.CVE__Unauthorized.selector);
+        vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintGaugeEmissions(address(gaugePool), 1000);
     }
 

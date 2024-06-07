@@ -20,9 +20,19 @@ abstract contract CVEBase is ERC20 {
 
     /// EVENTS ///
 
-    event BridgeTokens(address user, uint256 chainId, uint256 dstChainId, uint256 amount);
+    event BridgeTokens(
+        address user,
+        uint256 chainId,
+        uint256 dstChainId,
+        uint256 amount
+    );
     event BridgeTokensComplete(address user, uint256 chainId, uint256 amount);
-    event BridgeLock(address user, uint256 chainId, uint256 dstChainId, uint256 amount);
+    event BridgeLock(
+        address user,
+        uint256 chainId,
+        uint256 dstChainId,
+        uint256 amount
+    );
     event BridgeLockComplete(address user, uint256 chainId, uint256 amount);
 
     /// ERRORS ///
@@ -110,7 +120,6 @@ abstract contract CVEBase is ERC20 {
         );
     }
 
-    
     /// @notice Send wormhole message to bridge CVE.
     /// @param recipient The address of recipient on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
@@ -124,26 +133,18 @@ abstract contract CVEBase is ERC20 {
     ) external payable {
         _burn(msg.sender, amount);
 
-       IProtocolMessagingHub(_getMessagingHub()).bridgeToken{
-        value: msg.value
-       }(dstChainId, recipient, amount, gasLimit, 5, false);
+        IProtocolMessagingHub(_getMessagingHub()).bridgeToken{
+            value: msg.value
+        }(dstChainId, recipient, amount, gasLimit, 5, false);
 
-       emit BridgeTokens(
-            recipient,
-            block.chainid,
-            centralRegistry.messagingToGETHChainId(uint16(dstChainId)),
-            amount
-        );
+        emit BridgeTokens(recipient, block.chainid, dstChainId, amount);
     }
 
     /// @notice Finalizes bridging of CVE by minting `amount` CVE
     ///         to `recipient`.
     /// @param recipient The address of CVE recipient.
     /// @param amount The amount of token to receive.
-    function completeBridge(
-        address recipient,
-        uint256 amount
-    ) external {
+    function completeBridge(address recipient, uint256 amount) external {
         if (msg.sender != _getMessagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -161,10 +162,12 @@ abstract contract CVEBase is ERC20 {
         uint256 gasLimit
     ) external view returns (uint256) {
         return
-            IProtocolMessagingHub(_getMessagingHub())
-                .quoteMessageFee(dstChainId, true, gasLimit);
+            IProtocolMessagingHub(_getMessagingHub()).quoteMessageFee(
+                dstChainId,
+                true,
+                gasLimit
+            );
     }
-
 
     /// PUBLIC FUNCTIONS ///
 

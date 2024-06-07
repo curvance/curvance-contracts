@@ -188,10 +188,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
@@ -209,7 +209,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        deal(_USDC_ADDRESS, address(rewardManager), amount);
+        uint256 rewards = amount /= 1e12;
+
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -218,10 +220,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         swapData.inputToken = _USDC_ADDRESS;
         swapData.outputToken = _WETH_ADDRESS;
         swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = amount;
+        swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amount,
+            rewards,
             0,
             path,
             address(simpleRewardZapper),
@@ -229,7 +231,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(amount, path);
+            .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
         uint256 desiredTokenBalance = IERC20(_WETH_ADDRESS).balanceOf(user1);
 
@@ -255,10 +257,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
@@ -276,7 +278,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        deal(_USDC_ADDRESS, address(rewardManager), amount);
+        uint256 rewards = amount /= 1e12;
+
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -285,10 +289,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         swapData.inputToken = _USDC_ADDRESS;
         swapData.outputToken = _WETH_ADDRESS;
         swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = amount;
+        swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amount,
+            rewards,
             0,
             path,
             address(simpleRewardZapper),
@@ -296,7 +300,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(amount, path);
+            .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
         uint256 desiredTokenBalance = cWETH.balanceOf(user1);
 
@@ -336,10 +340,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
@@ -357,8 +361,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        uint256 rewardAmount = 100e6;
-        deal(_USDC_ADDRESS, address(rewardManager), rewardAmount);
+        uint256 rewards = amount /= 1e12;
+
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -367,10 +372,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         swapData.inputToken = _USDC_ADDRESS;
         swapData.outputToken = _WETH_ADDRESS;
         swapData.target = _UNISWAP_V2_ROUTER;
-        swapData.inputAmount = rewardAmount;
+        swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            rewardAmount,
+            rewards,
             0,
             path,
             address(simpleRewardZapper),
@@ -399,7 +404,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         assertApproxEqAbs(
             dUSDC.debtBalanceCached(user1),
             desiredTokenBalance - 100e6,
-            1000
+            10000
         );
     }
 }

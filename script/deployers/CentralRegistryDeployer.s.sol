@@ -132,6 +132,18 @@ contract CentralRegistryDeployer is DeployConfiguration {
         );
     }
 
+    function _setMessageTransmitter(address messageTransmitter) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+
+        CentralRegistry(centralRegistry).setMessageTransmitter(
+            messageTransmitter
+        );
+        console.log(
+            "centralRegistry.setMessageTransmitter: ",
+            messageTransmitter
+        );
+    }
+
     function _setTokenBridge(address tokenBridge) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 

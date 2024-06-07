@@ -13,16 +13,8 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
-import { WormholeHelper as SpecializedWormholeHelper } from "@pigeon/src/wormhole/specialized-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
-
-interface ITokenBridge {
-    function attestToken(
-        address tokenAddress,
-        uint32 nonce
-    ) external payable returns (uint64 sequence);
-}
 
 contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     using stdStorage for StdStorage;
@@ -30,7 +22,6 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
-    SpecializedWormholeHelper public specializedHelper;
     RewardsData public rewardsData = RewardsData(true, false, false, false);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, false);
 
@@ -47,13 +38,13 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 213946165);
 
         wormholeHelper = new WormholeHelper();
-        specializedHelper = new SpecializedWormholeHelper();
 
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
@@ -101,7 +92,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
     {
         _createLock();
 
-        skip(rewardManager.EPOCH_DURATION() * 3);
+        _skipEpochDuration(3);
 
         _prepareResponseAndSignatures(
             abi.encode(_ONE),
@@ -117,9 +108,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
@@ -149,6 +139,8 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
+        _recordEpochRewards(1, 1e6 * _ONE);
+
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
             .hypotheticalRewardsClaim(user1);
@@ -156,15 +148,24 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging with payloadType 3
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(
-            rewardManager.epochRewardsPerCVE(nextEpoch),
-            epochRewardsPerCVE
+            rewardManager.epochRewardsPerPoint(nextEpoch),
+            epochRewardsPerPoint
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            _ONE;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -221,6 +222,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
 
         uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
+        uint256 usdcDaoBalance = usdc.balanceOf(centralRegistry.daoAddress());
 
         vm.recordLogs();
 
@@ -232,7 +234,10 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         uint256 pullAmount = 1000e6 - compoundingFee;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(
+            usdc.balanceOf(centralRegistry.daoAddress()),
+            usdcDaoBalance + compoundingFee
+        );
         assertEq(
             usdc.balanceOf(address(feeAccumulator)),
             usdcBalance - 1000e6
@@ -252,7 +257,14 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
         // Simulate wormhole cross-chain messaging with payloadType 1
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(protocolMessagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
     }
@@ -315,12 +327,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(100e6);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCVE
             .queryUserLocks(user1);
@@ -365,71 +372,33 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         uint256 messageFee = protocolMessagingHub.quoteMessageFee(
             42161,
-            true,
+            false,
             0
         );
 
         vm.recordLogs();
 
-        ITokenBridge(_TOKEN_BRIDGE).attestToken(address(cve), 0);
-
-        Vm.Log[] memory attestLogs = vm.getRecordedLogs();
-
         vm.prank(user1);
-        cve.bridge{ value: messageFee }(42161, user1, _ONE, 0);
+        cve.bridge{ value: messageFee }(user1, 42161, _ONE, 0);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(cve.balanceOf(user1), 0);
-        assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);
-
-        Vm.Log[] memory bridgeLogs = vm.getRecordedLogs();
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
 
         _initMainVariables();
 
-        deal(address(cve), address(protocolMessagingHub), _ONE);
-
         assertEq(cve.balanceOf(address(user1)), 0);
 
-        specializedHelper.help(
-            2,
-            dstForkId,
-            _WORMHOLE_CORE,
-            _TOKEN_BRIDGE,
-            attestLogs
-        );
+        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
 
-        uint256[] memory dstForkIds = new uint256[](1);
-        address[] memory expDstAddresses = new address[](1);
-        address[] memory dstRelayers = new address[](1);
-        address[] memory dstWormhole = new address[](1);
-
-        dstForkIds[0] = dstForkId;
-        expDstAddresses[0] = address(protocolMessagingHub);
-        dstRelayers[0] = _WORMHOLE_RELAYER;
-        dstWormhole[0] = _WORMHOLE_CORE;
-
-        wormholeHelper.helpWithAdditionalVAA(
-            2,
-            dstForkIds,
-            expDstAddresses,
-            dstRelayers,
-            dstWormhole,
-            bridgeLogs
-        );
-
-        assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(cve.balanceOf(address(user1)), _ONE);
     }
 
     function _createLock() internal {
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(100e6);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 

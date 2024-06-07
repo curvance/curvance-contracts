@@ -26,7 +26,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             3
         );
 
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _skipEpochDuration(2);
     }
 
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()

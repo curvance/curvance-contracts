@@ -18,7 +18,6 @@ import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
 /// @title Curvance Protocol Messaging Hub.
@@ -253,9 +252,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint8 payloadType = abi.decode(payload, (uint8));
 
         if (payloadType == 1) {
-            // PayloadType = 1: Receiving fees from a foreign chain with no
-            //                  auxilliary payload for purposes of epoch
-            //                  accounting.
+            // PayloadType = 1: Receiving fees from a foreign chain.
 
             // Should only have 1 CCTP transfer.
             if (additionalMessages.length != 1) {
@@ -399,13 +396,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         amount = _pullFees(amount);
 
-        _sendFeeToken(
-            dstChainId,
-            chainData.messagingHub,
-            amount,
-            abi.encode(1),
-            gasLimit
-        );
+        _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -426,7 +417,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit,
         uint256 payloadType,
         bool aux
-    ) external payable {
+    ) external payable returns (uint64) {
         _checkMessagingStatus(1);
 
         ChainData memory chainData = _getChainData(dstChainId);
@@ -454,15 +445,14 @@ contract ProtocolMessagingHub is QueryResponse {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
-                wormholeChainId,
-                chainData.messagingHub,
-                abi.encode(4, recipient, amount, aux), // payload
-                0, // No receiver value since we're just passing a message.
-                gasLimit
-            );
-
-            return;
+            return
+                wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                    wormholeChainId,
+                    chainData.messagingHub,
+                    abi.encode(4, recipient, amount, aux), // payload
+                    0, // No receiver value since we're just passing a message.
+                    gasLimit
+                );
         }
 
         // Bridge CVE crosschain.
@@ -471,13 +461,14 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
-            wormholeChainId,
-            chainData.messagingHub,
-            abi.encode(5, recipient, amount), // payload
-            0, // No receiver value since we're just passing a message.
-            gasLimit
-        );
+        return
+            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                wormholeChainId,
+                chainData.messagingHub,
+                abi.encode(5, recipient, amount), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit
+            );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -560,13 +551,11 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -591,7 +580,6 @@ contract ProtocolMessagingHub is QueryResponse {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
                 dstChainId,
-                to,
                 amount,
                 payload,
                 wormholeFee,
@@ -606,7 +594,6 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param wormholeFee Total gas cost to attach send a CCTP message
@@ -615,7 +602,6 @@ contract ProtocolMessagingHub is QueryResponse {
     function _transferFeeTokenViaCCTP(
         ITokenMessenger circleTokenMessenger,
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 wormholeFee,
@@ -629,9 +615,9 @@ contract ProtocolMessagingHub is QueryResponse {
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
             chainData.cctpDomain,
-            _addressToBytes32(to),
+            _addressToBytes32(chainData.messagingHub),
             feeToken,
-            _addressToBytes32(to)
+            _addressToBytes32(chainData.messagingHub)
         );
 
         IWormholeRelayer.MessageKey[]
@@ -643,7 +629,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
             chainData.messagingChainId,
-            to,
+            chainData.messagingHub,
             payload,
             0,
             0,
@@ -706,7 +692,6 @@ contract ProtocolMessagingHub is QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
-                _getChainData(currentChainId).messagingHub,
                 feeTokensForChain,
                 abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                 gasLimit

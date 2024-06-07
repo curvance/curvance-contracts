@@ -17,7 +17,7 @@ contract BridgeTest is TestBaseMarket {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        cve.bridge(42161, user1, _ONE + 1, 0);
+        cve.bridge(user1, 42161, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
@@ -28,7 +28,7 @@ contract BridgeTest is TestBaseMarket {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        cve.bridge(138, user1, _ONE, 0);
+        cve.bridge(user1, 138, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
@@ -39,7 +39,7 @@ contract BridgeTest is TestBaseMarket {
                 .ProtocolMessagingHub__InvalidParameter
                 .selector
         );
-        cve.bridge(42161, address(0), _ONE, 0);
+        cve.bridge(address(0), 42161, _ONE, 0);
     }
 
     function test_bridge_success() public {
@@ -59,11 +59,13 @@ contract BridgeTest is TestBaseMarket {
             0
         );
 
+        uint256 totalSupply = cve.totalSupply();
+
         vm.prank(user1);
 
-        cve.bridge{ value: messageFee }(42161, user1, _ONE, 0);
+        cve.bridge{ value: messageFee }(user1, 42161, _ONE, 0);
 
         assertEq(cve.balanceOf(user1), 0);
-        assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);
+        assertEq(cve.totalSupply(), totalSupply - _ONE);
     }
 }
