@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /// @dev Scalar for math. `WAD` * `WAD`.
 uint256 constant WAD_SQUARED = 1e36;
@@ -18,4 +18,3 @@ uint256 constant CAUTION = 1;
 
 /// @dev Return value indicating no price error.
 uint256 constant NO_ERROR = 0;
-

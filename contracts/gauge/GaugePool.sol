@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { GaugeController, GaugeErrors, IGaugePool } from "contracts/gauge/GaugeController.sol";
 
@@ -198,6 +198,12 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         isRewardToken[newReward] = false;
 
         emit RemoveExtraReward(newReward);
+    }
+
+    /// @notice Returns the active reward tokens on the gauge pool,
+    ///         for ease of integration by third parties.
+    function getRewardTokens() external view returns (address[] memory) {
+        return rewardTokens;
     }
 
     /// @notice Returns the number of active reward tokens on the gauge pool,
@@ -454,10 +460,26 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
+        if (!_claim(token)) {
+            revert GaugeErrors.NoReward();
+        }
+    }
+
+    /// @notice Claim all pending rewards.
+    function claimAll(address[] memory tokens) external nonReentrant{
+        if (block.timestamp < startTime) {
+            revert GaugeErrors.NotStarted();
+        }
+        
+        for(uint256 i = 0 ; i < tokens.length ; ++i) {
+            _claim(tokens[i]);
+        }
+    }
+
+    function _claim(address token) internal returns(bool hasRewards){
         updatePool(token);
         _calcPending(msg.sender, token);
 
-        bool hasRewards;
         uint256 rewardTokensLength = rewardTokens.length;
 
         for (uint256 i; i < rewardTokensLength; ) {
@@ -474,9 +496,6 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
             // Update pending rewards to zero.
             userDebtInfo[token][msg.sender][rewardToken].rewardPending = 0;
-        }
-        if (!hasRewards) {
-            revert GaugeErrors.NoReward();
         }
 
         _calcDebt(msg.sender, token);

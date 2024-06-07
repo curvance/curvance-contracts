@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/BaseRedstoneCoreAdaptor.sol";
 import { ArbitrumProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/ArbitrumProdDataServiceConsumerBase.sol";

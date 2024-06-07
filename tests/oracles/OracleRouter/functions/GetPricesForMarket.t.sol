@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
@@ -19,8 +19,14 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function test_getPricesForMarket_fail_whenAssetsLengthIsZero() public {
         assets.pop();
 
-        vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
-        oracleRouter.getPricesForMarket(address(this), assets, 1);
+        (
+            AccountSnapshot[] memory snapshots,
+            uint256[] memory underlyingPrices,
+            uint256 numAssets
+        ) = oracleRouter.getPricesForMarket(address(this), assets, 1);
+        assertEq(snapshots.length, 0);
+        assertEq(underlyingPrices.length, 0);
+        assertEq(numAssets, 0);
     }
 
     function test_getPricesForMarket_fail_whenMarketNotStarted() public {

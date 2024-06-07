@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { LiquidityManager, IOracleRouter, IMToken } from "contracts/market/LiquidityManager.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -59,7 +60,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
 ///
-contract MarketManager is LiquidityManager, ERC165 {
+contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTANTS ///
 
     /// @notice Maximum collateral requirement to avoid liquidation.
@@ -1697,5 +1698,15 @@ contract MarketManager is LiquidityManager, ERC165 {
                 revert(0x1c, 0x04)
             }
         }
+    }
+
+    /// @dev from Multicall
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return ICentralRegistry(centralRegistry);
     }
 }

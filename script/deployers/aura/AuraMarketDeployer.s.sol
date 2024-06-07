@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
@@ -36,7 +36,7 @@ contract AuraMarketDeployer is DeployConfiguration {
         AuraUnderlyingParam[] underlyings;
     }
 
-    address internal constant _BALANCER_VAULT =
+    address internal constant _BAL_VAULT_ADDRESS =
         0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
     function _deployAuraMarket(
@@ -66,7 +66,7 @@ contract AuraMarketDeployer is DeployConfiguration {
             balancerAdaptor = address(
                 new BalancerStablePoolAdaptor(
                     ICentralRegistry(centralRegistry),
-                    IVault(_BALANCER_VAULT)
+                    IVault(_BAL_VAULT_ADDRESS)
                 )
             );
             console.log("balancerAdaptor: ", balancerAdaptor);
@@ -104,7 +104,9 @@ contract AuraMarketDeployer is DeployConfiguration {
             if (
                 !OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
+                OracleRouter(oracleRouter).addApprovedAdaptor(
+                    chainlinkAdaptor
+                );
                 console.log(
                     "oracleRouter.addApprovedAdaptor: ",
                     chainlinkAdaptor
@@ -116,7 +118,7 @@ contract AuraMarketDeployer is DeployConfiguration {
                     underlyingParam.asset,
                     0
                 )
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
@@ -176,9 +178,9 @@ contract AuraMarketDeployer is DeployConfiguration {
             console.log("balancerAdaptor.addAsset");
         }
 
-        try OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0) returns (
-            address feed
-        ) {} catch {
+        try
+            OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
+        returns (address /* feed */) {} catch {
             OracleRouter(oracleRouter).addAssetPriceFeed(
                 param.asset,
                 balancerAdaptor

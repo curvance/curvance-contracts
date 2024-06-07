@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -29,7 +29,11 @@ contract DTokenBorrowTest is TestBaseDToken {
 
         deal(_USDC_ADDRESS, address(dUSDC), 2000e6);
 
-        marketManager.postCollateral(address(this), address(cBALRETH), 1e18 - 1);
+        marketManager.postCollateral(
+            address(this),
+            address(cBALRETH),
+            1e18 - 1
+        );
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = dUSDC.balanceOf(address(this));

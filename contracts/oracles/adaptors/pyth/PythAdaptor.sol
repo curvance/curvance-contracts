@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
+import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 contract PythAdaptor is BaseOracleAdaptor {
     /// TYPES ///
@@ -40,7 +43,9 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
+    address public universalBalance;
     address public pyth;
+    address public weth;
 
     /// @notice Adaptor configuration data for pricing an asset in gas token.
     /// @dev Pyth Adaptor Data for pricing in gas token.
@@ -61,6 +66,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
+    error PythAdaptor__Unauthorized();
     error PythAdaptor__AssetIsNotSupported();
     error PythAdaptor__InvalidHeartbeat();
     error PythAdaptor__InvalidMinMaxConfig();
@@ -70,14 +76,55 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
-        address pyth_
+        address universalBalance_,
+        address pyth_,
+        address weth_
     ) BaseOracleAdaptor(centralRegistry_) {
+        universalBalance = universalBalance_;
         pyth = pyth_;
+        weth = weth_;
     }
+
+    receive() external payable {}
 
     /// EXTERNAL FUNCTIONS ///
 
-    function updateFeeds(bytes[] calldata priceUpdateData) public payable {
+    function updateFeedsFromUniversalBalance(
+        bytes[] calldata priceUpdateData,
+        address user
+    ) public {
+        if (!centralRegistry.isMulticallProvider(msg.sender)) {
+            revert PythAdaptor__Unauthorized();
+        }
+        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
+        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
+        // See section "How Pyth Works on EVM Chains" below for more information.
+        uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
+
+        // receive fee from universal balance
+        UniversalBalance(payable(universalBalance)).useBalanceForOracleUpdate(
+            user,
+            fee
+        );
+
+        IWETH(weth).withdraw(fee);
+        IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
+
+        // refund remaining eth
+        uint256 remaining = address(this).balance;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(user, remaining);
+        }
+
+        remaining = IWETH(weth).balanceOf(address(this));
+        if (remaining > 0) {
+            SafeTransferLib.safeTransfer(weth, user, remaining);
+        }
+    }
+
+    function updateFeedsWithETH(
+        bytes[] calldata priceUpdateData
+    ) public payable {
         // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
         // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
         // See section "How Pyth Works on EVM Chains" below for more information.
@@ -85,7 +132,10 @@ contract PythAdaptor is BaseOracleAdaptor {
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
         // refund remaining eth
-        payable(msg.sender).call{ value: address(this).balance }("");
+        uint256 remaining = address(this).balance;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, remaining);
+        }
     }
 
     /// @notice Retrieves the price of a given asset.
@@ -280,7 +330,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint256 max,
         uint256 min,
         uint256 heartbeat
-    ) internal view returns (bool) {
+    ) internal view virtual returns (bool) {
         // Validate `value` is not below the buffered min value allowed.
         if (value < min) {
             return true;

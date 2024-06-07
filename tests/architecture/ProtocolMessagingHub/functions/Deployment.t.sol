@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract InvalidCentralRegistry {
-    function wormholeCore() external view returns (address) {
+    function wormholeCore() external pure returns (address) {
         return address(1);
     }
 }

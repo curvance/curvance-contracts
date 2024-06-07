@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/collateral/CTokenCompounding.sol";
 import { CTokenCompoundingWithExitFee } from "contracts/market/collateral/CTokenCompoundingWithExitFee.sol";
@@ -240,7 +240,10 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
 
                     // swap from rewardToken to underlying LP token if necessary
                     if (!isUnderlyingToken[rewardToken]) {
-                        SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                        SwapperLib.swapUnsafe(
+                            centralRegistry,
+                            swapDataArray[i]
+                        );
                     }
                 }
             }

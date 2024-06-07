@@ -1,10 +1,11 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -69,8 +70,9 @@ contract RewardManager is Delegable, ReentrancyGuard {
     uint256 public isShutdown = 1;
 
     /// @notice The next undelivered epoch index.
-    /// @dev This should be as close to currentEpoch() + 1 as possible,
-    ///      but can lag behind if crosschain systems are strained.
+    /// @dev Records the last epoch rewards delivered + 1, this can lag behind
+    ///      if crosschain systems are strained. This will result in all lock
+    ///      state changes being blocked until the system catches up.
     uint256 public nextEpochToDeliver;
 
     /// @notice The next epoch index to claim for a user.
@@ -80,7 +82,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @notice The rewards alloted to 1 vote escrowed CVE for an epoch,
     ///         in `WAD`.
     /// @dev Epoch # => Rewards per veCVE.
-    mapping(uint256 => uint256) public epochRewardsPerCVE;
+    mapping(uint256 => uint256) public epochRewardsPerPoint;
 
     /// EVENTS ///
 
@@ -145,7 +147,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerCVE[nextEpochToDeliver++] = rewardsPerCVE;
+        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerCVE;
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -266,7 +268,12 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Increment points for this epoch.
-            rewards += startPoints * epochRewardsPerCVE[startEpoch + i];
+            // Rewards for Epoch = (User Points * Reward Per Point) / WAD Precision
+            rewards += FixedPointMathLib.fullMulDiv(
+                startPoints,
+                epochRewardsPerPoint[startEpoch + i],
+                WAD
+            );
         }
 
         // Removes the `WAD` precision offset for proper reward value.
@@ -390,10 +397,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @param user The address of the user to check for reward claims.
     /// @return A value indicating if the user has any rewards to claim.
     function epochsToClaim(address user) public view returns (uint256) {
-        if (
-            nextEpochToDeliver > userNextClaimIndex[user] &&
-            veCVE.userPoints(user) > 0
-        ) {
+        if (nextEpochToDeliver > userNextClaimIndex[user]) {
             unchecked {
                 return nextEpochToDeliver - (userNextClaimIndex[user]);
             }
@@ -516,7 +520,13 @@ contract RewardManager is Delegable, ReentrancyGuard {
             veCVE.updateUserPoints(user, epoch);
         }
 
-        return (veCVE.userPoints(user) * epochRewardsPerCVE[epoch]);
+        // Reward for Epoch = (User Points * Reward Per Point) / WAD Precision
+        return
+            FixedPointMathLib.fullMulDiv(
+                veCVE.userPoints(user),
+                epochRewardsPerPoint[epoch],
+                WAD
+            );
     }
 
     /// @notice Processes the rewards and distributes to `recipient`, if any.
@@ -562,7 +572,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Swap to CVE and update reward amount based on CVE received.
-            uint256 adjustedRewards = SwapperLib.swap(
+            uint256 adjustedRewards = SwapperLib.swapUnsafe(
                 centralRegistry,
                 swapData
             );

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
@@ -146,7 +146,8 @@ abstract contract GaugeController is IGaugePool {
         uint256 timestamp
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_WINDOW;
+        return
+            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_WINDOW;
     }
 
     /// @notice Returns start time of `epoch`.

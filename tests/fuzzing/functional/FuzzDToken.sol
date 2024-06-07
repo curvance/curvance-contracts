@@ -1,4 +1,4 @@
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";

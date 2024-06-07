@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -12,12 +12,7 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(50e18, false, rewardsData, "", 0);
     }
@@ -64,12 +59,12 @@ contract IncreaseAmountAndExtendLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
         vm.warp(unlockTime + 1);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.increaseAmountAndExtendLock(30e18, 0, true, rewardsData, "", 0);

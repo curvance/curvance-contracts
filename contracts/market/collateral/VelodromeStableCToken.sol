@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/collateral/CTokenCompounding.sol";
 
@@ -180,7 +180,7 @@ contract VelodromeStableCToken is CTokenCompounding {
                             revert VelodromeStableCToken__InvalidSwapData();
                         }
 
-                        SwapperLib.swap(centralRegistry, swapData);
+                        SwapperLib.swapSafe(centralRegistry, swapData);
                     }
                 }
             }

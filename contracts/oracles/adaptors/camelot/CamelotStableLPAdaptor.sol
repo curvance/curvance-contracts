@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseStableLPAdaptor.sol";
 
@@ -11,8 +11,8 @@ contract CamelotStableLPAdaptor is BaseStableLPAdaptor {
     /// EVENTS ///
 
     event CamelotStableLPAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event CamelotStableLPAssetRemoved(address asset);
@@ -33,9 +33,7 @@ contract CamelotStableLPAdaptor is BaseStableLPAdaptor {
     /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
-    function addAsset(
-        address asset
-    ) external override {
+    function addAsset(address asset) external override {
         _checkElevatedPermissions();
 
         if (!ICamelotPair(asset).stableSwap()) {

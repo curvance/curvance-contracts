@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 
@@ -19,21 +19,6 @@ interface IMToken {
     /// @param by The account initializing the market.
     function startMarket(address by) external returns (bool);
 
-    /// @notice Returns the address of the underlying asset.
-    function underlying() external view returns (address);
-
-    /// @notice Returns the decimals of the mToken.
-    /// @dev We pull directly from underlying incase its a proxy contract,
-    ///      and changes decimals on us.
-    /// @return The number of decimals for this mToken, 
-    ///         matching the underlying token.
-    function decimals() external view returns (uint8);
-
-    /// @notice Returns the type of Curvance token.
-    /// @dev true = Collateral token; false = Debt token.
-    /// @return Whether this token is a cToken or not.
-    function isCToken() external view returns (bool);
-
     /// @notice Applies pending interest to all holders, updating
     ///         `totalBorrows` and `totalReserves`.
     /// @dev This calculates interest accrued from the last checkpoint
@@ -42,23 +27,44 @@ interface IMToken {
     ///      Emits a {InterestAccrued} event.
     function accrueInterest() external;
 
+    /// @notice Updates pending interest and returns the up-to-date exchange
+    ///         rate from the underlying to the dToken.
+    /// @return Calculated exchange rate, in `WAD`.
+    function exchangeRateWithUpdate() external returns (uint256);
+
+    /// @notice Returns the address of the underlying asset.
+    function underlying() external view returns (address);
+
+    /// @notice Returns the decimals of the mToken.
+    /// @dev We pull directly from underlying incase its a proxy contract,
+    ///      and changes decimals on us.
+    /// @return The number of decimals for this mToken,
+    ///         matching the underlying token.
+    function decimals() external view returns (uint8);
+
+    /// @notice Returns the type of Curvance token.
+    /// @dev true = Collateral token; false = Debt token.
+    /// @return Whether this token is a cToken or not.
+    function isCToken() external view returns (bool);
+
     /// @notice The dToken balance of an account.
     /// @dev Account address => account token balance.
     /// @param user User to query dToken balance for.
     function balanceOf(address user) external view returns (uint256);
 
-    /// @notice Deposits underlying assets into the market, 
+    /// @notice Deposits underlying assets into the market,
     ///         and receives dTokens.
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
-    /// @return Returns true on success.
-    function mint(uint256 amount) external returns (bool);
+    /// @return Returns the amount of dTokens minted.
+    function mint(uint256 amount) external returns (uint256);
 
     /// @notice Redeems dTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of dTokens to redeem for underlying tokens.
-    function redeem(uint256 tokens) external;
+    /// @return Returns amount of underlying asset redeemed.
+    function redeem(uint256 tokens) external returns (uint256);
 
     /// @notice Transfers collateral tokens (this cToken) from `account`
     ///         to `liquidator`.
@@ -79,17 +85,17 @@ interface IMToken {
     ///         of underlying token debt to lenders, remaining debt shortfall
     ///        is recognized equally by lenders due to `account` default.
     /// @dev Only market manager contract can call this function.
-    ///      Updates pending interest prior to execution of the repay, 
+    ///      Updates pending interest prior to execution of the repay,
     ///      inside the market manager contract.
-    /// @param liquidator The account liquidating `account`'s collateral, 
+    /// @param liquidator The account liquidating `account`'s collateral,
     ///                   and repaying a portion of `account`'s debt.
     /// @param account The account being liquidated and repaid on behalf of.
     /// @param repayRatio The ratio of outstanding debt that `liquidator`
     ///                   will repay from `account`'s obligations,
     ///                   out of 100%, in `WAD`.
     function repayWithBadDebt(
-        address liquidator, 
-        address account, 
+        address liquidator,
+        address account,
         uint256 repayRatio
     ) external;
 
@@ -102,8 +108,8 @@ interface IMToken {
     /// @param account The account having collateral seized.
     /// @param shares The total number of cTokens shares to seize.
     function seizeAccountLiquidation(
-        address liquidator, 
-        address account, 
+        address liquidator,
+        address account,
         uint256 shares
     ) external;
 
@@ -119,7 +125,7 @@ interface IMToken {
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// @param account Address of the account to snapshot.
     /// @return Current account shares balance.
-    /// @return Current account borrow balance, which will be 0, 
+    /// @return Current account borrow balance, which will be 0,
     ///         kept for composability.
     /// @return Current exchange rate between assets and shares, in `WAD`.
     function getSnapshot(

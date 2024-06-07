@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { PendleLPCToken } from "contracts/market/collateral/PendleLPCToken.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import { DeployConfiguration } from "../../utils/DeployConfiguration.sol";
@@ -90,7 +87,9 @@ contract PendleLPDeployer is DeployConfiguration {
             if (
                 !OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
+                OracleRouter(oracleRouter).addApprovedAdaptor(
+                    chainlinkAdaptor
+                );
                 console.log(
                     "oracleRouter.addApprovedAdaptor: ",
                     chainlinkAdaptor
@@ -102,7 +101,7 @@ contract PendleLPDeployer is DeployConfiguration {
                     underlyingParam.asset,
                     0
                 )
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
@@ -145,7 +144,9 @@ contract PendleLPDeployer is DeployConfiguration {
                 console.log("pendleLpAdapter.addAsset");
             }
 
-            if (!OracleRouter(oracleRouter).isApprovedAdaptor(pendleLpAdapter)) {
+            if (
+                !OracleRouter(oracleRouter).isApprovedAdaptor(pendleLpAdapter)
+            ) {
                 OracleRouter(oracleRouter).addApprovedAdaptor(pendleLpAdapter);
                 console.log(
                     "oracleRouter.addApprovedAdaptor: ",
@@ -155,7 +156,7 @@ contract PendleLPDeployer is DeployConfiguration {
 
             try
                 OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
-            returns (address feed) {} catch {
+            returns (address /* feed */) {} catch {
                 OracleRouter(oracleRouter).addAssetPriceFeed(
                     param.asset,
                     pendleLpAdapter

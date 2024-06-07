@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -92,12 +92,14 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @dev Uses oracles (mostly Chainlink), can price both direct
     ///      and synthetic GM Tokens.
     /// @param asset The address of the asset for which the price is needed.
+    /// @param getLower A boolean to determine if lower of two oracle prices
+    ///                 should be retrieved.
     /// @return pData A structure containing the price, error status,
     ///               and the quote format of the price.
     function getPrice(
         address asset,
         bool /* inUSD */,
-        bool /* getLower */
+        bool getLower
     ) external view override returns (PriceReturnData memory pData) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
@@ -119,7 +121,11 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            (prices[i], errorCode) = oracleRouter.getPrice(token, true, false);
+            (prices[i], errorCode) = oracleRouter.getPrice(
+                token,
+                true,
+                getLower
+            );
             if (errorCode > 0) {
                 pData.hadError = true;
                 return pData;
@@ -136,7 +142,7 @@ contract GMAdaptor is BaseOracleAdaptor {
             IReader.PriceProps(prices[1], prices[1]),
             IReader.PriceProps(prices[2], prices[2]),
             PNL_FACTOR_TYPE,
-            true
+            !getLower
         );
 
         // Make sure we got a positive price, bubble up an error,

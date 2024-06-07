@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -11,8 +11,6 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 
 contract ClaimRewardsTest is TestBaseRewardManager {
     RewardsData public rewardsData = RewardsData(true, false, false, false);
-    address internal constant _UNISWAP_V2_ROUTER =
-        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     SwapperLib.Swap public swapData;
     address[] public path;
 
@@ -43,10 +41,10 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
 
         deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(address(cve), address(this), 100e18);
+        deal(address(cve), address(this), 1000000e18);
 
         IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 10000e6);
-        cve.approve(_UNISWAP_V2_ROUTER, 100e18);
+        cve.approve(_UNISWAP_V2_ROUTER, 1000000e18);
 
         _UNISWAP_V2_ROUTER.call(
             abi.encodeWithSignature(
@@ -54,9 +52,9 @@ contract ClaimRewardsTest is TestBaseRewardManager {
                 _USDC_ADDRESS,
                 address(cve),
                 10000e6,
-                100e18,
+                1000000e18,
                 10000e6,
-                100e18,
+                1000000e18,
                 address(this),
                 block.timestamp
             )
@@ -67,11 +65,6 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         vm.prank(address(veCVE));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
         vm.prank(user1);
 
         vm.expectRevert(RewardManager.RewardManager__NoEpochRewards.selector);
@@ -79,12 +72,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
     }
 
     function test_claimRewards_fail_whenSwapDataIsInvalid() public {
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -100,9 +88,16 @@ contract ClaimRewardsTest is TestBaseRewardManager {
 
         swapData.inputToken = _DAI_ADDRESS;
 
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.protocolMessagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
+        }
+
         vm.prank(user1);
 
-        vm.expectRevert(RewardManager.RewardManager__SwapDataIsInvalid.selector);
+        vm.expectRevert(
+            RewardManager.RewardManager__SwapDataIsInvalid.selector
+        );
         rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
     }
 
@@ -126,12 +121,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         assertFalse(rewardManager.hasRewardsToClaim(user1));
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), 0);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -146,6 +136,9 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = isFreshLockContinuous ? amount * 2 : amount;
+        rewards /= 1e12;
+
+        _recordEpochRewards(2, 1e6 * _ONE);
 
         assertTrue(rewardManager.hasRewardsToClaim(user1));
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);

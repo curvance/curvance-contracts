@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -18,7 +18,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     );
 
     function test_updateCollateralToken_fail_whenNotCToken() public {
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(dUSDC)),
             9100 + 1,
@@ -54,7 +56,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     {
         // when liqInc > _MAX_LIQUIDATION_INCENTIVE
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9000,
@@ -70,7 +74,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     function test_updateCollateralToken_fail_whenLiqFeeExceedsMax() public {
         // when liqFee > _MAX_LIQUIDATION_FEE
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9000,
@@ -83,10 +89,14 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
         );
     }
 
-    function test_updateCollateralToken_fail_whenCollReqSoftExceedsMax() public {
+    function test_updateCollateralToken_fail_whenCollReqSoftExceedsMax()
+        public
+    {
         // when CollReqSoft > _MAX_COLLATERAL_REQUIREMENT
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9000,
@@ -104,7 +114,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     {
         // when CollReqHard > CollReqSoft
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9000,
@@ -120,7 +132,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     function test_updateCollateralToken_fail_whenCollRatioExceedsMax() public {
         // when collRatio > _MAX_COLLATERALIZATION_RATIO
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9101, // collRatio
@@ -138,7 +152,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     {
         // when collRatio > (EXP_SCALE * EXP_SCALE) / (EXP_SCALE + CollReqSoft)
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9100, // collRatio
@@ -156,7 +172,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     {
         // when liqInc > CollReqHard
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             7000,
@@ -172,7 +190,9 @@ contract UpdateCollateralTokenTest is TestBaseMarketManager {
     function test_updateCollateralToken_fail_whenLiqIncNotEnough() public {
         // when (liqInc - liqFee) < _MIN_LIQUIDATION_INCENTIVE
         marketManager.listToken(address(cBALRETH));
-        vm.expectRevert(MarketManager.MarketManager__InvalidParameter.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
         marketManager.updateCollateralToken(
             IMToken(address(cBALRETH)),
             9100,

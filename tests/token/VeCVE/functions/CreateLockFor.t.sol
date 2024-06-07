@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -11,10 +11,7 @@ contract CreateLockForTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
     }
 
     function test_createLockFor_fail_whenVeCVEShutdown(

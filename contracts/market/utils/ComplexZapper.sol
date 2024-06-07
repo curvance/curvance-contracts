@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 
@@ -631,7 +631,7 @@ contract ComplexZapper is ReentrancyGuard {
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -685,7 +685,7 @@ contract ComplexZapper is ReentrancyGuard {
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -722,7 +722,7 @@ contract ComplexZapper is ReentrancyGuard {
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -780,7 +780,7 @@ contract ComplexZapper is ReentrancyGuard {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib.swap(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
         }
     }
 

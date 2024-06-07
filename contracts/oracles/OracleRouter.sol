@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -532,10 +532,6 @@ contract OracleRouter {
         returns (AccountSnapshot[] memory, uint256[] memory, uint256)
     {
         uint256 numAssets = assets.length;
-        // Validate we are not trying to price zero assets.
-        if (numAssets == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
         uint256[] memory underlyingPrices = new uint256[](numAssets);

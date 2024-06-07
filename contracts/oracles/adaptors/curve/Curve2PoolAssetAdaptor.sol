@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -61,8 +61,8 @@ contract Curve2PoolAssetAdaptor is CurveBaseAdaptor {
     /// EVENTS ///
 
     event CurvePoolAssetAdded(
-        address asset, 
-        AdaptorData assetConfig, 
+        address asset,
+        AdaptorData assetConfig,
         bool isUpdate
     );
     event CurvePoolAssetRemoved(address asset);
@@ -114,7 +114,7 @@ contract Curve2PoolAssetAdaptor is CurveBaseAdaptor {
         bool getLower
     ) external view override returns (PriceReturnData memory pData) {
         AdaptorData memory data = adaptorData[asset];
-        
+
         // Validate we support this pool and that this is not
         // a reeentrant call.
         if (isLocked(data.pool, 2)) {
@@ -339,7 +339,7 @@ contract Curve2PoolAssetAdaptor is CurveBaseAdaptor {
     }
 
     /// @notice Helper function to check if `price` is within a reasonable
-    ///         bound. 
+    ///         bound.
     /// @dev Reverts if bounds are breached.
     /// @param virtualPrice The virtual price to check against `lowerBound`
     ///                     and `upperBound`.

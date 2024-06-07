@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
@@ -78,6 +78,9 @@ contract DeployCurvance is
         );
         _setCircleTokenMessenger(
             _readConfigAddress(".centralRegistry.circleTokenMessenger")
+        );
+        _setMessageTransmitter(
+            _readConfigAddress(".centralRegistry.messageTransmitter")
         );
         _setTokenBridge(_readConfigAddress(".centralRegistry.tokenBridge"));
         _addHarvester(_readConfigAddress(".centralRegistry.harvester"));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -23,7 +23,7 @@ contract TestBaseMarketManager is TestBaseMarket {
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(dUSDC), _ONE);
         SafeTransferLib.safeApprove(_DAI_ADDRESS, address(dDAI), _ONE);
         SafeTransferLib.safeApprove(
-            _BALANCER_WETH_RETH,
+            _BAL_WETH_RETH_ADDRESS,
             address(cBALRETH),
             _ONE
         );

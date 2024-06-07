@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding, SafeTransferLib, IERC20, FixedPointMathLib, ICentralRegistry } from "contracts/market/collateral/CTokenCompounding.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -118,7 +118,7 @@ contract StakedGMXCToken is CTokenCompounding {
                     revert StakedGMXCToken__InvalidSwapData();
                 }
 
-                yield = SwapperLib.swap(centralRegistry, swapData);
+                yield = SwapperLib.swapSafe(centralRegistry, swapData);
 
                 // Make sure swap was routed into GMX.
                 if (yield == 0) {

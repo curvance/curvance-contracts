@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseCTokenCompounding } from "../TestBaseCTokenCompounding.sol";
 import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
@@ -26,7 +26,7 @@ contract CTokenCompoundingStartMarketTest is TestBaseCTokenCompounding {
     function test_cTokenCompoundingStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
-            _BALANCER_WETH_RETH,
+            _BAL_WETH_RETH_ADDRESS,
             address(cBALRETH),
             1e18
         );

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -22,12 +22,16 @@ contract RewardManagerRescueTokenTest is TestBaseRewardManager {
         rewardManager.rescueToken(_DAI_ADDRESS, 100);
     }
 
-    function test_rewardManagerRescueToken_fail_whenTokenIsRewardToken() public {
+    function test_rewardManagerRescueToken_fail_whenTokenIsRewardToken()
+        public
+    {
         vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
         rewardManager.rescueToken(_USDC_ADDRESS, 100);
     }
 
-    function test_rewardManagerRescueToken_fail_whenAmountExceedsBalance() public {
+    function test_rewardManagerRescueToken_fail_whenAmountExceedsBalance()
+        public
+    {
         uint256 balance = dai.balanceOf(address(rewardManager));
 
         vm.expectRevert(SafeTransferLib.TransferFailed.selector);

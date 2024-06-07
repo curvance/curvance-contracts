@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { GaugeController } from "contracts/gauge/GaugeController.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
-import { TypedMemView } from "contracts/libraries/external/TypedMemView.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -19,7 +18,6 @@ import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
 /// @title Curvance Protocol Messaging Hub.
@@ -201,27 +199,6 @@ contract ProtocolMessagingHub is QueryResponse {
         );
     }
 
-    function receiveMessage(
-        bytes calldata message,
-        bytes calldata /* attestation */
-    ) external view returns (bool success) {
-        bytes32 destinationCaller = TypedMemView.index(
-            TypedMemView.ref(message, 0),
-            84, // DESTINATION_CALLER_INDEX
-            32
-        );
-
-        // Validate destination caller
-        if (
-            destinationCaller != bytes32(0) &&
-            destinationCaller == bytes32(uint256(uint160(msg.sender)))
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        return true;
-    }
-
     /// @notice Used when fees are received from other chains.
     ///         When a `send` is performed with this contract as the target,
     ///         this function will be invoked by the WormholeRelayer contract.
@@ -231,13 +208,15 @@ contract ProtocolMessagingHub is QueryResponse {
     ///                by the requester. This message's signature will already
     ///                have been verified (as long as msg.sender is
     ///                the Wormhole Relayer contract).
+    /// @param additionalMessages Additional messages which were requested to be
+    ///                           included in this delivery.
     /// @param srcAddress The (wormhole format) address on the sending chain
     ///                   which requested this delivery.
     /// @param srcChainId The wormhole chain ID where delivery was requested.
     /// @param deliveryHash The VAA hash of the deliveryVAA.
     function receiveWormholeMessages(
         bytes memory payload,
-        bytes[] memory /* additionalMessages */,
+        bytes[] memory additionalMessages,
         bytes32 srcAddress,
         uint16 srcChainId,
         bytes32 deliveryHash
@@ -273,23 +252,19 @@ contract ProtocolMessagingHub is QueryResponse {
         uint8 payloadType = abi.decode(payload, (uint8));
 
         if (payloadType == 1) {
-            // PayloadType = 1: Submitting fees from a foreign chain,
-            //                  for a reported epoch.
+            // PayloadType = 1: Receiving fees from a foreign chain.
 
-            (, address srcFeeToken, uint256 amount) = abi.decode(
-                payload,
-                (uint8, address, uint256)
-            );
-            // Validate fee token address.
-            if (chainData.feeTokenAddress != srcFeeToken) {
+            // Should only have 1 CCTP transfer.
+            if (additionalMessages.length != 1) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
+
+            uint256 amountReceived = _receiveFees(additionalMessages[0]);
 
             // If the Reward Manager is shutdown, transfer fees to DAO
             // instead of recording epoch rewards.
             if (_checkRewardManagerStatus(_getRewardManager())) {
-                _transferFeeTokens(amount, _getDaoAddress());
-                return;
+                _transferFeeTokens(amountReceived, _getDaoAddress());
             }
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
@@ -328,14 +303,35 @@ contract ProtocolMessagingHub is QueryResponse {
                 }
             }
         } else if (payloadType == 3) {
-            // payloadType = 3: Receive finalized epoch rewards data.
+            // payloadType = 3:  Receiving fees from a foreign chain and
+            //                   finalized epoch rewards data.
 
-            (, uint256 chainLockedAmount) = abi.decode(
-                payload,
-                (uint8, uint256)
-            );
+            // Should only have 1 CCTP transfer.
+            if (additionalMessages.length != 1) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
 
-            _recordEpochRewards(_getRewardManager(), chainLockedAmount);
+            uint256 amountReceived = _receiveFees(additionalMessages[0]);
+
+            (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
+                .decode(payload, (uint8, uint256, uint256));
+
+            IRewardManager rewardManager = _getRewardManager();
+
+            // If the Reward Manager is shutdown or epoch progression is
+            // incorrect, transfer fees to DAO instead of recording epoch
+            // rewards.
+            if (
+                _checkRewardManagerStatus(rewardManager) ||
+                rewardManager.nextEpochToDeliver() != epochToDeliver
+            ) {
+                _transferFeeTokens(amountReceived, _getDaoAddress());
+            } else {
+                // Transfer fees to Reward Manager, and record newest epoch
+                // rewards.
+                _transferFeeTokens(amountReceived, address(rewardManager));
+                _recordEpochRewards(rewardManager, epochRewardsPerPoint);
+            }
         } else if (payloadType == 4) {
             // payloadType = 4: Indicates migrating a veCVE lock from the source
             //                  chain to this destination chain.
@@ -343,7 +339,7 @@ contract ProtocolMessagingHub is QueryResponse {
             (, address recipient, uint256 amount, bool continuousLock) = abi
                 .decode(payload, (uint8, address, uint256, bool));
 
-            cve.mintVeCVELock(amount);
+            cve.mintLockedTokens(recipient, amount);
             _approveTokenIfNeeded(address(cve), address(veCVE), amount);
 
             RewardsData memory rewardData;
@@ -359,6 +355,16 @@ contract ProtocolMessagingHub is QueryResponse {
                 "",
                 0
             );
+        } else if (payloadType == 5) {
+            // payloadType = 5: Indicates receiving CVE from the source
+            //                  chain to this destination chain.
+
+            (, address recipient, uint256 amount) = abi.decode(
+                payload,
+                (uint8, address, uint256)
+            );
+
+            cve.completeBridge(recipient, amount);
         }
     }
 
@@ -390,13 +396,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         amount = _pullFees(amount);
 
-        _sendFeeToken(
-            dstChainId,
-            chainData.messagingHub,
-            amount,
-            "",
-            gasLimit
-        );
+        _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -410,7 +410,6 @@ contract ProtocolMessagingHub is QueryResponse {
     ///                    whereas CVE has no payload type because its
     ///                    a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
     function bridgeToken(
         uint256 dstChainId,
         address recipient,
@@ -431,20 +430,23 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Validate that we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         gasLimit = _getGasLimit(gasLimit);
+        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
 
         if (payloadType == 4) {
+            // Bridge VeCVE Lock crosschain.
+
             if (msg.sender != address(veCVE)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            // Validate that we are aiming for a supported chain.
-            if (chainData.isSupported < 2) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
-
             return
-                _getWormholeRelayer().sendPayloadToEvm{ value: msg.value }(
+                wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
                     wormholeChainId,
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
@@ -453,36 +455,20 @@ contract ProtocolMessagingHub is QueryResponse {
                 );
         }
 
+        // Bridge CVE crosschain.
+
         if (msg.sender != address(cve)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        ITokenBridge tokenBridge = centralRegistry.tokenBridge();
-        _approveTokenIfNeeded(address(cve), address(tokenBridge), amount);
-
-        uint64 sequence = tokenBridge.transferTokensWithPayload{
-            value: _getMessageFee()
-        }(
-            address(cve),
-            amount,
-            wormholeChainId,
-            bytes32(uint256(uint160(recipient))),
-            0,
-            ""
-        );
-
-        IWormholeRelayer.VaaKey[]
-            memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
-        vaaKeys[0] = IWormholeRelayer.VaaKey({
-            emitterAddress: bytes32(uint256(uint160(address(tokenBridge)))),
-            chainId: _getWormholeCore().chainId(),
-            sequence: sequence
-        });
-
         return
-            _getWormholeRelayer().sendVaasToEvm{
-                value: msg.value - _getMessageFee()
-            }(wormholeChainId, recipient, "", 0, gasLimit, vaaKeys);
+            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                wormholeChainId,
+                chainData.messagingHub,
+                abi.encode(5, recipient, amount), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit
+            );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -565,13 +551,11 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -586,10 +570,6 @@ contract ProtocolMessagingHub is QueryResponse {
         ITokenMessenger circleTokenMessenger = centralRegistry
             .circleTokenMessenger();
 
-        if (payload.length == 0) {
-            payload = abi.encode(uint8(1), feeToken, amount);
-        }
-
         if (
             address(circleTokenMessenger) != address(0) &&
             circleTokenMessenger.remoteTokenMessengers(
@@ -600,7 +580,6 @@ contract ProtocolMessagingHub is QueryResponse {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
                 dstChainId,
-                to,
                 amount,
                 payload,
                 wormholeFee,
@@ -615,7 +594,6 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
-    /// @param to The address of receiver on `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param wormholeFee Total gas cost to attach send a CCTP message
@@ -624,7 +602,6 @@ contract ProtocolMessagingHub is QueryResponse {
     function _transferFeeTokenViaCCTP(
         ITokenMessenger circleTokenMessenger,
         uint256 dstChainId,
-        address to,
         uint256 amount,
         bytes memory payload,
         uint256 wormholeFee,
@@ -638,9 +615,9 @@ contract ProtocolMessagingHub is QueryResponse {
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
             amount,
             chainData.cctpDomain,
-            bytes32(uint256(uint160(to))),
+            _addressToBytes32(chainData.messagingHub),
             feeToken,
-            bytes32(uint256(uint160(chainData.wormholeRelayer)))
+            _addressToBytes32(chainData.messagingHub)
         );
 
         IWormholeRelayer.MessageKey[]
@@ -652,7 +629,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         wormholeRelayer.sendToEvm{ value: wormholeFee }(
             chainData.messagingChainId,
-            to,
+            chainData.messagingHub,
             payload,
             0,
             0,
@@ -680,7 +657,8 @@ contract ProtocolMessagingHub is QueryResponse {
         // Query rewards for this epoch.
         uint256 feeTokensOverall = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
-        uint256 epochRewardsPerCVE = (feeTokensOverall * WAD) / totalPoints;
+        uint256 epochRewardsPerPoint = (feeTokensOverall * WAD_SQUARED) /
+            totalPoints;
 
         uint256 feeTokensForChain;
         uint256 currentChainId;
@@ -698,8 +676,10 @@ contract ProtocolMessagingHub is QueryResponse {
         } else {
             // Transfer fees to Reward Manager, and record newest epoch rewards.
             _transferFeeTokens(feeTokensForChain, address(rewardManager));
-            _recordEpochRewards(rewardManager, epochRewardsPerCVE);
+            _recordEpochRewards(rewardManager, epochRewardsPerPoint);
         }
+
+        uint256 epochToDeliver = rewardManager.nextEpochToDeliver();
 
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
@@ -712,9 +692,8 @@ contract ProtocolMessagingHub is QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
-                _getChainData(currentChainId).messagingHub,
                 feeTokensForChain,
-                abi.encode(3, epochRewardsPerCVE),
+                abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                 gasLimit
             );
         }
@@ -727,6 +706,22 @@ contract ProtocolMessagingHub is QueryResponse {
             IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
     }
 
+    /// @dev Receives fee tokens from Circle from provided message.
+    function _receiveFees(
+        bytes memory circleMessage
+    ) internal returns (uint256) {
+        (bytes memory message, bytes memory signature) = abi.decode(
+            circleMessage,
+            (bytes, bytes)
+        );
+        uint256 beforeBalance = IERC20(feeToken).balanceOf(address(this));
+        centralRegistry.circleMessageTransmitter().receiveMessage(
+            message,
+            signature
+        );
+        return IERC20(feeToken).balanceOf(address(this)) - beforeBalance;
+    }
+
     /// @dev Transfers `amount` `feeToken` to `recipient`.
     function _transferFeeTokens(uint256 amount, address recipient) internal {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
@@ -734,9 +729,9 @@ contract ProtocolMessagingHub is QueryResponse {
 
     function _recordEpochRewards(
         IRewardManager rewardManager,
-        uint256 epochRewardsPerCVE
+        uint256 epochRewardsPerPoint
     ) internal {
-        rewardManager.recordEpochRewards(epochRewardsPerCVE);
+        rewardManager.recordEpochRewards(epochRewardsPerPoint);
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
@@ -746,6 +741,10 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 amount
     ) internal {
         SwapperLib._approveTokenIfNeeded(token, spender, amount);
+    }
+
+    function _addressToBytes32(address addr) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(addr)));
     }
 
     /// @dev Returns the current Reward Manager address to call.

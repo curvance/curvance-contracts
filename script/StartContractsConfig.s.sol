@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
@@ -80,6 +80,14 @@ contract StartContractsConfig is Script, DeployConfiguration {
         console.log("rewardManager =", rewardManager);
 
         require(centralRegistry != address(0), "Set the centralRegistry!");
+        require(
+            RewardManager(rewardManager).rewardManagerStarted() != 2,
+            "Reward Manager already started!"
+        );
+        require(
+            CentralRegistry(centralRegistry).veCVE() != address(0),
+            "Set veCVE!"
+        );
         require(
             RewardManager(rewardManager).rewardManagerStarted() != 2,
             "Reward Manager already started!"

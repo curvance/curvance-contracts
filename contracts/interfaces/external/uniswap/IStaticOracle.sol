@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "./IUniswapV3Factory.sol";
 
@@ -23,18 +23,18 @@ interface IStaticOracle {
     /// @notice Returns whether a specific pair can be supported by the oracle
     /// @dev The pair can be provided in tokenA/tokenB or tokenB/tokenA order
     /// @return Whether the given pair can be supported by the oracle
-    function isPairSupported(address tokenA, address tokenB)
-        external
-        view
-        returns (bool);
+    function isPairSupported(
+        address tokenA,
+        address tokenB
+    ) external view returns (bool);
 
     /// @notice Returns all existing pools for the given pair
     /// @dev The pair can be provided in tokenA/tokenB or tokenB/tokenA order
     /// @return All existing pools for the given pair
-    function getAllPoolsForPair(address tokenA, address tokenB)
-        external
-        view
-        returns (address[] memory);
+    function getAllPoolsForPair(
+        address tokenA,
+        address tokenB
+    ) external view returns (address[] memory);
 
     /// @notice Returns a quote, based on the given tokens and amount, by querying all of the pair's pools
     /// @dev If some pools are not configured correctly for the given period, then they will be ignored

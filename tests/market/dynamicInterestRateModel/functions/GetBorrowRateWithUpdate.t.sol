@@ -1,4 +1,4 @@
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";

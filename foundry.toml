@@ -20,6 +20,6 @@ ignored_error_codes = [9302, 1878, 5574]
 
 # Sets the concrete solc version to use
 # This overrides the `auto_detect_solc` value
-solc_version = '0.8.17'
+solc_version = '0.8.19'
 evm_version = 'paris'
 auto_detect_solc = false

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -18,10 +18,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
 
@@ -61,12 +58,12 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         // cannot early expire expired lock
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);

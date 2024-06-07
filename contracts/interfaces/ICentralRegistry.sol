@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 /// TYPES ///
@@ -82,6 +83,12 @@ interface ICentralRegistry {
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
+    /// @notice Returns Circle Token Messenger contract address.
+    function circleMessageTransmitter()
+        external
+        view
+        returns (IMessageTransmitter);
+
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);
 
@@ -100,6 +107,9 @@ interface ICentralRegistry {
     /// @notice Returns protocolLeverageFee, in `WAD`.
     function protocolLeverageFee() external view returns (uint256);
 
+    /// @notice Returns slippage limit, in `WAD`.
+    function slippageLimit() external view returns (uint256);
+
     /// @notice Lending Market => Protocol Reserve Factor on interest generated.
     function protocolInterestFactor(
         address market
@@ -113,12 +123,6 @@ interface ICentralRegistry {
 
     /// @notice Returns lockBoostMultiplier value, in `Basis Points`
     function lockBoostMultiplier() external view returns (uint256);
-
-    /// @notice Returns how many other chains are supported
-    function supportedChains() external view returns (uint256);
-
-    /// @notice Chain ID recorded in the Messaging Layers Chain ID format.
-    function foreignChainIds(uint256) external view returns (uint256);
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
     ///         Chain ID format.
@@ -153,6 +157,11 @@ interface ICentralRegistry {
 
     /// @notice Returns whether the inputted address is a Harvester.
     function isHarvester(address addressToCheck) external view returns (bool);
+
+    /// @notice Returns whether the inputted address is a Multicall provider.
+    function isMulticallProvider(
+        address addressToCheck
+    ) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Market Manager.
     function isMarketManager(

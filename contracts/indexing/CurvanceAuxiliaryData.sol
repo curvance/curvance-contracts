@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";

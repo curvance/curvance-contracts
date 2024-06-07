@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVE } from "contracts/token/CVE.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintTreasuryTest is TestBaseMarket {
     function test_mintTreasury_fail_whenUnauthorized() public {
         vm.prank(address(0));
-        vm.expectRevert(CVE.CVE__Unauthorized.selector);
+        vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintTreasury(1000);
     }
 
-    function test_mintTreasury_fail_whenInsufficientCVEAllocation()
-        public
-    {
+    function test_mintTreasury_fail_whenInsufficientCVEAllocation() public {
         uint256 invalidAmount = cve.daoTreasuryAllocation() + 1;
         vm.expectRevert(CVE.CVE__InsufficientCVEAllocation.selector);
         cve.mintTreasury(invalidAmount);

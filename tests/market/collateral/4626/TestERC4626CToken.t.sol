@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
-import { TestERC4626 } from "tests/market/collateral/4626/TestERC4626.t.sol";
+import { TestERC4626 } from "tests/market/collateral/4626/TestERC4626.sol";
 import { TestBaseMarket, ICentralRegistry } from "tests/market/TestBaseMarket.sol";
 
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
@@ -11,6 +11,10 @@ contract TestERC4626CToken is TestERC4626, TestBaseMarket {
     // @todo check the failing tests: test_maxWithdraw! which reverts
     // test_redeem, test_withdraw have problem with allowance
     function setUp() public override(TestERC4626, TestBaseMarket) {
+        vm.chainId(1);
+
+        _USDC_ADDRESSES[1] = address(new MockERC20Token());
+
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();

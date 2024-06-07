@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { IHevm } from "./helpers/Hevm.sol";
 import { PropertiesAsserts } from "tests/fuzzing/helpers/PropertiesHelper.sol";
@@ -43,7 +43,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     address internal _WETH_ADDRESS;
     address internal _USDC_ADDRESS;
     address internal _RETH_ADDRESS;
-    address internal _BALANCER_WETH_RETH;
+    address internal _BAL_WETH_RETH_ADDRESS;
     address internal _DAI_ADDRESS;
 
     CVE public cve;
@@ -101,7 +101,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         dai = new MockToken("DAI", "DAI", 18);
         _DAI_ADDRESS = address(dai);
         balRETH = new MockToken("balWethReth", "balWethReth", 18);
-        _BALANCER_WETH_RETH = address(balRETH);
+        _BAL_WETH_RETH_ADDRESS = address(balRETH);
 
         emit LogString("DEPLOYED: centralRegistry");
         _deployCentralRegistry();

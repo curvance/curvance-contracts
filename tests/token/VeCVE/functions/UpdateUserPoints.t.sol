@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
@@ -8,10 +8,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
     }
 
     function test_updateUserPoints_fail_unauthorized() public {

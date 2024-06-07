@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
@@ -86,9 +86,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         emit RemovedChain(42161, messagingHub);
         centralRegistry.removeChainSupport(messagingHub, 42161);
 
-        (isSupported, , , , , , ) = centralRegistry.supportedChainData(
-            42161
-        );
+        (isSupported, , , , , , ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 1);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);

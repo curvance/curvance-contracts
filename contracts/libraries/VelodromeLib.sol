@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -253,13 +253,12 @@ library VelodromeLib {
 
         // vAMM deposit calculation.
         uint256 swapFeeFactor = 10000 - swapFee;
-        
+
         a = (10000 + swapFeeFactor) * reserve0;
         uint256 b = amount0 * 10000 * reserve0 * 4 * swapFeeFactor;
         uint256 c = FixedPointMathLib.sqrt(a * a + b);
         uint256 d = swapFeeFactor * 2;
         return (c - a) / d;
-        
     }
 
     /// @notice Swaps amount of `tokenIn` into `tokenOut`.

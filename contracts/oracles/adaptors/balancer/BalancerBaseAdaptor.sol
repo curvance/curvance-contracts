@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -9,7 +9,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 /// @dev Kudos to Balancer for researching specific gas limit values
 ///      for Vault Reentrancy.
 abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
-    
     /// CONSTANTS ///
 
     /// @notice Gas limit allowed for reentrancy check.
@@ -67,7 +66,6 @@ abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
         // IVault.UserBalanceOp[] memory noop = new IVault.UserBalanceOp[](0);
         // _vault.manageUserBalance(noop);
 
-        // solhint-disable-next-line var-name-mixedcase
         bytes32 REENTRANCY_ERROR_HASH = keccak256(
             abi.encodeWithSignature("Error(string)", "BAL#400")
         );
@@ -76,7 +74,9 @@ abstract contract BalancerBaseAdaptor is BaseOracleAdaptor {
         // but we need to make sure it didn't fail due to a re-entrancy attack
         // This might just look like an issue in foundry.
         // Running a testnet test does not use an insane amount of gas.
-        (, bytes memory revertData) = address(vault).staticcall{ gas: GAS_LIMIT }(
+        (, bytes memory revertData) = address(vault).staticcall{
+            gas: GAS_LIMIT
+        }(
             abi.encodeWithSelector(
                 vault.manageUserBalance.selector,
                 new address[](0)

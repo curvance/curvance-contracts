@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CamelotVolatileLPAdaptor } from "contracts/oracles/adaptors/camelot/CamelotVolatileLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -9,15 +9,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestCamelotVolatileLPAdaptor is TestBaseOracleRouter {
-    address private WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-    address private USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+    address internal _BRIDGED_USDC_ADDRESS =
+        0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
 
-    address private CHAINLINK_PRICE_FEED_ETH =
-        0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
-    address private CHAINLINK_PRICE_FEED_USDC =
-        0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
-
-    address private WETH_USDC = 0x84652bb2539513BAf36e225c930Fdd8eaa63CE27;
+    address internal _CAMELOT_WETH_USDC =
+        0x84652bb2539513BAf36e225c930Fdd8eaa63CE27;
 
     CamelotVolatileLPAdaptor public adaptor;
 
@@ -37,39 +33,45 @@ contract TestCamelotVolatileLPAdaptor is TestBaseOracleRouter {
         adaptor = new CamelotVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        adaptor.addAsset(WETH_USDC);
+        adaptor.addAsset(_CAMELOT_WETH_USDC);
 
+        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(
-            _ETH_ADDRESS,
-            CHAINLINK_PRICE_FEED_ETH,
+            _BRIDGED_USDC_ADDRESS,
+            _CHAINLINK_USDC_USD,
             0,
             true
         );
-        chainlinkAdaptor.addAsset(WETH, CHAINLINK_PRICE_FEED_ETH, 0, true);
-        chainlinkAdaptor.addAsset(USDC, CHAINLINK_PRICE_FEED_USDC, 0, true);
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleRouter.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(WETH, address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(USDC, address(chainlinkAdaptor));
+        oracleRouter.addAssetPriceFeed(
+            _WETH_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleRouter.addAssetPriceFeed(
+            _BRIDGED_USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
 
         oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(WETH_USDC, address(adaptor));
+        oracleRouter.addAssetPriceFeed(_CAMELOT_WETH_USDC, address(adaptor));
     }
 
     function testRevertWhenUnderlyingChainAssetPriceNotSet() public {
-        chainlinkAdaptor.removeAsset(WETH);
+        chainlinkAdaptor.removeAsset(_WETH_ADDRESS);
 
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
-        oracleRouter.getPrice(WETH_USDC, true, false);
+        oracleRouter.getPrice(_CAMELOT_WETH_USDC, true, false);
     }
 
     function testReturnsCorrectPrice() public {
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
-            WETH_USDC,
+            _CAMELOT_WETH_USDC,
             true,
             false
         );
@@ -80,9 +82,9 @@ contract TestCamelotVolatileLPAdaptor is TestBaseOracleRouter {
     function testRevertAfterAssetRemove() public {
         testReturnsCorrectPrice();
 
-        adaptor.removeAsset(WETH_USDC);
+        adaptor.removeAsset(_CAMELOT_WETH_USDC);
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
-        oracleRouter.getPrice(WETH_USDC, true, false);
+        oracleRouter.getPrice(_CAMELOT_WETH_USDC, true, false);
     }
 
     function testRevertAddAsset__AssetIsNotVolatileLP() public {
@@ -95,8 +97,8 @@ contract TestCamelotVolatileLPAdaptor is TestBaseOracleRouter {
     }
 
     function testCanUpdateAsset() public {
-        adaptor.addAsset(WETH_USDC);
-        adaptor.addAsset(WETH_USDC);
+        adaptor.addAsset(_CAMELOT_WETH_USDC);
+        adaptor.addAsset(_CAMELOT_WETH_USDC);
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {

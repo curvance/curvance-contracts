@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { CTokenCompounding, ICentralRegistry, IERC20 } from "contracts/market/collateral/CTokenCompounding.sol";
 
@@ -10,13 +10,14 @@ import { IERC20Rebasing } from "contracts/interfaces/external/blast/IERC20Rebasi
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 abstract contract BlastCTokenCompounding is CTokenCompounding {
-
     /// CONSTANTS ///
 
     /// @notice The address managing ETH/Gas yield.
-    IBlast public constant CHAIN_YIELD_MANAGER = IBlast(0x4300000000000000000000000000000000000002);
+    IBlast public constant CHAIN_YIELD_MANAGER =
+        IBlast(0x4300000000000000000000000000000000000002);
     /// @notice The address managing WETH yield, also the token itself.
-    IERC20Rebasing public constant WETH_YIELD_MANAGER = IERC20Rebasing(0x4300000000000000000000000000000000000004);
+    IERC20Rebasing public constant WETH_YIELD_MANAGER =
+        IERC20Rebasing(0x4300000000000000000000000000000000000004);
 
     /// @notice The address of Curvance's native Yield Manager.
     address public immutable nativeYieldManager;
@@ -29,12 +30,9 @@ abstract contract BlastCTokenCompounding is CTokenCompounding {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) CTokenCompounding(
-        centralRegistry_,
-        asset_,
-        marketManager_
-    ) {
-        nativeYieldManager = IBlastCentralRegistry(address(centralRegistry_)).nativeYieldManager();
+    ) CTokenCompounding(centralRegistry_, asset_, marketManager_) {
+        nativeYieldManager = IBlastCentralRegistry(address(centralRegistry_))
+            .nativeYieldManager();
 
         // Set gas fees yield to claimable and then pass Governor
         // permissioning to native yield manager.
@@ -51,19 +49,13 @@ abstract contract BlastCTokenCompounding is CTokenCompounding {
     function harvest(
         bytes calldata
     ) external virtual override returns (uint256 yield) {
-        yield = CHAIN_YIELD_MANAGER.claimMaxGas(
-            address(this),
-            address(this)
-        );
+        yield = CHAIN_YIELD_MANAGER.claimMaxGas(address(this), address(this));
 
         if (yield > 0) {
             IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: yield }();
         }
 
-        IBlastNativeYieldManager(nativeYieldManager).claimYieldForAutoCompounding(
-            address(marketManager),
-            true,
-            true
-        );
+        IBlastNativeYieldManager(nativeYieldManager)
+            .claimYieldForAutoCompounding(address(marketManager), true, true);
     }
 }

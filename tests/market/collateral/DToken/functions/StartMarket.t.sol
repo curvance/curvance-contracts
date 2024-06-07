@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 
 contract DTokenStartMarketTest is TestBaseDToken {
-    function test_dTokenStartMarket_fail_whenCallerIsNotMarketManager() public {
+    function test_dTokenStartMarket_fail_whenCallerIsNotMarketManager()
+        public
+    {
         vm.expectRevert(DToken.DToken__Unauthorized.selector);
 
         dUSDC.startMarket(address(0));

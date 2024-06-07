@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
@@ -44,15 +44,6 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
         protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
-    }
-
-    function test_bridgeToken_fail_whenPayloadIsNot4_whenMessagingHubHasNoEnoughCVE()
-        public
-    {
-        vm.prank(address(cve));
-
-        vm.expectRevert(ERC20.InsufficientBalance.selector);
-        protocolMessagingHub.bridgeToken(42161, user1, _ONE * 5, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenDestinationChainIsNotRegistered()
@@ -159,9 +150,6 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
             0,
             false
         );
-
-        assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
-        assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);
     }
 
     function test_bridgeToken_success_whenBridgeVeCVELock() public {

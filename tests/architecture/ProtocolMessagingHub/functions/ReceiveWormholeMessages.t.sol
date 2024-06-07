@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract ProtocolMessagingHubReceiveWormholeMessagesTest is
@@ -11,14 +12,16 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     using stdStorage for StdStorage;
 
     address public srcMessagingHub;
+    bytes[] public additionalMessages;
 
     function setUp() public override {
         super.setUp();
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        additionalMessages.push(abi.encode("1", "1"));
 
         centralRegistry.addChainSupport(
-            address(srcMessagingHub),
+            srcMessagingHub,
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -26,6 +29,14 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             makeAddr("Wormhole Relayer"),
             3
         );
+
+        MockMessageTransmitter(
+            address(centralRegistry.circleMessageTransmitter())
+        ).enableForceTransfer(
+                _USDC_ADDRESS,
+                address(protocolMessagingHub),
+                100e6
+            );
     }
 
     function test_receiveWormholeMessages_fail_whenCallerIsNotWormholeRelayer()
@@ -35,26 +46,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
-        );
-    }
-
-    function test_receiveWormholeMessages_fail_whenNotReceivedToken() public {
-        rewardManager.notifyShutdown();
-
-        vm.prank(_WORMHOLE_RELAYER);
-
-        vm.expectRevert();
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
-            23,
-            bytes32("0x01")
+            bytes32("1")
         );
     }
 
@@ -71,11 +67,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
                 .selector
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
     }
 
@@ -87,11 +83,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.startPrank(_WORMHOLE_RELAYER);
 
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         vm.expectRevert(
@@ -99,15 +95,15 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
                 ProtocolMessagingHub
                     .ProtocolMessagingHub__MessageHashIsAlreadyDelivered
                     .selector,
-                bytes32("0x01")
+                bytes32("1")
             )
         );
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         vm.stopPrank();
@@ -120,11 +116,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
             bytes32(0),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
@@ -138,11 +134,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(address(1))))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(address(1)),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
@@ -150,35 +146,32 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
-
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
-
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
         rewardManager.notifyShutdown();
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(1, bytes32(uint256(uint160(_USDC_ADDRESS))), 100e6),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x02")
+            bytes32("2")
         );
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
     }
 
@@ -206,10 +199,10 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
                 2,
                 abi.encode(gaugePools, emissionTotals, tokens, emissions)
             ),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
@@ -223,30 +216,25 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs3() public {
-        uint256 chainLockedAmount = _ONE;
-
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
 
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), 0);
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), 0);
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(3, chainLockedAmount),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            abi.encode(3, nextEpoch, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpoch), _ONE);
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), _ONE);
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         centralRegistry.addLockingPermissions(address(protocolMessagingHub));
 
@@ -260,10 +248,10 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(4, recipient, amount, continuousLock),
-            new bytes[](0),
-            bytes32(uint256(uint160(address(srcMessagingHub)))),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
             23,
-            bytes32("0x01")
+            bytes32("1")
         );
 
         assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
@@ -755,7 +755,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         RewardsData calldata rewardsData,
         bytes calldata params,
         uint256 aux
-    ) external payable nonReentrant returns (uint64 sequence) {
+    ) external payable nonReentrant {
         _canModifyLocks();
 
         // Claim any pending rewards.
@@ -789,11 +789,10 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnVeCVELock(amount);
+        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
 
-        sequence = IProtocolMessagingHub(
-            centralRegistry.protocolMessagingHub()
-        ).bridgeToken{ value: msg.value }(
+        IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
+            .bridgeToken{ value: msg.value }(
             bridgeData.dstChainId,
             msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
             amount,
@@ -944,11 +943,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
+            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
         ) {
-            if (rewardManager.nextEpochToDeliver() != 0) {
-                return false;
-            }
+            return false;
         }
 
         // if (rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)) {
@@ -1476,20 +1473,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         //     revert VeCVE__PreEpochRestriction();
         // }
 
-        // if (
-        //     rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
-        // ) {
-        //     if (rewardManager.nextEpochToDeliver() != 0) {
-        //         revert VeCVE__EpochNotDelivered();
-        //     }
-        // }
-        // if (
-        //     rewardManager.nextEpochToDeliver() <= currentEpoch(block.timestamp)
-        // ) {
-        //     if (block.timestamp >= genesisEpoch) {
-        //         revert VeCVE__EpochNotDelivered();
-        //     }
-        // }
+        if (
+            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+        ) {
+            revert VeCVE__EpochNotDelivered();
+        }
     }
 
     /// @dev Internal helper for checking whether creating a lock

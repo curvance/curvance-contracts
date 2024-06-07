@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -32,7 +32,7 @@ contract FaucetWithSignature is Ownable {
     }
 
     function setMaxClaimAmounts(
-        uint256 amountERC20, 
+        uint256 amountERC20,
         uint256 amountSepETH
     ) external onlyOwner {
         maxClaim = amountERC20;

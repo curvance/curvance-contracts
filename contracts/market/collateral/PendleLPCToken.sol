@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { CTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/collateral/CTokenCompounding.sol";
 
@@ -223,7 +223,7 @@ contract PendleLPCToken is CTokenCompounding {
                         revert PendleLPCToken__InvalidSwapData();
                     }
 
-                    SwapperLib.swap(centralRegistry, swapDataArray[i]);
+                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 

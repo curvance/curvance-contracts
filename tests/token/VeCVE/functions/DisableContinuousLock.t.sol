@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -13,12 +13,7 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(50e18, true, rewardsData, "", 0);
 
@@ -63,9 +58,11 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(address(this), 1);
 
+        _recordEpochRewards(2, 1e6 * _ONE);
+
         // verify that rewards are delivered
         vm.expectEmit(true, true, true, true, address(rewardManager));
-        emit RewardPaid(address(this), _USDC_ADDRESS, 100e18);
+        emit RewardPaid(address(this), _USDC_ADDRESS, 100e6);
         veCVE.disableContinuousLock(0, rewardsData, "", 0);
 
         (, unlockTime) = veCVE.userLocks(address(this), 0);

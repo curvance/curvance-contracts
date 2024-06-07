@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
@@ -10,12 +10,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 
 contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
-    address internal constant _PT_ORACLE =
-        0x14030836AEc15B2ad48bB097bd57032559339c92;
+    address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
 
-    address private _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address private _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
-    address private _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
+    address internal _STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
+    address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
     PendlePrincipalTokenAdaptor adapter;
 
@@ -92,7 +91,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
         adapterData.quoteAsset = _STETH;
         adapterData.quoteAssetDecimals = 18;
 
-        vm.expectRevert(PendlePrincipalTokenAdaptor.PendlePrincipalTokenAdaptor__WrongMarket.selector);
+        vm.expectRevert(
+            PendlePrincipalTokenAdaptor
+                .PendlePrincipalTokenAdaptor__WrongMarket
+                .selector
+        );
         adapter.addAsset(address(0), adapterData);
     }
 
@@ -103,7 +106,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
         adapterData.quoteAsset = _STETH;
         adapterData.quoteAssetDecimals = 18;
 
-        vm.expectRevert(PendlePrincipalTokenAdaptor.PendlePrincipalTokenAdaptor__CallIncreaseCardinality.selector);
+        vm.expectRevert(
+            PendlePrincipalTokenAdaptor
+                .PendlePrincipalTokenAdaptor__CallIncreaseCardinality
+                .selector
+        );
         adapter.addAsset(_PT_STETH, adapterData);
     }
 
@@ -114,7 +121,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
         adapterData.quoteAsset = _STETH;
         adapterData.quoteAssetDecimals = 18;
 
-        vm.expectRevert(PendlePrincipalTokenAdaptor.PendlePrincipalTokenAdaptor__TwapDurationIsLessThanMinimum.selector);
+        vm.expectRevert(
+            PendlePrincipalTokenAdaptor
+                .PendlePrincipalTokenAdaptor__TwapDurationIsLessThanMinimum
+                .selector
+        );
         adapter.addAsset(_PT_STETH, adapterData);
     }
 
@@ -125,7 +136,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
         adapterData.quoteAsset = address(0);
         adapterData.quoteAssetDecimals = 18;
 
-        vm.expectRevert(PendlePrincipalTokenAdaptor.PendlePrincipalTokenAdaptor__WrongQuote.selector);
+        vm.expectRevert(
+            PendlePrincipalTokenAdaptor
+                .PendlePrincipalTokenAdaptor__WrongQuote
+                .selector
+        );
         adapter.addAsset(_PT_STETH, adapterData);
     }
 
@@ -153,7 +168,11 @@ contract TestPendlePTTokenAdaptor is TestBaseOracleRouter {
     }
 
     function testRevertRemoveAsset__AssetIsNotSupported() public {
-        vm.expectRevert(PendlePrincipalTokenAdaptor.PendlePrincipalTokenAdaptor__AssetIsNotSupported.selector);
+        vm.expectRevert(
+            PendlePrincipalTokenAdaptor
+                .PendlePrincipalTokenAdaptor__AssetIsNotSupported
+                .selector
+        );
         adapter.removeAsset(_PT_STETH);
     }
 }

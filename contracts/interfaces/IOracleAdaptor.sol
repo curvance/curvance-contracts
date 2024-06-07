@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /// @notice Return data from an Oracle Adaptor.
 /// @param price The price of the asset in some asset, either ETH or USD.

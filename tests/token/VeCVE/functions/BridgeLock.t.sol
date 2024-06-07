@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 contract BridgeLockTest is TestBaseVeCVE {
-    ITokenBridge public tokenBridge = ITokenBridge(_TOKEN_BRIDGE);
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, true);
 
     function setUp() public override {
@@ -27,10 +25,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(1e6);
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
         veCVE.createLock(30e18, true, rewardsData, "", 0);
@@ -69,12 +64,12 @@ contract BridgeLockTest is TestBaseVeCVE {
             i++
         ) {
             vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
         vm.warp(unlockTime);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
         veCVE.bridgeLock(0, bridgeData, rewardsData, "", 0);

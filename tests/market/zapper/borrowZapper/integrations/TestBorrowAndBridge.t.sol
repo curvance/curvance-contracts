@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
@@ -9,16 +9,12 @@ import { BorrowZapper } from "contracts/market/utils/BorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 contract TestBorrowAndBridge is TestBaseMarket {
-    address private _UNISWAP_V3_SWAP_ROUTER =
+    address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    ITokenBridge public tokenBridge = ITokenBridge(_TOKEN_BRIDGE);
-
-    address public owner;
 
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
@@ -30,8 +26,6 @@ contract TestBorrowAndBridge is TestBaseMarket {
         _fork(19140000);
 
         _init();
-
-        owner = address(this);
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
@@ -83,7 +77,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
 
         // setup dDAI
         {
-            _prepareDAI(owner, 200000e18);
+            _prepareDAI(address(this), 200000e18);
             dai.approve(address(dDAI), 200000e18);
             marketManager.listToken(address(dDAI));
             // add MToken support on price router
@@ -93,7 +87,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
         // setup CBALRETH
         {
             // support market
-            _prepareBALRETH(owner, _ONE);
+            _prepareBALRETH(address(this), _ONE);
             balRETH.approve(address(cBALRETH), _ONE);
             marketManager.listToken(address(cBALRETH));
             // set collateral factor
@@ -132,20 +126,6 @@ contract TestBorrowAndBridge is TestBaseMarket {
             makeAddr("Wormhole Relayer"),
             3
         );
-    }
-
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-        _prepareDAI(liquidityProvider, 200000e18);
-        _prepareBALRETH(liquidityProvider, 10e18);
-        // mint dDAI
-        vm.startPrank(liquidityProvider);
-        dai.approve(address(dDAI), 200000e18);
-        dDAI.mint(200000e18);
-        // mint cBALETH
-        balRETH.approve(address(cBALRETH), 10e18);
-        cBALRETH.deposit(10e18, liquidityProvider);
-        vm.stopPrank();
     }
 
     function testDTokenBorrowAndBridge() public {
@@ -200,6 +180,20 @@ contract TestBorrowAndBridge is TestBaseMarket {
         );
         dDAI.borrow(500e18);
 
+        vm.stopPrank();
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareDAI(liquidityProvider, 200000e18);
+        _prepareBALRETH(liquidityProvider, 10e18);
+        // mint dDAI
+        vm.startPrank(liquidityProvider);
+        dai.approve(address(dDAI), 200000e18);
+        dDAI.mint(200000e18);
+        // mint cBALETH
+        balRETH.approve(address(cBALRETH), 10e18);
+        cBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

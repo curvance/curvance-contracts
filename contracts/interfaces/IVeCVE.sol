@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import "contracts/token/VeCVE.sol";
 
 interface IVeCVE {
-
     /// @notice Locks a given amount of cve tokens on behalf of another user,
     ///         and processes any pending rewards.
     /// @param recipient The address to lock tokens for.

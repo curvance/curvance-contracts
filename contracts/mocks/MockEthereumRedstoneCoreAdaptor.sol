@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { EthereumRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/EthereumRedstoneCoreAdaptor.sol";
@@ -14,7 +14,7 @@ contract MockEthereumRedstoneCoreAdaptor is EthereumRedstoneCoreAdaptor {
     }
 
     function getAuthorisedSignerIndex(
-        address signerAddress
+        address /* signerAddress */
     ) public view virtual override returns (uint8) {
         // authorize everyone
         return 0;

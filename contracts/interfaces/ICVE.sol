@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 interface ICVE {
     /// @notice Sets allowance of `spender` over the caller's tokens.
@@ -23,12 +23,27 @@ interface ICVE {
     /// @dev Only callable by the ProtocolMessagingHub.
     ///      This function is used only for creating a bridged VeCVE lock.
     /// @param amount The amount of token to mint for the new veCVE lock.
-    function mintVeCVELock(uint256 amount) external;
+    function mintLockedTokens(address recipient, uint256 amount) external;
 
     /// @notice Burn CVE from msg.sender,
     ///         which will always be the VeCVE contract.
     /// @dev Only callable by VeCVE.
     ///      This function is used only for bridging VeCVE lock.
+    /// @param recipient The address of recipient on destination chain.
+    /// @param dstChainId Chain ID of the target blockchain.
     /// @param amount The amount of token to burn for a bridging veCVE lock.
-    function burnVeCVELock(uint256 amount) external;
+    function burnLockedTokens(
+        address recipient,
+        uint256 dstChainId,
+        uint256 amount
+    ) external;
+    
+    /// @notice Finalizes bridging of CVE by minting `amount` CVE
+    ///         to `recipient`.
+    /// @param recipient The address of CVE recipient.
+    /// @param amount The amount of token to receive.
+    function completeBridge(
+        address recipient,
+        uint256 amount
+    ) external;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.17;
+pragma solidity 0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
@@ -12,8 +12,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         _fork(19140000);
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
-        WormholeMock wormholeMock = new WormholeMock();
-        _WORMHOLE_CORE = address(wormholeMock);
+        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 
@@ -27,7 +26,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             3
         );
 
-        skip(rewardManager.EPOCH_DURATION() * 2);
+        _skipEpochDuration(2);
     }
 
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
@@ -175,7 +174,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
-        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
 
         protocolMessagingHub.executeEpoch(
             response,
@@ -186,6 +185,6 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
-        assertEq(usdc.balanceOf(address(centralRegistry)), compoundingFee);
+        assertEq(usdc.balanceOf(address(this)), compoundingFee);
     }
 }
