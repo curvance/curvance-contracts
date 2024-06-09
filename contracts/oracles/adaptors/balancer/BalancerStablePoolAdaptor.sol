@@ -118,9 +118,16 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 return pData;
             }
 
-            // We did not have an error, so we can add the price
-            // to the average, and increment number of prices.
-            averagePrice += price;
+            // We must first normalize the price using the rate from the RateProvider.
+            // If there is no RateProvider, assume a rate of 1 (note that `rateProviderDecimals` is unreliable in this case).
+            address rateProvider = data.rateProviders[i];
+            uint256 normalizedPrice;
+            if (rateProvider == address(0)) {
+                normalizedPrice = price;
+            } else {
+                normalizedPrice = (price * (10 ** data.rateProviderDecimals[i])) / IRateProvider(rateProvider).getRate();
+            }
+            averagePrice += normalizedPrice;
             ++numPrices;
         }
 
