@@ -89,23 +89,23 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
         );
 
          (uint256 wethPrice, ) = oracleRouter.getPrice(
-            WETH,
+            _WETH_ADDRESS,
             true,
             false
         );
         console2.log('WETH price: ', wethPrice);
 
         (uint256 rethPrice, ) = oracleRouter.getPrice(
-            RETH,
+            _RETH_ADDRESS,
             true,
             false
         );
         console2.log('RETH price: ', rethPrice);
 
-        uint256 expectedPriceFromTvl = WETH_RETH_TVL_USD * 1e18 / IERC20(WETH_RETH).totalSupply();
+        uint256 expectedPriceFromTvl = WETH_RETH_TVL_USD * 1e18 / IERC20(_BAL_WETH_RETH_ADDRESS).totalSupply();
         console2.log('expected RETH/WETH price from TVL: ', expectedPriceFromTvl);
 
-        uint256 expectedPriceFromRate = IBalancerPool(WETH_RETH).getRate() * wethPrice / 1e18;
+        uint256 expectedPriceFromRate = IBalancerPool(_BAL_WETH_RETH_ADDRESS).getRate() * wethPrice / 1e18;
         console2.log('expected RETH/WETH price from ETH rate: ', expectedPriceFromRate);
 
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(

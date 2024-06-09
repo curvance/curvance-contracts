@@ -351,7 +351,9 @@ contract OracleRouter {
         bool inUSD
     ) external view returns (FeedData[] memory) {
         bool isMToken = mTokenAssets[asset].isMToken;
+        address parentAsset;
         if (isMToken) {
+            parentAsset = asset;
             asset = mTokenAssets[asset].underlying;
         }
 
@@ -368,7 +370,7 @@ contract OracleRouter {
             data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
             data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
             if (isMToken) {
-                uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+                uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
                 data[0].price = uint240((data[0].price * exchangeRate) / WAD);
                 data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             }
@@ -384,7 +386,7 @@ contract OracleRouter {
         data[3] = _getPriceFromFeed(asset, 1, inUSD, false);
 
         if (isMToken) {
-            uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+            uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
             data[0].price = uint240((data[0].price * exchangeRate) / WAD);
             data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             data[2].price = uint240((data[2].price * exchangeRate) / WAD);
