@@ -103,7 +103,7 @@ abstract contract CTokenCompounding is CTokenBase {
         address owner,
         uint256 assets,
         IPositionFolding.DeleverageStruct memory deleverageData
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20 } from "contracts/market/collateral/CTokenCompounding.sol";
+import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/collateral/CTokenCompounding.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
@@ -53,6 +53,67 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         _setExitFee(newExitFee);
     }
 
+    /// @notice Helper function for Position Folding contract to
+    ///         redeem assets.
+    /// @param owner The owner address of assets to redeem.
+    /// @param assets The amount of the underlying assets to redeem.
+    function withdrawByPositionFolding(
+        address owner,
+        uint256 assets,
+        IPositionFolding.DeleverageStruct memory deleverageData
+    ) external override nonReentrant {
+        // Validate that the position folding contract is calling.
+        if (msg.sender != marketManager.positionFolding()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Cache pendingRewards, _totalAssets, balanceOf.
+        uint256 pending = _calculatePendingRewards();
+        uint256 ta = _totalAssets + pending;
+        uint256 balancePrior = balanceOf(owner);
+
+        // We use a modified version of maxWithdraw with newly vested assets.
+        if (assets > _convertToAssets(balancePrior, ta)) {
+            // revert with "CTokenCompounding__WithdrawMoreThanMax".
+            _revert(0x2735eaab);
+        }
+
+        // No need to check for rounding error, previewWithdraw rounds up.
+        uint256 shares = _previewWithdraw(assets, ta);
+
+        // Update gauge pool values for `owner`.
+        _gaugePool().withdraw(address(this), owner, shares);
+        // We don't need to precheck approval since position folding will
+        // always call based on msg.sender, so there is no trust system.
+        // Process withdraw on behalf of `owner`.
+        _processWithdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            assets,
+            shares,
+            ta,
+            pending
+        );
+
+        // Callback to PositionFolding that executes cToken specific logic.
+        IPositionFolding(msg.sender).onRedeem(
+            address(this),
+            owner,
+            _removeExitFeeFromAssets(assets),
+            deleverageData
+        );
+
+        // Fails if redemption not allowed.
+        marketManager.canRedeemWithCollateralRemoval(
+            address(this),
+            owner,
+            balancePrior,
+            shares,
+            false
+        );
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Efficient internal calculation of `assets`
@@ -64,7 +125,7 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
     ) internal view returns (uint256) {
         // Rounds up with an enforced minimum of assets = 1,
         // so this can never underflow.
-        return assets - FixedPointMathLib.mulDivUp(exitFee, assets, 1e18);
+        return assets - FixedPointMathLib.mulDivUp(exitFee, assets, WAD);
     }
 
     /// @notice Processes a withdrawal of `shares` from the market by burning
@@ -128,7 +189,9 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
     function previewWithdraw(
         uint256 assets
     ) public view override returns (uint256 shares) {
-        assets = FixedPointMathLib.mulDivUp(assets, 1e18, 1e18 - exitFee);
+        // Exit fee is base WAD so we can substract apples to apples to get
+        // how many shares need to be withdrawn to receive `assets`.
+        assets = FixedPointMathLib.mulDivUp(assets, WAD, WAD - exitFee);
         shares = super.previewWithdraw(assets);
     }
 
