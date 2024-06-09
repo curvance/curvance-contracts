@@ -283,16 +283,17 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Calculates the current borrow rate per compound,
     ///         and updates the vertex multiplier if necessary.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return borrowRate The borrow rate percentage per compound, in `WAD`.
     function getBorrowRateWithUpdate(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256 borrowRate) {
-        uint256 util = utilizationRate(cash, borrows, reserves);
+        uint256 util = utilizationRate(underlyingHeld, borrows, reserves);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
@@ -340,52 +341,55 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Calculates the current borrow rate per year,
     ///         with updated vertex multiplier applied.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return The borrow rate percentage per year, in `WAD`.
     function getPredictedBorrowRatePerYear(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) external view returns (uint256) {
         return
             _SECONDS_PER_YEAR *
-            (getPredictedBorrowRate(cash, borrows, reserves) /
+            (getPredictedBorrowRate(underlyingHeld, borrows, reserves) /
                 INTEREST_COMPOUND_RATE);
     }
 
     /// @notice Calculates the current borrow rate per year.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return The borrow rate percentage per year, in `WAD`.
     function getBorrowRatePerYear(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) external view returns (uint256) {
         return
             _SECONDS_PER_YEAR *
-            (getBorrowRate(cash, borrows, reserves) / INTEREST_COMPOUND_RATE);
+            (getBorrowRate(underlyingHeld, borrows, reserves) / INTEREST_COMPOUND_RATE);
     }
 
     /// @notice Calculates the current supply rate per year.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @param interestFee The current interest rate reserve factor
     ///                    for the market.
     /// @return The supply rate percentage per year, in `WAD`.
     function getSupplyRatePerYear(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves,
         uint256 interestFee
     ) external view returns (uint256) {
         return
             _SECONDS_PER_YEAR *
-            (getSupplyRate(cash, borrows, reserves, interestFee) /
+            (getSupplyRate(underlyingHeld, borrows, reserves, interestFee) /
                 INTEREST_COMPOUND_RATE);
     }
 
@@ -409,13 +413,14 @@ contract DynamicInterestRateModel is ERC165 {
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Calculates the utilization rate of the market:
-    ///         `borrows / (cash + borrows - reserves)`.
-    /// @param cash The amount of cash in the market.
+    ///         `borrows / (underlyingHeld + borrows - reserves)`.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return The utilization rate between [0, WAD].
     function utilizationRate(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) public pure returns (uint256) {
@@ -424,7 +429,7 @@ contract DynamicInterestRateModel is ERC165 {
             return 0;
         }
 
-        uint256 utilRate = (borrows * WAD) / (cash + borrows - reserves);
+        uint256 utilRate = (borrows * WAD) / (underlyingHeld + borrows - reserves);
         // If reserves end up growing too much and cause util > 100%,
         // cap it to 100%.
         return utilRate > WAD ? WAD : utilRate;
@@ -432,16 +437,17 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Calculates the current borrow rate per compound,
     ///         with updated vertex multiplier applied.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return The borrow rate percentage per compound, in `WAD`.
     function getPredictedBorrowRate(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) public view returns (uint256) {
-        uint256 util = utilizationRate(cash, borrows, reserves);
+        uint256 util = utilizationRate(underlyingHeld, borrows, reserves);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
 
@@ -463,16 +469,17 @@ contract DynamicInterestRateModel is ERC165 {
     }
 
     /// @notice Calculates the current borrow rate, per compound.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @return The borrow rate percentage, per compound, in `WAD`.
     function getBorrowRate(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves
     ) public view returns (uint256) {
-        uint256 util = utilizationRate(cash, borrows, reserves);
+        uint256 util = utilizationRate(underlyingHeld, borrows, reserves);
         uint256 vertexPoint = ratesConfig.vertexStartingPoint;
 
         if (util <= vertexPoint) {
@@ -490,24 +497,25 @@ contract DynamicInterestRateModel is ERC165 {
     }
 
     /// @notice Calculates the current supply rate, per compound.
-    /// @param cash The amount of cash in the market.
+    /// @param underlyingHeld The amount of underlying assets held in the
+    ///                       market.
     /// @param borrows The amount of borrows in the market.
     /// @param reserves The amount of reserves in the market.
     /// @param interestFee The current interest rate reserve factor
     ///                    for the market.
     /// @return The supply rate percentage, per compound, in `WAD`.
     function getSupplyRate(
-        uint256 cash,
+        uint256 underlyingHeld,
         uint256 borrows,
         uint256 reserves,
         uint256 interestFee
     ) public view returns (uint256) {
         // RateToPool = (borrowRate * oneMinusReserveFactor) / WAD.
-        uint256 rateToPool = (getBorrowRate(cash, borrows, reserves) *
+        uint256 rateToPool = (getBorrowRate(underlyingHeld, borrows, reserves) *
             (WAD - interestFee)) / WAD;
 
         // Supply Rate = (utilizationRate * rateToPool) / WAD.
-        return (utilizationRate(cash, borrows, reserves) * rateToPool) / WAD;
+        return (utilizationRate(underlyingHeld, borrows, reserves) * rateToPool) / WAD;
     }
 
     /// @notice Returns the multiplier applied to the vertex interest rate,

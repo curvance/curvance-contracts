@@ -428,8 +428,15 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Wipe out the accounts debt since we are recognizing
         // unpaid debt as bad debt.
         delete _debtOf[account].principal;
-        totalBorrows -= accountDebt;
-
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < accountDebt) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= accountDebt;
+        }
+        
         emit Repay(liquidator, account, repayAmount);
         emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
     }
@@ -809,7 +816,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.utilizationRate(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -821,7 +828,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getBorrowRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -834,7 +841,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getPredictedBorrowRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -846,7 +853,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getSupplyRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves,
+                convertToAssets(totalReserves),
                 interestFactor
             );
     }
@@ -1018,7 +1025,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // exchangeRate calculation:
         // (Underlying Held + Total Borrows - Total Reserves) / Total Supply.
         return
-            ((marketUnderlyingHeld() + totalBorrows - totalReserves) * WAD) /
+            ((marketUnderlyingHeld() + totalBorrows - convertToAssets(totalReserves)) * WAD) /
             totalSupply;
     }
 
@@ -1078,7 +1085,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         uint256 borrowRate = interestRateModel.getBorrowRateWithUpdate(
             marketUnderlyingHeld(),
             borrowsPrior,
-            reservesPrior
+            convertToAssets(reservesPrior)
         );
 
         // Calculate the interest compound cycles to update,
@@ -1104,7 +1111,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // Check whether the DAO takes a cut of interest, and whether new debt
         // has accumulated (!= 0). Then update reserves if necessary.
-        uint256 newReserves = ((interestFactor * debtAccumulated) / WAD);
+        uint256 newReserves = ((interestFactor * convertToShares(debtAccumulated)) / WAD);
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
 
@@ -1282,7 +1289,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
         // because the startMarket() assets can never be withdraw since the
         // market itself owns the corresponding dTokens.
-        if (marketUnderlyingHeld() < amount) {
+        if (
+            marketUnderlyingHeld() - convertToAssets(totalReserves) < amount
+            ) {
             revert DToken__InsufficientUnderlyingHeld();
         }
 
@@ -1324,7 +1333,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // the system since there will always be at least
         // _BASE_UNDERLYING_RESERVE excess inside the market.
         if (
-            marketUnderlyingHeld() - totalReserves <
+            marketUnderlyingHeld() - convertToAssets(totalReserves) <
             amount + _BASE_UNDERLYING_RESERVE
         ) {
             revert DToken__InsufficientUnderlyingHeld();
