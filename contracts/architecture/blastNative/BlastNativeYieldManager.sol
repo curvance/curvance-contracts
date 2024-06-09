@@ -171,6 +171,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimWETHYield) {
             uint256 pendingWETH = pendingWETHYield[msg.sender];
+            pendingWETHYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingWETH > 0) {
@@ -181,6 +182,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimUSDBYield) {
             uint256 pendingUSDB = pendingUSDBYield[msg.sender];
+            pendingUSDBYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingUSDB > 0) {
@@ -323,6 +325,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimWETHYield) {
             uint256 pendingWETH = pendingWETHYield[msg.sender];
+            pendingWETHYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingWETH > 0) {
@@ -332,6 +335,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimUSDBYield) {
             uint256 pendingUSDB = pendingUSDBYield[msg.sender];
+            pendingUSDBYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingUSDB > 0) {
