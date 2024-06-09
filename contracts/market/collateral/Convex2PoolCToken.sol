@@ -34,6 +34,9 @@ contract Convex2PoolCToken is CTokenCompounding {
     /// @dev This address is for Ethereum mainnet so make sure to update
     ///      it if Curve/Convex is being supported on another chain.
     address private constant _CRV = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+    /// @dev This address is for Ethereum mainnet so make sure to update
+    ///      it if Curve/Convex is being supported on another chain.
+    address private constant _CVX = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
 
     /// STORAGE ///
 
@@ -67,6 +70,10 @@ contract Convex2PoolCToken is CTokenCompounding {
         address rewarder_,
         address booster_
     ) CTokenCompounding(centralRegistry_, asset_, marketManager_) {
+        if (block.chainid != 1) {
+            revert Convex2PoolCToken__UnsafePool();
+        }
+
         // We only support Curves new ng pools with read only
         // reentry protection. This may be adjusted in the future.
         if (pid_ <= 176) {
@@ -148,13 +155,22 @@ contract Convex2PoolCToken is CTokenCompounding {
         // Add CRV as a reward token, then let Convex tell you what rewards
         // the vault will receive.
         strategyData.rewardTokens.push() = _CRV;
+        // Add CVX as a reward token, since some vaults do not list CVX
+        // as a reward token.
+        strategyData.rewardTokens.push() = _CVX;
         IBaseRewardPool rewarder = strategyData.rewarder;
 
         uint256 extraRewardsLength = rewarder.extraRewardsLength();
         for (uint256 i; i < extraRewardsLength; ++i) {
-            strategyData.rewardTokens.push() = IRewards(
+            address rewardToken = IRewards(
                 rewarder.extraRewards(i)
             ).rewardToken();
+            // We do not expect CRV/CVX to be listed as extra rewards,
+            // but hypothetically its possible and we do not want to
+            // needlessly attempt to double claim.
+            if (rewardToken != _CRV && rewardToken != _CVX) {
+                strategyData.rewardTokens.push() = rewardToken;
+            }
         }
     }
 
@@ -259,7 +275,19 @@ contract Convex2PoolCToken is CTokenCompounding {
             if (yield == 0) {
                 revert Convex2PoolCToken__NoYield();
             }
-            _afterDeposit(yield, 0);
+
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+
+            if (isShutdown) {
+                SafeTransferLib.safeTransfer(
+                    asset(),
+                    centralRegistry.daoAddress(),
+                    yield
+                );
+                yield = 0;
+            } else {
+                _afterDeposit(yield, 0);
+            }
 
             // Update vesting info, query `vestPeriod` here to cache it.
             _setNewVaultData(yield, vestPeriod);

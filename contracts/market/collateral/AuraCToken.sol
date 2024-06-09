@@ -35,7 +35,7 @@ contract AuraCToken is CTokenCompounding {
     /// CONSTANTS ///
 
     /// @dev These addresses are for Ethereum mainnet so make sure to update
-    ///      them if Balancer/Aura is being supported on another chain
+    ///      them if Balancer/Aura is being supported on another chain.
     address private constant _BAL = 0xba100000625a3754423978a60c9317c58a424e3D;
     address private constant _AURA =
         0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
@@ -56,9 +56,11 @@ contract AuraCToken is CTokenCompounding {
 
     /// ERRORS ///
 
+    error AuraCToken__UnsafePool();
     error AuraCToken__InvalidVaultConfig();
     error AuraCToken__InvalidSwapData();
-
+    error AuraCToken__NoYield();
+    
     /// CONSTRUCTOR ///
 
     constructor(
@@ -69,6 +71,10 @@ contract AuraCToken is CTokenCompounding {
         address rewarder_,
         address booster_
     ) CTokenCompounding(centralRegistry_, asset_, marketManager_) {
+        if (block.chainid != 1) {
+            revert AuraCToken__UnsafePool();
+        }
+
         strategyData.pid = pid_;
         strategyData.booster = IBooster(booster_);
 
@@ -133,15 +139,16 @@ contract AuraCToken is CTokenCompounding {
         IBaseRewardPool rewarder = strategyData.rewarder;
         uint256 extraRewardsLength = rewarder.extraRewardsLength();
 
-        for (uint256 i; i < extraRewardsLength; ) {
-            unchecked {
-                address rewardToken = IStashWrapper(
-                    IRewards(rewarder.extraRewards(i++)).rewardToken()
-                ).baseToken();
+        for (uint256 i; i < extraRewardsLength; ++i) {
+            address rewardToken = IStashWrapper(
+                IRewards(rewarder.extraRewards(i)).rewardToken()
+            ).baseToken();
 
-                if (rewardToken != _AURA && rewardToken != _BAL) {
-                    strategyData.rewardTokens.push() = rewardToken;
-                }
+            // We do not expect BAL/AURA to be listed as extra rewards,
+            // but hypothetically its possible and we do not want to
+            // needlessly attempt to double claim.
+            if (rewardToken != _BAL && rewardToken != _AURA) {
+                strategyData.rewardTokens.push() = rewardToken;
             }
         }
     }
@@ -315,7 +322,22 @@ contract AuraCToken is CTokenCompounding {
 
             // Deposit assets into Aura.
             yield = IERC20(asset()).balanceOf(address(this));
-            _afterDeposit(yield, 0);
+            if (yield == 0) {
+                revert AuraCToken__NoYield();
+            }
+
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+
+            if (isShutdown) {
+                SafeTransferLib.safeTransfer(
+                    asset(),
+                    centralRegistry.daoAddress(),
+                    yield
+                );
+                yield = 0;
+            } else {
+                _afterDeposit(yield, 0);
+            }
 
             // Update vesting info, query `vestPeriod` here to cache it.
             _setNewVaultData(yield, vestPeriod);
