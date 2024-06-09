@@ -151,6 +151,12 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             msg.sender,
             address(this)
         );
+
+        if (gasYield > 0) {
+            IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: gasYield }();
+            WETHYield += gasYield;
+        }
+
         uint256 WETHPrior = WETH_YIELD_MANAGER.balanceOf(address(this));
         uint256 USDBPrior = USDB_YIELD_MANAGER.balanceOf(address(this));
         uint256 WETHPerSecond;
@@ -162,11 +168,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         // route yield to itself.
         if (yieldDestination == address(0)) {
             yieldDestination = msg.sender;
-        }
-
-        if (gasYield > 0) {
-            IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: gasYield }();
-            WETHYield += gasYield;
         }
 
         if (claimWETHYield) {
