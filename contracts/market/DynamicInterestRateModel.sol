@@ -563,7 +563,7 @@ contract DynamicInterestRateModel is ERC165 {
         // twice to maintain precision.
         return
             (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
-            WAD_SQUARED;
+            WAD;
     }
 
     /// @notice Updates the parameters of the dynamic interest rate model
@@ -647,7 +647,7 @@ contract DynamicInterestRateModel is ERC165 {
             (_SECONDS_PER_YEAR * vertexUtilStart);
         config.vertexInterestRate =
             (INTEREST_COMPOUND_RATE * vertexRatePerYear) /
-            _SECONDS_PER_YEAR;
+            (_SECONDS_PER_YEAR * (WAD - vertexUtilStart));
 
         config.vertexStartingPoint = vertexUtilStart;
         config.vertexMultiplierMax = vertexMultiplierMax;
