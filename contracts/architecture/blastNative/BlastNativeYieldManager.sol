@@ -174,11 +174,16 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             uint256 pendingWETH = pendingWETHYield[msg.sender];
             pendingWETHYield[msg.sender] = 0;
 
-            // Recognize USDB yield, if necessary.
+            // Recognize WETH yield, if necessary.
             if (pendingWETH > 0) {
-                WETHYield += pendingWETH;
-                WETHPerSecond = WETHYield / EPOCH_WINDOW;
+                WETHYield += pendingWETH; 
             }
+        }
+
+        // We call this outside the claimWETHYield block since we could
+        // have received WETH through gasYield.
+        if (WETHYield > 0) {
+            WETHPerSecond = WETHYield / EPOCH_WINDOW;
         }
 
         if (claimUSDBYield) {

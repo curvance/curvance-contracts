@@ -438,6 +438,10 @@ contract OracleRouter {
         bool inUSD,
         bool getLower
     ) public view returns (uint256 price, uint256 errorCode) {
+        if (!_isSequencerValid()) {
+            return (0, 2);
+        }
+
         address mAsset;
         // Check whether asset is an mToken.
         if (mTokenAssets[asset].isMToken) {
@@ -787,10 +791,6 @@ contract OracleRouter {
     ///         it returns (answer, true).
     ///         Where true corresponded to hasError = true.
     function _getETHUSD(bool getLower) internal view returns (uint256, bool) {
-        if (!_isSequencerValid()) {
-            return (0, true);
-        }
-
         uint256 numFeeds = assetPriceFeeds[ETH].length;
         // Validate we have a feed or feeds to price `asset`.
         if (numFeeds == 0) {
