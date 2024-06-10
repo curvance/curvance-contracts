@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -218,7 +219,8 @@ abstract contract LiquidityManager {
                             .accountPositions[account]
                             .collateralPosted * snapshot.exchangeRate) / WAD),
                         underlyingPrices[i],
-                        snapshot.decimals
+                        snapshot.decimals,
+                        true
                     );
                     accountCollateral += collateralValue;
                     maxDebt +=
@@ -232,7 +234,8 @@ abstract contract LiquidityManager {
                     accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
-                        snapshot.decimals
+                        snapshot.decimals,
+                        false
                     );
                 }
             }
@@ -330,7 +333,8 @@ abstract contract LiquidityManager {
                         newDebt += _assetValue(
                             snapshot.debtBalance,
                             underlyingPrices[i],
-                            snapshot.decimals
+                            snapshot.decimals,
+                            false
                         );
                     } else {
                         // If there is no debt and its not a position
@@ -380,7 +384,8 @@ abstract contract LiquidityManager {
                         newDebt += _assetValue(
                             action.borrowAmount,
                             underlyingPrices[i],
-                            snapshot.decimals
+                            snapshot.decimals,
+                            false
                         );
                         // We don't need to check for closing a position here since
                         // borrow action will only expand a position.
@@ -435,7 +440,8 @@ abstract contract LiquidityManager {
                             .accountPositions[account]
                             .collateralPosted * snapshot.exchangeRate) / WAD),
                         underlyingPrices[i],
-                        snapshot.decimals
+                        snapshot.decimals,
+                        true
                     );
                 }
             } else {
@@ -444,7 +450,8 @@ abstract contract LiquidityManager {
                     accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
-                        snapshot.decimals
+                        snapshot.decimals,
+                        false
                     );
                 }
             }
@@ -539,7 +546,8 @@ abstract contract LiquidityManager {
                     accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
-                        snapshot.decimals
+                        snapshot.decimals,
+                        false
                     );
                 }
             }
@@ -609,7 +617,8 @@ abstract contract LiquidityManager {
                         uint256 collateralValue = _assetValue(
                             ((posted * snapshot.exchangeRate) / WAD),
                             underlyingPrices[i],
-                            snapshot.decimals
+                            snapshot.decimals,
+                            true
                         );
                         result.collateral += collateralValue;
                         result.debtToPay +=
@@ -624,7 +633,8 @@ abstract contract LiquidityManager {
                         result.debt += _assetValue(
                             currentDebtBalance,
                             underlyingPrices[i],
-                            snapshot.decimals
+                            snapshot.decimals,
+                            false
                         );
                     }
                 }
@@ -664,13 +674,22 @@ abstract contract LiquidityManager {
     /// @param price The asset price to calculate asset value from.
     /// @param decimals The asset decimals to adjust asset value
     ///                 into proper form.
+    /// @param increasesCollateral Whether the asset adds positive value or
+    ///        not to the liquidity check, we round down when increasing
+    ///        collateral value and round up when increasing collateral
+    ///        value/increasing debt.
     /// @return The calculated asset value.
     function _assetValue(
         uint256 amount,
         uint256 price,
-        uint256 decimals
+        uint256 decimals,
+        bool increasesCollateral
     ) internal pure returns (uint256) {
-        return (amount * price) / (10 ** decimals);
+        if (increasesCollateral) {
+            return FixedPointMathLib.mulDiv(amount, price, 10 ** decimals);
+        }
+
+        return FixedPointMathLib.mulDivUp(amount, price, 10 ** decimals);
     }
 
     /// @notice Calculates a redemptions value based on its `amount`,
@@ -692,7 +711,8 @@ abstract contract LiquidityManager {
         uint256 assetValue = _assetValue(
             (amount * exchangeRate) / WAD,
             price,
-            decimals
+            decimals,
+            false
         );
 
         // Hypothetical redemption action.
@@ -721,7 +741,8 @@ abstract contract LiquidityManager {
         uint256 assetValue = _assetValue(
             ((posted * exchangeRate) / WAD),
             price,
-            decimals
+            decimals,
+            true
         );
 
         return (liqForBorrowPrior + (assetValue * collRatio) / WAD);
@@ -751,7 +772,8 @@ abstract contract LiquidityManager {
                 .accountPositions[account]
                 .collateralPosted * snapshot.exchangeRate) / WAD),
             price,
-            snapshot.decimals
+            snapshot.decimals,
+            true
         ) * WAD;
 
         return (

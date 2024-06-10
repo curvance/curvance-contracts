@@ -65,76 +65,42 @@ contract PendleLPCToken is CTokenCompounding {
             .lp
             .readTokens();
 
-        strategyData.rewardTokens = strategyData.lp.getRewardTokens();
-
-        // Query liquidity pools underlying tokens from the
-        // standardized yield contract.
-        strategyData.underlyingTokens = strategyData.sy.getTokensIn();
-        uint256 numUnderlyingTokens = strategyData.underlyingTokens.length;
-        for (uint256 i; i < numUnderlyingTokens; ) {
-            unchecked {
-                isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
-            }
-        }
-
-        // updated approved token list
-        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
-            address rewardToken = strategyData.rewardTokens[i];
-            if (rewardToken != asset()) {
-                isApprovedAsset[rewardToken] = true;
-            }
-        }
+        _queryTokens();
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    // PERMISSIONED FUNCTIONS
-
-    /// @notice Requeries reward tokens directly from Pendle smart contracts.
+    /// @notice Requeries reward and underlying tokens directly from 
+    ///         Pendle's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts  and takes no parameters.
-    function reQueryRewardTokens() external {
+    ///      contracts and takes no parameter values.
+    function reQueryTokens() external {
+        // Cache current reward tokens.
+        address[] memory currentTokens = strategyData.rewardTokens;
+        uint256 numTokens = currentTokens.length;
+
+        // Clear reward token data fields.
+
+        // Remove approved tokens for harvester compounding.
+        for (uint256 i; i < numTokens; ) {
+            isApprovedAsset[currentTokens[i++]] = false;
+        }
+
         delete strategyData.rewardTokens;
 
-        strategyData.rewardTokens = strategyData.lp.getRewardTokens();
-    }
+        // Cache current underlying tokens.
+        currentTokens = strategyData.underlyingTokens;
+        numTokens = currentTokens.length;
 
-    /// @notice Requeries underlying tokens directly from Pendle smart contracts.
-    /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts and takes no parameters.
-    function reQueryUnderlyingTokens() external {
-        address[] memory currentTokens = strategyData.underlyingTokens;
-        uint256 numCurrentTokens = currentTokens.length;
+        // Clear underlying token data fields.
 
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
-        for (uint256 i; i < numCurrentTokens; ) {
-            unchecked {
-                isUnderlyingToken[currentTokens[i++]] = false;
-            }
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[currentTokens[i++]] = false;
         }
 
-        // Query underlying tokens from Pendle contracts.
-        strategyData.underlyingTokens = strategyData.sy.getTokensIn();
-        numCurrentTokens = strategyData.underlyingTokens.length;
-
-        // Add `isUnderlyingToken` mapping value to new
-        // flagged underlying tokens.
-        for (uint256 i = 0; i < numCurrentTokens; ) {
-            unchecked {
-                isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
-            }
-        }
-    }
-
-    /// @notice Returns this strategies reward tokens.
-    function rewardTokens() external view returns (address[] memory) {
-        return strategyData.rewardTokens;
-    }
-
-    /// @notice Returns this strategies base assets underlying tokens.
-    function underlyingTokens() external view returns (address[] memory) {
-        return strategyData.underlyingTokens;
+        _queryTokens();
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -291,5 +257,34 @@ contract PendleLPCToken is CTokenCompounding {
 
             emit Harvest(yield);
         }
+    }
+
+    /// @notice Queries reward and underlying tokens directly from 
+    ///         Pendle's smart contracts, then populates storage values.
+    function _queryTokens() internal {
+        // Query and populate reward token data fields.
+
+        // Query Reward tokens from lp contract.
+        strategyData.rewardTokens = strategyData.lp.getRewardTokens();
+        uint256 numTokens = strategyData.rewardTokens.length;
+
+        // Approve reward tokens for harvester compounding.
+        for (uint256 i; i < numTokens; ) {
+            address rewardToken = strategyData.rewardTokens[i++];
+            if (rewardToken != asset()) {
+                isApprovedAsset[rewardToken] = true;
+            }
+        }
+
+        // Query and populate underlying token data fields.
+
+        // Query LPs underlying tokens from the standardized yield contract.
+        strategyData.underlyingTokens = strategyData.sy.getTokensIn();
+        numTokens = strategyData.underlyingTokens.length;
+
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
+        }
+
     }
 }

@@ -1600,6 +1600,15 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 debtAmount =
                     (debtAmount * collateralAvailable) /
                     liquidatedTokens;
+                // Will add whichever Trust suggests
+                // debtAmount = FixedPointMathLib.mulDivUp(
+                //    debtAmount,
+                //    collateralAvailable,
+                //    liquidatedTokens
+                //);
+                //if (debtAmount = 0) {
+                //    revert MarketManager__NoLiquidationAvailable();
+                //}
                 liquidatedTokens = collateralAvailable;
             }
         }

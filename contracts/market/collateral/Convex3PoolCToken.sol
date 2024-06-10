@@ -97,91 +97,48 @@ contract Convex3PoolCToken is CTokenCompounding {
         }
 
         strategyData.curvePool = ICurveFi(pidToken);
-
-        uint256 coinsLength;
-        address token;
-
-        // Figure out how many tokens are in the Curve pool.
-        while (true) {
-            try ICurveFi(pidToken).coins(coinsLength) {
-                ++coinsLength;
-            } catch {
-                break;
-            }
-        }
-
-        // Validate that the liquidity pool is actually a 3Pool.
-        if (coinsLength != 3) {
-            revert Convex3PoolCToken__InvalidCoinLength();
-        }
-
-        strategyData.rewarder = IBaseRewardPool(rewarder_);
-
-        // Add CRV as a reward token, then let Convex tell you what rewards
-        // the vault will receive.
-        reQueryRewardTokens();
-
-        // Let Curve lp tell you what its underlying tokens are.
-        strategyData.underlyingTokens = new address[](coinsLength);
-        for (uint256 i; i < coinsLength; ) {
-            token = ICurveFi(pidToken).coins(i);
-            strategyData.underlyingTokens[i] = token;
-            isUnderlyingToken[token] = true;
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // updated approved token list
-        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
-            address rewardToken = strategyData.rewardTokens[i];
-            if (rewardToken != asset()) {
-                isApprovedAsset[rewardToken] = true;
-            }
-        }
+        _queryTokens();
     }
 
     /// EXTERNAL FUNCTIONS ///
 
     // PERMISSIONED FUNCTIONS
 
-    /// @notice Requeries reward tokens directly from Convex smart contracts.
+    /// @notice Requeries reward and underlying tokens directly from 
+    ///         Convex's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts and takes no parameters.
-    function reQueryRewardTokens() public {
+    ///      contracts and takes no parameter values.
+    function reQueryTokens() public {
+        // Cache current reward tokens.
+        address[] memory rewardTokens = strategyData.rewardTokens;
+        uint256 numTokens = rewardTokens.length;
+
+        // Clear reward token data fields.
+
+        // Remove approved tokens for harvester compounding.
+        for (uint256 i; i < numTokens; ) {
+            isApprovedAsset[rewardTokens[i++]] = false;
+        }
+
+        // Wipe current reward tokens data.
         delete strategyData.rewardTokens;
 
-        // Add CRV as a reward token, then let Convex tell you what rewards
-        // the vault will receive.
-        strategyData.rewardTokens.push() = _CRV;
-        // Add CVX as a reward token, since some vaults do not list CVX
-        // as a reward token.
-        strategyData.rewardTokens.push() = _CVX;
-        IBaseRewardPool rewarder = strategyData.rewarder;
+        // Cache current underlying tokens.
+        address[] memory currentTokens = strategyData.underlyingTokens;
+        numTokens = currentTokens.length;
 
-        uint256 extraRewardsLength = rewarder.extraRewardsLength();
-        for (uint256 i; i < extraRewardsLength; ++i) {
-            address rewardToken = IRewards(
-                rewarder.extraRewards(i)
-            ).rewardToken();
-            // We do not expect CRV/CVX to be listed as extra rewards,
-            // but hypothetically its possible and we do not want to
-            // needlessly attempt to double claim.
-            if (rewardToken != _CRV && rewardToken != _CVX) {
-                strategyData.rewardTokens.push() = rewardToken;
-            }
+        // Clear underlying token data fields.
+
+        // Remove `isUnderlyingToken` mapping value from current
+        // flagged underlying tokens.
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[currentTokens[i++]] = false;
         }
-    }
 
-    /// @notice Returns this strategies reward tokens.
-    function rewardTokens() external view returns (address[] memory) {
-        return strategyData.rewardTokens;
-    }
+        // Wipe current underlying tokens data.
+        delete strategyData.underlyingTokens;
 
-    /// @notice Returns this strategies base assets underlying tokens.
-    function underlyingTokens() external view returns (address[] memory) {
-        return strategyData.underlyingTokens;
+        _queryTokens();
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -297,6 +254,63 @@ contract Convex3PoolCToken is CTokenCompounding {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Queries reward and underlying tokens directly from 
+    ///         Convex's smart contracts, then populates storage values.
+    function _queryTokens() internal {
+        // Query and populate reward token data fields.
+
+        // Add CRV as a reward token, then let Convex tell you what rewards
+        // the vault will receive.
+        strategyData.rewardTokens.push() = _CRV;
+        isApprovedAsset[_CRV] = true;
+
+        // Add CVX as a reward token, since some vaults do not list CVX
+        // as a reward token.
+        strategyData.rewardTokens.push() = _CVX;
+        isApprovedAsset[_CVX] = true;
+
+        IBaseRewardPool rewarder = strategyData.rewarder;
+        uint256 numTokens = rewarder.extraRewardsLength();
+        address currentToken;
+
+        for (uint256 i; i < numTokens; ) {
+            currentToken = IRewards(rewarder.extraRewards(i)).rewardToken();
+
+            // We do not expect CRV/CVX to be listed as extra rewards,
+            // but hypothetically its possible and we do not want to
+            // needlessly attempt to double claim.
+            if (currentToken != _CRV && currentToken != _CVX) {
+                strategyData.rewardTokens.push() = currentToken;
+                if (address(currentToken) != asset()) {
+                    isApprovedAsset[currentToken] = true;
+                }
+            }
+        }
+        
+        ICurveFi vaultAsset = ICurveFi(asset());
+        numTokens = 0;
+
+        // Figure out how many tokens are in the Curve pool.
+        while (true) {
+            try vaultAsset.coins(numTokens) {
+                ++numTokens;
+            } catch {
+                break;
+            }
+        }
+
+        // Validate that the liquidity pool is actually a 2Pool.
+        if (numTokens != 3) {
+            revert Convex3PoolCToken__InvalidCoinLength();
+        }
+
+        for (uint256 i; i < numTokens; ) {
+            currentToken = vaultAsset.coins(i++);
+            strategyData.underlyingTokens.push() = currentToken;
+            isUnderlyingToken[currentToken] = true;
+        }
+    }
 
     // INTERNAL POSITION LOGIC
 

@@ -95,93 +95,43 @@ contract AuraCToken is CTokenCompounding {
         );
         strategyData.balancerPoolId = IBalancerPool(pidToken).getPoolId();
 
-        reQueryRewardTokens();
-
-        // Query liquidity pool's underlying tokens from the Balancer vault.
-        (address[] memory queriedTokens, , ) = strategyData
-            .balancerVault
-            .getPoolTokens(strategyData.balancerPoolId);
-        strategyData.underlyingTokens = queriedTokens;
-
-        uint256 numUnderlyingTokens = strategyData.underlyingTokens.length;
-        for (uint256 i; i < numUnderlyingTokens; ) {
-            unchecked {
-                isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
-            }
-        }
-
-        // updated approved token list
-        for (uint256 i = 0; i < strategyData.rewardTokens.length; ++i) {
-            address rewardToken = strategyData.rewardTokens[i];
-            if (address(rewardToken) != asset()) {
-                isApprovedAsset[rewardToken] = true;
-            }
-        }
+        _queryTokens();
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    // PERMISSIONED FUNCTIONS
-
-    /// @notice Requeries reward tokens directly from Aura smart contracts.
+    /// @notice Requeries reward and underlying tokens directly from 
+    ///         Aura's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts and takes no parameters.
-    function reQueryRewardTokens() public {
+    ///      contracts and takes no parameter values.
+    function reQueryTokens() public {
+        // Cache current reward tokens.
+        address[] memory rewardTokens = strategyData.rewardTokens;
+        uint256 numTokens = rewardTokens.length;
+
+        // Clear reward token data fields.
+
+        // Remove approved tokens for harvester compounding.
+        for (uint256 i; i < numTokens; ) {
+            isApprovedAsset[rewardTokens[i++]] = false;
+        }
+
+        // Wipe current reward tokens data.
         delete strategyData.rewardTokens;
 
-        // Add BAL as a reward token, then let Aura tell you what rewards
-        // the vault will receive.
-        strategyData.rewardTokens.push() = _BAL;
-        // Add AURA as a reward token, since some vaults do not list AURA
-        // as a reward token.
-        strategyData.rewardTokens.push() = _AURA;
-
-        IBaseRewardPool rewarder = strategyData.rewarder;
-        uint256 extraRewardsLength = rewarder.extraRewardsLength();
-
-        for (uint256 i; i < extraRewardsLength; ++i) {
-            address rewardToken = IStashWrapper(
-                IRewards(rewarder.extraRewards(i)).rewardToken()
-            ).baseToken();
-
-            // We do not expect BAL/AURA to be listed as extra rewards,
-            // but hypothetically its possible and we do not want to
-            // needlessly attempt to double claim.
-            if (rewardToken != _BAL && rewardToken != _AURA) {
-                strategyData.rewardTokens.push() = rewardToken;
-            }
-        }
-    }
-
-    /// @notice Requeries underlying tokens directly from Aura smart contracts.
-    /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts  and takes no parameters.
-    function reQueryUnderlyingTokens() external {
+        // Cache current underlying tokens.
         address[] memory currentTokens = strategyData.underlyingTokens;
-        uint256 numCurrentTokens = currentTokens.length;
+        numTokens = currentTokens.length;
+
+        // Clear underlying token data fields.
 
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
-        for (uint256 i; i < numCurrentTokens; ) {
-            unchecked {
-                isUnderlyingToken[currentTokens[i++]] = false;
-            }
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[currentTokens[i++]] = false;
         }
 
-        // Query underlying tokens from Balancer contracts.
-        (currentTokens, , ) = strategyData.balancerVault.getPoolTokens(
-            strategyData.balancerPoolId
-        );
-        strategyData.underlyingTokens = currentTokens;
-        numCurrentTokens = currentTokens.length;
-
-        // Add `isUnderlyingToken` mapping value to new
-        // flagged underlying tokens.
-        for (uint256 i = 0; i < numCurrentTokens; ) {
-            unchecked {
-                isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
-            }
-        }
+        _queryTokens();
     }
 
     /// @notice Returns this strategies reward tokens.
@@ -347,6 +297,55 @@ contract AuraCToken is CTokenCompounding {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Queries reward and underlying tokens directly from 
+    ///         Aura's smart contracts, then populates storage values.
+    function _queryTokens() internal {
+        // Query and populate reward token data fields.
+
+        // Add BAL as a reward token, then let Aura tell you what rewards
+        // the vault will receive.
+        strategyData.rewardTokens.push() = _BAL;
+        isApprovedAsset[_BAL] = true;
+
+        // Add AURA as a reward token, since some vaults do not list AURA
+        // as a reward token.
+        strategyData.rewardTokens.push() = _AURA;
+        isApprovedAsset[_AURA] = true;
+
+        IBaseRewardPool rewarder = strategyData.rewarder;
+        uint256 numTokens = rewarder.extraRewardsLength();
+
+        for (uint256 i; i < numTokens; ) {
+            address rewardToken = IStashWrapper(
+                IRewards(rewarder.extraRewards(i++)).rewardToken()
+            ).baseToken();
+
+            // We do not expect BAL/AURA to be listed as extra rewards,
+            // but hypothetically its possible and we do not want to
+            // needlessly attempt to double claim.
+            if (rewardToken != _BAL && rewardToken != _AURA) {
+                strategyData.rewardTokens.push() = rewardToken;
+                if (address(rewardToken) != asset()) {
+                    isApprovedAsset[rewardToken] = true;
+                }
+            }
+        }
+
+        // Query and populate underlying token data fields.
+        (address[] memory poolTokens, , ) = strategyData.balancerVault.getPoolTokens(
+            strategyData.balancerPoolId
+        );
+
+        strategyData.underlyingTokens = poolTokens;
+        numTokens = poolTokens.length;
+
+        // Add `isUnderlyingToken` mapping value to new
+        // flagged underlying tokens.
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[poolTokens[i++]] = true;
+        }
+    }
 
     /// @notice Deposits specified amount of assets into Aura
     ///         booster contract.

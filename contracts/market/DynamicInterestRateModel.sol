@@ -464,8 +464,8 @@ contract DynamicInterestRateModel is ERC165 {
 
         uint256 vertexInterestRate = ratesConfig.vertexInterestRate;
         uint256 newMultiplier = _updateForAboveVertex(config, util);
-
-        return (util * vertexInterestRate * newMultiplier) / WAD_SQUARED;
+        return _getBaseInterestRate(vertexPoint) +
+         ((util - vertexPoint) * vertexInterestRate * newMultiplier) / WAD_SQUARED;
     }
 
     /// @notice Calculates the current borrow rate, per compound.
@@ -627,9 +627,16 @@ contract DynamicInterestRateModel is ERC165 {
             revert DynamicInterestRateModel__InvalidDecayRate();
         }
 
-        // Validate that if the model is at the theoretical maximum multiplier
-        // no overflow will be created via bitshifting.
-        if (vertexMultiplierMax * vertexRatePerYear > type(uint192).max) {
+        // Our theoretical limit for the vertex multiplier is:
+        // (2^256 - 1) / 3e36 = 3.8597e40. 
+        // Where 3e36 is the theoretical maximum value of cFactor and
+        // 2^256 - 1 is type(uint256).max.
+        // As a result, we cap the vertex maximum before this number to
+        // prevent any overflows on values. Even if we didn't have this
+        // restriction we'd need to make sure:
+        // vertexMultiplierMax * vertexRatePerYear < type(uint192).max,
+        // or, 6.2771e57.
+        if (vertexMultiplierMax * vertexRatePerYear > 1e40) {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 
