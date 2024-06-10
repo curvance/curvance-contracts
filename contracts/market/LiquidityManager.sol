@@ -317,7 +317,7 @@ abstract contract LiquidityManager {
                         } else {
                             // There is collateral posted in this cToken, and the user
                             // can take on more debt.
-                            maxDebt += _liquidityValue(
+                            maxDebt = _addLiquidityValue(
                                 maxDebt,
                                 posted,
                                 snapshot.exchangeRate,
@@ -730,7 +730,7 @@ abstract contract LiquidityManager {
     ///                 into proper form.
     /// @param collRatio The collateralization ratio of the asset.
     /// @return The calculated liquidity value plus previous value.
-    function _liquidityValue(
+    function _addLiquidityValue(
         uint256 liqForBorrowPrior,
         uint256 posted,
         uint256 exchangeRate,
