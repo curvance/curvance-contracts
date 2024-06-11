@@ -202,15 +202,16 @@ contract TestVeCVE is TestBaseVeCVE {
     }
 
     function test_LockAndUnlockInSameEpoch()
-        public setRewardsData(false, false, false)
+        public
+        setRewardsData(false, false, false)
     {
         // 1. config poc env
-        deal(_USDC_ADDRESS, address(cveLocker), 10000e6);
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         uint256 genesisEpochTimestamp = veCVE.genesisEpoch();
         vm.warp(genesisEpochTimestamp);
         vm.prank(centralRegistry.feeAccumulator());
-        cveLocker.recordEpochRewards(1e6);
-        assertEq(cveLocker.nextEpochToDeliver(), 1);
+        rewardManager.recordEpochRewards(1e6);
+        assertEq(rewardManager.nextEpochToDeliver(), 1);
 
         address user00 = address(0xACC00);
         deal(address(cve), user00, 100 * 1e18);
@@ -227,10 +228,10 @@ contract TestVeCVE is TestBaseVeCVE {
         for (uint256 i = 1; i < 1 + 26; i++) {
             vm.warp(genesisEpochTimestamp + i * 2 weeks);
             vm.prank(centralRegistry.feeAccumulator());
-            cveLocker.recordEpochRewards(1e6);
-            assertEq(cveLocker.nextEpochToDeliver(), 1 + i);
+            rewardManager.recordEpochRewards(1e6);
+            assertEq(rewardManager.nextEpochToDeliver(), 1 + i);
         }
-        assertEq(cveLocker.nextEpochToDeliver(), 27);
+        assertEq(rewardManager.nextEpochToDeliver(), 27);
 
         // 4. user00 close the first lock and create the second lock within the same epoch
         vm.startPrank(user00);
@@ -244,12 +245,11 @@ contract TestVeCVE is TestBaseVeCVE {
         //    As a result, the user's points are repeatedly subtracted and become 0.
         vm.warp(genesisEpochTimestamp + 27 * 2 weeks);
         vm.prank(centralRegistry.feeAccumulator());
-        cveLocker.recordEpochRewards(1e6);
-        assertEq(cveLocker.nextEpochToDeliver(), 28);
+        rewardManager.recordEpochRewards(1e6);
+        assertEq(rewardManager.nextEpochToDeliver(), 28);
         assertEq(veCVE.userPoints(user00), 1e18);
         vm.prank(user00);
-        cveLocker.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
+        rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
         assertEq(veCVE.userPoints(user00), 0); // Validate that users points returned to 0
     }
-
 }

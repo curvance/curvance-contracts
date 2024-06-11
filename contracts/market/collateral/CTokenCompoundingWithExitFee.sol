@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/collateral/CTokenCompounding.sol";
+import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.

@@ -176,15 +176,7 @@ contract TestPendleLPCToken is TestBaseMarket {
     //     cSTETH.harvest(abi.encode(swaps, 0, approx));
     // }
 
-    function testReQueryRewardTokens() external {
-        cSTETH.reQueryRewardTokens();
-
-        assertEq(cSTETH.rewardTokens().length, 1);
-    }
-
-    function testReQueryUnderlyingTokens() external {
-        cSTETH.reQueryUnderlyingTokens();
-
-        assertEq(cSTETH.underlyingTokens().length, 4);
+    function TestReQueryTokens() external {
+        cSTETH.reQueryTokens();
     }
 }

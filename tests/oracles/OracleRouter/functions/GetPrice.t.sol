@@ -41,7 +41,9 @@ contract Oracle {
 }
 
 contract GetPriceTest is TestBaseOracleRouter {
-    
+    address constant FXS_TOKEN = 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
+    address constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     function test_getPrice_fail_whenNoFeedsAvailable() public {
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
         oracleRouter.getPrice(_USDC_ADDRESS, true, true);

@@ -34,8 +34,9 @@ contract FeeAccumulatorDeploymentTest is TestBaseFeeAccumulator {
             centralRegistry.protocolCompoundFee()
         );
         assertEq(
-            feeAccumulator.vaultYieldFee(),
-            centralRegistry.protocolYieldFee()
+            feeAccumulator.vaultHarvestFee(),
+            centralRegistry.protocolYieldFee() +
+                centralRegistry.protocolCompoundFee()
         );
     }
 }
