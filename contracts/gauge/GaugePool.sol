@@ -459,9 +459,11 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
-        if (!_claim(token)) {
+        uint256 cveRewards = _claim(token);
+        if (cveRewards == 0) {
             revert GaugeErrors.NoReward();
         }
+        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
     /// @notice Claim all pending rewards.
@@ -470,12 +472,14 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
+        uint256 cveRewards;
         for (uint256 i = 0; i < tokens.length; ++i) {
-            _claim(tokens[i]);
+            cveRewards += _claim(tokens[i]);
         }
+        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
-    function _claim(address token) internal returns (bool hasRewards) {
+    function _claim(address token) internal returns (uint256 cveRewards) {
         updatePool(token);
         _calcPending(msg.sender, token);
 
@@ -490,8 +494,15 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             // If the caller has rewards, send them,
             // and prevent transaction reversion.
             if (rewards > 0) {
-                hasRewards = true;
-                SafeTransferLib.safeTransfer(rewardToken, msg.sender, rewards);
+                if (rewardToken == cve) {
+                    cveRewards = rewards;
+                } else {
+                    SafeTransferLib.safeTransfer(
+                        rewardToken,
+                        msg.sender,
+                        rewards
+                    );
+                }
             }
 
             // Update pending rewards to zero.
@@ -528,18 +539,10 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
-        updatePool(token);
-        _calcPending(msg.sender, token);
-
-        // Check user pending rewards.
-        uint256 index = rewardTokenToIndex[cve];
-        uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
+        uint256 rewards = _claim(token);
         if (rewards == 0) {
             revert GaugeErrors.NoReward();
         }
-
-        // Update pending rewards to zero.
-        userDebtInfo[token][msg.sender][index].rewardPending = 0;
 
         uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
 
@@ -564,10 +567,6 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             params,
             aux
         );
-
-        _calcDebt(msg.sender, token);
-
-        emit Claim(msg.sender, token);
     }
 
     /// @notice Claim rewards from gauge pool and compound any CVE rewards
