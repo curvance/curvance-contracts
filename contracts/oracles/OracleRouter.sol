@@ -715,7 +715,8 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            (newPrice, data.hadError) = _getETHUSD(getLower);
+            bool ethUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
             if (data.hadError) {
                 return (0, BAD_SOURCE);
             }
