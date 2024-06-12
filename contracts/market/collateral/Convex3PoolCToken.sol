@@ -104,7 +104,7 @@ contract Convex3PoolCToken is CTokenCompounding {
 
     // PERMISSIONED FUNCTIONS
 
-    /// @notice Requeries reward and underlying tokens directly from 
+    /// @notice Requeries reward and underlying tokens directly from
     ///         Convex's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameter values.
@@ -233,7 +233,9 @@ contract Convex3PoolCToken is CTokenCompounding {
                 revert Convex3PoolCToken__NoYield();
             }
 
-            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo(
+                strategyData.pid
+            );
 
             if (isShutdown) {
                 SafeTransferLib.safeTransfer(
@@ -255,7 +257,7 @@ contract Convex3PoolCToken is CTokenCompounding {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Queries reward and underlying tokens directly from 
+    /// @notice Queries reward and underlying tokens directly from
     ///         Convex's smart contracts, then populates storage values.
     function _queryTokens() internal {
         // Query and populate reward token data fields.
@@ -287,7 +289,7 @@ contract Convex3PoolCToken is CTokenCompounding {
                 }
             }
         }
-        
+
         ICurveFi vaultAsset = ICurveFi(asset());
         numTokens = 0;
 

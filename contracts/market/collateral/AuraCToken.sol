@@ -60,7 +60,7 @@ contract AuraCToken is CTokenCompounding {
     error AuraCToken__InvalidVaultConfig();
     error AuraCToken__InvalidSwapData();
     error AuraCToken__NoYield();
-    
+
     /// CONSTRUCTOR ///
 
     constructor(
@@ -276,7 +276,9 @@ contract AuraCToken is CTokenCompounding {
                 revert AuraCToken__NoYield();
             }
 
-            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo(
+                strategyData.pid
+            );
 
             if (isShutdown) {
                 SafeTransferLib.safeTransfer(

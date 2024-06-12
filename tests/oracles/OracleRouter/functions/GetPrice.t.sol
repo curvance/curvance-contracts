@@ -8,11 +8,13 @@ import { OracleRouter, BAD_SOURCE } from "contracts/oracles/OracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract Oracle {
-    address constant FXS_TOKEN = 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
-    address constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address internal constant _FXS_TOKEN =
+        0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
+    address internal constant _ETH_ADDRESS =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     function isSupportedAsset(address asset) external view returns (bool) {
-        return (asset == ETH_ADDRESS || asset == FXS_TOKEN);
+        return (asset == _ETH_ADDRESS || asset == _FXS_TOKEN);
     }
 
     function getPrice(
@@ -20,13 +22,13 @@ contract Oracle {
         bool inUSD,
         bool getLower
     ) external view returns (PriceReturnData memory rd) {
-        if (asset == FXS_TOKEN) {
+        if (asset == _FXS_TOKEN) {
             // for simplicity, let's assume that...
             // 1) we don't offer ETH support for FXS, so always return USD
             // 2) the oracles are identical, so getLower == !getLower
             // 3) current price is $6, so just return that
             return PriceReturnData(6e18, false, true);
-        } else if (asset == ETH_ADDRESS) {
+        } else if (asset == _ETH_ADDRESS) {
             // price of ETH in ETH is 1
             if (!inUSD) return PriceReturnData(1e18, false, false);
 
@@ -41,8 +43,8 @@ contract Oracle {
 }
 
 contract GetPriceTest is TestBaseOracleRouter {
-    address constant FXS_TOKEN = 0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
-    address constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address internal constant _FXS_TOKEN =
+        0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0;
 
     function test_getPrice_fail_whenNoFeedsAvailable() public {
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
@@ -110,16 +112,16 @@ contract GetPriceTest is TestBaseOracleRouter {
         Oracle feed = new Oracle();
 
         oracleRouter.addApprovedAdaptor(address(feed));
-        oracleRouter.addAssetPriceFeed(ETH_ADDRESS, address(feed));
-        oracleRouter.addAssetPriceFeed(FXS_TOKEN, address(feed));
+        oracleRouter.addAssetPriceFeed(_ETH_ADDRESS, address(feed));
+        oracleRouter.addAssetPriceFeed(_FXS_TOKEN, address(feed));
 
-        (uint lower, ) = oracleRouter.getPrice({
-            asset: FXS_TOKEN,
+        (uint256 lower, ) = oracleRouter.getPrice({
+            asset: _FXS_TOKEN,
             inUSD: false,
             getLower: true
         });
-        (uint higher, ) = oracleRouter.getPrice({
-            asset: FXS_TOKEN,
+        (uint256 higher, ) = oracleRouter.getPrice({
+            asset: _FXS_TOKEN,
             inUSD: false,
             getLower: false
         });

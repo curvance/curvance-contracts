@@ -3,15 +3,6 @@ pragma solidity ^0.8.19;
 
 interface IBooster {
     function isShutdown() external view returns (bool);
-    
-    function poolInfo() external view returns(
-        address,
-        address,
-        address,
-        address,
-        address,
-        bool
-    );
 
     function deposit(uint256 _poolId, uint256 _amount, bool _stake) external;
 

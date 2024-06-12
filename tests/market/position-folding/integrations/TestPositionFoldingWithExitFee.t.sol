@@ -7,7 +7,6 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import "forge-std/console.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}

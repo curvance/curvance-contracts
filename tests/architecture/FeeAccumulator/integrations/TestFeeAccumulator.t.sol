@@ -147,7 +147,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
+            centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
@@ -272,7 +272,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
+            centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
