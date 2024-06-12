@@ -522,8 +522,7 @@ contract PositionFolding is
             MAX_LEVERAGE *
             sumCollateral) /
             (sumCollateral - maxDebt) /
-            DENOMINATOR -
-            sumCollateral;
+            DENOMINATOR;
 
         (uint256 price, uint256 errorCode) = IOracleRouter(
             ICentralRegistry(centralRegistry).oracleRouter()
