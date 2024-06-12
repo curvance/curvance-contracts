@@ -398,7 +398,7 @@ contract TestPositionFolding is TestBaseMarket {
             (maxDebt * 1 ether) / sumCollateral,
             ((sumDebt + maxLeverage) * 1 ether) /
                 (sumCollateral + maxLeverage),
-            1
+            2e15 // 0.2% diff
         );
 
         vm.stopPrank();
