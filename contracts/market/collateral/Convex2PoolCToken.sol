@@ -96,7 +96,9 @@ contract Convex2PoolCToken is CTokenCompounding {
             revert Convex2PoolCToken__InvalidVaultConfig();
         }
 
+        strategyData.rewarder = IBaseRewardPool(rewarder_);
         strategyData.curvePool = ICurveFi(pidToken);
+
         _queryTokens();
     }
 
@@ -275,7 +277,7 @@ contract Convex2PoolCToken is CTokenCompounding {
         address currentToken;
 
         for (uint256 i; i < numTokens; ) {
-            currentToken = IRewards(rewarder.extraRewards(i)).rewardToken();
+            currentToken = IRewards(rewarder.extraRewards(i++)).rewardToken();
 
             // We do not expect CRV/CVX to be listed as extra rewards,
             // but hypothetically its possible and we do not want to

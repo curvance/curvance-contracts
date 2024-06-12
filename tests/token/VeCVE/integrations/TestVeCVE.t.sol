@@ -209,8 +209,10 @@ contract TestVeCVE is TestBaseVeCVE {
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
         uint256 genesisEpochTimestamp = veCVE.genesisEpoch();
         vm.warp(genesisEpochTimestamp);
-        vm.prank(centralRegistry.feeAccumulator());
-        rewardManager.recordEpochRewards(1e6);
+
+        _skipRestrictionDuration();
+        _recordEpochRewards(1, 1e6 * _ONE);
+
         assertEq(rewardManager.nextEpochToDeliver(), 1);
 
         address user00 = address(0xACC00);
@@ -225,12 +227,8 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(veCVE.userUnlocksByEpoch(user00, 26), 1e18);
 
         // 3. 26 epoch passed
-        for (uint256 i = 1; i < 1 + 26; i++) {
-            vm.warp(genesisEpochTimestamp + i * 2 weeks);
-            vm.prank(centralRegistry.feeAccumulator());
-            rewardManager.recordEpochRewards(1e6);
-            assertEq(rewardManager.nextEpochToDeliver(), 1 + i);
-        }
+        _recordEpochRewards(26, 1e6 * _ONE);
+
         assertEq(rewardManager.nextEpochToDeliver(), 27);
 
         // 4. user00 close the first lock and create the second lock within the same epoch
@@ -243,9 +241,8 @@ contract TestVeCVE is TestBaseVeCVE {
 
         // 5. 1 epoch has passed, the user claim the reward and trigger the bug.
         //    As a result, the user's points are repeatedly subtracted and become 0.
-        vm.warp(genesisEpochTimestamp + 27 * 2 weeks);
-        vm.prank(centralRegistry.feeAccumulator());
-        rewardManager.recordEpochRewards(1e6);
+        _recordEpochRewards(1, 1e6 * _ONE);
+
         assertEq(rewardManager.nextEpochToDeliver(), 28);
         assertEq(veCVE.userPoints(user00), 1e18);
         vm.prank(user00);
