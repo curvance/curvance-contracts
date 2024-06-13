@@ -82,7 +82,8 @@ contract CurvanceAuxiliaryData {
         uint256 predictedBorrowRatePerYear;
         uint256 utilizationRate;
         uint256 liquidityAvailable;
-        uint256 price;
+        uint256 sharePrice;
+        uint256 tokenPrice;
         MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
@@ -98,7 +99,8 @@ contract CurvanceAuxiliaryData {
         uint256 totalCollateralTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
-        uint256 price;
+        uint256 sharePrice;
+        uint256 tokenPrice;
         MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
@@ -380,7 +382,8 @@ contract CurvanceAuxiliaryData {
                 MARKET_ASSET_RESERVE;
             cTokenData.totalCollateralPosted = mm.collateralPosted(cTokens[i]);
             cTokenData.collateralCap = mm.collateralCaps(cTokens[i]);
-            cTokenData.price = _getTokenPrice(cTokens[i], true);
+            cTokenData.sharePrice = _getTokenPrice(cTokens[i], true);
+            cTokenData.tokenPrice = _getTokenPrice(address(token), true);
             cTokenData.config = _getTokenConfig(cTokens[i], mm);
 
             cResults[i] = cTokenData;
@@ -424,7 +427,8 @@ contract CurvanceAuxiliaryData {
             dTokenData.predictedBorrowRatePerYear = this
                 .getPredictedBorrowRatePerYear(dTokens[i]);
             dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
-            dTokenData.price = _getTokenPrice(dTokens[i], false);
+            dTokenData.sharePrice = _getTokenPrice(dTokens[i], false);
+            dTokenData.tokenPrice = _getTokenPrice(address(token), false);
             dTokenData.config = _getTokenConfig(dTokens[i], mm);
 
             if (dTokenData.tvl > dTokenData.borrows) {

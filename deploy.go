@@ -57,7 +57,7 @@ func main() {
 	if isSim {
 		log.Printf("Deploying to %s [TEST-RUN]\n", network)
 	} else {
-		forgeArgs = append(forgeArgs, "--broadcast", "--slow")
+		forgeArgs = append(forgeArgs, "--broadcast", "--slow", "--skip-simulation", "--priority-gas-price", "5")
 		log.Printf("Deploying to %s\n", network)
 		log.Println("REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS")
 		log.Println("REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS")
