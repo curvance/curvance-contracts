@@ -905,6 +905,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
+        delete userUnlocksByEpoch[user][epoch];
     }
 
     /// @notice Updates chain points by reducing the amount that gets unlocked

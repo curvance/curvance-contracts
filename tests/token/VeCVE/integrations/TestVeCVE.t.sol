@@ -200,4 +200,56 @@ contract TestVeCVE is TestBaseVeCVE {
             daoCveBalance + penaltyAmount
         );
     }
+
+    function test_LockAndUnlockInSameEpoch()
+        public
+        setRewardsData(false, false, false)
+    {
+        // 1. config poc env
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        uint256 genesisEpochTimestamp = veCVE.genesisEpoch();
+        vm.warp(genesisEpochTimestamp);
+        vm.prank(centralRegistry.feeAccumulator());
+        rewardManager.recordEpochRewards(1e6);
+        assertEq(rewardManager.nextEpochToDeliver(), 1);
+
+        address user00 = address(0xACC00);
+        deal(address(cve), user00, 100 * 1e18);
+        vm.prank(user00);
+        cve.approve(address(veCVE), type(uint256).max);
+
+        // 2. user00 create the first lock
+        vm.prank(user00);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 1e18);
+        assertEq(veCVE.userUnlocksByEpoch(user00, 26), 1e18);
+
+        // 3. 26 epoch passed
+        for (uint256 i = 1; i < 1 + 26; i++) {
+            vm.warp(genesisEpochTimestamp + i * 2 weeks);
+            vm.prank(centralRegistry.feeAccumulator());
+            rewardManager.recordEpochRewards(1e6);
+            assertEq(rewardManager.nextEpochToDeliver(), 1 + i);
+        }
+        assertEq(rewardManager.nextEpochToDeliver(), 27);
+
+        // 4. user00 close the first lock and create the second lock within the same epoch
+        vm.startPrank(user00);
+        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 0);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 1e18);
+        vm.stopPrank();
+
+        // 5. 1 epoch has passed, the user claim the reward and trigger the bug.
+        //    As a result, the user's points are repeatedly subtracted and become 0.
+        vm.warp(genesisEpochTimestamp + 27 * 2 weeks);
+        vm.prank(centralRegistry.feeAccumulator());
+        rewardManager.recordEpochRewards(1e6);
+        assertEq(rewardManager.nextEpochToDeliver(), 28);
+        assertEq(veCVE.userPoints(user00), 1e18);
+        vm.prank(user00);
+        rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
+        assertEq(veCVE.userPoints(user00), 0); // Validate that users points returned to 0
+    }
 }

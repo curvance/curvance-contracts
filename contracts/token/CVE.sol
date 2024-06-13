@@ -152,13 +152,15 @@ contract CVE is CVEBase {
     }
 
     /// @notice Sets the builder address.
-    /// @dev Allows the builders to change the builder's address.
+    /// @dev Allows `pendingBuilderAddress` to claim their builder address
+    ///      role.
     function claimBuilderAddress() external {
         if (msg.sender != pendingBuilderAddress) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        builderAddress = msg.sender;
+        builderAddress = pendingBuilderAddress;
+        delete pendingBuilderAddress;
     }
 
     /// INTERNAL FUNCTIONS ///

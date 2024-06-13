@@ -451,7 +451,9 @@ contract ProtocolMessagingHub is QueryResponse {
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
                     0, // No receiver value since we're just passing a message.
-                    gasLimit
+                    gasLimit,
+                    chainData.messagingChainId,
+                    chainData.messagingHub
                 );
         }
 
@@ -467,7 +469,9 @@ contract ProtocolMessagingHub is QueryResponse {
                 chainData.messagingHub,
                 abi.encode(5, recipient, amount), // payload
                 0, // No receiver value since we're just passing a message.
-                gasLimit
+                gasLimit,
+                chainData.messagingChainId,
+                chainData.messagingHub
             );
     }
 
@@ -635,7 +639,7 @@ contract ProtocolMessagingHub is QueryResponse {
             0,
             _getGasLimit(gasLimit),
             chainData.messagingChainId,
-            address(0),
+            chainData.messagingHub,
             wormholeRelayer.getDefaultDeliveryProvider(),
             messageKeys,
             15

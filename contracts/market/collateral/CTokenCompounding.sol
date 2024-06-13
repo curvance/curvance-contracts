@@ -103,7 +103,7 @@ abstract contract CTokenCompounding is CTokenBase {
         address owner,
         uint256 assets,
         IPositionFolding.DeleverageStruct memory deleverageData
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -165,21 +165,6 @@ abstract contract CTokenCompounding is CTokenBase {
         return _unpackedVaultData(_vaultData);
     }
 
-    /// @notice Returns cToken vault compound fee, in `basis points`.
-    function vaultCompoundFee() external view returns (uint256) {
-        return centralRegistry.protocolCompoundFee();
-    }
-
-    /// @notice Returns cToken vault yield fee, in `basis points`.
-    function vaultYieldFee() external view returns (uint256) {
-        return centralRegistry.protocolYieldFee();
-    }
-
-    /// @notice Returns cToken vault harvest fee, in `basis points`.
-    function vaultHarvestFee() external view returns (uint256) {
-        return centralRegistry.protocolHarvestFee();
-    }
-
     // PERMISSIONED FUNCTIONS
 
     /// @notice Starts a cToken market, executed via marketManager.
@@ -196,24 +181,6 @@ abstract contract CTokenCompounding is CTokenBase {
         _setlastVestClaim(uint40(block.timestamp));
         compoundingPaused = 1;
         return true;
-    }
-
-    /// @notice Set approved assets
-    /// @param assets Assets list
-    /// @param approved approved or not
-    function setApprovedAssets(
-        address[] memory assets,
-        bool approved
-    ) external {
-        _checkDaoPermissions();
-
-        for (uint256 i = 0; i < assets.length; ++i) {
-            if (approved && assets[i] == asset()) {
-                revert CTokenCompounding__InvalidApprovedAsset();
-            }
-
-            isApprovedAsset[assets[i]] = approved;
-        }
     }
 
     /// @notice Permissioned function to set a new compounding vesting period.
@@ -403,7 +370,7 @@ abstract contract CTokenCompounding is CTokenBase {
             uint256 allowed = allowance(owner, msg.sender);
 
             if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, allowed - shares);
+                _spendAllowance(owner, msg.sender, shares);
             }
         }
 
@@ -463,7 +430,7 @@ abstract contract CTokenCompounding is CTokenBase {
                 uint256 allowed = allowance(owner, msg.sender);
 
                 if (allowed != type(uint256).max) {
-                    _spendAllowance(owner, msg.sender, allowed - shares);
+                    _spendAllowance(owner, msg.sender, shares);
                 }
             }
         }

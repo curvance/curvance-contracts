@@ -471,8 +471,10 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
         
-        for(uint256 i = 0 ; i < tokens.length ; ++i) {
-            _claim(tokens[i]);
+        uint256 numTokens = tokens.length;
+        for(uint256 i ; i < numTokens; ) {
+            // Claim token rewards then increment i.
+            _claim(tokens[i++]);
         }
     }
 
@@ -480,11 +482,12 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         updatePool(token);
         _calcPending(msg.sender, token);
 
-        uint256 rewardTokensLength = rewardTokens.length;
+        uint256 numTokens = rewardTokens.length;
 
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokens[i++];
+
             uint256 rewards = userDebtInfo[token][msg.sender][rewardToken]
                 .rewardPending;
             // If the caller has rewards, send them,

@@ -18,11 +18,11 @@ contract CurvanceDAOBonding {
 
     /// @notice The address receiving DAO bonding proceeds on
     ///         Ethereum Mainnet.
-    address public constant devShopAddress = address(0x1);
+    address public constant devShopAddress =
+        address(0xc1EA2eADCD0c8a22ca3ed6d4004D21bF3037aCBA);
     /// @notice The token DAOs bond from into CVE position.
-    address public constant bondToken = address(
-        0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
-    );
+    address public constant bondToken =
+        address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     /// @notice Exchange Ratio between bond token and CVE, assumes
     ///         USDC bond token with 6 decimals versus CVE 18 decimals.
     uint256 public constant bondToCVE = 135e9;
@@ -49,9 +49,17 @@ contract CurvanceDAOBonding {
 
     constructor() {
         /// Add Participants here
-        _addDaoParticipant(address(0x0), 1, 1);
-        _addDaoParticipant(address(0x1), 1, 1);
-        _addDaoParticipant(address(0x2), 1, 1);
+        _addDaoParticipant(
+            address(0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9),
+            50000e6,
+            37_037_037e16
+        ); // Alchemix
+
+        _addDaoParticipant(
+            address(0xC47eC74A753acb09e4679979AfC428cdE0209639),
+            50000e6,
+            37_037_037e16
+        ); // Spiral DAO
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -86,7 +94,7 @@ contract CurvanceDAOBonding {
 
         _addDaoParticipant(daoAddress, bondAllocation, cveAllocation);
     }
-    
+
     /// INTERNAL FUNCTIONS ///
 
     function _addDaoParticipant(

@@ -14,7 +14,7 @@ pragma solidity ^0.8.19;
 
 //         dUSDC.borrow(100e6);
 
-//         skip(15 minutes);
+//         skip(20 minutes);
 //     }
 
 //     function test_dTokenRepay_fail_whenRepayIsNotAllowed() public {
@@ -70,4 +70,56 @@ pragma solidity ^0.8.19;
 //         assertEq(dUSDC.totalSupply(), totalSupply);
 //         assertEq(dUSDC.totalBorrows(), totalBorrows - debtBalanceCurrent);
 //     }
+//    function test_borrowers_repayAllDebts() public {
+//        uint256 _BASE_UNDERLYING_RESERVE = 42069;
+//        uint256 initialUsdcReserves = 1000e6;
+//        _setCbalRETHCollateralCaps(100_000e18);
+
+//         uint256 addUsdcAmount = 1500e6;
+//         deal(_USDC_ADDRESS, address(dUSDC), _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount);
+
+//         address user101 = address(101);
+//         address user102 = address(102);
+//         address user103 = address(103);
+//         address[] memory users = new address[](3);
+//         users[0] = user101;
+//         users[1] = user102;
+//         users[2] = user103;
+
+//         // 1. users post collateral and borrow 100 usdc
+//         for (uint i; i < 3; ++i) {
+//             address user = users[i];
+//             deal(address(cBALRETH), user, 1e18);
+//             vm.startPrank(user);
+//             marketManager.postCollateral(user, address(cBALRETH), 1e18 - 1);
+//             dUSDC.borrow(100e6);
+//             vm.stopPrank();
+//         }
+
+//         // 2. repay user101 and user102 all debt after two days
+//         skip(2 days);
+//         for (uint i; i < 2; ++i) {
+//             address user = users[i];
+//             vm.startPrank(user);
+//             // give users enough usdc to repay their debt because accumulated interest
+//             deal(_USDC_ADDRESS, user, 1000e6);
+//             IERC20(_USDC_ADDRESS).approve(address(dUSDC), type(uint256).max);
+//             dUSDC.repay(0);
+//             vm.stopPrank();
+//         }
+
+//         // can be called by malicious users
+//         for (uint i; i < 2; ++i) {
+//             skip(1 days);
+//             dUSDC.accrueInterest();
+//         }
+
+//         deal(_USDC_ADDRESS, users[2], 1000e6);
+//         vm.startPrank(users[2]);
+//         IERC20(_USDC_ADDRESS).approve(address(dUSDC), type(uint256).max);
+//         // 3. user103 repay all his debt would revert because overflow
+//         // vm.expectRevert();
+//         dUSDC.repay(0);
+//         vm.stopPrank();
+//     }  
 // }

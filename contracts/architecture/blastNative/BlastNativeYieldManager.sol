@@ -151,6 +151,12 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             msg.sender,
             address(this)
         );
+
+        if (gasYield > 0) {
+            IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: gasYield }();
+            WETHYield += gasYield;
+        }
+
         uint256 WETHPrior = WETH_YIELD_MANAGER.balanceOf(address(this));
         uint256 USDBPrior = USDB_YIELD_MANAGER.balanceOf(address(this));
         uint256 WETHPerSecond;
@@ -164,23 +170,25 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             yieldDestination = msg.sender;
         }
 
-        if (gasYield > 0) {
-            IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: gasYield }();
-            WETHYield += gasYield;
-        }
-
         if (claimWETHYield) {
             uint256 pendingWETH = pendingWETHYield[msg.sender];
+            pendingWETHYield[msg.sender] = 0;
 
-            // Recognize USDB yield, if necessary.
+            // Recognize WETH yield, if necessary.
             if (pendingWETH > 0) {
-                WETHYield += pendingWETH;
-                WETHPerSecond = WETHYield / EPOCH_WINDOW;
+                WETHYield += pendingWETH; 
             }
+        }
+
+        // We call this outside the claimWETHYield block since we could
+        // have received WETH through gasYield.
+        if (WETHYield > 0) {
+            WETHPerSecond = WETHYield / EPOCH_WINDOW;
         }
 
         if (claimUSDBYield) {
             uint256 pendingUSDB = pendingUSDBYield[msg.sender];
+            pendingUSDBYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingUSDB > 0) {
@@ -323,6 +331,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimWETHYield) {
             uint256 pendingWETH = pendingWETHYield[msg.sender];
+            pendingWETHYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingWETH > 0) {
@@ -332,6 +341,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         if (claimUSDBYield) {
             uint256 pendingUSDB = pendingUSDBYield[msg.sender];
+            pendingUSDBYield[msg.sender] = 0;
 
             // Recognize USDB yield, if necessary.
             if (pendingUSDB > 0) {

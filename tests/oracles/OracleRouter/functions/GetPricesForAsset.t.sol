@@ -35,4 +35,23 @@ contract GetPricesForAssetTest is TestBaseOracleRouter {
             assertFalse(feedDatas[i].hadError);
         }
     }
+
+    function test_mToken_getPricesForAsset_success() public {
+        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+        chainlinkAdaptor.addAsset(
+            address(mUSDC),
+            _CHAINLINK_USDC_USD,
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+        oracleRouter.addMTokenSupport(address(mUSDC));
+
+        /// TODO add check here now that this should pass
+        // vm.expectRevert();
+        // OracleRouter.FeedData[] memory feedDatas = oracleRouter.getPricesForAsset(address(mUSDC), true);
+    }
 }

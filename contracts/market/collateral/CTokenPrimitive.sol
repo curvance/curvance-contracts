@@ -199,7 +199,7 @@ contract CTokenPrimitive is CTokenBase {
             uint256 allowed = allowance(owner, msg.sender);
 
             if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, allowed - shares);
+                _spendAllowance(owner, msg.sender, shares);
             }
         }
 
@@ -248,7 +248,7 @@ contract CTokenPrimitive is CTokenBase {
                 uint256 allowed = allowance(owner, msg.sender);
 
                 if (allowed != type(uint256).max) {
-                    _spendAllowance(owner, msg.sender, allowed - shares);
+                    _spendAllowance(owner, msg.sender, shares);
                 }
             }
         }

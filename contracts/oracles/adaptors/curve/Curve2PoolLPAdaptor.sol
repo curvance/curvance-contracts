@@ -176,7 +176,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             price =
                 (2 * virtualPrice * FixedPointMathLib.sqrt(price0)) /
                 FixedPointMathLib.sqrt(price1);
-            price = (price * price0) / WAD;
+            price = (price * price1) / WAD;
         }
 
         if (_checkOracleOverflow(price)) {

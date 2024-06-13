@@ -237,15 +237,8 @@ contract OCVE is ERC20 {
             // and default 18 decimals of optionExerciseCost.
             uint256 payAmount = _adjustDecimals(
                 optionExerciseCost,
-                paymentTokenDecimals,
-                18
-            );
-
-            /// Equivalent to `(optionExerciseCost * amount) / WAD` rounded up.
-            payAmount = FixedPointMathLib.mulDivUp(
-                optionExerciseCost,
-                payAmount,
-                WAD
+                18,
+                paymentTokenDecimals
             );
 
             if (payAmount == 0) {

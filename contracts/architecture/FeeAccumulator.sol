@@ -262,7 +262,7 @@ contract FeeAccumulator is ReentrancyGuard {
         }
 
         uint256 compoundingFee = (feeTokens * vaultCompoundFee()) /
-            vaultYieldFee();
+            vaultHarvestFee();
 
         // Move compounding fee accumulated to central registry to be used
         // for offchain harvester bots.
@@ -443,17 +443,19 @@ contract FeeAccumulator is ReentrancyGuard {
         return IOracleRouter(centralRegistry.oracleRouter());
     }
 
-    /// @notice Vault compound fee is in basis point form.
+    /// @notice Vault compound fee represented in basis point form (100 = 1%).
     /// @dev Returns the vaults current amount of yield used
     ///      for compounding rewards.
     function vaultCompoundFee() public view returns (uint256) {
         return centralRegistry.protocolCompoundFee();
     }
 
-    /// @notice Vault yield fee is in basis point form.
-    /// @dev Returns the vaults current protocol fee for compounding rewards.
-    function vaultYieldFee() public view returns (uint256) {
-        return centralRegistry.protocolYieldFee();
+    /// @notice Vault harvest fee represented in basis point form (100 = 1%).
+    /// @dev Returns the vaults current protocol fee for yield generated
+    ///      inside the Curvance Protocol. This is equal to
+    ///      Protocol Compounding Fee + Protocol Yield Fee.
+    function vaultHarvestFee() public view returns (uint256) {
+        return centralRegistry.protocolHarvestFee();
     }
 
     /// INTERNAL FUNCTIONS ///

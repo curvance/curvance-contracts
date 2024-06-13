@@ -351,7 +351,9 @@ contract OracleRouter {
         bool inUSD
     ) external view returns (FeedData[] memory) {
         bool isMToken = mTokenAssets[asset].isMToken;
+        address parentAsset;
         if (isMToken) {
+            parentAsset = asset;
             asset = mTokenAssets[asset].underlying;
         }
 
@@ -368,7 +370,7 @@ contract OracleRouter {
             data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
             data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
             if (isMToken) {
-                uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+                uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
                 data[0].price = uint240((data[0].price * exchangeRate) / WAD);
                 data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             }
@@ -384,7 +386,7 @@ contract OracleRouter {
         data[3] = _getPriceFromFeed(asset, 1, inUSD, false);
 
         if (isMToken) {
-            uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+            uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
             data[0].price = uint240((data[0].price * exchangeRate) / WAD);
             data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             data[2].price = uint240((data[2].price * exchangeRate) / WAD);
@@ -436,6 +438,10 @@ contract OracleRouter {
         bool inUSD,
         bool getLower
     ) public view returns (uint256 price, uint256 errorCode) {
+        if (!_isSequencerValid()) {
+            return (0, 2);
+        }
+
         address mAsset;
         // Check whether asset is an mToken.
         if (mTokenAssets[asset].isMToken) {
@@ -709,7 +715,8 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            (newPrice, data.hadError) = _getETHUSD(getLower);
+            bool ethUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
             if (data.hadError) {
                 return (0, BAD_SOURCE);
             }
@@ -760,7 +767,8 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            (newPrice, data.hadError) = _getETHUSD(getLower);
+            bool ethUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
             if (data.hadError) {
                 return FeedData({ price: 0, hadError: true });
             }
@@ -784,10 +792,6 @@ contract OracleRouter {
     ///         it returns (answer, true).
     ///         Where true corresponded to hasError = true.
     function _getETHUSD(bool getLower) internal view returns (uint256, bool) {
-        if (!_isSequencerValid()) {
-            return (0, true);
-        }
-
         uint256 numFeeds = assetPriceFeeds[ETH].length;
         // Validate we have a feed or feeds to price `asset`.
         if (numFeeds == 0) {
