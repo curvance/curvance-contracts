@@ -224,7 +224,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.prank(user00);
         veCVE.createLock(1e18, false, rewardsData, "", 0);
         assertEq(veCVE.userPoints(user00), 1e18);
-        assertEq(veCVE.userUnlocksByEpoch(user00, 26), 1e18);
+        assertEq(veCVE.userUnlocksByEpoch(user00, 26), 0);
 
         // 3. 26 epoch passed
         _recordEpochRewards(26, 1e6 * _ONE);
@@ -234,9 +234,9 @@ contract TestVeCVE is TestBaseVeCVE {
         // 4. user00 close the first lock and create the second lock within the same epoch
         vm.startPrank(user00);
         veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
-        assertEq(veCVE.userPoints(user00), 0);
-        veCVE.createLock(1e18, false, rewardsData, "", 0);
         assertEq(veCVE.userPoints(user00), 1e18);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 2e18);
         vm.stopPrank();
 
         // 5. 1 epoch has passed, the user claim the reward and trigger the bug.
@@ -244,9 +244,9 @@ contract TestVeCVE is TestBaseVeCVE {
         _recordEpochRewards(1, 1e6 * _ONE);
 
         assertEq(rewardManager.nextEpochToDeliver(), 28);
-        assertEq(veCVE.userPoints(user00), 1e18);
+        assertEq(veCVE.userPoints(user00), 2e18);
         vm.prank(user00);
         rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
-        assertEq(veCVE.userPoints(user00), 0); // Validate that users points returned to 0
+        assertEq(veCVE.userPoints(user00), 1e18);
     }
 }

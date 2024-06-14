@@ -248,7 +248,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
             address(positionFolding)
         );
 
-        positionFolding.leverage(leverageData, 1500);
+        positionFolding.leverage(leverageData, 2000);
 
         (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
             user

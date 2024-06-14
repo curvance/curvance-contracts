@@ -206,8 +206,10 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         dDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
+        uint256 snapshot = vm.snapshot();
+
         {
-            //with cBALRETH
+            // with cBALRETH
             // try leverage with 50% of max
             uint256 amountForLeverage = (positionFolding
                 .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
@@ -274,6 +276,8 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             assertGt(cBALRETHBalance, 1.39 ether);
             assertEq(cBALRETHBorrowed, 0 ether);
         }
+
+        vm.revertTo(snapshot);
 
         {
             (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
