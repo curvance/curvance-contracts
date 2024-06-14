@@ -101,11 +101,14 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
             pending
         );
 
+        assets = _removeExitFeeFromAssets(assets);
+        deleverageData.collateralAmount = assets;
+
         // Callback to PositionFolding that executes cToken specific logic.
         IPositionFolding(msg.sender).onRedeem(
             address(this),
             owner,
-            _removeExitFeeFromAssets(assets),
+            assets,
             deleverageData
         );
 
