@@ -192,6 +192,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => bool) public isMarketManager;
     mapping(address => address) public externalCallDataChecker;
     mapping(address => bool) public isMulticallProvider;
+    mapping(address => address) public multicallDataChecker;
 
     /// EVENTS ///
 
@@ -892,6 +893,15 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
+    }
+
+    function setMulticallDataChecker(
+        address target,
+        address callDataChecker
+    ) external {
+        _checkElevatedPermissions();
+
+        multicallDataChecker[target] = callDataChecker;
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.

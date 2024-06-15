@@ -890,4 +890,28 @@ contract TestGaugePool is TestBaseMarket {
             16000
         );
     }
+
+    function testZach_RevertOnSecondDeposit() public {
+        // set up emission rates and fund the gauge pool with cve
+        address mToken = tokens[0];
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = mToken;
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 1e18;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+        deal(address(cve), address(gaugePool), 1e18);
+
+        // make a deposit before start time
+        vm.prank(mToken);
+        gaugePool.deposit(mToken, address(this), 100 ether);
+
+        // fast forward to after start time
+        vm.warp(gaugePool.startTime() + 2 weeks);
+
+        vm.prank(mToken);
+        // fixed (issue: the unallocated rewards are overestimated, so the transfer reverts)
+        // vm.expectRevert(abi.encodeWithSignature("TransferFailed()"));
+        gaugePool.deposit(mToken, address(1), 1 ether);
+    }
 }

@@ -17,6 +17,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
@@ -68,6 +69,13 @@ contract PositionFolding is
     ///      leverage/deleverage action, works similar to reentryguard
     ///      with pre and post checks.
     modifier checkSlippage(address account, uint256 slippage) {
+        IMToken[] memory mTokens = marketManager.assetsOf(account);
+        for (uint256 i = 0; i < mTokens.length; ++i) {
+            if (!mTokens[i].isCToken()) {
+                mTokens[i].accrueInterest();
+            }
+        }
+
         (uint256 collateralBefore, uint256 debtBefore) = marketManager
             .solvencyOf(account);
         uint256 liquidityBefore = collateralBefore - debtBefore;
@@ -287,7 +295,7 @@ contract PositionFolding is
         // Check to make sure there is calldata attached to execute the swap.
         if (leverageData.swapData.call.length > 0) {
             // Swap borrow underlying to Zapper input token.
-            SwapperLib.swapUnsafe(centralRegistry, leverageData.swapData);
+            SwapperLib.swapSafe(centralRegistry, leverageData.swapData);
         }
 
         // Prepare cToken underlying.
@@ -297,7 +305,7 @@ contract PositionFolding is
         if (swapZap.call.length > 0) {
             // Execute Zap from `borrowToken` underlying into cToken
             // underlying.
-            SwapperLib.swapUnsafe(centralRegistry, swapZap);
+            SwapperLib.swapSafe(centralRegistry, swapZap);
         }
 
         // We do not need to check whether collateralToken is listed
@@ -419,13 +427,13 @@ contract PositionFolding is
             }
 
             // Execute Zap from cToken underlying into unwrapped assets.
-            SwapperLib.swapUnsafe(centralRegistry, swapZap);
+            SwapperLib.swapSafe(centralRegistry, swapZap);
         }
 
         // Check to make sure there is calldata attached to execute the swap.
         if (deleverageData.swapData.call.length > 0) {
             // Swap Swapper input token for borrow underlying.
-            SwapperLib.swapUnsafe(centralRegistry, deleverageData.swapData);
+            SwapperLib.swapSafe(centralRegistry, deleverageData.swapData);
         }
 
         // We do not need to check whether borrowToken is listed
@@ -510,12 +518,11 @@ contract PositionFolding is
         // We also embed a `MAX_LEVERAGE` dampening effect to minimize
         // transaction failure from imperfect execution due to things
         // such as price fluctuations, and AMM fees.
-        uint256 maxLeverage = ((sumCollateral - sumDebt) *
+        uint256 maxLeverage = ((maxDebt - sumDebt) *
             MAX_LEVERAGE *
             sumCollateral) /
             (sumCollateral - maxDebt) /
-            DENOMINATOR -
-            sumCollateral;
+            DENOMINATOR;
 
         (uint256 price, uint256 errorCode) = IOracleRouter(
             ICentralRegistry(centralRegistry).oracleRouter()
@@ -527,7 +534,7 @@ contract PositionFolding is
         }
 
         return
-            ((((maxLeverage - sumDebt) * 1e18) / price) *
+            (((maxLeverage * 1e18) / price) *
                 (10 ** IERC20(borrowToken).decimals())) / 1e18;
     }
 
