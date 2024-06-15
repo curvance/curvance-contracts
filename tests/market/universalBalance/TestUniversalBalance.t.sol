@@ -211,9 +211,25 @@ contract TestUniversalBalance is TestBaseMarket {
     function testWithdrawAsETH() public {
         testDepositWETH();
 
-        vm.expectRevert(bytes4(keccak256("ETHTransferFailed()")));
+        uint256 ethBalance = user1.balance;
+
         vm.startPrank(user1);
         universalBalance.withdrawAsETH(1 ether, false);
+
+        assertEq(user1.balance, ethBalance + 1 ether);
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+            .userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 1 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        universalBalance.withdrawAsETH(1 ether, true);
+
+        assertEq(user1.balance, ethBalance + 2 ether);
+        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 0 ether);
         vm.stopPrank();
     }
 

@@ -68,8 +68,10 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     error UniversalBalance__SlippageError();
 
     receive() external payable {
-        IWETH(WETH).deposit{ value: msg.value };
-        _deposit(msg.value, true);
+        if (msg.sender != WETH) {
+            IWETH(WETH).deposit{ value: msg.value };
+            _deposit(msg.value, true);
+        }
     }
 
     /// CONSTRUCTOR ///
@@ -117,6 +119,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     function withdrawAsETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
+        IWETH(WETH).withdraw(amount);
         SafeTransferLib.forceSafeTransferETH(msg.sender, amount);
     }
 
@@ -138,7 +141,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         UserBalance memory userBalance = userBalances[user];
         uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
         uint256 pointerAmount;
-        uint256 remainingAmount;
+        uint256 remainingAmount = amount;
 
         if (
             userBalance.sittingBalance +
@@ -154,7 +157,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
                 : amount;
             // Reduce user sitting balance.
             userBalances[user].sittingBalance -= pointerAmount;
-            remainingAmount = amount - pointerAmount;
+            remainingAmount -= pointerAmount;
         }
 
         // Check if lent balance needs to be utilized.

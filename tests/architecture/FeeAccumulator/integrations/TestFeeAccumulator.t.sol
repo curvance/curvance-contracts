@@ -276,7 +276,6 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-
         uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();

@@ -208,6 +208,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
         leverageData.swapData.target = _UNISWAP_V2_ROUTER;
+        leverageData.swapData.slippage = 50e16;
         address[] memory path = new address[](2);
         path[0] = address(usdc);
         path[1] = _WETH_ADDRESS;
@@ -229,6 +230,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         tokens[0] = _RETH_ADDRESS;
         tokens[1] = _WETH_ADDRESS;
         leverageData.swapZap.target = address(complexZapper);
+        leverageData.swapZap.slippage = 50e16;
         leverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.enterBalancer.selector,
             address(0),
@@ -287,6 +289,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         tokens[0] = _RETH_ADDRESS;
         tokens[1] = _WETH_ADDRESS;
         deleverageData.swapZap.target = address(complexZapper);
+        deleverageData.swapZap.slippage = 50e16;
         deleverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.exitBalancer.selector,
             ComplexZapper.BPTRedemption(
@@ -312,6 +315,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         deleverageData.swapData.inputAmount = amountForDeleverage;
         deleverageData.swapData.outputToken = address(usdc);
         deleverageData.swapData.target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData.slippage = 50e16;
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = address(usdc);
