@@ -289,6 +289,10 @@ contract TestUniversalBalance is TestBaseMarket {
 
         skip(10 weeks);
 
+        deal(_WETH_ADDRESS, owner, 1 ether);
+        WETH.approve(address(dWETH), 1 ether);
+        dWETH.mint(1 ether);
+
         vm.startPrank(user1);
         universalBalance.withdrawAsWETH(0.5 ether, true);
         vm.stopPrank();

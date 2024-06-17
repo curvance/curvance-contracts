@@ -92,9 +92,7 @@ contract DTokenRepayTest is TestBaseDToken {
         _setCbalRETHCollateralCaps(100_000e18);
 
         uint256 addUsdcAmount = 1500e6;
-        deal(
-            _USDC_ADDRESS,
-            address(dUSDC),
+        dUSDC.mint(
             _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount
         );
 

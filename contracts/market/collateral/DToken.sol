@@ -1109,12 +1109,13 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
                 (interestCompounds * cachedData.compoundRate)
         );
         marketData.exchangeRate = uint216(exchangeRateNew);
-        totalBorrows = totalBorrowsNew;
 
         // Check whether the DAO takes a cut of interest, and whether new debt
         // has accumulated (!= 0). Then update reserves if necessary.
         uint256 newReserves = ((interestFactor *
             convertToShares(debtAccumulated)) / WAD);
+
+        totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
 
