@@ -258,7 +258,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         deal(_USDC_ADDRESS, user, 500e6);
         vm.startPrank(user);
-        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 500e6);
+        usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user);
         vm.stopPrank();
 

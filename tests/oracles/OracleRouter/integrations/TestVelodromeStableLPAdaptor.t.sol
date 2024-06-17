@@ -119,8 +119,8 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleRouter {
             true
         );
 
-        assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(this)), 0);
-        assertGt(IERC20(_DAI_ADDRESS).balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertGt(dai.balanceOf(address(this)), 0);
 
         uint256 priceAfter;
         (priceAfter, errorCode) = oracleRouter.getPrice(

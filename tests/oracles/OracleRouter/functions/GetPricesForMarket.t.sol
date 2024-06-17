@@ -37,7 +37,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        IERC20(_USDC_ADDRESS).approve(address(mUSDC), 1e18);
+        usdc.approve(address(mUSDC), 1e18);
         vm.prank(address(marketManager));
         mUSDC.startMarket(address(this));
 
@@ -50,7 +50,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        IERC20(_USDC_ADDRESS).approve(address(mUSDC), 1e18);
+        usdc.approve(address(mUSDC), 1e18);
         vm.prank(address(marketManager));
         mUSDC.startMarket(address(this));
 
@@ -63,7 +63,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function test_getPricesForMarket_success() public {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        IERC20(_USDC_ADDRESS).approve(address(mUSDC), 1e18);
+        usdc.approve(address(mUSDC), 1e18);
         vm.prank(address(marketManager));
         mUSDC.startMarket(address(this));
 
@@ -84,7 +84,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
             assertEq(underlyingPrices[i], uint256(usdcPrice) * 1e10);
             assertEq(snapshots[i].asset, address(mUSDC));
             assertFalse(snapshots[i].isCToken);
-            assertEq(snapshots[i].decimals, IERC20(_USDC_ADDRESS).decimals());
+            assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 assets[i].balanceOf(address(this)),
                 mUSDC.balanceOf(address(this))

@@ -111,7 +111,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
         );
         // support market
         deal(_USDC_ADDRESS, address(this), 200000e6);
-        IERC20(_USDC_ADDRESS).approve(address(dUSDC), 200000e6);
+        usdc.approve(address(dUSDC), 200000e6);
         marketManager.listToken(address(dUSDC));
 
         oracleRouter.addMTokenSupport(address(dUSDC));

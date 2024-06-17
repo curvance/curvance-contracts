@@ -56,7 +56,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         deal(_USDC_ADDRESS, address(this), 100000e6);
         deal(address(cve), address(this), 100e18);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100000e6);
+        usdc.approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
 
         _UNISWAP_V2_ROUTER.call(
@@ -255,7 +255,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         // multiswap
         deal(_USDC_ADDRESS, address(this), 2500e8);
-        IERC20(_USDC_ADDRESS).approve(address(feeAccumulator), 2500e8);
+        usdc.approve(address(feeAccumulator), 2500e8);
         feeAccumulator.executeOTC(_WETH_ADDRESS, 1 ether);
 
         // bridge...

@@ -103,7 +103,7 @@ pragma solidity ^0.8.19;
 //             vm.startPrank(user);
 //             // give users enough usdc to repay their debt because accumulated interest
 //             deal(_USDC_ADDRESS, user, 1000e6);
-//             IERC20(_USDC_ADDRESS).approve(address(dUSDC), type(uint256).max);
+//             usdc.approve(address(dUSDC), type(uint256).max);
 //             dUSDC.repay(0);
 //             vm.stopPrank();
 //         }
@@ -116,10 +116,10 @@ pragma solidity ^0.8.19;
 
 //         deal(_USDC_ADDRESS, users[2], 1000e6);
 //         vm.startPrank(users[2]);
-//         IERC20(_USDC_ADDRESS).approve(address(dUSDC), type(uint256).max);
+//         usdc.approve(address(dUSDC), type(uint256).max);
 //         // 3. user103 repay all his debt would revert because overflow
 //         // vm.expectRevert();
 //         dUSDC.repay(0);
 //         vm.stopPrank();
-//     }  
+//     }
 // }

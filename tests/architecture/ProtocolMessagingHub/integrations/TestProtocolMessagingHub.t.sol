@@ -414,7 +414,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         vm.startPrank(user2);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 1000000e6);
+        usdc.approve(_UNISWAP_V2_ROUTER, 1000000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 1000e18);
 
         _UNISWAP_V2_ROUTER.call(
