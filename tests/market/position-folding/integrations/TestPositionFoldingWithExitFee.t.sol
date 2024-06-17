@@ -216,6 +216,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         leverageData.collateralToken = CTokenPrimitive(
             address(cBALRETHWithExitFee)
         );
+        leverageData.swapData.slippage = 0.003e18;
         leverageData.swapData.inputToken = address(dai);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -231,6 +232,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
             address(positionFolding),
             block.timestamp
         );
+        leverageData.swapZap.slippage = 0.001e18;
         leverageData.swapZap.inputToken = _WETH_ADDRESS;
         leverageData.swapZap.outputToken = _BAL_WETH_RETH_ADDRESS;
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
@@ -295,6 +297,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         deleverageData.collateralAmount = 0.3 ether;
         deleverageData.borrowToken = dDAI;
 
+        deleverageData.swapZap.slippage = 0.0003e18;
         deleverageData.swapZap.inputToken = address(balRETH);
         deleverageData.swapZap.outputToken = _WETH_ADDRESS;
         deleverageData.swapZap.inputAmount =
@@ -330,6 +333,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         );
 
         uint256 amountForDeleverage = 0.3 ether;
+        deleverageData.swapData.slippage = 0.003e18;
         deleverageData.swapData.inputToken = _WETH_ADDRESS;
         deleverageData.swapData.inputAmount = amountForDeleverage;
         deleverageData.swapData.outputToken = address(dai);
