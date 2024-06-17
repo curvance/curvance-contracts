@@ -151,13 +151,15 @@ contract TestDTokenReserves is TestBaseMarket {
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -191,13 +193,15 @@ contract TestDTokenReserves is TestBaseMarket {
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -210,7 +214,7 @@ contract TestDTokenReserves is TestBaseMarket {
             assertApproxEqRel(
                 dDAI.debtBalanceCached(user1),
                 debtBalanceBefore + debt,
-                10000
+                1 ether
             );
             assertGt(dDAI.exchangeRateCached(), exchangeRateBefore);
 
