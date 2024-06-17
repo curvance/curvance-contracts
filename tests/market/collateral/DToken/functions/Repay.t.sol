@@ -1,125 +1,145 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-// import { TestBaseDToken } from "../TestBaseDToken.sol";
+import { TestBaseDToken } from "../TestBaseDToken.sol";
+import { DToken } from "contracts/market/collateral/DToken.sol";
 
-// contract DTokenRepayTest is TestBaseDToken {
-//     event Repay(address payer, address borrower, uint256 repayAmount);
+contract DTokenRepayTest is TestBaseDToken {
+    event Repay(address payer, address borrower, uint256 repayAmount);
 
-//     function setUp() public override {
-//         super.setUp();
+    function setUp() public override {
+        super.setUp();
 
-//         vm.prank(user1);
-//         dUSDC.mintFor(100e6, address(this));
+        _setCbalRETHCollateralCaps(100_000e18);
 
-//         dUSDC.borrow(100e6);
+        deal(_USDC_ADDRESS, address(dUSDC), 2000e6);
 
-//         skip(20 minutes);
-//     }
+        marketManager.postCollateral(
+            address(this),
+            address(cBALRETH),
+            1e18 - 1
+        );
 
-//     function test_dTokenRepay_fail_whenRepayIsNotAllowed() public {
-//         rewind(1);
+        vm.prank(user1);
+        dUSDC.mintFor(100e6, address(this));
 
-//         vm.expectRevert();
-//         dUSDC.repay(100e6);
-//     }
+        dUSDC.borrow(100e6);
 
-//     function test_dTokenRepay_fail_whenBorrowAmountExceedsCash() public {
-//         uint256 debtBalanceCurrent = dUSDC.debtBalanceCurrent(address(this));
+        skip(20 minutes);
+    }
 
-//         vm.expectRevert();
-//         dUSDC.repay(debtBalanceCurrent + 1);
-//     }
+    function test_dTokenRepay_fail_whenRepayIsNotAllowed() public {
+        rewind(1);
 
-//     function test_dTokenRepay_success() public {
-//         dUSDC.debtBalanceCurrent(address(this));
+        vm.expectRevert();
+        dUSDC.repay(100e6);
+    }
 
-//         uint256 underlyingBalance = usdc.balanceOf(address(this));
-//         uint256 balance = dUSDC.balanceOf(address(this));
-//         uint256 totalSupply = dUSDC.totalSupply();
-//         uint256 totalBorrows = dUSDC.totalBorrows();
+    function test_dTokenRepay_fail_whenBorrowAmountExceedsCash() public {
+        dUSDC.accrueInterest();
 
-//         vm.expectEmit(true, true, true, true, address(dUSDC));
-//         emit Repay(address(this), address(this), 100e6);
+        uint256 debtBalanceCached = dUSDC.debtBalanceCached(address(this));
 
-//         dUSDC.repay(100e6);
+        vm.expectRevert(DToken.DToken__ExcessiveValue.selector);
+        dUSDC.repay(debtBalanceCached + 1);
+    }
 
-//         assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
-//         assertEq(dUSDC.balanceOf(address(this)), balance);
-//         assertEq(dUSDC.totalSupply(), totalSupply);
-//         assertEq(dUSDC.totalBorrows(), totalBorrows - 100e6);
-//     }
+    function test_dTokenRepay_success() public {
+        dUSDC.accrueInterest();
 
-//     function test_dTokenRepay_success_whenRepayAll() public {
-//         uint256 debtBalanceCurrent = dUSDC.debtBalanceCurrent(address(this));
-//         uint256 underlyingBalance = usdc.balanceOf(address(this));
-//         uint256 balance = dUSDC.balanceOf(address(this));
-//         uint256 totalSupply = dUSDC.totalSupply();
-//         uint256 totalBorrows = dUSDC.totalBorrows();
+        uint256 underlyingBalance = usdc.balanceOf(address(this));
+        uint256 balance = dUSDC.balanceOf(address(this));
+        uint256 totalSupply = dUSDC.totalSupply();
+        uint256 totalBorrows = dUSDC.totalBorrows();
 
-//         vm.expectEmit(true, true, true, true, address(dUSDC));
-//         emit Repay(address(this), address(this), debtBalanceCurrent);
+        vm.expectEmit(true, true, true, true, address(dUSDC));
+        emit Repay(address(this), address(this), 100e6);
 
-//         dUSDC.repay(0);
+        dUSDC.repay(100e6);
 
-//         assertEq(
-//             usdc.balanceOf(address(this)),
-//             underlyingBalance - debtBalanceCurrent
-//         );
-//         assertEq(dUSDC.balanceOf(address(this)), balance);
-//         assertEq(dUSDC.totalSupply(), totalSupply);
-//         assertEq(dUSDC.totalBorrows(), totalBorrows - debtBalanceCurrent);
-//     }
-//    function test_borrowers_repayAllDebts() public {
-//        uint256 _BASE_UNDERLYING_RESERVE = 42069;
-//        uint256 initialUsdcReserves = 1000e6;
-//        _setCbalRETHCollateralCaps(100_000e18);
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance - 100e6);
+        assertEq(dUSDC.balanceOf(address(this)), balance);
+        assertEq(dUSDC.totalSupply(), totalSupply);
+        assertEq(dUSDC.totalBorrows(), totalBorrows - 100e6);
+    }
 
-//         uint256 addUsdcAmount = 1500e6;
-//         deal(_USDC_ADDRESS, address(dUSDC), _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount);
+    function test_dTokenRepay_success_whenRepayAll() public {
+        dUSDC.accrueInterest();
 
-//         address user101 = address(101);
-//         address user102 = address(102);
-//         address user103 = address(103);
-//         address[] memory users = new address[](3);
-//         users[0] = user101;
-//         users[1] = user102;
-//         users[2] = user103;
+        uint256 debtBalanceCached = dUSDC.debtBalanceCached(address(this));
+        uint256 underlyingBalance = usdc.balanceOf(address(this));
+        uint256 balance = dUSDC.balanceOf(address(this));
+        uint256 totalSupply = dUSDC.totalSupply();
+        uint256 totalBorrows = dUSDC.totalBorrows();
 
-//         // 1. users post collateral and borrow 100 usdc
-//         for (uint i; i < 3; ++i) {
-//             address user = users[i];
-//             deal(address(cBALRETH), user, 1e18);
-//             vm.startPrank(user);
-//             marketManager.postCollateral(user, address(cBALRETH), 1e18 - 1);
-//             dUSDC.borrow(100e6);
-//             vm.stopPrank();
-//         }
+        vm.expectEmit(true, true, true, true, address(dUSDC));
+        emit Repay(address(this), address(this), debtBalanceCached);
 
-//         // 2. repay user101 and user102 all debt after two days
-//         skip(2 days);
-//         for (uint i; i < 2; ++i) {
-//             address user = users[i];
-//             vm.startPrank(user);
-//             // give users enough usdc to repay their debt because accumulated interest
-//             deal(_USDC_ADDRESS, user, 1000e6);
-//             usdc.approve(address(dUSDC), type(uint256).max);
-//             dUSDC.repay(0);
-//             vm.stopPrank();
-//         }
+        dUSDC.repay(0);
 
-//         // can be called by malicious users
-//         for (uint i; i < 2; ++i) {
-//             skip(1 days);
-//             dUSDC.accrueInterest();
-//         }
+        assertEq(
+            usdc.balanceOf(address(this)),
+            underlyingBalance - debtBalanceCached
+        );
+        assertEq(dUSDC.balanceOf(address(this)), balance);
+        assertEq(dUSDC.totalSupply(), totalSupply);
+        assertEq(dUSDC.totalBorrows(), totalBorrows - debtBalanceCached);
+    }
 
-//         deal(_USDC_ADDRESS, users[2], 1000e6);
-//         vm.startPrank(users[2]);
-//         usdc.approve(address(dUSDC), type(uint256).max);
-//         // 3. user103 repay all his debt would revert because overflow
-//         // vm.expectRevert();
-//         dUSDC.repay(0);
-//         vm.stopPrank();
-//     }
-// }
+    function test_borrowers_repayAllDebts() public {
+        uint256 _BASE_UNDERLYING_RESERVE = 42069;
+        uint256 initialUsdcReserves = 1000e6;
+        _setCbalRETHCollateralCaps(100_000e18);
+
+        uint256 addUsdcAmount = 1500e6;
+        deal(
+            _USDC_ADDRESS,
+            address(dUSDC),
+            _BASE_UNDERLYING_RESERVE + initialUsdcReserves + addUsdcAmount
+        );
+
+        address user101 = address(101);
+        address user102 = address(102);
+        address user103 = address(103);
+        address[] memory users = new address[](3);
+        users[0] = user101;
+        users[1] = user102;
+        users[2] = user103;
+
+        // 1. users post collateral and borrow 100 usdc
+        for (uint i; i < 3; ++i) {
+            address user = users[i];
+            deal(address(cBALRETH), user, 1e18);
+            vm.startPrank(user);
+            marketManager.postCollateral(user, address(cBALRETH), 1e18 - 1);
+            dUSDC.borrow(100e6);
+            vm.stopPrank();
+        }
+
+        // 2. repay user101 and user102 all debt after two days
+        skip(2 days);
+        for (uint i; i < 2; ++i) {
+            address user = users[i];
+            vm.startPrank(user);
+            // give users enough usdc to repay their debt because accumulated interest
+            deal(_USDC_ADDRESS, user, 1000e6);
+            usdc.approve(address(dUSDC), type(uint256).max);
+            dUSDC.repay(0);
+            vm.stopPrank();
+        }
+
+        // can be called by malicious users
+        for (uint i; i < 2; ++i) {
+            skip(1 days);
+            dUSDC.accrueInterest();
+        }
+
+        deal(_USDC_ADDRESS, users[2], 1000e6);
+        vm.startPrank(users[2]);
+        usdc.approve(address(dUSDC), type(uint256).max);
+        // 3. user103 repay all his debt would revert because overflow
+        // vm.expectRevert();
+        dUSDC.repay(0);
+        vm.stopPrank();
+    }
+}
