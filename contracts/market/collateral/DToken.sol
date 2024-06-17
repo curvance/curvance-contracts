@@ -1022,10 +1022,13 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to check for totalSupply = 0, because,
         // when we list a market we mint `_BASE_UNDERLYING_RESERVE` initially.
         // exchangeRate calculation:
-        // (Underlying Held + Total Borrows - Total Reserves) / Total Supply.
+        // (Underlying Held + Total Borrows) / (Total Supply + Total Reserves).
         return
-            ((marketUnderlyingHeld() + totalBorrows - totalReserves) * WAD) /
-            totalSupply;
+            FixedPointMathLib.mulDiv(
+                marketUnderlyingHeld() + totalBorrows,
+                WAD,
+                totalSupply + totalReserves
+            );
     }
 
     /// @notice Returns the amount of tokens that would be exchanged
