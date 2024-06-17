@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
@@ -192,13 +190,13 @@ contract TestUniversalBalance is TestBaseMarket {
     function testDepositWETH() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, false);
         vm.stopPrank();
 
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
 

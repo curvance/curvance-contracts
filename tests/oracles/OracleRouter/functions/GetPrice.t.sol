@@ -13,7 +13,7 @@ contract Oracle {
     address internal constant _ETH_ADDRESS =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    function isSupportedAsset(address asset) external view returns (bool) {
+    function isSupportedAsset(address asset) external pure returns (bool) {
         return (asset == _ETH_ADDRESS || asset == _FXS_TOKEN);
     }
 
@@ -21,7 +21,7 @@ contract Oracle {
         address asset,
         bool inUSD,
         bool getLower
-    ) external view returns (PriceReturnData memory rd) {
+    ) external pure returns (PriceReturnData memory rd) {
         if (asset == _FXS_TOKEN) {
             // for simplicity, let's assume that...
             // 1) we don't offer ETH support for FXS, so always return USD

@@ -5,7 +5,6 @@ import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 

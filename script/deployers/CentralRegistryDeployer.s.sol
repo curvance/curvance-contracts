@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract CentralRegistryDeployer is DeployConfiguration {
-    address centralRegistry;
+    address public centralRegistry;
 
     function _deployCentralRegistry(
         address daoAddress,

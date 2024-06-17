@@ -6,7 +6,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestOracleRouter is TestBaseOracleRouter {

@@ -5,7 +5,6 @@ import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.so
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -210,7 +209,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         deal(_USDC_ADDRESS, address(this), 10000e6);
         deal(_WETH_ADDRESS, address(feeAccumulator), _ONE);
 
-        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), 0);
+        assertEq(weth.balanceOf(address(this)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
         usdc.approve(address(feeAccumulator), 10000e6);
@@ -218,12 +217,11 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
 
         assertLt(usdc.balanceOf(address(this)), 10000e6);
-        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(feeAccumulator)), 0);
-        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(this)), _ONE);
+        assertEq(weth.balanceOf(address(feeAccumulator)), 0);
+        assertEq(weth.balanceOf(address(this)), _ONE);
 
         uint256 daoBalance = usdc.balanceOf(address(this));
         uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
-        uint256 usdcDaoBalance = usdc.balanceOf(centralRegistry.daoAddress());
 
         vm.recordLogs();
 

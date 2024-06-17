@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 
 contract GetPricesForMarket is TestBaseOracleRouter {

@@ -1,4 +1,5 @@
 pragma solidity 0.8.19;
+
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
 

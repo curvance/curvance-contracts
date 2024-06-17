@@ -7,11 +7,12 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestCallDataCheckerFor1Inch is TestBaseMarket {
-    address oneInchRouterV5 = 0x1111111254EEB25477B68fb85Ed929f73A960582;
-    CallDataCheckerFor1InchAggregationRouterV5 checker;
+    address public oneInchRouterV5 =
+        0x1111111254EEB25477B68fb85Ed929f73A960582;
+    CallDataCheckerFor1InchAggregationRouterV5 public checker;
 
-    SwapperLib.Swap swapData;
-    address recipient;
+    SwapperLib.Swap public swapData;
+    address public recipient;
 
     receive() external payable {}
 

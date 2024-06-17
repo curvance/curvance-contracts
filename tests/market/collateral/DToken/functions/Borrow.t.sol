@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
 
 contract DTokenBorrowTest is TestBaseDToken {
     event Borrow(address borrower, uint256 borrowAmount);

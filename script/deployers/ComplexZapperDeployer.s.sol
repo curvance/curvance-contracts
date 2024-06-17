@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract ComplexZapperDeployer is DeployConfiguration {
-    address complexZapper;
+    address public complexZapper;
 
     function _deployComplexZapper(
         address centralRegistry,

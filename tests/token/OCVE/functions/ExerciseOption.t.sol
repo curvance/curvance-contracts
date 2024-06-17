@@ -4,8 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseOCVE } from "../TestBaseOCVE.sol";
 
 import { OCVE } from "contracts/token/OCVE.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract ExerciseOptionTest is TestBaseOCVE {

@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract TransferDaoOwnershipTest is TestBaseMarket {
-    address newDaoAddress = address(1000);
+    address public newDaoAddress = address(1000);
 
     event OwnershipTransferred(
         address indexed previousOwner,

@@ -22,12 +22,9 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockWethFeed;
 
     CTokenPrimitive public cWETH;
-    IERC20 public weth;
 
     function setUp() public override {
         super.setUp();
-
-        weth = IERC20(_WETH_ADDRESS);
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
@@ -233,7 +230,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = IERC20(_WETH_ADDRESS).balanceOf(user1);
+        uint256 desiredTokenBalance = weth.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -245,10 +242,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(
-            IERC20(_WETH_ADDRESS).balanceOf(user1),
-            desiredTokenBalance + amountsOut[1]
-        );
+        assertEq(weth.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 
     function testClaimZapAndDeposit() public {

@@ -155,7 +155,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         deal(_USDC_ADDRESS, address(this), 300000e20);
         deal(_WETH_ADDRESS, address(this), 100e18);
         usdc.approve(_UNISWAP_V2_ROUTER, 300000e20);
-        IERC20(_WETH_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100e18);
+        weth.approve(_UNISWAP_V2_ROUTER, 100e18);
         IUniswapV2Router(_UNISWAP_V2_ROUTER).addLiquidity(
             address(usdc),
             _WETH_ADDRESS,

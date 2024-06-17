@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseStableLPAdaptor.sol";
 
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICamelotPair } from "contracts/interfaces/external/camelot/ICamelotPair.sol";
 
