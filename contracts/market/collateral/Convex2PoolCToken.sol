@@ -62,6 +62,8 @@ contract Convex2PoolCToken is CTokenCompounding {
 
     /// CONSTRUCTOR ///
 
+    receive() external payable {}
+
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,

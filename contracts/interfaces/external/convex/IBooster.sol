@@ -14,4 +14,6 @@ interface IBooster {
         external
         view
         returns (address, address, address, address, address, bool);
+
+    function earmarkRewards(uint256 _pid) external returns (bool);
 }
