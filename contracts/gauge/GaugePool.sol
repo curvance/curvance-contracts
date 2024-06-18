@@ -639,7 +639,7 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @param token Pool token address.
     function updatePool(address token) public override {
         // If rewards have not started yet, there is nothing to update.
-        if (block.timestamp <= startTime) {
+        if (startTime == 0 || block.timestamp <= startTime) {
             return;
         }
 
