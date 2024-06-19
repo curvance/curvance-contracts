@@ -8,12 +8,15 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestComplexZapperVelodrome is TestBaseMarket {
-    address _VELODROME_FACTORY = 0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
-    address _VELODROME_ROUTER = 0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858;
-    address _VELODROME_WETH_USDC = 0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
-    address _WETH = 0x4200000000000000000000000000000000000006;
-    address _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
-    bool _IS_STABLE = false;
+    address internal _VELODROME_FACTORY =
+        0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
+    address internal _VELODROME_ROUTER =
+        0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858;
+    address internal _VELODROME_WETH_USDC =
+        0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
+    address internal _WETH = 0x4200000000000000000000000000000000000006;
+    address internal _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
+    bool internal _IS_STABLE = false;
 
     address public owner;
     address public user;

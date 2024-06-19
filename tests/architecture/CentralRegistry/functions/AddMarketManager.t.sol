@@ -14,7 +14,7 @@ contract Market {
 }
 
 contract AddMarketManagerTest is TestBaseMarket {
-    address newMarket;
+    address public newMarket;
 
     event NewCurvanceContract(string indexed contractType, address newAddress);
 

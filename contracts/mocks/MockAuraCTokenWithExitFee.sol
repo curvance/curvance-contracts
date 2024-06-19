@@ -127,7 +127,7 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
 
     // PERMISSIONED FUNCTIONS
 
-    function reQueryRewardTokens() external {
+    function reQueryTokens() external {
         delete strategyData.rewardTokens;
 
         // add BAL as a reward token, then let aura tell you what rewards
@@ -150,9 +150,7 @@ contract MockAuraCTokenWithExitFee is CTokenCompoundingWithExitFee {
                 }
             }
         }
-    }
 
-    function reQueryUnderlyingTokens() external {
         address[] memory underlyingTokens = strategyData.underlyingTokens;
         uint256 numUnderlyingTokens = underlyingTokens.length;
         for (uint256 i = 0; i < numUnderlyingTokens; ) {

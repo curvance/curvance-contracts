@@ -34,9 +34,9 @@ interface IPositionFolding {
     /// @param borrowToken Address of dToken that will have its underlying
     ///                    token debt repaid.
     /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                   on how to handle the necessary cToken outward zap
-    ///                   to a single token (e.g. dToken underlying) to
-    ///                   facilitate deleveraging.
+    ///                on how to handle the necessary cToken outward zap
+    ///                to a single token (e.g. dToken underlying) to
+    ///                facilitate deleveraging.
     /// @param swapData Optional Swapperlib swapping struct containing
     ///                 instructions on how to handle zapping into dToken
     ///                 underlying to facilitate deleveraging.

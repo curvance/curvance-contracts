@@ -170,7 +170,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
+            centralRegistry.protocolHarvestFee();
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);

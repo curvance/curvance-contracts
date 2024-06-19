@@ -4,17 +4,18 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-// Dynamically tests multiple functions in CentralRegistry that remove a contract from a mapping
+// Dynamically tests multiple functions in CentralRegistry that
+// remove a contract from a mapping
 contract BasicRemoveContractsTest is TestBaseMarket {
     event RemovedCurvanceContract(
         string indexed contractType,
         address removedAddress
     );
 
-    string[] removeFuncs;
-    string[] maps;
-    string[] expectedLogs;
-    string[] addFuncs;
+    string[] public removeFuncs;
+    string[] public maps;
+    string[] public expectedLogs;
+    string[] public addFuncs;
 
     function setUp() public virtual override {
         super.setUp();

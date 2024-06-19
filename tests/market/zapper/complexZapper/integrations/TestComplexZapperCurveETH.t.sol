@@ -8,9 +8,12 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestComplexZapperCurveETH is TestBaseMarket {
-    address _CURVE_STETH_LP = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _CURVE_STETH_MINTER = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _STETH_ADDRESS = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _CURVE_STETH_LP =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _CURVE_STETH_MINTER =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _STETH_ADDRESS =
+        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     address public owner;
     address public user;

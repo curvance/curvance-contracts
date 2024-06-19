@@ -14,7 +14,7 @@ contract Market {
 }
 
 contract SetProtocolInterestRateFeeTest is TestBaseMarket {
-    address newMarket;
+    address public newMarket;
 
     function setUp() public virtual override {
         super.setUp();

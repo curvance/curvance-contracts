@@ -154,8 +154,8 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
 
         deal(_USDC_ADDRESS, address(this), 300000e20);
         deal(_WETH_ADDRESS, address(this), 100e18);
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 300000e20);
-        IERC20(_WETH_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100e18);
+        usdc.approve(_UNISWAP_V2_ROUTER, 300000e20);
+        weth.approve(_UNISWAP_V2_ROUTER, 100e18);
         IUniswapV2Router(_UNISWAP_V2_ROUTER).addLiquidity(
             address(usdc),
             _WETH_ADDRESS,
@@ -248,7 +248,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
             address(positionFolding)
         );
 
-        positionFolding.leverage(leverageData, 1500);
+        positionFolding.leverage(leverageData, 2000);
 
         (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
             user

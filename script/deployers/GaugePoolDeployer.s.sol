@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract GaugePoolDeployer is DeployConfiguration {
-    address gaugePool;
+    address public gaugePool;
 
     function _deployGaugePool(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");

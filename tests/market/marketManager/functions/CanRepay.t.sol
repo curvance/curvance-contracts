@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
 contract CanRepayTest is TestBaseMarketManager {
     function test_canRepay_fail_whenTokenNotListed() public {

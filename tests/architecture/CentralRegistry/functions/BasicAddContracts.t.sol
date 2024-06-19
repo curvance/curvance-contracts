@@ -4,13 +4,14 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-// Dynamically tests multiple functions in CentralRegistry that add a contract to a mapping
+// Dynamically tests multiple functions in CentralRegistry that
+// add a contract to a mapping
 contract BasicAddContractsTest is TestBaseMarket {
     event NewCurvanceContract(string indexed contractType, address newAddress);
 
-    string[] addFuncs;
-    string[] maps;
-    string[] expectedLogs;
+    string[] public addFuncs;
+    string[] public maps;
+    string[] public expectedLogs;
 
     function setUp() public virtual override {
         super.setUp();

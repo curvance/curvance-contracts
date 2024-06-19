@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";

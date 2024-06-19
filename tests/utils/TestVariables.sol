@@ -105,6 +105,7 @@ contract TestVariables {
     MockAuraCTokenWithExitFee public cBALRETHWithExitFee;
     IERC20 public usdc;
     IERC20 public dai;
+    IERC20 public weth;
     IERC20 public balRETH;
 
     MockV3Aggregator public chainlinkUsdcUsd;
@@ -319,6 +320,7 @@ contract TestVariables {
 
         usdc = IERC20(_USDC_ADDRESS);
         dai = IERC20(_DAI_ADDRESS);
+        weth = IERC20(_WETH_ADDRESS);
         balRETH = IERC20(_BAL_WETH_RETH_ADDRESS);
     }
 

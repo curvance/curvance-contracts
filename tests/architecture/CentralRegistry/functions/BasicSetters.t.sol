@@ -7,9 +7,9 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 contract BasicSettersTest is TestBaseMarket {
     event CoreContractSet(string indexed contractType, address newAddress);
 
-    string[] setters;
-    string[] getters;
-    string[] expectedLogs;
+    string[] public setters;
+    string[] public getters;
+    string[] public expectedLogs;
 
     function setUp() public virtual override {
         super.setUp();

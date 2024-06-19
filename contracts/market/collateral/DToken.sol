@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -436,7 +435,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         } else {
             totalBorrows -= accountDebt;
         }
-        
+
         emit Repay(liquidator, account, repayAmount);
         emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
     }
@@ -1023,10 +1022,13 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to check for totalSupply = 0, because,
         // when we list a market we mint `_BASE_UNDERLYING_RESERVE` initially.
         // exchangeRate calculation:
-        // (Underlying Held + Total Borrows - Total Reserves) / Total Supply.
+        // (Underlying Held + Total Borrows) / (Total Supply + Total Reserves).
         return
-            ((marketUnderlyingHeld() + totalBorrows - convertToAssets(totalReserves)) * WAD) /
-            totalSupply;
+            FixedPointMathLib.mulDiv(
+                marketUnderlyingHeld() + totalBorrows,
+                WAD,
+                totalSupply + totalReserves
+            );
     }
 
     /// @notice Returns the amount of tokens that would be exchanged
@@ -1107,11 +1109,13 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
                 (interestCompounds * cachedData.compoundRate)
         );
         marketData.exchangeRate = uint216(exchangeRateNew);
-        totalBorrows = totalBorrowsNew;
 
         // Check whether the DAO takes a cut of interest, and whether new debt
         // has accumulated (!= 0). Then update reserves if necessary.
-        uint256 newReserves = ((interestFactor * convertToShares(debtAccumulated)) / WAD);
+        uint256 newReserves = ((interestFactor *
+            convertToShares(debtAccumulated)) / WAD);
+
+        totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
 
@@ -1289,9 +1293,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
         // because the startMarket() assets can never be withdraw since the
         // market itself owns the corresponding dTokens.
-        if (
-            marketUnderlyingHeld() - convertToAssets(totalReserves) < amount
-            ) {
+        if (marketUnderlyingHeld() - convertToAssets(totalReserves) < amount) {
             revert DToken__InsufficientUnderlyingHeld();
         }
 

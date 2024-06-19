@@ -15,9 +15,12 @@ contract User {}
 contract TestSimpleZapper is TestBaseMarket {
     address private _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address _CURVE_STETH_LP = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _CURVE_STETH_MINTER = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _STETH_ADDRESS = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _CURVE_STETH_LP =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _CURVE_STETH_MINTER =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _STETH_ADDRESS =
+        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
@@ -255,7 +258,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         deal(_USDC_ADDRESS, user, 500e6);
         vm.startPrank(user);
-        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 500e6);
+        usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user);
         vm.stopPrank();
 

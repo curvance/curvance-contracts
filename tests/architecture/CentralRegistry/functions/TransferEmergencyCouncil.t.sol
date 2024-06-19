@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract TransferEmergencyCouncilTest is TestBaseMarket {
-    address newEmergencyCouncil = address(1000);
+    address public newEmergencyCouncil = address(1000);
 
     event EmergencyCouncilTransferred(
         address indexed previousEmergencyCouncil,

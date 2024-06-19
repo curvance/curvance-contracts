@@ -439,9 +439,7 @@ contract CentralRegistry is ERC165 {
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {MessageTransmitterSet} event.
     /// @param newMessageTransmitter The new address of Circle MessageTransmitter.
-    function setMessageTransmitter(
-        address newMessageTransmitter
-    ) external {
+    function setMessageTransmitter(address newMessageTransmitter) external {
         _checkElevatedPermissions();
 
         circleMessageTransmitter = IMessageTransmitter(newMessageTransmitter);

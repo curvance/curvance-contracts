@@ -478,7 +478,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         assertApproxEqRel(
             cBALRETH.balanceOf(user1),
             1 ether - (1550 ether * 1e18) / balRETHPrice,
-            0.05e18
+            0.06e18
         );
         assertEq(cBALRETH.exchangeRateCached(), 1 ether);
 

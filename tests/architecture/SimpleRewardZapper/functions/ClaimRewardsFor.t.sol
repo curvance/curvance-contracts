@@ -5,11 +5,8 @@ import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
-
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -112,7 +109,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = IERC20(_WETH_ADDRESS).balanceOf(user1);
+        uint256 desiredTokenBalance = weth.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -124,9 +121,6 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(
-            IERC20(_WETH_ADDRESS).balanceOf(user2),
-            desiredTokenBalance + amountsOut[1]
-        );
+        assertEq(weth.balanceOf(user2), desiredTokenBalance + amountsOut[1]);
     }
 }

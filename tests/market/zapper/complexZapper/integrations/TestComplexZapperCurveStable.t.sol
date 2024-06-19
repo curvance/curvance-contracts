@@ -8,8 +8,9 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestComplexZapperCurveStable is TestBaseMarket {
-    address _CURVE_TRICRYPTO_LP = 0xc4AD29ba4B3c580e6D59105FFf484999997675Ff;
-    address _CURVE_TRICRYPTO_MINTER =
+    address internal _CURVE_TRICRYPTO_LP =
+        0xc4AD29ba4B3c580e6D59105FFf484999997675Ff;
+    address internal _CURVE_TRICRYPTO_MINTER =
         0xD51a44d3FaE010294C616388b506AcdA1bfAAE46;
 
     address public owner;
@@ -67,7 +68,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
         deal(_WETH_ADDRESS, user, wethAmount);
 
         vm.startPrank(user);
-        IERC20(_WETH_ADDRESS).approve(address(complexZapper), wethAmount);
+        weth.approve(address(complexZapper), wethAmount);
         address[] memory tokens = new address[](3);
         tokens[0] = _USDT_ADDRESS;
         tokens[1] = _WBTC_ADDRESS;
@@ -123,11 +124,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
         );
         vm.stopPrank();
 
-        assertApproxEqRel(
-            IERC20(_WETH_ADDRESS).balanceOf(user),
-            3 ether,
-            0.01 ether
-        );
+        assertApproxEqRel(weth.balanceOf(user), 3 ether, 0.01 ether);
         assertEq(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user), 0);
     }
 }

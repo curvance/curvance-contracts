@@ -5,7 +5,6 @@ import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -43,7 +42,7 @@ contract ClaimRewardsForTest is TestBaseRewardManager {
         deal(_USDC_ADDRESS, address(this), 10000e6);
         deal(address(cve), address(this), 1000000e18);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 10000e6);
+        usdc.approve(_UNISWAP_V2_ROUTER, 10000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 1000000e18);
 
         _UNISWAP_V2_ROUTER.call(
