@@ -108,12 +108,23 @@ contract TestVeCVE is TestBaseVeCVE {
 
         uint256 penaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
 
-        assertLt(penaltyAmount, prevPenaltyAmount);
+        assertEq(penaltyAmount, prevPenaltyAmount);
+
+        uint256 daoCveBalance = cve.balanceOf(centralRegistry.daoAddress());
 
         assertGt(penaltyAmount, 0);
 
-        vm.expectRevert(bytes4(keccak256("TransferFailed()")));
         veCVE.earlyExpireLock(0, rewardsData, "", 0);
+
+        vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
+        veCVE.getUnlockPenalty(address(this), 0);
+
+        assertEq(cve.balanceOf(user1), penaltyAmount);
+        assertEq(cve.balanceOf(address(this)), 100e18 - penaltyAmount);
+        assertEq(
+            cve.balanceOf(centralRegistry.daoAddress()),
+            daoCveBalance + penaltyAmount
+        );
     }
 
     function test_createLockWithDiscontinuousLock_earlyExpireLock_success_fuzzed(
