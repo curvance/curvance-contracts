@@ -62,6 +62,8 @@ contract Convex3PoolCToken is CTokenCompounding {
 
     /// CONSTRUCTOR ///
 
+    receive() external payable {}
+
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -103,8 +105,6 @@ contract Convex3PoolCToken is CTokenCompounding {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    // PERMISSIONED FUNCTIONS
 
     /// @notice Requeries reward and underlying tokens directly from
     ///         Convex's smart contracts.
