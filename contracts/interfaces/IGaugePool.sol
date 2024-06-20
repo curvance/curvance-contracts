@@ -3,8 +3,9 @@ pragma solidity ^0.8.19;
 
 interface IGaugePool {
     /// @notice Claim all pending rewards for `token` from the gauge pool.
-    /// @param token Pool token address.
-    function claim(address token) external;
+    /// @param tokens Array containing pool token addresses to claim
+    ///               rewards for.
+    function claim(address[] calldata tokens) external;
 
     /// @notice Returns current epoch number.
     function currentEpoch() external view returns (uint256);

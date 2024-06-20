@@ -452,31 +452,24 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
         emit Withdraw(user, token, amount);
     }
 
-    /// @notice Claim all pending rewards for `token` from the gauge pool.
-    /// @param token Pool token address.
-    function claim(address token) external nonReentrant {
-        if (block.timestamp < startTime) {
-            revert GaugeErrors.NotStarted();
-        }
-
-        uint256 cveRewards = _claim(token);
-        if (cveRewards == 0) {
-            revert GaugeErrors.NoReward();
-        }
-        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
-    }
-
-    /// @notice Claim all pending rewards.
-    function claimAll(address[] memory tokens) external nonReentrant {
+    /// @notice Claim all pending rewards for `tokens` from the gauge pool.
+    /// @param tokens Array containing pool token addresses to claim
+    ///               rewards for.
+    function claim(address[] calldata tokens) external nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeErrors.NotStarted();
         }
         
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
-        for (uint256 i; i < numTokens; ++i) {
-            cveRewards += _claim(tokens[i]);
+        for (uint256 i; i < numTokens; ) {
+            cveRewards += _claim(tokens[i++]);
         }
+
+        if (cveRewards == 0) {
+            return;
+        }
+
         SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
@@ -520,18 +513,19 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
     /// @dev Users who choose to lock emissions may potentially receive an
     ///      emission boost based on `lockBoostMultiplier` stored inside the
     ///      DAO Central Registry.
-    /// @param token Pool token address.
+    /// @param tokens Array containing pool token addresses to claim
+    ///               rewards for.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
     /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
     function claimAndExtendLock(
-        address token,
+        address[] calldata tokens,
         uint256 lockIndex,
         bool continuousLock,
         RewardsData memory rewardsData,
-        bytes memory params,
+        bytes calldata params,
         uint256 aux
     ) external nonReentrant {
         // If gauge emissions have not started yet,
@@ -540,8 +534,13 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
             revert GaugeErrors.NotStarted();
         }
 
-        uint256 rewards = _claim(token);
-        if (rewards == 0) {
+        uint256 cveRewards;
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; ) {
+            cveRewards += _claim(tokens[i++]);
+        }
+
+        if (cveRewards == 0) {
             revert GaugeErrors.NoReward();
         }
 
@@ -549,19 +548,19 @@ contract GaugePool is GaugeController, ERC165, ReentrancyGuard {
 
         // If theres a current lock boost, recognize their bonus rewards.
         if (currentLockBoost > 0) {
-            uint256 boostedRewards = (rewards * currentLockBoost) /
+            uint256 boostedRewards = (cveRewards * currentLockBoost) /
                 DENOMINATOR;
             // We know this will never underflow due to `currentLockBoost`
             // needing to be greater than 1.
-            ICVE(cve).mintLockBoost(boostedRewards - rewards);
-            rewards = boostedRewards;
+            ICVE(cve).mintLockBoost(boostedRewards - cveRewards);
+            cveRewards = boostedRewards;
         }
 
         // Approve veCVE to take necessary cve to extend the lock.
-        SafeTransferLib.safeApprove(cve, address(veCVE), rewards);
+        SafeTransferLib.safeApprove(cve, address(veCVE), cveRewards);
         veCVE.increaseAmountAndExtendLockFor(
             msg.sender,
-            rewards,
+            cveRewards,
             lockIndex,
             continuousLock,
             rewardsData,
