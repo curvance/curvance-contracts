@@ -558,4 +558,11 @@ contract TestBaseMarket is TestBase {
     function _addressToBytes32(address addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(addr)));
     }
+
+    function _makeTokenArray(
+        address token
+    ) internal pure returns (address[] memory result) {
+        result = new address[](1);
+        result[0] = token;
+    }
 }

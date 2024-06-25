@@ -194,7 +194,9 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             );
         }
 
-        gaugePool.claim(address(linkedDToken));
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(linkedDToken);
+        gaugePool.claim(tokens);
         address daoAddress = centralRegistry.daoAddress();
 
         // If the contract received rewards in a reward token, transfer them to the DAO.
