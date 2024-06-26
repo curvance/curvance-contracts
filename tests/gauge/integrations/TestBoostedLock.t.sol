@@ -167,11 +167,31 @@ contract TestBoostedLock is TestBaseMarket {
 
         vm.warp(block.timestamp + 1000);
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user3 claims
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claimAndExtendLock(tokens[0], 0, true, rewardData, "0x", 0);
+        gaugePool.claimAndExtendLock(
+            claimTokens,
+            0,
+            true,
+            rewardData,
+            "0x",
+            0
+        );
+
+        claimTokens[0] = tokens[1];
         vm.prank(users[3]);
-        gaugePool.claimAndExtendLock(tokens[1], 0, false, rewardData, "0x", 0);
+        gaugePool.claimAndExtendLock(
+            claimTokens,
+            0,
+            false,
+            rewardData,
+            "0x",
+            0
+        );
+
         assertEq(veCVE.balanceOf(users[0]), 896020e18);
         assertEq(veCVE.balanceOf(users[3]), 7088160e18);
         assertEq(veCVE.getVotes(users[0]), 985622e18);
@@ -189,10 +209,13 @@ contract TestBoostedLock is TestBaseMarket {
 
         RewardsData memory rewardData;
 
+        address[] memory claimTokens = new address[](1);
+        claimTokens[0] = address(cve);
+
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
-            address(cve),
+            claimTokens,
             0,
             true,
             rewardData,
@@ -204,7 +227,7 @@ contract TestBoostedLock is TestBaseMarket {
         vm.expectRevert(GaugeErrors.NoReward.selector);
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
-            address(cve),
+            claimTokens,
             0,
             true,
             rewardData,
