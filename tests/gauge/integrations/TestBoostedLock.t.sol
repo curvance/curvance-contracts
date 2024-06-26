@@ -173,18 +173,16 @@ contract TestBoostedLock is TestBaseMarket {
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
-            claimTokens,
+            _makeTokenArray(tokens[0]),
             0,
             true,
             rewardData,
             "0x",
             0
         );
-
-        claimTokens[0] = tokens[1];
         vm.prank(users[3]);
         gaugePool.claimAndExtendLock(
-            claimTokens,
+            _makeTokenArray(tokens[1]),
             0,
             false,
             rewardData,
@@ -215,7 +213,7 @@ contract TestBoostedLock is TestBaseMarket {
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
-            claimTokens,
+            _makeTokenArray(address(cve)),
             0,
             true,
             rewardData,
@@ -227,7 +225,7 @@ contract TestBoostedLock is TestBaseMarket {
         vm.expectRevert(GaugeErrors.NoReward.selector);
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
-            claimTokens,
+            _makeTokenArray(address(cve)),
             0,
             true,
             rewardData,

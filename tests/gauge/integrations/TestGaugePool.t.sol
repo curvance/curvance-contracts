@@ -248,13 +248,10 @@ contract TestGaugePool is TestBaseMarket {
 
     function testRevertClaim() public {
         vm.warp(gaugePool.startTime() - 1);
-
-        address[] memory claimTokens = new address[](1);
-        claimTokens[0] = address(cve);
-
+        
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
+        gaugePool.claim(_makeTokenArray(address(cve)));
     }
 
     function testRewardRatioOfDifferentPools() public {
@@ -328,12 +325,10 @@ contract TestGaugePool is TestBaseMarket {
 
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
-        gaugePool.claim(claimTokens);
-
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -387,20 +382,14 @@ contract TestGaugePool is TestBaseMarket {
 
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[0];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[2]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
-        gaugePool.claim(claimTokens);
-
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -491,10 +480,9 @@ contract TestGaugePool is TestBaseMarket {
         // user0, user1 claim rewards
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
-        gaugePool.claim(claimTokens);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
 
         assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200);
         assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200);
@@ -671,10 +659,10 @@ contract TestGaugePool is TestBaseMarket {
         // user0, user3 claims
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
-        gaugePool.claim(claimTokens);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -731,20 +719,14 @@ contract TestGaugePool is TestBaseMarket {
 
         claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[0];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[2]);
-        gaugePool.claim(claimTokens);
-
-        claimTokens[0] = tokens[1];
+        gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
-        gaugePool.claim(claimTokens);
-
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -777,7 +759,7 @@ contract TestGaugePool is TestBaseMarket {
         );
     }
 
-    function testClaimMultiTokens() public {
+    function testclaim() public {
         address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
