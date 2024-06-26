@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugeController } from "contracts/gauge/GaugeController.sol";
+import { GaugePool } from "contracts/gauge/GaugePool.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -285,10 +285,10 @@ contract ProtocolMessagingHub is QueryResponse {
                 );
 
             uint256 numPools = gaugePools.length;
-            GaugeController gaugePool;
+            GaugePool gaugePool;
 
             for (uint256 i; i < numPools; ) {
-                gaugePool = GaugeController(gaugePools[i]);
+                gaugePool = GaugePool(gaugePools[i]);
                 // Mint epoch gauge emissions to the gauge pool.
                 cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
                 // Set upcoming epoch emissions for voted configuration.
