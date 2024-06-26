@@ -248,7 +248,7 @@ contract TestGaugePool is TestBaseMarket {
 
     function testRevertClaim() public {
         vm.warp(gaugePool.startTime() - 1);
-
+        
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(address(cve)));
@@ -319,11 +319,16 @@ contract TestGaugePool is TestBaseMarket {
             16000
         );
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user3 claims
+
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -374,6 +379,8 @@ contract TestGaugePool is TestBaseMarket {
         );
 
         // user0, user1, user2, user3 claims
+
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -382,6 +389,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -467,7 +475,10 @@ contract TestGaugePool is TestBaseMarket {
             2 weeks * 200 + 100 * 200
         );
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user1 claim rewards
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -643,11 +654,15 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.updatePool(tokens[0]);
         gaugePool.updatePool(tokens[1]);
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user3 claims
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -701,6 +716,8 @@ contract TestGaugePool is TestBaseMarket {
         );
 
         // user0, user1, user2, user3 claims
+
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -709,6 +726,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -812,6 +830,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(listedTokens);
         vm.prank(users[3]);
         gaugePool.claim(listedTokens);
+
         assertEq(cve.balanceOf(users[0]), 36000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -859,6 +878,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(listedTokens);
         vm.prank(users[3]);
         gaugePool.claim(listedTokens);
+
         assertEq(cve.balanceOf(users[0]), 47111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[3]), 48000);
