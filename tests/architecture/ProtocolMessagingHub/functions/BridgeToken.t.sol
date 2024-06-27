@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 
 contract BridgeTokenTest is TestBaseProtocolMessagingHub {

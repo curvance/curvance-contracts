@@ -171,4 +171,8 @@ interface ICentralRegistry {
     function externalCallDataChecker(
         address addressToCheck
     ) external view returns (address);
+
+    function multicallDataChecker(
+        address addressToCheck
+    ) external view returns (address);
 }

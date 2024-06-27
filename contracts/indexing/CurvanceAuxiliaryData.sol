@@ -1,30 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
-import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
+
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-import "forge-std/console.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-
-import "forge-std/console.sol";
 
 /// @notice An auxiliary contract for querying nuanced data
 ///         inside the Curvance ecosystem.

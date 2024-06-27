@@ -66,6 +66,7 @@ contract CurvanceDAOLBP {
     error CurvanceDAOLBP__AlreadyStarted();
     error CurvanceDAOLBP__InSale();
     error CurvanceDAOLBP__Closed();
+    error CurvanceDAOLBP__Success();
 
     /// EVENTS ///
 
@@ -238,6 +239,44 @@ contract CurvanceDAOLBP {
             paymentToken,
             centralRegistry.daoAddress(),
             balance
+        );
+    }
+
+    /// @notice Withdraws CVE to DAO address.
+    function withdrawCVE() external {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            revert CurvanceDAOLBP__Unauthorized();
+        }
+
+        SaleStatus saleStatus = currentStatus();
+        if (saleStatus == SaleStatus.NotStarted) {
+            revert CurvanceDAOLBP__NotStarted();
+        }
+        if (saleStatus == SaleStatus.InSale) {
+            revert CurvanceDAOLBP__InSale();
+        }
+
+        if (saleCommitted >= softCap()) {
+            revert CurvanceDAOLBP__Success();
+        }
+
+        uint256 adjustedAmount = _adjustDecimals(
+            saleCommitted,
+            paymentTokenDecimals,
+            18
+        );
+        uint256 price = currentPrice();
+        uint256 soldAmount = (adjustedAmount * WAD) / price;
+
+        uint256 remaining = cveAmountForSale - soldAmount;
+        if (remaining == 0) {
+            revert CurvanceDAOLBP__Success();
+        }
+
+        SafeTransferLib.safeTransfer(
+            cve,
+            centralRegistry.daoAddress(),
+            remaining
         );
     }
 

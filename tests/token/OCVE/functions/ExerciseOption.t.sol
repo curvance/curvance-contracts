@@ -4,8 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseOCVE } from "../TestBaseOCVE.sol";
 
 import { OCVE } from "contracts/token/OCVE.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract ExerciseOptionTest is TestBaseOCVE {
@@ -121,11 +119,7 @@ contract ExerciseOptionTest is TestBaseOCVE {
         uint256 oCVEUSDCBalance = usdc.balanceOf(address(oCVE));
         uint256 optionExerciseCost = (amount * oCVE.paymentTokenPerCVE()) /
             1e18;
-        uint256 payAmount = FixedPointMathLib.mulDivUp(
-            optionExerciseCost,
-            amount * 1e12,
-            1e18
-        );
+        uint256 payAmount = optionExerciseCost / 1e12;
 
         deal(address(oCVE), address(this), amount);
         deal(address(cve), address(oCVE), amount);

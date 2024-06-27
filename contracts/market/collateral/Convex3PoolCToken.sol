@@ -62,6 +62,8 @@ contract Convex3PoolCToken is CTokenCompounding {
 
     /// CONSTRUCTOR ///
 
+    receive() external payable {}
+
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -96,15 +98,15 @@ contract Convex3PoolCToken is CTokenCompounding {
             revert Convex3PoolCToken__InvalidVaultConfig();
         }
 
+        strategyData.rewarder = IBaseRewardPool(rewarder_);
         strategyData.curvePool = ICurveFi(pidToken);
+
         _queryTokens();
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    // PERMISSIONED FUNCTIONS
-
-    /// @notice Requeries reward and underlying tokens directly from 
+    /// @notice Requeries reward and underlying tokens directly from
     ///         Convex's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameter values.
@@ -233,7 +235,9 @@ contract Convex3PoolCToken is CTokenCompounding {
                 revert Convex3PoolCToken__NoYield();
             }
 
-            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo(
+                strategyData.pid
+            );
 
             if (isShutdown) {
                 SafeTransferLib.safeTransfer(
@@ -255,7 +259,7 @@ contract Convex3PoolCToken is CTokenCompounding {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Queries reward and underlying tokens directly from 
+    /// @notice Queries reward and underlying tokens directly from
     ///         Convex's smart contracts, then populates storage values.
     function _queryTokens() internal {
         // Query and populate reward token data fields.
@@ -275,7 +279,7 @@ contract Convex3PoolCToken is CTokenCompounding {
         address currentToken;
 
         for (uint256 i; i < numTokens; ) {
-            currentToken = IRewards(rewarder.extraRewards(i)).rewardToken();
+            currentToken = IRewards(rewarder.extraRewards(i++)).rewardToken();
 
             // We do not expect CRV/CVX to be listed as extra rewards,
             // but hypothetically its possible and we do not want to
@@ -287,7 +291,7 @@ contract Convex3PoolCToken is CTokenCompounding {
                 }
             }
         }
-        
+
         ICurveFi vaultAsset = ICurveFi(asset());
         numTokens = 0;
 

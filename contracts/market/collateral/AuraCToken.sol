@@ -60,7 +60,7 @@ contract AuraCToken is CTokenCompounding {
     error AuraCToken__InvalidVaultConfig();
     error AuraCToken__InvalidSwapData();
     error AuraCToken__NoYield();
-    
+
     /// CONSTRUCTOR ///
 
     constructor(
@@ -100,20 +100,20 @@ contract AuraCToken is CTokenCompounding {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Requeries reward and underlying tokens directly from 
+    /// @notice Requeries reward and underlying tokens directly from
     ///         Aura's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameter values.
     function reQueryTokens() public {
         // Cache current reward tokens.
-        address[] memory rewardTokens = strategyData.rewardTokens;
-        uint256 numTokens = rewardTokens.length;
+        address[] memory strategyRewardTokens = strategyData.rewardTokens;
+        uint256 numTokens = strategyRewardTokens.length;
 
         // Clear reward token data fields.
 
         // Remove approved tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            isApprovedAsset[rewardTokens[i++]] = false;
+            isApprovedAsset[strategyRewardTokens[i++]] = false;
         }
 
         // Wipe current reward tokens data.
@@ -276,7 +276,9 @@ contract AuraCToken is CTokenCompounding {
                 revert AuraCToken__NoYield();
             }
 
-            (, , , , , bool isShutdown) = strategyData.booster.poolInfo();
+            (, , , , , bool isShutdown) = strategyData.booster.poolInfo(
+                strategyData.pid
+            );
 
             if (isShutdown) {
                 SafeTransferLib.safeTransfer(
@@ -298,7 +300,7 @@ contract AuraCToken is CTokenCompounding {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Queries reward and underlying tokens directly from 
+    /// @notice Queries reward and underlying tokens directly from
     ///         Aura's smart contracts, then populates storage values.
     function _queryTokens() internal {
         // Query and populate reward token data fields.
@@ -333,9 +335,9 @@ contract AuraCToken is CTokenCompounding {
         }
 
         // Query and populate underlying token data fields.
-        (address[] memory poolTokens, , ) = strategyData.balancerVault.getPoolTokens(
-            strategyData.balancerPoolId
-        );
+        (address[] memory poolTokens, , ) = strategyData
+            .balancerVault
+            .getPoolTokens(strategyData.balancerPoolId);
 
         strategyData.underlyingTokens = poolTokens;
         numTokens = poolTokens.length;

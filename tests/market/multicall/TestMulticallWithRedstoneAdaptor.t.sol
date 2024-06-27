@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { EthereumRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/EthereumRedstoneCoreAdaptor.sol";
 import { MockEthereumRedstoneCoreAdaptor } from "contracts/mocks/MockEthereumRedstoneCoreAdaptor.sol";
+import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -25,6 +24,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     fallback() external payable {}
 
     MockEthereumRedstoneCoreAdaptor adapter;
+    MulticallDataCheckerForRedstoneAdaptor multicallDataChecker;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -73,6 +73,14 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
         adapter.addAsset(address(WBTC), true, 8, 12 hours);
         adapter.addAsset(address(WBTC), false, 18, 12 hours);
+
+        multicallDataChecker = new MulticallDataCheckerForRedstoneAdaptor(
+            address(centralRegistry)
+        );
+        centralRegistry.setMulticallDataChecker(
+            address(adapter),
+            address(multicallDataChecker)
+        );
 
         oracleRouter.addApprovedAdaptor(address(adapter));
 

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenCompounding, FixedPointMathLib, ICentralRegistry, IERC20, WAD } from "contracts/market/collateral/CTokenCompounding.sol";
+import { CTokenCompounding } from "contracts/market/collateral/CTokenCompounding.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
@@ -97,11 +101,14 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
             pending
         );
 
+        assets = _removeExitFeeFromAssets(assets);
+        deleverageData.collateralAmount = assets;
+
         // Callback to PositionFolding that executes cToken specific logic.
         IPositionFolding(msg.sender).onRedeem(
             address(this),
             owner,
-            _removeExitFeeFromAssets(assets),
+            assets,
             deleverageData
         );
 

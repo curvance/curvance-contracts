@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 
 // mock CVE for testing
 contract MockCve is ERC20 {

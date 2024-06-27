@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { CallDataCheckerFor1InchAggregationRouterV5 } from "contracts/market/checker/CallDataCheckerFor1Inch.sol";
-import { CallDataCheckerBase } from "contracts/market/checker/CallDataCheckerBase.sol";
+import { CallDataCheckerFor1InchAggregationRouterV5 } from "contracts/market/swap-checker/CallDataCheckerFor1Inch.sol";
+import { CallDataCheckerBase } from "contracts/market/swap-checker/CallDataCheckerBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestCallDataCheckerFor1Inch is TestBaseMarket {
-    address oneInchRouterV5 = 0x1111111254EEB25477B68fb85Ed929f73A960582;
-    CallDataCheckerFor1InchAggregationRouterV5 checker;
+    address public oneInchRouterV5 =
+        0x1111111254EEB25477B68fb85Ed929f73A960582;
+    CallDataCheckerFor1InchAggregationRouterV5 public checker;
 
-    SwapperLib.Swap swapData;
-    address recipient;
+    SwapperLib.Swap public swapData;
+    address public recipient;
 
     receive() external payable {}
 

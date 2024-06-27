@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
@@ -192,13 +190,13 @@ contract TestUniversalBalance is TestBaseMarket {
     function testDepositWETH() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, false);
         vm.stopPrank();
 
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
 
@@ -211,9 +209,25 @@ contract TestUniversalBalance is TestBaseMarket {
     function testWithdrawAsETH() public {
         testDepositWETH();
 
-        vm.expectRevert(bytes4(keccak256("ETHTransferFailed()")));
+        uint256 ethBalance = user1.balance;
+
         vm.startPrank(user1);
         universalBalance.withdrawAsETH(1 ether, false);
+
+        assertEq(user1.balance, ethBalance + 1 ether);
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+            .userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 1 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        universalBalance.withdrawAsETH(1 ether, true);
+
+        assertEq(user1.balance, ethBalance + 2 ether);
+        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 0 ether);
         vm.stopPrank();
     }
 
@@ -274,6 +288,10 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.stopPrank();
 
         skip(10 weeks);
+
+        deal(_WETH_ADDRESS, owner, 1 ether);
+        WETH.approve(address(dWETH), 1 ether);
+        dWETH.mint(1 ether);
 
         vm.startPrank(user1);
         universalBalance.withdrawAsWETH(0.5 ether, true);

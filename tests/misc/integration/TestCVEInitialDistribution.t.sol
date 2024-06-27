@@ -9,16 +9,16 @@ import "tests/market/TestBaseMarket.sol";
 import "tests/utils/merkle/Merkle.sol";
 
 contract TestCVEInitialDistribution is TestBaseMarket {
-    uint256 constant USER_LENGTH = 10;
+    uint256 public constant USER_LENGTH = 10;
 
     CVEInitialDistribution public distributor;
     Merkle public merkle;
 
-    uint256 maxClaimAmount = 3000000 ether;
-    address[] users;
-    uint256[] amounts;
-    bytes32[] leafs;
-    bytes32 root;
+    uint256 public maxClaimAmount = 3000000 ether;
+    address[] public users;
+    uint256[] public amounts;
+    bytes32[] public leafs;
+    bytes32 public root;
 
     function setUp() public override {
         super.setUp();

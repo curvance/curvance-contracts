@@ -37,6 +37,12 @@ contract GetPricesForAssetTest is TestBaseOracleRouter {
     }
 
     function test_mToken_getPricesForAsset_success() public {
+        deal(_USDC_ADDRESS, address(this), 1e18);
+        vm.prank(address(this));
+        usdc.approve(address(mUSDC), 1e18);
+        vm.prank(address(marketManager));
+        mUSDC.startMarket(address(this));
+
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         chainlinkAdaptor.addAsset(
             address(mUSDC),
@@ -50,8 +56,15 @@ contract GetPricesForAssetTest is TestBaseOracleRouter {
         );
         oracleRouter.addMTokenSupport(address(mUSDC));
 
-        /// TODO add check here now that this should pass
-        // vm.expectRevert();
-        // OracleRouter.FeedData[] memory feedDatas = oracleRouter.getPricesForAsset(address(mUSDC), true);
+        (, int256 usdcPrice, , , ) = IChainlink(_CHAINLINK_USDC_USD)
+            .latestRoundData();
+
+        OracleRouter.FeedData[] memory feedDatas = oracleRouter
+            .getPricesForAsset(address(mUSDC), true);
+
+        for (uint256 i = 0; i < feedDatas.length; i++) {
+            assertEq(feedDatas[i].price, uint256(usdcPrice) * 1e10);
+            assertFalse(feedDatas[i].hadError);
+        }
     }
 }

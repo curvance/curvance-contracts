@@ -1,11 +1,10 @@
 pragma solidity 0.8.19;
+
 import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
-import { MockToken } from "contracts/mocks/MockToken.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { FuzzLiquidations } from "tests/fuzzing/stateless/FuzzLiquidations.sol";
 
 contract FuzzDToken is FuzzMarketManager {
     constructor() {

@@ -7,7 +7,6 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseStableLPAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestVelodromeStableLPAdaptor is TestBaseOracleRouter {
@@ -119,8 +118,8 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleRouter {
             true
         );
 
-        assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(this)), 0);
-        assertGt(IERC20(_DAI_ADDRESS).balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertGt(dai.balanceOf(address(this)), 0);
 
         uint256 priceAfter;
         (priceAfter, errorCode) = oracleRouter.getPrice(

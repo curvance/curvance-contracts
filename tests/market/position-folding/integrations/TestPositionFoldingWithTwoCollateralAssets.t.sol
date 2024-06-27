@@ -206,8 +206,10 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         dDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
+        uint256 snapshot = vm.snapshot();
+
         {
-            //with cBALRETH
+            // with cBALRETH
             // try leverage with 50% of max
             uint256 amountForLeverage = (positionFolding
                 .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
@@ -221,6 +223,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             leverageData.swapData.inputAmount = amountForLeverage;
             leverageData.swapData.outputToken = _WETH_ADDRESS;
             leverageData.swapData.target = _UNISWAP_V2_ROUTER;
+            leverageData.swapData.slippage = 50e16;
             address[] memory path = new address[](2);
             path[0] = address(dai);
             path[1] = _WETH_ADDRESS;
@@ -242,6 +245,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             tokens[0] = _RETH_ADDRESS;
             tokens[1] = _WETH_ADDRESS;
             leverageData.swapZap.target = address(complexZapper);
+            leverageData.swapZap.slippage = 50e16;
             leverageData.swapZap.call = abi.encodeWithSelector(
                 ComplexZapper.enterBalancer.selector,
                 address(0),
@@ -273,6 +277,8 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             assertEq(cBALRETHBorrowed, 0 ether);
         }
 
+        vm.revertTo(snapshot);
+
         {
             (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
             // with cBALRETHWithExitFee
@@ -291,6 +297,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             leverageData.swapData.inputAmount = amountForLeverage;
             leverageData.swapData.outputToken = _WETH_ADDRESS;
             leverageData.swapData.target = _UNISWAP_V2_ROUTER;
+            leverageData.swapData.slippage = 50e16;
             address[] memory path = new address[](2);
             path[0] = address(dai);
             path[1] = _WETH_ADDRESS;
@@ -312,6 +319,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             tokens[0] = _RETH_ADDRESS;
             tokens[1] = _WETH_ADDRESS;
             leverageData.swapZap.target = address(complexZapper);
+            leverageData.swapZap.slippage = 50e16;
             leverageData.swapZap.call = abi.encodeWithSelector(
                 ComplexZapper.enterBalancer.selector,
                 address(0),
@@ -374,6 +382,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         tokens[0] = _RETH_ADDRESS;
         tokens[1] = _WETH_ADDRESS;
         deleverageData.swapZap.target = address(complexZapper);
+        deleverageData.swapZap.slippage = 50e16;
         deleverageData.swapZap.call = abi.encodeWithSelector(
             ComplexZapper.exitBalancer.selector,
             ComplexZapper.BPTRedemption(
@@ -399,6 +408,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         deleverageData.swapData.inputAmount = amountForDeleverage;
         deleverageData.swapData.outputToken = address(dai);
         deleverageData.swapData.target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData.slippage = 50e16;
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = address(dai);

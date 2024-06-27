@@ -4,16 +4,15 @@ pragma solidity ^0.8.19;
 import { CurvanceDAOLBP } from "contracts/misc/CurvanceDAOLBP.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
 contract TestCurvanceDAOLBP is TestBaseMarket {
     CurvanceDAOLBP public lbp;
 
-    uint256 softPrice = 10e18; // $10
-    uint256 hardPrice = 100e18; // $100
-    uint256 cveAmountForSale = 10000e18;
+    uint256 public softPrice = 10e18; // $10
+    uint256 public hardPrice = 100e18; // $100
+    uint256 public cveAmountForSale = 10000e18;
 
     function setUp() public override {
         super.setUp();
@@ -227,7 +226,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
     function _prepareCommit(address user, uint256 amount) internal {
         deal(_WETH_ADDRESS, user, amount);
         vm.startPrank(user);
-        IERC20(_WETH_ADDRESS).approve(address(lbp), amount);
+        weth.approve(address(lbp), amount);
         vm.stopPrank();
     }
 }

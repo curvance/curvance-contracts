@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
@@ -13,6 +12,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockPythAdaptor } from "contracts/mocks/MockPythAdaptor.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
+import { MulticallDataCheckerForPythAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForPythAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -26,6 +26,7 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
     fallback() external payable {}
 
     MockPythAdaptor adapter;
+    MulticallDataCheckerForPythAdaptor multicallDataChecker;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -98,6 +99,14 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
         data.min = 0 ether;
         adapter.addAsset(address(WBTC), true, data);
         vm.warp(1711335100);
+
+        multicallDataChecker = new MulticallDataCheckerForPythAdaptor(
+            address(centralRegistry)
+        );
+        centralRegistry.setMulticallDataChecker(
+            address(adapter),
+            address(multicallDataChecker)
+        );
 
         oracleRouter.addApprovedAdaptor(address(adapter));
 

@@ -70,7 +70,7 @@ contract PendleLPCToken is CTokenCompounding {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Requeries reward and underlying tokens directly from 
+    /// @notice Requeries reward and underlying tokens directly from
     ///         Pendle's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
     ///      contracts and takes no parameter values.
@@ -101,6 +101,16 @@ contract PendleLPCToken is CTokenCompounding {
         }
 
         _queryTokens();
+    }
+
+    /// @notice Returns this strategies reward tokens.
+    function rewardTokens() external view returns (address[] memory) {
+        return strategyData.rewardTokens;
+    }
+
+    /// @notice Returns this strategies base assets underlying tokens.
+    function underlyingTokens() external view returns (address[] memory) {
+        return strategyData.underlyingTokens;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -259,7 +269,7 @@ contract PendleLPCToken is CTokenCompounding {
         }
     }
 
-    /// @notice Queries reward and underlying tokens directly from 
+    /// @notice Queries reward and underlying tokens directly from
     ///         Pendle's smart contracts, then populates storage values.
     function _queryTokens() internal {
         // Query and populate reward token data fields.
@@ -285,6 +295,5 @@ contract PendleLPCToken is CTokenCompounding {
         for (uint256 i; i < numTokens; ) {
             isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
         }
-
     }
 }

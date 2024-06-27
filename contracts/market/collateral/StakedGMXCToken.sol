@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { CTokenCompounding, SafeTransferLib, IERC20, FixedPointMathLib, ICentralRegistry } from "contracts/market/collateral/CTokenCompounding.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IStakedGMX } from "contracts/interfaces/external/gmx/IStakedGMX.sol";
 import { IRewardRouter } from "contracts/interfaces/external/gmx/IRewardRouter.sol";
 
 contract StakedGMXCToken is CTokenCompounding {

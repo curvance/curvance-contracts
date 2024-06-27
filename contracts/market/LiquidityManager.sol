@@ -505,6 +505,8 @@ abstract contract LiquidityManager {
             uint256 numAssets
         ) = _assetDataOf(account, 2);
         AccountSnapshot memory snapshot;
+        // Collateral value.
+        uint256 accountCollateral;
         // Collateral value for soft liquidation level.
         uint256 accountCollateralSoft;
         // Collateral value for hard liquidation level.
@@ -523,17 +525,17 @@ abstract contract LiquidityManager {
                 // If the asset has a CR increment their collateral.
                 if (tokenData[snapshot.asset].collRatio != 0) {
                     (
-                        uint256 accountCollateralSoft_,
-                        uint256 accountCollateralHard_
+                        accountCollateral,
+                        accountCollateralSoft,
+                        accountCollateralHard
                     ) = _addLiquidationValues(
                             snapshot,
                             account,
                             underlyingPrices[i],
+                            accountCollateral,
                             accountCollateralSoft,
                             accountCollateralHard
                         );
-                    accountCollateralSoft += accountCollateralSoft_;
-                    accountCollateralHard += accountCollateralHard_;
                 }
             } else {
                 if (snapshot.asset == debtToken) {
@@ -551,6 +553,12 @@ abstract contract LiquidityManager {
                     );
                 }
             }
+        }
+
+        // Indicates bad debt has accumulated and liquidation by
+        // account should be used.
+        if (accountCollateral <= accountDebt) {
+            return result;
         }
 
         // Indicates no liquidation.
@@ -754,6 +762,8 @@ abstract contract LiquidityManager {
     /// @param account The account to query collateral posted for to calculate
     ///                liquidation values off of.
     /// @param price The asset price to calculate asset value from.
+    /// @param collateralSumPrior Prior collateral value to sum with asset
+    ///                           value calculated.
     /// @param softSumPrior Prior soft liquidation value to sum with asset
     ///                     value calculated.
     /// @param hardSumPrior Prior hard liquidation value to sum with asset
@@ -764,9 +774,10 @@ abstract contract LiquidityManager {
         AccountSnapshot memory snapshot,
         address account,
         uint256 price,
+        uint256 collateralSumPrior,
         uint256 softSumPrior,
         uint256 hardSumPrior
-    ) internal view returns (uint256, uint256) {
+    ) internal view returns (uint256, uint256, uint256) {
         uint256 assetValue = _assetValue(
             ((tokenData[snapshot.asset]
                 .accountPositions[account]
@@ -777,6 +788,7 @@ abstract contract LiquidityManager {
         ) * WAD;
 
         return (
+            collateralSumPrior + assetValue,
             softSumPrior +
                 (assetValue / tokenData[snapshot.asset].collReqSoft),
             hardSumPrior + (assetValue / tokenData[snapshot.asset].collReqHard)

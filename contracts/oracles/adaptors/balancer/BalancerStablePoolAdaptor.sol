@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { BalancerBaseAdaptor, IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-import { WAD, BAD_SOURCE } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
@@ -125,7 +125,9 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             if (rateProvider == address(0)) {
                 normalizedPrice = price;
             } else {
-                normalizedPrice = (price * (10 ** data.rateProviderDecimals[i])) / IRateProvider(rateProvider).getRate();
+                normalizedPrice =
+                    (price * (10 ** data.rateProviderDecimals[i])) /
+                    IRateProvider(rateProvider).getRate();
             }
             averagePrice += normalizedPrice;
             ++numPrices;

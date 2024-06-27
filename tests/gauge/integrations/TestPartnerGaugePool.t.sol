@@ -394,11 +394,15 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user3 claims
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(tokens[0]);
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
-        gaugePool.claim(tokens[1]);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+        
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
@@ -527,14 +531,17 @@ contract TestPartnerGaugePool is TestBaseMarket {
         }
 
         // user0, user1, user2, user3 claims
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(tokens[0]);
+
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
-        gaugePool.claim(tokens[0]);
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[2]);
-        gaugePool.claim(tokens[1]);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
-        gaugePool.claim(tokens[1]);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
+
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -738,11 +745,14 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
+        address[] memory claimTokens = new address[](1);
+
         // user0, user1 claim rewards
+        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
-        gaugePool.claim(tokens[0]);
+        gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
-        gaugePool.claim(tokens[1]);
+        gaugePool.claim(_makeTokenArray(tokens[1]));
 
         assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200);
         assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200);

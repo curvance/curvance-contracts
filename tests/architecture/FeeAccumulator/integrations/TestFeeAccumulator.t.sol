@@ -8,7 +8,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
@@ -56,7 +55,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         deal(_USDC_ADDRESS, address(this), 100000e6);
         deal(address(cve), address(this), 100e18);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100000e6);
+        usdc.approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
 
         _UNISWAP_V2_ROUTER.call(
@@ -147,7 +146,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
+            centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
@@ -255,7 +254,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         // multiswap
         deal(_USDC_ADDRESS, address(this), 2500e8);
-        IERC20(_USDC_ADDRESS).approve(address(feeAccumulator), 2500e8);
+        usdc.approve(address(feeAccumulator), 2500e8);
         feeAccumulator.executeOTC(_WETH_ADDRESS, 1 ether);
 
         // bridge...
@@ -272,11 +271,10 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
+            centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
-
         uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();

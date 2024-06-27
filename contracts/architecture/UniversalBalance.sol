@@ -68,8 +68,10 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     error UniversalBalance__SlippageError();
 
     receive() external payable {
-        IWETH(WETH).deposit{ value: msg.value };
-        _deposit(msg.value, true);
+        if (msg.sender != WETH) {
+            IWETH(WETH).deposit{ value: msg.value };
+            _deposit(msg.value, true);
+        }
     }
 
     /// CONSTRUCTOR ///
@@ -117,6 +119,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     function withdrawAsETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
+        IWETH(WETH).withdraw(amount);
         SafeTransferLib.forceSafeTransferETH(msg.sender, amount);
     }
 
@@ -138,7 +141,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         UserBalance memory userBalance = userBalances[user];
         uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
         uint256 pointerAmount;
-        uint256 remainingAmount;
+        uint256 remainingAmount = amount;
 
         if (
             userBalance.sittingBalance +
@@ -154,7 +157,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
                 : amount;
             // Reduce user sitting balance.
             userBalances[user].sittingBalance -= pointerAmount;
-            remainingAmount = amount - pointerAmount;
+            remainingAmount -= pointerAmount;
         }
 
         // Check if lent balance needs to be utilized.
@@ -191,11 +194,16 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             );
         }
 
-        gaugePool.claim(address(linkedDToken));
+        address[] memory claimTokens = new address[](1);
+        claimTokens[0] = address(linkedDToken);
+
+        gaugePool.claim(claimTokens);
         address daoAddress = centralRegistry.daoAddress();
 
-        // If the contract received rewards in a reward token, transfer them to the DAO.
-        // We do a two step process in case a reward token matches a universal balance token.
+        // If the contract received rewards in a reward token,
+        // transfer them to the DAO.
+        // We do a two step process in case a reward token matches
+        // a universal balance token.
         for (uint256 i = 0; i < numRewardTokens; ++i) {
             previousBalances[i] =
                 IERC20(rewardTokens[i]).balanceOf(address(this)) -

@@ -6,7 +6,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestOracleRouter is TestBaseOracleRouter {
@@ -111,7 +110,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
         );
         // support market
         deal(_USDC_ADDRESS, address(this), 200000e6);
-        IERC20(_USDC_ADDRESS).approve(address(dUSDC), 200000e6);
+        usdc.approve(address(dUSDC), 200000e6);
         marketManager.listToken(address(dUSDC));
 
         oracleRouter.addMTokenSupport(address(dUSDC));

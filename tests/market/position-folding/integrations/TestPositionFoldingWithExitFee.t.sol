@@ -7,7 +7,8 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import "forge-std/console.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
@@ -215,6 +216,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         leverageData.collateralToken = CTokenPrimitive(
             address(cBALRETHWithExitFee)
         );
+        leverageData.swapData.slippage = 0.003e18;
         leverageData.swapData.inputToken = address(dai);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -230,7 +232,9 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
             address(positionFolding),
             block.timestamp
         );
+        leverageData.swapZap.slippage = 0.001e18;
         leverageData.swapZap.inputToken = _WETH_ADDRESS;
+        leverageData.swapZap.outputToken = _BAL_WETH_RETH_ADDRESS;
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(amountForLeverage, path);
         leverageData.swapZap.inputAmount = amountsOut[1];
@@ -293,8 +297,16 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         deleverageData.collateralAmount = 0.3 ether;
         deleverageData.borrowToken = dDAI;
 
+        deleverageData.swapZap.slippage = 0.0003e18;
         deleverageData.swapZap.inputToken = address(balRETH);
-        deleverageData.swapZap.inputAmount = deleverageData.collateralAmount;
+        deleverageData.swapZap.outputToken = _WETH_ADDRESS;
+        deleverageData.swapZap.inputAmount =
+            deleverageData.collateralAmount -
+            FixedPointMathLib.mulDivUp(
+                cBALRETHWithExitFee.exitFee(),
+                deleverageData.collateralAmount,
+                WAD
+            );
 
         address[] memory tokens = new address[](2);
         tokens[0] = _RETH_ADDRESS;
@@ -321,6 +333,7 @@ contract TestPositionFoldingWithExitFee is TestBaseMarket {
         );
 
         uint256 amountForDeleverage = 0.3 ether;
+        deleverageData.swapData.slippage = 0.003e18;
         deleverageData.swapData.inputToken = _WETH_ADDRESS;
         deleverageData.swapData.inputAmount = amountForDeleverage;
         deleverageData.swapData.outputToken = address(dai);

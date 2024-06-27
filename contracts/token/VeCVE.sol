@@ -1443,6 +1443,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Penalty value = lock amount * penalty multiplier,
         // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
         // down to 0.
+        // If the lock mode is continuous, we know its a full penalty unlock.
+        if (unlockTime == CONTINUOUS_LOCK_VALUE) {
+            return (amount * penalty) / DENOMINATOR;
+        }
+
         return
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /

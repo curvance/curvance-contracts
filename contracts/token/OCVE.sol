@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
