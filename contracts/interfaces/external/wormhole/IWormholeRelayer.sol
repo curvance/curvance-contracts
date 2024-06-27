@@ -116,8 +116,8 @@ interface IWormholeRelayer {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        TargetNative receiverValue,
-        Gas gasLimit,
+        uint256 receiverValue,
+        uint256 gasLimit,
         uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence);
