@@ -180,7 +180,8 @@ contract SimpleZapper is ReentrancyGuard {
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             swapperData.inputToken,
-            swapperData.inputAmount
+            swapperData.inputAmount,
+            recipient
         );
 
         // Execute swap into `swapperData.outputToken`.
@@ -236,7 +237,8 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,
-        uint256 expectedAssets
+        uint256 expectedAssets,
+        address recipient
     ) internal {
         if (mToken.underlying() != underlying) {
             revert SimpleZapper__ExecutionError();
@@ -258,6 +260,15 @@ contract SimpleZapper is ReentrancyGuard {
         // Validate that output of redemption is sufficient.
         if (assets < expectedAssets) {
             revert SimpleZapper__ExecutionError();
+        }
+
+        if (assets > expectedAssets) {
+            // refund remaining assets back to user
+            _transferToRecipient(
+                underlying,
+                recipient,
+                assets - expectedAssets
+            );
         }
     }
 
