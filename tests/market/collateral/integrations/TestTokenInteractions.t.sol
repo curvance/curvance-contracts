@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -133,19 +134,15 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
-        vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
 
         // try mintFor()
-        vm.startPrank(user1);
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user2);
-        vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
         assertEq(cBALRETH.balanceOf(user2), 1 ether);
 
         // try redeem()
-        vm.startPrank(user1);
         cBALRETH.redeem(1 ether, user1, user1);
         vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 0);
@@ -158,19 +155,15 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         dai.approve(address(dDAI), 1 ether);
         dDAI.mint(1 ether);
-        vm.stopPrank();
         assertEq(dDAI.balanceOf(user1), 1 ether);
 
         // try mintFor()
-        vm.startPrank(user1);
         dai.approve(address(dDAI), 1 ether);
         dDAI.mintFor(1 ether, user2);
-        vm.stopPrank();
         assertEq(dDAI.balanceOf(user1), 1 ether);
         assertEq(dDAI.balanceOf(user2), 1 ether);
 
         // try redeem()
-        vm.startPrank(user1);
         dDAI.redeem(1 ether);
         vm.stopPrank();
         assertEq(dDAI.balanceOf(user1), 0);
@@ -184,15 +177,12 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
         assertEq(cBALRETH.exchangeRateCached(), 1 ether);
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
-        vm.stopPrank();
 
         assertEq(dDAI.balanceOf(user1), 0);
         assertEq(dDAI.debtBalanceCached(user1), 500 ether);
@@ -200,9 +190,7 @@ contract TestTokenInteractions is TestBaseMarket {
 
         // try borrow()
         skip(1200);
-        vm.startPrank(user1);
         dDAI.borrow(100 ether);
-        vm.stopPrank();
 
         assertEq(dDAI.balanceOf(user1), 0);
         assertGt(dDAI.debtBalanceCached(user1), 600 ether);
@@ -215,10 +203,8 @@ contract TestTokenInteractions is TestBaseMarket {
         uint256 borrowBalanceBefore = dDAI.debtBalanceCached(user1);
         uint256 exchangeRateBefore = dDAI.exchangeRateCached();
         _prepareDAI(user1, 200 ether);
-        vm.startPrank(user1);
         dai.approve(address(dDAI), 200 ether);
         dDAI.repay(200 ether);
-        vm.stopPrank();
 
         assertEq(dDAI.balanceOf(user1), 0);
         assertGt(
@@ -234,7 +220,6 @@ contract TestTokenInteractions is TestBaseMarket {
         borrowBalanceBefore = dDAI.debtBalanceCached(user1);
         exchangeRateBefore = dDAI.exchangeRateCached();
         _prepareDAI(user1, borrowBalanceBefore);
-        vm.startPrank(user1);
         dai.approve(address(dDAI), borrowBalanceBefore);
         dDAI.repay(borrowBalanceBefore);
         vm.stopPrank();
@@ -252,26 +237,20 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can't redeem full
-        vm.startPrank(user1);
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
         cBALRETH.redeem(1 ether, user1, user1);
-        vm.stopPrank();
 
         // can redeem partially
-        vm.startPrank(user1);
         cBALRETH.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
 
@@ -286,25 +265,19 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try mint()
         _prepareDAI(user1, 1000 ether);
-        vm.startPrank(user1);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        vm.startPrank(user1);
         dDAI.redeem(1000 ether);
         vm.stopPrank();
 
@@ -324,26 +297,20 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can't transfer full
-        vm.startPrank(user1);
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
         cBALRETH.transfer(user2, 1 ether);
-        vm.stopPrank();
 
         // can redeem partially
-        vm.startPrank(user1);
         cBALRETH.transfer(user2, 0.2 ether);
         vm.stopPrank();
 
@@ -359,25 +326,19 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try mint()
         _prepareDAI(user1, 1000 ether);
-        vm.startPrank(user1);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // try full transfer
-        vm.startPrank(user1);
         dDAI.transfer(user2, 1000 ether);
         vm.stopPrank();
 
@@ -400,10 +361,8 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 
@@ -445,10 +404,8 @@ contract TestTokenInteractions is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 
@@ -480,5 +437,63 @@ contract TestTokenInteractions is TestBaseMarket {
         assertEq(dDAI.balanceOf(user1), 0);
         assertEq(dDAI.debtBalanceCached(user1), 0);
         assertApproxEqRel(dDAI.exchangeRateCached(), 1 ether, 0.01e18);
+    }
+
+    function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
+        _deployCBALRETH();
+
+        balRETH.approve(address(cBALRETH), 1 ether);
+        marketManager.listToken(address(cBALRETH));
+
+        oracleRouter.addMTokenSupport(address(cBALRETH));
+
+        // set collateral factor
+        marketManager.updateCollateralToken(
+            IMToken(address(cBALRETH)),
+            0,
+            4000,
+            3000,
+            200,
+            400,
+            10,
+            1000
+        );
+
+        _prepareBALRETH(user1, 1 ether);
+
+        // try mint()
+        vm.startPrank(user1);
+
+        balRETH.approve(address(cBALRETH), 1 ether);
+        cBALRETH.deposit(1 ether, user1);
+
+        vm.expectRevert(
+            MarketManager.MarketManager__CollateralCapReached.selector
+        );
+        marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
+
+        vm.expectRevert(
+            MarketManager.MarketManager__InsufficientCollateral.selector
+        );
+        dDAI.borrow(1000 ether);
+        vm.stopPrank();
+
+        // skip min hold period
+        skip(20 minutes);
+
+        mockDaiFeed.setMockAnswer(150000000);
+
+        // try liquidate
+        _prepareDAI(user2, 10000 ether);
+        vm.startPrank(user2);
+        dai.approve(address(dDAI), 10000 ether);
+        vm.expectRevert(
+            MarketManager.MarketManager__InvalidParameter.selector
+        );
+        dDAI.liquidate(user1, IMToken(address(cBALRETH)));
+        vm.stopPrank();
+
+        vm.prank(user1);
+        cBALRETH.withdraw(1 ether, user1, user1);
     }
 }
