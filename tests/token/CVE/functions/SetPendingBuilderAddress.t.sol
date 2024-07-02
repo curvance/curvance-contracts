@@ -6,10 +6,10 @@ import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract SetPendingBuilderAddressTest is TestBaseMarket {
     function test_setPendingBuilderAddress_fail_whenUnauthorized() public {
-        vm.startPrank(address(0));
+        vm.prank(address(0));
+
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.setPendingBuilderAddress(user1);
-        vm.stopPrank();
     }
 
     function test_setPendingBuilderAddress_success() public {

@@ -221,7 +221,6 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
         usdc.approve(address(dUSDC), 200000e6);
         dUSDC.mint(200000e6);
         // mint dWETH
-        vm.startPrank(liquidityProvider);
         WETH.approve(address(dWETH), 200000e6);
         dWETH.mint(200000e6);
         // mint cBALETH
@@ -238,15 +237,13 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
     function testCTokenMintMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
-        vm.startPrank(user1);
+        vm.prank(user1);
         universalBalance.depositETH{ value: 1 ether }(false);
-        vm.stopPrank();
 
         _prepareWBTC(user1, 2 ether);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         WBTC.approve(address(cWBTC), 1e8);
-        vm.stopPrank();
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -271,9 +268,8 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
         );
 
         // try mint()
-        vm.startPrank(user1);
+        vm.prank(user1);
         cWBTC.multicall(calls);
-        vm.stopPrank();
 
         assertEq(cWBTC.balanceOf(user1), 1e8);
     }
@@ -281,15 +277,13 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
     function testDTokenMintWithMulticall() public {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
-        vm.startPrank(user1);
+        vm.prank(user1);
         universalBalance.depositETH{ value: 1 ether }(false);
-        vm.stopPrank();
 
         _prepareUSDC(user1, 2e6);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         usdc.approve(address(dUSDC), 1e6);
-        vm.stopPrank();
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -310,9 +304,8 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
         calls[1].data = abi.encodeWithSelector(dUSDC.mint.selector, 1e6);
 
         // try mint()
-        vm.startPrank(user1);
+        vm.prank(user1);
         dUSDC.multicall(calls);
-        vm.stopPrank();
 
         assertEq(dUSDC.balanceOf(user1), 1e6);
     }

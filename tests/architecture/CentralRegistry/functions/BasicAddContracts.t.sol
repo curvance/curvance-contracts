@@ -23,8 +23,8 @@ contract BasicAddContractsTest is TestBaseMarket {
 
     function test_addFunc_fail_whenUnauthorized() public {
         uint8 length = uint8(addFuncs.length);
+        vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {
-            vm.startPrank(address(0));
             bytes memory sig = abi.encodeWithSignature(addFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig
@@ -35,8 +35,8 @@ contract BasicAddContractsTest is TestBaseMarket {
                 bytes32(data),
                 bytes32(CentralRegistry.CentralRegistry__Unauthorized.selector)
             );
-            vm.stopPrank();
         }
+        vm.stopPrank();
     }
 
     function test_addFunc_fail_whenParametersMisconfigured() public {

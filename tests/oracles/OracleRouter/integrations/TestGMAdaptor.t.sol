@@ -165,20 +165,20 @@ contract TestGMAdaptor is TestBaseOracleRouter {
     }
 
     function testRevertSetGMXReader__Unauthorized() public {
+        vm.prank(address(0));
+
         vm.expectRevert(
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
-        vm.startPrank(address(0));
         adapter.setGMXReader(address(0));
-        vm.stopPrank();
     }
 
     function testRevertSetGMXDataStore__Unauthorized() public {
+        vm.prank(address(0));
+
         vm.expectRevert(
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
-        vm.startPrank(address(0));
         adapter.setGMXDataStore(address(0));
-        vm.stopPrank();
     }
 }

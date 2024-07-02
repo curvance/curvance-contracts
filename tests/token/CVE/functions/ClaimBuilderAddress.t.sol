@@ -6,10 +6,10 @@ import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract ClaimBuilderAddressTest is TestBaseMarket {
     function test_claimBuilderAddress_fail_whenUnauthorized() public {
-        vm.startPrank(address(1));
+        vm.prank(address(1));
+
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.claimBuilderAddress();
-        vm.stopPrank();
     }
 
     function test_claimBuilderAddress_success() public {
