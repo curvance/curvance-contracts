@@ -138,10 +138,8 @@ contract TestCTokenWithExitFeeReserves is TestBaseMarket {
             address(cBALRETHWithExitFee),
             1 ether - 1
         );
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 
@@ -207,9 +205,8 @@ contract TestCTokenWithExitFeeReserves is TestBaseMarket {
         uint256 amountToRedeem = cBALRETHWithExitFee.balanceOf(dao);
         uint256 daoBalanceBefore = balRETH.balanceOf(dao);
 
-        vm.startPrank(dao);
+        vm.prank(dao);
         cBALRETHWithExitFee.redeem(amountToRedeem, dao, dao);
-        vm.stopPrank();
 
         assertEq(cBALRETHWithExitFee.balanceOf(dao), 0);
         assertEq(gaugePool.balanceOf(address(cBALRETHWithExitFee), dao), 0);
@@ -231,9 +228,8 @@ contract TestCTokenWithExitFeeReserves is TestBaseMarket {
         uint256 amountToTransfer = cBALRETHWithExitFee.balanceOf(dao);
 
         address user = makeAddr("user");
-        vm.startPrank(dao);
+        vm.prank(dao);
         cBALRETHWithExitFee.transfer(user, amountToTransfer);
-        vm.stopPrank();
 
         assertEq(cBALRETHWithExitFee.balanceOf(dao), 0);
         assertEq(gaugePool.balanceOf(address(cBALRETHWithExitFee), dao), 0);

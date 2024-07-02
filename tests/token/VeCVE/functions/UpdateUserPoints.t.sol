@@ -32,5 +32,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
 
         veCVE.updateUserPoints(address(this), veCVE.freshLockEpoch());
         assertEq(veCVE.userPoints(address(this)), 0);
+
+        vm.stopPrank();
     }
 }

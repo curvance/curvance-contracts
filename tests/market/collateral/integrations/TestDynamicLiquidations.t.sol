@@ -128,10 +128,8 @@ contract TestDynamicLiquidations is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether - 1);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 
@@ -166,10 +164,8 @@ contract TestDynamicLiquidations is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether - 1);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 

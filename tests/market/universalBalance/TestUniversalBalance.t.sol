@@ -174,10 +174,8 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.deal(user1, 1 ether);
         vm.startPrank(user1);
         universalBalance.depositETH{ value: 1 ether }(false);
-        vm.stopPrank();
 
         vm.deal(user1, 1 ether);
-        vm.startPrank(user1);
         universalBalance.depositETH{ value: 1 ether }(true);
         vm.stopPrank();
 
@@ -192,10 +190,8 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, false);
-        vm.stopPrank();
 
         deal(_WETH_ADDRESS, user1, 1 ether);
-        vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
@@ -219,9 +215,7 @@ contract TestUniversalBalance is TestBaseMarket {
             .userBalances(user1);
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, 1 ether);
-        vm.stopPrank();
 
-        vm.startPrank(user1);
         universalBalance.withdrawAsETH(1 ether, true);
 
         assertEq(user1.balance, ethBalance + 2 ether);
@@ -236,9 +230,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         vm.startPrank(user1);
         universalBalance.withdrawAsWETH(1 ether, false);
-        vm.stopPrank();
 
-        vm.startPrank(user1);
         universalBalance.withdrawAsWETH(1 ether, true);
         vm.stopPrank();
 
@@ -293,9 +285,8 @@ contract TestUniversalBalance is TestBaseMarket {
         WETH.approve(address(dWETH), 1 ether);
         dWETH.mint(1 ether);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         universalBalance.withdrawAsWETH(0.5 ether, true);
-        vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

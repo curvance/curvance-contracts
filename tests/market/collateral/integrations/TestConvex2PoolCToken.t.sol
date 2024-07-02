@@ -212,8 +212,9 @@ contract TestConvex2PoolCToken is TestBaseMarket {
             "Total Assets should greater than original deposit."
         );
 
-        vm.startPrank(address(user1));
-        cSTETH.withdraw(cSTETH.balanceOf(user1), user1, user1);
-        vm.stopPrank();
+        uint256 balance = cSTETH.balanceOf(user1);
+
+        vm.prank(address(user1));
+        cSTETH.withdraw(balance, user1, user1);
     }
 }
