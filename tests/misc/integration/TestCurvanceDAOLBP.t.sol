@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { CurvanceDAOLBP } from "contracts/misc/CurvanceDAOLBP.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -21,6 +22,11 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp = new CurvanceDAOLBP(ICentralRegistry(address(centralRegistry)));
 
         cve.transfer(address(lbp), cve.balanceOf(address(this)));
+
+        centralRegistry.setExternalCallDataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+        );
     }
 
     function testInitialize() public {
