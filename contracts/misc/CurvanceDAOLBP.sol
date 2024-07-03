@@ -198,7 +198,7 @@ contract CurvanceDAOLBP {
 
     function swapAndCommitFor(
         SwapperLib.Swap memory swapperData,
-        uint256 minAmount,
+        uint256 commitAmount,
         address recipient
     ) external payable {
         // Validate that LBP is active.
@@ -229,12 +229,21 @@ contract CurvanceDAOLBP {
 
         uint256 amount = CommonLib.getTokenBalance(paymentToken) -
             balanceBefore;
-        if (amount < minAmount) {
+        if (amount < commitAmount) {
             revert CurvanceDAOLBP__InvalidSwapOutput();
         }
 
+        if (amount > commitAmount) {
+            // Refund remaining payment token
+            SafeTransferLib.safeTransfer(
+                paymentToken,
+                msg.sender,
+                amount - commitAmount
+            );
+        }
+
         // Document commitment for `recipient`.
-        _commit(amount, recipient);
+        _commit(commitAmount, recipient);
     }
 
     /// @notice Distributes a callers CVE owed from prior commitments.
