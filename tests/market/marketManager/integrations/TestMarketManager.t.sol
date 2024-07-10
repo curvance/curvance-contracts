@@ -221,6 +221,53 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         marketManager.removeCollateral(address(cTokens[0]), 1 ether);
     }
 
+    function testRemoveCollateralAfterRedeemPaused() public {
+        address[] memory users = new address[](3);
+        users[0] = address(0x1111);
+        users[1] = address(0x2222);
+        users[2] = address(0x3333);
+
+        noOfCollateralTokens = 2;
+        noOfDebtTokens = 2;
+
+        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+            noOfCollateralTokens
+        );
+        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
+        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+            noOfCollateralTokens
+        );
+        MockV3Aggregator[]
+            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfCollateralTokens
+            );
+        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
+            noOfDebtTokens
+        );
+
+        (
+            cTokens,
+            cTokensAgg,
+            cTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+
+        _genCollateral(users[0], cTokens[0], 1 ether);
+        _postCollateral(users[0], cTokens[0], 1 ether);
+
+        skip(30 minutes);
+
+        marketManager.setRedeemPaused(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.prank(users[0]);
+        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+
+        marketManager.setRedeemPaused(false);
+        vm.prank(users[0]);
+        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+    }
+
     function testPositionCloseAfterRemoveCollateral() public {
         address[] memory users = new address[](3);
         users[0] = address(0x1111);

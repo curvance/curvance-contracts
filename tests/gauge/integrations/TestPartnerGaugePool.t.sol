@@ -178,7 +178,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         gaugePool.removeExtraRewardToken(0, address(partnerRewardTokens[0]));
     }
 
-    function testSuccessRevertExtraReward() public {
+    function testSuccessRemoveExtraReward() public {
         startGauge();
 
         assertEq(gaugePool.getRewardTokensLength(), CHILD_GAUGE_COUNT + 1);
@@ -186,6 +186,29 @@ contract TestPartnerGaugePool is TestBaseMarket {
         gaugePool.removeExtraRewardToken(1, address(partnerRewardTokens[0]));
 
         assertEq(gaugePool.getRewardTokensLength(), CHILD_GAUGE_COUNT);
+    }
+
+    function testSetMinDistributionAmount() public {
+        startGauge();
+
+        assertEq(
+            gaugePool.rewardTokenToMinDistribution(
+                address(partnerRewardTokens[0])
+            ),
+            100
+        );
+
+        gaugePool.setMinDistributionAmount(
+            address(partnerRewardTokens[0]),
+            400
+        );
+
+        assertEq(
+            gaugePool.rewardTokenToMinDistribution(
+                address(partnerRewardTokens[0])
+            ),
+            400
+        );
     }
 
     function testRevertaddExtraRewardsInvalidEpoch() public {
