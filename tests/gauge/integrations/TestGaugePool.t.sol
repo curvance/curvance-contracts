@@ -909,4 +909,16 @@ contract TestGaugePool is TestBaseMarket {
         // vm.expectRevert(abi.encodeWithSignature("TransferFailed()"));
         gaugePool.deposit(mToken, address(1), 1 ether);
     }
+
+    function testRedeemRevertInvalidAmount() public {
+        address[] memory listedTokens = marketManager.queryTokensListed();
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user0 withdraw half
+        vm.prank(users[0]);
+        vm.expectRevert();
+        IMToken(tokens[0]).redeem(100 ether + 1);
+    }
 }

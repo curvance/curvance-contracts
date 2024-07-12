@@ -211,7 +211,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
     }
 
-    function testRevertaddExtraRewardsInvalidEpoch() public {
+    function testRevertAddExtraRewardsInvalidEpoch() public {
         startGauge();
 
         // set gauge weights
@@ -235,6 +235,55 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 300 * 2 weeks
             );
         }
+    }
+
+    function testRevertAddExtraRewardsInvalidRewardTokenAmount() public {
+        startGauge();
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(protocolMessagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
+        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
+            gaugePool.setMinDistributionAmount(
+                address(partnerRewardTokens[i]),
+                300 * 2 weeks + 1
+            );
+            vm.expectRevert(GaugeErrors.InvalidRewardTokenAmount.selector);
+            gaugePool.addExtraRewards(
+                tokens[0],
+                0,
+                partnerRewardTokens[i],
+                300 * 2 weeks
+            );
+        }
+    }
+
+    function testRevertAddExtraRewardsUnauthorized() public {
+        startGauge();
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(protocolMessagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
+        vm.expectRevert(GaugeErrors.Unauthorized.selector);
+        gaugePool.addExtraRewards(tokens[0], 0, address(cve), 300 * 2 weeks);
     }
 
     function testRevertaddExtraRewardsInvalidRewardToken() public {
