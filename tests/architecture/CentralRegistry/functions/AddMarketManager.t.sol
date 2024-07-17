@@ -55,13 +55,24 @@ contract AddMarketManagerTest is TestBaseMarket {
     }
 
     function test_addMarketManager_success() public {
+        address[] memory marketManagers = centralRegistry.getMarketManagers();
+
         assertFalse(centralRegistry.isMarketManager(newMarket));
 
         vm.expectEmit(true, true, true, true);
         emit NewCurvanceContract("Market Manager", newMarket);
+
         centralRegistry.addMarketManager(newMarket, 5000);
 
         assertTrue(centralRegistry.isMarketManager(newMarket));
+        assertEq(
+            centralRegistry.getMarketManagers().length,
+            marketManagers.length + 1
+        );
+        assertEq(
+            centralRegistry.getMarketManagers()[marketManagers.length],
+            newMarket
+        );
         assertEq(
             centralRegistry.protocolInterestFactor(newMarket),
             5000 * 1e14
