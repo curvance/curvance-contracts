@@ -1096,8 +1096,8 @@ contract CentralRegistry is ERC165 {
         uint256 i;
         uint256 numForeignChainIds = foreignChainIds.length;
 
-        for (; i < numForeignChainIds; ) {
-            if (foreignChainIds[i++] == chainId) {
+        for (; i < numForeignChainIds; ++i) {
+            if (foreignChainIds[i] == chainId) {
                 break;
             }
         }
