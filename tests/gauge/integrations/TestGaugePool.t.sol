@@ -248,7 +248,7 @@ contract TestGaugePool is TestBaseMarket {
 
     function testRevertClaim() public {
         vm.warp(gaugePool.startTime() - 1);
-        
+
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(address(cve)));
@@ -328,7 +328,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
-        
+
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -389,7 +389,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
-        
+
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
@@ -662,7 +662,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
-        
+
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
 
@@ -726,7 +726,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(tokens[1]));
         vm.prank(users[3]);
         gaugePool.claim(_makeTokenArray(tokens[1]));
-        
+
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24888);
         assertEq(cve.balanceOf(users[2]), 34666);
