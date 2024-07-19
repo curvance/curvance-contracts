@@ -194,13 +194,16 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             );
         }
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(linkedDToken);
-        gaugePool.claim(tokens);
+        address[] memory claimTokens = new address[](1);
+        claimTokens[0] = address(linkedDToken);
+
+        gaugePool.claim(claimTokens);
         address daoAddress = centralRegistry.daoAddress();
 
-        // If the contract received rewards in a reward token, transfer them to the DAO.
-        // We do a two step process in case a reward token matches a universal balance token.
+        // If the contract received rewards in a reward token,
+        // transfer them to the DAO.
+        // We do a two step process in case a reward token matches
+        // a universal balance token.
         for (uint256 i = 0; i < numRewardTokens; ++i) {
             previousBalances[i] =
                 IERC20(rewardTokens[i]).balanceOf(address(this)) -

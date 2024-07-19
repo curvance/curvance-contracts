@@ -49,7 +49,7 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(veCVE.balanceOf(address(this)), amount);
     }
 
-    function test_createLockWithContinuousLock_earlyExpireLock_revert_fuzzed(
+    function test_createLockWithContinuousLock_earlyExpireLock_success_fuzzed(
         uint16 penaltyMultiplier,
         uint256 amount,
         bool shouldLock,
@@ -113,6 +113,9 @@ contract TestVeCVE is TestBaseVeCVE {
         uint256 daoCveBalance = cve.balanceOf(centralRegistry.daoAddress());
 
         assertGt(penaltyAmount, 0);
+
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit UnlockedWithPenalty(address(this), amount, penaltyAmount);
 
         veCVE.earlyExpireLock(0, rewardsData, "", 0);
 
