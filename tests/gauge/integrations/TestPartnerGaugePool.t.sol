@@ -2,7 +2,6 @@
 pragma solidity ^0.8.15;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";

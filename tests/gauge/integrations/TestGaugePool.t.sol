@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
