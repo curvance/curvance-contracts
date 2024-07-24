@@ -27,13 +27,12 @@ contract TestUniversalBalance is TestBaseMarket {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    CTokenPrimitive cWBTC;
-    UniversalBalance universalBalance;
+    CTokenPrimitive public cWBTC;
+    UniversalBalance public universalBalance;
+    DToken public dWETH;
 
     IERC20 private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
     IERC20 private WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
-    DToken dWETH;
 
     function setUp() public override {
         super.setUp();
