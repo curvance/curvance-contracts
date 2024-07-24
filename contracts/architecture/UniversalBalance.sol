@@ -4,10 +4,8 @@ pragma solidity ^0.8.19;
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -24,6 +22,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         uint256 sittingBalance;
         uint256 lentBalance;
     }
+
     /// CONSTANTS ///
 
     /// @notice The address of the dToken linked to this contract.
@@ -31,6 +30,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     /// @notice The address of WETH on this chain.
     address public immutable WETH;
+
     /// @dev `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xc75f2a32;
 
@@ -61,7 +61,6 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error UniversalBalance__InvalidCentralRegistry();
     error UniversalBalance__InsufficientBalance();
     error UniversalBalance__InvalidParameter();
     error UniversalBalance__Unauthorized();
@@ -81,15 +80,6 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         address dToken,
         address WETH_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert UniversalBalance__InvalidCentralRegistry();
-        }
-
         if (IMToken(dToken).isCToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -145,7 +135,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, WAD, exchangeRate) <=
+                _mulDiv(userBalance.lentBalance, WAD, exchangeRate) <
             amount
         ) {
             revert UniversalBalance__InsufficientBalance();
