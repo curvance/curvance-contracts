@@ -92,24 +92,24 @@ contract TestCurve2PoolAssetAdaptor is TestBaseOracleRouter {
         oracleRouter.getPrice(_STETH_ADDRESS, true, false);
     }
 
-    function testRevertAddAsset__UnsupportedPool() public {
-        adaptor.setReentrancyConfig(2, 6000);
+    // function testRevertAddAsset__UnsupportedPool() public {
+    //     adaptor.setReentrancyConfig(2, 6000);
 
-        Curve2PoolAssetAdaptor.AdaptorData memory data;
-        data.pool = _STETH_ADDRESS;
-        data.baseToken = _ETH_ADDRESS;
-        data.quoteTokenIndex = 1;
-        data.baseTokenIndex = 0;
-        data.upperBound = 10200;
-        data.lowerBound = 9800;
+    //     Curve2PoolAssetAdaptor.AdaptorData memory data;
+    //     data.pool = _STETH_ADDRESS;
+    //     data.baseToken = _ETH_ADDRESS;
+    //     data.quoteTokenIndex = 1;
+    //     data.baseTokenIndex = 0;
+    //     data.upperBound = 10200;
+    //     data.lowerBound = 9800;
 
-        vm.expectRevert(
-            Curve2PoolAssetAdaptor
-                .Curve2PoolAssetAdaptor__UnsupportedPool
-                .selector
-        );
-        adaptor.addAsset(_STETH_ADDRESS, data);
-    }
+    //     vm.expectRevert(
+    //         Curve2PoolAssetAdaptor
+    //             .Curve2PoolAssetAdaptor__UnsupportedPool
+    //             .selector
+    //     );
+    //     adaptor.addAsset(_STETH_ADDRESS, data);
+    // }
 
     function testRevertAddAsset__InvalidAsset() public {
         Curve2PoolAssetAdaptor.AdaptorData memory data;

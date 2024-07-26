@@ -92,6 +92,18 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
 
+    function testCannotRedeemMoreThanDeposit() public {
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        vm.expectRevert();
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user0 withdraw half
+        vm.prank(users[0]);
+        vm.expectRevert();
+        IMToken(tokens[0]).redeem(101 ether);
+    }
+
     function testCannotDepositWithdrawBeforeGaugeStart() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
@@ -107,6 +119,18 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         vm.prank(users[0]);
         vm.expectRevert();
         IMToken(tokens[0]).redeem(50 ether);
+    }
+
+    function testCannotStartWithoutDaoPermissions() public {
+        // start epoch
+        vm.prank(users[0]);
+        vm.expectRevert(GaugeErrors.Unauthorized.selector);
+        gaugePool.start(address(marketManager));
+    }
+
+    function testCannotCalculateEpochWhenNotStarted() public {
+        vm.expectRevert(GaugeErrors.NotStarted.selector);
+        gaugePool.epochOfTimestamp(block.timestamp);
     }
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
@@ -205,5 +229,69 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                 20000
             );
         }
+    }
+
+    function testClaimWhenCVERewardIsZero() public {
+        // start epoch
+        gaugePool.start(address(marketManager));
+
+        // setup partner gauge without CVE
+        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
+            gaugePool.addExtraRewards(
+                tokens[0],
+                1,
+                partnerRewardTokens[i],
+                100 * 2 weeks
+            );
+            gaugePool.addExtraRewards(
+                tokens[1],
+                1,
+                partnerRewardTokens[i],
+                200 * 2 weeks
+            );
+        }
+
+        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user1 deposit 100 token1
+        vm.prank(users[1]);
+        IMToken(tokens[1]).mint(100 ether);
+
+        // check pending rewards after 100 seconds
+        vm.warp(block.timestamp + 100);
+        assertEq(
+            gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
+            0
+        );
+        assertEq(
+            gaugePool.pendingRewards(tokens[1], users[1], address(cve)),
+            0
+        );
+        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
+            assertEq(
+                gaugePool.pendingRewards(
+                    tokens[0],
+                    users[0],
+                    partnerRewardTokens[i]
+                ),
+                10000
+            );
+            assertEq(
+                gaugePool.pendingRewards(
+                    tokens[1],
+                    users[1],
+                    partnerRewardTokens[i]
+                ),
+                20000
+            );
+        }
+
+        vm.prank(users[0]);
+        gaugePool.claim(tokens);
     }
 }

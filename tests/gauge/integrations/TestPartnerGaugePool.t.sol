@@ -113,6 +113,19 @@ contract TestPartnerGaugePool is TestBaseMarket {
         vm.roll(block.number + 1000);
     }
 
+    function testStartRevertAlreadyStarted() internal {
+        // start epoch
+        gaugePool.start(address(marketManager));
+
+        vm.expectRevert(GaugeErrors.AlreadyStarted.selector);
+        gaugePool.start(address(marketManager));
+    }
+
+    function testStartRevertInvalidAddress() internal {
+        vm.expectRevert(GaugeErrors.InvalidAddress.selector);
+        gaugePool.start(address(0));
+    }
+
     function testPartnerGaugesRewardsBeforeGaugeStart() public {
         // start epoch
         gaugePool.start(address(marketManager));
@@ -185,6 +198,13 @@ contract TestPartnerGaugePool is TestBaseMarket {
         gaugePool.removeExtraRewardToken(1, address(partnerRewardTokens[0]));
 
         assertEq(gaugePool.getRewardTokensLength(), CHILD_GAUGE_COUNT);
+    }
+
+    function testSetMinDistributionAmountRevertInvalidRewardToken() public {
+        startGauge();
+
+        vm.expectRevert(GaugeErrors.InvalidRewardToken.selector);
+        gaugePool.setMinDistributionAmount(address(0), 400);
     }
 
     function testSetMinDistributionAmount() public {
