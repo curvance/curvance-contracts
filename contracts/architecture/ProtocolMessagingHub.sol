@@ -399,6 +399,50 @@ contract ProtocolMessagingHub is QueryResponse {
         _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
     }
 
+    /// @notice Sends token emissions configuration to the Messaging Hub
+    ///         on `dstChainId`.
+    /// @param dstChainId Destination chain ID.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    function sendEmissions(
+        address[] memory gaugePools,
+        uint256[] memory emissionTotals,
+        address[][] memory tokens,
+        uint256[][] memory emissions,
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) external {
+        _checkMessagingStatus(1);
+
+        if (!centralRegistry.votingHub(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        ChainData memory chainData = _getChainData(dstChainId);
+        
+        // Validate that the operator messaging chain matches
+        // the destination chain id and we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+
+        // Validate that we have sufficient fees to send crosschain.
+        if (address(this).balance < wormholeFee) {
+            revert ProtocolMessagingHub__InsufficientGasToken();
+        }
+
+        _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
+                chainData.messagingChainId,
+                chainData.messagingHub,
+                abi.encode(2, gaugePools, emissionTotals, tokens, emissions), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit,
+                chainData.messagingChainId,
+                chainData.messagingHub
+            );
+    }
+
     /// @notice Send CVE or a veCVE lock via Wormhole.
     /// @param dstChainId Chain ID of the target blockchain.
     /// @param recipient The address of recipient on destination chain.
