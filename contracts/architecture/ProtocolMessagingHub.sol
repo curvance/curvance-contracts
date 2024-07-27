@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
-
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -13,11 +11,11 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
@@ -223,6 +221,7 @@ contract ProtocolMessagingHub is QueryResponse {
         bytes32 deliveryHash
     ) external payable {
         _checkMessagingStatus(2);
+        _canSubmitQueries();
 
         // Validate that this is not a replay attack.
         if (isDeliveredMessageHash[deliveryHash]) {
@@ -287,12 +286,12 @@ contract ProtocolMessagingHub is QueryResponse {
                 );
 
             uint256 numPools = gaugePools.length;
-            GaugePool gaugePool;
+            IGaugePool gaugePool;
 
             for (uint256 i; i < numPools; ++i) {
-                gaugePool = GaugePool(gaugePools[i]);
+                gaugePool = IGaugePool(gaugePools[i]);
                 // Mint epoch gauge emissions to the gauge pool.
-                cve.mintGaugeEmissions(address(gaugePool), emissionsTotals[i]);
+                cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
                 // Set upcoming epoch emissions for voted configuration.
                 gaugePool.setEmissionRates(
                     epoch,
@@ -376,13 +375,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-
-        if (
-            !centralRegistry.isHarvester(msg.sender) &&
-            !centralRegistry.hasDaoPermissions(msg.sender)
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _canSubmitQueries();
 
         ChainData memory chainData = _getChainData(dstChainId);
 
@@ -872,6 +865,16 @@ contract ProtocolMessagingHub is QueryResponse {
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Checks if the caller can submit votes to the protocol.
+    function _canSubmitQueries() internal view {
+        if (
+            !centralRegistry.isHarvester(msg.sender) ||
+            !centralRegistry.hasDaoPermissions(msg.sender)
+            ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
