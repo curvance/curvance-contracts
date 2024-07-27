@@ -12,10 +12,11 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
+import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -110,8 +111,8 @@ contract ProtocolMessagingHub is QueryResponse {
     ///         `queryLockPoints` on all other chains, stores the results for
     ///         the other chains, and updates the data for this chain.
     function executeEpoch(
-        bytes memory response,
-        IWormhole.Signature[] memory signatures,
+        bytes calldata response,
+        IWormhole.Signature[] calldata signatures,
         uint256 chainFeeAmount,
         uint256 gasLimit
     ) external {
@@ -275,32 +276,29 @@ contract ProtocolMessagingHub is QueryResponse {
             );
 
             (
+                uint256 epoch,
                 address[] memory gaugePools,
                 uint256[] memory emissionTotals,
                 address[][] memory tokens,
                 uint256[][] memory emissions
             ) = abi.decode(
                     emissionData,
-                    (address[], uint256[], address[][], uint256[][])
+                    (uint256, address[], uint256[], address[][], uint256[][])
                 );
 
             uint256 numPools = gaugePools.length;
             GaugePool gaugePool;
 
-            for (uint256 i; i < numPools; ) {
+            for (uint256 i; i < numPools; ++i) {
                 gaugePool = GaugePool(gaugePools[i]);
                 // Mint epoch gauge emissions to the gauge pool.
-                cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
+                cve.mintGaugeEmissions(address(gaugePool), emissionsTotals[i]);
                 // Set upcoming epoch emissions for voted configuration.
                 gaugePool.setEmissionRates(
-                    gaugePool.currentEpoch() + 1,
+                    epoch,
                     tokens[i],
                     emissions[i]
                 );
-
-                unchecked {
-                    ++i;
-                }
             }
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and
@@ -401,19 +399,26 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends token emissions configuration to the Messaging Hub
     ///         on `dstChainId`.
+    /// @param emissionData Struct containing information on emission configuration.
+    ///                       Containing values:
+    ///                       1. The gauge pool contract address that emission data
+    ///                          corresponds to.
+    ///                       2. The total amount of CVE emissions to allocate to the
+    ///                          gauge pool.
+    ///                       3. The token contract addresses receiving emissions.
+    ///                       4. The emission amounts that each token should receive.
+    /// @param epoch The epoch number to send emissions on the destination chain.
     /// @param dstChainId Destination chain ID.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function sendEmissions(
-        address[] memory gaugePools,
-        uint256[] memory emissionTotals,
-        address[][] memory tokens,
-        uint256[][] memory emissions,
+        EmissionData calldata emissionData,
+        uint256 epoch,
         uint256 dstChainId,
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
 
-        if (!centralRegistry.votingHub(msg.sender)) {
+        if (msg.sender != centralRegistry.votingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -435,7 +440,7 @@ contract ProtocolMessagingHub is QueryResponse {
         _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
                 chainData.messagingChainId,
                 chainData.messagingHub,
-                abi.encode(2, gaugePools, emissionTotals, tokens, emissions), // payload
+                abi.encode(2, epoch, emissionData), // payload
                 0, // No receiver value since we're just passing a message.
                 gasLimit,
                 chainData.messagingChainId,

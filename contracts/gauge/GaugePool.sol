@@ -183,7 +183,10 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         address[] calldata tokens,
         uint256[] calldata poolWeights
     ) external override {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
+        if (
+            msg.sender != centralRegistry.protocolMessagingHub() ||
+            msg.sender != centralRegistry.votingHub()
+            ) {
             revert GaugeErrors.Unauthorized();
         }
 
@@ -449,9 +452,9 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         if (block.timestamp > lastRewardTimestamp && totalDeposited != 0) {
             uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
-            uint256 currentEpoch = currentEpoch();
+            uint256 cachedCurrentEpoch = currentEpoch();
             uint256 reward;
-            while (lastEpoch < currentEpoch) {
+            while (lastEpoch < cachedCurrentEpoch) {
                 uint256 endTimestamp = epochEndTime(lastEpoch);
 
                 // update rewards from lastRewardTimestamp to endTimestamp.
@@ -824,11 +827,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             uint256 index = rewardTokenToIndex[rewardToken];
             uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
             uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
-            uint256 currentEpoch = currentEpoch();
+            uint256 cachedCurrentEpoch = currentEpoch();
             uint256 reward;
 
             // Step through epochs and apply rewards.
-            while (lastEpoch < currentEpoch) {
+            while (lastEpoch < cachedCurrentEpoch) {
                 uint256 endTimestamp = epochEndTime(lastEpoch);
 
                 // Update rewards from lastRewardTimestamp to endTimestamp.

@@ -374,7 +374,7 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         votingHub = newVotingHub;
-        emit CoreContractSet("Voting Hub", newVoting);
+        emit CoreContractSet("Voting Hub", newVotingHub);
     }
 
     /// @notice Sets a new protocol messaging hub contract address.

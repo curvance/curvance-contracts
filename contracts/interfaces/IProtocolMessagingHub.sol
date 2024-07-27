@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/// @param gaugePools The gauge pool contract addresses that emission data corresponds to.
+/// @param emissionTotals The total amount of CVE emissions to allocate to the gauge pools.
+/// @param tokens The token contract addresses receiving emissions.
+/// @param emissions The emission amounts that each token should receive.
+struct EmissionData {
+    address[] gaugePools;
+    uint256[] emissionTotals;
+    address[][] tokens;
+    uint256[][] emissions;
+}
+
 interface IProtocolMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         wormhole deposit and messaging.
@@ -13,6 +24,26 @@ interface IProtocolMessagingHub {
         bool transferToken,
         uint256 gasLimit
     ) external view returns (uint256);
+
+    /// @notice Sends token emissions configuration to the Messaging Hub
+    ///         on `dstChainId`.
+    /// @param emissionData Struct containing information on emission configuration.
+    ///                       Containing values:
+    ///                       1. The gauge pool contract address that emission data
+    ///                          corresponds to.
+    ///                       2. The total amount of CVE emissions to allocate to the
+    ///                          gauge pool.
+    ///                       3. The token contract addresses receiving emissions.
+    ///                       4. The emission amounts that each token should receive.
+    /// @param epoch The epoch number to send emissions on the destination chain.
+    /// @param dstChainId Destination chain ID.
+    /// @param gasLimit Gas limit with which to call on destination chain.
+    function sendEmissions(
+        EmissionData calldata emissionData,
+        uint256 epoch,
+        uint256 dstChainId,
+        uint256 gasLimit
+    ) external;
 
     /// @notice Sends fee tokens to the Messaging Hub on `dstChainId`.
     /// @param dstChainId Destination chain ID .

@@ -63,7 +63,10 @@ abstract contract CVEBase is ERC20 {
     ///                  configured.
     /// @param amount The amount of gauge emissions to be minted.
     function mintGaugeEmissions(address gaugePool, uint256 amount) external {
-        if (msg.sender != _getMessagingHub()) {
+        if (
+            msg.sender != _getMessagingHub() ||
+            msg.sender != _getVotingHub()
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -186,6 +189,11 @@ abstract contract CVEBase is ERC20 {
     /// @dev Returns the current Protocol Messaging Hub address.
     function _getMessagingHub() internal view returns (address) {
         return centralRegistry.protocolMessagingHub();
+    }
+
+    /// @dev Returns the current Voting Hub address.
+    function _getVotingHub() internal view returns (address) {
+        return centralRegistry.votingHub();
     }
 
     /// @dev Internal helper for reverting efficiently.
