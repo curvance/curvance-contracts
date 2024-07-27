@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-/// @param gaugePools The gauge pool contract addresses that emission data corresponds to.
-/// @param emissionTotals The total amount of CVE emissions to allocate to the gauge pools.
+/// @param gaugePools The gauge pool contract addresses that emission data
+///                   corresponds to.
+/// @param emissionTotals The total amount of token emissions to allocate
+///                       to the gauge pools.
 /// @param tokens The token contract addresses receiving emissions.
 /// @param emissions The emission amounts that each token should receive.
 struct EmissionData {

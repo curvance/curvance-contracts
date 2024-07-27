@@ -13,11 +13,16 @@ import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
 
+    /// @notice Number of Protocol Epochs before rewards are halved, 26 epoch corresponds
+    ///         to roughly 1 year.
     uint256 public constant REWARD_HALVENING_RATE = 26;
+    /// @notice Number of Protocol Eras, corresponds to how many different periods
+    ///         there are with token emission incentives.
     uint256 public constant PROTOCOL_REWARD_ERAS = 6;
     /// @notice Protocol epoch length.
     uint256 public constant EPOCH_WINDOW = 2 weeks;
 
+    /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
     /// @notice CVE contract address.
     ICVE public immutable cve;
@@ -33,7 +38,6 @@ contract VotingHub is QueryResponse {
 
     /// STORAGE ///
 
-    uint256 public baseEpochEmissionsPerEpoch;
     /// @notice Start time that the voting hub starts, in unix time.
     uint256 public startTime;
 
@@ -47,14 +51,6 @@ contract VotingHub is QueryResponse {
     /// @dev Epoch # => CVE rewards allocated.
     mapping(uint256 => uint256) public targetEmissionAllocationByEra;
 
-
-    /// EVENTS ///
-
-    event GaugeRewardsSet(
-        address[] pools,
-        uint256[] rewards
-    );
-
     /// ERRORS ///
 
     error VotingHub__Unauthorized();
@@ -65,13 +61,13 @@ contract VotingHub is QueryResponse {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        uint256 baseEpochEmissionsPerEpoch_
+        uint256 baseEmissionsPerEpoch
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
 
-        _setEraTargetEmissions(baseEpochEmissionsPerEpoch_);
+        _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -91,10 +87,43 @@ contract VotingHub is QueryResponse {
         startTime = veCVE.nextEpochStartTime();
     }
 
-    /// @notice Executes a protocol epoch via CCQ by querying
-    ///         `queryLockPoints` on all other chains, stores the results for
-    ///         the other chains, and updates the data for this chain.
-    function executeRewards(
+    /// @notice Executes new token emission values of the protocol for this
+    ///         chain, and potentially other remote chains. Validates the
+    ///         total number of token emissions allocated this epoch across
+    ///         all chains via Wormhole Querying.
+    /// @dev Emission values across all chains are validated by decoding the
+    ///      `response` and `signatures` containing the desired values.
+    /// @param response The Wormhole query response.
+    /// @param signatures The wormhole signatures corresponding to the query
+    ///                   response value.
+    /// @param dstChainId Array containing the destination chain IDs, in GETH
+    ///                   format.
+    /// @param gasLimit Array containing gas limit values for each remote
+    ///                 chain message, 0 = default value inside messaging hub.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param remoteEmissionData Array of structs containing information on
+    ///                           emission configuration for each remote
+    ///                           chain.
+    ///                           Containing values:
+    ///                           1. The gauge pool contract addresses that
+    ///                              emission data corresponds to.
+    ///                           2. The total amount of token emissions to
+    ///                              allocate to the gauge pools.
+    ///                           3. The token contract addresses receiving
+    ///                              emissions.
+    ///                           4. The emission amounts that each token
+    ///                              should receive.
+    function executeEmissionConfiguration(
         bytes calldata response,
         IWormhole.Signature[] calldata signatures,
         uint256[] calldata dstChainId,
@@ -181,11 +210,15 @@ contract VotingHub is QueryResponse {
         }
     }
 
-    function setEraTargetEmissions(uint256 baseEpochEmissionsPerEpoch_) external {
+    /// @notice Sets the token emission values for each protocol epoch based
+    ///         on an initial emission value, by epoch.
+    /// @param baseEmissionsPerEpoch The initial token emissions value that
+    ///                              the protocol should allocate, per epoch.
+    function setEraTargetEmissions(uint256 baseEmissionsPerEpoch) external {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-        _setEraTargetEmissions(baseEpochEmissionsPerEpoch_);
+        _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -232,13 +265,48 @@ contract VotingHub is QueryResponse {
         }
     }
 
+    /// @dev Validates that the input emission values are within the
+    ///      constraints of the protocol.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param remoteEmissionData Array of structs containing information on
+    ///                           emission configuration for each remote
+    ///                           chain.
+    ///                           Containing values:
+    ///                           1. The gauge pool contract addresses that
+    ///                              emission data corresponds to.
+    ///                           2. The total amount of token emissions to
+    ///                              allocate to the gauge pools.
+    ///                           3. The token contract addresses receiving
+    ///                              emissions.
+    ///                           4. The emission amounts that each token
+    ///                              should receive.
+    /// @param numRemoteChains The number of remote chains to receive
+    ///                        token emissions.
+    /// @param cachedEmissionsAllocated The emissions currently allocated,
+    ///                                 for the epoch being validated.
+    /// @param totalEmissionsAllocated The total emissions allocated, for the
+    ///                                epoch being validated.
     function _validateEmissionValues(
         EmissionData memory emissionData,
         EmissionData[] memory remoteEmissionData,
         uint256 numRemoteChains,
         uint256 cachedEmissionsAllocated,
         uint256 totalEmissionsAllocated
-    ) internal view returns (uint256, EmissionData memory, EmissionData[] memory) {
+    ) internal view returns (
+        uint256,
+        EmissionData memory,
+        EmissionData[] memory
+    ) {
         address[] memory gaugePools = emissionData.gaugePools;
         uint256 numPools = gaugePools.length;
 
@@ -295,6 +363,10 @@ contract VotingHub is QueryResponse {
         return (cachedEmissionsAllocated, emissionData, remoteEmissionData);
     }
 
+    /// @dev Sets the token emission values for each protocol epoch based on
+    ///      an initial emission value, by epoch.
+    /// @param epochEmissions The initial token emissions value that the
+    ///                       protocol should allocate, per epoch.
     function _setEraTargetEmissions(uint256 epochEmissions) internal {
         uint256 numEras = PROTOCOL_REWARD_ERAS;
 
@@ -304,6 +376,20 @@ contract VotingHub is QueryResponse {
         }
     }
 
+    /// @dev Sets new token emissions values to gauge pools on this chain,
+    ///      for `epoch`.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param epoch The epoch having its token emission values set.
     function _setEmissions(
         EmissionData memory emissionData,
         uint256 epoch
@@ -326,13 +412,32 @@ contract VotingHub is QueryResponse {
         }
     }
 
+    /// @dev Sets new token emissions values to gauge pools on a remote chain, for `epoch`.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param dstChainId The remote chain's ID that will have its token
+    ///                   emissions values set, in GETH format.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
     function _sendEmissions(
         EmissionData memory emissionData,
         uint256 epoch,
         uint256 dstChainId,
         uint256 gasLimit
     ) internal {
-        IProtocolMessagingHub(centralRegistry.protocolMessagingHub()).sendEmissions(
+        IProtocolMessagingHub(
+            centralRegistry.protocolMessagingHub()
+        ).sendEmissions(
             emissionData,
             epoch,
             dstChainId,

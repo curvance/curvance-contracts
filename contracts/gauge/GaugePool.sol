@@ -61,10 +61,14 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// TYPES ///
 
+    /// @param totalWeights The total weight value of all tokens, inside
+    ///                     the pool, for this epoch.
+    /// @param tokenWeight The weight value of a token, inside the pool,
+    ///                    for this epoch.
+    /// @dev token => pool weight value.
     struct Epoch {
         uint256 totalWeights;
-        /// @notice token => weight
-        mapping(address => uint256) poolWeights;
+        mapping(address => uint256) tokenWeight;
     }
 
     struct UserRewardInfo {
@@ -88,7 +92,9 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @notice Start time that gauge controller starts, in unix time.
     uint256 public startTime;
 
-    /// @notice Epoch Number => Epoch information.
+    /// @notice Gauge emission values for the entire gauge pool,
+    ///         and contained tokens, by epoch.
+    /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
     /// @notice Address of the Market Manager linked to this Gauge Pool.
@@ -133,6 +139,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     /// EVENTS ///
 
+    event GaugeWeightsSet(uint256 epoch, address[] tokens, uint256[] weights);
     event AddExtraReward(address newReward);
     event RemoveExtraReward(address newReward);
     event Deposit(address user, address token, uint256 amount);
@@ -168,20 +175,21 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) external view returns (uint256, uint256) {
         return (
             _epochInfo[epoch].totalWeights,
-            _epochInfo[epoch].poolWeights[token]
+            _epochInfo[epoch].tokenWeight[token]
         );
     }
 
     /// @notice Sets emission rates of tokens of next epoch.
     /// @dev Only the protocol messaging hub can call this.
-    /// @param epoch The epoch to set emission rates for, should be the next epoch.
+    /// @param epoch The epoch to set emission rates for, should be the next
+    ///              epoch.
     /// @param tokens Array containing all tokens to set emission rates for.
-    /// @param poolWeights Gauge/Pool weights corresponding to DAO
-    ///                    voted emission rates.
+    /// @param weights Gauge weights corresponding to DAO voted emission
+    ///                rates.
     function setEmissionRates(
         uint256 epoch,
         address[] calldata tokens,
-        uint256[] calldata poolWeights
+        uint256[] calldata weights
     ) external override {
         if (
             msg.sender != centralRegistry.protocolMessagingHub() &&
@@ -201,8 +209,8 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         uint256 numTokens = tokens.length;
 
-        // Validate that tokens and poolWeights are properly configured.
-        if (numTokens != poolWeights.length) {
+        // Validate that tokens and weights are properly configured.
+        if (numTokens != weights.length) {
             revert GaugeErrors.InvalidLength();
         }
 
@@ -217,14 +225,16 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
             info.totalWeights =
                 info.totalWeights +
-                poolWeights[i] -
-                info.poolWeights[tokens[i]];
-            info.poolWeights[tokens[i]] = poolWeights[i];
+                weights[i] -
+                info.tokenWeight[tokens[i]];
+            info.tokenWeight[tokens[i]] = weights[i];
             unchecked {
                 /// Update prior to current token, then increment i.
                 priorAddress = tokens[i++];
             }
         }
+
+        emit GaugeWeightsSet(epoch, tokens, weights);
     }
 
     /// @notice Update reward variables for all pools.
@@ -409,7 +419,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256 epoch,
         address token
     ) public view returns (bool) {
-        return _epochInfo[epoch].poolWeights[token] > 0;
+        return _epochInfo[epoch].tokenWeight[token] > 0;
     }
 
     /// @notice Returns reward emissions of a token.
@@ -422,7 +432,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         address rewardToken
     ) public view returns (uint256) {
         if (rewardToken == cve) {
-            return _epochInfo[epoch].poolWeights[token];
+            return _epochInfo[epoch].tokenWeight[token];
         }
 
         return (EPOCH_WINDOW *

@@ -108,6 +108,16 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @notice Executes a protocol epoch via CCQ by querying
     ///         `queryLockPoints` on all other chains, stores the results for
     ///         the other chains, and updates the data for this chain.
+    /// @dev Chain lock point values across all chains are validated by
+    ///      decoding the `response` and `signatures` containing the desired
+    ///      values.
+    /// @param response The Wormhole query response.
+    /// @param signatures The wormhole signatures corresponding to the query
+    ///                   response value.
+    /// @param chainFeeAmount The amount of fees on this chain that should
+    ///                       be distributed this epoch.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
     function executeEpoch(
         bytes calldata response,
         IWormhole.Signature[] calldata signatures,
