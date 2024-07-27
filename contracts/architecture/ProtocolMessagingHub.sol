@@ -115,6 +115,7 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
+        _canSubmitQueries();
 
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
@@ -221,7 +222,6 @@ contract ProtocolMessagingHub is QueryResponse {
         bytes32 deliveryHash
     ) external payable {
         _checkMessagingStatus(2);
-        _canSubmitQueries();
 
         // Validate that this is not a replay attack.
         if (isDeliveredMessageHash[deliveryHash]) {
@@ -858,7 +858,7 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @notice Checks if the caller can submit votes to the protocol.
     function _canSubmitQueries() internal view {
         if (
-            !centralRegistry.isHarvester(msg.sender) ||
+            !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
             ) {
             _revert(_UNAUTHORIZED_SELECTOR);

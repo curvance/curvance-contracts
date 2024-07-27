@@ -184,7 +184,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256[] calldata poolWeights
     ) external override {
         if (
-            msg.sender != centralRegistry.protocolMessagingHub() ||
+            msg.sender != centralRegistry.protocolMessagingHub() &&
             msg.sender != centralRegistry.votingHub()
             ) {
             revert GaugeErrors.Unauthorized();

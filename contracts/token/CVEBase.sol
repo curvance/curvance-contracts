@@ -64,7 +64,7 @@ abstract contract CVEBase is ERC20 {
     /// @param amount The amount of gauge emissions to be minted.
     function mintGaugeEmissions(address gaugePool, uint256 amount) external {
         if (
-            msg.sender != _getMessagingHub() ||
+            msg.sender != _getMessagingHub() &&
             msg.sender != _getVotingHub()
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
