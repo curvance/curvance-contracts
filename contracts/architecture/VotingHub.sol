@@ -224,8 +224,12 @@ contract VotingHub is QueryResponse {
     /// @dev Returns ChainData struct for `chainId`.
     function _getChainData(
         uint256 chainId
-    ) internal view returns (ChainData memory) {
-        return centralRegistry.supportedChainData(chainId);
+    ) internal view returns (ChainData memory chainData) {
+        chainData = centralRegistry.supportedChainData(chainId);
+        // Validate that we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     function _validateEmissionValues(

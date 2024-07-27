@@ -379,15 +379,8 @@ contract ProtocolMessagingHub is QueryResponse {
 
         ChainData memory chainData = _getChainData(dstChainId);
 
-        // Validate that the operator messaging chain matches
-        // the destination chain id and we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         amount = _pullFees(amount);
-
-        _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
+        _sendFeeToken(dstChainId, chainData.cctpDomain, amount, abi.encode(1), gasLimit);
     }
 
     /// @notice Sends token emissions configuration to the Messaging Hub
@@ -416,13 +409,6 @@ contract ProtocolMessagingHub is QueryResponse {
         }
 
         ChainData memory chainData = _getChainData(dstChainId);
-        
-        // Validate that the operator messaging chain matches
-        // the destination chain id and we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
@@ -469,11 +455,6 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
         if (recipient == address(0)) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate that we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -597,11 +578,13 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
+    /// @param cctpDomain CCTP domain for `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
+        uint32 cctpDomain,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -619,9 +602,8 @@ contract ProtocolMessagingHub is QueryResponse {
         if (
             address(circleTokenMessenger) != address(0) &&
             circleTokenMessenger.remoteTokenMessengers(
-                _getChainData(dstChainId).cctpDomain
-            ) !=
-            bytes32(0)
+                cctpDomain
+            ) != bytes32(0)
         ) {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
@@ -738,6 +720,7 @@ contract ProtocolMessagingHub is QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
+                _getChainData(currentChainId).cctpDomain,
                 feeTokensForChain,
                 abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                 gasLimit
@@ -816,8 +799,12 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Returns ChainData struct for `chainId`.
     function _getChainData(
         uint256 chainId
-    ) internal view returns (ChainData memory) {
-        return centralRegistry.supportedChainData(chainId);
+    ) internal view returns (ChainData memory chainData) {
+        chainData = centralRegistry.supportedChainData(chainId);
+        // Validate that we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// @dev Returns the current Curvance DAO address.
