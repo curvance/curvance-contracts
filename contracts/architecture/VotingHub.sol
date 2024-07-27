@@ -96,8 +96,6 @@ contract VotingHub is QueryResponse {
     /// @param response The Wormhole query response.
     /// @param signatures The wormhole signatures corresponding to the query
     ///                   response value.
-    /// @param dstChainId Array containing the destination chain IDs, in GETH
-    ///                   format.
     /// @param gasLimit Array containing gas limit values for each remote
     ///                 chain message, 0 = default value inside messaging hub.
     /// @param emissionData Struct containing information on emission
@@ -126,7 +124,6 @@ contract VotingHub is QueryResponse {
     function executeEmissionConfiguration(
         bytes calldata response,
         IWormhole.Signature[] calldata signatures,
-        uint256[] calldata dstChainId,
         uint256[] calldata gasLimit,
         EmissionData memory emissionData,
         EmissionData[] memory remoteEmissionData
@@ -203,9 +200,9 @@ contract VotingHub is QueryResponse {
         for (uint256 i; i < numResponses; ++i) {
             _sendEmissions(
                 remoteEmissionData[i],
-                epoch,
-                dstChainId[i],
-                gasLimit[i]
+                chainIds[i],
+                gasLimit[i],
+                epoch
             );
         }
     }
@@ -424,24 +421,24 @@ contract VotingHub is QueryResponse {
     ///                        emissions.
     ///                     4. The emission amounts that each token should
     ///                        receive.
-    /// @param epoch The epoch having its token emission values set.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.
     /// @param gasLimit Gas limit value for each remote chain message,
     ///                 0 = default value inside messaging hub.
+    /// @param epoch The epoch having its token emission values set.
     function _sendEmissions(
         EmissionData memory emissionData,
-        uint256 epoch,
         uint256 dstChainId,
-        uint256 gasLimit
+        uint256 gasLimit,
+        uint256 epoch
     ) internal {
         IProtocolMessagingHub(
             centralRegistry.protocolMessagingHub()
         ).sendEmissions(
             emissionData,
-            epoch,
             dstChainId,
-            gasLimit
+            gasLimit,
+            epoch
         );
     }
 

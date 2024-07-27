@@ -390,27 +390,38 @@ contract ProtocolMessagingHub is QueryResponse {
         ChainData memory chainData = _getChainData(dstChainId);
 
         amount = _pullFees(amount);
-        _sendFeeToken(dstChainId, chainData.cctpDomain, amount, abi.encode(1), gasLimit);
+        _sendFeeToken(
+            dstChainId,
+            chainData.cctpDomain,
+            amount,
+            abi.encode(1),
+            gasLimit
+        );
     }
 
     /// @notice Sends token emissions configuration to the Messaging Hub
     ///         on `dstChainId`.
-    /// @param emissionData Struct containing information on emission configuration.
-    ///                       Containing values:
-    ///                       1. The gauge pool contract address that emission data
-    ///                          corresponds to.
-    ///                       2. The total amount of CVE emissions to allocate to the
-    ///                          gauge pool.
-    ///                       3. The token contract addresses receiving emissions.
-    ///                       4. The emission amounts that each token should receive.
-    /// @param epoch The epoch number to send emissions on the destination chain.
-    /// @param dstChainId Destination chain ID.
-    /// @param gasLimit Gas limit with which to call on destination chain.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param dstChainId The remote chain's ID that will have its token
+    ///                   emissions values set, in GETH format.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
+    /// @param epoch The epoch having its token emission values set.
     function sendEmissions(
         EmissionData calldata emissionData,
-        uint256 epoch,
         uint256 dstChainId,
-        uint256 gasLimit
+        uint256 gasLimit,
+        uint256 epoch
     ) external {
         _checkMessagingStatus(1);
 
