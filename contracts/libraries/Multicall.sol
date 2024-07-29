@@ -17,6 +17,7 @@ abstract contract Multicall {
     /// ERRORS ///
 
     error Multicall__InvalidTarget();
+    error Multicall__UnknownCalldata();
     error Multicall__InvalidCallData();
 
     /// EXTERNAL FUNCTIONS ///
@@ -28,13 +29,19 @@ abstract contract Multicall {
         MulticallData[] memory calls
     ) external returns (bytes[] memory results) {
         ICentralRegistry centralRegistry = _getCentralRegistry();
+        uint256 numCalls = calls.length;
 
-        results = new bytes[](calls.length);
-        for (uint256 i; i < calls.length; ++i) {
+        results = new bytes[](numCalls);
+        for (uint256 i; i < numCalls; ++i) {
             if (calls[i].isPriceUpdate) {
                 address callDataChecker = centralRegistry.multicallDataChecker(
                     calls[i].target
                 );
+
+                // Validate we know how to verify this calldata.
+                if (callDataChecker == address(0)) {
+                    revert Multicall__UnknownCalldata();
+                }
 
                 IMulticallDataChecker(callDataChecker).checkCallData(
                     msg.sender,
