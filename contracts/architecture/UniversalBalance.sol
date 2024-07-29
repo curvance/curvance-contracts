@@ -163,7 +163,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         // Check if lent balance needs to be utilized.
         // Will natively fail if utilization is at 100%.
         if (remainingAmount > 0) {
-            pointerAmount = _mulDiv(remainingAmount, WAD, exchangeRate);
+            pointerAmount = _mulDivUp(remainingAmount, WAD, exchangeRate);
             // Reduce user lent balance.
             userBalances[user].lentBalance -= pointerAmount;
 
