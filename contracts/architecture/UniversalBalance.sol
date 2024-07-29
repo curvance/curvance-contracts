@@ -145,7 +145,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, WAD, exchangeRate) <=
+                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
             amount
         ) {
             revert UniversalBalance__InsufficientBalance();
