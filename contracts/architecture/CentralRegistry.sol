@@ -368,9 +368,7 @@ contract CentralRegistry is ERC165 {
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
     /// @param newVotingHub The new address of votingHub.
-    function setVotingHub(
-        address newVotingHub
-    ) external {
+    function setVotingHub(address newVotingHub) external {
         _checkElevatedPermissions();
 
         votingHub = newVotingHub;

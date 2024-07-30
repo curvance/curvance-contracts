@@ -303,11 +303,7 @@ contract ProtocolMessagingHub is QueryResponse {
                 // Mint epoch gauge emissions to the gauge pool.
                 cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
                 // Set upcoming epoch emissions for voted configuration.
-                gaugePool.setEmissionRates(
-                    epoch,
-                    tokens[i],
-                    emissions[i]
-                );
+                gaugePool.setEmissionRates(epoch, tokens[i], emissions[i]);
             }
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and
@@ -438,14 +434,14 @@ contract ProtocolMessagingHub is QueryResponse {
         }
 
         _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
-                chainData.messagingChainId,
-                chainData.messagingHub,
-                abi.encode(2, epoch, emissionData), // payload
-                0, // No receiver value since we're just passing a message.
-                gasLimit,
-                chainData.messagingChainId,
-                chainData.messagingHub
-            );
+            chainData.messagingChainId,
+            chainData.messagingHub,
+            abi.encode(2, epoch, emissionData), // payload
+            0, // No receiver value since we're just passing a message.
+            gasLimit,
+            chainData.messagingChainId,
+            chainData.messagingHub
+        );
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -622,9 +618,8 @@ contract ProtocolMessagingHub is QueryResponse {
 
         if (
             address(circleTokenMessenger) != address(0) &&
-            circleTokenMessenger.remoteTokenMessengers(
-                cctpDomain
-            ) != bytes32(0)
+            circleTokenMessenger.remoteTokenMessengers(cctpDomain) !=
+            bytes32(0)
         ) {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
@@ -881,7 +876,7 @@ contract ProtocolMessagingHub is QueryResponse {
         if (
             !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
-            ) {
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
