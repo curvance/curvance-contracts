@@ -10,7 +10,6 @@ import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -52,7 +51,6 @@ contract PositionFolding is
 
     error PositionFolding__Unauthorized();
     error PositionFolding__InvalidSlippage();
-    error PositionFolding__InvalidCentralRegistry();
     error PositionFolding__InvalidMarketManager();
     error PositionFolding__InvalidSwapperParam();
     error PositionFolding__InvalidParam();
@@ -106,15 +104,6 @@ contract PositionFolding is
         ICentralRegistry centralRegistry_,
         address marketManager_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert PositionFolding__InvalidCentralRegistry();
-        }
-
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {

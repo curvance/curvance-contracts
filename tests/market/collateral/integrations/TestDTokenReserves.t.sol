@@ -123,6 +123,7 @@ contract TestDTokenReserves is TestBaseMarket {
         vm.startPrank(liquidityProvider);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
+        vm.stopPrank();
 
         _prepareBALRETH(user1, 1 ether);
 
@@ -131,10 +132,8 @@ contract TestDTokenReserves is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether - 1);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
         vm.stopPrank();
 
@@ -268,9 +267,8 @@ contract TestDTokenReserves is TestBaseMarket {
 
             uint256 withdrawAmount = ((totalReservesBefore / 2) *
                 exchangeRate) / 1e18;
-            vm.startPrank(dao);
+            vm.prank(dao);
             dDAI.withdrawReserves(withdrawAmount);
-            vm.stopPrank();
 
             assertEq(
                 dDAI.totalReserves(),
@@ -294,9 +292,8 @@ contract TestDTokenReserves is TestBaseMarket {
             if ((withdrawAmount * 1e18) / exchangeRate < totalReservesBefore) {
                 withdrawAmount += 1;
             }
-            vm.startPrank(dao);
+            vm.prank(dao);
             dDAI.withdrawReserves(withdrawAmount);
-            vm.stopPrank();
 
             assertEq(dDAI.totalReserves(), 0);
             assertEq(gaugePool.balanceOf(address(dDAI), dao), 0);

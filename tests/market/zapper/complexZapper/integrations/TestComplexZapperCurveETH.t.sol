@@ -40,10 +40,11 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user, ethAmount);
 
-        vm.startPrank(user);
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;
         tokens[1] = _STETH_ADDRESS;
+
+        vm.prank(user);
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -58,7 +59,6 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             tokens,
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(IERC20(_CURVE_STETH_LP).balanceOf(user), 0);

@@ -16,7 +16,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleRouter {
     address internal _STETH_ADDRESS =
         0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
-    Curve2PoolLPAdaptor adaptor;
+    Curve2PoolLPAdaptor public adaptor;
 
     function setUp() public override {
         _fork(18031848);

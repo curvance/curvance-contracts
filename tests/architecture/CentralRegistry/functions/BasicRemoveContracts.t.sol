@@ -31,8 +31,8 @@ contract BasicRemoveContractsTest is TestBaseMarket {
 
     function test_removeFunc_fail_whenUnauthorized() public {
         uint8 length = uint8(removeFuncs.length);
+        vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {
-            vm.startPrank(address(0));
             bytes memory sig = abi.encodeWithSignature(removeFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig
@@ -43,8 +43,8 @@ contract BasicRemoveContractsTest is TestBaseMarket {
                 bytes32(data),
                 bytes32(CentralRegistry.CentralRegistry__Unauthorized.selector)
             );
-            vm.stopPrank();
         }
+        vm.stopPrank();
     }
 
     function test_removeFunc_fail_whenParametersMisconfigured() public {
