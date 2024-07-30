@@ -214,6 +214,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
+        gaugePool.start(address(marketManager));
+
+        vm.warp(veCVE.nextEpochStartTime() + 100);
+
+        uint256 epoch = gaugePool.currentEpoch() + 1;
         address[] memory gaugePools = new address[](1);
         uint256[] memory emissionTotals = new uint256[](1);
         address[][] memory tokens = new address[][](1);
@@ -227,15 +232,17 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         tokens[0][0] = _USDC_ADDRESS;
         emissions[0][0] = _ONE;
 
-        gaugePool.start(address(marketManager));
-
-        vm.warp(veCVE.nextEpochStartTime() + 100);
-
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(
                 2,
-                abi.encode(gaugePools, emissionTotals, tokens, emissions)
+                abi.encode(
+                    epoch,
+                    gaugePools,
+                    emissionTotals,
+                    tokens,
+                    emissions
+                )
             ),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -244,7 +251,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch() + 1,
+            epoch,
             _USDC_ADDRESS
         );
 
