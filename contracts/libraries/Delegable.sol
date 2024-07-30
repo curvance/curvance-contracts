@@ -35,7 +35,6 @@ abstract contract Delegable {
 
     /// ERRORS ///
 
-    error Delegable__Unauthorized();
     error Delegable__InvalidCentralRegistry();
     error Delegable__DelegatingDisabled();
 
