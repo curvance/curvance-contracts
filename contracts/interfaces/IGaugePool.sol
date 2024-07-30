@@ -32,12 +32,12 @@ interface IGaugePool {
     /// @param token The token to set rewards for.
     /// @param epoch The epoch to set rewards for, should be the next epoch.
     /// @param rewardToken The address of reward token to be updated.
-    /// @param newRewardPerSec The `rewardToken` reward rate, in seconds.
-    function setRewardPerSec(
+    /// @param additionalRewards The additional rewards amount for distribution
+    function addExtraRewards(
         address token,
         uint256 epoch,
         address rewardToken,
-        uint256 newRewardPerSec
+        uint256 additionalRewards
     ) external;
 
     /// @notice Deposit into gauge pool.

@@ -420,9 +420,14 @@ contract PositionFolding is
         }
 
         // Check to make sure there is calldata attached to execute the swap.
-        if (deleverageData.swapData.call.length > 0) {
-            // Swap Swapper input token for borrow underlying.
-            SwapperLib.swapSafe(centralRegistry, deleverageData.swapData);
+        if (deleverageData.swapData.length > 0) {
+            for (uint256 i = 0; i < deleverageData.swapData.length; ++i) {
+                // Swap Swapper input token for borrow underlying.
+                SwapperLib.swapSafe(
+                    centralRegistry,
+                    deleverageData.swapData[i]
+                );
+            }
         }
 
         // We do not need to check whether borrowToken is listed
@@ -465,6 +470,21 @@ contract PositionFolding is
                 redeemer,
                 remaining
             );
+        }
+
+        // Transfer remaining swap dust back to the user
+        if (deleverageData.swapData.length > 0) {
+            for (uint256 i = 0; i < deleverageData.swapData.length; ++i) {
+                remaining = IERC20(deleverageData.swapData[i].outputToken)
+                    .balanceOf(address(this));
+                if (remaining > 0) {
+                    SafeTransferLib.safeTransfer(
+                        deleverageData.swapData[i].outputToken,
+                        redeemer,
+                        remaining
+                    );
+                }
+            }
         }
 
         // Remove any excess approval.

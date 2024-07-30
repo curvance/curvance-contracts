@@ -10,6 +10,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockEthereumRedstoneCoreAdaptor } from "contracts/mocks/MockEthereumRedstoneCoreAdaptor.sol";
+import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
 import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -279,5 +280,54 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             true
         );
         assertEq(priceData.price, 61000e18);
+    }
+
+    function testCheckCallData() public {
+        {
+            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory encodedFunction = abi.encodeWithSignature(
+                "writePrice(address,bool)",
+                WBTC,
+                true
+            );
+            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+                encodedFunction,
+                redstonePayload
+            );
+
+            vm.expectRevert(
+                MulticallDataCheckerBase
+                    .MulticallDataChecker__TargetError
+                    .selector
+            );
+            multicallDataChecker.checkCallData(
+                address(this),
+                address(this),
+                encodedFunctionWithRedstonePayload
+            );
+        }
+
+        {
+            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory encodedFunction = abi.encodeWithSignature(
+                "writePriceSimple(address,bool)",
+                WBTC,
+                true
+            );
+            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+                encodedFunction,
+                redstonePayload
+            );
+            vm.expectRevert(
+                MulticallDataCheckerBase
+                    .MulticallDataChecker__InvalidFuncSig
+                    .selector
+            );
+            multicallDataChecker.checkCallData(
+                address(this),
+                address(adapter),
+                encodedFunctionWithRedstonePayload
+            );
+        }
     }
 }
