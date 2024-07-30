@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
-
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -12,11 +10,12 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
+import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
+import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
@@ -109,13 +108,24 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @notice Executes a protocol epoch via CCQ by querying
     ///         `queryLockPoints` on all other chains, stores the results for
     ///         the other chains, and updates the data for this chain.
+    /// @dev Chain lock point values across all chains are validated by
+    ///      decoding the `response` and `signatures` containing the desired
+    ///      values.
+    /// @param response The Wormhole query response.
+    /// @param signatures The wormhole signatures corresponding to the query
+    ///                   response value.
+    /// @param chainFeeAmount The amount of fees on this chain that should
+    ///                       be distributed this epoch.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
     function executeEpoch(
-        bytes memory response,
-        IWormhole.Signature[] memory signatures,
+        bytes calldata response,
+        IWormhole.Signature[] calldata signatures,
         uint256 chainFeeAmount,
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
+        _canSubmitQueries();
 
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
@@ -275,32 +285,29 @@ contract ProtocolMessagingHub is QueryResponse {
             );
 
             (
+                uint256 epoch,
                 address[] memory gaugePools,
                 uint256[] memory emissionTotals,
                 address[][] memory tokens,
                 uint256[][] memory emissions
             ) = abi.decode(
                     emissionData,
-                    (address[], uint256[], address[][], uint256[][])
+                    (uint256, address[], uint256[], address[][], uint256[][])
                 );
 
             uint256 numPools = gaugePools.length;
-            GaugePool gaugePool;
+            IGaugePool gaugePool;
 
-            for (uint256 i; i < numPools; ) {
-                gaugePool = GaugePool(gaugePools[i]);
+            for (uint256 i; i < numPools; ++i) {
+                gaugePool = IGaugePool(gaugePools[i]);
                 // Mint epoch gauge emissions to the gauge pool.
                 cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
                 // Set upcoming epoch emissions for voted configuration.
                 gaugePool.setEmissionRates(
-                    gaugePool.currentEpoch() + 1,
+                    epoch,
                     tokens[i],
                     emissions[i]
                 );
-
-                unchecked {
-                    ++i;
-                }
             }
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and
@@ -378,25 +385,67 @@ contract ProtocolMessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
+        _canSubmitQueries();
 
-        if (
-            !centralRegistry.isHarvester(msg.sender) &&
-            !centralRegistry.hasDaoPermissions(msg.sender)
-        ) {
+        ChainData memory chainData = _getChainData(dstChainId);
+
+        amount = _pullFees(amount);
+        _sendFeeToken(
+            dstChainId,
+            chainData.cctpDomain,
+            amount,
+            abi.encode(1),
+            gasLimit
+        );
+    }
+
+    /// @notice Sends token emissions configuration to the Messaging Hub
+    ///         on `dstChainId`.
+    /// @param emissionData Struct containing information on emission
+    ///                     configuration.
+    ///                     Containing values:
+    ///                     1. The gauge pool contract addresses that emission
+    ///                        data corresponds to.
+    ///                     2. The total amount of token emissions to allocate
+    ///                        to the gauge pools.
+    ///                     3. The token contract addresses receiving
+    ///                        emissions.
+    ///                     4. The emission amounts that each token should
+    ///                        receive.
+    /// @param dstChainId The remote chain's ID that will have its token
+    ///                   emissions values set, in GETH format.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
+    /// @param epoch The epoch having its token emission values set.
+    function sendEmissions(
+        EmissionData calldata emissionData,
+        uint256 dstChainId,
+        uint256 gasLimit,
+        uint256 epoch
+    ) external {
+        _checkMessagingStatus(1);
+
+        if (msg.sender != centralRegistry.votingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         ChainData memory chainData = _getChainData(dstChainId);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
 
-        // Validate that the operator messaging chain matches
-        // the destination chain id and we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
+        // Validate that we have sufficient fees to send crosschain.
+        if (address(this).balance < wormholeFee) {
+            revert ProtocolMessagingHub__InsufficientGasToken();
         }
 
-        amount = _pullFees(amount);
-
-        _sendFeeToken(dstChainId, amount, abi.encode(1), gasLimit);
+        _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
+                chainData.messagingChainId,
+                chainData.messagingHub,
+                abi.encode(2, epoch, emissionData), // payload
+                0, // No receiver value since we're just passing a message.
+                gasLimit,
+                chainData.messagingChainId,
+                chainData.messagingHub
+            );
     }
 
     /// @notice Send CVE or a veCVE lock via Wormhole.
@@ -427,11 +476,6 @@ contract ProtocolMessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
         if (recipient == address(0)) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Validate that we are aiming for a supported chain.
-        if (chainData.isSupported < 2) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -555,11 +599,13 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
     /// @param dstChainId GETH destination chain ID.
+    /// @param cctpDomain CCTP domain for `dstChainId`.
     /// @param amount The amount of token to transfer.
     /// @param payload The payload data that is sent along with the message.
     /// @param gasLimit Gas limit with which to call on destination chain.
     function _sendFeeToken(
         uint256 dstChainId,
+        uint32 cctpDomain,
         uint256 amount,
         bytes memory payload,
         uint256 gasLimit
@@ -577,9 +623,8 @@ contract ProtocolMessagingHub is QueryResponse {
         if (
             address(circleTokenMessenger) != address(0) &&
             circleTokenMessenger.remoteTokenMessengers(
-                _getChainData(dstChainId).cctpDomain
-            ) !=
-            bytes32(0)
+                cctpDomain
+            ) != bytes32(0)
         ) {
             _transferFeeTokenViaCCTP(
                 circleTokenMessenger,
@@ -696,6 +741,7 @@ contract ProtocolMessagingHub is QueryResponse {
             // Send fees and information.
             _sendFeeToken(
                 currentChainId,
+                _getChainData(currentChainId).cctpDomain,
                 feeTokensForChain,
                 abi.encode(3, epochToDeliver, epochRewardsPerPoint),
                 gasLimit
@@ -774,8 +820,12 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Returns ChainData struct for `chainId`.
     function _getChainData(
         uint256 chainId
-    ) internal view returns (ChainData memory) {
-        return centralRegistry.supportedChainData(chainId);
+    ) internal view returns (ChainData memory chainData) {
+        chainData = centralRegistry.supportedChainData(chainId);
+        // Validate that we are aiming for a supported chain.
+        if (chainData.isSupported < 2) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// @dev Returns the current Curvance DAO address.
@@ -823,6 +873,16 @@ contract ProtocolMessagingHub is QueryResponse {
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Checks if the caller can submit votes to the protocol.
+    function _canSubmitQueries() internal view {
+        if (
+            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasDaoPermissions(msg.sender)
+            ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 

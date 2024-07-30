@@ -145,7 +145,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, WAD, exchangeRate) <=
+                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
             amount
         ) {
             revert UniversalBalance__InsufficientBalance();
@@ -163,7 +163,11 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         // Check if lent balance needs to be utilized.
         // Will natively fail if utilization is at 100%.
         if (remainingAmount > 0) {
-            pointerAmount = _mulDiv(remainingAmount, WAD, exchangeRate);
+            pointerAmount =  FixedPointMathLib.mulDivUp(
+                remainingAmount,
+                WAD,
+                exchangeRate
+            );
             // Reduce user lent balance.
             userBalances[user].lentBalance -= pointerAmount;
 
@@ -188,7 +192,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         uint256 numRewardTokens = rewardTokens.length;
         uint256[] memory previousBalances = new uint256[](numRewardTokens);
 
-        for (uint256 i = 0; i < numRewardTokens; ++i) {
+        for (uint256 i; i < numRewardTokens; ++i) {
             previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(
                 address(this)
             );
