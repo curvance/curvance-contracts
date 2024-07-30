@@ -111,12 +111,13 @@ contract DeployCurvance is
         _addLockingPermissions(protocolMessagingHub);
 
         // Deploy GaugePool
-
         _deployGaugePool(centralRegistry);
         _addLockingPermissions(gaugePool);
 
-        // Deploy MarketManager
+        // Deploy VotingHub
+        _deployVotingHub(centralRegistry, 1000);
 
+        // Deploy MarketManager
         _deployMarketManager(centralRegistry, gaugePool);
         _addMarketManager(
             marketManager,
@@ -124,7 +125,6 @@ contract DeployCurvance is
         );
 
         // Deploy ComplexZapper
-
         _deployComplexZapper(
             centralRegistry,
             marketManager,
@@ -132,18 +132,14 @@ contract DeployCurvance is
         );
 
         // Deploy PositionFolding
-
         _deployPositionFolding(centralRegistry, marketManager);
-
         _deployOracleRouter(
             centralRegistry,
             _readConfigAddress(".oracleRouter.chainlinkEthUsd")
         );
-
         _setOracleRouter(oracleRouter);
 
         //  Deploy Auxiliary Data
-
         _deployAuxiliaryData(centralRegistry);
 
         // transfer dao, timelock, emergency council
