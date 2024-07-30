@@ -87,7 +87,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Reward Manager contract address.
     address public rewardManager;
-    /// @notice This chain's Protocol Messaging Hub contract address.
+    /// @notice Voting Hub contract address.
+    address public votingHub;
+    /// @notice Protocol Messaging Hub contract address.
     address public protocolMessagingHub;
     /// @notice Oracle Router contract address.
     address public oracleRouter;
@@ -360,6 +362,19 @@ contract CentralRegistry is ERC165 {
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
+    }
+
+    /// @notice Sets a new voting hub contract address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CoreContractSet} event.
+    /// @param newVotingHub The new address of votingHub.
+    function setVotingHub(
+        address newVotingHub
+    ) external {
+        _checkElevatedPermissions();
+
+        votingHub = newVotingHub;
+        emit CoreContractSet("Voting Hub", newVotingHub);
     }
 
     /// @notice Sets a new protocol messaging hub contract address.
