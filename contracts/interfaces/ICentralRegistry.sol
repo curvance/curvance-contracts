@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
@@ -88,7 +87,10 @@ interface ICentralRegistry {
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
     /// @notice Returns Circle Token Messenger contract address.
-    function circleMessageTransmitter() external view returns (IMessageTransmitter);
+    function circleMessageTransmitter()
+        external
+        view
+        returns (IMessageTransmitter);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);
@@ -177,4 +179,3 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (address);
 }
->>>>>>> origin/cantinaFixes
