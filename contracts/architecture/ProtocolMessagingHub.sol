@@ -279,31 +279,27 @@ contract ProtocolMessagingHub is QueryResponse {
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
-            (, bytes memory emissionData) = abi.decode(
+            (, uint256 epoch, EmissionData memory emissionData) = abi.decode(
                 payload,
-                (uint8, bytes)
+                (uint8, uint256, EmissionData)
             );
 
-            (
-                uint256 epoch,
-                address[] memory gaugePools,
-                uint256[] memory emissionTotals,
-                address[][] memory tokens,
-                uint256[][] memory emissions
-            ) = abi.decode(
-                    emissionData,
-                    (uint256, address[], uint256[], address[][], uint256[][])
-                );
-
-            uint256 numPools = gaugePools.length;
+            uint256 numPools = emissionData.gaugePools.length;
             IGaugePool gaugePool;
 
             for (uint256 i; i < numPools; ++i) {
-                gaugePool = IGaugePool(gaugePools[i]);
+                gaugePool = IGaugePool(emissionData.gaugePools[i]);
                 // Mint epoch gauge emissions to the gauge pool.
-                cve.mintGaugeEmissions(address(gaugePool), emissionTotals[i]);
+                cve.mintGaugeEmissions(
+                    address(gaugePool),
+                    emissionData.emissionTotals[i]
+                );
                 // Set upcoming epoch emissions for voted configuration.
-                gaugePool.setEmissionRates(epoch, tokens[i], emissions[i]);
+                gaugePool.setEmissionRates(
+                    epoch,
+                    emissionData.tokens[i],
+                    emissionData.emissions[i]
+                );
             }
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and

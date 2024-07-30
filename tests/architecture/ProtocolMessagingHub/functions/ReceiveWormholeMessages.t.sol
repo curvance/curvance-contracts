@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
+import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract ProtocolMessagingHubReceiveWormholeMessagesTest is
@@ -218,32 +219,26 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.warp(veCVE.nextEpochStartTime() + 100);
 
-        uint256 epoch = gaugePool.currentEpoch() + 1;
-        address[] memory gaugePools = new address[](1);
-        uint256[] memory emissionTotals = new uint256[](1);
-        address[][] memory tokens = new address[][](1);
-        uint256[][] memory emissions = new uint256[][](1);
+        uint256 epoch = gaugePool.currentEpoch();
 
-        tokens[0] = new address[](1);
-        emissions[0] = new uint256[](1);
+        EmissionData memory emissionData;
 
-        gaugePools[0] = address(gaugePool);
-        emissionTotals[0] = _ONE;
-        tokens[0][0] = _USDC_ADDRESS;
-        emissions[0][0] = _ONE;
+        emissionData.gaugePools = new address[](1);
+        emissionData.emissionTotals = new uint256[](1);
+        emissionData.tokens = new address[][](1);
+        emissionData.emissions = new uint256[][](1);
+
+        emissionData.tokens[0] = new address[](1);
+        emissionData.emissions[0] = new uint256[](1);
+
+        emissionData.gaugePools[0] = address(gaugePool);
+        emissionData.emissionTotals[0] = _ONE;
+        emissionData.tokens[0][0] = _USDC_ADDRESS;
+        emissionData.emissions[0][0] = _ONE;
 
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(
-                2,
-                abi.encode(
-                    epoch,
-                    gaugePools,
-                    emissionTotals,
-                    tokens,
-                    emissions
-                )
-            ),
+            abi.encode(2, epoch, emissionData),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
             23,
