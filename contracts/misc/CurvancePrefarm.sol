@@ -57,6 +57,31 @@ contract CurvancePrefarm {
 
     /// EXTERNAL FUNCTIONS ///
 
+    function multiDeposit(
+        address[] calldata prefarmTokens,
+        uint256[] calldata amounts
+    ) external {
+        if (block.timestamp > prefarmEndTimestamp) {
+            revert CurvancePrefarm__PrefarmDepositsBlocked();
+        }
+
+        uint256 numTokens = prefarmTokens.length;
+        if (numTokens != amounts.length) {
+            revert CurvancePrefarm__InvalidParameters();
+        }
+
+        for (uint256 i; i < numTokens; ++i) {
+            SafeTransferLib.safeTransferFrom(
+                prefarmTokens[i],
+                msg.sender,
+                address(this),
+                amounts[i]
+            );
+
+            _recordDeposit(prefarmTokens[i], amounts[i], msg.sender);
+        }
+    }
+
     function deposit(address prefarmToken, uint256 amount) external {
         if (block.timestamp > prefarmEndTimestamp) {
             revert CurvancePrefarm__PrefarmDepositsBlocked();
