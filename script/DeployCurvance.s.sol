@@ -108,6 +108,7 @@ contract DeployCurvance is
         // Deploy ProtocolMessagingHub
         _deployProtocolMessagingHub(centralRegistry);
         _setProtocolMessagingHub(protocolMessagingHub);
+        _addLockingPermissions(protocolMessagingHub);
 
         // Deploy GaugePool
 
