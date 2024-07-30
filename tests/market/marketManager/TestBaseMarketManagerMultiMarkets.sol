@@ -159,9 +159,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     }
 
     function _borrow(address _user, DToken _dToken, uint256 _amount) internal {
-        vm.startPrank(_user);
+        vm.prank(_user);
         _dToken.borrow(_amount);
-        vm.stopPrank();
     }
 
     function _repay(address _user, DToken _dToken, uint256 _amount) internal {

@@ -133,10 +133,8 @@ contract TestCTokenReserves is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether - 1);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(1000 ether);
         vm.stopPrank();
 
@@ -198,9 +196,8 @@ contract TestCTokenReserves is TestBaseMarket {
         uint256 amountToRedeem = cBALRETH.balanceOf(dao);
         uint256 daoBalanceBefore = balRETH.balanceOf(dao);
 
-        vm.startPrank(dao);
+        vm.prank(dao);
         cBALRETH.redeem(amountToRedeem, dao, dao);
-        vm.stopPrank();
 
         assertEq(cBALRETH.balanceOf(dao), 0);
         assertEq(gaugePool.balanceOf(address(cBALRETH), dao), 0);
@@ -213,9 +210,8 @@ contract TestCTokenReserves is TestBaseMarket {
         uint256 amountToTransfer = cBALRETH.balanceOf(dao);
 
         address user = makeAddr("user");
-        vm.startPrank(dao);
+        vm.prank(dao);
         cBALRETH.transfer(user, amountToTransfer);
-        vm.stopPrank();
 
         assertEq(cBALRETH.balanceOf(dao), 0);
         assertEq(gaugePool.balanceOf(address(cBALRETH), dao), 0);

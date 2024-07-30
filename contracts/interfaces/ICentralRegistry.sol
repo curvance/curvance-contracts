@@ -62,6 +62,9 @@ interface ICentralRegistry {
     /// @notice Returns veCVE address.
     function veCVE() external view returns (address);
 
+    /// @notice Returns Voting Hub address.
+    function votingHub() external view returns (address);
+
     /// @notice Returns Protocol Messaging Hub address.
     function protocolMessagingHub() external view returns (address);
 

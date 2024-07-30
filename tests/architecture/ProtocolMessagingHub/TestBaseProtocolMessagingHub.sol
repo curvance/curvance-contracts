@@ -12,8 +12,8 @@ contract TestBaseProtocolMessagingHub is TestBaseMarket {
         hex"ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f200";
     uint8 public queryRequestVersion = 0x01;
     uint32 public queryRequestNonce = 0xdd9914c6;
-    uint8 public numPerChainQueries = 0x01;
-    uint8 public numPerChainResponses = 0x01;
+    uint8 public numPerChainQueries = 1;
+    uint8 public numPerChainResponses = 1;
     uint8 public sigGuardianIndex = 0;
     bytes public response;
     IWormhole.Signature[] public signatures;

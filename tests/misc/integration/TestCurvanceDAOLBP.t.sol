@@ -232,9 +232,8 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
 
     function _prepareCommit(address user, uint256 amount) internal {
         deal(_WETH_ADDRESS, user, amount);
-        vm.startPrank(user);
+        vm.prank(user);
         weth.approve(address(lbp), amount);
-        vm.stopPrank();
     }
 
     function testSwapAndCommitForSuccess() public {

@@ -6,7 +6,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -90,7 +89,6 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error RewardManager__InvalidCentralRegistry();
     error RewardManager__RewardTokenIsZeroAddress();
     error RewardManager__SwapDataIsInvalid();
     error RewardManager__Unauthorized();
@@ -105,15 +103,6 @@ contract RewardManager is Delegable, ReentrancyGuard {
         ICentralRegistry centralRegistry_,
         address rewardToken_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert RewardManager__InvalidCentralRegistry();
-        }
-
         if (rewardToken_ == address(0)) {
             revert RewardManager__RewardTokenIsZeroAddress();
         }

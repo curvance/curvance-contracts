@@ -493,10 +493,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user3 claims
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
@@ -630,7 +627,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
         }
 
         // user0, user1, user2, user3 claims
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
 
         gaugePool.claim(_makeTokenArray(tokens[0]));
@@ -844,10 +840,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user1 claim rewards
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);

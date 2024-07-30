@@ -253,6 +253,13 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.claim(_makeTokenArray(address(cve)));
     }
 
+    function testEmptyClaim() public {
+        vm.warp(gaugePool.startTime());
+
+        vm.prank(users[0]);
+        gaugePool.claim(new address[](0));
+    }
+
     function testRewardRatioOfDifferentPools() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
@@ -318,11 +325,8 @@ contract TestGaugePool is TestBaseMarket {
             16000
         );
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user3 claims
 
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
@@ -379,7 +383,6 @@ contract TestGaugePool is TestBaseMarket {
 
         // user0, user1, user2, user3 claims
 
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -474,10 +477,7 @@ contract TestGaugePool is TestBaseMarket {
             2 weeks * 200 + 100 * 200
         );
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user1 claim rewards
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -653,10 +653,7 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.updatePool(tokens[0]);
         gaugePool.updatePool(tokens[1]);
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user3 claims
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[3]);
@@ -715,8 +712,6 @@ contract TestGaugePool is TestBaseMarket {
         );
 
         // user0, user1, user2, user3 claims
-
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claim(_makeTokenArray(tokens[0]));
         vm.prank(users[1]);
@@ -758,7 +753,7 @@ contract TestGaugePool is TestBaseMarket {
         );
     }
 
-    function testclaim() public {
+    function testClaim() public {
         address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
@@ -870,7 +865,15 @@ contract TestGaugePool is TestBaseMarket {
             32000
         );
 
-        // user0, user1, user2, user3 claims
+        // user0, user1, user2, user3 claims with empty array
+        vm.prank(users[0]);
+        gaugePool.claim(new address[](0));
+        vm.prank(users[1]);
+        gaugePool.claim(new address[](0));
+        vm.prank(users[3]);
+        gaugePool.claim(new address[](0));
+
+        // user0, user1, user2, user3 claims listedTokens(multi token)
         vm.prank(users[0]);
         gaugePool.claim(listedTokens);
         vm.prank(users[1]);
@@ -916,17 +919,74 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
         deal(address(cve), address(gaugePool), 1e18);
 
+        vm.startPrank(mToken);
+
         // make a deposit before start time
-        vm.prank(mToken);
         gaugePool.deposit(mToken, address(this), 100 ether);
+
+        // make a withdrawal before start time
+        gaugePool.withdraw(mToken, address(this), 100 ether);
 
         // fast forward to after start time
         vm.warp(gaugePool.startTime() + 2 weeks);
 
-        vm.prank(mToken);
-        // fixed (issue: the unallocated rewards are overestimated, so the transfer reverts)
-        // vm.expectRevert(abi.encodeWithSignature("TransferFailed()"));
-        gaugePool.deposit(mToken, address(1), 1 ether);
+        // make a deposit after start time
+        gaugePool.deposit(mToken, address(this), 100 ether);
+
+        // make a withdrawal after start time
+        gaugePool.withdraw(mToken, address(this), 100 ether);
+
+        vm.stopPrank();
+    }
+
+    function testZach_ZeroCollRatio() public {
+        _deployCBALRETH();
+        _prepareBALRETH(address(this), 1 ether);
+
+        balRETH.approve(address(cBALRETH), 1 ether);
+        marketManager.listToken(address(cBALRETH));
+
+        oracleRouter.addMTokenSupport(address(cBALRETH));
+
+        // set collateral factor
+        marketManager.updateCollateralToken(
+            IMToken(address(cBALRETH)),
+            0,
+            4000,
+            3000,
+            200,
+            400,
+            10,
+            1000
+        );
+
+        // set up emission rates and fund the gauge pool with cve
+        address[] memory tokensParam = new address[](1);
+        tokensParam[0] = address(cBALRETH);
+        uint256[] memory poolWeights = new uint256[](1);
+        poolWeights[0] = 1e18;
+        vm.prank(address(protocolMessagingHub));
+        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+        deal(address(cve), address(gaugePool), 1e18);
+
+        vm.startPrank(address(cBALRETH));
+
+        // make a deposit before start time
+        gaugePool.deposit(address(cBALRETH), address(this), 1 ether);
+
+        // make a withdrawal before start time
+        gaugePool.withdraw(address(cBALRETH), address(this), 1 ether);
+
+        // fast forward to after start time
+        vm.warp(gaugePool.startTime() + 2 weeks);
+
+        // make a deposit after start time
+        gaugePool.deposit(address(cBALRETH), address(this), 1 ether);
+
+        // make a withdrawal after start time
+        gaugePool.withdraw(address(cBALRETH), address(this), 1 ether);
+
+        vm.stopPrank();
     }
 
     function testRedeemRevertInvalidAmount() public {

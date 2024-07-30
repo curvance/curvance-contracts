@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
-
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
@@ -14,6 +12,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -146,7 +145,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     error DToken__TransferError();
     error DToken__InsufficientUnderlyingHeld();
     error DToken__ValidationFailed();
-    error DToken__InvalidCentralRegistry();
     error DToken__UnderlyingAssetTotalSupplyExceedsMaximum();
     error DToken__MarketManagerIsNotLendingMarket();
 
@@ -163,15 +161,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address marketManager_,
         address interestRateModel_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DToken__InvalidCentralRegistry();
-        }
-
         // Set the marketManager after consulting Central Registry.
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(marketManager_)) {
@@ -1225,7 +1214,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // Cache gaugePool, then update gauge pool values for `from` and `to`.
-        GaugePool gaugePool = _gaugePool();
+        IGaugePool gaugePool = _gaugePool();
         gaugePool.withdraw(address(this), from, tokens);
         gaugePool.deposit(address(this), to, tokens);
 
@@ -1494,7 +1483,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice Returns the gauge pool contract address.
     /// @return The gauge controller contract address, in `IGaugePool` form.
-    function _gaugePool() internal view returns (GaugePool) {
+    function _gaugePool() internal view returns (IGaugePool) {
         return marketManager.gaugePool();
     }
 

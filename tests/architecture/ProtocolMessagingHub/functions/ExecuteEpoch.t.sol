@@ -19,7 +19,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         centralRegistry.addChainSupport(
             srcMessagingHub,
             address(cve),
-            _USDC_ADDRESS,
+            _USDC_ADDRESSES[42161],
             42161,
             23,
             makeAddr("Wormhole Relayer"),
@@ -44,6 +44,39 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert();
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
+    }
+
+    function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
+        centralRegistry.addChainSupport(
+            address(this),
+            address(1),
+            _USDC_ADDRESSES[10],
+            10,
+            24,
+            makeAddr("Wormhole Relayer"),
+            2
+        );
+
+        _prepareResponseAndSignatures(
+            abi.encode(_ONE),
+            block.number,
+            uint64(block.timestamp * 1000000),
+            23,
+            srcMessagingHub,
+            abi.encodeWithSignature("queryLockPoints()")
+        );
+
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
+        );
         protocolMessagingHub.executeEpoch(
             response,
             signatures,
@@ -186,5 +219,22 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
+
+        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+
+        rewardManager.notifyShutdown();
+
+        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+
+        protocolMessagingHub.executeEpoch(
+            response,
+            signatures,
+            100e6,
+            250_000
+        );
+
+        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(this)), compoundingFee * 2);
     }
 }

@@ -165,6 +165,7 @@ contract TestSimpleZapper is TestBaseMarket {
             block.timestamp,
             block.timestamp
         );
+        vm.stopPrank();
     }
 
     function testInitialize() public {
@@ -203,13 +204,12 @@ contract TestSimpleZapper is TestBaseMarket {
             address(simpleZapper)
         );
 
-        vm.startPrank(user);
+        vm.prank(user);
         simpleZapper.zapAndDeposit{ value: ethAmount }(
             swapZap,
             address(cSTETH),
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(cSTETH.balanceOf(user), 0);
@@ -219,10 +219,8 @@ contract TestSimpleZapper is TestBaseMarket {
         testZapAndDeposit();
         vm.startPrank(user);
         marketManager.postCollateral(user, address(cSTETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user);
         dDAI.borrow(500 ether);
         vm.stopPrank();
 

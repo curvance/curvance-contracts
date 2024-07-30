@@ -360,6 +360,10 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             veCVE.userUnlocksByEpoch(user1, veCVE.currentEpoch(unlockTime)),
             _ONE
         );
+
+        _recordEpochRewards(30, 1e6 * _ONE);
+
+        assertEq(rewardManager.hypotheticalRewardsClaim(user1), 26e6);
     }
 
     function test_cve_bridge_success() public {

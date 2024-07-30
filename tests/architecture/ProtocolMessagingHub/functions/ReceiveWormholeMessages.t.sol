@@ -54,6 +54,44 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
     }
 
+    function test_receiveWormholeMessages_fail_whenNotHaveOneCCTPTransfer()
+        public
+    {
+        additionalMessages.push(abi.encode("1", "1"));
+
+        vm.startPrank(_WORMHOLE_RELAYER);
+
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
+        );
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("1")
+        );
+
+        uint256 nextEpoch = rewardManager.nextEpochToDeliver();
+
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
+        );
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("1")
+        );
+
+        vm.stopPrank();
+    }
+
     function test_receiveWormholeMessages_fail_whenMessagingHubIsPaused()
         public
     {
@@ -220,6 +258,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), 0);
 
+        uint256 rewardManagerBalance = usdc.balanceOf(address(rewardManager));
+        uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
+
         vm.prank(_WORMHOLE_RELAYER);
         protocolMessagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
@@ -231,6 +272,33 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), _ONE);
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
+        assertEq(
+            usdc.balanceOf(address(rewardManager)),
+            rewardManagerBalance + 100e6
+        );
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), daoBalance);
+
+        rewardManager.notifyShutdown();
+        rewardManagerBalance = usdc.balanceOf(address(rewardManager));
+
+        nextEpoch = rewardManager.nextEpochToDeliver();
+
+        vm.prank(_WORMHOLE_RELAYER);
+        protocolMessagingHub.receiveWormholeMessages(
+            abi.encode(3, nextEpoch, _ONE),
+            additionalMessages,
+            _addressToBytes32(srcMessagingHub),
+            23,
+            bytes32("2")
+        );
+
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpoch), 0);
+        assertEq(rewardManager.nextEpochToDeliver(), nextEpoch);
+        assertEq(usdc.balanceOf(address(rewardManager)), rewardManagerBalance);
+        assertEq(
+            usdc.balanceOf(centralRegistry.daoAddress()),
+            daoBalance + 100e6
+        );
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {

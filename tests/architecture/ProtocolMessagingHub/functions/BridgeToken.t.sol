@@ -36,6 +36,31 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
         protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
     }
 
+    function test_bridgeToken_fail_whenWormholeChainIdIsInvalid() public {
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
+        );
+        protocolMessagingHub.bridgeToken(42162, user1, _ONE, 0, 0, false);
+    }
+
+    function test_bridgeToken_fail_whenDestinationChainIsNotSupported()
+        public
+    {
+        centralRegistry.removeChainSupport(
+            address(protocolMessagingHub),
+            42161
+        );
+
+        vm.expectRevert(
+            ProtocolMessagingHub
+                .ProtocolMessagingHub__InvalidParameter
+                .selector
+        );
+        protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
+    }
+
     function test_bridgeToken_fail_whenPayloadIsNot4_whenCallerIsNotCVE()
         public
     {
@@ -43,19 +68,6 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
             ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
         );
         protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
-    }
-
-    function test_bridgeToken_fail_whenPayloadIsNot4_whenDestinationChainIsNotRegistered()
-        public
-    {
-        vm.prank(address(cve));
-
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.bridgeToken(42162, user1, _ONE, 0, 0, false);
     }
 
     function test_bridgeToken_fail_whenPayloadIsNot4_whenRecipientIsZeroAddress()
@@ -93,19 +105,6 @@ contract BridgeTokenTest is TestBaseProtocolMessagingHub {
                 .selector
         );
         protocolMessagingHub.bridgeToken(42161, user1, _ONE, 0, 4, true);
-    }
-
-    function test_bridgeToken_fail_whenPayloadIs4_whenDestinationChainIsNotRegistered()
-        public
-    {
-        vm.prank(address(veCVE));
-
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.bridgeToken(138, user1, _ONE, 0, 4, true);
     }
 
     function test_bridgeToken_fail_whenPayloadIs4_whenNativeTokenIsNotEnoughToCoverFee()
