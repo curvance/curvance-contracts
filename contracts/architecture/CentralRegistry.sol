@@ -331,22 +331,30 @@ contract CentralRegistry is ERC165 {
         }
     }
 
-    /// @notice Sets a new CVE contract address.
+    /// @notice Sets a CVE contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
+        if (cve != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
     }
 
-    /// @notice Sets a new veCVE contract address.
+    /// @notice Sets a veCVE contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
+        if (veCVE != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         veCVE = newVeCVE;

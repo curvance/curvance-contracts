@@ -392,11 +392,15 @@ contract BlastNativeYieldManager is ReentrancyGuard {
     function claimPendingNativeYield(address[] calldata nonMTokens) external {
         _checkIsCentralRegistry();
 
-        uint256 nonMTokensLength = nonMTokens.length;
+        uint256 numTokens = nonMTokens.length;
         uint256 yieldClaimed;
 
-        for (uint256 i; i < nonMTokensLength; ++i) {
+        for (uint256 i; i < numTokens; ++i) {
             yieldClaimed += CHAIN_YIELD_MANAGER.claimMaxGas(
+                nonMTokens[i],
+                address(this)
+            );
+            yieldClaimed += CHAIN_YIELD_MANAGER.claimAllYield(
                 nonMTokens[i],
                 address(this)
             );
@@ -407,6 +411,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
 
         IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: yieldClaimed }();
+        
         SafeTransferLib.safeTransfer(
             address(WETH_YIELD_MANAGER),
             centralRegistry.daoAddress(),
