@@ -277,7 +277,7 @@ contract FeeAccumulator is ReentrancyGuard {
         feeTokens -= compoundingFee;
 
         if (feeTokens > 0) {
-            // Move remaining fees on this chain to PMH to distribute.
+            // Move remaining fees on this chain to Messaging Hub to distribute.
             SafeTransferLib.safeTransfer(feeToken, messagingHub, feeTokens);
         }
 
