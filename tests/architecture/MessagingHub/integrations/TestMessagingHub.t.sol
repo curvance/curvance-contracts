@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
@@ -15,7 +15,7 @@ import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeH
 import { Vm } from "forge-std/Vm.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
-contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
+contract TestMessagingHub is TestBaseMessagingHub {
     using stdStorage for StdStorage;
 
     uint256 public srcForkId;
@@ -49,7 +49,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[1]),
+            address(messagingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -66,7 +66,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         _initMainVariables();
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
         deal(address(cve), address(this), 100e18);
 
         centralRegistry.setExternalCallDataChecker(
@@ -74,7 +74,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             address(cves[42161]),
             _USDC_ADDRESSES[42161],
             42161,
@@ -98,7 +98,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             block.number,
             uint64(block.timestamp * 1000000),
             23,
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -109,20 +109,15 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
@@ -135,7 +130,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         _createLock();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
         _recordEpochRewards(1, 1e6 * _ONE);
@@ -150,7 +145,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         wormholeHelper.helpWithCctpAndWormhole(
             2,
             dstForkId,
-            address(protocolMessagingHub),
+            address(messagingHub),
             _WORMHOLE_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
@@ -225,14 +220,14 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         vm.recordLogs();
 
-        protocolMessagingHub.sendFees(42161, 1000e6, 250_000);
+        messagingHub.sendFees(42161, 1000e6, 250_000);
 
         uint256 compoundingFee = (1000e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 pullAmount = 1000e6 - compoundingFee;
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), daoBalance + compoundingFee);
         assertEq(
             usdc.balanceOf(address(feeAccumulator)),
@@ -248,7 +243,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), pullAmount);
+        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
@@ -256,7 +251,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         wormholeHelper.helpWithCctpAndWormhole(
             2,
             dstForkId,
-            address(protocolMessagingHub),
+            address(messagingHub),
             _WORMHOLE_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
@@ -270,11 +265,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         deal(user1, _ONE);
 
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            false,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
@@ -321,7 +312,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
 
         _initMainVariables();
 
-        centralRegistry.addLockingPermissions(address(protocolMessagingHub));
+        centralRegistry.addLockingPermissions(address(messagingHub));
 
         _skipRestrictionDuration();
 
@@ -370,11 +361,7 @@ contract TestProtocolMessagingHub is TestBaseProtocolMessagingHub {
         deal(user1, _ONE);
         deal(address(cve), user1, _ONE);
 
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            false,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
 
         vm.recordLogs();
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
-contract SendFeesTest is TestBaseProtocolMessagingHub {
+contract SendFeesTest is TestBaseMessagingHub {
     using stdStorage for StdStorage;
 
     function setUp() public override {
@@ -23,23 +23,19 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
     }
 
     function test_sendFees_fail_whenMessagingHubIsPaused() public {
-        protocolMessagingHub.setMessagingHubStatus(2);
+        messagingHub.setMessagingHubStatus(2);
 
         vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__MessagingHubPaused
-                .selector
+            MessagingHub.MessagingHub__MessagingHubPaused.selector
         );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenCallerIsNotAuthorized() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
-        );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        vm.expectRevert(MessagingHub.MessagingHub__Unauthorized.selector);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenChainIdIsNotSupported() public {
@@ -50,12 +46,8 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
             .depth(0)
             .checked_write(1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughNativeAssetForMessageFee()
@@ -64,41 +56,35 @@ contract SendFeesTest is TestBaseProtocolMessagingHub {
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
 
         vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InsufficientGasToken
-                .selector
+            MessagingHub.MessagingHub__InsufficientGasToken.selector
         );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenHasNoEnoughFeeToken() public {
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         vm.expectRevert("Amount must be nonzero");
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_fail_whenCCTPIsNotConfigured() public {
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
 
         centralRegistry.setCircleTokenMessenger(address(0));
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.sendFees(42161, 10e6, 0);
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.sendFees(42161, 10e6, 0);
     }
 
     function test_sendFees_success() public {
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
         deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE);
 
-        protocolMessagingHub.sendFees(42161, 10e6, 250_000);
+        messagingHub.sendFees(42161, 10e6, 250_000);
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), _ONE - 10e6);
     }

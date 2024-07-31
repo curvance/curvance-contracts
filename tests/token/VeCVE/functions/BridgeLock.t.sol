@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
 contract BridgeLockTest is TestBaseVeCVE {
     VeCVE.BridgeData public bridgeData = VeCVE.BridgeData(42161, 0, true);
@@ -12,7 +12,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         super.setUp();
 
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
+            address(messagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -63,7 +63,7 @@ contract BridgeLockTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
-            vm.prank(centralRegistry.protocolMessagingHub());
+            vm.prank(centralRegistry.messagingHub());
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
@@ -80,11 +80,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            false,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
 
         vm.expectRevert();
         veCVE.bridgeLock{ value: messageFee - 1 }(
@@ -101,21 +97,13 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            false,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
         bridgeData.dstChainId = 42162;
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         veCVE.bridgeLock{ value: messageFee }(
             0,
             bridgeData,
@@ -130,11 +118,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            false,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 

@@ -121,8 +121,8 @@ contract RewardManager is Delegable, ReentrancyGuard {
     ///                      the next reward epoch delivered.
     function recordEpochRewards(uint256 rewardsPerCVE) external {
         // Validate the caller reporting epoch data is the fee accumulator,
-        // or protocol messaging hub.
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
+        // or messaging hub.
+        if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

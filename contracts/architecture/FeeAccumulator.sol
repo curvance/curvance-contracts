@@ -23,7 +23,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///
 ///      Fees can be marked for OTC which will allow the Curvance DAO to
 ///      purchase them, at fair market value. The Fee accumulator also works
-///      in collaboration with the Protocol Messaging Hub to manage system
+///      in collaboration with the Messaging Hub to manage system
 ///      information and fees. Epoch fee distributions are distributed once a
 ///      single chain has recorded fees accumulated and tokens locked across
 ///      all supported chains inside the Curvance Protocol system.
@@ -239,13 +239,13 @@ contract FeeAccumulator is ReentrancyGuard {
     }
 
     /// @notice Sends collected fee tokens ex compounding bot stipend to the
-    ///         Protocol Messaging Hub.
-    /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
+    ///         Messaging Hub.
+    /// @dev Only callable by the Messaging Hub. Does not fail if fees
     ///      collected equal 0.
     /// @param amount The amount of token to transfer.
-    /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
+    /// @return The amount of transferred fee tokens to the Messaging Hub.
     function pullFees(uint256 amount) external returns (uint256) {
-        address messagingHub = centralRegistry.protocolMessagingHub();
+        address messagingHub = centralRegistry.messagingHub();
 
         if (msg.sender != messagingHub) {
             revert FeeAccumulator__Unauthorized();

@@ -13,16 +13,16 @@ import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 
-/// @title Curvance Protocol Messaging Hub.
+/// @title Curvance Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from
 ///         chain to chain.
-/// @dev The Protocol Messaging Hub acts as a unified hub for sending messages
+/// @dev The Messaging Hub acts as a unified hub for sending messages
 ///      crosschain. Various actions can be taken such as managing Gauge
 ///      Emissions offchain -> onchain porting, veCVE token locking data,
 ///      moving protocol fees, bridging CVE, moving a veCVE lock crosschain,
@@ -34,7 +34,7 @@ import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMe
 ///      At this time, payload/MessageType configuration + encoding/decoding
 ///      are not production ready.
 ///
-contract ProtocolMessagingHub is QueryResponse {
+contract MessagingHub is QueryResponse {
     using BytesParsing for bytes;
 
     /// CONSTANTS ///
@@ -42,9 +42,9 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
     uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
 
-    /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__Unauthorized()")))`.
+    /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
-    /// @dev `bytes4(keccak256(bytes("ProtocolMessagingHub__InvalidParameter()")))`.
+    /// @dev `bytes4(keccak256(bytes("MessagingHub__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
     /// @dev `keccak256(bytes("queryLockPoints()"))`.
     bytes4 internal constant _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
@@ -60,7 +60,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// STORAGE ///
 
-    /// @notice Whether the Protocol Messaging Hub is paused or not.
+    /// @notice Whether the Messaging Hub is paused or not.
     /// @dev messagingStatus can have three separate values:
     ///      1 = Messages can be created and executed
     ///      2 = Messages cannot be created, but can be executed.
@@ -72,13 +72,11 @@ contract ProtocolMessagingHub is QueryResponse {
 
     /// ERRORS ///
 
-    error ProtocolMessagingHub__Unauthorized();
-    error ProtocolMessagingHub__InvalidParameter();
-    error ProtocolMessagingHub__MessagingHubPaused();
-    error ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
-        bytes32 messageHash
-    );
-    error ProtocolMessagingHub__InsufficientGasToken();
+    error MessagingHub__Unauthorized();
+    error MessagingHub__InvalidParameter();
+    error MessagingHub__MessagingHubPaused();
+    error MessagingHub__MessageHashIsAlreadyDelivered(bytes32 messageHash);
+    error MessagingHub__InsufficientGasToken();
 
     receive() external payable {}
 
@@ -235,9 +233,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         // Validate that this is not a replay attack.
         if (isDeliveredMessageHash[deliveryHash]) {
-            revert ProtocolMessagingHub__MessageHashIsAlreadyDelivered(
-                deliveryHash
-            );
+            revert MessagingHub__MessageHashIsAlreadyDelivered(deliveryHash);
         }
 
         // Document messageHash as delivered to prevent replays.
@@ -426,7 +422,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
-            revert ProtocolMessagingHub__InsufficientGasToken();
+            revert MessagingHub__InsufficientGasToken();
         }
 
         _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
@@ -532,10 +528,10 @@ contract ProtocolMessagingHub is QueryResponse {
     }
 
     /// @notice Withdraws gas tokens and fee tokens from the
-    ///         Protocol Messaging Hub to the DAO address in order to
-    ///         depreciate or rebalance the Protocol Messaging Hub.
+    ///         Messaging Hub to the DAO address in order to
+    ///         depreciate or rebalance the Messaging Hub.
     /// @dev This does not allow any loss of funds as authorized perms are
-    ///      required to change the Protocol Messaging Hub, meaning in order
+    ///      required to change the Messaging Hub, meaning in order
     ///      to steal funds a malicious actor would have had to compromise
     ///      the whole system already. Thus, we only need to check for DAO
     ///      permissions here.
@@ -606,7 +602,7 @@ contract ProtocolMessagingHub is QueryResponse {
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
-            revert ProtocolMessagingHub__InsufficientGasToken();
+            revert MessagingHub__InsufficientGasToken();
         }
 
         ITokenMessenger circleTokenMessenger = centralRegistry
@@ -825,7 +821,7 @@ contract ProtocolMessagingHub is QueryResponse {
     }
 
     /// @dev Returns the amount of fee tokens currently held in this
-    ///      Protocol Messaging Hub.
+    ///      Messaging Hub.
     function _getFeeTokenHeld() internal view returns (uint256) {
         return IERC20(feeToken).balanceOf(address(this));
     }
@@ -846,7 +842,7 @@ contract ProtocolMessagingHub is QueryResponse {
     /// @dev Checks whether the Messaging Hub is paused or not.
     function _checkMessagingStatus(uint256 messageType) internal view {
         if (messagingStatus > messageType) {
-            revert ProtocolMessagingHub__MessagingHubPaused();
+            revert MessagingHub__MessagingHubPaused();
         }
     }
 

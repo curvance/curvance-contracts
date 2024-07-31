@@ -18,7 +18,7 @@ contract BasicSettersTest is TestBaseMarket {
             "setCVE(address)",
             "setVeCVE(address)",
             "setRewardManager(address)",
-            "setProtocolMessagingHub(address)",
+            "setMessagingHub(address)",
             "setOracleRouter(address)",
             "setFeeAccumulator(address)"
         ];
@@ -26,7 +26,7 @@ contract BasicSettersTest is TestBaseMarket {
             "cve()",
             "veCVE()",
             "rewardManager()",
-            "protocolMessagingHub()",
+            "messagingHub()",
             "oracleRouter()",
             "feeAccumulator()"
         ];
@@ -34,7 +34,7 @@ contract BasicSettersTest is TestBaseMarket {
             "CVE",
             "VeCVE",
             "Reward Manager",
-            "Protocol Messaging Hub",
+            "Messaging Hub",
             "Oracle Router",
             "Fee Accumulator"
         ];

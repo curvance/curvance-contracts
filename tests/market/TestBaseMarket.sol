@@ -10,7 +10,7 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
@@ -67,7 +67,7 @@ contract TestBaseMarket is TestBase {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployProtocolMessagingHub();
+        _deployMessagingHub();
         _deployVotingHub();
         _deployFeeAccumulator();
     }
@@ -145,13 +145,11 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setOracleRouter(address(oracleRouter));
     }
 
-    function _deployProtocolMessagingHub() internal initMainVariables {
-        protocolMessagingHub = protocolMessagingHubs[
-            block.chainid
-        ] = new ProtocolMessagingHub(
+    function _deployMessagingHub() internal initMainVariables {
+        messagingHub = messagingHubs[block.chainid] = new MessagingHub(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
+        centralRegistry.setMessagingHub(address(messagingHub));
     }
 
     function _deployVotingHub() internal initMainVariables {
@@ -558,7 +556,7 @@ contract TestBaseMarket is TestBase {
         uint256 epochRewards
     ) internal {
         for (uint256 i = 0; i < numEpochs; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
+            vm.prank(centralRegistry.messagingHub());
             rewardManager.recordEpochRewards(epochRewards);
         }
 

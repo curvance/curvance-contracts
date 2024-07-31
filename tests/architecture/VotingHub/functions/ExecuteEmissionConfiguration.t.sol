@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
-import { EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
 contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
@@ -31,7 +31,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             3
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         gasLimit.push(250_000);
 

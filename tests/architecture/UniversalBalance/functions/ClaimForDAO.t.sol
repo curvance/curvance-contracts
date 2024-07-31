@@ -40,7 +40,7 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
         tokensParam[0] = address(dWETH);
         poolWeights[0] = 100 * 2 weeks;
 
-        vm.startPrank(address(protocolMessagingHub));
+        vm.startPrank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
         cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
         vm.stopPrank();

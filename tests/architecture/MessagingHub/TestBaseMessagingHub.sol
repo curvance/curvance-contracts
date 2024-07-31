@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
-contract TestBaseProtocolMessagingHub is TestBaseMarket {
+contract TestBaseMessagingHub is TestBaseMarket {
     uint8 public version = 0x01;
     uint16 public senderChainId = 0x0000;
     bytes public signature =
@@ -72,9 +72,7 @@ contract TestBaseProtocolMessagingHub is TestBaseMarket {
             perChainResponses
         );
 
-        bytes32 responseDigest = protocolMessagingHub.getResponseDigest(
-            response
-        );
+        bytes32 responseDigest = messagingHub.getResponseDigest(response);
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(
             DEVNET_GUARDIAN_PRIVATE_KEY,
             responseDigest

@@ -73,7 +73,7 @@ contract TestGaugePool is TestBaseMarket {
         // uint256[] memory poolWeights = new uint256[](1);
         // poolWeights[0] = 100;
 
-        // vm.prank(address(protocolMessagingHub));
+        // vm.prank(address(messagingHub));
         // gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
@@ -112,7 +112,7 @@ contract TestGaugePool is TestBaseMarket {
         poolWeights[1] = 200;
 
         vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(2, tokensParam, poolWeights);
     }
 
@@ -128,7 +128,7 @@ contract TestGaugePool is TestBaseMarket {
         poolWeights[0] = 100;
 
         vm.expectRevert(GaugeErrors.InvalidLength.selector);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
     }
 
@@ -145,7 +145,7 @@ contract TestGaugePool is TestBaseMarket {
         poolWeights[1] = 200;
 
         vm.expectRevert(GaugeErrors.InvalidToken.selector);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
     }
 
@@ -161,7 +161,7 @@ contract TestGaugePool is TestBaseMarket {
         poolWeights[0] = 100;
         poolWeights[1] = 200;
 
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
 
         assertEq(gaugePool.isGaugeEnabled(1, tokens[0]), true);
@@ -184,7 +184,7 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100;
         poolWeights[1] = 200;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
 
         (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
@@ -215,15 +215,15 @@ contract TestGaugePool is TestBaseMarket {
         poolWeights[1] = 200;
 
         // check invalid epoch
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
         gaugePool.setEmissionRates(2, tokensParam, poolWeights);
 
         // can update emission rate of next epoch
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
 
         (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
@@ -279,9 +279,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -436,9 +436,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -460,9 +460,9 @@ contract TestGaugePool is TestBaseMarket {
         tokensParam[1] = tokens[1];
         poolWeights[0] = 200 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(2, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 400 * 2 weeks);
 
         // check pending rewards after 2 weeks
@@ -514,9 +514,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -554,9 +554,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -599,9 +599,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -773,9 +773,9 @@ contract TestGaugePool is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100 * 2 weeks;
         poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -915,7 +915,7 @@ contract TestGaugePool is TestBaseMarket {
         tokensParam[0] = mToken;
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 1e18;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
         deal(address(cve), address(gaugePool), 1e18);
 
@@ -965,7 +965,7 @@ contract TestGaugePool is TestBaseMarket {
         tokensParam[0] = address(cBALRETH);
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 1e18;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
         deal(address(cve), address(gaugePool), 1e18);
 

@@ -89,8 +89,8 @@ contract CentralRegistry is ERC165 {
     address public rewardManager;
     /// @notice Voting Hub contract address.
     address public votingHub;
-    /// @notice Protocol Messaging Hub contract address.
-    address public protocolMessagingHub;
+    /// @notice Messaging Hub contract address.
+    address public messagingHub;
     /// @notice Oracle Router contract address.
     address public oracleRouter;
     /// @notice Fee Accumulator contract address.
@@ -375,20 +375,15 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("Voting Hub", newVotingHub);
     }
 
-    /// @notice Sets a new protocol messaging hub contract address.
+    /// @notice Sets a new messaging hub contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newProtocolMessagingHub The new address of protocolMessagingHub.
-    function setProtocolMessagingHub(
-        address newProtocolMessagingHub
-    ) external {
+    /// @param newMessagingHub The new address of messagingHub.
+    function setMessagingHub(address newMessagingHub) external {
         _checkElevatedPermissions();
 
-        protocolMessagingHub = newProtocolMessagingHub;
-        emit CoreContractSet(
-            "Protocol Messaging Hub",
-            newProtocolMessagingHub
-        );
+        messagingHub = newMessagingHub;
+        emit CoreContractSet("Messaging Hub", newMessagingHub);
     }
 
     /// @notice Sets a new Oracle Router contract address.
@@ -825,7 +820,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param messagingHub Address for new chains Protocol Messaging Hub.
+    /// @param messagingHub Address for new chains Messaging Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
@@ -869,7 +864,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentMessagingHub Address for chains Protocol Messaging Hub.
+    /// @param currentMessagingHub Address for chains Messaging Hub.
     /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(

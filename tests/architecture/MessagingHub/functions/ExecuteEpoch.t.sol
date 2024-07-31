@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
-contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
+contract ExecuteEpochTest is TestBaseMessagingHub {
     address public srcMessagingHub;
 
     function setUp() public override {
@@ -44,12 +44,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert();
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
@@ -72,17 +67,8 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenResultIsNotNumber() public {
@@ -95,17 +81,8 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenBlockTimeIsStale() public {
@@ -119,12 +96,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("StaleBlockTime()")));
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenChainIdIsInvalid() public {
@@ -137,17 +109,8 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenToAddressIsInvalid() public {
@@ -161,12 +124,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("InvalidContractAddress()")));
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_fail_whenCallDataIsInvalid() public {
@@ -180,12 +138,7 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
         );
 
         vm.expectRevert(bytes4(keccak256("InvalidFunctionSignature()")));
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
     }
 
     function test_executeEpoch_success() public {
@@ -198,25 +151,20 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
         deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
@@ -226,14 +174,9 @@ contract ExecuteEpochTest is TestBaseProtocolMessagingHub {
 
         assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee * 2);
     }

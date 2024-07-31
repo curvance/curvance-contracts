@@ -9,9 +9,9 @@ contract BridgeTest is TestBaseChildCVE {
         super.setUp();
 
         centralRegistry.setCVE(address(childCVE));
-        _deployProtocolMessagingHub();
+        _deployMessagingHub();
 
-        vm.prank(centralRegistry.protocolMessagingHub());
+        vm.prank(centralRegistry.messagingHub());
         childCVE.mintGaugeEmissions(user1, _ONE);
 
         deal(user1, _ONE);
@@ -40,7 +40,7 @@ contract BridgeTest is TestBaseChildCVE {
 
     function test_bridge_success() public {
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
+            address(messagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -49,11 +49,7 @@ contract BridgeTest is TestBaseChildCVE {
             3
         );
 
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            true,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, true, 0);
 
         uint256 totalSupply = childCVE.totalSupply();
 

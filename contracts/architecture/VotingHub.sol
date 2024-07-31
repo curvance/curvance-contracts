@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { IProtocolMessagingHub, EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
@@ -446,8 +446,12 @@ contract VotingHub is QueryResponse {
         uint256 gasLimit,
         uint256 epoch
     ) internal {
-        IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-            .sendEmissions(emissionData, dstChainId, gasLimit, epoch);
+        IMessagingHub(centralRegistry.messagingHub()).sendEmissions(
+            emissionData,
+            dstChainId,
+            gasLimit,
+            epoch
+        );
     }
 
     /// @notice Checks if the caller can submit votes to the protocol.

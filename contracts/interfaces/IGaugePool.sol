@@ -15,7 +15,7 @@ interface IGaugePool {
     function getRewardTokens() external view returns (address[] memory);
 
     /// @notice Sets emission rates of tokens of next epoch.
-    /// @dev Only the protocol messaging hub can call this.
+    /// @dev Only the messaging hub can call this.
     /// @param epoch The epoch to set emission rates for, should be the next epoch.
     /// @param tokens Array containing all tokens to set emission rates for.
     /// @param poolWeights Gauge/Pool weights corresponding to DAO

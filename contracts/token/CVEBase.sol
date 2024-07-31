@@ -5,7 +5,7 @@ import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title CVEBase
 /// @notice Base contract to be inherited by Child CVE, and CVE contracts.
@@ -58,14 +58,13 @@ abstract contract CVEBase is ERC20 {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Mints gauge emissions for the desired gauge pool.
-    /// @dev Only callable by the ProtocolMessagingHub.
+    /// @dev Only callable by the MessagingHub.
     /// @param gaugePool The address of the gauge pool where emissions will be
     ///                  configured.
     /// @param amount The amount of gauge emissions to be minted.
     function mintGaugeEmissions(address gaugePool, uint256 amount) external {
         if (
-            msg.sender != _getMessagingHub() &&
-            msg.sender != _getVotingHub()
+            msg.sender != _getMessagingHub() && msg.sender != _getVotingHub()
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -88,7 +87,7 @@ abstract contract CVEBase is ERC20 {
 
     /// @notice Mint CVE to msg.sender,
     ///         which will always be the VeCVE contract.
-    /// @dev Only callable by the ProtocolMessagingHub.
+    /// @dev Only callable by the MessagingHub.
     ///      This function is used only for creating a bridged VeCVE lock.
     /// @param amount The amount of token to mint for the new veCVE lock.
     function mintLockedTokens(address recipient, uint256 amount) external {
@@ -136,9 +135,14 @@ abstract contract CVEBase is ERC20 {
     ) external payable {
         _burn(msg.sender, amount);
 
-        IProtocolMessagingHub(_getMessagingHub()).bridgeToken{
-            value: msg.value
-        }(dstChainId, recipient, amount, gasLimit, 5, false);
+        IMessagingHub(_getMessagingHub()).bridgeToken{ value: msg.value }(
+            dstChainId,
+            recipient,
+            amount,
+            gasLimit,
+            5,
+            false
+        );
 
         emit BridgeTokens(recipient, block.chainid, dstChainId, amount);
     }
@@ -165,7 +169,7 @@ abstract contract CVEBase is ERC20 {
         uint256 gasLimit
     ) external view returns (uint256) {
         return
-            IProtocolMessagingHub(_getMessagingHub()).quoteMessageFee(
+            IMessagingHub(_getMessagingHub()).quoteMessageFee(
                 dstChainId,
                 true,
                 gasLimit
@@ -186,9 +190,9 @@ abstract contract CVEBase is ERC20 {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @dev Returns the current Protocol Messaging Hub address.
+    /// @dev Returns the current Messaging Hub address.
     function _getMessagingHub() internal view returns (address) {
-        return centralRegistry.protocolMessagingHub();
+        return centralRegistry.messagingHub();
     }
 
     /// @dev Returns the current Voting Hub address.

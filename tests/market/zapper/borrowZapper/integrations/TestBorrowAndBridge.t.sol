@@ -118,7 +118,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
         );
 
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
+            address(messagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
