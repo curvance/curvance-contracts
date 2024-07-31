@@ -829,9 +829,12 @@ contract OracleRouter {
             // Answer == 0: Sequencer is up.
             // Check that the sequencer is up or the grace period has passed
             // after the sequencer is back up.
-            if (
-                answer != 0 || block.timestamp < startedAt + GRACE_PERIOD_TIME
-            ) {
+            if (startedAt == 0) {
+                return false;
+            }
+
+            uint256 timeSinceUp = block.timestamp - startedAt;
+            if (answer != 0 || timeSinceUp <= GRACE_PERIOD_TIME) {
                 return false;
             }
         }

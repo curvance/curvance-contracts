@@ -222,7 +222,7 @@ abstract contract CTokenBase is
     function balanceOfUnderlyingSafe(
         address account
     ) external view returns (uint256) {
-        return ((convertToAssetsSafe(WAD) * balanceOf(account)) / WAD);
+        return (convertToAssetsSafe(balanceOf(account)) / WAD);
     }
 
     /// @notice Returns the underlying balance of the `account`.
@@ -231,7 +231,7 @@ abstract contract CTokenBase is
     function balanceOfUnderlying(
         address account
     ) external view returns (uint256) {
-        return ((convertToAssets(WAD) * balanceOf(account)) / WAD);
+        return (convertToAssets(balanceOf(account)) / WAD);
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`, safely.
