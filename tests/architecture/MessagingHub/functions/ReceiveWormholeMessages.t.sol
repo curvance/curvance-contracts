@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseProtocolMessagingHub } from "../TestBaseProtocolMessagingHub.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
+import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
-contract ProtocolMessagingHubReceiveWormholeMessagesTest is
-    TestBaseProtocolMessagingHub
-{
+contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     using stdStorage for StdStorage;
 
     address public srcMessagingHub;
@@ -32,20 +31,14 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         MockMessageTransmitter(
             address(centralRegistry.circleMessageTransmitter())
-        ).enableForceTransfer(
-                _USDC_ADDRESS,
-                address(protocolMessagingHub),
-                100e6
-            );
+        ).enableForceTransfer(_USDC_ADDRESS, address(messagingHub), 100e6);
     }
 
     function test_receiveWormholeMessages_fail_whenCallerIsNotWormholeRelayer()
         public
     {
-        vm.expectRevert(
-            ProtocolMessagingHub.ProtocolMessagingHub__Unauthorized.selector
-        );
-        protocolMessagingHub.receiveWormholeMessages(
+        vm.expectRevert(MessagingHub.MessagingHub__Unauthorized.selector);
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -61,12 +54,8 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.startPrank(_WORMHOLE_RELAYER);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.receiveWormholeMessages(
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -76,12 +65,8 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        protocolMessagingHub.receiveWormholeMessages(
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        messagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -95,16 +80,14 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_fail_whenMessagingHubIsPaused()
         public
     {
-        protocolMessagingHub.setMessagingHubStatus(3);
+        messagingHub.setMessagingHubStatus(3);
 
         vm.prank(_WORMHOLE_RELAYER);
 
         vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__MessagingHubPaused
-                .selector
+            MessagingHub.MessagingHub__MessagingHubPaused.selector
         );
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -116,11 +99,11 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_fail_whenMessageIsAlreadyDelivered()
         public
     {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
+        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
 
         vm.startPrank(_WORMHOLE_RELAYER);
 
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -130,13 +113,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ProtocolMessagingHub
-                    .ProtocolMessagingHub__MessageHashIsAlreadyDelivered
+                MessagingHub
+                    .MessagingHub__MessageHashIsAlreadyDelivered
                     .selector,
                 bytes32("1")
             )
         );
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -150,10 +133,10 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_success_whenSourceAddressIsNotMessagingHub()
         public
     {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
+        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             bytes32(0),
@@ -161,17 +144,17 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("1")
         );
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(messagingHub)), 100e6);
         assertEq(usdc.balanceOf(address(rewardManager)), 0);
     }
 
     function test_receiveWormholeMessages_success_whenOperatorIsNotAuthorized()
         public
     {
-        deal(_USDC_ADDRESS, address(protocolMessagingHub), 100e6);
+        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(address(1)),
@@ -179,15 +162,15 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("1")
         );
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(messagingHub)), 100e6);
         assertEq(usdc.balanceOf(address(rewardManager)), 0);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -195,13 +178,13 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("1")
         );
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(messagingHub)), 100e6);
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
         rewardManager.notifyShutdown();
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -209,34 +192,35 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("2")
         );
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 100e6);
+        assertEq(usdc.balanceOf(address(messagingHub)), 100e6);
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
-        address[] memory gaugePools = new address[](1);
-        uint256[] memory emissionTotals = new uint256[](1);
-        address[][] memory tokens = new address[][](1);
-        uint256[][] memory emissions = new uint256[][](1);
-
-        tokens[0] = new address[](1);
-        emissions[0] = new uint256[](1);
-
-        gaugePools[0] = address(gaugePool);
-        emissionTotals[0] = _ONE;
-        tokens[0][0] = _USDC_ADDRESS;
-        emissions[0][0] = _ONE;
-
         gaugePool.start(address(marketManager));
 
         vm.warp(veCVE.nextEpochStartTime() + 100);
 
+        uint256 epoch = gaugePool.currentEpoch();
+
+        EmissionData memory emissionData;
+
+        emissionData.gaugePools = new address[](1);
+        emissionData.emissionTotals = new uint256[](1);
+        emissionData.tokens = new address[][](1);
+        emissionData.emissions = new uint256[][](1);
+
+        emissionData.tokens[0] = new address[](1);
+        emissionData.emissions[0] = new uint256[](1);
+
+        emissionData.gaugePools[0] = address(gaugePool);
+        emissionData.emissionTotals[0] = _ONE;
+        emissionData.tokens[0][0] = _USDC_ADDRESS;
+        emissionData.emissions[0][0] = _ONE;
+
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
-            abi.encode(
-                2,
-                abi.encode(gaugePools, emissionTotals, tokens, emissions)
-            ),
+        messagingHub.receiveWormholeMessages(
+            abi.encode(2, epoch, emissionData),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
             23,
@@ -244,7 +228,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         );
 
         (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch() + 1,
+            epoch,
             _USDC_ADDRESS
         );
 
@@ -262,7 +246,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -284,7 +268,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         nextEpoch = rewardManager.nextEpochToDeliver();
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -304,9 +288,9 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
     function test_receiveWormholeMessages_success_whenPayloadTypeIs4() public {
         _skipRestrictionDuration();
 
-        centralRegistry.addLockingPermissions(address(protocolMessagingHub));
+        centralRegistry.addLockingPermissions(address(messagingHub));
 
-        assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), 0);
 
         address recipient = user1;
@@ -314,7 +298,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
         bool continuousLock = true;
 
         vm.prank(_WORMHOLE_RELAYER);
-        protocolMessagingHub.receiveWormholeMessages(
+        messagingHub.receiveWormholeMessages(
             abi.encode(4, recipient, amount, continuousLock),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
@@ -322,7 +306,7 @@ contract ProtocolMessagingHubReceiveWormholeMessagesTest is
             bytes32("1")
         );
 
-        assertEq(cve.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(cve.balanceOf(address(messagingHub)), 0);
         assertEq(veCVE.balanceOf(user1), amount);
     }
 }

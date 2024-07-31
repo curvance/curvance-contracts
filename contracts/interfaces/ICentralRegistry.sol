@@ -65,8 +65,8 @@ interface ICentralRegistry {
     /// @notice Returns Voting Hub address.
     function votingHub() external view returns (address);
 
-    /// @notice Returns Protocol Messaging Hub address.
-    function protocolMessagingHub() external view returns (address);
+    /// @notice Returns Messaging Hub address.
+    function messagingHub() external view returns (address);
 
     /// @notice Returns Oracle Router address.
     function oracleRouter() external view returns (address);
@@ -87,7 +87,10 @@ interface ICentralRegistry {
     function circleTokenMessenger() external view returns (ITokenMessenger);
 
     /// @notice Returns Circle Token Messenger contract address.
-    function circleMessageTransmitter() external view returns (IMessageTransmitter);
+    function circleMessageTransmitter()
+        external
+        view
+        returns (IMessageTransmitter);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);

@@ -135,7 +135,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <=
+                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <
             amount
         ) {
             revert UniversalBalance__InsufficientBalance();
@@ -153,7 +153,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         // Check if lent balance needs to be utilized.
         // Will natively fail if utilization is at 100%.
         if (remainingAmount > 0) {
-            pointerAmount =  FixedPointMathLib.mulDivUp(
+            pointerAmount = FixedPointMathLib.mulDivUp(
                 remainingAmount,
                 WAD,
                 exchangeRate

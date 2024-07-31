@@ -144,9 +144,9 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         // uint256[] memory poolWeights = new uint256[](2);
         // poolWeights[0] = 100;
         // poolWeights[1] = 100;
-        // vm.prank(protocolMessagingHub);
+        // vm.prank(messagingHub);
         // gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        // vm.prank(protocolMessagingHub);
+        // vm.prank(messagingHub);
         // cve.mintGaugeEmissions(300 * 2 weeks, address(gaugePool));
         // vm.warp(gaugePool.startTime() + 1 * 2 weeks);
 

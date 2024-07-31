@@ -96,7 +96,7 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         centralRegistry.addLockingPermissions(address(distributor));
 
-        vm.prank(centralRegistry.protocolMessagingHub());
+        vm.prank(centralRegistry.messagingHub());
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);

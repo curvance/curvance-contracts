@@ -11,35 +11,28 @@ contract PullFeesTest is TestBaseFeeAccumulator {
     }
 
     function test_pullFees_success_whenNoFeeToken() public {
-        uint256 messagingHubBalance = usdc.balanceOf(
-            address(protocolMessagingHub)
-        );
+        uint256 messagingHubBalance = usdc.balanceOf(address(messagingHub));
 
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         feeAccumulator.pullFees(100e6);
 
-        assertEq(
-            usdc.balanceOf(address(protocolMessagingHub)),
-            messagingHubBalance
-        );
+        assertEq(usdc.balanceOf(address(messagingHub)), messagingHubBalance);
     }
 
     function test_pullFees_success() public {
         deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
 
-        uint256 messagingHubBalance = usdc.balanceOf(
-            address(protocolMessagingHub)
-        );
+        uint256 messagingHubBalance = usdc.balanceOf(address(messagingHub));
         uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         feeAccumulator.pullFees(100e6);
 
         assertEq(
-            usdc.balanceOf(address(protocolMessagingHub)),
+            usdc.balanceOf(address(messagingHub)),
             messagingHubBalance + 100e6 - compoundingFee
         );
         assertEq(

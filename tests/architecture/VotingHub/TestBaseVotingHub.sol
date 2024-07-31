@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
-contract TestBaseProtocolMessagingHub is TestBaseMarket {
+contract TestBaseVotingHub is TestBaseMarket {
     uint8 public version = 0x01;
     uint16 public senderChainId = 0x0000;
     bytes public signature =
@@ -19,12 +19,6 @@ contract TestBaseProtocolMessagingHub is TestBaseMarket {
     IWormhole.Signature[] public signatures;
     uint256 public constant DEVNET_GUARDIAN_PRIVATE_KEY =
         0xcfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0;
-
-    function setUp() public virtual override {
-        _fork(19140000);
-
-        _init();
-    }
 
     function _prepareResponseAndSignatures(
         bytes memory result,
@@ -72,9 +66,7 @@ contract TestBaseProtocolMessagingHub is TestBaseMarket {
             perChainResponses
         );
 
-        bytes32 responseDigest = protocolMessagingHub.getResponseDigest(
-            response
-        );
+        bytes32 responseDigest = votingHub.getResponseDigest(response);
         (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(
             DEVNET_GUARDIAN_PRIVATE_KEY,
             responseDigest

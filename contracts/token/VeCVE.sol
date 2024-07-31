@@ -11,7 +11,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title Curvance Voting Escrow CVE token.
 /// @notice A system for managing the larger Curvance Voting Escrow System
@@ -791,8 +791,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Burn the CVE for bridged lock.
         ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
 
-        IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-            .bridgeToken{ value: msg.value }(
+        IMessagingHub(centralRegistry.messagingHub()).bridgeToken{
+            value: msg.value
+        }(
             bridgeData.dstChainId,
             msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
             amount,

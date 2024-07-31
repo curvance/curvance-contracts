@@ -250,9 +250,9 @@ contract TestUniversalBalance is TestBaseMarket {
         tokensParam[0] = address(dWETH);
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);

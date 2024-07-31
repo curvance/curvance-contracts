@@ -190,7 +190,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
             i++
         ) {
-            vm.prank(centralRegistry.protocolMessagingHub());
+            vm.prank(centralRegistry.messagingHub());
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
     }

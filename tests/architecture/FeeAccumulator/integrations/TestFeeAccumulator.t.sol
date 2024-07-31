@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
@@ -42,7 +42,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[1]),
+            address(messagingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -82,7 +82,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         deal(address(cve), address(this), 100e18);
 
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             address(cves[42161]),
             _USDC_ADDRESSES[42161],
             42161,
@@ -138,30 +138,25 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
             block.number,
             uint64(block.timestamp * 1000000),
             23,
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -171,10 +166,10 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _initMainVariables();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
@@ -187,7 +182,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         wormholeHelper.helpWithCctpAndWormhole(
             2,
             dstForkId,
-            address(protocolMessagingHub),
+            address(messagingHub),
             _WORMHOLE_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
@@ -263,30 +258,25 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
             block.number,
             uint64(block.timestamp * 1000000),
             23,
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(
             usdc.balanceOf(address(this)),
             balanceBefore + compoundingFee
@@ -299,10 +289,10 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _initMainVariables();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
+        vm.prank(centralRegistry.messagingHub());
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
@@ -316,7 +306,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         wormholeHelper.helpWithCctpAndWormhole(
             2,
             dstForkId,
-            address(protocolMessagingHub),
+            address(messagingHub),
             _WORMHOLE_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs

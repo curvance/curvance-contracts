@@ -181,8 +181,8 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         );
     }
 
-    /// @notice Sets emission rates of tokens of next epoch.
-    /// @dev Only the protocol messaging hub can call this.
+    /// @notice Sets emission rates of tokens of current epoch.
+    /// @dev Only the messaging hub can call this.
     /// @param epoch The epoch to set emission rates for, should be the next
     ///              epoch.
     /// @param tokens Array containing all tokens to set emission rates for.
@@ -194,17 +194,17 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256[] calldata weights
     ) external override {
         if (
-            msg.sender != centralRegistry.protocolMessagingHub() &&
+            msg.sender != centralRegistry.messagingHub() &&
             msg.sender != centralRegistry.votingHub()
-            ) {
+        ) {
             revert GaugeErrors.Unauthorized();
         }
 
-        // Validate that Gauge system is fully active and only the upcoming
+        // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
             !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
-            epoch != currentEpoch() + 1
+            epoch != currentEpoch()
         ) {
             revert GaugeErrors.InvalidEpoch();
         }
@@ -372,7 +372,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256 additionalRewards
     ) external {
         // CVE rewards are only updated through the gauge system by
-        // the protocol messaging hub in setEmissionRates().
+        // the messaging hub in setEmissionRates().
         if (rewardToken == cve) {
             revert GaugeErrors.Unauthorized();
         }

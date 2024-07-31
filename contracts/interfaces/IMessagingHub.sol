@@ -14,7 +14,7 @@ struct EmissionData {
     uint256[][] emissions;
 }
 
-interface IProtocolMessagingHub {
+interface IMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         wormhole deposit and messaging.
     /// @param dstChainId Destination chain ID.

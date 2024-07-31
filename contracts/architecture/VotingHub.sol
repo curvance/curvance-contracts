@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
-import { IProtocolMessagingHub, EmissionData } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
@@ -13,8 +12,8 @@ import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
 
-    /// @notice Number of Protocol Epochs before rewards are halved, 26 epoch corresponds
-    ///         to roughly 1 year.
+    /// @notice Number of Protocol Epochs before rewards are halved,
+    ///         26 epoch corresponds to roughly 1 year.
     uint256 public constant REWARD_HALVENING_RATE = 26;
     /// @notice Number of Protocol Eras, corresponds to how many different periods
     ///         there are with token emission incentives.
@@ -34,7 +33,8 @@ contract VotingHub is QueryResponse {
     /// @dev `bytes4(keccak256(bytes("VotingHub__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x10e2435f;
     /// @dev `keccak256(bytes("queryEmissionsAllocated()"))`.
-    bytes4 internal constant _QUERY_EMISSIONS_ALLOCATED_SELECTOR = bytes4(hex"a214a94e");
+    bytes4 internal constant _QUERY_EMISSIONS_ALLOCATED_SELECTOR =
+        bytes4(hex"a214a94e");
 
     /// STORAGE ///
 
@@ -180,12 +180,19 @@ contract VotingHub is QueryResponse {
             }
 
             // Document emissions on current foreign chain.
-            totalEmissionsAllocated += abi.decode(eqr.result[0].result, (uint256));
+            totalEmissionsAllocated += abi.decode(
+                eqr.result[0].result,
+                (uint256)
+            );
         }
 
         uint256 epoch = currentEpoch();
         // Verify emission values are valid.
-        (emissionsAllocatedByEpoch[epoch], emissionData, remoteEmissionData) = _validateEmissionValues(
+        (
+            emissionsAllocatedByEpoch[epoch],
+            emissionData,
+            remoteEmissionData
+        ) = _validateEmissionValues(
             emissionData,
             remoteEmissionData,
             numResponses,
@@ -234,7 +241,7 @@ contract VotingHub is QueryResponse {
     function currentEra() public view returns (uint256) {
         return currentEpoch() / REWARD_HALVENING_RATE;
     }
-    
+
     /// @notice Returns current epoch number.
     function currentEpoch() public view returns (uint256) {
         return epochOfTimestamp(block.timestamp);
@@ -299,18 +306,18 @@ contract VotingHub is QueryResponse {
         uint256 numRemoteChains,
         uint256 cachedEmissionsAllocated,
         uint256 totalEmissionsAllocated
-    ) internal view returns (
-        uint256,
-        EmissionData memory,
-        EmissionData[] memory
-    ) {
+    )
+        internal
+        view
+        returns (uint256, EmissionData memory, EmissionData[] memory)
+    {
         address[] memory gaugePools = emissionData.gaugePools;
         uint256 numPools = gaugePools.length;
 
         uint256[] memory emissions;
         uint256 numTokens;
         uint256 emissionsTotal;
-        
+
         // Allocate rewards for this chain
         for (uint256 i; i < numPools; ++i) {
             numTokens = emissionData.tokens[i].length;
@@ -318,7 +325,7 @@ contract VotingHub is QueryResponse {
 
             if (numTokens != emissions.length) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
-            } 
+            }
 
             for (uint256 j; j < numTokens; ++j) {
                 emissionsTotal += emissions[j];
@@ -341,7 +348,7 @@ contract VotingHub is QueryResponse {
 
                 if (numTokens != emissions.length) {
                     _revert(_INVALID_PARAMETER_SELECTOR);
-                } 
+                }
 
                 for (uint256 k; k < numTokens; ++k) {
                     emissionsTotal += emissions[k];
@@ -353,7 +360,10 @@ contract VotingHub is QueryResponse {
             }
         }
 
-        if (totalEmissionsAllocated + cachedEmissionsAllocated > currentTargetEmissions()) {
+        if (
+            totalEmissionsAllocated + cachedEmissionsAllocated >
+            currentTargetEmissions()
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -398,7 +408,10 @@ contract VotingHub is QueryResponse {
         for (uint256 i; i < numPools; ++i) {
             gaugePool = IGaugePool(gaugePools[i]);
             // Mint epoch gauge emissions to the gauge pool.
-            cve.mintGaugeEmissions(address(gaugePool), emissionData.emissionTotals[i]);
+            cve.mintGaugeEmissions(
+                address(gaugePool),
+                emissionData.emissionTotals[i]
+            );
 
             // Set upcoming epoch emissions for voted configuration.
             gaugePool.setEmissionRates(
@@ -409,7 +422,8 @@ contract VotingHub is QueryResponse {
         }
     }
 
-    /// @dev Sets new token emissions values to gauge pools on a remote chain, for `epoch`.
+    /// @dev Sets new token emissions values to gauge pools on a remote chain,
+    ///      for `epoch`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
@@ -432,9 +446,7 @@ contract VotingHub is QueryResponse {
         uint256 gasLimit,
         uint256 epoch
     ) internal {
-        IProtocolMessagingHub(
-            centralRegistry.protocolMessagingHub()
-        ).sendEmissions(
+        IMessagingHub(centralRegistry.messagingHub()).sendEmissions(
             emissionData,
             dstChainId,
             gasLimit,
@@ -445,13 +457,13 @@ contract VotingHub is QueryResponse {
     /// @notice Checks if the caller can submit votes to the protocol.
     function _canSubmitQueries() internal view {
         if (
-            !centralRegistry.isHarvester(msg.sender) ||
+            !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
-            ) {
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
-    
+
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
