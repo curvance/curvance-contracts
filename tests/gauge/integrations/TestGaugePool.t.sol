@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
@@ -988,5 +987,17 @@ contract TestGaugePool is TestBaseMarket {
         gaugePool.withdraw(address(cBALRETH), address(this), 1 ether);
 
         vm.stopPrank();
+    }
+
+    function testRedeemRevertInvalidAmount() public {
+        address[] memory listedTokens = marketManager.queryTokensListed();
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user0 withdraw half
+        vm.prank(users[0]);
+        vm.expectRevert();
+        IMToken(tokens[0]).redeem(100 ether + 1);
     }
 }

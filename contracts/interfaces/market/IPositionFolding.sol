@@ -47,7 +47,7 @@ interface IPositionFolding {
         uint256 collateralAmount;
         DToken borrowToken;
         SwapperLib.Swap swapZap;
-        SwapperLib.Swap swapData;
+        SwapperLib.Swap[] swapData;
         uint256 repayAmount;
     }
 

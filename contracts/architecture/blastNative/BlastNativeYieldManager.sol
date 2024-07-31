@@ -159,8 +159,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
         uint256 WETHPrior = WETH_YIELD_MANAGER.balanceOf(address(this));
         uint256 USDBPrior = USDB_YIELD_MANAGER.balanceOf(address(this));
-        uint256 WETHPerSecond;
-        uint256 USDBPerSecond;
 
         address yieldDestination = cTokenToDTokenYieldRouted[msg.sender];
 
@@ -176,14 +174,8 @@ contract BlastNativeYieldManager is ReentrancyGuard {
 
             // Recognize WETH yield, if necessary.
             if (pendingWETH > 0) {
-                WETHYield += pendingWETH; 
+                WETHYield += pendingWETH;
             }
-        }
-
-        // We call this outside the claimWETHYield block since we could
-        // have received WETH through gasYield.
-        if (WETHYield > 0) {
-            WETHPerSecond = WETHYield / EPOCH_WINDOW;
         }
 
         if (claimUSDBYield) {
@@ -193,7 +185,6 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             // Recognize USDB yield, if necessary.
             if (pendingUSDB > 0) {
                 USDBYield += pendingUSDB;
-                USDBPerSecond = USDBYield / EPOCH_WINDOW;
             }
         }
 
@@ -207,7 +198,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         // stream it, the yield would be infinitesimal so we will just send
         // the dust back to DAO with the logic after check is performed.
 
-        if (WETHPerSecond > 0) {
+        if (WETHYield > 0) {
             // Approve WETH to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(WETH_YIELD_MANAGER),
@@ -215,11 +206,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
                 WETHYield
             );
 
-            gaugePool.setRewardPerSec(
+            gaugePool.addExtraRewards(
                 yieldDestination,
                 nextEpoch,
                 address(WETH_YIELD_MANAGER),
-                WETHPerSecond
+                WETHYield
             );
 
             // Remove any excess approval.
@@ -255,7 +246,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             );
         }
 
-        if (USDBPerSecond > 0) {
+        if (USDBYield > 0) {
             // Approve USDB to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(USDB_YIELD_MANAGER),
@@ -263,11 +254,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
                 USDBYield
             );
 
-            gaugePool.setRewardPerSec(
+            gaugePool.addExtraRewards(
                 yieldDestination,
                 nextEpoch,
                 address(USDB_YIELD_MANAGER),
-                USDBPerSecond
+                USDBYield
             );
 
             // Remove any excess approval.

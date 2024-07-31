@@ -108,6 +108,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     uint256 public lastRewardTokenIndex;
     mapping(address => uint256) public rewardTokenToIndex;
+    mapping(address => uint256) public rewardTokenToMinDistribution;
 
     /// @notice The total supply of a token deposited.
     /// @dev mToken => total supply.
@@ -139,9 +140,10 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     /// EVENTS ///
 
+    event SetMinDistributionAmount(address newReward, uint256 amount);
     event GaugeWeightsSet(uint256 epoch, address[] tokens, uint256[] weights);
-    event AddExtraReward(address newReward);
-    event RemoveExtraReward(address newReward);
+    event AddExtraRewardToken(address newReward);
+    event RemoveExtraRewardToken(address newReward);
     event Deposit(address user, address token, uint256 amount);
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
@@ -270,9 +272,28 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         marketManager = marketManager_;
     }
 
+    function setMinDistributionAmount(
+        address rewardToken,
+        uint256 minAmount
+    ) external {
+        _checkDaoPermissions();
+
+        uint256 index = rewardTokenToIndex[rewardToken];
+        if (index == 0) {
+            revert GaugeErrors.InvalidRewardToken();
+        }
+
+        rewardTokenToMinDistribution[rewardToken] = minAmount;
+
+        emit SetMinDistributionAmount(rewardToken, minAmount);
+    }
+
     /// @notice Adds a new reward to the gauge system.
     /// @param newReward The address of new reward token to be added.
-    function addExtraReward(address newReward) external {
+    function addExtraRewardToken(
+        address newReward,
+        uint256 minAmount
+    ) external {
         _checkDaoPermissions();
 
         if (newReward == address(0)) {
@@ -289,14 +310,18 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         rewardTokens.push(newReward);
         rewardTokenToIndex[newReward] = ++lastRewardTokenIndex;
+        rewardTokenToMinDistribution[newReward] = minAmount;
 
-        emit AddExtraReward(newReward);
+        emit AddExtraRewardToken(newReward);
     }
 
     /// @notice Removes an extra reward from the gauge system.
     /// @param index The index of the extra reward.
     /// @param newReward The address of the extra reward to be removed.
-    function removeExtraReward(uint256 index, address newReward) external {
+    function removeExtraRewardToken(
+        uint256 index,
+        address newReward
+    ) external {
         _checkDaoPermissions();
 
         // Cannot remove CVE as a reward token.
@@ -316,8 +341,9 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
         rewardTokens.pop();
         rewardTokenToIndex[newReward] = 0;
+        rewardTokenToMinDistribution[newReward] = 0;
 
-        emit RemoveExtraReward(newReward);
+        emit RemoveExtraRewardToken(newReward);
     }
 
     /// @notice Returns the active reward tokens on the gauge pool,
@@ -338,15 +364,13 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @param token The token to set rewards for.
     /// @param epoch The epoch to set rewards for, should be the next epoch.
     /// @param rewardToken The address of reward token to be updated.
-    /// @param newRewardPerSec The `rewardToken` reward rate, in seconds.
-    function setRewardPerSec(
+    /// @param additionalRewards The additional rewards amount for distribution
+    function addExtraRewards(
         address token,
         uint256 epoch,
         address rewardToken,
-        uint256 newRewardPerSec
+        uint256 additionalRewards
     ) external {
-        _checkDaoPermissions();
-
         // CVE rewards are only updated through the gauge system by
         // the protocol messaging hub in setEmissionRates().
         if (rewardToken == cve) {
@@ -358,27 +382,26 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.InvalidRewardToken();
         }
 
+        if (additionalRewards < rewardTokenToMinDistribution[rewardToken]) {
+            revert GaugeErrors.InvalidRewardTokenAmount();
+        }
+
         if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
             revert GaugeErrors.InvalidEpoch();
         }
 
-        uint256 prevRewardPerSec = _epochRewardPerSec[token][epoch][index];
-        _epochRewardPerSec[token][epoch][index] = newRewardPerSec;
+        updatePool(token);
 
-        if (prevRewardPerSec > newRewardPerSec) {
-            SafeTransferLib.safeTransfer(
-                rewardToken,
-                msg.sender,
-                EPOCH_WINDOW * (prevRewardPerSec - newRewardPerSec)
-            );
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                rewardToken,
-                msg.sender,
-                address(this),
-                EPOCH_WINDOW * (newRewardPerSec - prevRewardPerSec)
-            );
-        }
+        SafeTransferLib.safeTransferFrom(
+            rewardToken,
+            msg.sender,
+            address(this),
+            additionalRewards
+        );
+
+        _epochRewardPerSec[token][epoch][index] +=
+            additionalRewards /
+            EPOCH_WINDOW;
     }
 
     /// PUBLIC FUNCTIONS ///

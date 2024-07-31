@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { CurvanceDAOLBP } from "contracts/misc/CurvanceDAOLBP.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -20,6 +22,11 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         lbp = new CurvanceDAOLBP(ICentralRegistry(address(centralRegistry)));
 
         cve.transfer(address(lbp), cve.balanceOf(address(this)));
+
+        centralRegistry.setExternalCallDataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+        );
     }
 
     function testInitialize() public {
@@ -227,5 +234,37 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         deal(_WETH_ADDRESS, user, amount);
         vm.prank(user);
         weth.approve(address(lbp), amount);
+    }
+
+    function testSwapAndCommitForSuccess() public {
+        testStartSuccess();
+
+        uint256 daiAmount = 10000e18;
+        uint256 commitAmount = 1e18;
+        deal(address(dai), address(this), daiAmount);
+        dai.approve(address(lbp), daiAmount);
+
+        SwapperLib.Swap memory swapperData;
+        swapperData.inputToken = address(dai);
+        swapperData.inputAmount = daiAmount;
+        swapperData.outputToken = _WETH_ADDRESS;
+        swapperData.target = _UNISWAP_V2_ROUTER;
+        swapperData.slippage = 50e16;
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = _WETH_ADDRESS;
+        swapperData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            daiAmount,
+            0,
+            path,
+            address(lbp),
+            block.timestamp
+        );
+
+        lbp.swapAndCommitFor(swapperData, commitAmount, address(1));
+        assertEq(lbp.saleCommitted(), commitAmount);
+        assertEq(lbp.userCommitted(address(1)), commitAmount);
+        assertEq(lbp.currentPrice(), lbp.softPriceInpaymentToken());
     }
 }
