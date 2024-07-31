@@ -11,6 +11,7 @@ import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZap
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -67,6 +68,7 @@ contract TestBaseMarket is TestBase {
         _deployRewardManager();
         _deployVeCVE();
         _deployProtocolMessagingHub();
+        _deployVotingHub();
         _deployFeeAccumulator();
     }
 
@@ -150,6 +152,14 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
+    }
+
+    function _deployVotingHub() internal initMainVariables {
+        votingHub = votingHubs[block.chainid] = new VotingHub(
+            ICentralRegistry(address(centralRegistry)),
+            _ONE
+        );
+        centralRegistry.setVotingHub(address(votingHub));
     }
 
     function _deployFeeAccumulator() internal initMainVariables {

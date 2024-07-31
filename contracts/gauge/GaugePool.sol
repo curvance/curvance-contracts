@@ -194,7 +194,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         if (
             msg.sender != centralRegistry.protocolMessagingHub() &&
             msg.sender != centralRegistry.votingHub()
-            ) {
+        ) {
             revert GaugeErrors.Unauthorized();
         }
 
@@ -202,7 +202,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // epoch can have emissions set.
         if (
             !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
-            epoch != currentEpoch() + 1
+            epoch != currentEpoch()
         ) {
             revert GaugeErrors.InvalidEpoch();
         }

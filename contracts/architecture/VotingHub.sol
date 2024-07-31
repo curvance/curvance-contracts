@@ -12,8 +12,8 @@ import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
 
-    /// @notice Number of Protocol Epochs before rewards are halved, 26 epoch corresponds
-    ///         to roughly 1 year.
+    /// @notice Number of Protocol Epochs before rewards are halved,
+    ///         26 epoch corresponds to roughly 1 year.
     uint256 public constant REWARD_HALVENING_RATE = 26;
     /// @notice Number of Protocol Eras, corresponds to how many different periods
     ///         there are with token emission incentives.
@@ -422,7 +422,8 @@ contract VotingHub is QueryResponse {
         }
     }
 
-    /// @dev Sets new token emissions values to gauge pools on a remote chain, for `epoch`.
+    /// @dev Sets new token emissions values to gauge pools on a remote chain,
+    ///      for `epoch`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
@@ -452,7 +453,7 @@ contract VotingHub is QueryResponse {
     /// @notice Checks if the caller can submit votes to the protocol.
     function _canSubmitQueries() internal view {
         if (
-            !centralRegistry.isHarvester(msg.sender) ||
+            !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);

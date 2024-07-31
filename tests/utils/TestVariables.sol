@@ -11,6 +11,7 @@ import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZap
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -92,6 +93,7 @@ contract TestVariables {
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
     ProtocolMessagingHub public protocolMessagingHub;
+    VotingHub public votingHub;
     BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
@@ -127,6 +129,7 @@ contract TestVariables {
     mapping(uint256 => CentralRegistry) public centralRegistries;
     mapping(uint256 => FeeAccumulator) public feeAccumulators;
     mapping(uint256 => ProtocolMessagingHub) public protocolMessagingHubs;
+    mapping(uint256 => VotingHub) public votingHubs;
     mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
@@ -334,6 +337,7 @@ contract TestVariables {
         centralRegistry = centralRegistries[chainId];
         feeAccumulator = feeAccumulators[chainId];
         protocolMessagingHub = protocolMessagingHubs[chainId];
+        votingHub = votingHubs[chainId];
         balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
