@@ -55,8 +55,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         public
     {
         gaugePool.start(address(marketManager));
-
-        votingHub.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -85,7 +83,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     function test_executeEmissionConfiguration_fail_whenGaugePoolIsNotStarted()
         public
     {
-        votingHub.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -141,8 +138,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         public
     {
         gaugePool.start(address(marketManager));
-
-        votingHub.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -166,8 +161,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
     function test_executeEmissionConfiguration_success() public {
         gaugePool.start(address(marketManager));
-
-        votingHub.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
