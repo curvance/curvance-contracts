@@ -102,6 +102,13 @@ contract BlastCentralRegistry is CentralRegistry {
 
     /// PUBLIC FUNCTIONS ///
 
+    function transferDaoOwnership(address newDaoAddress) public override {
+        super.transferDaoOwnership(newDaoAddress);
+        IBlast(
+            0x4300000000000000000000000000000000000002
+        ).configureGovernor(newDaoAddress);
+    }
+
     /// @notice Adds a new Market Manager and associated fee configurations.
     ///         Then notifies the native yield router of the Market Manager
     ///         addition.

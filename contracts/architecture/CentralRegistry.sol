@@ -705,7 +705,7 @@ contract CentralRegistry is ERC165 {
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {OwnershipTransferred} event.
     /// @param newDaoAddress The new DAO address.
-    function transferDaoOwnership(address newDaoAddress) external {
+    function transferDaoOwnership(address newDaoAddress) public virtual {
         _checkElevatedPermissions();
 
         // Cache old dao address for event emission.
@@ -828,7 +828,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param messagingHub Address for new chains Messaging Hub.
+    /// @param remoteMessagingHub Address for new chains Messaging Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
@@ -836,7 +836,7 @@ contract CentralRegistry is ERC165 {
     /// @param relayer Wormhole relayer address on the chain.
     /// @param domain CCTP domain for the chain.
     function addChainSupport(
-        address messagingHub,
+        address remoteMessagingHub,
         address cveAddress,
         address feeTokenAddress,
         uint256 chainId,
@@ -853,7 +853,7 @@ contract CentralRegistry is ERC165 {
 
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
-            messagingHub: messagingHub,
+            messagingHub: remoteMessagingHub,
             cveAddress: cveAddress,
             feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
@@ -866,7 +866,7 @@ contract CentralRegistry is ERC165 {
         ++supportedChains;
         foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, messagingHub);
+        emit NewChainAdded(chainId, remoteMessagingHub);
     }
 
     /// @notice Removes support for a chain.
