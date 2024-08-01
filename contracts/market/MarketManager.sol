@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { LiquidityManager, IOracleRouter, IMToken } from "contracts/market/LiquidityManager.sol";
+import { LiquidityManager, IOracleRouter, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
@@ -1605,18 +1605,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             }
         } else {
             if (liquidatedTokens > collateralAvailable) {
-                debtAmount =
-                    (debtAmount * collateralAvailable) /
-                    liquidatedTokens;
-                // Will add whichever Trust suggests
-                // debtAmount = FixedPointMathLib.mulDivUp(
-                //    debtAmount,
-                //    collateralAvailable,
-                //    liquidatedTokens
-                //);
-                //if (debtAmount = 0) {
-                //    revert MarketManager__NoLiquidationAvailable();
-                //}
+                debtAmount = FixedPointMathLib.mulDivUp(
+                    debtAmount,
+                    collateralAvailable,
+                    liquidatedTokens
+                );
                 liquidatedTokens = collateralAvailable;
             }
         }

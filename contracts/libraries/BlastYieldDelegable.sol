@@ -35,7 +35,7 @@ abstract contract BlastYieldDelegable {
 
         // Set gas fees yield to claimable and then pass Governor
         // permissioning to native yield manager.
-        yieldConfiguration.configureClaimableYield()
+        yieldConfiguration.configureClaimableYield();
         yieldConfiguration.configureClaimableGas();
         yieldConfiguration.configureGovernor(
             IBlastCentralRegistry(address(centralRegistry_))
