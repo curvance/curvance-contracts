@@ -116,7 +116,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice The unix timestamp `unlockTime` will be set to when a lock
     //          is set on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
-    /// @notice The length of one voting escrow epoch, in weeks.
+    /// @notice The length of one protocol epoch, in unix time.
     uint256 public constant EPOCH_DURATION = 2 weeks;
     /// @notice The length of state change restriction pre/post epoch, in weeks.
     uint256 public constant RESTRICTION_DURATION = 12 hours;

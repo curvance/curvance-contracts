@@ -77,13 +77,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     }
     /// CONSTANTS ///
 
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_DURATION = 2 weeks;
-
     /// @notice CVE contract address.
     address public immutable cve;
     /// @notice VeCVE contract address.
     IVeCVE public immutable veCVE;
+    /// @notice The length of one protocol epoch, in unix time.
+    uint256 public immutable EPOCH_DURATION;
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -161,6 +160,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // Query cve/veCVE directly to minimize potential human error.
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
+        EPOCH_DURATION = veCVE.EPOCH_DURATION();
 
         rewardTokens.push(cve);
         rewardTokenToIndex[cve] = ++lastRewardTokenIndex;

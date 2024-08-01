@@ -15,11 +15,11 @@ contract VotingHub is QueryResponse {
     /// @notice Number of Protocol Epochs before rewards are halved,
     ///         26 epoch corresponds to roughly 1 year.
     uint256 public constant REWARD_HALVENING_RATE = 26;
-    /// @notice Number of Protocol Eras, corresponds to how many different periods
-    ///         there are with token emission incentives.
+    /// @notice Number of Protocol Eras, corresponds to how many different
+    ///         periods there are with token emission incentives.
     uint256 public constant PROTOCOL_REWARD_ERAS = 6;
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_WINDOW = 2 weeks;
+    /// @notice The length of one protocol epoch, in unix time.
+    uint256 public immutable EPOCH_DURATION;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -41,13 +41,15 @@ contract VotingHub is QueryResponse {
     /// @notice Start time that the voting hub starts, in unix time.
     uint256 public startTime;
 
-    /// @notice The amount of CVE rewards allocated on this chain, for an epoch.
+    /// @notice The amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
     /// @dev Epoch # => CVE rewards allocated.
     mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
 
-    /// @notice The amount of CVE rewards allocated across all chains, for an era.
-    ///         An era is a particular period in time in which CVE rewards are constant,
-    ///         before a halvening event moves the protocol to a new era.
+    /// @notice The amount of CVE rewards allocated across all chains,
+    ///         for an era. An era is a particular period in time in which
+    ///         CVE rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
     /// @dev Epoch # => CVE rewards allocated.
     mapping(uint256 => uint256) public targetEmissionAllocationByEra;
 
@@ -55,7 +57,6 @@ contract VotingHub is QueryResponse {
 
     error VotingHub__Unauthorized();
     error VotingHub__InvalidParameter();
-    error VotingHub__HubStarted();
 
     /// CONSTRUCTOR ///
 
@@ -66,26 +67,13 @@ contract VotingHub is QueryResponse {
         centralRegistry = centralRegistry_;
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
+        startTime = veCVE.nextEpochStartTime();
+        EPOCH_DURATION = veCVE.EPOCH_DURATION();
 
         _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Initializes the voting hub with a starting time based on the
-    ///         next epoch.
-    /// @dev    Can only be called once, to start the voting system.
-    function start() external {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (startTime != 0) {
-            revert VotingHub__HubStarted();
-        }
-
-        startTime = veCVE.nextEpochStartTime();
-    }
 
     /// @notice Executes new token emission values of the protocol for this
     ///         chain, and potentially other remote chains. Validates the
@@ -253,7 +241,7 @@ contract VotingHub is QueryResponse {
         uint256 timestamp
     ) public view returns (uint256) {
         return
-            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_WINDOW;
+            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_DURATION;
     }
 
     /// INTERNAL FUNCTIONS ///
