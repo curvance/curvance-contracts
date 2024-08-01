@@ -223,7 +223,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
-        // Total Supply and contracy balance should always be 0 prior,
+        // Total Supply and contract's balance should always be 0 prior,
         // but we increment incase somehow invariants have been modified.
         totalSupply = totalSupply + amount;
         balanceOf[address(this)] = balanceOf[address(this)] + amount;

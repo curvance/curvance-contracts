@@ -72,10 +72,11 @@ import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 ///        Users also have the option to combine all their locks into a single
 ///        fresh lock. This allows for consolidation, and improvement in
 ///        future transaction execution quality (lower gas costs) when
-///        managing their voting escrow position(s). Combine locks can
-///        theoretically temporarily be blocked is an epoch has rolled over
+///        managing their voting escrow position(s). Combine locks can,
+///        in theory, be temporarily be blocked if an epoch has rolled over
 ///        and has not been delivered to the chain due to runtime invariant
 ///        checks, this does not introduce any exploitable attack vector.
+///        This is further supported through the epoch blackout window system.
 ///
 ///      - Point system (yay points):
 ///        Rather than directly looking at votes or a user's veCVE balance,
@@ -355,7 +356,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(msg.sender, rewardsData, params, aux);
 
         // Need to cache after _claimRewards as the user could have
-        // created or modifier their locks with their pending rewards.
+        // created or modified their locks with their pending rewards.
         Lock[] storage locks = userLocks[msg.sender];
 
         // Length is index + 1 so has to be less than array length.
@@ -661,7 +662,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(msg.sender, rewardsData, params, aux);
 
         // Need to cache after _claimRewards as the user could have
-        // created or modifier their locks with their pending rewards.
+        // created or modified their locks with their pending rewards.
         Lock[] storage locks = userLocks[msg.sender];
 
         // Length is index + 1 so has to be less than array length.

@@ -31,7 +31,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      cToken contracts while restricting the scale of exogenous risk.
-///      Every collateral asset as a "Collateral Cap", measured in shares.
+///      Every collateral asset has a "Collateral Cap", measured in shares.
 ///      As collateral is posted, the `collateralPosted` invariant increases,
 ///      and is compared to `collateralCaps`. By measuring collateral posted
 ///      in shares, this allows collateral caps to grow proportionally with

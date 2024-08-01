@@ -78,7 +78,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// CONSTANTS ///
 
     /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_WINDOW = 2 weeks;
+    uint256 public constant EPOCH_DURATION = 2 weeks;
 
     /// @notice CVE contract address.
     address public immutable cve;
@@ -401,7 +401,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         _epochRewardPerSec[token][epoch][index] +=
             additionalRewards /
-            EPOCH_WINDOW;
+            EPOCH_DURATION;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -418,21 +418,21 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
         return
-            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_WINDOW;
+            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_DURATION;
     }
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + epoch * EPOCH_WINDOW;
+        return startTime + epoch * EPOCH_DURATION;
     }
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + (epoch + 1) * EPOCH_WINDOW;
+        return startTime + (epoch + 1) * EPOCH_DURATION;
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -458,7 +458,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             return _epochInfo[epoch].tokenWeight[token];
         }
 
-        return (EPOCH_WINDOW *
+        return (EPOCH_DURATION *
             _epochRewardPerSec[token][epoch][rewardTokenToIndex[rewardToken]]);
     }
 
@@ -494,7 +494,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_WINDOW;
+                    EPOCH_DURATION;
                 accRewardPerShare =
                     accRewardPerShare +
                     (reward * (WAD_SQUARED)) /
@@ -508,7 +508,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_WINDOW;
+                EPOCH_DURATION;
             accRewardPerShare =
                 accRewardPerShare +
                 (reward * (WAD_SQUARED)) /
@@ -871,7 +871,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_WINDOW;
+                    EPOCH_DURATION;
                 accRewardPerShare =
                     accRewardPerShare +
                     (reward * (WAD_SQUARED)) /
@@ -885,7 +885,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_WINDOW;
+                EPOCH_DURATION;
             accRewardPerShare =
                 accRewardPerShare +
                 (reward * (WAD_SQUARED)) /

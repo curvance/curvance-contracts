@@ -205,7 +205,7 @@ contract Convex2PoolCToken is CTokenCompounding {
                     );
                     rewardAmount -= protocolFee;
                     SafeTransferLib.safeTransfer(
-                        address(rewardToken),
+                        rewardToken,
                         feeAccumulator,
                         protocolFee
                     );

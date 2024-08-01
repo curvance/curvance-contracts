@@ -139,7 +139,7 @@ abstract contract LiquidityManager {
     /// @notice Data structure returned on Bad Debt calculation containing
     ///         account collateral, amount of debt to repay, total account
     ///         debt.
-    /// @paramcollateral Total value of `account` collateral.
+    /// @param collateral Total value of `account` collateral.
     /// @param debt Total value of `account` debt.
     /// @param debtToPay The amount of debt to repay to receive
     ///                  `accountCollateral`.

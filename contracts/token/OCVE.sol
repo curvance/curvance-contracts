@@ -30,9 +30,11 @@ contract OCVE is ERC20 {
     uint256 public paymentTokenPerCVE;
     /// @notice Decimals for associated payment token for oCVE exercising.
     uint8 public paymentTokenDecimals;
-    /// @notice When options holders can begin exercising.
+    /// @notice When options holders can begin exercising their options,
+    ///         in unix time.
     uint256 public optionsStartTimestamp;
-    /// @notice When options holders have until to exercise.
+    /// @notice Time that options holders have to exercise their options,
+    ///         in unix time.
     uint256 public optionsEndTimestamp;
 
     /// EVENTS ///

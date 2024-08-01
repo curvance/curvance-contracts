@@ -234,6 +234,15 @@ contract CentralRegistry is ERC165 {
     event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
+    event CallDataCheckerSet(
+        string indexed calldataType,
+        address targetAddress,
+        address calldataChecker
+    );
+    event MulticallProviderSet(
+        address provider,
+        bool supportedStatus
+    );
 
     /// ERRORS ///
 
@@ -610,14 +619,14 @@ contract CentralRegistry is ERC165 {
     /// @notice Sets the early unlock penalty value for when users want to
     ///         unlock their veCVE early.
     /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      must be between 30% and 90%.
+    ///      must be between 30% and 90%, or off, with a value of 0%.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new penalty on early expiring a vote escrowed
     ///              cve position, in `basis points`.
     function setEarlyUnlockPenaltyMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Early unlock penalty cannot be more than 50%.
+        // Early unlock penalty cannot be more than 90%.
         if (value > 9000) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
@@ -914,9 +923,10 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Sets an external calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CallDataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param callDataChecker The contract that will check call data prior
+    /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setExternalCallDataChecker(
         address target,
@@ -925,8 +935,16 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
+        emit CallDataCheckerSet("External", target, callDataChecker);
     }
 
+    /// @notice Sets a multicall calldata checker contract.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CallDataCheckerSet} event.
+    /// @param target The target contract for external calldata
+    ///               such as Pyth or Redstone.
+    /// @param callDataChecker The contract that will check calldata prior
+    ///                        to execution in `target`.
     function setMulticallDataChecker(
         address target,
         address callDataChecker
@@ -934,6 +952,34 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         multicallDataChecker[target] = callDataChecker;
+        emit CallDataCheckerSet("Multicall", target, callDataChecker);
+    }
+
+    /// @notice Sets multicall provider contracts, either enabling,
+    ///         or disabling support inside the Curvance Protocol.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits one or many {MulticallProviderSet} events.
+    /// @param providers Array containing the addresses of multicall provider
+    ///                  contracts such as collateral or debt token contracts.
+    /// @param supported Whether a provider should be supported or not.
+    function setMulticallProviders(
+        address[] calldata providers,
+        bool supported
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 numProviders = providers.length;
+        address provider;
+
+        for (uint256 i; i < numProviders; ++i) {
+            provider = providers[i];
+            if (isMulticallProvider[provider] == supported) {
+                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            }
+
+            isMulticallProvider[provider] = supported;
+            emit MulticallProviderSet(provider, supported);
+        }
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
@@ -972,20 +1018,6 @@ contract CentralRegistry is ERC165 {
         delete isHarvester[currentHarvester];
 
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
-    }
-
-    function setMulticallProviders(
-        address[] memory providers,
-        bool supported
-    ) external {
-        _checkElevatedPermissions();
-
-        for (uint256 i = 0; i < providers.length; ++i) {
-            if (isMulticallProvider[providers[i]] == supported) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
-            isMulticallProvider[providers[i]] = supported;
-        }
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers

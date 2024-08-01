@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { DToken, WAD } from "contracts/market/collateral/DToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
@@ -569,8 +569,8 @@ contract PositionFolding is
         }
 
         return
-            (((maxLeverage * 1e18) / price) *
-                (10 ** IERC20(borrowToken).decimals())) / 1e18;
+            (((maxLeverage * WAD) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
     /// @inheritdoc ERC165

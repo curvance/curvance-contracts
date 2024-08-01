@@ -19,7 +19,7 @@ contract SimpleZapper is ReentrancyGuard {
 
     /// @param cToken The address of the cToken corresponding to Curve lp
     ///               token to be exited.
-    /// @param shares The amount of shares to redeemed.
+    /// @param shares The amount of shares to be redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
     struct RedemptionData {

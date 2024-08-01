@@ -18,7 +18,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         return address(this);
     }
 
-    /// @notice Returns the maximum value that the aggregator can returned.
+    /// @notice Returns the maximum value that the aggregator can return.
     function maxAnswer() external view returns (int192) {
         uint256 max = uint256(
             uint192(
