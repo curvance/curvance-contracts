@@ -10,6 +10,7 @@ import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { ProtocolMessagingHubDeployer } from "./deployers/ProtocolMessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
+import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugePoolDeployer } from "./deployers/GaugePoolDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
@@ -26,6 +27,7 @@ contract DeployCurvance is
     ProtocolMessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
+    VotingHubDeployer,
     GaugePoolDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
