@@ -483,7 +483,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
     /// @notice Permissionless function that allows requerying and updating
     ///         the governor contract to the updated DAO manager.
     function updateGovernor() external {
-        CHAIN_YIELD_MANAGER.configureGovernor(centralRegistry_.daoAddress());
+        CHAIN_YIELD_MANAGER.configureGovernor(centralRegistry.daoAddress());
     }
 
     /// INTERNAL FUNCTIONS ///
