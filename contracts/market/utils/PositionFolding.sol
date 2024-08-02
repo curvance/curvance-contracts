@@ -136,14 +136,15 @@ contract PositionFolding is
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         CTokenPrimitive cToken = leverageData.collateralToken;
+        address cTokenUnderlying = cToken.asset();
         SafeTransferLib.safeTransferFrom(
-            cToken.asset(),
+            cTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
         SwapperLib._approveTokenIfNeeded(
-            cToken.asset(),
+            cTokenUnderlying,
             address(cToken),
             assets
         );

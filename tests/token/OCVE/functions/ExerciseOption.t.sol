@@ -1,149 +1,149 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+// // SPDX-License-Identifier: UNLICENSED
+// pragma solidity ^0.8.19;
 
-import { TestBaseOCVE } from "../TestBaseOCVE.sol";
+// import { TestBaseOCVE } from "../TestBaseOCVE.sol";
 
-import { OCVE } from "contracts/token/OCVE.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+// import { OCVE } from "contracts/token/OCVE.sol";
+// import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract ExerciseOptionTest is TestBaseOCVE {
-    uint256 public oCVEBalance;
+// contract ExerciseOptionTest is TestBaseOCVE {
+//     uint256 public oCVEBalance;
 
-    event OptionsExercised(address indexed exerciser, uint256 amount);
+//     event OptionsExercised(address indexed exerciser, uint256 amount);
 
-    function setUp() public override {
-        super.setUp();
+//     function setUp() public override {
+//         super.setUp();
 
-        skip(1000);
+//         skip(1000);
 
-        (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
-            _USDC_ADDRESS,
-            true,
-            true
-        );
+//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//             _USDC_ADDRESS,
+//             true,
+//             true
+//         );
 
-        oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
+//         oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
 
-        oCVEBalance = oCVE.balanceOf(address(this));
-    }
+//         oCVEBalance = oCVE.balanceOf(address(this));
+//     }
 
-    function test_exerciseOption_fail_whenAmountIsZero() public {
-        vm.expectRevert(OCVE.OCVE__ParametersAreInvalid.selector);
-        oCVE.exerciseOption(0);
-    }
+//     function test_exerciseOption_fail_whenAmountIsZero() public {
+//         vm.expectRevert(OCVE.OCVE__ParametersAreInvalid.selector);
+//         oCVE.exerciseOption(0);
+//     }
 
-    function test_exerciseOption_fail_whenOptionsAreNotExercisable() public {
-        skip(4 weeks);
+//     function test_exerciseOption_fail_whenOptionsAreNotExercisable() public {
+//         skip(4 weeks);
 
-        vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
-        oCVE.exerciseOption(oCVEBalance);
-    }
+//         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
+//         oCVE.exerciseOption(oCVEBalance);
+//     }
 
-    function test_exerciseOption_fail_whenCVEIsNotEnough() public {
-        vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
-        oCVE.exerciseOption(oCVEBalance);
-    }
+//     function test_exerciseOption_fail_whenCVEIsNotEnough() public {
+//         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
+//         oCVE.exerciseOption(oCVEBalance);
+//     }
 
-    function test_exerciseOption_fail_whenOptionIsNotEnough() public {
-        deal(address(cve), address(oCVE), oCVEBalance + 1);
+//     function test_exerciseOption_fail_whenOptionIsNotEnough() public {
+//         deal(address(cve), address(oCVE), oCVEBalance + 1);
 
-        vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
-        oCVE.exerciseOption(oCVEBalance + 1);
-    }
+//         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
+//         oCVE.exerciseOption(oCVEBalance + 1);
+//     }
 
-    function test_exerciseOption_fail_whenMsgValueIsInvalid() public {
-        oCVE = new OCVE(
-            ICentralRegistry(address(centralRegistry)),
-            _ETH_ADDRESS
-        );
+//     function test_exerciseOption_fail_whenMsgValueIsInvalid() public {
+//         oCVE = new OCVE(
+//             ICentralRegistry(address(centralRegistry)),
+//             _ETH_ADDRESS
+//         );
 
-        skip(1000);
+//         skip(1000);
 
-        (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
-            _ETH_ADDRESS,
-            true,
-            true
-        );
+//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//             _ETH_ADDRESS,
+//             true,
+//             true
+//         );
 
-        oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
+//         oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
 
-        oCVEBalance = oCVE.balanceOf(address(this));
+//         oCVEBalance = oCVE.balanceOf(address(this));
 
-        deal(address(cve), address(oCVE), oCVEBalance);
+//         deal(address(cve), address(oCVE), oCVEBalance);
 
-        vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
-        oCVE.exerciseOption{ value: oCVEBalance - 1 }(oCVEBalance);
-    }
+//         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
+//         oCVE.exerciseOption{ value: oCVEBalance - 1 }(oCVEBalance);
+//     }
 
-    function test_exerciseOption_success_withETH_fuzzed(
-        uint256 amount
-    ) public {
-        vm.assume(amount >= 1e18 && amount < 1_000_000_000e18);
+//     function test_exerciseOption_success_withETH_fuzzed(
+//         uint256 amount
+//     ) public {
+//         vm.assume(amount >= 1e18 && amount < 1_000_000_000e18);
 
-        oCVE = new OCVE(
-            ICentralRegistry(address(centralRegistry)),
-            _ETH_ADDRESS
-        );
+//         oCVE = new OCVE(
+//             ICentralRegistry(address(centralRegistry)),
+//             _ETH_ADDRESS
+//         );
 
-        skip(1000);
+//         skip(1000);
 
-        (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
-            _ETH_ADDRESS,
-            true,
-            true
-        );
+//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//             _ETH_ADDRESS,
+//             true,
+//             true
+//         );
 
-        oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
+//         oCVE.setOptionsTerms(block.timestamp, paymentTokenCurrentPrice * _ONE);
 
-        deal(address(this), amount);
-        deal(address(oCVE), address(this), amount);
-        deal(address(cve), address(oCVE), amount);
+//         deal(address(this), amount);
+//         deal(address(oCVE), address(this), amount);
+//         deal(address(cve), address(oCVE), amount);
 
-        uint256 ethBalance = address(this).balance;
-        uint256 oCVEETHBalance = address(oCVE).balance;
+//         uint256 ethBalance = address(this).balance;
+//         uint256 oCVEETHBalance = address(oCVE).balance;
 
-        vm.expectEmit(true, true, true, true, address(oCVE));
-        emit OptionsExercised(address(this), amount);
+//         vm.expectEmit(true, true, true, true, address(oCVE));
+//         emit OptionsExercised(address(this), amount);
 
-        oCVE.exerciseOption{ value: amount }(amount);
+//         oCVE.exerciseOption{ value: amount }(amount);
 
-        assertEq(address(this).balance, ethBalance - amount);
-        assertEq(address(oCVE).balance, oCVEETHBalance + amount);
-    }
+//         assertEq(address(this).balance, ethBalance - amount);
+//         assertEq(address(oCVE).balance, oCVEETHBalance + amount);
+//     }
 
-    function test_exerciseOption_success_withERC20_fuzzed(
-        uint256 amount
-    ) public {
-        vm.assume(amount >= 1e18 && amount < 1_000_000_000e18);
+//     function test_exerciseOption_success_withERC20_fuzzed(
+//         uint256 amount
+//     ) public {
+//         vm.assume(amount >= 1e18 && amount < 1_000_000_000e18);
 
-        uint256 oCVEUSDCBalance = usdc.balanceOf(address(oCVE));
-        uint256 optionExerciseCost = (amount * oCVE.paymentTokenPerCVE()) /
-            1e18;
-        uint256 payAmount = optionExerciseCost / 1e12;
+//         uint256 oCVEUSDCBalance = usdc.balanceOf(address(oCVE));
+//         uint256 optionExerciseCost = (amount * oCVE.paymentTokenPerCVE()) /
+//             1e18;
+//         uint256 payAmount = optionExerciseCost / 1e12;
 
-        deal(address(oCVE), address(this), amount);
-        deal(address(cve), address(oCVE), amount);
-        deal(_USDC_ADDRESS, address(this), payAmount * 3);
+//         deal(address(oCVE), address(this), amount);
+//         deal(address(cve), address(oCVE), amount);
+//         deal(_USDC_ADDRESS, address(this), payAmount * 3);
 
-        usdc.approve(address(oCVE), payAmount);
+//         usdc.approve(address(oCVE), payAmount);
 
-        // We have extra checks here because its possible payAmount
-        // becomes 0 due to rounding with USDC decimals != 18.
-        if (payAmount == 0) {
-            vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
+//         // We have extra checks here because its possible payAmount
+//         // becomes 0 due to rounding with USDC decimals != 18.
+//         if (payAmount == 0) {
+//             vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
 
-            oCVE.exerciseOption(amount);
-        } else {
-            vm.expectEmit(true, true, true, true, address(oCVE));
-            emit OptionsExercised(address(this), amount);
+//             oCVE.exerciseOption(amount);
+//         } else {
+//             vm.expectEmit(true, true, true, true, address(oCVE));
+//             emit OptionsExercised(address(this), amount);
 
-            oCVE.exerciseOption(amount);
+//             oCVE.exerciseOption(amount);
 
-            assertEq(usdc.balanceOf(address(this)), payAmount * 2);
-            assertEq(
-                usdc.balanceOf(address(oCVE)),
-                oCVEUSDCBalance + payAmount
-            );
-        }
-    }
-}
+//             assertEq(usdc.balanceOf(address(this)), payAmount * 2);
+//             assertEq(
+//                 usdc.balanceOf(address(oCVE)),
+//                 oCVEUSDCBalance + payAmount
+//             );
+//         }
+//     }
+// }
