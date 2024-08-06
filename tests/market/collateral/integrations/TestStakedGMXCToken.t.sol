@@ -53,7 +53,7 @@ contract TestStakedGMXCToken is TestBaseMarket {
             _WETH_ADDRESS
         );
 
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         _deployOracleRouter();
 

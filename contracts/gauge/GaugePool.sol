@@ -12,6 +12,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
@@ -96,8 +97,6 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @notice Address of the Market Manager linked to this Gauge Pool.
-    address public marketManager;
     /// @notice Timestamp when the first first deposit occurred.
     uint256 public firstDeposit;
     /// @notice An array contain a list of all reward tokens attached
@@ -254,22 +253,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @notice Initializes the gauge with a starting time based on the
     ///         next epoch.
     /// @dev    Can only be called once, to start the gauge system.
-    /// @param marketManager_ The address to be set as a market manager.
-    function start(address marketManager_) external {
+    function start() external {
         _checkDaoPermissions();
 
         if (startTime != 0) {
             revert GaugeErrors.AlreadyStarted();
         }
 
-        // Validate that `marketManager_` is configured as a market manager
-        // inside the Central Registry.
-        if (!centralRegistry.isMarketManager(marketManager_)) {
-            revert GaugeErrors.InvalidAddress();
-        }
-
         startTime = veCVE.nextEpochStartTime();
-        marketManager = marketManager_;
     }
 
     function setMinDistributionAmount(
@@ -418,7 +409,9 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
         return
-            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_DURATION;
+            timestamp < startTime
+                ? 0
+                : (timestamp - startTime) / EPOCH_DURATION;
     }
 
     /// @notice Returns start time of `epoch`.
@@ -553,9 +546,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         // Make sure the token is listed inside this market,
         // and that the token is executing the deposit call.
+        IMarketManager marketManager = IMToken(token).marketManager();
         if (
             msg.sender != token ||
-            !IMarketManager(marketManager).isListed(token)
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
         ) {
             revert GaugeErrors.InvalidToken();
         }
@@ -621,9 +616,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         // Make sure the token is listed inside this market,
         // and that the token is executing the withdraw call.
+        IMarketManager marketManager = IMToken(token).marketManager();
         if (
             msg.sender != token ||
-            !IMarketManager(marketManager).isListed(token)
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
         ) {
             revert GaugeErrors.InvalidToken();
         }

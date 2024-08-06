@@ -60,7 +60,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
 

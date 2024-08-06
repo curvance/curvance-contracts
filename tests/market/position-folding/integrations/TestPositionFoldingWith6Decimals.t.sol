@@ -74,7 +74,7 @@ contract TestPositionFoldingWith6Decimals is TestBaseMarket {
         _prepareBALRETH(user, 1 ether);
 
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
 

@@ -370,7 +370,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
             address(marketManager),
             marketInterestFactor
         );
-        try gaugePool.start(address(marketManager)) {} catch {
+        try gaugePool.start() {} catch {
             assertWithMsg(false, "start gauge pool failed");
         }
     }

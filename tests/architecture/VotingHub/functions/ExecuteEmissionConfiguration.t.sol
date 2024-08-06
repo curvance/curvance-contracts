@@ -54,7 +54,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     function test_executeEmissionConfiguration_fail_whenCallerIsNotAuthorized()
         public
     {
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -109,7 +109,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     function test_executeEmissionConfiguration_fail_whenVotingHubIsNotStarted()
         public
     {
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         _skipEpochDuration(2);
 
@@ -137,7 +137,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     function test_executeEmissionConfiguration_fail_whenExceedsCurrentTargetEmission()
         public
     {
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -160,7 +160,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     }
 
     function test_executeEmissionConfiguration_success() public {
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(

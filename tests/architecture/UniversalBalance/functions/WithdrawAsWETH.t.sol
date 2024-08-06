@@ -23,7 +23,7 @@ contract WithdrawAsWETHTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.startPrank(user1);
 

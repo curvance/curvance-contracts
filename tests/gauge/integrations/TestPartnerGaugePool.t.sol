@@ -107,7 +107,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
     function startGauge() internal {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
@@ -115,20 +115,15 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
     function testStartRevertAlreadyStarted() internal {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.expectRevert(GaugeErrors.AlreadyStarted.selector);
-        gaugePool.start(address(marketManager));
-    }
-
-    function testStartRevertInvalidAddress() internal {
-        vm.expectRevert(GaugeErrors.InvalidAddress.selector);
-        gaugePool.start(address(0));
+        gaugePool.start();
     }
 
     function testPartnerGaugesRewardsBeforeGaugeStart() public {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         assertGt(gaugePool.startTime(), block.timestamp);
 

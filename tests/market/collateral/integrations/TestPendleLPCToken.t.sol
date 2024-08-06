@@ -57,7 +57,7 @@ contract TestPendleLPCToken is TestBaseMarket {
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(veCVE.nextEpochStartTime());
     }
 

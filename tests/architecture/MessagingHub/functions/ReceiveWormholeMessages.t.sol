@@ -197,7 +197,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.warp(veCVE.nextEpochStartTime() + 100);
 

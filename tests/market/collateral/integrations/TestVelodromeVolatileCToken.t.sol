@@ -64,7 +64,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
             veloRouter
         );
 
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(veCVE.nextEpochStartTime());
 
         _deployOracleRouter();

@@ -27,7 +27,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         cSTETH = new Convex2PoolCToken(
             ICentralRegistry(address(centralRegistry)),

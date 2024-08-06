@@ -33,7 +33,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         // start gauge to enable deposits
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(veCVE.nextEpochStartTime() + 1000);
         chainlinkEthUsd.updateAnswer(1500e8);
     }

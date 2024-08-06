@@ -12,7 +12,7 @@ contract TestBaseMarketManager is TestBaseMarket {
     function setUp() public virtual override {
         super.setUp();
 
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         _prepareUSDC(address(this), _ONE);
         _prepareDAI(address(this), _ONE);

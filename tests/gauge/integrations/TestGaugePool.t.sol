@@ -77,7 +77,7 @@ contract TestGaugePool is TestBaseMarket {
         // gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);

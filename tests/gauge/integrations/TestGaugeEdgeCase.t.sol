@@ -125,7 +125,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         // start epoch
         vm.prank(users[0]);
         vm.expectRevert(GaugeErrors.Unauthorized.selector);
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
     }
 
     function testCannotCalculateEpochWhenNotStarted() public {
@@ -135,7 +135,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
@@ -152,7 +152,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testCanDepositWithdrawAfterGaugeStartTime() public {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.warp(gaugePool.startTime() + 10 seconds);
         vm.roll(block.number + 1000);
@@ -172,7 +172,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testSetPartnerGaugesWithoutCVE() public {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
@@ -233,7 +233,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testClaimWhenCVERewardIsZero() public {
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {

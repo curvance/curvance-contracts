@@ -105,7 +105,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         oracleRouter.addAssetPriceFeed(address(WBTC), address(adapter));
 
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
 

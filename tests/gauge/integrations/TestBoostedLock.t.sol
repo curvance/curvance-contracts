@@ -80,7 +80,7 @@ contract TestBoostedLock is TestBaseMarket {
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        gaugePool.start(address(marketManager));
+        gaugePool.start();
 
         vm.warp(gaugePool.startTime());
         vm.roll(block.number + 1000);
