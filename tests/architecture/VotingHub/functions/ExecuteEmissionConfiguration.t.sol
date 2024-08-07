@@ -110,7 +110,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         public
     {
         gaugePool.start(address(marketManager));
-        votingHub.start();
 
         _skipEpochDuration(2);
 
