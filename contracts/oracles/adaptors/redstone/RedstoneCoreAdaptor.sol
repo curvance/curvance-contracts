@@ -94,7 +94,7 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
 
         // Validate minimum signer threshold is possible to reach based
         // on signers authorised.
-        if (uniqueSignersThreshold_ < signers.length) {
+        if (uniqueSignersThreshold_ > signers.length) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
