@@ -5,17 +5,12 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 
 contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
-    address[] public signers;
 
     constructor(
         ICentralRegistry centralRegistry_,
         address[] memory signers,
         uint256 _uniqueSignersThreshold
     ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
-
-    function getUniqueSignersThreshold() public pure override returns (uint8) {
-        return 1;
-    }
 
     function getAuthorisedSignerIndex(
         address /* signerAddress */

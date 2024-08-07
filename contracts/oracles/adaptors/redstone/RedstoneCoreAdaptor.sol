@@ -87,7 +87,7 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
         uint256 uniqueSignersThreshold_
     ) BaseOracleAdaptor(centralRegistry_) PrimaryProdDataServiceConsumerBase(signers) {
         // Validate that minimum signer threshold is within acceptable limits.
-        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED < _uniqueSignersThreshold_) {
+        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED < uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
@@ -97,7 +97,7 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
-        _uniqueSignersThreshold = _uniqueSignersThreshold_;
+        _uniqueSignersThreshold = uniqueSignersThreshold_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -338,7 +338,7 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
 
     /// @notice The minimum number of signer messages to be validated
     ///         for onchain oracle pricing to validate a price feed.
-    function getUniqueSignersThreshold() public view virtual override returns (uint8) {
+    function getUniqueSignersThreshold() public view override returns (uint8) {
         return uint8(_uniqueSignersThreshold);
     }
 
