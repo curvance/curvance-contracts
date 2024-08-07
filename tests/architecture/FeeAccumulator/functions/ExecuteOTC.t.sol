@@ -26,6 +26,24 @@ contract ExecuteOTCTest is TestBaseFeeAccumulator {
         feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
     }
 
+    function test_executeOTC_fail_whenPriceIsInvalid() public {
+        feeAccumulator.setEarmarked(_WETH_ADDRESS, true);
+
+        chainlinkEthUsd.updateAnswer(0);
+
+        vm.expectRevert(
+            FeeAccumulator.FeeAccumulator__ConfigurationError.selector
+        );
+        feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
+
+        chainlinkUsdcUsd.updateAnswer(0);
+
+        vm.expectRevert(
+            FeeAccumulator.FeeAccumulator__ConfigurationError.selector
+        );
+        feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
+    }
+
     function test_executeOTC_success() public {
         feeAccumulator.setEarmarked(_WETH_ADDRESS, true);
 

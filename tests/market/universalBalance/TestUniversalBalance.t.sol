@@ -27,13 +27,12 @@ contract TestUniversalBalance is TestBaseMarket {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    CTokenPrimitive cWBTC;
-    UniversalBalance universalBalance;
+    CTokenPrimitive public cWBTC;
+    UniversalBalance public universalBalance;
+    DToken public dWETH;
 
     IERC20 private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
     IERC20 private WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
-    DToken dWETH;
 
     function setUp() public override {
         super.setUp();
@@ -174,10 +173,8 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.deal(user1, 1 ether);
         vm.startPrank(user1);
         universalBalance.depositETH{ value: 1 ether }(false);
-        vm.stopPrank();
 
         vm.deal(user1, 1 ether);
-        vm.startPrank(user1);
         universalBalance.depositETH{ value: 1 ether }(true);
         vm.stopPrank();
 
@@ -192,10 +189,8 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, false);
-        vm.stopPrank();
 
         deal(_WETH_ADDRESS, user1, 1 ether);
-        vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
@@ -219,9 +214,7 @@ contract TestUniversalBalance is TestBaseMarket {
             .userBalances(user1);
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, 1 ether);
-        vm.stopPrank();
 
-        vm.startPrank(user1);
         universalBalance.withdrawAsETH(1 ether, true);
 
         assertEq(user1.balance, ethBalance + 2 ether);
@@ -236,9 +229,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         vm.startPrank(user1);
         universalBalance.withdrawAsWETH(1 ether, false);
-        vm.stopPrank();
 
-        vm.startPrank(user1);
         universalBalance.withdrawAsWETH(1 ether, true);
         vm.stopPrank();
 
@@ -259,9 +250,9 @@ contract TestUniversalBalance is TestBaseMarket {
         tokensParam[0] = address(dWETH);
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -293,9 +284,8 @@ contract TestUniversalBalance is TestBaseMarket {
         WETH.approve(address(dWETH), 1 ether);
         dWETH.mint(1 ether);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         universalBalance.withdrawAsWETH(0.5 ether, true);
-        vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

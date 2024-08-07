@@ -10,6 +10,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockEthereumRedstoneCoreAdaptor } from "contracts/mocks/MockEthereumRedstoneCoreAdaptor.sol";
+import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
 import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -202,9 +203,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     function testCTokenMintMulticall() public {
         _prepareWBTC(user1, 2 ether);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         WBTC.approve(address(cWBTC), 1e8);
-        vm.stopPrank();
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -231,9 +231,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
 
         // try mint()
-        vm.startPrank(user1);
+        vm.prank(user1);
         cWBTC.multicall(calls);
-        vm.stopPrank();
 
         assertEq(cWBTC.balanceOf(user1), 1e8);
         PriceReturnData memory priceData = adapter.getPrice(
@@ -247,9 +246,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     function testDTokenMintWithMulticall() public {
         _prepareUSDC(user1, 2e6);
 
-        vm.startPrank(user1);
+        vm.prank(user1);
         usdc.approve(address(dUSDC), 1e6);
-        vm.stopPrank();
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -272,9 +270,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         calls[1].data = abi.encodeWithSelector(dUSDC.mint.selector, 1e6);
 
         // try mint()
-        vm.startPrank(user1);
+        vm.prank(user1);
         dUSDC.multicall(calls);
-        vm.stopPrank();
 
         assertEq(dUSDC.balanceOf(user1), 1e6);
         PriceReturnData memory priceData = adapter.getPrice(
@@ -283,5 +280,54 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             true
         );
         assertEq(priceData.price, 61000e18);
+    }
+
+    function testCheckCallData() public {
+        {
+            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory encodedFunction = abi.encodeWithSignature(
+                "writePrice(address,bool)",
+                WBTC,
+                true
+            );
+            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+                encodedFunction,
+                redstonePayload
+            );
+
+            vm.expectRevert(
+                MulticallDataCheckerBase
+                    .MulticallDataChecker__TargetError
+                    .selector
+            );
+            multicallDataChecker.checkCallData(
+                address(this),
+                address(this),
+                encodedFunctionWithRedstonePayload
+            );
+        }
+
+        {
+            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory encodedFunction = abi.encodeWithSignature(
+                "writePriceSimple(address,bool)",
+                WBTC,
+                true
+            );
+            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+                encodedFunction,
+                redstonePayload
+            );
+            vm.expectRevert(
+                MulticallDataCheckerBase
+                    .MulticallDataChecker__InvalidFuncSig
+                    .selector
+            );
+            multicallDataChecker.checkCallData(
+                address(this),
+                address(adapter),
+                encodedFunctionWithRedstonePayload
+            );
+        }
     }
 }

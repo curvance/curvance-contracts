@@ -145,7 +145,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     error DToken__TransferError();
     error DToken__InsufficientUnderlyingHeld();
     error DToken__ValidationFailed();
-    error DToken__InvalidCentralRegistry();
     error DToken__UnderlyingAssetTotalSupplyExceedsMaximum();
     error DToken__MarketManagerIsNotLendingMarket();
 
@@ -162,15 +161,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address marketManager_,
         address interestRateModel_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DToken__InvalidCentralRegistry();
-        }
-
         // Set the marketManager after consulting Central Registry.
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(marketManager_)) {
@@ -233,7 +223,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
-        // Total Supply and contracy balance should always be 0 prior,
+        // Total Supply and contract's balance should always be 0 prior,
         // but we increment incase somehow invariants have been modified.
         totalSupply = totalSupply + amount;
         balanceOf[address(this)] = balanceOf[address(this)] + amount;

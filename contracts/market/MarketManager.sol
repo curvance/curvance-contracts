@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { LiquidityManager, IOracleRouter, IMToken } from "contracts/market/LiquidityManager.sol";
+import { LiquidityManager, IOracleRouter, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
@@ -31,7 +31,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      cToken contracts while restricting the scale of exogenous risk.
-///      Every collateral asset as a "Collateral Cap", measured in shares.
+///      Every collateral asset has a "Collateral Cap", measured in shares.
 ///      As collateral is posted, the `collateralPosted` invariant increases,
 ///      and is compared to `collateralCaps`. By measuring collateral posted
 ///      in shares, this allows collateral caps to grow proportionally with
@@ -63,6 +63,11 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTANTS ///
 
+    /// @notice Maximum number of listed assets allowed inside a market.
+    /// @dev This restriction is to minimize the outside chance that a market
+    ///      manager has so many assets that a full account liquidation
+    ///      becomes too expensive to support.
+    uint256 public constant MAX_LISTED_ASSETS = 25;
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -863,6 +868,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         // Sanity check to make sure its really a mToken.
         IMToken(mToken).isCToken();
 
+        uint256 numTokens = tokensListed.length;
+        if (numTokens == MAX_LISTED_ASSETS) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Immediately deposit into the market to prevent any rounding
         // exploits.
         if (!IMToken(mToken).startMarket(msg.sender)) {
@@ -872,8 +882,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         MarketToken storage token = tokenData[mToken];
         token.isListed = true;
         token.collRatio = 0;
-
-        uint256 numTokens = tokensListed.length;
 
         for (uint256 i; i < numTokens; ) {
             unchecked {
@@ -1597,18 +1605,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             }
         } else {
             if (liquidatedTokens > collateralAvailable) {
-                debtAmount =
-                    (debtAmount * collateralAvailable) /
-                    liquidatedTokens;
-                // Will add whichever Trust suggests
-                // debtAmount = FixedPointMathLib.mulDivUp(
-                //    debtAmount,
-                //    collateralAvailable,
-                //    liquidatedTokens
-                //);
-                //if (debtAmount = 0) {
-                //    revert MarketManager__NoLiquidationAvailable();
-                //}
+                debtAmount = FixedPointMathLib.mulDivUp(
+                    debtAmount,
+                    collateralAvailable,
+                    liquidatedTokens
+                );
                 liquidatedTokens = collateralAvailable;
             }
         }

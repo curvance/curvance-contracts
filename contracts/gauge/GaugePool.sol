@@ -77,13 +77,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     }
     /// CONSTANTS ///
 
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_WINDOW = 2 weeks;
-
     /// @notice CVE contract address.
     address public immutable cve;
     /// @notice VeCVE contract address.
     IVeCVE public immutable veCVE;
+    /// @notice The length of one protocol epoch, in unix time.
+    uint256 public immutable EPOCH_DURATION;
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -108,6 +107,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     uint256 public lastRewardTokenIndex;
     mapping(address => uint256) public rewardTokenToIndex;
+    mapping(address => uint256) public rewardTokenToMinDistribution;
 
     /// @notice The total supply of a token deposited.
     /// @dev mToken => total supply.
@@ -139,9 +139,10 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     /// EVENTS ///
 
+    event SetMinDistributionAmount(address newReward, uint256 amount);
     event GaugeWeightsSet(uint256 epoch, address[] tokens, uint256[] weights);
-    event AddExtraReward(address newReward);
-    event RemoveExtraReward(address newReward);
+    event AddExtraRewardToken(address newReward);
+    event RemoveExtraRewardToken(address newReward);
     event Deposit(address user, address token, uint256 amount);
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
@@ -159,6 +160,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // Query cve/veCVE directly to minimize potential human error.
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
+        EPOCH_DURATION = veCVE.EPOCH_DURATION();
 
         rewardTokens.push(cve);
         rewardTokenToIndex[cve] = ++lastRewardTokenIndex;
@@ -179,8 +181,8 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         );
     }
 
-    /// @notice Sets emission rates of tokens of next epoch.
-    /// @dev Only the protocol messaging hub can call this.
+    /// @notice Sets emission rates of tokens of current epoch.
+    /// @dev Only the messaging hub can call this.
     /// @param epoch The epoch to set emission rates for, should be the next
     ///              epoch.
     /// @param tokens Array containing all tokens to set emission rates for.
@@ -192,17 +194,17 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256[] calldata weights
     ) external override {
         if (
-            msg.sender != centralRegistry.protocolMessagingHub() &&
+            msg.sender != centralRegistry.messagingHub() &&
             msg.sender != centralRegistry.votingHub()
-            ) {
+        ) {
             revert GaugeErrors.Unauthorized();
         }
 
-        // Validate that Gauge system is fully active and only the upcoming
+        // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
             !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
-            epoch != currentEpoch() + 1
+            epoch != currentEpoch()
         ) {
             revert GaugeErrors.InvalidEpoch();
         }
@@ -278,9 +280,28 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         marketManager = marketManager_;
     }
 
+    function setMinDistributionAmount(
+        address rewardToken,
+        uint256 minAmount
+    ) external {
+        _checkDaoPermissions();
+
+        uint256 index = rewardTokenToIndex[rewardToken];
+        if (index == 0) {
+            revert GaugeErrors.InvalidRewardToken();
+        }
+
+        rewardTokenToMinDistribution[rewardToken] = minAmount;
+
+        emit SetMinDistributionAmount(rewardToken, minAmount);
+    }
+
     /// @notice Adds a new reward to the gauge system.
     /// @param newReward The address of new reward token to be added.
-    function addExtraReward(address newReward) external {
+    function addExtraRewardToken(
+        address newReward,
+        uint256 minAmount
+    ) external {
         _checkDaoPermissions();
 
         if (newReward == address(0)) {
@@ -297,14 +318,18 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         rewardTokens.push(newReward);
         rewardTokenToIndex[newReward] = ++lastRewardTokenIndex;
+        rewardTokenToMinDistribution[newReward] = minAmount;
 
-        emit AddExtraReward(newReward);
+        emit AddExtraRewardToken(newReward);
     }
 
     /// @notice Removes an extra reward from the gauge system.
     /// @param index The index of the extra reward.
     /// @param newReward The address of the extra reward to be removed.
-    function removeExtraReward(uint256 index, address newReward) external {
+    function removeExtraRewardToken(
+        uint256 index,
+        address newReward
+    ) external {
         _checkDaoPermissions();
 
         // Cannot remove CVE as a reward token.
@@ -324,8 +349,9 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
         rewardTokens.pop();
         rewardTokenToIndex[newReward] = 0;
+        rewardTokenToMinDistribution[newReward] = 0;
 
-        emit RemoveExtraReward(newReward);
+        emit RemoveExtraRewardToken(newReward);
     }
 
     /// @notice Returns the active reward tokens on the gauge pool,
@@ -346,17 +372,15 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @param token The token to set rewards for.
     /// @param epoch The epoch to set rewards for, should be the next epoch.
     /// @param rewardToken The address of reward token to be updated.
-    /// @param newRewardPerSec The `rewardToken` reward rate, in seconds.
-    function setRewardPerSec(
+    /// @param additionalRewards The additional rewards amount for distribution
+    function addExtraRewards(
         address token,
         uint256 epoch,
         address rewardToken,
-        uint256 newRewardPerSec
+        uint256 additionalRewards
     ) external {
-        _checkDaoPermissions();
-
         // CVE rewards are only updated through the gauge system by
-        // the protocol messaging hub in setEmissionRates().
+        // the messaging hub in setEmissionRates().
         if (rewardToken == cve) {
             revert GaugeErrors.Unauthorized();
         }
@@ -366,27 +390,26 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.InvalidRewardToken();
         }
 
+        if (additionalRewards < rewardTokenToMinDistribution[rewardToken]) {
+            revert GaugeErrors.InvalidRewardTokenAmount();
+        }
+
         if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
             revert GaugeErrors.InvalidEpoch();
         }
 
-        uint256 prevRewardPerSec = _epochRewardPerSec[token][epoch][index];
-        _epochRewardPerSec[token][epoch][index] = newRewardPerSec;
+        updatePool(token);
 
-        if (prevRewardPerSec > newRewardPerSec) {
-            SafeTransferLib.safeTransfer(
-                rewardToken,
-                msg.sender,
-                EPOCH_WINDOW * (prevRewardPerSec - newRewardPerSec)
-            );
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                rewardToken,
-                msg.sender,
-                address(this),
-                EPOCH_WINDOW * (newRewardPerSec - prevRewardPerSec)
-            );
-        }
+        SafeTransferLib.safeTransferFrom(
+            rewardToken,
+            msg.sender,
+            address(this),
+            additionalRewards
+        );
+
+        _epochRewardPerSec[token][epoch][index] +=
+            additionalRewards /
+            EPOCH_DURATION;
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -403,21 +426,21 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
         return
-            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_WINDOW;
+            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_DURATION;
     }
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + epoch * EPOCH_WINDOW;
+        return startTime + epoch * EPOCH_DURATION;
     }
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + (epoch + 1) * EPOCH_WINDOW;
+        return startTime + (epoch + 1) * EPOCH_DURATION;
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -443,7 +466,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             return _epochInfo[epoch].tokenWeight[token];
         }
 
-        return (EPOCH_WINDOW *
+        return (EPOCH_DURATION *
             _epochRewardPerSec[token][epoch][rewardTokenToIndex[rewardToken]]);
     }
 
@@ -479,7 +502,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_WINDOW;
+                    EPOCH_DURATION;
                 accRewardPerShare =
                     accRewardPerShare +
                     (reward * (WAD_SQUARED)) /
@@ -493,7 +516,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_WINDOW;
+                EPOCH_DURATION;
             accRewardPerShare =
                 accRewardPerShare +
                 (reward * (WAD_SQUARED)) /
@@ -856,7 +879,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_WINDOW;
+                    EPOCH_DURATION;
                 accRewardPerShare =
                     accRewardPerShare +
                     (reward * (WAD_SQUARED)) /
@@ -870,7 +893,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_WINDOW;
+                EPOCH_DURATION;
             accRewardPerShare =
                 accRewardPerShare +
                 (reward * (WAD_SQUARED)) /

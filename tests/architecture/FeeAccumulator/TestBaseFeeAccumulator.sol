@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseProtocolMessagingHub } from "tests/architecture/ProtocolMessagingHub/TestBaseProtocolMessagingHub.sol";
+import { TestBaseMessagingHub } from "tests/architecture/MessagingHub/TestBaseMessagingHub.sol";
 
-contract TestBaseFeeAccumulator is TestBaseProtocolMessagingHub {}
+contract TestBaseFeeAccumulator is TestBaseMessagingHub {}

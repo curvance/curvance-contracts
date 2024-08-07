@@ -733,15 +733,10 @@ abstract contract CTokenCompounding is CTokenBase {
         _totalAssets = currentAssets;
     }
 
-    /// @notice Vests pending rewards, and updates vault data,
-    ///         but only if needed.
+    /// @notice Vests pending rewards, and updates vault data.
     function _vestIfNeeded() internal {
-        uint256 pending = _calculatePendingRewards();
-        // Check whether there are pending rewards to vest.
-        if (pending > 0) {
-            // Vest pending rewards.
-            _vestRewards(_totalAssets + pending);
-        }
+        // Vest pending rewards.
+        _vestRewards(_totalAssets + _calculatePendingRewards());
     }
 
     /// @notice Updates the vesting period, if needed.

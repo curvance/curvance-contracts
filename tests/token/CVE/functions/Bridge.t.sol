@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
 contract BridgeTest is TestBaseMarket {
     function setUp() public override {
@@ -23,28 +23,20 @@ contract BridgeTest is TestBaseMarket {
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         cve.bridge(user1, 138, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         cve.bridge(address(0), 42161, _ONE, 0);
     }
 
     function test_bridge_success() public {
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
+            address(messagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -53,11 +45,7 @@ contract BridgeTest is TestBaseMarket {
             3
         );
 
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            true,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, true, 0);
 
         uint256 totalSupply = cve.totalSupply();
 

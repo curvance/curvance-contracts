@@ -123,6 +123,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         vm.startPrank(liquidityProvider);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
+        vm.stopPrank();
 
         _prepareBALRETH(user1, 1 ether);
 
@@ -137,9 +138,8 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user2);
+        vm.prank(user2);
         dDAI.borrowFor(user1, user2, 500 ether);
-        vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 0);
         assertEq(dai.balanceOf(user2), 500 ether);

@@ -173,11 +173,11 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
     }
 
     function testRevertRemoveAsset__Unauthorized() public {
+        vm.prank(address(0));
+
         vm.expectRevert(
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
-        vm.startPrank(address(0));
         adaptor.removeAsset(_WBTC_ADDRESS);
-        vm.stopPrank();
     }
 }

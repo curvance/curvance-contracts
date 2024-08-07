@@ -18,7 +18,7 @@ contract BasicSettersTest is TestBaseMarket {
             "setCVE(address)",
             "setVeCVE(address)",
             "setRewardManager(address)",
-            "setProtocolMessagingHub(address)",
+            "setMessagingHub(address)",
             "setOracleRouter(address)",
             "setFeeAccumulator(address)"
         ];
@@ -26,7 +26,7 @@ contract BasicSettersTest is TestBaseMarket {
             "cve()",
             "veCVE()",
             "rewardManager()",
-            "protocolMessagingHub()",
+            "messagingHub()",
             "oracleRouter()",
             "feeAccumulator()"
         ];
@@ -34,7 +34,7 @@ contract BasicSettersTest is TestBaseMarket {
             "CVE",
             "VeCVE",
             "Reward Manager",
-            "Protocol Messaging Hub",
+            "Messaging Hub",
             "Oracle Router",
             "Fee Accumulator"
         ];
@@ -42,8 +42,8 @@ contract BasicSettersTest is TestBaseMarket {
 
     function test_setter_fail_whenUnauthorized() public {
         uint8 length = uint8(setters.length);
+        vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {
-            vm.startPrank(address(0));
             bytes memory sig = abi.encodeWithSignature(setters[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig
@@ -54,8 +54,8 @@ contract BasicSettersTest is TestBaseMarket {
                 bytes32(data),
                 bytes32(CentralRegistry.CentralRegistry__Unauthorized.selector)
             );
-            vm.stopPrank();
         }
+        vm.stopPrank();
     }
 
     function test_setter_success() public {

@@ -7,7 +7,7 @@ interface ICVE {
     function approve(address spender, uint256 amount) external returns (bool);
 
     /// @notice Mints gauge emissions for the desired gauge pool.
-    /// @dev Only callable by the ProtocolMessagingHub.
+    /// @dev Only callable by the MessagingHub.
     /// @param gaugePool The address of the gauge pool where emissions will be
     ///                  configured.
     /// @param amount The amount of gauge emissions to be minted.
@@ -20,7 +20,7 @@ interface ICVE {
 
     /// @notice Mint CVE to msg.sender,
     ///         which will always be the VeCVE contract.
-    /// @dev Only callable by the ProtocolMessagingHub.
+    /// @dev Only callable by the MessagingHub.
     ///      This function is used only for creating a bridged VeCVE lock.
     /// @param amount The amount of token to mint for the new veCVE lock.
     function mintLockedTokens(address recipient, uint256 amount) external;
@@ -37,13 +37,10 @@ interface ICVE {
         uint256 dstChainId,
         uint256 amount
     ) external;
-    
+
     /// @notice Finalizes bridging of CVE by minting `amount` CVE
     ///         to `recipient`.
     /// @param recipient The address of CVE recipient.
     /// @param amount The amount of token to receive.
-    function completeBridge(
-        address recipient,
-        uint256 amount
-    ) external;
+    function completeBridge(address recipient, uint256 amount) external;
 }

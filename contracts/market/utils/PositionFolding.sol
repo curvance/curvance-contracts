@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { DToken, WAD } from "contracts/market/collateral/DToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
@@ -10,7 +10,6 @@ import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -52,7 +51,6 @@ contract PositionFolding is
 
     error PositionFolding__Unauthorized();
     error PositionFolding__InvalidSlippage();
-    error PositionFolding__InvalidCentralRegistry();
     error PositionFolding__InvalidMarketManager();
     error PositionFolding__InvalidSwapperParam();
     error PositionFolding__InvalidParam();
@@ -70,7 +68,8 @@ contract PositionFolding is
     ///      with pre and post checks.
     modifier checkSlippage(address account, uint256 slippage) {
         IMToken[] memory mTokens = marketManager.assetsOf(account);
-        for (uint256 i = 0; i < mTokens.length; ++i) {
+        uint256 numTokens = mTokens.length;
+        for (uint256 i; i < numTokens; ++i) {
             if (!mTokens[i].isCToken()) {
                 mTokens[i].accrueInterest();
             }
@@ -106,15 +105,6 @@ contract PositionFolding is
         ICentralRegistry centralRegistry_,
         address marketManager_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert PositionFolding__InvalidCentralRegistry();
-        }
-
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {
@@ -146,14 +136,15 @@ contract PositionFolding is
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         CTokenPrimitive cToken = leverageData.collateralToken;
+        address cTokenUnderlying = cToken.asset();
         SafeTransferLib.safeTransferFrom(
-            cToken.asset(),
+            cTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
         SwapperLib._approveTokenIfNeeded(
-            cToken.asset(),
+            cTokenUnderlying,
             address(cToken),
             assets
         );
@@ -292,22 +283,6 @@ contract PositionFolding is
             );
         }
 
-        // Check to make sure there is calldata attached to execute the swap.
-        if (leverageData.swapData.call.length > 0) {
-            // Swap borrow underlying to Zapper input token.
-            SwapperLib.swapSafe(centralRegistry, leverageData.swapData);
-        }
-
-        // Prepare cToken underlying.
-        SwapperLib.Swap memory swapZap = leverageData.swapZap;
-
-        // Check to make sure there is calldata attached to execute the zap.
-        if (swapZap.call.length > 0) {
-            // Execute Zap from `borrowToken` underlying into cToken
-            // underlying.
-            SwapperLib.swapSafe(centralRegistry, swapZap);
-        }
-
         // We do not need to check whether collateralToken is listed
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
@@ -316,6 +291,43 @@ contract PositionFolding is
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = collateralToken.underlying();
+
+        // Prepare cToken underlying.
+        SwapperLib.Swap memory swapZap = leverageData.swapZap;
+
+        // Check to make sure there is calldata attached to execute the swap.
+        if (leverageData.swapData.call.length > 0) {
+            if (
+                leverageData.swapData.target == address(0) ||
+                leverageData.swapData.inputToken != borrowToken ||
+                ((leverageData.swapData.outputToken != swapZap.inputToken ||
+                 (leverageData.swapData.outputToken == swapZap.inputToken &&
+                 swapZap.call.length == 0)) &&
+                 leverageData.swapData.outputToken != collateralUnderlying) ||
+                leverageData.swapData.inputAmount != borrowAmount
+            ) {
+                revert PositionFolding__InvalidSwapperParam();
+            }
+            // Swap borrow underlying to Zapper input token.
+            swapZap.inputAmount = SwapperLib.swapSafe(centralRegistry, leverageData.swapData);
+        }
+
+        // Check to make sure there is calldata attached to execute the zap.
+        if (swapZap.call.length > 0) {
+            if (
+                swapZap.target == address(0) ||
+                swapZap.inputToken != leverageData.swapData.outputToken ||
+                swapZap.outputToken != collateralUnderlying ||
+                swapZap.inputAmount == 0
+            ) {
+                revert PositionFolding__InvalidSwapperParam();
+            }
+
+            // Execute Zap from `borrowToken` underlying into cToken
+            // underlying.
+            SwapperLib.swapSafe(centralRegistry, swapZap);
+        }
+
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
         // Approve `amount` of `collateralUnderlying` to cToken contract.
@@ -422,7 +434,11 @@ contract PositionFolding is
 
         // Check to make sure there is calldata attached to execute the swap.
         if (swapZap.call.length > 0) {
-            if (collateralUnderlying != swapZap.inputToken) {
+            if (
+                swapZap.target == address(0) ||
+                swapZap.inputToken != collateralUnderlying ||
+                swapZap.inputAmount != collateralAmount
+            ) {
                 revert PositionFolding__InvalidSwapperParam();
             }
 
@@ -431,9 +447,14 @@ contract PositionFolding is
         }
 
         // Check to make sure there is calldata attached to execute the swap.
-        if (deleverageData.swapData.call.length > 0) {
-            // Swap Swapper input token for borrow underlying.
-            SwapperLib.swapSafe(centralRegistry, deleverageData.swapData);
+        if (deleverageData.swapData.length > 0) {
+            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+                // Swap Swapper input token for borrow underlying.
+                SwapperLib.swapSafe(
+                    centralRegistry,
+                    deleverageData.swapData[i]
+                );
+            }
         }
 
         // We do not need to check whether borrowToken is listed
@@ -476,6 +497,21 @@ contract PositionFolding is
                 redeemer,
                 remaining
             );
+        }
+
+        // Transfer remaining swap dust back to the user
+        if (deleverageData.swapData.length > 0) {
+            for (uint256 i = 0; i < deleverageData.swapData.length; ++i) {
+                remaining = IERC20(deleverageData.swapData[i].outputToken)
+                    .balanceOf(address(this));
+                if (remaining > 0) {
+                    SafeTransferLib.safeTransfer(
+                        deleverageData.swapData[i].outputToken,
+                        redeemer,
+                        remaining
+                    );
+                }
+            }
         }
 
         // Remove any excess approval.
@@ -534,8 +570,8 @@ contract PositionFolding is
         }
 
         return
-            (((maxLeverage * 1e18) / price) *
-                (10 ** IERC20(borrowToken).decimals())) / 1e18;
+            (((maxLeverage * WAD) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
     /// @inheritdoc ERC165

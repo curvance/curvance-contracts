@@ -18,11 +18,31 @@ contract RemoveChainSupportTest is TestBaseMarket {
         centralRegistry.addChainSupport(
             address(this),
             address(1),
-            _USDC_ADDRESS,
+            _USDC_ADDRESSES[10],
+            10,
+            24,
+            relayer,
+            2
+        );
+
+        centralRegistry.addChainSupport(
+            address(this),
+            address(1),
+            _USDC_ADDRESSES[42161],
             42161,
             23,
             relayer,
             3
+        );
+
+        centralRegistry.addChainSupport(
+            address(this),
+            address(1),
+            _USDC_ADDRESSES[8453],
+            8453,
+            30,
+            relayer,
+            6
         );
     }
 
@@ -45,17 +65,10 @@ contract RemoveChainSupportTest is TestBaseMarket {
     }
 
     function test_removeChainSupport_fail_whenChainIdIsNotAuthorized() public {
-        stdstore
-            .target(address(centralRegistry))
-            .sig("supportedChainData(uint256)")
-            .with_key(42161)
-            .depth(0)
-            .checked_write(1);
-
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.removeChainSupport(user1, 42161);
+        centralRegistry.removeChainSupport(address(0), 42160);
     }
 
     function test_removeChainSupport_success() public {
@@ -74,7 +87,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         assertEq(isSupported, 2);
         assertEq(messagingHub, address(this));
         assertEq(cveAddress, address(1));
-        assertEq(feeTokenAddress, _USDC_ADDRESS);
+        assertEq(feeTokenAddress, _USDC_ADDRESSES[42161]);
         assertEq(messagingChainId, 23);
         assertEq(wormholeRelayer, relayer);
         assertEq(cctpDomain, 3);

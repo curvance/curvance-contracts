@@ -17,7 +17,7 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -51,7 +51,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     RewardManager public rewardManager;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
-    ProtocolMessagingHub public protocolMessagingHub;
+    MessagingHub public messagingHub;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     DynamicInterestRateModel public interestRateModel;
@@ -109,8 +109,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployCVE();
         emit LogString("DEPLOYED: Reward Manager");
         _deployRewardManager();
-        emit LogString("DEPLOYED: ProtocolMessagingHub");
-        _deployProtocolMessagingHub();
+        emit LogString("DEPLOYED: MessagingHub");
+        _deployMessagingHub();
         emit LogString("DEPLOYED: FeeAccumulator");
         _deployFeeAccumulator();
 
@@ -186,11 +186,11 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setOracleRouter(address(oracleRouter));
     }
 
-    function _deployProtocolMessagingHub() internal {
-        protocolMessagingHub = new ProtocolMessagingHub(
+    function _deployMessagingHub() internal {
+        messagingHub = new MessagingHub(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
+        centralRegistry.setMessagingHub(address(messagingHub));
     }
 
     function _deployFeeAccumulator() internal {

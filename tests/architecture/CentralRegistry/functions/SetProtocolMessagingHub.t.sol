@@ -4,38 +4,28 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetProtocolMessagingHubTest is TestBaseMarket {
+contract SetMessagingHubTest is TestBaseMarket {
     event CoreContractSet(string indexed contractType, address newAddress);
 
-    address public newProtocolMessagingHub =
-        makeAddr("Protocol Messaging Hub");
+    address public newMessagingHub = makeAddr("Messaging Hub");
 
-    function test_setProtocolMessagingHub_fail_whenUnauthorized() public {
+    function test_setMessagingHub_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setProtocolMessagingHub(newProtocolMessagingHub);
+        centralRegistry.setMessagingHub(newMessagingHub);
     }
 
-    function test_setProtocolMessagingHub_success() public {
-        assertEq(
-            centralRegistry.protocolMessagingHub(),
-            address(protocolMessagingHub)
-        );
+    function test_setMessagingHub_success() public {
+        assertEq(centralRegistry.messagingHub(), address(messagingHub));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet(
-            "Protocol Messaging Hub",
-            newProtocolMessagingHub
-        );
+        emit CoreContractSet("Messaging Hub", newMessagingHub);
 
-        centralRegistry.setProtocolMessagingHub(newProtocolMessagingHub);
+        centralRegistry.setMessagingHub(newMessagingHub);
 
-        assertEq(
-            centralRegistry.protocolMessagingHub(),
-            newProtocolMessagingHub
-        );
+        assertEq(centralRegistry.messagingHub(), newMessagingHub);
     }
 }

@@ -11,7 +11,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
+import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title Curvance Voting Escrow CVE token.
 /// @notice A system for managing the larger Curvance Voting Escrow System
@@ -72,10 +72,11 @@ import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHu
 ///        Users also have the option to combine all their locks into a single
 ///        fresh lock. This allows for consolidation, and improvement in
 ///        future transaction execution quality (lower gas costs) when
-///        managing their voting escrow position(s). Combine locks can
-///        theoretically temporarily be blocked is an epoch has rolled over
+///        managing their voting escrow position(s). Combine locks can,
+///        in theory, be temporarily be blocked if an epoch has rolled over
 ///        and has not been delivered to the chain due to runtime invariant
 ///        checks, this does not introduce any exploitable attack vector.
+///        This is further supported through the epoch blackout window system.
 ///
 ///      - Point system (yay points):
 ///        Rather than directly looking at votes or a user's veCVE balance,
@@ -115,7 +116,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice The unix timestamp `unlockTime` will be set to when a lock
     //          is set on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
-    /// @notice The length of one voting escrow epoch, in weeks.
+    /// @notice The length of one protocol epoch, in unix time.
     uint256 public constant EPOCH_DURATION = 2 weeks;
     /// @notice The length of state change restriction pre/post epoch, in weeks.
     uint256 public constant RESTRICTION_DURATION = 12 hours;
@@ -355,7 +356,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(msg.sender, rewardsData, params, aux);
 
         // Need to cache after _claimRewards as the user could have
-        // created or modifier their locks with their pending rewards.
+        // created or modified their locks with their pending rewards.
         Lock[] storage locks = userLocks[msg.sender];
 
         // Length is index + 1 so has to be less than array length.
@@ -661,7 +662,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(msg.sender, rewardsData, params, aux);
 
         // Need to cache after _claimRewards as the user could have
-        // created or modifier their locks with their pending rewards.
+        // created or modified their locks with their pending rewards.
         Lock[] storage locks = userLocks[msg.sender];
 
         // Length is index + 1 so has to be less than array length.
@@ -791,8 +792,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Burn the CVE for bridged lock.
         ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
 
-        IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-            .bridgeToken{ value: msg.value }(
+        IMessagingHub(centralRegistry.messagingHub()).bridgeToken{
+            value: msg.value
+        }(
             bridgeData.dstChainId,
             msg.sender, // VeCVE locks are non-transferrable so recipient must be themselves.
             amount,

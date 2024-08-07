@@ -76,7 +76,7 @@ contract TestBoostedLock is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100;
 
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
@@ -94,9 +94,9 @@ contract TestBoostedLock is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100e18 * 2 weeks;
         poolWeights[1] = 200e18 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
+        vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300e18 * 2 weeks);
 
         vm.warp(gaugePool.startTime() + 1 * 2 weeks);
@@ -148,7 +148,7 @@ contract TestBoostedLock is TestBaseMarket {
         );
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
+            vm.prank(centralRegistry.messagingHub());
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
@@ -167,10 +167,7 @@ contract TestBoostedLock is TestBaseMarket {
 
         vm.warp(block.timestamp + 1000);
 
-        address[] memory claimTokens = new address[](1);
-
         // user0, user3 claims
-        claimTokens[0] = tokens[0];
         vm.prank(users[0]);
         gaugePool.claimAndExtendLock(
             _makeTokenArray(tokens[0]),
@@ -206,9 +203,6 @@ contract TestBoostedLock is TestBaseMarket {
         vm.warp(gaugePool.startTime() - 1);
 
         RewardsData memory rewardData;
-
-        address[] memory claimTokens = new address[](1);
-        claimTokens[0] = address(cve);
 
         vm.expectRevert(GaugeErrors.NotStarted.selector);
         vm.prank(users[0]);

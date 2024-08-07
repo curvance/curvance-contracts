@@ -364,13 +364,15 @@ contract OracleRouter {
 
         FeedData[] memory data = new FeedData[](numFeeds * 2);
 
-        // If the asset only has one price feed, we know itll be in
+        // If the asset only has one price feed, we know it will be in
         // feed slot 0 so get both prices and return
         if (numFeeds < 2) {
             data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
             data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
             if (isMToken) {
-                uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
+                uint256 exchangeRate = IMToken(
+                    parentAsset
+                ).exchangeRateCached();
                 data[0].price = uint240((data[0].price * exchangeRate) / WAD);
                 data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             }
@@ -829,9 +831,12 @@ contract OracleRouter {
             // Answer == 0: Sequencer is up.
             // Check that the sequencer is up or the grace period has passed
             // after the sequencer is back up.
-            if (
-                answer != 0 || block.timestamp < startedAt + GRACE_PERIOD_TIME
-            ) {
+            if (startedAt == 0) {
+                return false;
+            }
+
+            uint256 timeSinceUp = block.timestamp - startedAt;
+            if (answer != 0 || timeSinceUp <= GRACE_PERIOD_TIME) {
                 return false;
             }
         }

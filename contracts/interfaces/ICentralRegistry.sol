@@ -65,8 +65,8 @@ interface ICentralRegistry {
     /// @notice Returns Voting Hub address.
     function votingHub() external view returns (address);
 
-    /// @notice Returns Protocol Messaging Hub address.
-    function protocolMessagingHub() external view returns (address);
+    /// @notice Returns Messaging Hub address.
+    function messagingHub() external view returns (address);
 
     /// @notice Returns Oracle Router address.
     function oracleRouter() external view returns (address);

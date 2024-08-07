@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetMessageTransmitter is TestBaseMarket {
+contract SetMessageTransmitterTest is TestBaseMarket {
     event MessageTransmitterSet(address newAddress);
 
     address public newMessageTransmitter = makeAddr("Message Transmitter");

@@ -12,7 +12,7 @@ contract MintGaugeEmissionsTest is TestBaseMarket {
 
     function test_mintGaugeEmissions_success() public {
         assertEq(cve.balanceOf(address(gaugePool)), 0);
-        vm.prank(centralRegistry.protocolMessagingHub());
+        vm.prank(centralRegistry.messagingHub());
 
         cve.mintGaugeEmissions(address(gaugePool), 1000);
         assertEq(cve.balanceOf(address(gaugePool)), 1000);

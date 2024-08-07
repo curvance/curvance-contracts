@@ -7,7 +7,6 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC4626, SafeTransferLib } from "contracts/libraries/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
@@ -96,7 +95,6 @@ abstract contract CTokenBase is
     /// ERRORS ///
 
     error CTokenBase__Unauthorized();
-    error CTokenBase__InvalidCentralRegistry();
     error CTokenBase__InvalidMarketManager();
     error CTokenBase__UnderlyingAssetTotalSupplyExceedsMaximum();
 
@@ -111,15 +109,6 @@ abstract contract CTokenBase is
         _name = string.concat("Curvance collateralized ", asset_.name());
         _symbol = string.concat("c", asset_.symbol());
         _decimals = asset_.decimals();
-
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert CTokenBase__InvalidCentralRegistry();
-        }
 
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(MarketManager_)) {
@@ -233,7 +222,7 @@ abstract contract CTokenBase is
     function balanceOfUnderlyingSafe(
         address account
     ) external view returns (uint256) {
-        return ((convertToAssetsSafe(WAD) * balanceOf(account)) / WAD);
+        return (convertToAssetsSafe(balanceOf(account)) / WAD);
     }
 
     /// @notice Returns the underlying balance of the `account`.
@@ -242,7 +231,7 @@ abstract contract CTokenBase is
     function balanceOfUnderlying(
         address account
     ) external view returns (uint256) {
-        return ((convertToAssets(WAD) * balanceOf(account)) / WAD);
+        return (convertToAssets(balanceOf(account)) / WAD);
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`, safely.

@@ -54,7 +54,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user, ethAmount);
 
-        vm.startPrank(user);
+        vm.prank(user);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -69,7 +69,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             _VELODROME_FACTORY,
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user), 0);

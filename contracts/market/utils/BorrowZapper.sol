@@ -52,7 +52,7 @@ contract BorrowZapper is ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Borrows of behalf of the caller from `dToken` then bridge
+    /// @notice Borrows on behalf of the caller from `dToken` then bridge
     ///         funds to desired destination chain.
     /// @dev Requires that caller delegated borrowing functionality to this
     ///      contract prior.

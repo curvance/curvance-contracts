@@ -23,7 +23,7 @@ contract RecordEpochRewardsTest is TestBaseRewardManager {
     function test_recordEpochRewards_success() public {
         assertEq(rewardManager.epochRewardsPerPoint(nextEpochToDeliver), 0);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
+        vm.prank(centralRegistry.messagingHub());
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         assertEq(

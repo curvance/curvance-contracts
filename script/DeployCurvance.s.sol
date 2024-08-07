@@ -7,7 +7,7 @@ import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.sol";
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
-import { ProtocolMessagingHubDeployer } from "./deployers/ProtocolMessagingHubDeployer.s.sol";
+import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
@@ -24,7 +24,7 @@ contract DeployCurvance is
     CentralRegistryDeployer,
     CveDeployer,
     RewardManagerDeployer,
-    ProtocolMessagingHubDeployer,
+    MessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
     VotingHubDeployer,
@@ -108,9 +108,9 @@ contract DeployCurvance is
         _setVeCVE(veCve);
 
         // Deploy ProtocolMessagingHub
-        _deployProtocolMessagingHub(centralRegistry);
-        _setProtocolMessagingHub(protocolMessagingHub);
-        _addLockingPermissions(protocolMessagingHub);
+        _deployMessagingHub(centralRegistry);
+        _setMessagingHub(messagingHub);
+        _addLockingPermissions(messagingHub);
 
         // Deploy GaugePool
         _deployGaugePool(centralRegistry);
