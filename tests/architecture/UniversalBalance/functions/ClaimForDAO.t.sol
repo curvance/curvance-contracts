@@ -34,6 +34,8 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
     function test_claimForDAO_success() public {
         vm.warp(gaugePool.startTime());
 
+        _skipEpochDuration(1);
+
         // set gauge weights
         address[] memory tokensParam = new address[](1);
         uint256[] memory poolWeights = new uint256[](1);
@@ -44,8 +46,6 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
         cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
         vm.stopPrank();
-
-        _skipEpochDuration(1);
 
         skip(1 weeks);
 

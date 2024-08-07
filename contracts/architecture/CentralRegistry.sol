@@ -239,10 +239,7 @@ contract CentralRegistry is ERC165 {
         address targetAddress,
         address calldataChecker
     );
-    event MulticallProviderSet(
-        address provider,
-        bool supportedStatus
-    );
+    event MulticallProviderSet(address provider, bool supportedStatus);
 
     /// ERRORS ///
 

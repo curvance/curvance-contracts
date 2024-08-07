@@ -80,7 +80,8 @@ contract AddChainSupportTest is TestBaseMarket {
         uint256 prevSupportedChains = centralRegistry.supportedChains();
 
         vm.expectEmit(true, true, true, true);
-        emit NewChainAdded(42161, address(this));
+        emit NewChainAdded(42161, address(messagingHub));
+
         centralRegistry.addChainSupport(
             address(this),
             address(1),
