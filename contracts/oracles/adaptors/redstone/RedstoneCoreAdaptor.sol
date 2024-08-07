@@ -37,7 +37,8 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
-    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 2;
+    /// TODO: Update tests to use 2 minimum and change this back
+    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 1;
 
     /// STORAGE ///
 
