@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { MockEthereumRedstoneCoreAdaptor } from "contracts/mocks/MockEthereumRedstoneCoreAdaptor.sol";
+import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
-    MockEthereumRedstoneCoreAdaptor public adapter;
+    MockRedstoneCoreAdaptor public adapter;
 
     function getRedstonePayload(
         // dataFeedId:value:decimals
@@ -32,7 +32,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
             ICentralRegistry(address(centralRegistry))
         );
 
-        adapter = new MockEthereumRedstoneCoreAdaptor(
+        adapter = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
         adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
