@@ -23,11 +23,7 @@ contract TestGMAdaptor is TestBaseOracleRouter {
         _fork("ETH_NODE_URI_ARBITRUM", 145755190);
 
         _deployCentralRegistry();
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
+        _deployOracleRouter();
 
         adapter = new GMAdaptor(
             ICentralRegistry(address(centralRegistry)),

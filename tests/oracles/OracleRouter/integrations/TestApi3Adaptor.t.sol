@@ -18,14 +18,11 @@ contract TestApi3Adaptor is TestBaseOracleRouter {
         _fork("ETH_NODE_URI_ARBITRUM", 174096479);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         adaptor = new Api3Adaptor(ICentralRegistry(address(centralRegistry)));
         adaptor.addAsset(

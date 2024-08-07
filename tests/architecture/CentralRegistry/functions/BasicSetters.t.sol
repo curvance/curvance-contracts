@@ -14,6 +14,15 @@ contract BasicSettersTest is TestBaseMarket {
     function setUp() public virtual override {
         super.setUp();
 
+        centralRegistry = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp,
+            address(0),
+            _USDC_ADDRESS
+        );
+
         setters = [
             "setCVE(address)",
             "setVeCVE(address)",

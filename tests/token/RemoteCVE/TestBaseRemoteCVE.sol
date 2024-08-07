@@ -8,9 +8,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract TestBaseRemoteCVE is TestBaseMarket {
     CVE public remoteCVE;
 
-    function setUp() public virtual override {
-        super.setUp();
-
+    function _deployCVE() internal override initMainVariables {
         remoteCVE = new CVE(ICentralRegistry(address(centralRegistry)));
+        centralRegistry.setCVE(address(remoteCVE));
     }
 }

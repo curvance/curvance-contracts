@@ -72,7 +72,7 @@ contract TestBaseMarket is TestBase {
         _deployFeeAccumulator();
     }
 
-    function _deployCentralRegistry() internal initMainVariables {
+    function _deployCentralRegistry() internal virtual initMainVariables {
         centralRegistry = centralRegistries[
             block.chainid
         ] = new CentralRegistry(
@@ -101,7 +101,7 @@ contract TestBaseMarket is TestBase {
         );
     }
 
-    function _deployCVE() internal initMainVariables {
+    function _deployCVE() internal virtual initMainVariables {
         // If TokenBridgeRelayer doesn't exist on the address,
         // deploy mock TokenBridgeRelayer on the address.
         if (_TOKEN_BRIDGE.code.length == 0) {

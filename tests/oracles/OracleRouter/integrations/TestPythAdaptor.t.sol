@@ -19,14 +19,11 @@ contract TestPythAdaptor is TestBaseOracleRouter {
         _fork(18031848);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         adapter = new PythAdaptor(
             ICentralRegistry(address(centralRegistry)),
