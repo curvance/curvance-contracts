@@ -12,23 +12,29 @@ contract TestOracleRouter is TestBaseOracleRouter {
     address internal _VELODROME_WETH_USDC =
         0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
 
-    VelodromeVolatileLPAdaptor adapter;
+    VelodromeVolatileLPAdaptor public adapter;
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
 
         _deployCentralRegistry();
+        _deployCVE();
+        _deployRewardManager();
+        _deployVeCVE();
+        _deployOracleRouter();
+        _deployGaugePool();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
+
+        adapter = new VelodromeVolatileLPAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        adapter.addAsset(_VELODROME_WETH_USDC);
+
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
         chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
@@ -45,11 +51,6 @@ contract TestOracleRouter is TestBaseOracleRouter {
             _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-
-        adapter = new VelodromeVolatileLPAdaptor(
-            ICentralRegistry(address(centralRegistry))
-        );
-        adapter.addAsset(_VELODROME_WETH_USDC);
 
         oracleRouter.addApprovedAdaptor(address(adapter));
         oracleRouter.addAssetPriceFeed(_VELODROME_WETH_USDC, address(adapter));

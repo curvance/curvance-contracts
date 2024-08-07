@@ -23,14 +23,11 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
         _fork(18031848);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_WETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);

@@ -20,14 +20,11 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleRouter {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         adaptor = new VelodromeVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))

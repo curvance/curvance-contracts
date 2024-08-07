@@ -83,7 +83,7 @@ contract AddChainSupportTest is TestBaseMarket {
         emit NewChainAdded(42161, address(messagingHub));
 
         centralRegistry.addChainSupport(
-            address(this),
+            address(messagingHub),
             address(1),
             _USDC_ADDRESS,
             42161,
@@ -103,7 +103,7 @@ contract AddChainSupportTest is TestBaseMarket {
         ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 2);
-        assertEq(messagingHub, address(this));
+        assertEq(messagingHub, address(messagingHub));
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESS);
         assertEq(messagingChainId, 23);
