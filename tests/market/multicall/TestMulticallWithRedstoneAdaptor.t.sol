@@ -16,7 +16,7 @@ import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multica
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
-signers
+
 contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     address public owner;
 
