@@ -70,7 +70,9 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
 
         adapter = new MockRedstoneCoreAdaptor(
-            ICentralRegistry(address(centralRegistry))
+            ICentralRegistry(address(centralRegistry)),
+            redstoneSigners,
+            3
         );
         adapter.addAsset(address(WBTC), true, 8, 12 hours);
         adapter.addAsset(address(WBTC), false, 18, 12 hours);

@@ -8,7 +8,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
-    MockRedstoneCoreAdaptor public adapter;
+    MockRedstoneCoreAdaptor public adaptor;
 
     function getRedstonePayload(
         // dataFeedId:value:decimals
@@ -32,21 +32,23 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
             ICentralRegistry(address(centralRegistry))
         );
 
-        adapter = new MockRedstoneCoreAdaptor(
-            ICentralRegistry(address(centralRegistry))
+        adaptor = new MockRedstoneCoreAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            redStoneSigners,
+            3
         );
-        adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
-        adapter.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
+        adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
+        adaptor.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        oracleRouter.addApprovedAdaptor(address(adapter));
+        oracleRouter.addApprovedAdaptor(address(adaptor));
     }
 
     function testReturnsCorrectPrice() public {
         bytes memory redstonePayload = getRedstonePayload("WBTC:60000:8");
 
-        (, bytes32 symbolHash, , , ) = adapter.adaptorDataUSD(_WBTC_ADDRESS);
+        (, bytes32 symbolHash, , , ) = adaptor.adaptorDataUSD(_WBTC_ADDRESS);
         assertEq(symbolHash, bytes32("WBTC"));
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
@@ -59,12 +61,12 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
         );
 
         // Securely getting oracle value
-        (bool success, ) = address(adapter).call(
+        (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
         assertEq(success, true);
 
-        oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
+        oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
             _WBTC_ADDRESS,

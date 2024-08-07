@@ -12,7 +12,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
     address internal _VELODROME_WETH_USDC =
         0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
 
-    VelodromeVolatileLPAdaptor public adapter;
+    VelodromeVolatileLPAdaptor public adaptor;
 
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
@@ -30,10 +30,10 @@ contract TestOracleRouter is TestBaseOracleRouter {
             ICentralRegistry(address(centralRegistry))
         );
 
-        adapter = new VelodromeVolatileLPAdaptor(
+        adaptor = new VelodromeVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        adapter.addAsset(_VELODROME_WETH_USDC);
+        adaptor.addAsset(_VELODROME_WETH_USDC);
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
         chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
@@ -52,8 +52,8 @@ contract TestOracleRouter is TestBaseOracleRouter {
             address(chainlinkAdaptor)
         );
 
-        oracleRouter.addApprovedAdaptor(address(adapter));
-        oracleRouter.addAssetPriceFeed(_VELODROME_WETH_USDC, address(adapter));
+        oracleRouter.addApprovedAdaptor(address(adaptor));
+        oracleRouter.addAssetPriceFeed(_VELODROME_WETH_USDC, address(adaptor));
     }
 
     function testReturnsCorrectPrice() public {
@@ -97,7 +97,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
     }
 
     function testRevertAfterAssetRemove() public {
-        adapter.removeAsset(_VELODROME_WETH_USDC);
+        adaptor.removeAsset(_VELODROME_WETH_USDC);
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
         oracleRouter.getPrice(_VELODROME_WETH_USDC, true, false);
     }
@@ -138,7 +138,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
     }
 
     function testRevertWhenAdaptorNotApproved() public {
-        oracleRouter.removeApprovedAdaptor(address(adapter));
+        oracleRouter.removeApprovedAdaptor(address(adaptor));
 
         vm.expectRevert(
             OracleRouter.OracleRouter__AdaptorIsNotApproved.selector

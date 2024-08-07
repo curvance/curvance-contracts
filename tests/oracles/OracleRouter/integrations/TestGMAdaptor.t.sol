@@ -17,7 +17,7 @@ contract TestGMAdaptor is TestBaseOracleRouter {
     address internal _CHAINLINK_WBTC_USD =
         0xd0C7101eACbB49F3deCcCc166d238410D6D46d57;
 
-    GMAdaptor public adapter;
+    GMAdaptor public adaptor;
 
     function setUp() public override {
         _fork("ETH_NODE_URI_ARBITRUM", 145755190);
@@ -25,7 +25,7 @@ contract TestGMAdaptor is TestBaseOracleRouter {
         _deployCentralRegistry();
         _deployOracleRouter();
 
-        adapter = new GMAdaptor(
+        adaptor = new GMAdaptor(
             ICentralRegistry(address(centralRegistry)),
             _GMX_READER,
             _GMX_DATASTORE
@@ -34,7 +34,7 @@ contract TestGMAdaptor is TestBaseOracleRouter {
             ICentralRegistry(address(centralRegistry))
         );
 
-        oracleRouter.addApprovedAdaptor(address(adapter));
+        oracleRouter.addApprovedAdaptor(address(adaptor));
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
@@ -54,9 +54,9 @@ contract TestGMAdaptor is TestBaseOracleRouter {
             address(chainlinkAdaptor)
         );
 
-        adapter.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
+        adaptor.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
 
-        oracleRouter.addAssetPriceFeed(_GM_BTC_USDC, address(adapter));
+        oracleRouter.addAssetPriceFeed(_GM_BTC_USDC, address(adaptor));
     }
 
     function testDeploymentRevertWhenCentralRegistryIsInvalid() public {
@@ -93,14 +93,14 @@ contract TestGMAdaptor is TestBaseOracleRouter {
     }
 
     function testAddAssetRevertWhenAlteredTokenIsInvalid() public {
-        adapter.removeAsset(_GM_BTC_USDC);
+        adaptor.removeAsset(_GM_BTC_USDC);
 
         vm.expectRevert(GMAdaptor.GMAdaptor__AlteredTokenIsInvalid.selector);
-        adapter.addAsset(_GM_BTC_USDC, address(0));
+        adaptor.addAsset(_GM_BTC_USDC, address(0));
     }
 
     function testAddAssetRevertWhenLongTokenIsNotSupported() public {
-        adapter.removeAsset(_GM_BTC_USDC);
+        adaptor.removeAsset(_GM_BTC_USDC);
         oracleRouter.removeAssetPriceFeed(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor)
@@ -112,11 +112,11 @@ contract TestGMAdaptor is TestBaseOracleRouter {
                 _WBTC_ADDRESS
             )
         );
-        adapter.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
+        adaptor.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
     }
 
     function testAddAssetRevertWhenShortTokenIsNotSupported() public {
-        adapter.removeAsset(_GM_BTC_USDC);
+        adaptor.removeAsset(_GM_BTC_USDC);
         oracleRouter.removeAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
@@ -128,14 +128,14 @@ contract TestGMAdaptor is TestBaseOracleRouter {
                 _USDC_ADDRESS
             )
         );
-        adapter.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
+        adaptor.addAsset(_GM_BTC_USDC, _WBTC_ADDRESS);
     }
 
     function testRemoveAssetRevertWhenGMTokenIsNotSupported() public {
-        adapter.removeAsset(_GM_BTC_USDC);
+        adaptor.removeAsset(_GM_BTC_USDC);
 
         vm.expectRevert(GMAdaptor.GMAdaptor__AssetIsNotSupported.selector);
-        adapter.removeAsset(_GM_BTC_USDC);
+        adaptor.removeAsset(_GM_BTC_USDC);
     }
 
     function testReturnsCorrectPriceInUSD() public {
@@ -166,7 +166,7 @@ contract TestGMAdaptor is TestBaseOracleRouter {
         vm.expectRevert(
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
-        adapter.setGMXReader(address(0));
+        adaptor.setGMXReader(address(0));
     }
 
     function testRevertSetGMXDataStore__Unauthorized() public {
@@ -175,6 +175,6 @@ contract TestGMAdaptor is TestBaseOracleRouter {
         vm.expectRevert(
             BaseOracleAdaptor.BaseOracleAdaptor__Unauthorized.selector
         );
-        adapter.setGMXDataStore(address(0));
+        adaptor.setGMXDataStore(address(0));
     }
 }
