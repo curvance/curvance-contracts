@@ -34,7 +34,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
 
         adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            redStoneSigners,
+            redstoneSigners,
             1
         );
         adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
