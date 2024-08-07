@@ -474,6 +474,7 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
 
             _isAuthorisedSigner[signer] = i + 1;
             authorisedSigners.push(signer);
+            
             emit RedstoneCoreSignerAdded(signer);
         }
     }
