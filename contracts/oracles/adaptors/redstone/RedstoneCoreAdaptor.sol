@@ -2,13 +2,15 @@
 pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
+
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
+import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/PrimaryProdDataServiceConsumerBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
-abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
+abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsumerBase {
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
@@ -33,8 +35,19 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+    /// @notice The smallest value that Redstone Core unique signer threshold
+    ///         can be inside Curvance.
+    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 2;
 
     /// STORAGE ///
+
+    /// @notice Array containing a list of all authorised signers
+    ///         inside Redstone Core.
+    address[] public authorisedSigners;
+
+    /// @notice The minimum number of unique signers required to accept
+    ///          a Redstone Core price.
+    uint256 internal _uniqueSignersThreshold;
 
     /// @notice Adaptor configuration data for pricing an asset in gas token.
     /// @dev Redstone Adaptor Data for pricing in gas token.
@@ -56,18 +69,36 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         bool isUpdate
     );
     event RedstoneCoreAssetRemoved(address asset);
+    event RedstoneCoreSignerAdded(address signer);
+    event RedstoneCoreSignerRemoved(address signer);
 
     /// ERRORS ///
 
-    error BaseRedstoneCoreAdaptor__AssetIsNotSupported();
-    error BaseRedstoneCoreAdaptor__SymbolHashError();
-    error BaseRedstoneCoreAdaptor__InvalidHeartbeat();
+    error RedstoneCoreAdaptor__InvalidConfiguration();
+    error RedstoneCoreAdaptor__AssetIsNotSupported();
+    error RedstoneCoreAdaptor__SymbolHashError();
+    error RedstoneCoreAdaptor__InvalidHeartbeat();
 
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+        ICentralRegistry centralRegistry_,
+        address[] memory signers,
+        uint256 _uniqueSignersThreshold_
+    ) BaseOracleAdaptor(centralRegistry_) PrimaryProdDataServiceConsumerBase(signers) {
+        // Validate that minimum signer threshold is within acceptable limits.
+        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED < _uniqueSignersThreshold_) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        // Validate minimum signer threshold is possible to reach based
+        // on signers authorised.
+        if (_uniqueSignersThreshold_ < signers.length) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        _uniqueSignersThreshold = _uniqueSignersThreshold_;
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -86,7 +117,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ) external view override returns (PriceReturnData memory) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
-            revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+            revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
         if (inUSD) {
@@ -114,7 +145,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
         if (heartbeat != 0) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert BaseRedstoneCoreAdaptor__InvalidHeartbeat();
+                revert RedstoneCoreAdaptor__InvalidHeartbeat();
             }
         }
 
@@ -178,7 +209,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
 
         // Validate that `asset` is currently supported.
         if (!isSupportedAsset[asset]) {
-            revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+            revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
         // Wipe config mapping entries for a gas refund.
@@ -194,10 +225,15 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         emit RedstoneCoreAssetRemoved(asset);
     }
 
+    /// @notice Writes a Redstone Core price to this adaptor contract to be
+    ///         queried later by Curvance Protocol or external users.
+    /// @param asset The address of the supported asset to write a price for.
+    /// @param inUSD Whether the price is being written in USD,
+    ///              or the chain's native token.
     function writePrice(address asset, bool inUSD) external {
         if (inUSD) {
             if (!adaptorDataUSD[asset].isConfigured) {
-                revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+                revert RedstoneCoreAdaptor__AssetIsNotSupported();
             }
             overriddenPrice[asset][inUSD] = _extractPrice(
                 adaptorDataUSD[asset].symbolHash
@@ -205,13 +241,105 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
             overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
         } else {
             if (!adaptorDataNonUSD[asset].isConfigured) {
-                revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+                revert RedstoneCoreAdaptor__AssetIsNotSupported();
             }
             overriddenPrice[asset][inUSD] = _extractPrice(
                 adaptorDataNonUSD[asset].symbolHash
             );
             overriddenPriceUpdatedAt[asset][inUSD] = block.timestamp;
         }
+    }
+
+    /// @notice Adds a new supported signer for redstone core msg.data
+    ///         field validation.
+    /// @dev Can also increase signer threshold required if necessary.
+    /// @param newSigner The new address to be authorised inside
+    ///                  the Redstone Core system.
+    /// @param incrementSignerThreshold Whether the minimum number of signers
+    ///                                 should increase alongside the new
+    ///                                 signer's addition.
+    function addSigner(
+        address newSigner,
+        bool incrementSignerThreshold
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 index = _isAuthorisedSigner[newSigner];
+
+        /// Validate that `newSigner` is not already authorised.
+        if (index != 0) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        uint256 signerIndex = authorisedSigners.length;
+
+        // Add `newSigner` to quick access address mapping.
+        _isAuthorisedSigner[newSigner] = signerIndex + 1;
+        // Add `newSigner` to authorised signer list.
+        authorisedSigners.push(newSigner);
+
+        if (incrementSignerThreshold) {
+            _uniqueSignersThreshold++;
+        } 
+
+        emit RedstoneCoreSignerAdded(newSigner);
+    }
+
+    /// @notice Remove a current authorised signer for redstone core msg.data
+    ///         field validation.
+    /// @dev Can also increase signer threshold required if necessary.
+    /// @param currentSigner The address to be remove from the
+    ///                      Redstone Core system.
+    /// @param decrementSignerThreshold Whether the minimum number of signers
+    ///                                 should decrease alongside the
+    ///                                 authorised signer's removal.
+    function removeSigner(
+        address currentSigner,
+        bool decrementSignerThreshold
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 index = _isAuthorisedSigner[currentSigner];
+
+        /// Validate that `currentSigner` is authorised.
+        if (index == 0) {
+            revert SignerNotAuthorised(currentSigner);
+        }
+
+        // Remove `currentSigner` from quick access address mapping.
+        _isAuthorisedSigner[currentSigner] == 0;
+
+        uint256 lastSignerIndex = authorisedSigners.length - 1;
+
+        // Switch array locations on authorised signer so we can pop
+        // `currentSigner` from the end.
+        if (index != lastSignerIndex) {
+            authorisedSigners[index] = authorisedSigners[lastSignerIndex];
+        }
+
+        // Remove `currentSigner` from authorised signer list.
+        authorisedSigners.pop();
+
+        if (decrementSignerThreshold) {
+            // Make sure that decreasing the signer threshold would not pushed
+            // signer requirement below minimum allowed inside the Curvance
+            // Protocol.
+            if (_uniqueSignersThreshold == MINIMUM_SIGNER_THRESHOLD_ALLOWED) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
+
+            _uniqueSignersThreshold--;
+        }
+
+        emit RedstoneCoreSignerRemoved(currentSigner);
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice The minimum number of signer messages to be validated
+    ///         for onchain oracle pricing to validate a price feed.
+    function getUniqueSignersThreshold() public view override returns (uint8) {
+        return uint8(_uniqueSignersThreshold);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -258,7 +386,7 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
     ) internal view returns (PriceReturnData memory pData) {
         uint256 price = overriddenPrice[asset][inUSD];
         if (price == 0) {
-            revert BaseRedstoneCoreAdaptor__AssetIsNotSupported();
+            revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
         // Cache decimals value.
@@ -323,8 +451,31 @@ abstract contract BaseRedstoneCoreAdaptor is BaseOracleAdaptor {
         return false;
     }
 
-    /// INTERNAL FUNCTIONS TO OVERRIDE ///
+    /// @notice Extracts price stored in msg.data with the transaction,
+    ///         can be called multiple times in one transaction.
     function _extractPrice(
         bytes32 symbolHash
-    ) internal view virtual returns (uint256);
+    ) internal view returns (uint256) {
+        return getOracleNumericValueFromTxMsg(symbolHash);
+    }
+
+    /// @notice Adds new supported signers for redstone core msg.data
+    ///         field validation.
+    /// @param signers Array containing the new addresses to be authorised
+    ///                inside the Redstone Core system.
+    function _storeAuthorisedSigners(
+        address[] memory signers
+    ) internal override {
+        uint256 numSigners = signers.length;
+        address signer;
+
+        for (uint256 i; i < numSigners; ++i) {
+            signer = signers[i];
+
+            _isAuthorisedSigner[signer] = i + 1;
+            authorisedSigners.push(signer);
+            emit RedstoneCoreSignerAdded(signer);
+        }
+    }
+    
 }
