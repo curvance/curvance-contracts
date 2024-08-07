@@ -243,6 +243,8 @@ contract TestUniversalBalance is TestBaseMarket {
         testDepositETH();
 
         vm.warp(gaugePool.startTime());
+        _skipEpochDuration(1);
+
         vm.roll(block.number + 1000);
 
         // set gauge weights
@@ -255,7 +257,6 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         skip(1 weeks);

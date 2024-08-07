@@ -43,9 +43,9 @@ contract MessagingHub is QueryResponse {
     uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc70c67ab;
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
     /// @dev `bytes4(keccak256(bytes("MessagingHub__InvalidParameter()")))`.
-    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xee61d28c;
+    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xd6112bfe;
     /// @dev `keccak256(bytes("queryLockPoints()"))`.
     bytes4 internal constant _QUERY_POINTS_SELECTOR = bytes4(hex"c8aed262");
 

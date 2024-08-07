@@ -161,7 +161,7 @@ contract TestPositionFolding is TestBaseMarket {
         // gaugePool.setEmissionRates(1, tokensParam, poolWeights);
         // vm.prank(messagingHub);
         // cve.mintGaugeEmissions(300 * 2 weeks, address(gaugePool));
-        // vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        // _skipEpochDuration(1);
 
         // provide enough liquidity for leverage
         provideEnoughLiquidityForLeverage();

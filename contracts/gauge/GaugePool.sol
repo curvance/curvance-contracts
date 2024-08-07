@@ -308,8 +308,8 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.InvalidAddress();
         }
 
-        uint256 rewardTokensLength = rewardTokens.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        uint256 numTokens = rewardTokens.length;
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             if (rewardTokens[i++] == newReward) {
                 revert GaugeErrors.InvalidAddress();
@@ -343,10 +343,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         // If the extra reward is not the last one in the array,
         // copy its data down and then pop.
-        uint256 rewardTokensLength = rewardTokens.length;
-        if (index != (rewardTokensLength - 1)) {
-            rewardTokens[index] = rewardTokens[rewardTokensLength - 1];
+        uint256 numTokens = rewardTokens.length;
+        if (index != (numTokens - 1)) {
+            rewardTokens[index] = rewardTokens[numTokens - 1];
         }
+        
         rewardTokens.pop();
         rewardTokenToIndex[newReward] = 0;
         rewardTokenToMinDistribution[newReward] = 0;
@@ -372,12 +373,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @param token The token to set rewards for.
     /// @param epoch The epoch to set rewards for, should be the next epoch.
     /// @param rewardToken The address of reward token to be updated.
-    /// @param additionalRewards The additional rewards amount for distribution
+    /// @param amount The additional rewards amount for distribution
     function addExtraRewards(
         address token,
         uint256 epoch,
         address rewardToken,
-        uint256 additionalRewards
+        uint256 amount
     ) external {
         // CVE rewards are only updated through the gauge system by
         // the messaging hub in setEmissionRates().
@@ -390,7 +391,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.InvalidRewardToken();
         }
 
-        if (additionalRewards < rewardTokenToMinDistribution[rewardToken]) {
+        if (amount < rewardTokenToMinDistribution[rewardToken]) {
             revert GaugeErrors.InvalidRewardTokenAmount();
         }
 
@@ -404,11 +405,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             rewardToken,
             msg.sender,
             address(this),
-            additionalRewards
+            amount
         );
 
         _epochRewardPerSec[token][epoch][index] +=
-            additionalRewards /
+            amount /
             EPOCH_DURATION;
     }
 

@@ -8,9 +8,6 @@ contract BridgeTest is TestBaseRemoteCVE {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.setCVE(address(remoteCVE));
-        _deployMessagingHub();
-
         vm.prank(centralRegistry.messagingHub());
         remoteCVE.mintGaugeEmissions(user1, _ONE);
 

@@ -190,7 +190,9 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.warp(gaugePool.startTime());
+        _skipEpochDuration(1);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0
@@ -251,7 +253,9 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.warp(gaugePool.startTime());
+        _skipEpochDuration(1);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0

@@ -9,6 +9,19 @@ contract SetVeCVETest is TestBaseMarket {
 
     address public newVeCVE = makeAddr("VeCVE");
 
+    function setUp() public override {
+        super.setUp();
+
+        centralRegistry = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp,
+            address(0),
+            _USDC_ADDRESS
+        );
+    }
+
     function test_setVeCVE_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
@@ -18,8 +31,17 @@ contract SetVeCVETest is TestBaseMarket {
         centralRegistry.setVeCVE(newVeCVE);
     }
 
+    function test_setVeCVE_fail_whenVeCVEIsAlreadySet() public {
+        centralRegistry.setVeCVE(newVeCVE);
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setVeCVE(newVeCVE);
+    }
+
     function test_setVeCVE_success() public {
-        assertEq(centralRegistry.veCVE(), address(veCVE));
+        assertEq(centralRegistry.veCVE(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
         emit CoreContractSet("VeCVE", newVeCVE);

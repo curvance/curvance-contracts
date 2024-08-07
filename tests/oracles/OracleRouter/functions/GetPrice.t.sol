@@ -2,9 +2,9 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
+import { OracleRouter, BAD_SOURCE } from "contracts/oracles/OracleRouter.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
-import { OracleRouter, BAD_SOURCE } from "contracts/oracles/OracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract Oracle {

@@ -15,11 +15,7 @@ contract TestDIAAdaptor is TestBaseOracleRouter {
         _fork(19422728);
 
         _deployCentralRegistry();
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
+        _deployOracleRouter();
 
         adaptor = new DIAAdaptor(
             ICentralRegistry(address(centralRegistry)),

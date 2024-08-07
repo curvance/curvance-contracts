@@ -87,6 +87,8 @@ contract TestBoostedLock is TestBaseMarket {
     }
 
     function testBoostedLockFromClaim() public {
+        _skipEpochDuration(1);
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -98,8 +100,6 @@ contract TestBoostedLock is TestBaseMarket {
         gaugePool.setEmissionRates(1, tokensParam, poolWeights);
         vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 300e18 * 2 weeks);
-
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
 
         // user0 deposit 100 token0
         vm.prank(users[0]);

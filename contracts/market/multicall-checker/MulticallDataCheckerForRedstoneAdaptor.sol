@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { BaseRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/BaseRedstoneCoreAdaptor.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 
 import { MulticallDataCheckerBase } from "./MulticallDataCheckerBase.sol";
@@ -30,7 +30,7 @@ contract MulticallDataCheckerForRedstoneAdaptor is MulticallDataCheckerBase {
         }
 
         bytes4 functionSig = getFuncSigHash(data);
-        if (functionSig != BaseRedstoneCoreAdaptor.writePrice.selector) {
+        if (functionSig != RedstoneCoreAdaptor.writePrice.selector) {
             revert MulticallDataChecker__InvalidFuncSig();
         }
     }

@@ -233,18 +233,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testRevertAddExtraRewardsInvalidEpoch() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             vm.expectRevert(GaugeErrors.InvalidEpoch.selector);
             gaugePool.addExtraRewards(
@@ -258,18 +246,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
     function testRevertAddExtraRewardsInvalidRewardTokenAmount() public {
         startGauge();
-
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.setMinDistributionAmount(
@@ -289,36 +265,12 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testRevertAddExtraRewardsUnauthorized() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         vm.expectRevert(GaugeErrors.Unauthorized.selector);
         gaugePool.addExtraRewards(tokens[0], 0, address(cve), 300 * 2 weeks);
     }
 
     function testRevertAddExtraRewardsInvalidRewardToken() public {
         startGauge();
-
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             vm.expectRevert(GaugeErrors.InvalidRewardToken.selector);
@@ -333,18 +285,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
     function testUpdateRewardPerSec() public {
         startGauge();
-
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
@@ -365,18 +305,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testPartnerGaugesRewardRatioOfDifferentPools() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
                 tokens[0],
@@ -392,7 +320,20 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        _skipEpochDuration(1);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(messagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0
@@ -717,18 +658,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testPartnerGaugesRewardCalculationWithDifferentEpoch() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
                 tokens[0],
@@ -744,7 +673,20 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        _skipEpochDuration(1);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(messagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0
@@ -800,6 +742,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
+        _skipEpochDuration(1);
+
         // set gauge weights
         tokensParam[0] = tokens[0];
         tokensParam[1] = tokens[1];
@@ -810,8 +754,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
         vm.prank(address(messagingHub));
         cve.mintGaugeEmissions(address(gaugePool), 400 * 2 weeks);
 
-        // check pending rewards after 2 weeks
-        vm.warp(block.timestamp + 2 weeks);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         assertEq(
             gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
@@ -887,18 +829,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testRewardsDistributionAfterRemoveExtraRewardToken() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
                 tokens[0],
@@ -914,7 +844,20 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        _skipEpochDuration(1);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(messagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0
@@ -1016,18 +959,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testReAddExtraRewardToken() public {
         startGauge();
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 100 * 2 weeks;
-        poolWeights[1] = 200 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
-
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
                 tokens[0],
@@ -1043,7 +974,20 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        _skipEpochDuration(1);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+        vm.prank(address(messagingHub));
+        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         // user0 deposit 100 token0
@@ -1118,10 +1062,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
 
         gaugePool.addExtraRewardToken(address(partnerRewardTokens[0]), 100);
-        vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(2, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugePool.addExtraRewards(
@@ -1138,42 +1078,12 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime() + 2 * 2 weeks);
+        _skipEpochDuration(1);
 
-        assertEq(
-            gaugePool.pendingRewards(
-                tokens[0],
-                users[0],
-                partnerRewardTokens[0]
-            ),
-            0
-        );
-        assertEq(
-            gaugePool.pendingRewards(
-                tokens[1],
-                users[2],
-                partnerRewardTokens[0]
-            ),
-            0
-        );
-        assertEq(
-            gaugePool.pendingRewards(
-                tokens[0],
-                users[0],
-                partnerRewardTokens[1]
-            ),
-            100 * 2 weeks
-        );
-        assertEq(
-            gaugePool.pendingRewards(
-                tokens[1],
-                users[2],
-                partnerRewardTokens[1]
-            ),
-            200 * 2 weeks
-        );
-
-        vm.warp(block.timestamp + 100);
+        vm.prank(address(messagingHub));
+        gaugePool.setEmissionRates(2, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
 
         assertEq(
             gaugePool.pendingRewards(
@@ -1206,6 +1116,41 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 partnerRewardTokens[1]
             ),
             200 * (2 weeks + 100)
+        );
+
+        vm.warp(block.timestamp + 100);
+
+        assertEq(
+            gaugePool.pendingRewards(
+                tokens[0],
+                users[0],
+                partnerRewardTokens[0]
+            ),
+            20000
+        );
+        assertEq(
+            gaugePool.pendingRewards(
+                tokens[1],
+                users[2],
+                partnerRewardTokens[0]
+            ),
+            40000
+        );
+        assertEq(
+            gaugePool.pendingRewards(
+                tokens[0],
+                users[0],
+                partnerRewardTokens[1]
+            ),
+            100 * (2 weeks + 200)
+        );
+        assertEq(
+            gaugePool.pendingRewards(
+                tokens[1],
+                users[2],
+                partnerRewardTokens[1]
+            ),
+            200 * (2 weeks + 200)
         );
     }
 }

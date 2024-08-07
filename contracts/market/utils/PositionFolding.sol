@@ -293,30 +293,32 @@ contract PositionFolding is
         address collateralUnderlying = collateralToken.underlying();
 
         // Prepare cToken underlying.
+        SwapperLib.Swap memory swapData = leverageData.swapData;
         SwapperLib.Swap memory swapZap = leverageData.swapZap;
 
         // Check to make sure there is calldata attached to execute the swap.
-        if (leverageData.swapData.call.length > 0) {
+        if (swapData.call.length > 0) {
             if (
-                leverageData.swapData.target == address(0) ||
-                leverageData.swapData.inputToken != borrowToken ||
-                ((leverageData.swapData.outputToken != swapZap.inputToken ||
-                 (leverageData.swapData.outputToken == swapZap.inputToken &&
-                 swapZap.call.length == 0)) &&
-                 leverageData.swapData.outputToken != collateralUnderlying) ||
-                leverageData.swapData.inputAmount != borrowAmount
+                swapData.target == address(0) ||
+                swapData.inputToken != borrowUnderlying ||
+                swapData.outputToken != swapZap.inputToken ||
+                (swapData.outputToken == swapZap.inputToken &&
+                    swapZap.call.length == 0) ||
+                swapData.inputAmount != borrowAmount
             ) {
                 revert PositionFolding__InvalidSwapperParam();
             }
             // Swap borrow underlying to Zapper input token.
-            swapZap.inputAmount = SwapperLib.swapSafe(centralRegistry, leverageData.swapData);
+            swapZap.inputAmount = SwapperLib.swapSafe(
+                centralRegistry,
+                swapData
+            );
         }
 
         // Check to make sure there is calldata attached to execute the zap.
         if (swapZap.call.length > 0) {
             if (
                 swapZap.target == address(0) ||
-                swapZap.inputToken != leverageData.swapData.outputToken ||
                 swapZap.outputToken != collateralUnderlying ||
                 swapZap.inputAmount == 0
             ) {
