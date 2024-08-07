@@ -106,10 +106,11 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         );
     }
 
-    function test_executeEmissionConfiguration_fail_whenVotingHubIsNotStarted()
+    function test_executeEmissionConfiguration_fail_whenLengthIsMismatch()
         public
     {
         gaugePool.start(address(marketManager));
+        votingHub.start();
 
         _skipEpochDuration(2);
 
@@ -123,6 +124,23 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         );
 
         votingHub.setEraTargetEmissions(_ONE * 3);
+
+        _emissionData.emissions[0] = new uint256[](2);
+        _emissionData.emissions[0][0] = _ONE;
+        _emissionData.emissions[0][1] = _ONE;
+
+        vm.expectRevert(VotingHub.VotingHub__InvalidParameter.selector);
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        _remoteEmissionData[0] = _emissionData;
+        _emissionData.emissions[0] = new uint256[](1);
+        _emissionData.emissions[0][0] = _ONE;
 
         vm.expectRevert(VotingHub.VotingHub__InvalidParameter.selector);
         votingHub.executeEmissionConfiguration(
@@ -138,6 +156,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         public
     {
         gaugePool.start(address(marketManager));
+
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
@@ -161,6 +180,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
     function test_executeEmissionConfiguration_success() public {
         gaugePool.start(address(marketManager));
+
         _skipEpochDuration(2);
 
         _prepareResponseAndSignatures(
