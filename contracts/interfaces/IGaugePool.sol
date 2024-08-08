@@ -12,7 +12,7 @@ interface IGaugePool {
 
     /// @notice Returns the active reward tokens on the gauge pool,
     ///         for ease of integration by third parties.
-    function getRewardTokens() external view returns (address[] memory);
+    function getRewardTokens(address) external view returns (address[] memory);
 
     /// @notice Sets emission rates of tokens of next epoch.
     /// @dev Only the messaging hub can call this.

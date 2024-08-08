@@ -78,6 +78,8 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     }
     /// CONSTANTS ///
 
+    uint256 constant SIX_MONTH_IN_EPOCH = 12;
+
     /// @notice CVE contract address.
     address public immutable cve;
     /// @notice VeCVE contract address.
@@ -99,14 +101,23 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     /// @notice Timestamp when the first first deposit occurred.
     uint256 public firstDeposit;
-    /// @notice An array contain a list of all reward tokens attached
-    ///         to this Gauge Pool.
-    /// @dev Reward tokens attached to this Gauge Pool.
-    address[] public rewardTokens;
+    /// @notice Mapping for approved reward token
+    /// @dev rewardToken => bool
+    mapping(address => bool) public approvedRewardTokens;
 
-    uint256 public lastRewardTokenIndex;
-    mapping(address => uint256) public rewardTokenToIndex;
+    /// @dev mToken => index
+    mapping(address => uint256) public lastRewardTokenIndex;
+
+    /// @dev mToken => rewardToken => index
+    mapping(address => mapping(address => uint256)) public rewardTokenToIndex;
+
     mapping(address => uint256) public rewardTokenToMinDistribution;
+
+    /// @dev mToken => rewardTokens
+    mapping(address => address[]) public rewardTokens;
+
+    /// @dev mToken => rewardToken => last epoch
+    mapping(address => mapping(address => uint256)) public lastEpochOf;
 
     /// @notice The total supply of a token deposited.
     /// @dev mToken => total supply.
@@ -161,8 +172,6 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         veCVE = IVeCVE(centralRegistry.veCVE());
         EPOCH_DURATION = veCVE.EPOCH_DURATION();
 
-        rewardTokens.push(cve);
-        rewardTokenToIndex[cve] = ++lastRewardTokenIndex;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -220,15 +229,22 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         for (uint256 i; i < numTokens; ) {
             // We sort the token addresses offchain from smallest to largest
             // to validate there are no duplicates.
-            if (priorAddress >= tokens[i]) {
+            address token = tokens[i];
+            if (priorAddress >= token) {
                 revert GaugeErrors.InvalidToken();
             }
 
             info.totalWeights =
                 info.totalWeights +
                 weights[i] -
-                info.tokenWeight[tokens[i]];
-            info.tokenWeight[tokens[i]] = weights[i];
+                info.tokenWeight[token];
+            info.tokenWeight[token] = weights[i];
+
+            if (rewardTokenToIndex[token][cve] == 0) {
+                rewardTokens[token].push(cve);
+                rewardTokenToIndex[token][cve] = ++lastRewardTokenIndex[token];
+            }
+
             unchecked {
                 /// Update prior to current token, then increment i.
                 priorAddress = tokens[i++];
@@ -269,8 +285,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) external {
         _checkDaoPermissions();
 
-        uint256 index = rewardTokenToIndex[rewardToken];
-        if (index == 0) {
+        if (approvedRewardTokens[rewardToken] == false) {
             revert GaugeErrors.InvalidRewardToken();
         }
 
@@ -287,30 +302,19 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) external {
         _checkDaoPermissions();
 
-        if (newReward == address(0)) {
+        if (newReward == address(0) || approvedRewardTokens[newReward]) {
             revert GaugeErrors.InvalidAddress();
         }
 
-        uint256 rewardTokensLength = rewardTokens.length;
-        for (uint256 i; i < rewardTokensLength; ) {
-            // Query rewardToken then increment i.
-            if (rewardTokens[i++] == newReward) {
-                revert GaugeErrors.InvalidAddress();
-            }
-        }
-
-        rewardTokens.push(newReward);
-        rewardTokenToIndex[newReward] = ++lastRewardTokenIndex;
+        approvedRewardTokens[newReward] = true;
         rewardTokenToMinDistribution[newReward] = minAmount;
 
         emit AddExtraRewardToken(newReward);
     }
 
     /// @notice Removes an extra reward from the gauge system.
-    /// @param index The index of the extra reward.
     /// @param newReward The address of the extra reward to be removed.
     function removeExtraRewardToken(
-        uint256 index,
         address newReward
     ) external {
         _checkDaoPermissions();
@@ -320,18 +324,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.Unauthorized();
         }
 
-        if (newReward != address(rewardTokens[index])) {
-            revert GaugeErrors.InvalidAddress();
-        }
-
-        // If the extra reward is not the last one in the array,
-        // copy its data down and then pop.
-        uint256 rewardTokensLength = rewardTokens.length;
-        if (index != (rewardTokensLength - 1)) {
-            rewardTokens[index] = rewardTokens[rewardTokensLength - 1];
-        }
-        rewardTokens.pop();
-        rewardTokenToIndex[newReward] = 0;
+        approvedRewardTokens[newReward] = false;
         rewardTokenToMinDistribution[newReward] = 0;
 
         emit RemoveExtraRewardToken(newReward);
@@ -339,14 +332,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
     /// @notice Returns the active reward tokens on the gauge pool,
     ///         for ease of integration by third parties.
-    function getRewardTokens() external view returns (address[] memory) {
-        return rewardTokens;
+    function getRewardTokens(address token) external view returns (address[] memory) {
+        return rewardTokens[token];
     }
 
     /// @notice Returns the number of active reward tokens on the gauge pool,
     ///         for ease of integration by third parties.
-    function getRewardTokensLength() external view returns (uint256) {
-        return rewardTokens.length;
+    function getRewardTokensLength(address token) external view returns (uint256) {
+        return rewardTokens[token].length;
     }
 
     /// @notice Used to update gauge pool rewards for `rewardToken`,
@@ -368,17 +361,41 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             revert GaugeErrors.Unauthorized();
         }
 
-        uint256 index = rewardTokenToIndex[rewardToken];
-        if (index == 0) {
+        if (approvedRewardTokens[rewardToken] == false) {
             revert GaugeErrors.InvalidRewardToken();
-        }
-
-        if (additionalRewards < rewardTokenToMinDistribution[rewardToken]) {
-            revert GaugeErrors.InvalidRewardTokenAmount();
         }
 
         if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
             revert GaugeErrors.InvalidEpoch();
+        }
+
+        address[] memory rewardTokenForMToken = rewardTokens[token];
+        uint256 rewardTokensLength = rewardTokenForMToken.length;
+        for (uint256 i; i < rewardTokensLength; ) {
+            address _rewardToken = rewardTokenForMToken[i++];
+            if (_rewardToken == cve || _rewardToken == rewardToken) {
+                continue;
+            }
+            uint256 lastEpoch = lastEpochOf[token][_rewardToken];
+            if (currentEpoch() - lastEpoch > SIX_MONTH_IN_EPOCH) {
+                uint256 indexToRemove = rewardTokenToIndex[token][_rewardToken];
+                if (indexToRemove != (rewardTokensLength - 1)) {
+                    rewardTokens[token][indexToRemove] = rewardTokens[token][rewardTokensLength - 1];
+                }
+                rewardTokens[token].pop();
+                rewardTokenToIndex[token][_rewardToken] = 0;
+            }
+        }
+
+        uint256 index = rewardTokenToIndex[token][rewardToken];
+        if (index == 0) {
+            rewardTokens[token].push(rewardToken);
+            rewardTokenToIndex[token][rewardToken] = ++lastRewardTokenIndex[token];
+            index = lastRewardTokenIndex[token];
+        }
+
+        if (additionalRewards < rewardTokenToMinDistribution[rewardToken]) {
+            revert GaugeErrors.InvalidRewardTokenAmount();
         }
 
         updatePool(token);
@@ -393,6 +410,10 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         _epochRewardPerSec[token][epoch][index] +=
             additionalRewards /
             EPOCH_DURATION;
+
+        if (lastEpochOf[token][rewardToken] < epoch) {
+            lastEpochOf[token][rewardToken] = epoch;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -452,7 +473,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
 
         return (EPOCH_DURATION *
-            _epochRewardPerSec[token][epoch][rewardTokenToIndex[rewardToken]]);
+            _epochRewardPerSec[token][epoch][rewardTokenToIndex[token][rewardToken]]);
     }
 
     /// @notice Returns pending reward of user.
@@ -464,7 +485,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         address user,
         address rewardToken
     ) public view returns (uint256) {
-        uint256 index = rewardTokenToIndex[rewardToken];
+        uint256 index = rewardTokenToIndex[token][rewardToken];
         if (index == 0) {
             revert GaugeErrors.InvalidRewardToken();
         }
@@ -523,11 +544,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         address token,
         address user
     ) external view returns (uint256[] memory results) {
-        uint256 rewardTokensLength = rewardTokens.length;
+        uint256 rewardTokensLength = rewardTokens[token].length;
+        address[] memory rewardTokensForMToken = rewardTokens[token];
         results = new uint256[](rewardTokensLength);
 
         for (uint256 i; i < rewardTokensLength; ++i) {
-            results[i] = pendingRewards(token, user, rewardTokens[i]);
+            results[i] = pendingRewards(token, user, rewardTokensForMToken[i]);
         }
     }
 
@@ -572,12 +594,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 // If first deposit, the new rewards from gauge start to this
                 // point will be unallocated rewards.
                 updatePool(token);
-
-                uint256 rewardTokensLength = rewardTokens.length;
+                address[] memory rewardTokenForMToken = rewardTokens[token];
+                uint256 rewardTokensLength = rewardTokenForMToken.length;
                 for (uint256 i; i < rewardTokensLength; ) {
                     // Query rewardToken then increment i.
-                    address rewardToken = rewardTokens[i++];
-                    uint256 index = rewardTokenToIndex[rewardToken];
+                    address rewardToken = rewardTokenForMToken[i++];
+                    uint256 index = rewardTokenToIndex[token][rewardToken];
                     uint256 unallocatedRewards = (poolAccRewardPerShare[token][
                         index
                     ] * totalSupply[token]) / WAD_SQUARED;
@@ -665,12 +687,13 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         updatePool(token);
         _calcPending(msg.sender, token);
 
-        uint256 numTokens = rewardTokens.length;
+        address[] memory rewardTokensForMToken = rewardTokens[token];
+        uint256 numTokens = rewardTokensForMToken.length;
 
         for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
-            address rewardToken = rewardTokens[i++];
-            uint256 index = rewardTokenToIndex[rewardToken];
+            address rewardToken = rewardTokensForMToken[i++];
+            uint256 index = rewardTokenToIndex[token][rewardToken];
             uint256 rewards = userDebtInfo[token][msg.sender][index]
                 .rewardPending;
             // If the caller has rewards, send them,
@@ -784,7 +807,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         _calcPending(msg.sender, token);
 
         // Check user pending rewards.
-        uint256 index = rewardTokenToIndex[cve];
+        uint256 index = rewardTokenToIndex[token][cve];
         uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
         if (rewards == 0) {
             revert GaugeErrors.NoReward();
@@ -848,13 +871,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
 
         // Cache rewardTokens length.
-        uint256 rewardTokensLength = rewardTokens.length;
+        address[] memory rewardTokensForMToken = rewardTokens[token];
+        uint256 rewardTokensLength = rewardTokensForMToken.length;
         for (uint256 i; i < rewardTokensLength; ) {
             uint256 lastRewardTimestamp = _lastRewardTimestamp;
 
             // Query rewardToken then increment i.
-            address rewardToken = rewardTokens[i++];
-            uint256 index = rewardTokenToIndex[rewardToken];
+            address rewardToken = rewardTokensForMToken[i++];
+            uint256 index = rewardTokenToIndex[token][rewardToken];
             uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
             uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
             uint256 cachedCurrentEpoch = currentEpoch();
@@ -924,12 +948,13 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @param user User address.
     /// @param token Pool token address.
     function _calcPending(address user, address token) internal {
-        uint256 rewardTokensLength = rewardTokens.length;
+        address[] memory rewardTokensForMToken = rewardTokens[token];
+        uint256 rewardTokensLength = rewardTokensForMToken.length;
 
         for (uint256 i; i < rewardTokensLength; ) {
             // Query rewardToken then increment i.
-            address rewardToken = rewardTokens[i++];
-            uint256 index = rewardTokenToIndex[rewardToken];
+            address rewardToken = rewardTokensForMToken[i++];
+            uint256 index = rewardTokenToIndex[token][rewardToken];
             UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardPending +=
                 (balanceOf[token][user] *
@@ -943,12 +968,13 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @param user User address.
     /// @param token Pool token address.
     function _calcDebt(address user, address token) internal {
-        uint256 rewardTokensLength = rewardTokens.length;
+        address[] memory rewardTokensForMToken = rewardTokens[token];
+        uint256 rewardTokensLength = rewardTokensForMToken.length;
 
         for (uint256 i; i < rewardTokensLength; ) {
             // Query rewardToken then increment i.
-            address rewardToken = rewardTokens[i++];
-            uint256 index = rewardTokenToIndex[rewardToken];
+            address rewardToken = rewardTokensForMToken[i++];
+            uint256 index = rewardTokenToIndex[token][rewardToken];
             UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardDebt =
                 (balanceOf[token][user] *

@@ -177,7 +177,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     ///      to steal funds.
     function claimForDAO() external {
         IGaugePool gaugePool = linkedDToken.marketManager().gaugePool();
-        address[] memory rewardTokens = gaugePool.getRewardTokens();
+        address[] memory rewardTokens = gaugePool.getRewardTokens(address(linkedDToken));
 
         uint256 numRewardTokens = rewardTokens.length;
         uint256[] memory previousBalances = new uint256[](numRewardTokens);
