@@ -10,7 +10,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
-abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsumerBase {
+contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsumerBase {
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
