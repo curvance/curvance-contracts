@@ -86,13 +86,15 @@ abstract contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServi
         ICentralRegistry centralRegistry_,
         address[] memory signers,
         uint256 uniqueSignersThreshold_
-    ) BaseOracleAdaptor(centralRegistry_) PrimaryProdDataServiceConsumerBase(signers) {
-        // Validate that minimum signer threshold is within acceptable limits.
-        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED < uniqueSignersThreshold_) {
+    ) BaseOracleAdaptor(
+        centralRegistry_
+    ) PrimaryProdDataServiceConsumerBase(signers) {
+        // Validate that unique signer threshold is within acceptable limits.
+        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
-        // Validate minimum signer threshold is possible to reach based
+        // Validate unique signer threshold is possible to reach based
         // on signers authorised.
         if (uniqueSignersThreshold_ > signers.length) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
