@@ -5,6 +5,7 @@ import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract CanLiquidateTest is TestBaseMarketManager {
@@ -281,9 +282,11 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 (10 ** cBALRETH.decimals())) / (10 ** dUSDC.decimals());
             uint256 expectedLiquidatedTokens = (amountAdjusted *
                 debtToCollateralRatio) / WAD;
-            expectedLiqAmount =
-                (debtAmount * collateralAvailable) /
-                expectedLiquidatedTokens;
+            expectedLiqAmount = FixedPointMathLib.mulDivUp(
+                debtAmount,
+                collateralAvailable,
+                expectedLiquidatedTokens
+            );
             uint256 liqFee = (WAD * (10 * 1e14)) / liqBaseIncentive;
             expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
         }

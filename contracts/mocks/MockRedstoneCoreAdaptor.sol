@@ -2,16 +2,15 @@
 pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { EthereumRedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/EthereumRedstoneCoreAdaptor.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 
-contract MockEthereumRedstoneCoreAdaptor is EthereumRedstoneCoreAdaptor {
+contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
+
     constructor(
-        ICentralRegistry centralRegistry_
-    ) EthereumRedstoneCoreAdaptor(centralRegistry_) {}
-
-    function getUniqueSignersThreshold() public pure override returns (uint8) {
-        return 1;
-    }
+        ICentralRegistry centralRegistry_,
+        address[] memory signers,
+        uint256 _uniqueSignersThreshold
+    ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
 
     function getAuthorisedSignerIndex(
         address /* signerAddress */

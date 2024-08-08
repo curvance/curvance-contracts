@@ -12,7 +12,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function setUp() public override {
         super.setUp();
 
-        assets.push(IMToken(address(mUSDC)));
+        assets.push(IMToken(address(dUSDC)));
     }
 
     function test_getPricesForMarket_fail_whenAssetsLengthIsZero() public {
@@ -36,9 +36,9 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(mUSDC), 1e18);
+        usdc.approve(address(dUSDC), 1e18);
         vm.prank(address(marketManager));
-        mUSDC.startMarket(address(this));
+        dUSDC.startMarket(address(this));
 
         vm.expectRevert(OracleRouter.OracleRouter__NotSupported.selector);
         oracleRouter.getPricesForMarket(address(this), assets, 1);
@@ -49,9 +49,9 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(mUSDC), 1e18);
+        usdc.approve(address(dUSDC), 1e18);
         vm.prank(address(marketManager));
-        mUSDC.startMarket(address(this));
+        dUSDC.startMarket(address(this));
 
         _addSinglePriceFeed();
 
@@ -62,9 +62,9 @@ contract GetPricesForMarket is TestBaseOracleRouter {
     function test_getPricesForMarket_success() public {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
-        usdc.approve(address(mUSDC), 1e18);
+        usdc.approve(address(dUSDC), 1e18);
         vm.prank(address(marketManager));
-        mUSDC.startMarket(address(this));
+        dUSDC.startMarket(address(this));
 
         _addSinglePriceFeed();
 
@@ -81,12 +81,12 @@ contract GetPricesForMarket is TestBaseOracleRouter {
 
         for (uint256 i = 0; i < numAssets; i++) {
             assertEq(underlyingPrices[i], uint256(usdcPrice) * 1e10);
-            assertEq(snapshots[i].asset, address(mUSDC));
+            assertEq(snapshots[i].asset, address(dUSDC));
             assertFalse(snapshots[i].isCToken);
             assertEq(snapshots[i].decimals, usdc.decimals());
             assertEq(
                 assets[i].balanceOf(address(this)),
-                mUSDC.balanceOf(address(this))
+                dUSDC.balanceOf(address(this))
             );
             assertEq(snapshots[i].debtBalance, 0);
             assertEq(snapshots[i].exchangeRate, 0);

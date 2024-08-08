@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-
-import "tests/market/TestBaseMarket.sol";
+import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract User {}
 
@@ -30,6 +32,8 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
 
         _deployCentralRegistry();
         _deployCVE();
+        _deployRewardManager();
+        _deployVeCVE();
         _deployGaugePool();
         _deployMarketManager();
 

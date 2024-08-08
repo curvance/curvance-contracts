@@ -1,63 +1,42 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBase } from "tests/utils/TestBase.sol";
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-contract TestBaseOracleRouter is TestBase {
-    DToken public mUSDC;
+contract TestBaseOracleRouter is TestBaseMarket {
     MockDataFeed public sequencer;
 
-    function setUp() public virtual {
+    function setUp() public virtual override {
         _fork(18031848);
 
         _deployCentralRegistry();
+        _deployCVE();
+        _deployRewardManager();
+        _deployVeCVE();
         _deployOracleRouter();
-        _deployChainlinkAdaptors();
-
+        _deployGaugePool();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
-        _deployMUSDC();
-    }
+        _deployDUSDC();
 
-    function _deployCentralRegistry() internal {
-        sequencer = new MockDataFeed(address(0));
+        chainlinkAdaptor = chainlinkAdaptors[
+            block.chainid
+        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
+        dualChainlinkAdaptor = dualChainlinkAdaptors[
+            block.chainid
+        ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
 
-        centralRegistry = new CentralRegistry(
-            _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
-            _ZERO_ADDRESS,
+        chainlinkAdaptor.addAsset(_ETH_ADDRESS, _CHAINLINK_ETH_USD, 0, true);
+        dualChainlinkAdaptor.addAsset(
+            _ETH_ADDRESS,
+            _CHAINLINK_ETH_USD,
             0,
-            address(sequencer),
-            _USDC_ADDRESS
+            true
         );
-        centralRegistry.transferEmergencyCouncil(address(this));
-    }
-
-    function _deployOracleRouter() internal {
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-
-        centralRegistry.setOracleRouter(address(oracleRouter));
-    }
-
-    function _deployChainlinkAdaptors() internal {
-        chainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
-        );
-        dualChainlinkAdaptor = new ChainlinkAdaptor(
-            ICentralRegistry(address(centralRegistry))
-        );
-
         chainlinkAdaptor.addAsset(_USDC_ADDRESS, _CHAINLINK_USDC_USD, 0, true);
         chainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
@@ -65,7 +44,6 @@ contract TestBaseOracleRouter is TestBase {
             0,
             false
         );
-
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             _CHAINLINK_USDC_USD,
@@ -80,54 +58,21 @@ contract TestBaseOracleRouter is TestBase {
         );
     }
 
-    function _deployMarketManager() internal {
-        GaugePool gaugePool = new GaugePool(
-            ICentralRegistry(address(centralRegistry))
-        );
-        marketManager = new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(gaugePool)
-        );
-        centralRegistry.addMarketManager(address(marketManager), 0);
-    }
+    function _deployCentralRegistry() internal override {
+        sequencer = new MockDataFeed(address(0));
+        sequencer.setMockStartedAt(block.timestamp - 3601);
 
-    function _deployDynamicInterestRateModel() internal {
-        interestRateModel = new DynamicInterestRateModel(
-            ICentralRegistry(address(centralRegistry)),
-            1000, // baseRatePerYear
-            1000, // vertexRatePerYear
-            5000, // vertexUtilizationStart
-            12 hours, // adjustmentRate
-            5000, // adjustmentVelocity
-            100000000, // 1000x maximum vertex multiplier
-            100 // decayRate
+        centralRegistry = centralRegistries[
+            block.chainid
+        ] = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp,
+            address(sequencer),
+            _USDC_ADDRESS
         );
-    }
-
-    function _deployMUSDC() internal {
-        mUSDC = new DToken(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
-            address(marketManager),
-            address(interestRateModel)
-        );
-    }
-
-    function _addSinglePriceFeed() internal {
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(chainlinkAdaptor)
-        );
-    }
-
-    function _addDualPriceFeed() internal {
-        _addSinglePriceFeed();
-
-        oracleRouter.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
-            _USDC_ADDRESS,
-            address(dualChainlinkAdaptor)
-        );
+        centralRegistry.transferEmergencyCouncil(address(this));
+        centralRegistry.setSlippageLimit(6000);
     }
 }

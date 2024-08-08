@@ -9,7 +9,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { MockEthereumRedstoneCoreAdaptor } from "contracts/mocks/MockEthereumRedstoneCoreAdaptor.sol";
+import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
 import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
 
@@ -24,7 +24,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
     fallback() external payable {}
 
-    MockEthereumRedstoneCoreAdaptor adapter;
+    MockRedstoneCoreAdaptor adapter;
     MulticallDataCheckerForRedstoneAdaptor multicallDataChecker;
 
     MockDataFeed public mockUsdcFeed;
@@ -69,8 +69,10 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             true
         );
 
-        adapter = new MockEthereumRedstoneCoreAdaptor(
-            ICentralRegistry(address(centralRegistry))
+        adapter = new MockRedstoneCoreAdaptor(
+            ICentralRegistry(address(centralRegistry)),
+            redstoneSigners,
+            1
         );
         adapter.addAsset(address(WBTC), true, 8, 12 hours);
         adapter.addAsset(address(WBTC), false, 18, 12 hours);

@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract AddApprovedAdaptorTest is TestBaseOracleRouter {
     function test_addApprovedAdaptor_fail_whenCallerIsNotAuthorized() public {
