@@ -27,6 +27,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
 
         _deployCentralRegistry();
         _deployOracleRouter();
+        _setRedstoneSigners();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
