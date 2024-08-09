@@ -47,6 +47,7 @@ contract DeployCurvance is
     function _deploy(string memory network) internal {
         _setConfigurationPath(network);
         _setDeploymentPath(network);
+        _clearDeployedContracts();
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
@@ -107,7 +108,7 @@ contract DeployCurvance is
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy ProtocolMessagingHub
+        // Deploy MessagingHub
         _deployMessagingHub(centralRegistry);
         _setMessagingHub(messagingHub);
         _addLockingPermissions(messagingHub);
@@ -135,10 +136,7 @@ contract DeployCurvance is
 
         // Deploy PositionFolding
         _deployPositionFolding(centralRegistry, marketManager);
-        _deployOracleRouter(
-            centralRegistry,
-            _readConfigAddress(".oracleRouter.chainlinkEthUsd")
-        );
+        _deployOracleRouter(centralRegistry);
         _setOracleRouter(oracleRouter);
 
         //  Deploy Auxiliary Data
@@ -156,7 +154,7 @@ contract DeployCurvance is
         // );
 
         // Setup
-        _after_deploy_config(network);
+        // _after_deploy_config(network);
 
         vm.stopBroadcast();
     }

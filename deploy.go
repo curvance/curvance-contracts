@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	const example_cmd = "go run deploy <network> <simulation=true>"
+	const example_cmd = "go run deploy <network> <part> <simulation=true>"
 
 	// Source .env
 	err := godotenv.Load()
@@ -39,9 +39,22 @@ func main() {
 		log.Fatal("Incorrect number of arguments. Example: \n", example_cmd)
 	}
 	network := args[0]
-	isSim := true
+	part := 1
 	if len(args) > 1 {
-		isSim = args[1] != "false"
+		switch args[1] {
+		case "1":
+			part = 1
+		case "2":
+			part = 2
+		case "3":
+			part = 3
+		default:
+			log.Fatal("Invalid part number. Example: \n", example_cmd)
+		}
+	}
+	isSim := true
+	if len(args) > 2 {
+		isSim = args[2] != "false"
 	}
 
 	// Get RPC from env & ensure it exists
@@ -53,11 +66,21 @@ func main() {
 
 	// Build & run command
 	dir, _ := os.Getwd()
-	forgeArgs := []string{"script", dir + "/script/DeployCurvance.s.sol", network, "--sig", "run(string)", "--rpc-url", rpc, "-vvvv"}
+	var scriptFile string
+	switch part {
+	case 2:
+		scriptFile = "/script/DeployCurvance2.s.sol"
+	case 3:
+		scriptFile = "/script/DeployCurvance3.s.sol"
+	default:
+		scriptFile = "/script/DeployCurvance.s.sol"
+	}
+
+	forgeArgs := []string{"script", dir + scriptFile, network, "--sig", "run(string)", "--rpc-url", rpc, "-vvvv", "--ffi"}
 	if isSim {
 		log.Printf("Deploying to %s [TEST-RUN]\n", network)
 	} else {
-		forgeArgs = append(forgeArgs, "--broadcast", "--slow", "--skip-simulation", "--priority-gas-price", "5")
+		forgeArgs = append(forgeArgs, "--broadcast", "--skip-simulation", "--priority-gas-price", "15")
 		log.Printf("Deploying to %s\n", network)
 		log.Println("REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS")
 		log.Println("REMEMBER: UPDATE INDEXER & DAPP WITH NEW CONTRACT ADDRESS")

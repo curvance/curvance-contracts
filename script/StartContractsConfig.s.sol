@@ -19,10 +19,12 @@ import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
+import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
+import { GaugePool } from "contracts/gauge/GaugePool.sol";
+import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
     struct DTokenInterestRateParam {
@@ -55,20 +57,41 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkUsdAggregator;
     }
 
+    bool public is_berachain = false;
+
     function _is_testnet(string memory network) internal pure returns (bool) {
         bytes32 network_hash = keccak256(abi.encodePacked(network));
+
         return
             network_hash == keccak256(abi.encodePacked("sepolia")) ||
             network_hash == keccak256(abi.encodePacked("arb_sepolia")) ||
+            network_hash == keccak256(abi.encodePacked("bartio")) ||
             network_hash == keccak256(abi.encodePacked("localhost"));
     }
 
     function _after_deploy_config(string memory network) internal {
+        bytes32 network_hash = keccak256(abi.encodePacked(network));
+        if (network_hash == keccak256(abi.encodePacked("bartio"))) {
+            is_berachain = true;
+        }
+
         _startRewardManager();
 
         if (_is_testnet(network)) {
             _configTestnet();
         }
+    }
+
+    function getRedstoneApiPayload(
+        // Comma separated list of token symbols (e.g. "ETH,USDC") -- Or a single token symbol: "ETH"
+        string memory tokenSymbols
+    ) public returns (bytes memory) {
+        string[] memory args = new string[](3);
+        args[0] = "node";
+        args[1] = "getRedstonePayloadFromAPI.js";
+        args[2] = tokenSymbols;
+
+        return vm.ffi(args);
     }
 
     function _startRewardManager() internal {
@@ -109,13 +132,9 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         // Create chainlink adaptor
         ChainlinkAdaptor chainlinkAdaptor = new ChainlinkAdaptor(icr);
-        _saveDeployedContracts(
-            "Div-chainlinkAdaptor",
-            address(chainlinkAdaptor)
-        );
+        _saveDeployedContracts("chainlinkAdaptor", address(chainlinkAdaptor));
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(8000);
-        // _deployMockTokens();
         _createTestMarkets();
         _createRealTestMarkets();
         _loadFaucet();
@@ -131,22 +150,30 @@ contract StartContractsConfig is Script, DeployConfiguration {
     }
 
     function _deployMockTokens() internal {
+        if (!is_berachain) {
+            address m_eth = address(new TestnetToken("mETH", "mETH", 18));
+            address m_usd = address(new TestnetToken("mUSD", "mUSD", 18));
+            address mk_usd = address(
+                new TestnetToken("Prisma mkUSD", "mkUSD", 18)
+            );
+
+            _saveDeployedContracts("mETH", m_eth);
+            _saveDeployedContracts("mUSD", m_usd);
+            _saveDeployedContracts("mkUSD", mk_usd);
+        }
+
         address l_usd = address(
             new TestnetToken("LUSD Stablecoin", "LUSD", 18)
         );
         address dai = address(new TestnetToken("Dai Stablecoin", "DAI", 18));
-        address m_eth = address(new TestnetToken("mETH", "mETH", 18));
-        address m_usd = address(new TestnetToken("mUSD", "mUSD", 18));
-        address mk_usd = address(
-            new TestnetToken("Prisma mkUSD", "mkUSD", 18)
+        address sweth = address(
+            new TestnetToken("Swell Ethereum", "SWETH", 18)
         );
         address usdc = address(new TestnetToken("USD Coin", "USDC", 6));
         address wbtc = address(new TestnetToken("Wrapped Bitcoin", "WBTC", 8));
 
         _saveDeployedContracts("LUSD", l_usd);
-        _saveDeployedContracts("mETH", m_eth);
-        _saveDeployedContracts("mUSD", m_usd);
-        _saveDeployedContracts("mkUSD", mk_usd);
+        _saveDeployedContracts("SWETH", sweth);
         _saveDeployedContracts("WBTC", wbtc);
         _saveDeployedContracts("USDC", usdc);
         _saveDeployedContracts("DAI", dai);
@@ -162,9 +189,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
 
         address l_usd = _getDeployedContract("LUSD");
-        address m_eth = _getDeployedContract("mETH");
-        address m_usd = _getDeployedContract("mUSD");
-        address mk_usd = _getDeployedContract("mkUSD");
+        address sweth = _getDeployedContract("SWETH");
 
         address chainlinkUsdcFeedInUsd = _readConfigAddress(
             ".oracleRouter.chainlinkUsd"
@@ -173,30 +198,34 @@ contract StartContractsConfig is Script, DeployConfiguration {
             ".oracleRouter.chainlinkEthUsd"
         );
 
-        MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
-        MarketTokenDeploy[]
-            memory thirdCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory thirdDebtTokens = new MarketTokenDeploy[](
-            1
-        );
-        thirdCollateralTokens[0] = MarketTokenDeploy(
-            "Div-CToken-mETH",
-            m_eth,
-            address(0),
-            chainlinkEthFeedInUsd
-        );
-        thirdDebtTokens[0] = MarketTokenDeploy(
-            "Div-DToken-mUSD",
-            m_usd,
-            address(0),
-            chainlinkUsdcFeedInUsd
-        );
-        _deployMarketTokens(
-            thirdMarket,
-            cr,
-            thirdCollateralTokens,
-            thirdDebtTokens
-        );
+        if (!is_berachain) {
+            address m_eth = _getDeployedContract("mETH");
+            address m_usd = _getDeployedContract("mUSD");
+
+            MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
+            MarketTokenDeploy[]
+                memory thirdCollateralTokens = new MarketTokenDeploy[](1);
+            MarketTokenDeploy[]
+                memory thirdDebtTokens = new MarketTokenDeploy[](1);
+            thirdCollateralTokens[0] = MarketTokenDeploy(
+                "CToken-mETH",
+                m_eth,
+                address(0),
+                chainlinkEthFeedInUsd
+            );
+            thirdDebtTokens[0] = MarketTokenDeploy(
+                "DToken-mUSD",
+                m_usd,
+                address(0),
+                chainlinkUsdcFeedInUsd
+            );
+            _deployMarketTokens(
+                thirdMarket,
+                cr,
+                thirdCollateralTokens,
+                thirdDebtTokens
+            );
+        }
 
         MarketManager fourthMarket = _createMarket("fourthTestMarket", cr);
         MarketTokenDeploy[]
@@ -204,18 +233,34 @@ contract StartContractsConfig is Script, DeployConfiguration {
         MarketTokenDeploy[] memory fourthDebtTokens = new MarketTokenDeploy[](
             1
         );
+        if (!is_berachain) {
+            fourthDebtTokens = new MarketTokenDeploy[](2);
+        }
         fourthCollateralTokens[0] = MarketTokenDeploy(
-            "Div-CToken-LUSD",
+            "CToken-LUSD",
             l_usd,
             address(0),
             chainlinkUsdcFeedInUsd
         );
+
         fourthDebtTokens[0] = MarketTokenDeploy(
-            "Div-DToken-mkUSD",
-            mk_usd,
+            "DToken-SWETH",
+            sweth,
             address(0),
             chainlinkUsdcFeedInUsd
         );
+
+        if (!is_berachain) {
+            address mk_usd = _getDeployedContract("mkUSD");
+
+            fourthDebtTokens[1] = MarketTokenDeploy(
+                "DToken-mkUSD",
+                mk_usd,
+                address(0),
+                chainlinkUsdcFeedInUsd
+            );
+        }
+
         _deployMarketTokens(
             fourthMarket,
             cr,
@@ -239,13 +284,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
             1
         );
         firstCollateralTokens[0] = MarketTokenDeploy(
-            "Div-CToken-WBTC",
+            "CToken-WBTC",
             wbtc,
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
         );
         firstDebtTokens[0] = MarketTokenDeploy(
-            "Div-DToken-USDC",
+            "DToken-USDC",
             usdc,
             _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
             _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
@@ -264,13 +309,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
             1
         );
         secondCollateralTokens[0] = MarketTokenDeploy(
-            "Div-CToken-USDC",
+            "CToken-USDC",
             usdc,
             _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
             _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
         );
         secondDebtTokens[0] = MarketTokenDeploy(
-            "Div-DToken-WBTC",
+            "DToken-WBTC",
             wbtc,
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
             _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
@@ -288,7 +333,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
         ICentralRegistry cr
     ) internal returns (MarketManager market) {
         uint256 marketInterestFactor = 1000; // 10%
-
         GaugePool gp = new GaugePool(cr);
         market = new MarketManager(cr, address(gp));
         _saveDeployedContracts(marketName, address(market));
@@ -336,6 +380,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
         ICentralRegistry cr,
         MarketManager market
     ) internal returns (address) {
+        console.log(name, tokenAddress);
+
         address interestRateModel = address(
             // .markets.dTokens.USDC.interestRateParam
             new DynamicInterestRateModel(
@@ -349,15 +395,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
                 100
             )
         );
+
         address dToken = address(
             new DToken(cr, tokenAddress, address(market), interestRateModel)
         );
         _saveDeployedContracts(name, dToken);
-        _addOracleSupport(
+        _addChainlinkOracleSupport(
             chainlinkEthAggregator,
             chainlinkUsdAggregator,
             dToken
         );
+        _addRedstoneOracleSupport(dToken);
 
         MockToken(tokenAddress).approve(dToken, 1e25);
         market.listToken(dToken);
@@ -379,11 +427,12 @@ contract StartContractsConfig is Script, DeployConfiguration {
         );
         _saveDeployedContracts(name, cToken);
 
-        _addOracleSupport(
+        _addChainlinkOracleSupport(
             chainlinkEthAggregator,
             chainlinkUsdAggregator,
             cToken
         );
+        _addRedstoneOracleSupport(cToken);
 
         MockToken(tokenAddress).approve(cToken, 1e25);
         market.listToken(cToken);
@@ -407,16 +456,70 @@ contract StartContractsConfig is Script, DeployConfiguration {
         return cToken;
     }
 
-    function _addOracleSupport(
+    function _addRedstoneOracleSupport(address mToken) internal {
+        address oracleRouter = _getDeployedContract("oracleRouter");
+        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+        address underlying = IMToken(mToken).underlying();
+
+        IERC20 underlyingToken = IERC20(underlying);
+        RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
+        OracleRouter router = OracleRouter(oracleRouter);
+
+        if (!adaptor.isSupportedAsset(underlying)) {
+            adaptor.addAsset(underlying, true, 8, 12 hours);
+            adaptor.addAsset(underlying, false, 18, 12 hours);
+        }
+
+        if (!router.isApprovedAdaptor(redstoneAdaptor)) {
+            router.addApprovedAdaptor(redstoneAdaptor);
+        }
+
+        if (!router.isSupportedAsset(mToken)) {
+            router.addMTokenSupport(mToken);
+        }
+
+        try router.assetPriceFeeds(underlying, 0) returns (
+            address feed
+        ) {} catch {
+            console.log(
+                "[REDSTONE] - Fetching & applying price for ",
+                underlyingToken.symbol()
+            );
+            bytes memory redstonePayload = getRedstoneApiPayload(
+                underlyingToken.symbol()
+            );
+            adaptor.adaptorDataUSD(underlying);
+            bytes memory encodedFunction = abi.encodeWithSignature(
+                "writePrice(address,bool)",
+                underlying,
+                true
+            );
+            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+                encodedFunction,
+                redstonePayload
+            );
+            (bool success, ) = address(adaptor).call(
+                encodedFunctionWithRedstonePayload
+            );
+
+            require(success, "Failed to get price from Redstone API");
+
+            router.addAssetPriceFeed(underlying, redstoneAdaptor);
+        }
+    }
+
+    function _addChainlinkOracleSupport(
         address chainlinkEth,
         address chainlinkUsd,
         address mToken
     ) internal {
         address oracleRouter = _getDeployedContract("oracleRouter");
-        address chainlinkAdaptor = _getDeployedContract(
-            "Div-chainlinkAdaptor"
-        );
+        address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         address underlying = IMToken(mToken).underlying();
+
+        if (chainlinkEth == address(0) && chainlinkUsd == address(0)) {
+            return;
+        }
 
         if (!ChainlinkAdaptor(chainlinkAdaptor).isSupportedAsset(underlying)) {
             if (chainlinkEth != address(0)) {
@@ -457,6 +560,90 @@ contract StartContractsConfig is Script, DeployConfiguration {
         }
     }
 
+    function _deploy_redstone_price_feeds(string memory network) internal {
+        bytes32 network_hash = keccak256(abi.encodePacked(network));
+        if (network_hash == keccak256(abi.encodePacked("bartio"))) {
+            is_berachain = true;
+        }
+
+        ICentralRegistry icr = ICentralRegistry(
+            _getDeployedContract("centralRegistry")
+        );
+
+        address[] memory mockTokens = new address[](4);
+        if (!is_berachain) {
+            mockTokens = new address[](7);
+        }
+
+        mockTokens[0] = _getDeployedContract("LUSD");
+        mockTokens[1] = _getDeployedContract("USDC");
+        mockTokens[2] = _getDeployedContract("WBTC");
+        mockTokens[3] = _getDeployedContract("SWETH");
+        if (!is_berachain) {
+            mockTokens[4] = _getDeployedContract("mETH");
+            mockTokens[5] = _getDeployedContract("mUSD");
+            mockTokens[6] = _getDeployedContract("mkUSD");
+        }
+
+        // Create redstone adaptor
+        address[] memory redstoneSigners = new address[](4);
+        redstoneSigners[0] = 0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774;
+        redstoneSigners[1] = 0xdEB22f54738d54976C4c0fe5ce6d408E40d88499;
+        redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
+        redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
+        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(
+            icr,
+            redstoneSigners,
+            3
+        );
+        _saveDeployedContracts("redstoneAdaptor", address(adaptor));
+
+        address oracleRouter = _getDeployedContract("oracleRouter");
+        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+        OracleRouter router = OracleRouter(oracleRouter);
+
+        for (uint256 i = 0; i < mockTokens.length; i++) {
+            address underlying = mockTokens[i];
+            IERC20 underlyingToken = IERC20(underlying);
+
+            if (!adaptor.isSupportedAsset(underlying)) {
+                adaptor.addAsset(underlying, true, 8, 12 hours);
+                adaptor.addAsset(underlying, false, 18, 12 hours);
+            }
+
+            if (!router.isApprovedAdaptor(redstoneAdaptor)) {
+                router.addApprovedAdaptor(redstoneAdaptor);
+            }
+
+            try router.assetPriceFeeds(underlying, 0) returns (
+                address feed
+            ) {} catch {
+                console.log(
+                    "[REDSTONE] - Fetching & applying price for ",
+                    underlyingToken.symbol()
+                );
+                bytes memory redstonePayload = getRedstoneApiPayload(
+                    underlyingToken.symbol()
+                );
+                adaptor.adaptorDataUSD(underlying);
+                bytes memory encodedFunction = abi.encodeWithSignature(
+                    "writePrice(address,bool)",
+                    underlying,
+                    true
+                );
+                bytes memory encodedFunctionWithRedstonePayload = abi
+                    .encodePacked(encodedFunction, redstonePayload);
+                (bool success, ) = address(adaptor).call(
+                    encodedFunctionWithRedstonePayload
+                );
+
+                require(success, "Failed to get price from Redstone API");
+
+                router.addAssetPriceFeed(underlying, redstoneAdaptor);
+            }
+        }
+    }
+
     function _loadFaucet() internal {
         address faucet_addr = _getDeployedContract("faucet");
         address cve_addr = _getDeployedContract("cve");
@@ -469,19 +656,28 @@ contract StartContractsConfig is Script, DeployConfiguration {
         cve.transfer(faucet_addr, 1e25);
 
         // Load with 5M tokens from testnet tokens
-        address[] memory mockTokens = new address[](6);
+        address[] memory mockTokens = new address[](4);
+        if (!is_berachain) {
+            mockTokens = new address[](7);
+        }
+
         mockTokens[0] = _getDeployedContract("LUSD");
-        mockTokens[1] = _getDeployedContract("mETH");
-        mockTokens[2] = _getDeployedContract("mUSD");
-        mockTokens[3] = _getDeployedContract("mkUSD");
-        mockTokens[4] = _getDeployedContract("USDC");
-        mockTokens[5] = _getDeployedContract("WBTC");
+        mockTokens[1] = _getDeployedContract("USDC");
+        mockTokens[2] = _getDeployedContract("WBTC");
+        mockTokens[3] = _getDeployedContract("SWETH");
+
+        if (!is_berachain) {
+            mockTokens[4] = _getDeployedContract("mETH");
+            mockTokens[5] = _getDeployedContract("mUSD");
+            mockTokens[6] = _getDeployedContract("mkUSD");
+        }
+
         for (uint256 i = 0; i < mockTokens.length; i++) {
             TestnetToken t = TestnetToken(mockTokens[i]);
             uint256 decimals = t.decimals();
             t.transfer(faucet_addr, 5_000_000 * (10 ** decimals));
         }
 
-        Faucet(faucet_addr).setMaxClaimAmounts(mockTokens[4], 10_000e6);
+        Faucet(faucet_addr).setMaxClaimAmounts(mockTokens[1], 10_000e6);
     }
 }
