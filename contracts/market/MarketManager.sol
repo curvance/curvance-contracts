@@ -8,7 +8,6 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -109,9 +108,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
 
-    /// @notice The address of the linked Gauge Pool.
-    IGaugePool public immutable gaugePool;
-
     /// STORAGE ///
 
     /// @notice A list of all tokens inside this market for
@@ -187,20 +183,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address gaugePool_
-    ) LiquidityManager(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(gaugePool_),
-                type(IGaugePool).interfaceId
-            )
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        gaugePool = IGaugePool(gaugePool_);
-    }
+        ICentralRegistry centralRegistry_
+    ) LiquidityManager(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 

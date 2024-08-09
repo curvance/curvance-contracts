@@ -6,10 +6,9 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
@@ -17,19 +16,19 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 
-/// @title Curvance Gauge Pool.
+/// @title Curvance Gauge Manager.
 /// @notice A market specific system for distributing rewards to Curvance
 ///        market users inside the Curvance Protocol.
-/// @dev A Curvance Gauge Pool manages rewards associated with a particular
+/// @dev A Curvance Gauge Manager manages rewards associated with a particular
 ///      Market Manager. Tokens are not actually "deposited" inside the
-///      Gauge Pool, but rather information is documented. This creates an
+///      Gauge Manager, but rather information is documented. This creates an
 ///      incredibly efficient method of measuring and distributing rewards
 ///      as no secondary deposit/withdrawal execution is required by users
 ///      utilizing Curvance Protocol.
 ///
-///      A Gauge Pool is built to support an infinite number of rewards in
+///      A Gauge Manager is built to support an infinite number of rewards in
 ///      any supported asset. The base level of CVE gauge emissions are
-///      distributed through a markets corresponding gauge pool. CVE emissions
+///      distributed through a markets corresponding Gauge Manager. CVE emissions
 ///      can be claimed directly, or locked in a 1 year voting escrow position
 ///      for an additional reward boost. This mechanism was built to better
 ///      align the duration exposure between Curvance users and the Curvance
@@ -59,7 +58,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 ///      their market of course, potentially minimizing their net expenses
 ///      borrowing inside a particular market.
 ///
-contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
+contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// TYPES ///
 
     /// @param totalWeights The total weight value of all tokens, inside
@@ -94,7 +93,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @notice Start time that gauge controller starts, in unix time.
     uint256 public startTime;
 
-    /// @notice Gauge emission values for the entire gauge pool,
+    /// @notice Gauge emission values for the entire Gauge Manager,
     ///         and contained tokens, by epoch.
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
@@ -147,6 +146,18 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     mapping(address => mapping(uint256 => mapping(uint256 => uint256)))
         internal _epochRewardPerSec;
 
+    /// ERRORS ///
+
+    error GaugeManager__InvalidAddress();
+    error GaugeManager__Unauthorized();
+    error GaugeManager__NotStarted();
+    error GaugeManager__InvalidEpoch();
+    error GaugeManager__InvalidLength();
+    error GaugeManager__InvalidToken();
+    error GaugeManager__InvalidAmount();
+    error GaugeManager__NoReward();
+    error GaugeManager__InvalidRewardToken();
+
     /// EVENTS ///
 
     event SetMinDistributionAmount(address newReward, uint256 amount);
@@ -164,14 +175,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert GaugeErrors.InvalidAddress();
+            revert GaugeManager__InvalidAddress();
         }
         centralRegistry = centralRegistry_;
         // Query cve/veCVE directly to minimize potential human error.
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
         EPOCH_DURATION = veCVE.EPOCH_DURATION();
-
+        startTime = veCVE.nextEpochStartTime();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -205,7 +216,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             msg.sender != centralRegistry.messagingHub() &&
             msg.sender != centralRegistry.votingHub()
         ) {
-            revert GaugeErrors.Unauthorized();
+            revert GaugeManager__Unauthorized();
         }
 
         // Validate that Gauge system is fully active and only the current
@@ -214,14 +225,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
             epoch != currentEpoch()
         ) {
-            revert GaugeErrors.InvalidEpoch();
+            revert GaugeManager__InvalidEpoch();
         }
 
         uint256 numTokens = tokens.length;
 
         // Validate that tokens and weights are properly configured.
         if (numTokens != weights.length) {
-            revert GaugeErrors.InvalidLength();
+            revert GaugeManager__InvalidLength();
         }
 
         Epoch storage info = _epochInfo[epoch];
@@ -231,7 +242,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             // to validate there are no duplicates.
             address token = tokens[i];
             if (priorAddress >= token) {
-                revert GaugeErrors.InvalidToken();
+                revert GaugeManager__InvalidToken();
             }
 
             info.totalWeights =
@@ -266,19 +277,6 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
     }
 
-    /// @notice Initializes the gauge with a starting time based on the
-    ///         next epoch.
-    /// @dev    Can only be called once, to start the gauge system.
-    function start() external {
-        _checkDaoPermissions();
-
-        if (startTime != 0) {
-            revert GaugeErrors.AlreadyStarted();
-        }
-
-        startTime = veCVE.nextEpochStartTime();
-    }
-
     function setMinDistributionAmount(
         address rewardToken,
         uint256 minAmount
@@ -286,7 +284,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         _checkDaoPermissions();
 
         if (approvedRewardTokens[rewardToken] == false) {
-            revert GaugeErrors.InvalidRewardToken();
+            revert GaugeManager__InvalidRewardToken();
         }
 
         rewardTokenToMinDistribution[rewardToken] = minAmount;
@@ -303,7 +301,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         _checkDaoPermissions();
 
         if (newReward == address(0) || approvedRewardTokens[newReward]) {
-            revert GaugeErrors.InvalidAddress();
+            revert GaugeManager__InvalidAddress();
         }
 
         approvedRewardTokens[newReward] = true;
@@ -321,7 +319,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
 
         // Cannot remove CVE as a reward token.
         if (newReward == cve) {
-            revert GaugeErrors.Unauthorized();
+            revert GaugeManager__Unauthorized();
         }
 
         approvedRewardTokens[newReward] = false;
@@ -330,19 +328,19 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         emit RemoveExtraRewardToken(newReward);
     }
 
-    /// @notice Returns the active reward tokens on the gauge pool,
+    /// @notice Returns the active reward tokens on the Gauge Manager,
     ///         for ease of integration by third parties.
     function getRewardTokens(address token) external view returns (address[] memory) {
         return rewardTokens[token];
     }
 
-    /// @notice Returns the number of active reward tokens on the gauge pool,
+    /// @notice Returns the number of active reward tokens on the Gauge Manager,
     ///         for ease of integration by third parties.
     function getRewardTokensLength(address token) external view returns (uint256) {
         return rewardTokens[token].length;
     }
 
-    /// @notice Used to update gauge pool rewards for `rewardToken`,
+    /// @notice Used to update Gauge Manager rewards for `rewardToken`,
     ///         during `epoch` with `newRewardPerSec`.
     /// @dev This is only be used for updating partner gauge rewards.
     /// @param token The token to set rewards for.
@@ -358,15 +356,15 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // CVE rewards are only updated through the gauge system by
         // the messaging hub in setEmissionRates().
         if (rewardToken == cve) {
-            revert GaugeErrors.Unauthorized();
+            revert GaugeManager__Unauthorized();
         }
 
         if (approvedRewardTokens[rewardToken] == false) {
-            revert GaugeErrors.InvalidRewardToken();
+            revert GaugeManager__InvalidRewardToken();
         }
 
         if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
-            revert GaugeErrors.InvalidEpoch();
+            revert GaugeManager__InvalidEpoch();
         }
 
         address[] memory rewardTokenForMToken = rewardTokens[token];
@@ -395,7 +393,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
 
         if (amount < rewardTokenToMinDistribution[rewardToken]) {
-            revert GaugeErrors.InvalidRewardTokenAmount();
+            revert GaugeManager__InvalidAmount();
         }
 
         updatePool(token);
@@ -487,7 +485,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     ) public view returns (uint256) {
         uint256 index = rewardTokenToIndex[token][rewardToken];
         if (index == 0) {
-            revert GaugeErrors.InvalidRewardToken();
+            revert GaugeManager__InvalidRewardToken();
         }
 
         uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
@@ -553,7 +551,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
     }
 
-    /// @notice Deposit into gauge pool.
+    /// @notice Deposit into Gauge Manager.
     /// @param token Pool token address.
     /// @param user User address.
     /// @param amount Amounts to deposit.
@@ -563,7 +561,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256 amount
     ) external nonReentrant {
         if (amount == 0) {
-            revert GaugeErrors.InvalidAmount();
+            revert GaugeManager__InvalidAmount();
         }
 
         // Make sure the token is listed inside this market,
@@ -574,7 +572,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             !marketManager.isListed(token) ||
             !centralRegistry.isMarketManager(address(marketManager))
         ) {
-            revert GaugeErrors.InvalidToken();
+            revert GaugeManager__InvalidToken();
         }
 
         updatePool(token);
@@ -620,7 +618,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     }
 
     /// @notice Registers a withdrawal of `token` deposits by `user`
-    ///         from the gauge pool.
+    ///         from the Gauge Manager.
     /// @dev This does not actually include any token transfers as tokens
     ///      are permissionlessly escrowed by CToken/DToken contracts and
     ///      we simply record deposits/withdraws here.
@@ -633,7 +631,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256 amount
     ) external nonReentrant {
         if (amount == 0) {
-            revert GaugeErrors.InvalidAmount();
+            revert GaugeManager__InvalidAmount();
         }
 
         // Make sure the token is listed inside this market,
@@ -644,11 +642,11 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
             !marketManager.isListed(token) ||
             !centralRegistry.isMarketManager(address(marketManager))
         ) {
-            revert GaugeErrors.InvalidToken();
+            revert GaugeManager__InvalidToken();
         }
 
         if (balanceOf[token][user] < amount) {
-            revert GaugeErrors.InvalidAmount();
+            revert GaugeManager__InvalidAmount();
         }
 
         updatePool(token);
@@ -662,12 +660,12 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         emit Withdraw(user, token, amount);
     }
 
-    /// @notice Claim all pending rewards for `tokens` from the gauge pool.
+    /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
     function claim(address[] calldata tokens) external nonReentrant {
         if (block.timestamp < startTime) {
-            revert GaugeErrors.NotStarted();
+            revert GaugeManager__NotStarted();
         }
 
         uint256 cveRewards;
@@ -719,7 +717,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         emit Claim(msg.sender, token);
     }
 
-    /// @notice Claim rewards from gauge pool and compound any CVE rewards
+    /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
     ///         into `lockIndex`.
     /// @dev Users who choose to lock emissions may potentially receive an
     ///      emission boost based on `lockBoostMultiplier` stored inside the
@@ -742,7 +740,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // If gauge emissions have not started yet,
         // theres nothing to claimAndExtendLock.
         if (block.timestamp < startTime) {
-            revert GaugeErrors.NotStarted();
+            revert GaugeManager__NotStarted();
         }
 
         uint256 cveRewards;
@@ -752,7 +750,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         }
 
         if (cveRewards == 0) {
-            revert GaugeErrors.NoReward();
+            revert GaugeManager__NoReward();
         }
 
         uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
@@ -780,7 +778,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         );
     }
 
-    /// @notice Claim rewards from gauge pool and compound any CVE rewards
+    /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
     ///         into a new veCVE lock.
     /// @dev Users who choose to lock emissions may potentially receive an
     ///      emission boost based on `lockBoostMultiplier` stored inside the
@@ -800,7 +798,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         // If gauge emissions have not started yet,
         // theres nothing to claimAndLock.
         if (block.timestamp < startTime) {
-            revert GaugeErrors.NotStarted();
+            revert GaugeManager__NotStarted();
         }
 
         updatePool(token);
@@ -810,7 +808,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         uint256 index = rewardTokenToIndex[token][cve];
         uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
         if (rewards == 0) {
-            revert GaugeErrors.NoReward();
+            revert GaugeManager__NoReward();
         }
 
         // Update pending rewards to zero.
@@ -924,7 +922,7 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
         bytes4 interfaceId
     ) public view override returns (bool) {
         return
-            interfaceId == type(IGaugePool).interfaceId ||
+            interfaceId == type(IGaugeManager).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -933,14 +931,14 @@ contract GaugePool is ERC165, ReentrancyGuard, IGaugePool {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert GaugeErrors.Unauthorized();
+            revert GaugeManager__Unauthorized();
         }
     }
 
     /// @dev Checks whether the gauge controller has started or not.
     function _checkGaugeHasStarted() internal view {
         if (startTime == 0) {
-            revert GaugeErrors.NotStarted();
+            revert GaugeManager__NotStarted();
         }
     }
 

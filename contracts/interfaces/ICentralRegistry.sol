@@ -56,6 +56,9 @@ interface ICentralRegistry {
     /// @notice Returns Reward Manager address.
     function rewardManager() external view returns (address);
 
+    /// @notice Returns Gauge Manager address.
+    function gaugeManager() external view returns (address);
+
     /// @notice Returns CVE address.
     function cve() external view returns (address);
 

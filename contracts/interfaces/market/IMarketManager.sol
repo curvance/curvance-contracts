@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 interface IMarketManager {
@@ -185,7 +184,4 @@ interface IMarketManager {
 
     /// @notice The address of the linked Position Folding Contract.
     function positionFolding() external view returns (address);
-
-    /// @notice The address of the linked Gauge Pool Contract.
-    function gaugePool() external view returns (GaugePool);
 }

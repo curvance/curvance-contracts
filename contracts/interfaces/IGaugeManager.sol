@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-interface IGaugePool {
-    /// @notice Claim all pending rewards for `token` from the gauge pool.
+interface IGaugeManager {
+    /// @notice Claim all pending rewards for `token` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
     function claim(address[] calldata tokens) external;
@@ -10,7 +10,7 @@ interface IGaugePool {
     /// @notice Returns current epoch number.
     function currentEpoch() external view returns (uint256);
 
-    /// @notice Returns the active reward tokens on the gauge pool,
+    /// @notice Returns the active reward tokens on the Gauge Manager,
     ///         for ease of integration by third parties.
     function getRewardTokens(address) external view returns (address[] memory);
 
@@ -26,7 +26,7 @@ interface IGaugePool {
         uint256[] memory poolWeights
     ) external;
 
-    /// @notice Used to update gauge pool rewards for `rewardToken`,
+    /// @notice Used to update Gauge Manager rewards for `rewardToken`,
     ///         during `epoch` with `newRewardPerSec`.
     /// @dev This is only be used for updating partner gauge rewards.
     /// @param token The token to set rewards for.
@@ -40,14 +40,14 @@ interface IGaugePool {
         uint256 additionalRewards
     ) external;
 
-    /// @notice Deposit into gauge pool.
+    /// @notice Deposit into Gauge Manager.
     /// @param token Pool token address.
     /// @param user User address.
     /// @param amount Amounts to deposit.
     function deposit(address token, address user, uint256 amount) external;
 
     /// @notice Registers a withdrawal of `token` deposits by `user`
-    ///         from the gauge pool.
+    ///         from the Gauge Manager.
     /// @dev This does not actually include any token transfers as tokens
     ///      are permissionlessly escrowed by CToken/DToken contracts and
     ///      we simply record deposits/withdraws here.

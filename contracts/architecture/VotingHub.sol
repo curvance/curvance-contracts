@@ -7,7 +7,7 @@ import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegist
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
@@ -23,6 +23,8 @@ contract VotingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
     /// @notice CVE contract address.
     ICVE public immutable cve;
     /// @notice VeCVE contract address.
@@ -65,6 +67,8 @@ contract VotingHub is QueryResponse {
         uint256 baseEmissionsPerEpoch
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
+        
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
         startTime = veCVE.nextEpochStartTime();
@@ -89,25 +93,21 @@ contract VotingHub is QueryResponse {
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param remoteEmissionData Array of structs containing information on
     ///                           emission configuration for each remote
     ///                           chain.
     ///                           Containing values:
-    ///                           1. The gauge pool contract addresses that
-    ///                              emission data corresponds to.
-    ///                           2. The total amount of token emissions to
-    ///                              allocate to the gauge pools.
-    ///                           3. The token contract addresses receiving
+    ///                           1. The total amount of token emissions to
+    ///                              allocate to the Gauge Manager.
+    ///                           2. The token contract addresses receiving
     ///                              emissions.
-    ///                           4. The emission amounts that each token
+    ///                           3. The emission amounts that each token
     ///                              should receive.
     function executeEmissionConfiguration(
         bytes calldata response,
@@ -262,25 +262,21 @@ contract VotingHub is QueryResponse {
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param remoteEmissionData Array of structs containing information on
     ///                           emission configuration for each remote
     ///                           chain.
     ///                           Containing values:
-    ///                           1. The gauge pool contract addresses that
-    ///                              emission data corresponds to.
-    ///                           2. The total amount of token emissions to
-    ///                              allocate to the gauge pools.
-    ///                           3. The token contract addresses receiving
+    ///                           1. The total amount of token emissions to
+    ///                              allocate to the Gauge Manager.
+    ///                           2. The token contract addresses receiving
     ///                              emissions.
-    ///                           4. The emission amounts that each token
+    ///                           3. The emission amounts that each token
     ///                              should receive.
     /// @param numRemoteChains The number of remote chains to receive
     ///                        token emissions.
@@ -299,17 +295,30 @@ contract VotingHub is QueryResponse {
         view
         returns (uint256, EmissionData memory, EmissionData[] memory)
     {
-        address[] memory gaugePools = emissionData.gaugePools;
-        uint256 numPools = gaugePools.length;
-
-        uint256[] memory emissions;
-        uint256 numTokens;
+        uint256[] memory emissions = emissionData.emissions;
+        uint256 numTokens = emissionData.tokens.length;
         uint256 emissionsTotal;
 
+        if (numTokens != emissions.length) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Allocate rewards for this chain
-        for (uint256 i; i < numPools; ++i) {
-            numTokens = emissionData.tokens[i].length;
-            emissions = emissionData.emissions[i];
+        for (uint256 j; j < numTokens; ++j) {
+            emissionsTotal += emissions[j];
+        }
+
+        emissionData.emissionTotal = emissionsTotal;
+        cachedEmissionsAllocated += emissionsTotal;
+        emissionsTotal = 0;
+
+        EmissionData memory cachedEmissionData;
+
+        // Allocate rewards for remote chains
+        for (uint256 i; i < numRemoteChains; ++i) {
+            cachedEmissionData = remoteEmissionData[i];
+            numTokens = cachedEmissionData.tokens.length;
+            emissions = cachedEmissionData.emissions;
 
             if (numTokens != emissions.length) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
@@ -319,33 +328,9 @@ contract VotingHub is QueryResponse {
                 emissionsTotal += emissions[j];
             }
 
-            emissionData.emissionTotals[i] = emissionsTotal;
+            remoteEmissionData[i].emissionTotal = emissionsTotal;
             cachedEmissionsAllocated += emissionsTotal;
             emissionsTotal = 0;
-        }
-
-        EmissionData memory cachedEmissionData;
-
-        // Allocate rewards for remote chains
-        for (uint256 i; i < numRemoteChains; ++i) {
-            cachedEmissionData = remoteEmissionData[i];
-
-            for (uint256 j; j < numPools; ++j) {
-                numTokens = cachedEmissionData.tokens[j].length;
-                emissions = cachedEmissionData.emissions[j];
-
-                if (numTokens != emissions.length) {
-                    _revert(_INVALID_PARAMETER_SELECTOR);
-                }
-
-                for (uint256 k; k < numTokens; ++k) {
-                    emissionsTotal += emissions[k];
-                }
-
-                remoteEmissionData[i].emissionTotals[j] = emissionsTotal;
-                cachedEmissionsAllocated += emissionsTotal;
-                emissionsTotal = 0;
-            }
         }
 
         if (
@@ -371,57 +356,48 @@ contract VotingHub is QueryResponse {
         }
     }
 
-    /// @dev Sets new token emissions values to gauge pools on this chain,
+    /// @dev Sets new token emissions values to Gauge Managers on this chain,
     ///      for `epoch`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param epoch The epoch having its token emission values set.
     function _setEmissions(
         EmissionData memory emissionData,
         uint256 epoch
     ) internal {
-        address[] memory gaugePools = emissionData.gaugePools;
-        uint256 numPools = gaugePools.length;
-        IGaugePool gaugePool;
+        IGaugeManager cachedGaugeManager = gaugeManager;
 
-        for (uint256 i; i < numPools; ++i) {
-            gaugePool = IGaugePool(gaugePools[i]);
-            // Mint epoch gauge emissions to the gauge pool.
-            cve.mintGaugeEmissions(
-                address(gaugePool),
-                emissionData.emissionTotals[i]
-            );
+        // Mint epoch gauge emissions to the Gauge Manager.
+        cve.mintGaugeEmissions(
+            address(cachedGaugeManager),
+            emissionData.emissionTotal
+        );
 
-            // Set upcoming epoch emissions for voted configuration.
-            gaugePool.setEmissionRates(
-                epoch,
-                emissionData.tokens[i],
-                emissionData.emissions[i]
-            );
-        }
+        // Set upcoming epoch emissions for voted configuration.
+        cachedGaugeManager.setEmissionRates(
+            epoch,
+            emissionData.tokens,
+            emissionData.emissions
+        );
     }
 
-    /// @dev Sets new token emissions values to gauge pools on a remote chain,
+    /// @dev Sets new token emissions values to Gauge Managers on a remote chain,
     ///      for `epoch`.
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.
