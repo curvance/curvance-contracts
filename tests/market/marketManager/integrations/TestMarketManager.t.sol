@@ -12,7 +12,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
         // eth/usd is needed in price router constructor
@@ -25,8 +25,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         // start gauge to enable deposits
-        gaugePool.start();
-        vm.warp(veCVE.nextEpochStartTime() + 1000);
+                vm.warp(veCVE.nextEpochStartTime() + 1000);
         chainlinkEthUsd.updateAnswer(1500e8);
     }
 

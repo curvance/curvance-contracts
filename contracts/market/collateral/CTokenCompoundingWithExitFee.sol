@@ -87,7 +87,7 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         uint256 shares = _previewWithdraw(assets, ta);
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.

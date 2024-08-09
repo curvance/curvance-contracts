@@ -24,8 +24,7 @@ contract DepositWETHTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        gaugePool.start();
-
+        
         vm.prank(user1);
         weth.approve(address(universalBalance), _ONE);
     }

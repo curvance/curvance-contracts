@@ -39,7 +39,7 @@ contract TestPendleLPCToken is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         centralRegistry.addHarvester(address(this));
@@ -57,7 +57,6 @@ contract TestPendleLPCToken is TestBaseMarket {
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        gaugePool.start();
         vm.warp(veCVE.nextEpochStartTime());
     }
 

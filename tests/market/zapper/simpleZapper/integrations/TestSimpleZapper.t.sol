@@ -100,8 +100,7 @@ contract TestSimpleZapper is TestBaseMarket {
         oracleRouter.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
 
         // start epoch
-        gaugePool.start();
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         chainlinkEthUsd.updateRoundData(

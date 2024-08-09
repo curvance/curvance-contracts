@@ -56,7 +56,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     }
 
     // function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
-    //     skip(gaugePool.startTime() - block.timestamp);
+    //     skip(gaugeManager.startTime() - block.timestamp);
     //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
     //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
@@ -74,7 +74,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     // }
 
     // function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
-    //     skip(gaugePool.startTime() - block.timestamp);
+    //     skip(gaugeManager.startTime() - block.timestamp);
     //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
     //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
@@ -91,7 +91,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     // }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -115,7 +115,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     function test_canBorrowWithNotify_success_whenSufficientLiquidity()
         public
     {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -205,7 +205,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     }
 
     function test_canBorrowWithNotify_success_entersUserInMarket() external {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,

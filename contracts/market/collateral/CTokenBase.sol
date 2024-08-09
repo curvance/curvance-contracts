@@ -434,7 +434,6 @@ abstract contract CTokenBase is
         marketManager.canTransferCToken(address(this), msg.sender, amount);
 
         // Cache Gauge Manager, then update values for caller.
-        IGaugeManager gaugeManager = _gaugeManager();
         gaugeManager.withdraw(address(this), msg.sender, amount);
 
         // Execute transfer.
@@ -461,7 +460,6 @@ abstract contract CTokenBase is
         marketManager.canTransferCToken(address(this), from, amount);
 
         // Cache Gauge Manager, then update values for `from`.
-        IGaugeManager gaugeManager = _gaugeManager();
         gaugeManager.withdraw(address(this), from, amount);
 
         // Execute transfer.
@@ -501,7 +499,6 @@ abstract contract CTokenBase is
         uint256 liquidatorTokens = liquidatedTokens - protocolTokens;
 
         // Cache Gauge Manager, then update values for `account`.
-        IGaugeManager gaugeManager = _gaugeManager();
         gaugeManager.withdraw(address(this), account, liquidatedTokens);
 
         // Efficiently transfer token balances from `account` to `liquidator`.
@@ -541,7 +538,6 @@ abstract contract CTokenBase is
         }
 
         // Cache Gauge Manager, then update values, for `account`.
-        IGaugeManager gaugeManager = _gaugeManager();
         gaugeManager.withdraw(address(this), account, shares);
 
         // Efficiently transfer token balances from `account` to `liquidator`.
@@ -867,12 +863,6 @@ abstract contract CTokenBase is
         uint256 ta
     ) internal view returns (uint256) {
         return _convertToAssets(shares, ta);
-    }
-
-    /// @notice Returns the Gauge Manager contract address.
-    /// @return The Gauge Manager contract address, in `IGaugeManager` form.
-    function _gaugeManager() internal view returns (IGaugeManager) {
-        return gaugeManager;
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

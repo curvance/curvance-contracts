@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -77,7 +77,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         poolWeights[0] = 100;
 
         vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
         // add partner gauges
         for (uint256 i = 0; i < 100; i++) {
@@ -85,29 +85,28 @@ contract TestGaugePoolGas is TestBaseMarket {
                 new MockToken("Reward Token", "RT", 18)
             );
             MockToken(partnerRewardTokens[i]).approve(
-                address(gaugePool),
+                address(gaugeManager),
                 1000 ether
             );
 
-            gaugePool.addExtraRewardToken(
+            gaugeManager.addExtraRewardToken(
                 address(partnerRewardTokens[i]),
                 100
             );
         }
 
         // start epoch
-        gaugePool.start();
-
+        
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
 
     function testGasForDepositBeforeEpochAndWithdrawInEpoch() public {
-        assertGt(gaugePool.startTime(), block.timestamp);
+        assertGt(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
                 partnerRewardTokens[i],
@@ -118,7 +117,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256 gasStart;
 
         vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+        cve.mintGaugeEmissions(address(gaugeManager), 300 * 2 weeks);
 
         // deposit
         gasStart = gasleft();
@@ -127,7 +126,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256 gasUsedForDeposit = gasStart - gasleft();
 
         // start epoch 1
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.warp(gaugeManager.startTime() + 1 * 2 weeks);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         address[] memory tokensParam = new address[](1);
@@ -135,14 +134,14 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100;
         vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugePool.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]));
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);
@@ -156,11 +155,11 @@ contract TestGaugePoolGas is TestBaseMarket {
     }
 
     function testGasForDepositInEpochAndWithdrawInSameEpoch() public {
-        assertGt(gaugePool.startTime(), block.timestamp);
+        assertGt(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
                 partnerRewardTokens[i],
@@ -171,10 +170,10 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256 gasStart;
 
         vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+        cve.mintGaugeEmissions(address(gaugeManager), 300 * 2 weeks);
 
         // start epoch 1
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.warp(gaugeManager.startTime() + 1 * 2 weeks);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         address[] memory tokensParam = new address[](1);
@@ -182,7 +181,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100;
         vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
 
         vm.warp(block.timestamp + 10);
 
@@ -197,7 +196,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugePool.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]));
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);
@@ -211,11 +210,11 @@ contract TestGaugePoolGas is TestBaseMarket {
     }
 
     function testGasForDepositInEpochAndWithdrawAfterEpoch() public {
-        assertGt(gaugePool.startTime(), block.timestamp);
+        assertGt(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
                 partnerRewardTokens[i],
@@ -226,10 +225,10 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256 gasStart;
 
         vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300 * 2 weeks);
+        cve.mintGaugeEmissions(address(gaugeManager), 300 * 2 weeks);
 
         // start epoch 1
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.warp(gaugeManager.startTime() + 1 * 2 weeks);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
 
         address[] memory tokensParam = new address[](1);
@@ -237,7 +236,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100;
         vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
 
         vm.warp(block.timestamp + 10);
 
@@ -248,11 +247,11 @@ contract TestGaugePoolGas is TestBaseMarket {
         uint256 gasUsedForDeposit = gasStart - gasleft();
 
         // start epoch 2
-        vm.warp(gaugePool.startTime() + 2 * 2 weeks);
+        vm.warp(gaugeManager.startTime() + 2 * 2 weeks);
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugePool.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]));
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);

@@ -12,6 +12,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -23,7 +24,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
@@ -45,7 +45,7 @@ contract TestBaseMarket is TestBase {
 
         _deployOracleRouter();
         _deployChainlinkAdaptors();
-        _deployGaugePool();
+        _deployGaugeManager();
 
         _deployMarketManager();
         _deployDynamicInterestRateModel();
@@ -363,17 +363,16 @@ contract TestBaseMarket is TestBase {
         );
     }
 
-    function _deployGaugePool() internal initMainVariables {
-        gaugePool = gaugePools[block.chainid] = new GaugePool(
+    function _deployGaugeManager() internal initMainVariables {
+        gaugeManager = gaugeManagers[block.chainid] = new GaugeManager(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.addLockingPermissions(address(gaugePool));
+        centralRegistry.addLockingPermissions(address(gaugeManager));
     }
 
     function _deployMarketManager() internal initMainVariables {
         marketManager = marketManagers[block.chainid] = new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(gaugePool)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.addMarketManager(
             address(marketManager),

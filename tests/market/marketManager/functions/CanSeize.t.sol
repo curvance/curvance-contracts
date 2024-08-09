@@ -38,7 +38,7 @@ contract CanSeizeTest is TestBaseMarketManager {
 
     //     MarketManager newMarketManager = new MarketManager(
     //         ICentralRegistry(address(centralRegistry)),
-    //         address(gaugePool)
+    //         address(gaugeManager)
     //     );
     //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
     //     dUSDC.setMarketManager(address(newMarketManager));

@@ -9,7 +9,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IBlastCentralRegistry } from "contracts/interfaces/blast/IBlastCentralRegistry.sol";
 import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
 import { IERC20Rebasing } from "contracts/interfaces/external/blast/IERC20Rebasing.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IMarketManager, IMToken } from "contracts/interfaces/market/IMarketManager.sol";
 
@@ -135,11 +135,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Cache Gauge Pool.
-        IGaugePool gaugePool = IMarketManager(marketManager).gaugePool();
-        uint256 nextEpoch = gaugePool.currentEpoch() + 1;
+        // Cache Gauge Manager.
+        IGaugeManager gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        uint256 nextEpoch = gaugeManager.currentEpoch() + 1;
 
-        // Validate that the Gauge Pool has not already set gauge rewards
+        // Validate that the Gauge Manager has not already set gauge rewards
         // for the next epoch.
         if (epochReported[msg.sender][nextEpoch]) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -202,11 +202,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             // Approve WETH to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(WETH_YIELD_MANAGER),
-                address(gaugePool),
+                address(gaugeManager),
                 WETHYield
             );
 
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 yieldDestination,
                 nextEpoch,
                 address(WETH_YIELD_MANAGER),
@@ -216,7 +216,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             // Remove any excess approval.
             SwapperLib._removeApprovalIfNeeded(
                 address(WETH_YIELD_MANAGER),
-                address(gaugePool)
+                address(gaugeManager)
             );
         }
 
@@ -250,11 +250,11 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             // Approve USDB to the Gauge Pool, if necessary.
             SwapperLib._approveTokenIfNeeded(
                 address(USDB_YIELD_MANAGER),
-                address(gaugePool),
+                address(gaugeManager),
                 USDBYield
             );
 
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 yieldDestination,
                 nextEpoch,
                 address(USDB_YIELD_MANAGER),
@@ -264,7 +264,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
             // Remove any excess approval.
             SwapperLib._removeApprovalIfNeeded(
                 address(USDB_YIELD_MANAGER),
-                address(gaugePool)
+                address(gaugeManager)
             );
         }
 

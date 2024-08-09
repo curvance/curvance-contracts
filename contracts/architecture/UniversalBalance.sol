@@ -11,7 +11,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 /// @title Curvance Universal Balance.
 /// @notice A system for managing a Universal Balance within the Curvance Protocol.
@@ -176,8 +176,8 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     /// @dev This is allowed to be permissionless as there is no potential
     ///      to steal funds.
     function claimForDAO() external {
-        IGaugePool gaugePool = linkedDToken.marketManager().gaugePool();
-        address[] memory rewardTokens = gaugePool.getRewardTokens(address(linkedDToken));
+        IGaugeManager gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        address[] memory rewardTokens = gaugeManager.getRewardTokens(address(linkedDToken));
 
         uint256 numRewardTokens = rewardTokens.length;
         uint256[] memory previousBalances = new uint256[](numRewardTokens);
@@ -191,7 +191,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         address[] memory claimTokens = new address[](1);
         claimTokens[0] = address(linkedDToken);
 
-        gaugePool.claim(claimTokens);
+        gaugeManager.claim(claimTokens);
         address daoAddress = centralRegistry.daoAddress();
 
         // If the contract received rewards in a reward token,
@@ -216,7 +216,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     function _deposit(uint256 amount, bool isLent) internal {
         if (isLent) {
-            // Will natively fail if amount == 0 on gaugePool call.
+            // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             uint256 tokensReceived = linkedDToken.mint(amount);
             userBalances[msg.sender].lentBalance += tokensReceived;
@@ -238,7 +238,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     ) internal returns (uint256) {
         if (isLent) {
             uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
-            // Will natively fail if amount == 0 on gaugePool call.
+            // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             uint256 tokensToRedeem = _mulDiv(amount, WAD, exchangeRate);
             userBalances[msg.sender].lentBalance -= tokensToRedeem;

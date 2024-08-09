@@ -197,26 +197,19 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
-        gaugePool.start();
-
+        
         vm.warp(veCVE.nextEpochStartTime() + 100);
 
-        uint256 epoch = gaugePool.currentEpoch();
+        uint256 epoch = gaugeManager.currentEpoch();
 
         EmissionData memory emissionData;
 
-        emissionData.gaugePools = new address[](1);
-        emissionData.emissionTotals = new uint256[](1);
-        emissionData.tokens = new address[][](1);
-        emissionData.emissions = new uint256[][](1);
+        emissionData.tokens = new address[](1);
+        emissionData.emissions = new uint256[](1);
 
-        emissionData.tokens[0] = new address[](1);
-        emissionData.emissions[0] = new uint256[](1);
-
-        emissionData.gaugePools[0] = address(gaugePool);
-        emissionData.emissionTotals[0] = _ONE;
-        emissionData.tokens[0][0] = _USDC_ADDRESS;
-        emissionData.emissions[0][0] = _ONE;
+        emissionData.emissionTotal = _ONE;
+        emissionData.tokens[0] = _USDC_ADDRESS;
+        emissionData.emissions[0] = _ONE;
 
         vm.prank(_WORMHOLE_RELAYER);
         messagingHub.receiveWormholeMessages(
@@ -227,14 +220,14 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
             bytes32("1")
         );
 
-        (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
+        (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
             epoch,
             _USDC_ADDRESS
         );
 
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
-        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
+        assertEq(cve.balanceOf(address(gaugeManager)), _ONE);
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs3() public {

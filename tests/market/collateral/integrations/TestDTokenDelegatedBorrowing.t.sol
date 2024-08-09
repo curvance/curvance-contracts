@@ -60,8 +60,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start();
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -152,7 +151,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             assertEq(totalBorrowsBefore, 500 ether);
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
@@ -183,7 +182,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -194,7 +193,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
             uint256 totalReserves = dDAI.totalReserves();
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
@@ -229,7 +228,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }

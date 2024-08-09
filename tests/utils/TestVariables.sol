@@ -12,6 +12,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -21,7 +22,6 @@ import { PositionFolding } from "contracts/market/utils/PositionFolding.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
@@ -120,7 +120,7 @@ contract TestVariables {
     address[] public redstoneSigners;
 
     MockToken public rewardToken;
-    GaugePool public gaugePool;
+    GaugeManager public gaugeManager;
     ComplexZapper public complexZapper;
 
     // Chain ID => Data
@@ -152,7 +152,7 @@ contract TestVariables {
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
 
     mapping(uint256 => MockToken) public rewardTokens;
-    mapping(uint256 => GaugePool) public gaugePools;
+    mapping(uint256 => GaugeManager) public gaugeManagers;
     mapping(uint256 => ComplexZapper) public complexZappers;
 
     address public harvester;
@@ -360,7 +360,7 @@ contract TestVariables {
         chainlinkDaiEth = chainlinkDaiEths[chainId];
 
         rewardToken = rewardTokens[chainId];
-        gaugePool = gaugePools[chainId];
+        gaugeManager = gaugeManagers[chainId];
         complexZapper = complexZappers[chainId];
     }
 

@@ -47,8 +47,7 @@ pragma solidity ^0.8.19;
 //         centralRegistry.setFeeAccumulator(address(this));
 
 //         // start epoch
-//         gaugePool.start();
-//         vm.warp(gaugePool.startTime());
+//         // vm.warp(gaugeManager.startTime());
 //         vm.roll(block.number + 1000);
 
 //         cToken = new Convex3PoolCToken(

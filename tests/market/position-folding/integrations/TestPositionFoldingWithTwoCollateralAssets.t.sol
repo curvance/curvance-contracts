@@ -69,8 +69,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         _prepareBALRETH(user, 2 ether);
 
         // start epoch
-        gaugePool.start();
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);

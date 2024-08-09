@@ -23,7 +23,6 @@ contract DepositETHTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        gaugePool.start();
     }
 
     function test_depositETH_fail_whenHasNoEnoughETH() public {

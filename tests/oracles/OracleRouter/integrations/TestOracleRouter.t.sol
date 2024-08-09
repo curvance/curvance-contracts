@@ -22,7 +22,7 @@ contract TestOracleRouter is TestBaseOracleRouter {
         _deployRewardManager();
         _deployVeCVE();
         _deployOracleRouter();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
 

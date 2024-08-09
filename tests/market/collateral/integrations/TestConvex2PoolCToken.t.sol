@@ -47,8 +47,7 @@ contract TestConvex2PoolCToken is TestBaseMarket {
         centralRegistry.setFeeAccumulator(address(this));
 
         // start epoch
-        gaugePool.start();
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         cSTETH = new Convex2PoolCToken(

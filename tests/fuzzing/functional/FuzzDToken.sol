@@ -25,7 +25,7 @@ contract FuzzDToken is FuzzMarketManager {
         uint256 amount
     ) public {
         _isSupportedDToken(dtoken);
-        require(gaugePool.startTime() < block.timestamp);
+        require(gaugeManager.startTime() < block.timestamp);
         _check_price_feed();
         (bool mintingPossible, ) = address(marketManager).call(
             abi.encodeWithSignature("canMint(address)", dtoken)

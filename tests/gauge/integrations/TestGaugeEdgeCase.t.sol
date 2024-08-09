@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
@@ -78,11 +78,11 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                 new MockToken("Reward Token", "RT", 18)
             );
             MockToken(partnerRewardTokens[i]).approve(
-                address(gaugePool),
+                address(gaugeManager),
                 1000 ether
             );
 
-            gaugePool.addExtraRewardToken(
+            gaugeManager.addExtraRewardToken(
                 address(partnerRewardTokens[i]),
                 100
             );
@@ -124,19 +124,17 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     function testCannotStartWithoutDaoPermissions() public {
         // start epoch
         vm.prank(users[0]);
-        vm.expectRevert(GaugeErrors.Unauthorized.selector);
-        gaugePool.start();
-    }
+        vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
+            }
 
     function testCannotCalculateEpochWhenNotStarted() public {
-        vm.expectRevert(GaugeErrors.NotStarted.selector);
-        gaugePool.epochOfTimestamp(block.timestamp);
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
+        gaugeManager.epochOfTimestamp(block.timestamp);
     }
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
         // start epoch
-        gaugePool.start();
-
+        
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IMToken(tokens[0]).mint(100 ether);
@@ -152,9 +150,8 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testCanDepositWithdrawAfterGaugeStartTime() public {
         // start epoch
-        gaugePool.start();
-
-        vm.warp(gaugePool.startTime() + 10 seconds);
+        
+        vm.warp(gaugeManager.startTime() + 10 seconds);
         vm.roll(block.number + 1000);
 
         // user0 deposit 100 token0
@@ -172,17 +169,16 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testSetPartnerGaugesWithoutCVE() public {
         // start epoch
-        gaugePool.start();
-
+        
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
                 partnerRewardTokens[i],
                 100 * 2 weeks
             );
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[1],
                 1,
                 partnerRewardTokens[i],
@@ -190,7 +186,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -206,16 +202,16 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             0
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[1], users[1], address(cve)),
+            gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
             0
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
-                gaugePool.pendingRewards(
+                gaugeManager.pendingRewards(
                     tokens[0],
                     users[0],
                     partnerRewardTokens[i]
@@ -223,7 +219,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                 10000
             );
             assertEq(
-                gaugePool.pendingRewards(
+                gaugeManager.pendingRewards(
                     tokens[1],
                     users[1],
                     partnerRewardTokens[i]
@@ -235,17 +231,16 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testClaimWhenCVERewardIsZero() public {
         // start epoch
-        gaugePool.start();
-
+        
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
                 partnerRewardTokens[i],
                 100 * 2 weeks
             );
-            gaugePool.addExtraRewards(
+            gaugeManager.addExtraRewards(
                 tokens[1],
                 1,
                 partnerRewardTokens[i],
@@ -253,7 +248,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             );
         }
 
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -269,16 +264,16 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             0
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[1], users[1], address(cve)),
+            gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
             0
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
-                gaugePool.pendingRewards(
+                gaugeManager.pendingRewards(
                     tokens[0],
                     users[0],
                     partnerRewardTokens[i]
@@ -286,7 +281,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                 10000
             );
             assertEq(
-                gaugePool.pendingRewards(
+                gaugeManager.pendingRewards(
                     tokens[1],
                     users[1],
                     partnerRewardTokens[i]
@@ -296,6 +291,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         }
 
         vm.prank(users[0]);
-        gaugePool.claim(tokens);
+        gaugeManager.claim(tokens);
     }
 }

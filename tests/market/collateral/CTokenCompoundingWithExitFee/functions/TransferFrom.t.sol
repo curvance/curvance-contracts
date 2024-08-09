@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCTokenCompoundingWithExitFee } from "../TestBaseCTokenCompoundingWithExitFee.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CTokenCompoundingWithExitFeeTransferFromTest is
@@ -19,7 +19,7 @@ contract CTokenCompoundingWithExitFeeTransferFromTest is
     function test_cTokenCompoundingWithExitFeeTransferFrom_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         cBALRETHWithExitFee.transferFrom(address(this), user1, 0);
     }
 

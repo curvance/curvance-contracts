@@ -26,7 +26,6 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         // List tokens
         marketManager.listToken(address(cBALRETH));
         marketManager.listToken(address(dUSDC));
-        gaugePool.start();
 
         // Config collateral token
         marketManager.updateCollateralToken(

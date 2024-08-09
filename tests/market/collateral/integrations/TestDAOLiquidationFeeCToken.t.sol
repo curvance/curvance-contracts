@@ -59,8 +59,7 @@ contract TestCTokenReserves is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start();
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -184,7 +183,7 @@ contract TestCTokenReserves is TestBaseMarket {
             0.01e18
         );
         assertApproxEqRel(
-            gaugePool.balanceOf(address(cBALRETH), dao),
+            gaugeManager.balanceOf(address(cBALRETH), dao),
             daoBalanceBefore + protocolTokens,
             0.01e18
         );
@@ -200,7 +199,7 @@ contract TestCTokenReserves is TestBaseMarket {
         cBALRETH.redeem(amountToRedeem, dao, dao);
 
         assertEq(cBALRETH.balanceOf(dao), 0);
-        assertEq(gaugePool.balanceOf(address(cBALRETH), dao), 0);
+        assertEq(gaugeManager.balanceOf(address(cBALRETH), dao), 0);
         assertEq(balRETH.balanceOf(dao), daoBalanceBefore + amountToRedeem);
     }
 
@@ -214,10 +213,10 @@ contract TestCTokenReserves is TestBaseMarket {
         cBALRETH.transfer(user, amountToTransfer);
 
         assertEq(cBALRETH.balanceOf(dao), 0);
-        assertEq(gaugePool.balanceOf(address(cBALRETH), dao), 0);
+        assertEq(gaugeManager.balanceOf(address(cBALRETH), dao), 0);
         assertEq(cBALRETH.balanceOf(user), amountToTransfer);
         assertEq(
-            gaugePool.balanceOf(address(cBALRETH), user),
+            gaugeManager.balanceOf(address(cBALRETH), user),
             amountToTransfer
         );
     }

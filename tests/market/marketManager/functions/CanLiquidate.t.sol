@@ -103,7 +103,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_fail_whenShortfallInsufficient() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -181,7 +181,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         caps[0] = 100_000e18;
         marketManager.setCTokenCollateralCaps(tokens, caps);
 
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
