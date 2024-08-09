@@ -1026,6 +1026,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Returns the timestamp of when the next epoch begins.
     /// @return The calculated next epoch start timestamp.
     function nextEpochStartTime() public view returns (uint256) {
+        // If the gauge system has not started yet, the next epoch start time
+        // is the Genesis Epoch itself.
+        if (block.timestamp < genesisEpoch) {
+            return genesisEpoch;
+        }
+
         uint256 timestampOffset = (currentEpoch(block.timestamp) + 1) *
             EPOCH_DURATION;
         return (genesisEpoch + timestampOffset);
