@@ -72,6 +72,12 @@ contract DeployCurvance is
             _readConfigAddress(".centralRegistry.sequencer"),
             feeToken
         );
+
+        // Deploy OracleRouter & RedstoneCoreAdaptor
+        _deployOracleRouter(centralRegistry);
+        _setOracleRouter(oracleRouter);
+        _deploy_redstone_price_feeds(network);
+
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
         );
@@ -136,8 +142,6 @@ contract DeployCurvance is
 
         // Deploy PositionFolding
         _deployPositionFolding(centralRegistry, marketManager);
-        _deployOracleRouter(centralRegistry);
-        _setOracleRouter(oracleRouter);
 
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);
@@ -154,7 +158,7 @@ contract DeployCurvance is
         // );
 
         // Setup
-        // _after_deploy_config(network);
+        _after_deploy_config(network);
 
         vm.stopBroadcast();
     }

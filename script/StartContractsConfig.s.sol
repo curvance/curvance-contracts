@@ -25,6 +25,7 @@ import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
 
 contract StartContractsConfig is Script, DeployConfiguration {
     struct DTokenInterestRateParam {
@@ -380,8 +381,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
         ICentralRegistry cr,
         MarketManager market
     ) internal returns (address) {
-        console.log(name, tokenAddress);
-
         address interestRateModel = address(
             // .markets.dTokens.USDC.interestRateParam
             new DynamicInterestRateModel(
@@ -405,7 +404,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
             chainlinkUsdAggregator,
             dToken
         );
-        _addRedstoneOracleSupport(dToken);
+
+        if (
+            tokenAddress != _getDeployedContract("mETH") &&
+            tokenAddress != _getDeployedContract("mUSD") &&
+            tokenAddress != _getDeployedContract("mkUSD")
+        ) {
+            console.log("[REDSTONE] - Adding", name);
+            _addRedstoneOracleSupport(dToken);
+        } else {
+            console.log("Avoiding Redstone Oracle for testnet token: ", name);
+        }
 
         MockToken(tokenAddress).approve(dToken, 1e25);
         market.listToken(dToken);
@@ -432,7 +441,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
             chainlinkUsdAggregator,
             cToken
         );
-        _addRedstoneOracleSupport(cToken);
+
+        if (
+            tokenAddress != _getDeployedContract("mETH") &&
+            tokenAddress != _getDeployedContract("mUSD") &&
+            tokenAddress != _getDeployedContract("mkUSD")
+        ) {
+            console.log("[REDSTONE] - Adding", name);
+            _addRedstoneOracleSupport(cToken);
+        } else {
+            console.log("Avoiding Redstone Oracle for testnet token: ", name);
+        }
 
         MockToken(tokenAddress).approve(cToken, 1e25);
         market.listToken(cToken);
@@ -467,7 +486,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         if (!adaptor.isSupportedAsset(underlying)) {
             adaptor.addAsset(underlying, true, 8, 12 hours);
-            adaptor.addAsset(underlying, false, 18, 12 hours);
         }
 
         if (!router.isApprovedAdaptor(redstoneAdaptor)) {
@@ -566,24 +584,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
             is_berachain = true;
         }
 
-        ICentralRegistry icr = ICentralRegistry(
+        CentralRegistry centralRegistry = CentralRegistry(
             _getDeployedContract("centralRegistry")
         );
+        ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
 
         address[] memory mockTokens = new address[](4);
-        if (!is_berachain) {
-            mockTokens = new address[](7);
-        }
 
         mockTokens[0] = _getDeployedContract("LUSD");
         mockTokens[1] = _getDeployedContract("USDC");
         mockTokens[2] = _getDeployedContract("WBTC");
         mockTokens[3] = _getDeployedContract("SWETH");
-        if (!is_berachain) {
-            mockTokens[4] = _getDeployedContract("mETH");
-            mockTokens[5] = _getDeployedContract("mUSD");
-            mockTokens[6] = _getDeployedContract("mkUSD");
-        }
 
         // Create redstone adaptor
         address[] memory redstoneSigners = new address[](4);
@@ -608,7 +619,6 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
             if (!adaptor.isSupportedAsset(underlying)) {
                 adaptor.addAsset(underlying, true, 8, 12 hours);
-                adaptor.addAsset(underlying, false, 18, 12 hours);
             }
 
             if (!router.isApprovedAdaptor(redstoneAdaptor)) {
@@ -642,6 +652,18 @@ contract StartContractsConfig is Script, DeployConfiguration {
                 router.addAssetPriceFeed(underlying, redstoneAdaptor);
             }
         }
+
+        MulticallDataCheckerForRedstoneAdaptor multicallDataChecker = new MulticallDataCheckerForRedstoneAdaptor(
+                _getDeployedContract("centralRegistry")
+            );
+        _saveDeployedContracts(
+            "multicallDataChecker",
+            address(multicallDataChecker)
+        );
+        centralRegistry.setMulticallDataChecker(
+            address(adaptor),
+            address(multicallDataChecker)
+        );
     }
 
     function _loadFaucet() internal {
