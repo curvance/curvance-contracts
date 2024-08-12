@@ -101,7 +101,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
-    function adaptorType() external override returns (uint256) {
+    function adaptorType() external returns (uint256) {
         return 5;
     }
 
