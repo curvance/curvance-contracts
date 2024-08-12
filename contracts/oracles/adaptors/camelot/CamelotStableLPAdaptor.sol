@@ -64,7 +64,7 @@ contract CamelotStableLPAdaptor is BaseStableLPAdaptor {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
-    function adaptorType() external override returns (uint256) {
+    function adaptorType() external pure override returns (uint256) {
         return 14;
     }
 }
