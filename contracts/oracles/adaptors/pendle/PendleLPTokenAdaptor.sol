@@ -199,6 +199,13 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         emit PendleLPAssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external override returns (uint256) {
+        return 10;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function to check whether the underlying PT TWAP

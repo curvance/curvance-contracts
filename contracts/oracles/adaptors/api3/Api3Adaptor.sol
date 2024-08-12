@@ -185,6 +185,13 @@ contract Api3Adaptor is BaseOracleAdaptor {
         emit Api3AssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external override returns (uint256) {
+        return 4;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in USD.

@@ -236,6 +236,13 @@ contract PythAdaptor is BaseOracleAdaptor {
         emit PythAssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external override returns (uint256) {
+        return 2;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in USD.

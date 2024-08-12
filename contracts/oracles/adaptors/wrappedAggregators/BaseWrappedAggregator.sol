@@ -98,6 +98,13 @@ abstract contract BaseWrappedAggregator is IChainlink {
             _toInt256(WAD);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external override returns (uint256) {
+        return 5;
+    }
+
     /// PUBLIC FUNCTIONS TO OVERRIDE ///
 
     /// @notice Returns the underlying aggregator address.
