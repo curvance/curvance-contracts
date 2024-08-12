@@ -183,6 +183,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         veCVE = IVeCVE(centralRegistry.veCVE());
         EPOCH_DURATION = veCVE.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
+        approvedRewardTokens[cve] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -375,7 +376,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 continue;
             }
             uint256 lastEpoch = lastEpochOf[token][_rewardToken];
-            if (currentEpoch() - lastEpoch > SIX_MONTH_IN_EPOCH) {
+            if (currentEpoch() > lastEpoch + SIX_MONTH_IN_EPOCH) {
                 uint256 indexToRemove = rewardTokenToIndex[token][_rewardToken];
                 if (indexToRemove != (rewardTokensLength - 1)) {
                     rewardTokens[token][indexToRemove] = rewardTokens[token][rewardTokensLength - 1];
@@ -484,7 +485,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         address rewardToken
     ) public view returns (uint256) {
         uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0) {
+        if (index == 0 || approvedRewardTokens[rewardToken] == false) {
             revert GaugeManager__InvalidRewardToken();
         }
 

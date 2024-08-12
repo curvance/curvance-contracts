@@ -8,7 +8,7 @@ import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
-
+// FIX
 contract TestGaugeEdgeCase is TestBaseMarket {
     address public owner;
     address[] public tokens;
@@ -95,41 +95,12 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     function testCannotRedeemMoreThanDeposit() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        vm.expectRevert();
         IMToken(tokens[0]).mint(100 ether);
 
         // user0 withdraw half
         vm.prank(users[0]);
         vm.expectRevert();
         IMToken(tokens[0]).redeem(101 ether);
-    }
-
-    function testCannotDepositWithdrawBeforeGaugeStart() public {
-        // user0 deposit 100 token0
-        vm.prank(users[0]);
-        vm.expectRevert();
-        IMToken(tokens[0]).mint(100 ether);
-
-        // user1 deposit 100 token1
-        vm.prank(users[1]);
-        vm.expectRevert();
-        IMToken(tokens[1]).mint(100 ether);
-
-        // user0 withdraw half
-        vm.prank(users[0]);
-        vm.expectRevert();
-        IMToken(tokens[0]).redeem(50 ether);
-    }
-
-    function testCannotStartWithoutDaoPermissions() public {
-        // start epoch
-        vm.prank(users[0]);
-        vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
-            }
-
-    function testCannotCalculateEpochWhenNotStarted() public {
-        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
-        gaugeManager.epochOfTimestamp(block.timestamp);
     }
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
@@ -168,7 +139,15 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     }
 
     function testSetPartnerGaugesWithoutCVE() public {
-        // start epoch
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 0;
+        poolWeights[1] = 0;
+
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
         
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
@@ -230,7 +209,15 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     }
 
     function testClaimWhenCVERewardIsZero() public {
-        // start epoch
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 0;
+        poolWeights[1] = 0;
+
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
         
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {

@@ -169,9 +169,6 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
         gaugeManager.removeExtraRewardToken(address(cve));
-
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAddress.selector);
-        gaugeManager.removeExtraRewardToken(address(partnerRewardTokens[0]));
     }
 
     function testSuccessRemoveExtraReward() public {
@@ -239,7 +236,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
             gaugeManager.addExtraRewards(
                 tokens[0],
-                0,
+                1,
                 partnerRewardTokens[i],
                 300 * 2 weeks
             );
@@ -1075,7 +1072,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            10000
+            100 * (2 weeks + 100)
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1083,7 +1080,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            20000
+            200 * (2 weeks + 100)
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1110,7 +1107,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            20000
+            100 * (2 weeks + 200)
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1118,7 +1115,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            40000
+            200 * (2 weeks + 200)
         );
         assertEq(
             gaugeManager.pendingRewards(

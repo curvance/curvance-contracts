@@ -23,7 +23,7 @@ contract TestERC4626CToken is TestERC4626, TestBaseMarket {
         _deployMarketManager();
 
         // start gauge to enable deposits
-                vm.warp(veCVE.nextEpochStartTime() + 1000);
+        vm.warp(veCVE.nextEpochStartTime() + 1000);
 
         // deploy collateral token and cToken
         MockERC20Token mockUnderlying = new MockERC20Token();

@@ -367,6 +367,7 @@ contract TestBaseMarket is TestBase {
         gaugeManager = gaugeManagers[block.chainid] = new GaugeManager(
             ICentralRegistry(address(centralRegistry))
         );
+        centralRegistry.setGaugeManager(address(gaugeManager));
         centralRegistry.addLockingPermissions(address(gaugeManager));
     }
 

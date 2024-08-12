@@ -60,7 +60,7 @@ contract TestTokenInteractions is TestBaseMarket {
         );
 
         // start epoch
-                vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
