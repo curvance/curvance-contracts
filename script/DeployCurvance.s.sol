@@ -17,6 +17,7 @@ import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
 import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
+import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
 import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 
 contract DeployCurvance is
@@ -34,6 +35,7 @@ contract DeployCurvance is
     PositionFoldingDeployer,
     OracleRouterDeployer,
     AuxiliaryDataDeployer,
+    RedstoneAdaptorDeployer,
     StartContractsConfig
 {
     function run() external {
@@ -73,10 +75,13 @@ contract DeployCurvance is
             feeToken
         );
 
-        // Deploy OracleRouter & RedstoneCoreAdaptor
+        // Deploy OracleRouter
         _deployOracleRouter(centralRegistry);
         _setOracleRouter(oracleRouter);
-        _deploy_redstone_price_feeds(network);
+
+        // Deploy RedstoneAdaptor
+        _deployRedstoneAdaptor(centralRegistry);
+        _deploy_redstone_price_feeds(network, false);
 
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")

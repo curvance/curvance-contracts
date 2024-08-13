@@ -399,11 +399,14 @@ contract StartContractsConfig is Script, DeployConfiguration {
             new DToken(cr, tokenAddress, address(market), interestRateModel)
         );
         _saveDeployedContracts(name, dToken);
-        _addChainlinkOracleSupport(
-            chainlinkEthAggregator,
-            chainlinkUsdAggregator,
-            dToken
-        );
+
+        if (tokenAddress != _getDeployedContract("SWETH")) {
+            _addChainlinkOracleSupport(
+                chainlinkEthAggregator,
+                chainlinkUsdAggregator,
+                dToken
+            );
+        }
 
         if (
             tokenAddress != _getDeployedContract("mETH") &&
@@ -484,45 +487,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleRouter router = OracleRouter(oracleRouter);
 
-        if (!adaptor.isSupportedAsset(underlying)) {
-            adaptor.addAsset(underlying, true, 8, 12 hours);
-        }
-
-        if (!router.isApprovedAdaptor(redstoneAdaptor)) {
-            router.addApprovedAdaptor(redstoneAdaptor);
-        }
-
         if (!router.isSupportedAsset(mToken)) {
             router.addMTokenSupport(mToken);
-        }
-
-        try router.assetPriceFeeds(underlying, 0) returns (
-            address feed
-        ) {} catch {
-            console.log(
-                "[REDSTONE] - Fetching & applying price for ",
-                underlyingToken.symbol()
-            );
-            bytes memory redstonePayload = getRedstoneApiPayload(
-                underlyingToken.symbol()
-            );
-            adaptor.adaptorDataUSD(underlying);
-            bytes memory encodedFunction = abi.encodeWithSignature(
-                "writePrice(address,bool)",
-                underlying,
-                true
-            );
-            bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
-                encodedFunction,
-                redstonePayload
-            );
-            (bool success, ) = address(adaptor).call(
-                encodedFunctionWithRedstonePayload
-            );
-
-            require(success, "Failed to get price from Redstone API");
-
-            router.addAssetPriceFeed(underlying, redstoneAdaptor);
         }
     }
 
@@ -578,10 +544,18 @@ contract StartContractsConfig is Script, DeployConfiguration {
         }
     }
 
-    function _deploy_redstone_price_feeds(string memory network) internal {
+    function _deploy_redstone_price_feeds(
+        string memory network,
+        bool allow_sepolia
+    ) internal {
         bytes32 network_hash = keccak256(abi.encodePacked(network));
-        if (network_hash == keccak256(abi.encodePacked("bartio"))) {
-            is_berachain = true;
+        if (
+            network_hash == keccak256(abi.encodePacked("sepolia")) &&
+            !allow_sepolia
+        ) {
+            // Sepolia is too slow to fetch & set these prices in time,
+            // so they have to be done seperately in their own script
+            return;
         }
 
         CentralRegistry centralRegistry = CentralRegistry(
@@ -590,27 +564,14 @@ contract StartContractsConfig is Script, DeployConfiguration {
         ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
 
         address[] memory mockTokens = new address[](4);
-
         mockTokens[0] = _getDeployedContract("LUSD");
         mockTokens[1] = _getDeployedContract("USDC");
         mockTokens[2] = _getDeployedContract("WBTC");
         mockTokens[3] = _getDeployedContract("SWETH");
 
-        // Create redstone adaptor
-        address[] memory redstoneSigners = new address[](4);
-        redstoneSigners[0] = 0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774;
-        redstoneSigners[1] = 0xdEB22f54738d54976C4c0fe5ce6d408E40d88499;
-        redstoneSigners[2] = 0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202;
-        redstoneSigners[3] = 0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE;
-        RedstoneCoreAdaptor adaptor = new RedstoneCoreAdaptor(
-            icr,
-            redstoneSigners,
-            3
-        );
-        _saveDeployedContracts("redstoneAdaptor", address(adaptor));
-
         address oracleRouter = _getDeployedContract("oracleRouter");
         address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+        RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleRouter router = OracleRouter(oracleRouter);
 
         for (uint256 i = 0; i < mockTokens.length; i++) {
@@ -625,45 +586,45 @@ contract StartContractsConfig is Script, DeployConfiguration {
                 router.addApprovedAdaptor(redstoneAdaptor);
             }
 
-            try router.assetPriceFeeds(underlying, 0) returns (
-                address feed
-            ) {} catch {
-                console.log(
-                    "[REDSTONE] - Fetching & applying price for ",
-                    underlyingToken.symbol()
-                );
-                bytes memory redstonePayload = getRedstoneApiPayload(
-                    underlyingToken.symbol()
-                );
-                adaptor.adaptorDataUSD(underlying);
-                bytes memory encodedFunction = abi.encodeWithSignature(
-                    "writePrice(address,bool)",
-                    underlying,
-                    true
-                );
-                bytes memory encodedFunctionWithRedstonePayload = abi
-                    .encodePacked(encodedFunction, redstonePayload);
-                (bool success, ) = address(adaptor).call(
-                    encodedFunctionWithRedstonePayload
-                );
-
-                require(success, "Failed to get price from Redstone API");
-
-                router.addAssetPriceFeed(underlying, redstoneAdaptor);
+            try router.assetPriceFeeds(underlying, 0) returns (address feed) {
+                if (feed != redstoneAdaptor) {
+                    _addRedstonePriceFeed(underlyingToken, adaptor, router);
+                }
+            } catch {
+                _addRedstonePriceFeed(underlyingToken, adaptor, router);
             }
         }
+    }
 
-        MulticallDataCheckerForRedstoneAdaptor multicallDataChecker = new MulticallDataCheckerForRedstoneAdaptor(
-                _getDeployedContract("centralRegistry")
-            );
-        _saveDeployedContracts(
-            "multicallDataChecker",
-            address(multicallDataChecker)
+    function _addRedstonePriceFeed(
+        IERC20 underlyingToken,
+        RedstoneCoreAdaptor adaptor,
+        OracleRouter router
+    ) internal {
+        console.log(
+            "[REDSTONE] - Fetching & applying price for ",
+            underlyingToken.symbol()
         );
-        centralRegistry.setMulticallDataChecker(
-            address(adaptor),
-            address(multicallDataChecker)
+        bytes memory redstonePayload = getRedstoneApiPayload(
+            underlyingToken.symbol()
         );
+        adaptor.adaptorDataUSD(address(underlyingToken));
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool)",
+            address(underlyingToken),
+            true
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+
+        require(success, "Failed to get price from Redstone API");
+
+        router.addAssetPriceFeed(address(underlyingToken), address(adaptor));
     }
 
     function _loadFaucet() internal {
