@@ -155,6 +155,13 @@ contract DIAAdaptor is BaseOracleAdaptor {
         emit DIAAssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 6;
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset in USD.

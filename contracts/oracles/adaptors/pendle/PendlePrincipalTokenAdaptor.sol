@@ -201,6 +201,13 @@ contract PendlePrincipalTokenAdaptor is BaseOracleAdaptor {
         emit PendlePTAssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 11;
+    }
+
     /// @notice Helper function to check whether the underlying PT TWAP
     ///         is working.
     /// @param market The address of the Pendle LP.

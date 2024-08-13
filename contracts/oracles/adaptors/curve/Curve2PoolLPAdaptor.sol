@@ -383,6 +383,15 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         data.upperBound = newUpperBound;
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 13;
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Helper function to check if `price` is within a reasonable
     ///         bound.
     /// @dev Reverts if bounds are breached.

@@ -31,4 +31,9 @@ interface IOracleAdaptor {
     /// @notice Whether an asset is supported by the Oracle Adaptor or not.
     /// @dev Asset => Supported by adaptor.
     function isSupportedAsset(address asset) external view returns (bool);
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external view returns (uint256);
 }

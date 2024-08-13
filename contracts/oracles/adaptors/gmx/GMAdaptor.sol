@@ -268,6 +268,15 @@ contract GMAdaptor is BaseOracleAdaptor {
         emit GMXGMAssetRemoved(asset);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 16;
+    }
+
+    /// PERMISSIONED FUNCTIONS /// 
+
     /// @notice Permissioned function to set a new GMX Reader address.
     /// @param newReader The address to set as the new GMX Reader.
     function setGMXReader(address newReader) external {
