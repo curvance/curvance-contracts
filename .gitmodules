@@ -13,6 +13,3 @@
 [submodule "lib/redstone-oracles-monorepo"]
 	path = lib/redstone-oracles-monorepo
 	url = https://github.com/redstone-finance/redstone-oracles-monorepo
-[submodule "lib/pigeon"]
-	path = lib/pigeon
-	url = https://github.com/exp-table/pigeon
