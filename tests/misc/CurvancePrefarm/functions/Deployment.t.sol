@@ -10,14 +10,14 @@ contract CurvancePrefarmDeploymentTest is TestBaseCurvancePrefarm {
 
         curvancePrefarm = new CurvancePrefarm(manager, endTimestamp);
         address[] memory prefarmTokens = new address[](1);
-        prefarmTokens[0] = _USDC_ADDRESS;
+        prefarmTokens[0] = _WETH_ADDRESS;
 
         vm.startPrank(manager);
-        addPrefarmTokens(prefarmTokens);
+        curvancePrefarm.addPrefarmTokens(prefarmTokens);
         vm.stopPrank();
 
         assertEq(curvancePrefarm.prefarmManager(), manager);
         assertEq(curvancePrefarm.prefarmEndTimestamp(), endTimestamp);
-        assertEq(curvancePrefarm.tokenData(_USDC_ADDRESS).isApproved, true);
+        assertEq(curvancePrefarm.tokenData(_WETH_ADDRESS).isApproved, true);
     }
 }
