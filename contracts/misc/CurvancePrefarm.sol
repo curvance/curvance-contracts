@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract CurvancePrefarm {
@@ -136,6 +138,12 @@ contract CurvancePrefarm {
             revert CurvancePrefarm__MigrationNotPossible();
         }
 
+        SwapperLib._approveTokenIfNeeded(
+            prefarmToken,
+            migrationToken.mTokenAddress,
+            amount
+        );
+
         // Migrate prefarm asset into Curvance protocol.
         if (migrationToken.isCToken) {
             // Migrate a collateral token.
@@ -157,6 +165,12 @@ contract CurvancePrefarm {
             // Migrate a debt token to be lent to users.
             IMToken(migrationToken.mTokenAddress).mintFor(amount, msg.sender);
         }
+
+        // Remove any excess approval.
+        SwapperLib._removeApprovalIfNeeded(
+            prefarmToken,
+            migrationToken.mTokenAddress
+        );
 
         emit Migrated(msg.sender, prefarmToken, amount);
     }
@@ -180,12 +194,6 @@ contract CurvancePrefarm {
         if (!IMToken(protocolToken).marketManager().isListed(protocolToken)) {
             revert CurvancePrefarm__InvalidParameters();
         }
-
-        SafeTransferLib.safeApprove(
-            prefarmToken,
-            protocolToken,
-            type(uint256).max
-        );
 
         // Pull the data directly from the contract rather than from parameter
         // input.
