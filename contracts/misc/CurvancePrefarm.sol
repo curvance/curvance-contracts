@@ -2,9 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 
 contract CurvancePrefarm {
     /// TYPES ///
@@ -21,6 +19,7 @@ contract CurvancePrefarm {
     /// @notice The address receiving DAO bonding proceeds on
     ///         Ethereum Mainnet.
     address public immutable prefarmManager;
+
     /// @notice The token DAOs bond from into CVE position, in unix time.
     uint256 public immutable prefarmEndTimestamp;
 
@@ -30,6 +29,7 @@ contract CurvancePrefarm {
     ///         prefarm.
     /// @notice User => Token => User Balance.
     mapping(address => mapping(address => uint256)) public balanceOf;
+
     /// @notice Stores information relating a prefarm token to the Curvance
     ///         Protocol.
     /// @notice Prefarm Token => Protocol Data.
@@ -106,12 +106,7 @@ contract CurvancePrefarm {
         balanceOf[msg.sender][prefarmToken] -= amount;
 
         // Transfer prefarm assets back to user.
-        SafeTransferLib.safeTransferFrom(
-            prefarmToken,
-            msg.sender,
-            address(this),
-            amount
-        );
+        SafeTransferLib.safeTransfer(prefarmToken, msg.sender, amount);
 
         emit WithdrawnWithPenalty(msg.sender);
     }
@@ -135,7 +130,7 @@ contract CurvancePrefarm {
 
         // Cache protocol token data being migrated to.
         mToken memory migrationToken = tokenData[prefarmToken];
-        
+
         // Validate that protocol token has been configured.
         if (migrationToken.mTokenAddress == address(0)) {
             revert CurvancePrefarm__MigrationNotPossible();
@@ -177,14 +172,20 @@ contract CurvancePrefarm {
 
         // Validate the protocol token has the prefarm token as its
         // underlying.
-        if (IMToken(protocolToken).underlying() == prefarmToken) {
+        if (IMToken(protocolToken).underlying() != prefarmToken) {
             revert CurvancePrefarm__InvalidParameters();
         }
 
         // Validate the protocol token has a market manager and is listed.
-        if (IMToken(protocolToken).marketManager().isListed(protocolToken)) {
+        if (!IMToken(protocolToken).marketManager().isListed(protocolToken)) {
             revert CurvancePrefarm__InvalidParameters();
         }
+
+        SafeTransferLib.safeApprove(
+            prefarmToken,
+            protocolToken,
+            type(uint256).max
+        );
 
         // Pull the data directly from the contract rather than from parameter
         // input.
