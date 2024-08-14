@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
+
+import { TestBaseMessagingHub } from "tests/architecture/MessagingHub/TestBaseMessagingHub.sol";
+import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
+
+contract TestBaseCurvancePrefarm is TestBaseMessagingHub {
+    CurvancePrefarm public curvancePrefarm;
+    address public manager = makeAddr("Manager");
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        curvancePrefarm = new CurvancePrefarm(
+            manager,
+            block.timestamp + 1 weeks
+        );
+    }
+}
