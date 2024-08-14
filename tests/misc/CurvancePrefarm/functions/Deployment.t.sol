@@ -16,8 +16,10 @@ contract CurvancePrefarmDeploymentTest is TestBaseCurvancePrefarm {
         curvancePrefarm.addPrefarmTokens(prefarmTokens);
         vm.stopPrank();
 
+        (bool isApproved, , ) = curvancePrefarm.tokenData(_WETH_ADDRESS);
+
         assertEq(curvancePrefarm.prefarmManager(), manager);
         assertEq(curvancePrefarm.prefarmEndTimestamp(), endTimestamp);
-        assertEq(curvancePrefarm.tokenData(_WETH_ADDRESS).isApproved, true);
+        assertEq(isApproved, true);
     }
 }
