@@ -435,10 +435,14 @@ contract OracleRouter {
         uint256 adaptorTypeB;
 
         adaptor = assetPriceFeeds[asset][0];
-        adaptorTypeA = isApprovedAdaptor[adaptor] ? IOracleAdaptor(adaptor).adaptorType() : 0;
+        adaptorTypeA = isApprovedAdaptor[adaptor] ? IOracleAdaptor(
+            adaptor
+        ).adaptorType() : 0;
 
         adaptor = assetPriceFeeds[asset][1];
-        adaptorTypeB = isApprovedAdaptor[adaptor] ? IOracleAdaptor(adaptor).adaptorType() : 0;
+        adaptorTypeB = isApprovedAdaptor[adaptor] ? IOracleAdaptor(
+            adaptor
+        ).adaptorType() : 0;
 
         return (adaptorTypeA, adaptorTypeB);
     }

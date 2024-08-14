@@ -15,5 +15,12 @@ contract TestBaseCurvancePrefarm is TestBaseMessagingHub {
             manager,
             block.timestamp + 1 weeks
         );
+
+        address[] memory prefarmTokens = new address[](1);
+        prefarmTokens[0] = _USDC_ADDRESS;
+
+        vm.startPrank(manager);
+        addPrefarmTokens(prefarmTokens);
+        vm.stopPrank();
     }
 }

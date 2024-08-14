@@ -11,15 +11,16 @@ contract CurvancePrefarm {
 
     /// @notice Stores information relating a prefarm token to the Curvance
     ///         Protocol.
-    struct mToken {
-        bool isCToken;
+    struct TokenData {
+        bool isApproved;
         address mTokenAddress;
+        bool isCToken;
     }
 
     /// CONSTANTS ///
 
-    /// @notice The address receiving DAO bonding proceeds on
-    ///         Ethereum Mainnet.
+    /// @notice The administrator of the prefarm, should be a multisig
+    ///         made up of several parties.
     address public immutable prefarmManager;
 
     /// @notice The token DAOs bond from into CVE position, in unix time.
@@ -29,13 +30,13 @@ contract CurvancePrefarm {
 
     /// @notice The amount of a token that a user has deposited into the
     ///         prefarm.
-    /// @notice User => Token => User Balance.
+    /// @dev User => Token => User Balance.
     mapping(address => mapping(address => uint256)) public balanceOf;
 
     /// @notice Stores information relating a prefarm token to the Curvance
     ///         Protocol.
-    /// @notice Prefarm Token => Protocol Data.
-    mapping(address => mToken) public tokenData;
+    /// @dev Prefarm Token => Protocol Data.
+    mapping(address => TokenData) public tokenData;
 
     /// ERRORS ///
 
@@ -49,6 +50,8 @@ contract CurvancePrefarm {
     event Deposited(address user, address token, uint256 amount);
     event Migrated(address user, address token, uint256 amount);
     event WithdrawnWithPenalty(address user);
+    event MigrationTokenConfigured(address token, address protocolToken);
+    event PrefarmTokenApproved(address token);
 
     /// CONSTRUCTOR ///
 
@@ -60,61 +63,84 @@ contract CurvancePrefarm {
     /// EXTERNAL FUNCTIONS ///
 
     function multiDeposit(
-        address[] calldata prefarmTokens,
+        address[] calldata tokens,
         uint256[] calldata amounts
     ) external {
+        // Validate that prefarm deposit window has not ended.
         if (block.timestamp > prefarmEndTimestamp) {
             revert CurvancePrefarm__PrefarmDepositsBlocked();
         }
 
-        uint256 numTokens = prefarmTokens.length;
+        uint256 numTokens = tokens.length;
+        // Validate that parameters are configured properly.
         if (numTokens != amounts.length) {
             revert CurvancePrefarm__InvalidParameters();
         }
 
+        address token;
+
         for (uint256 i; i < numTokens; ++i) {
+            token = tokens[i];
+
+            // Validate that `token` is approved for prefarm.
+            if (!tokenData[token].isApproved) {
+                revert CurvancePrefarm__InvalidParameters();
+            }
+
+            // Transfer prefarm token in.
             SafeTransferLib.safeTransferFrom(
-                prefarmTokens[i],
+                token,
                 msg.sender,
                 address(this),
                 amounts[i]
             );
 
-            _recordDeposit(prefarmTokens[i], amounts[i], msg.sender);
+            // Record user deposit.
+            _recordDeposit(token, amounts[i], msg.sender);
         }
     }
 
-    function deposit(address prefarmToken, uint256 amount) external {
+    function deposit(address token, uint256 amount) external {
+        // Validate that prefarm deposit window has not ended.
         if (block.timestamp > prefarmEndTimestamp) {
             revert CurvancePrefarm__PrefarmDepositsBlocked();
         }
 
+        // Validate that `token` is approved for prefarm.
+        if (!tokenData[token].isApproved) {
+            revert CurvancePrefarm__InvalidParameters();
+        }
+
+        // Transfer prefarm token in.
         SafeTransferLib.safeTransferFrom(
-            prefarmToken,
+            token,
             msg.sender,
             address(this),
             amount
         );
 
-        _recordDeposit(prefarmToken, amount, msg.sender);
+        // Record user deposit.
+        _recordDeposit(token, amount, msg.sender);
     }
 
-    function withdraw(address prefarmToken, uint256 amount) external {
-        if (balanceOf[msg.sender][prefarmToken] < amount) {
+    function withdraw(address token, uint256 amount) external {
+        // Validate that user has sufficient deposited balance to withdraw
+        // `amount`.
+        if (balanceOf[msg.sender][token] < amount) {
             revert CurvancePrefarm__InvalidParameters();
         }
 
-        // Record user balance decrease.
-        balanceOf[msg.sender][prefarmToken] -= amount;
+        // Document user withdrawal.
+        balanceOf[msg.sender][token] -= amount;
 
         // Transfer prefarm assets back to user.
-        SafeTransferLib.safeTransfer(prefarmToken, msg.sender, amount);
+        SafeTransferLib.safeTransfer(token, msg.sender, amount);
 
         emit WithdrawnWithPenalty(msg.sender);
     }
 
     function migrate(
-        address prefarmToken,
+        address token,
         uint256 amount,
         bool collateralize
     ) external {
@@ -123,26 +149,26 @@ contract CurvancePrefarm {
             revert CurvancePrefarm__MigrationNotPossible();
         }
 
-        if (balanceOf[msg.sender][prefarmToken] < amount) {
+        // Validate that user has sufficient deposited balance to migrate
+        // `amount`.
+        if (balanceOf[msg.sender][token] < amount) {
             revert CurvancePrefarm__InvalidParameters();
         }
 
-        // Record user balance decrease.
-        balanceOf[msg.sender][prefarmToken] -= amount;
+        // Document user deposit migration.
+        balanceOf[msg.sender][token] -= amount;
 
         // Cache protocol token data being migrated to.
-        mToken memory migrationToken = tokenData[prefarmToken];
+        TokenData memory migrationToken = tokenData[token];
+        address mToken = migrationToken.mTokenAddress;
 
         // Validate that protocol token has been configured.
-        if (migrationToken.mTokenAddress == address(0)) {
+        if (mToken == address(0)) {
             revert CurvancePrefarm__MigrationNotPossible();
         }
 
-        SwapperLib._approveTokenIfNeeded(
-            prefarmToken,
-            migrationToken.mTokenAddress,
-            amount
-        );
+        // Approve tokens to be pulled by mToken.
+        SwapperLib._approveTokenIfNeeded(token, mToken, amount);
 
         // Migrate prefarm asset into Curvance protocol.
         if (migrationToken.isCToken) {
@@ -150,38 +176,49 @@ contract CurvancePrefarm {
             if (collateralize) {
                 // Migrate to a collateral token and immediately
                 // collateralize it.
-                IMToken(migrationToken.mTokenAddress).depositAsCollateralFor(
-                    amount,
-                    msg.sender
-                );
+                IMToken(mToken).depositAsCollateralFor(amount, msg.sender);
             } else {
                 // Migrate to a collateral token and just deposit it.
-                IMToken(migrationToken.mTokenAddress).deposit(
-                    amount,
-                    msg.sender
-                );
+                IMToken(mToken).deposit(amount, msg.sender);
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IMToken(migrationToken.mTokenAddress).mintFor(amount, msg.sender);
+            IMToken(mToken).mintFor(amount, msg.sender);
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(
-            prefarmToken,
-            migrationToken.mTokenAddress
-        );
+        SwapperLib._removeApprovalIfNeeded(token,mToken);
 
-        emit Migrated(msg.sender, prefarmToken, amount);
+        emit Migrated(msg.sender, token, amount);
     }
+
+    function addPrefarmTokens(address[] calldata tokens) external {
+        _isPrefarmManager();
+
+        uint256 numTokens = tokens.length;
+        address cachedToken;
+
+        for (uint256 i; i < numTokens; ++i) {
+            cachedToken = tokens[i];
+            if (tokenData[cachedToken].isApproved) {
+                continue;
+            }
+
+            tokenData[cachedToken].isApproved = true;
+            emit PrefarmTokenApproved(cachedToken);
+        }
+    }
+
+    /// PERMISSIONED FUNCTIONS ///
 
     function setMigrationConfig(
         address prefarmToken,
         address protocolToken
     ) external {
-        // Validate proper function authority.
-        if (msg.sender != prefarmManager) {
-            revert CurvancePrefarm__Unauthorized();
+        _isPrefarmManager();
+
+        if (!tokenData[prefarmToken].isApproved) {
+            revert CurvancePrefarm__InvalidParameters();
         }
 
         // Validate the protocol token has the prefarm token as its
@@ -199,6 +236,8 @@ contract CurvancePrefarm {
         // input.
         tokenData[prefarmToken].isCToken = IMToken(protocolToken).isCToken();
         tokenData[prefarmToken].mTokenAddress = protocolToken;
+
+        emit MigrationTokenConfigured(prefarmToken, protocolToken);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -208,9 +247,17 @@ contract CurvancePrefarm {
         uint256 amount,
         address receiver
     ) internal {
-        // Record balance for future redemption/migration
+        // Record balance for future redemption/migration.
         balanceOf[receiver][prefarmToken] += amount;
-        // Emit deposit event for offchain system.
+
+        // Emit deposit event for offchain indexing.
         emit Deposited(receiver, prefarmToken, amount);
+    }
+
+    function _isPrefarmManager() internal view {
+        // Validate proper function authority.
+        if (msg.sender != prefarmManager) {
+            revert CurvancePrefarm__Unauthorized();
+        }
     }
 }
