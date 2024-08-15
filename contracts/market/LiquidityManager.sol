@@ -151,6 +151,12 @@ abstract contract LiquidityManager {
 
     /// CONSTANTS ///
 
+    /// @notice Minimum loan size allowed inside Curvance that can be created
+    ///         from a new line of credit inside a market.
+    /// @dev This restriction is to minimize the potential of debt positions
+    ///      being created that cannot not be profitably closed.
+    uint256 public constant MIN_ACTIVE_LOAN_SIZE = 50e18;
+
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -167,6 +173,7 @@ abstract contract LiquidityManager {
     /// ERRORS ///
 
     error LiquidityManager__InvalidParameter();
+    error LiquidityManager__InsufficientLoanSize();
 
     constructor(ICentralRegistry centralRegistry_) {
         if (
@@ -387,6 +394,19 @@ abstract contract LiquidityManager {
                             snapshot.decimals,
                             false
                         );
+
+                        // Initially, we would worry that newDebt can be
+                        // incremented during both borrow and redemption
+                        // actions but actions are done in isolation, so if
+                        // newDebt is increases here then mTokenModified will
+                        // never reach the redemption action block.
+                        // This means we can check terminal newDebt value here
+                        // and know its only including current and
+                        // hypothetical new debt.
+                        if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                            revert LiquidityManager__InsufficientLoanSize();
+                        }
+
                         // We don't need to check for closing a position here since
                         // borrow action will only expand a position.
                     }
@@ -679,7 +699,7 @@ abstract contract LiquidityManager {
     /// @notice Calculates an assets value based on its `price`,
     ///         `amount`, and adjusts for decimals.
     /// @param amount The asset amount to calculate asset value from.
-    /// @param price The asset price to calculate asset value from.
+    /// @param price The asset price to calculate asset value from, in `WAD`.
     /// @param decimals The asset decimals to adjust asset value
     ///                 into proper form.
     /// @param increasesCollateral Whether the asset adds positive value or
@@ -704,7 +724,7 @@ abstract contract LiquidityManager {
     ///         `exchangeRate`, `price`, `collRatio`, and adjusts for decimals.
     /// @param amount The asset amount to redeem.
     /// @param exchangeRate The exchange rate between cToken and underlying.
-    /// @param price The asset's price.
+    /// @param price The asset's price, in `WAD`.
     /// @param decimals The asset's decimals to adjust redemption value
     ///                 into proper form.
     /// @param collRatio The collateralization ratio of the asset.
@@ -733,7 +753,7 @@ abstract contract LiquidityManager {
     ///                          calculated for new maximum borrow allowed.
     /// @param posted Current collateral posted.
     /// @param exchangeRate The exchange rate between cToken and underlying.
-    /// @param price The asset's price.
+    /// @param price The asset's price, in `WAD`.
     /// @param decimals The asset's decimals to adjust liquidity value
     ///                 into proper form.
     /// @param collRatio The collateralization ratio of the asset.
@@ -761,7 +781,7 @@ abstract contract LiquidityManager {
     /// @param snapshot Asset snapshot to calculate asset value from.
     /// @param account The account to query collateral posted for to calculate
     ///                liquidation values off of.
-    /// @param price The asset price to calculate asset value from.
+    /// @param price The asset price to calculate asset value from, in `WAD`.
     /// @param collateralSumPrior Prior collateral value to sum with asset
     ///                           value calculated.
     /// @param softSumPrior Prior soft liquidation value to sum with asset

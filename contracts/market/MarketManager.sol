@@ -289,6 +289,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
     /// @notice Determine what the account liquidity would be if
     ///         the given amounts were redeemed/borrowed.
+    /// @dev Will natively revert if a hypothetical borrow will result in a
+    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`. 
     /// @param account The account to determine liquidity for.
     /// @param mTokenModified The market to hypothetically redeem/borrow in.
     /// @param redeemTokens The number of tokens to hypothetically redeem.
@@ -1064,7 +1066,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     }
 
     /// @notice Set `newCollateralizationCaps` for the given `mTokens`.
-    /// @dev Emits a {NewCollateralCap} event.
+    /// @dev Can emit {NewCollateralCap} events.
     /// @param mTokens The addresses of the markets (tokens) to
     ///                change the borrow caps for.
     /// @param newCollateralCaps The new collateral cap values in underlying
@@ -1280,7 +1282,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         checks have been passed.
     /// @dev Used as sort of a garbage collection system for any user positions
     ///      that should be closed to optimize future liquidity checks.
-    ///      May emits {TokenPositionClosed} events.
+    ///      May emit {TokenPositionClosed} events.
     /// @param account The address of the account to close a
     ///                `mToken` position for.
     /// @param positionsToClose Array containing all The address of the asset to be removed.
@@ -1337,7 +1339,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev May emit a {TokenPositionCreated} event.
+    /// @dev Will natively revert if a hypothetical borrow will result in a
+    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`. 
+    ///      May emit a {TokenPositionCreated} event.
     /// @param dToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
