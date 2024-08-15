@@ -11,6 +11,13 @@ contract CurvancePrefarm {
 
     /// @notice Stores information relating a prefarm token to the Curvance
     ///         Protocol.
+    /// @param isApproved Whether a token is approved for deposit inside the
+    ///                   prefarm.
+    /// @param mTokenAddress The protocol linked mToken address for a token
+    ///                      deposited inside the prefarm, configured on
+    ///                      protocol deployment.
+    /// @param isCToken Whether protocol linked mToken address is a cToken or
+    ///                 not, configured on protocol deployment.
     struct TokenData {
         bool isApproved;
         address mTokenAddress;
@@ -62,6 +69,13 @@ contract CurvancePrefarm {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Deposits approved tokens into the prefarm contract,
+    ///         and emits events to be consumed offchain.
+    /// @dev Can emit {Deposited} events.
+    /// @param tokens An array containing the addresses of the prefarm tokens
+    ///               to be deposited.
+    /// @param amounts An array containing the amount of each token to be
+    ///                deposited.
     function multiDeposit(
         address[] calldata tokens,
         uint256[] calldata amounts
@@ -100,6 +114,11 @@ contract CurvancePrefarm {
         }
     }
 
+    /// @notice Deposits an approved token into the prefarm contract,
+    ///         and emits an event to be consumed offchain.
+    /// @dev Emits a {Deposited} event.
+    /// @param token The address of the prefarm token to be deposited.
+    /// @param amount The amount of `token` to be deposited.
     function deposit(address token, uint256 amount) external {
         // Validate that prefarm deposit window has not ended.
         if (block.timestamp > prefarmEndTimestamp) {
@@ -123,6 +142,11 @@ contract CurvancePrefarm {
         _recordDeposit(token, amount, msg.sender);
     }
 
+    /// @notice Withdraws a prefarm deposit from the prefarm and emits a
+    ///         penalty event to be consumed offchain.
+    /// @dev Emits a {WithdrawnWithPenalty} event.
+    /// @param token The address of the prefarm token to be withdrawn.
+    /// @param amount The amount of `token` to be withdrawn.
     function withdraw(address token, uint256 amount) external {
         // Validate that user has sufficient deposited balance to withdraw
         // `amount`.
@@ -139,6 +163,15 @@ contract CurvancePrefarm {
         emit WithdrawnWithPenalty(msg.sender);
     }
 
+    /// @notice Migrates a prefarm deposit into a corresponding Curvance
+    ///         protocol mToken position.
+    /// @dev Emits a {Migrated} event.
+    /// @param token The address of the prefarm token to be migrated.
+    /// @param amount The amount of `token` to be migrated.
+    /// @param collateralize Whether the mToken deposit should be
+    ///                      collateralized or not, only used in cases where
+    ///                      the prefarm token is being deposited into a
+    ///                      cToken position.
     function migrate(
         address token,
         uint256 amount,
@@ -192,6 +225,10 @@ contract CurvancePrefarm {
         emit Migrated(msg.sender, token, amount);
     }
 
+    /// @notice Adds deposit support for a token inside the prefarm.
+    /// @dev Can emit {PrefarmTokenApproved} events.
+    /// @param tokens An array containing the tokens to be enabled inside
+    ///               the prefarm.
     function addPrefarmTokens(address[] calldata tokens) external {
         _isPrefarmManager();
 
@@ -200,6 +237,8 @@ contract CurvancePrefarm {
 
         for (uint256 i; i < numTokens; ++i) {
             cachedToken = tokens[i];
+            // If the token is already supported we can just skip approving,
+            // and emitting approval event.
             if (tokenData[cachedToken].isApproved) {
                 continue;
             }
@@ -211,12 +250,21 @@ contract CurvancePrefarm {
 
     /// PERMISSIONED FUNCTIONS ///
 
+    /// @notice Configures a links prefarm token and a deployed Curvance
+    ///         mToken so that user's can migrate deposits into the Curvance
+    ///         Protocol.
+    /// @dev Emits a {MigrationTokenConfigured} event.
+    /// @param prefarmToken The address of the prefarm token to be configured.
+    /// @param protocolToken The address of the protocol mToken to be
+    ///                      configured.
     function setMigrationConfig(
         address prefarmToken,
         address protocolToken
     ) external {
         _isPrefarmManager();
 
+        // Validate that `prefarmToken` is actually supported inside the
+        // prefarm.
         if (!tokenData[prefarmToken].isApproved) {
             revert CurvancePrefarm__InvalidParameters();
         }
@@ -242,6 +290,12 @@ contract CurvancePrefarm {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Records a prefarm deposit by incrementing a receivers balance,
+    ///      and emitting an event for offchain indexing system.
+    /// @dev Emits a {Deposited} event.
+    /// @param prefarmToken The address of the prefarm token being deposited.
+    /// @param amount The `amount` of prefarm token being deposited.
+    /// @param receiver The user account receiving the deposit benefit.
     function _recordDeposit(
         address prefarmToken,
         uint256 amount,
@@ -254,6 +308,7 @@ contract CurvancePrefarm {
         emit Deposited(receiver, prefarmToken, amount);
     }
 
+    /// @notice Validates whether the current caller is the `prefarmManager`.
     function _isPrefarmManager() internal view {
         // Validate proper function authority.
         if (msg.sender != prefarmManager) {
