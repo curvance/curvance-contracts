@@ -15,6 +15,13 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         deal(_USDC_ADDRESS, user1, 100e6);
         deal(_BAL_WETH_RETH_ADDRESS, user1, 100e18);
 
+        address[] memory newPrefarmTokens = new address[](1);
+        newPrefarmTokens[0] = _BAL_WETH_RETH_ADDRESS;
+
+        vm.startPrank(manager);
+        curvancePrefarm.addPrefarmTokens(newPrefarmTokens);
+        vm.stopPrank();
+
         usdc.approve(address(dUSDC), 1000e6);
         balRETH.approve(address(cBALRETH), 1000e18);
 

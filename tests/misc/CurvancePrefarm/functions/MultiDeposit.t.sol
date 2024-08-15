@@ -41,10 +41,10 @@ contract MultiDepositTest is TestBaseCurvancePrefarm {
     }
 
     function test_deposit_fail_whenUnapprovedToken() public {
-        deal(_DAI_ADDRESS, user1, 100e6);
+        deal(_WETH_ADDRESS, user1, 100e6);
 
         address[] memory wethAddress = new address[](1);
-        wethAddress[0] = _DAI_ADDRESS;
+        wethAddress[0] = _WETH_ADDRESS;
 
         uint256[] memory wethAmount = new uint256[](1);
         wethAmount[0] = 100e6;

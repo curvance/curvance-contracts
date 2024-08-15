@@ -68,7 +68,11 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         assertFalse(isCToken);
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
+        address[] memory newPrefarmTokens = new address[](1);
+        newPrefarmTokens[0] = _BAL_WETH_RETH_ADDRESS;
+
         vm.prank(manager);
+        curvancePrefarm.addPrefarmTokens(newPrefarmTokens);
         curvancePrefarm.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
             address(cBALRETH)
