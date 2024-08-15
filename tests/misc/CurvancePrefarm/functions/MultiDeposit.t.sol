@@ -57,7 +57,7 @@ contract MultiDepositTest is TestBaseCurvancePrefarm {
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
 
-        curvancePrefarm.deposit(wethAddress, wethAmount);
+        curvancePrefarm.multiDeposit(wethAddress, wethAmount);
     }
 
     function test_multiDeposit_success() public {

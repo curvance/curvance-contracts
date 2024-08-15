@@ -44,7 +44,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         marketManager.listToken(address(dUSDC));
         marketManager.listToken(address(cBALRETH));
 
-        (bool isCToken, address mTokenAddress) = curvancePrefarm.tokenData(
+        (, address mTokenAddress, bool isCToken) = curvancePrefarm.tokenData(
             _USDC_ADDRESS
         );
 
@@ -54,12 +54,14 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.prank(manager);
         curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
 
-        (isCToken, mTokenAddress) = curvancePrefarm.tokenData(_USDC_ADDRESS);
+        (, address mTokenAddress, bool isCToken) = curvancePrefarm.tokenData(
+            _USDC_ADDRESS
+        );
 
         assertFalse(isCToken);
         assertEq(mTokenAddress, address(dUSDC));
 
-        (isCToken, mTokenAddress) = curvancePrefarm.tokenData(
+        (, address mTokenAddress, bool isCToken) = curvancePrefarm.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
@@ -72,7 +74,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
             address(cBALRETH)
         );
 
-        (isCToken, mTokenAddress) = curvancePrefarm.tokenData(
+        (, address mTokenAddress, bool isCToken) = curvancePrefarm.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
