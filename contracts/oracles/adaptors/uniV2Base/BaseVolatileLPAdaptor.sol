@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
