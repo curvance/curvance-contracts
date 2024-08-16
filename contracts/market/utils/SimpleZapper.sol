@@ -257,13 +257,13 @@ contract SimpleZapper is ReentrancyGuard {
             assets = mToken.redeemFor(shares, address(this), msg.sender);
         }
 
-        // Validate that output of redemption is sufficient.
+        // Validate output of redemption is sufficient.
         if (assets < expectedAssets) {
             revert SimpleZapper__ExecutionError();
         }
 
+        // Return any excess assets backed to user.
         if (assets > expectedAssets) {
-            // refund remaining assets back to user
             _transferToRecipient(
                 underlying,
                 recipient,
