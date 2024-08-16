@@ -577,7 +577,7 @@ abstract contract LiquidityManager {
 
         // Indicates bad debt has accumulated and liquidation by
         // account should be used.
-        if (accountCollateral <= accountDebt) {
+        if (accountCollateral < accountDebt) {
             return result;
         }
 

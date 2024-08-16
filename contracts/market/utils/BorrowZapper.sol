@@ -6,6 +6,7 @@ import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
@@ -162,10 +163,7 @@ contract BorrowZapper is ReentrancyGuard {
         if (msg.value < wormholeFee) {
             revert BorrowZapper__InsufficientGasToken();
         }
-        if (msg.value > wormholeFee) {
-            address(msg.sender).call{ value: msg.value - wormholeFee }("");
-        }
-
+        
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
@@ -208,6 +206,12 @@ contract BorrowZapper is ReentrancyGuard {
             messageKeys,
             15
         );
+
+        // Refund any remaining unused native token attached to transaction.
+        uint256 remaining = msg.value - wormholeFee;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, remaining);
+        }
     }
 
     /// @notice Quotes gas cost and token fee for executing crosschain
