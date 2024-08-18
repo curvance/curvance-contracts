@@ -61,20 +61,20 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
         (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], cTokens[0], 100e18);
+        _postCollateral(users[0], cTokens[0], 100e18);
 
-        _genCollateral(users[1], cTokens[1], 1 ether);
-        _postCollateral(users[1], cTokens[1], 1 ether);
+        _genCollateral(users[1], cTokens[1], 100e18);
+        _postCollateral(users[1], cTokens[1], 100e18);
 
-        _genCollateral(users[2], cTokens[1], 1 ether);
-        _postCollateral(users[2], cTokens[1], 1 ether);
+        _genCollateral(users[2], cTokens[1], 100e18);
+        _postCollateral(users[2], cTokens[1], 100e18);
 
-        _supplyDToken(users[2], dTokens[0], 3 ether);
+        _supplyDToken(users[2], dTokens[0], 300e18);
 
-        _borrow(users[0], dTokens[0], 0.7 ether);
-        _borrow(users[1], dTokens[0], 0.7 ether);
-        _borrow(users[2], dTokens[0], 0.7 ether);
+        _borrow(users[0], dTokens[0], 70e18);
+        _borrow(users[1], dTokens[0], 70e18);
+        _borrow(users[2], dTokens[0], 70e18);
 
         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
             skip(20 minutes);
@@ -429,14 +429,14 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
         (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], cTokens[0], 500e18);
+        _postCollateral(users[0], cTokens[0], 500e18);
 
-        _supplyDToken(users[2], dTokens[0], 3 ether);
-        _borrow(users[0], dTokens[0], 0.6 ether);
+        _supplyDToken(users[2], dTokens[0], 1_500e18);
+        _borrow(users[0], dTokens[0], 300e18);
 
-        _supplyDToken(users[2], dTokens[1], 3 ether);
-        _borrow(users[0], dTokens[1], 0.1 ether);
+        _supplyDToken(users[2], dTokens[1], 1_500e18);
+        _borrow(users[0], dTokens[1], 50e18);
 
         skip(20 minutes);
         _updateRoundData(cTokensAgg[0], 0, 0.9e8);

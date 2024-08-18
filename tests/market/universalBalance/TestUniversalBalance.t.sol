@@ -110,7 +110,7 @@ contract TestUniversalBalance is TestBaseMarket {
         {
             // support market
             deal(_WETH_ADDRESS, owner, 200000 ether);
-            WETH.approve(address(dWETH), 200000e6);
+            WETH.approve(address(dWETH), 200000e18);
             marketManager.listToken(address(dWETH));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(dWETH));
@@ -170,18 +170,18 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testDepositETH() public {
-        vm.deal(user1, 1 ether);
+        vm.deal(user1, 100e18);
         vm.startPrank(user1);
-        universalBalance.depositETH{ value: 1 ether }(false);
+        universalBalance.depositETH{ value: 100e18 }(false);
 
-        vm.deal(user1, 1 ether);
-        universalBalance.depositETH{ value: 1 ether }(true);
+        vm.deal(user1, 100e18);
+        universalBalance.depositETH{ value: 100e18 }(true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertEq(lentBalance, 1 ether);
+        assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 100e18);
     }
 
     function testDepositWETH() public {
@@ -228,9 +228,9 @@ contract TestUniversalBalance is TestBaseMarket {
         testDepositETH();
 
         vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(1 ether, false);
+        universalBalance.withdrawAsWETH(100e18, false);
 
-        universalBalance.withdrawAsWETH(1 ether, true);
+        universalBalance.withdrawAsWETH(100e18, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -270,27 +270,27 @@ contract TestUniversalBalance is TestBaseMarket {
         testDepositETH();
 
         // mint cWBTC & borrow WETH
-        deal(_WBTC_ADDRESS, user2, 1e8);
+        deal(_WBTC_ADDRESS, user2, 100e8);
         vm.startPrank(user2);
-        WBTC.approve(address(cWBTC), 1e8);
-        cWBTC.mint(1e8, user2);
-        marketManager.postCollateral(user2, address(cWBTC), 1e8);
-        dWETH.borrow(0.5 ether);
+        WBTC.approve(address(cWBTC), 100e8);
+        cWBTC.mint(100e8, user2);
+        marketManager.postCollateral(user2, address(cWBTC), 100e8);
+        dWETH.borrow(50e18);
 
         vm.stopPrank();
 
         skip(10 weeks);
 
-        deal(_WETH_ADDRESS, owner, 1 ether);
-        WETH.approve(address(dWETH), 1 ether);
-        dWETH.mint(1 ether);
+        deal(_WETH_ADDRESS, owner, 100e18);
+        WETH.approve(address(dWETH), 100e18);
+        dWETH.mint(100e18);
 
         vm.prank(user1);
-        universalBalance.withdrawAsWETH(0.5 ether, true);
+        universalBalance.withdrawAsWETH(50e18, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertGt(lentBalance, 0.5 ether);
+        assertEq(sittingBalance, 100e18);
+        assertGt(lentBalance, 50e18);
     }
 }
