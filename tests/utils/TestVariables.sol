@@ -24,6 +24,7 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -108,6 +109,7 @@ contract TestVariables {
     IERC20 public usdc;
     IERC20 public dai;
     IERC20 public weth;
+    IERC20 public wbtc;
     IERC20 public balRETH;
 
     MockV3Aggregator public chainlinkUsdcUsd;
@@ -163,6 +165,9 @@ contract TestVariables {
     uint256 public voteBoostMultiplier = 11000; // 110%
     uint256 public lockBoostMultiplier = 10000; // 110%
     uint256 public marketInterestFactor = 1000; // 10%
+
+    bytes public response;
+    IWormhole.Signature[] public signatures;
 
     modifier initMainVariables() {
         _initMainVariables();
@@ -284,6 +289,17 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        _WORMHOLE_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
+        _WORMHOLE_RELAYERS[
+            chainId
+        ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
+        _CIRCLE_TOKEN_MESSENGERS[
+            chainId
+        ] = 0x2B4069517957735bE00ceE0fadAE88a26365528f;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8;
+        _TOKEN_BRIDGES[chainId] = 0x1D68124e65faFC907325e3EDbF8c4d84499DAa8b;
     }
 
     function _initBaseVariables() internal {
@@ -326,6 +342,7 @@ contract TestVariables {
         usdc = IERC20(_USDC_ADDRESS);
         dai = IERC20(_DAI_ADDRESS);
         weth = IERC20(_WETH_ADDRESS);
+        wbtc = IERC20(_WBTC_ADDRESS);
         balRETH = IERC20(_BAL_WETH_RETH_ADDRESS);
     }
 

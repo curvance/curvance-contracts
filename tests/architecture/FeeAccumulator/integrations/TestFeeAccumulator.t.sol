@@ -133,12 +133,16 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         feeAccumulator.multiSwap(abi.encode(multiSwapData), rewardTokens);
 
         // bridge...
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -253,12 +257,16 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         feeAccumulator.executeOTC(_WETH_ADDRESS, 1 ether);
 
         // bridge...
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 

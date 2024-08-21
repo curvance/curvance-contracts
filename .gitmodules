@@ -15,4 +15,4 @@
 	url = https://github.com/redstone-finance/redstone-oracles-monorepo
 [submodule "lib/pigeon"]
 	path = lib/pigeon
-	url = https://github.com/exp-table/pigeon
+	url = https://github.com/satherinja/pigeon

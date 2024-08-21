@@ -56,7 +56,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     }
 
     // function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
-    //     skip(gaugePool.startTime() - block.timestamp);
+    //     vm.warp(gaugePool.startTime());
     //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
     //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
@@ -74,7 +74,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     // }
 
     // function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
-    //     skip(gaugePool.startTime() - block.timestamp);
+    //     vm.warp(gaugePool.startTime());
     //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
     //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
@@ -91,7 +91,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     // }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        vm.warp(gaugePool.startTime());
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -115,7 +115,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     function test_canBorrowWithNotify_success_whenSufficientLiquidity()
         public
     {
-        skip(gaugePool.startTime() - block.timestamp);
+        vm.warp(gaugePool.startTime());
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -205,7 +205,17 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     }
 
     function test_canBorrowWithNotify_success_entersUserInMarket() external {
-        skip(gaugePool.startTime() - block.timestamp);
+        vm.warp(gaugePool.startTime());
+
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
+        chainlinkEthUsd.updateRoundData(
+            0,
+            1500e8,
+            block.timestamp,
+            block.timestamp
+        );
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -219,22 +229,49 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
             block.timestamp
         );
 
+        marketManager.listToken(address(cBALRETH));
+        marketManager.updateCollateralToken(
+            IMToken(address(cBALRETH)),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            10,
+            1000
+        );
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(cBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManager.setCTokenCollateralCaps(tokens, caps);
+
+        // Need some CTokens/collateral to have enough liquidity for borrowing
+        deal(address(balRETH), user1, 10_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(cBALRETH), 1_000e18);
+        cBALRETH.deposit(1_000e18, user1);
+        marketManager.postCollateral(user1, address(cBALRETH), 999e18);
+        vm.stopPrank();
+
         bool hasPosition;
         (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
-        assertEq(accountAssets.length, 0);
+        assertEq(accountAssets.length, 1);
 
         vm.prank(address(dUSDC));
-        marketManager.canBorrowWithNotify(address(dUSDC), user1, 0);
+        marketManager.canBorrowWithNotify(address(dUSDC), user1, 1_000e6);
 
         (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
 
         assertTrue(hasPosition);
 
         accountAssets = marketManager.assetsOf(user1);
-        assertEq(accountAssets.length, 1);
-        assertEq(address(accountAssets[0]), address(dUSDC));
+        assertEq(accountAssets.length, 2);
+        assertEq(address(accountAssets[0]), address(cBALRETH));
+        assertEq(address(accountAssets[1]), address(dUSDC));
     }
 }

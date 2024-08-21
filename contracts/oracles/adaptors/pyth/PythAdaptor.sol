@@ -3,8 +3,9 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+
 import { WAD } from "contracts/libraries/Constants.sol";
-import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";

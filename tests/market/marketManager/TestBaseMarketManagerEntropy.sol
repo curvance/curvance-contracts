@@ -182,7 +182,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
                 (accCollateral, accMaxDebt, accDebt) = marketManager.statusOf(
                     users[i]
                 );
-                amount = _genRandom(i, entropy, 0.2 ether, 1 ether);
+                amount = _genRandom(i, entropy, 100e18, 500e18);
                 console2.log("borrow amount %s", amount);
                 console2.log("solvency %s debt %s", solvency, debt);
                 console2.log(
