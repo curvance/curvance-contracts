@@ -2,8 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Convex2PoolCToken, IERC20 } from "contracts/market/collateral/Convex2PoolCToken.sol";
+import { IERC20 } from "contracts/market/collateral/Convex2PoolCToken.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";

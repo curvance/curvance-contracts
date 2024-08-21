@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 

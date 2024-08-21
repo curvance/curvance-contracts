@@ -20,7 +20,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
         new AuraCToken(
             ICentralRegistry(address(0)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -34,7 +34,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         vm.expectRevert(CTokenBase.CTokenBase__InvalidMarketManager.selector);
         new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(1),
             109,
             _REWARDER,
@@ -57,7 +57,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
         );
         new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -68,7 +68,7 @@ contract CTokenCompoundingDeploymentTest is TestBaseCTokenCompounding {
     function test_cTokenCompoundingDeployment_success() public {
         cBALRETH = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,

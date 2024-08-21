@@ -9,7 +9,7 @@ import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -30,9 +30,6 @@ contract TestUniversalBalance is TestBaseMarket {
     CTokenPrimitive public cWBTC;
     UniversalBalance public universalBalance;
     DToken public dWETH;
-
-    IERC20 private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
-    IERC20 private WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     function setUp() public override {
         super.setUp();
@@ -110,7 +107,7 @@ contract TestUniversalBalance is TestBaseMarket {
         {
             // support market
             deal(_WETH_ADDRESS, owner, 200000 ether);
-            WETH.approve(address(dWETH), 200000e18);
+            weth.approve(address(dWETH), 200000e18);
             marketManager.listToken(address(dWETH));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(dWETH));
@@ -127,13 +124,13 @@ contract TestUniversalBalance is TestBaseMarket {
             // deploy aura position vault
             cWBTC = new CTokenPrimitive(
                 ICentralRegistry(address(centralRegistry)),
-                WBTC,
+                wbtc,
                 address(marketManager)
             );
 
             // support market
             deal(_WBTC_ADDRESS, owner, 1e8);
-            WBTC.approve(address(cWBTC), 1e8);
+            wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(cWBTC));
@@ -272,7 +269,7 @@ contract TestUniversalBalance is TestBaseMarket {
         // mint cWBTC & borrow WETH
         deal(_WBTC_ADDRESS, user2, 100e8);
         vm.startPrank(user2);
-        WBTC.approve(address(cWBTC), 100e8);
+        wbtc.approve(address(cWBTC), 100e8);
         cWBTC.mint(100e8, user2);
         marketManager.postCollateral(user2, address(cWBTC), 100e8);
         dWETH.borrow(50e18);
@@ -282,7 +279,7 @@ contract TestUniversalBalance is TestBaseMarket {
         skip(10 weeks);
 
         deal(_WETH_ADDRESS, owner, 100e18);
-        WETH.approve(address(dWETH), 100e18);
+        weth.approve(address(dWETH), 100e18);
         dWETH.mint(100e18);
 
         vm.prank(user1);
