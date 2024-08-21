@@ -1,0 +1,268 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
+
+import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
+import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
+import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { WormholeMock } from "tests/utils/WormholeMock.sol";
+import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
+import { Vm } from "forge-std/Vm.sol";
+
+contract TestVotingHub is TestBaseVotingHub {
+    uint256 public srcForkId;
+    uint256 public dstForkId1;
+    uint256 public dstForkId2;
+    WormholeHelper public wormholeHelper;
+    uint256[] public gasLimit;
+    EmissionData internal _emissionData;
+    EmissionData[] internal _remoteEmissionData;
+
+    function setUp() public override {
+        // Fork Ethereum as source chain and select it
+        srcForkId = _fork(19140000);
+
+        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        wormholeHelper = new WormholeHelper();
+
+        // Deploy contracts on forked Ethereum
+        _init();
+
+        // Fork Arbitrum as destination chain and select it
+        dstForkId1 = _fork("ETH_NODE_URI_ARBITRUM", 176678420);
+
+        // Deploy contracts on forked Arbitrum
+        _deployBaseContracts();
+        _deployGaugePool();
+        _deployMarketManager();
+
+        gaugePool.start(address(marketManager));
+        _skipEpochDuration(2);
+
+        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
+        centralRegistry.setExternalCallDataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+        );
+        centralRegistry.addChainSupport(
+            address(messagingHubs[1]),
+            address(cves[1]),
+            _USDC_ADDRESSES[1],
+            1,
+            2,
+            _WORMHOLE_RELAYERS[1],
+            0
+        );
+
+        // Fork Optimism as destination chain and select it
+        dstForkId2 = _fork("ETH_NODE_URI_OPTIMISM", 115634760);
+
+        // Deploy contracts on forked Optimism
+        _deployBaseContracts();
+        _deployGaugePool();
+        _deployMarketManager();
+
+        gaugePool.start(address(marketManager));
+        _skipEpochDuration(2);
+
+        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
+        centralRegistry.setExternalCallDataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+        );
+        centralRegistry.addChainSupport(
+            address(messagingHubs[1]),
+            address(cves[1]),
+            _USDC_ADDRESSES[1],
+            1,
+            2,
+            _WORMHOLE_RELAYERS[1],
+            0
+        );
+
+        // Select forked Ethereum
+        vm.selectFork(srcForkId);
+
+        _initMainVariables();
+
+        centralRegistry.addChainSupport(
+            address(messagingHubs[42161]),
+            address(cve),
+            _USDC_ADDRESSES[42161],
+            42161,
+            23,
+            _WORMHOLE_RELAYERS[42161],
+            3
+        );
+        centralRegistry.addChainSupport(
+            address(messagingHubs[10]),
+            address(cve),
+            _USDC_ADDRESSES[10],
+            10,
+            24,
+            _WORMHOLE_RELAYERS[10],
+            2
+        );
+
+        deal(address(messagingHub), _ONE);
+
+        gasLimit.push(250_000);
+        gasLimit.push(250_000);
+
+        _emissionData.gaugePools = new address[](1);
+        _emissionData.emissionTotals = new uint256[](1);
+        _emissionData.tokens = new address[][](1);
+        _emissionData.emissions = new uint256[][](1);
+
+        _emissionData.tokens[0] = new address[](1);
+        _emissionData.emissions[0] = new uint256[](1);
+
+        _emissionData.emissionTotals[0] = _ONE;
+        _emissionData.emissions[0][0] = _ONE;
+
+        _emissionData.gaugePools[0] = address(gaugePools[42161]);
+        _emissionData.tokens[0][0] = _USDC_ADDRESSES[42161];
+        _remoteEmissionData.push(_emissionData);
+
+        _emissionData.gaugePools[0] = address(gaugePools[10]);
+        _emissionData.tokens[0][0] = _USDC_ADDRESSES[10];
+        _remoteEmissionData.push(_emissionData);
+
+        _emissionData.gaugePools[0] = address(gaugePool);
+        _emissionData.tokens[0][0] = _USDC_ADDRESS;
+    }
+
+    function test_executeEmissionConfiguration_multiple_success() public {
+        gaugePool.start(address(marketManager));
+
+        _skipEpochDuration(2);
+
+        votingHub.setEraTargetEmissions(_ONE * 5);
+
+        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugePool));
+
+        vm.recordLogs();
+
+        PerChainData[] memory perChainData = new PerChainData[](2);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        perChainData[1] = PerChainData(
+            24,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(messagingHubs[10]),
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
+            1,
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugePool)),
+            gaugePoolCVEBalance + _ONE
+        );
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+
+        // Select forked Arbitrum
+        vm.selectFork(dstForkId1);
+
+        _initMainVariables();
+
+        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
+            gaugePool.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(cve.balanceOf(address(gaugePool)), 0);
+        assertEq(totalWeights, 0);
+        assertEq(poolWeight, 0);
+
+        // Select forked Optimism
+        vm.selectFork(dstForkId2);
+
+        _initMainVariables();
+
+        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
+            gaugePool.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(cve.balanceOf(address(gaugePool)), 0);
+        assertEq(totalWeights, 0);
+        assertEq(poolWeight, 0);
+
+        // Select forked Ethereum
+        vm.selectFork(srcForkId);
+
+        _initMainVariables();
+
+        // Simulate wormhole cross-chain messaging with payloadType 2
+        uint256[] memory dstForkIds = new uint256[](2);
+        address[] memory expDstAddresses = new address[](2);
+        address[] memory dstRelayers = new address[](2);
+
+        dstForkIds[0] = dstForkId1;
+        dstForkIds[1] = dstForkId2;
+        expDstAddresses[0] = address(messagingHubs[42161]);
+        expDstAddresses[1] = address(messagingHubs[10]);
+        dstRelayers[0] = _WORMHOLE_RELAYERS[42161];
+        dstRelayers[1] = _WORMHOLE_RELAYERS[10];
+
+        wormholeHelper.help(2, dstForkIds, expDstAddresses, dstRelayers, logs);
+
+        // Select forked Arbitrum
+        vm.selectFork(dstForkId1);
+
+        _initMainVariables();
+
+        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
+            gaugePool.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+
+        // Select forked Optimism
+        vm.selectFork(dstForkId2);
+
+        _initMainVariables();
+
+        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
+            gaugePool.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+    }
+}

@@ -57,12 +57,17 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         gaugePool.start(address(marketManager));
         _skipEpochDuration(2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
@@ -85,12 +90,17 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     {
         _skipEpochDuration(2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
@@ -113,12 +123,17 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         _skipEpochDuration(2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
@@ -158,12 +173,17 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         _skipEpochDuration(2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
@@ -182,12 +202,17 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         _skipEpochDuration(2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
