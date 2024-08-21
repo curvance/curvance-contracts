@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract CurvancePrefarm {
@@ -26,6 +28,9 @@ contract CurvancePrefarm {
 
     /// CONSTANTS ///
 
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+
     /// @notice The administrator of the prefarm, should be a multisig
     ///         made up of several parties.
     address public immutable prefarmManager;
@@ -47,10 +52,13 @@ contract CurvancePrefarm {
 
     /// ERRORS ///
 
+    error CurvancePrefarm__InvalidCentralRegistry();
     error CurvancePrefarm__MigrationNotPossible();
     error CurvancePrefarm__PrefarmDepositsBlocked();
     error CurvancePrefarm__Unauthorized();
     error CurvancePrefarm__InvalidParameters();
+    error CurvancePrefarm__InvalidSwapData();
+    error CurvancePrefarm__InvalidSwapOutput();
 
     /// EVENTS ///
 
@@ -62,7 +70,22 @@ contract CurvancePrefarm {
 
     /// CONSTRUCTOR ///
 
-    constructor(address manager, uint256 endTimestamp) {
+    constructor(
+        ICentralRegistry centralRegistry_,
+        address manager,
+        uint256 endTimestamp
+    ) {
+        if (
+            !ERC165Checker.supportsInterface(
+                address(centralRegistry_),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            revert CurvancePrefarm__InvalidCentralRegistry();
+        }
+
+        centralRegistry = centralRegistry_;
+
         prefarmManager = manager;
         prefarmEndTimestamp = endTimestamp;
     }
@@ -140,6 +163,56 @@ contract CurvancePrefarm {
 
         // Record user deposit.
         _recordDeposit(token, amount, msg.sender);
+    }
+
+    function zapAndDeposit(
+        SwapperLib.Swap memory swapData,
+        uint256 depositAmount
+    ) external payable {
+        address token = swapData.outputToken;
+
+        // Validate that prefarm deposit window has not ended.
+        if (block.timestamp > prefarmEndTimestamp) {
+            revert CurvancePrefarm__PrefarmDepositsBlocked();
+        }
+
+        // Validate that `token` is approved for prefarm.
+        if (!tokenData[token].isApproved) {
+            revert CurvancePrefarm__InvalidParameters();
+        }
+
+        if (CommonLib.isETH(swapData.inputToken)) {
+            // Validate message has gas token attached.
+            if (swapData.inputAmount != msg.value) {
+                revert CurvancePrefarm__InvalidSwapData();
+            }
+        } else {
+            SafeTransferLib.safeTransferFrom(
+                swapData.inputToken,
+                msg.sender,
+                address(this),
+                swapData.inputAmount
+            );
+        }
+
+        // Execute swap into dToken underlying.
+        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+
+        if (amount < depositAmount) {
+            revert CurvancePrefarm__InvalidSwapOutput();
+        }
+
+        if (amount > depositAmount) {
+            // Refund remaining payment token
+            SafeTransferLib.safeTransfer(
+                token,
+                msg.sender,
+                amount - depositAmount
+            );
+        }
+
+        // Record user deposit.
+        _recordDeposit(token, depositAmount, msg.sender);
     }
 
     /// @notice Withdraws a prefarm deposit from the prefarm and emits a
@@ -220,7 +293,7 @@ contract CurvancePrefarm {
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(token,mToken);
+        SwapperLib._removeApprovalIfNeeded(token, mToken);
 
         emit Migrated(msg.sender, token, amount);
     }

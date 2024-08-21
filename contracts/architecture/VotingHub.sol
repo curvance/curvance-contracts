@@ -241,7 +241,9 @@ contract VotingHub is QueryResponse {
         uint256 timestamp
     ) public view returns (uint256) {
         return
-            timestamp < startTime ? 0 : (timestamp - startTime) / EPOCH_DURATION;
+            timestamp < startTime
+                ? 0
+                : (timestamp - startTime) / EPOCH_DURATION;
     }
 
     /// INTERNAL FUNCTIONS ///

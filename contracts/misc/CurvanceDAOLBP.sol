@@ -208,8 +208,6 @@ contract CurvanceDAOLBP {
             revert CurvanceDAOLBP__InvalidSwapData();
         }
 
-        uint256 balanceBefore = CommonLib.getTokenBalance(paymentToken);
-
         if (CommonLib.isETH(swapperData.inputToken)) {
             // Validate message has gas token attached.
             if (swapperData.inputAmount != msg.value) {
@@ -225,10 +223,8 @@ contract CurvanceDAOLBP {
         }
 
         // Execute swap into dToken underlying.
-        SwapperLib.swapUnsafe(centralRegistry, swapperData);
+        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
 
-        uint256 amount = CommonLib.getTokenBalance(paymentToken) -
-            balanceBefore;
         if (amount < commitAmount) {
             revert CurvanceDAOLBP__InvalidSwapOutput();
         }
