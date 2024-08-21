@@ -3,11 +3,27 @@ pragma solidity 0.8.19;
 
 import { TestBaseCurvancePrefarm } from "../TestBaseCurvancePrefarm.sol";
 import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
     function test_setMigrationConfig_fail_whenCallerIsNotManager() public {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__Unauthorized.selector
+        );
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+    }
+
+    function test_setMigrationConfig_fail_whenTokenIsNotApproved() public {
+        curvancePrefarm = new CurvancePrefarm(
+            ICentralRegistry(address(centralRegistry)),
+            manager,
+            block.timestamp + 1 weeks
+        );
+
+        vm.prank(manager);
+
+        vm.expectRevert(
+            CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
         curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
     }
@@ -54,9 +70,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.prank(manager);
         curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
 
-        (, mTokenAddress, isCToken) = curvancePrefarm.tokenData(
-            _USDC_ADDRESS
-        );
+        (, mTokenAddress, isCToken) = curvancePrefarm.tokenData(_USDC_ADDRESS);
 
         assertFalse(isCToken);
         assertEq(mTokenAddress, address(dUSDC));

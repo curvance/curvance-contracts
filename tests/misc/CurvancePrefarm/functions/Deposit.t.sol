@@ -16,20 +16,13 @@ contract DepositTest is TestBaseCurvancePrefarm {
         curvancePrefarm.deposit(_USDC_ADDRESS, 100e6);
     }
 
-    function test_deposit_fail_whenUnapprovedToken() public {
-        deal(_WETH_ADDRESS, user1, 100e6);
-
-        vm.startPrank(user1);
-
-        weth.approve(address(curvancePrefarm), 100e6);
-
+    function test_deposit_fail_whenTokenIsNotApproved() public {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
 
         curvancePrefarm.deposit(_WETH_ADDRESS, 100e6);
     }
-
 
     function test_deposit_success() public {
         deal(_USDC_ADDRESS, user1, 100e6);

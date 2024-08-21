@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import { TestBaseMessagingHub } from "tests/architecture/MessagingHub/TestBaseMessagingHub.sol";
 import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TestBaseCurvancePrefarm is TestBaseMessagingHub {
     CurvancePrefarm public curvancePrefarm;
@@ -12,6 +13,7 @@ contract TestBaseCurvancePrefarm is TestBaseMessagingHub {
         super.setUp();
 
         curvancePrefarm = new CurvancePrefarm(
+            ICentralRegistry(address(centralRegistry)),
             manager,
             block.timestamp + 1 weeks
         );

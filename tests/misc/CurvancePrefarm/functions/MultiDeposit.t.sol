@@ -40,18 +40,12 @@ contract MultiDepositTest is TestBaseCurvancePrefarm {
         curvancePrefarm.multiDeposit(prefarmTokens, amounts);
     }
 
-    function test_deposit_fail_whenUnapprovedToken() public {
-        deal(_WETH_ADDRESS, user1, 100e6);
-
+    function test_deposit_fail_whenTokenIsNotApproved() public {
         address[] memory wethAddress = new address[](1);
         wethAddress[0] = _WETH_ADDRESS;
 
         uint256[] memory wethAmount = new uint256[](1);
         wethAmount[0] = 100e6;
-
-        vm.startPrank(user1);
-
-        weth.approve(address(curvancePrefarm), 100e6);
 
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
