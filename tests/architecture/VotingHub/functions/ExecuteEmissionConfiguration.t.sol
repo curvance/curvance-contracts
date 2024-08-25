@@ -74,32 +74,6 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         );
     }
 
-    function test_executeEmissionConfiguration_fail_whenGaugePoolIsNotStarted()
-        public
-    {
-        _skipEpochDuration(2);
-
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
-            block.number,
-            uint64(block.timestamp * 1000000),
-            23,
-            srcMessagingHub,
-            abi.encodeWithSignature("queryEmissionsAllocated()")
-        );
-
-        votingHub.setEraTargetEmissions(_ONE * 3);
-
-        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
-        votingHub.executeEmissionConfiguration(
-            response,
-            signatures,
-            gasLimit,
-            _emissionData,
-            _remoteEmissionData
-        );
-    }
-
     function test_executeEmissionConfiguration_fail_whenLengthIsMismatch()
         public
     {

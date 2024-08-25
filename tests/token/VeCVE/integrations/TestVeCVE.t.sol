@@ -42,7 +42,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount);
 
-        vm.warp(veCVE.genesisEpoch() - 1 hours);
+        vm.warp(veCVE.genesisEpoch() - 13 hours);
         veCVE.createLock(amount, true, rewardsData, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);

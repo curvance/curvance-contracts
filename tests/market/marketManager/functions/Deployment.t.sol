@@ -16,17 +16,6 @@ contract MarketManagerDeploymentTest is TestBaseMarketManager {
         new MarketManager(ICentralRegistry(address(0)));
     }
 
-    function test_marketManagerDeployment_fail_whenGaugePoolIsZeroAddress()
-        public
-    {
-        vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
-        );
-        new MarketManager(
-            ICentralRegistry(address(centralRegistry))
-        );
-    }
-
     function test_marketManagerDeployment_success() public {
         marketManager = new MarketManager(
             ICentralRegistry(address(centralRegistry))

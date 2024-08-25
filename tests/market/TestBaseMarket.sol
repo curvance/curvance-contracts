@@ -45,7 +45,6 @@ contract TestBaseMarket is TestBase {
 
         _deployOracleRouter();
         _deployChainlinkAdaptors();
-        _deployGaugeManager();
 
         _deployMarketManager();
         _deployDynamicInterestRateModel();
@@ -69,6 +68,7 @@ contract TestBaseMarket is TestBase {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
+        _deployGaugeManager();
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeAccumulator();
