@@ -246,12 +246,54 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to check bad debt status for.
-    /// @return The total market value of `account`'s collateral.
-    /// @return The total outstanding debt value of `account`.
-    function solvencyOf(
+    /// @return accountCollateral The total market value of `account`'s
+    ///                           collateral.
+    /// @return accountCollateralSoft The total market value of `account`'s
+    ///                               collateral offset by soft liquidation
+    ///                               requirements.
+    /// @return accountCollateralHard The total market value of `account`'s
+    ///                               collateral offset by hard liquidation
+    ///                               requirements.
+    /// @return accountDebt The total outstanding debt value of `account`.
+    function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256) {
-        return _solvencyOf(account);
+    ) external view returns (
+        uint256 accountCollateral,
+            uint256 accountCollateralSoft,
+            uint256 accountCollateralHard,
+            uint256 accountDebt
+        ) {
+        (
+            accountCollateral,
+            accountCollateralSoft,
+            accountCollateralHard,
+            accountDebt,,
+        ) = _liquidationValuesOf(account, address(0), address(0));
+    }
+
+    function LiquidationStatusOf(
+        address account,
+        address debtToken,
+        address collateralToken
+    )
+        public
+        view
+        returns (
+            uint256 lfactor,
+            uint256 debtTokenPrice,
+            uint256 collateralTokenPrice
+        )
+    {
+        LiqData memory result = _LiquidationStatusOf(
+            account,
+            debtToken,
+            collateralToken
+        );
+        return (
+            result.lFactor,
+            result.debtTokenPrice,
+            result.collateralTokenPrice
+        );
     }
 
     /// @notice Determine whether `account` can currently be liquidated

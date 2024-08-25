@@ -75,13 +75,13 @@ contract PositionFolding is
             }
         }
 
-        (uint256 collateralBefore, uint256 debtBefore) = marketManager
-            .solvencyOf(account);
+        (uint256 collateralBefore,, uint256 debtBefore) = marketManager
+            .statusOf(account);
         uint256 liquidityBefore = collateralBefore - debtBefore;
 
         _;
 
-        (uint256 sumCollateral, uint256 sumDebt) = marketManager.solvencyOf(
+        (uint256 sumCollateral,, uint256 sumDebt) = marketManager.statusOf(
             account
         );
 
