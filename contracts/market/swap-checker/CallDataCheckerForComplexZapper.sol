@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { CallDataCheckerBase, SwapperLib } from "./CallDataCheckerBase.sol";
 
 contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
