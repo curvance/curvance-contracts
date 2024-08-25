@@ -33,7 +33,6 @@ contract TestVotingHub is TestBaseVotingHub {
 
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
-        _deployGaugeManager();
         _deployMarketManager();
 
         _skipEpochDuration(2);
@@ -60,7 +59,6 @@ contract TestVotingHub is TestBaseVotingHub {
 
         // Deploy contracts on forked Optimism
         _deployBaseContracts();
-        _deployGaugeManager();
         _deployMarketManager();
 
         _skipEpochDuration(2);
