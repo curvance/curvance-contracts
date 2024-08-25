@@ -9,8 +9,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-
 library SwapperLib {
     /// TYPES ///
 

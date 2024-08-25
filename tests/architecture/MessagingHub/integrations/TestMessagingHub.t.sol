@@ -13,11 +13,8 @@ import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
-import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract TestMessagingHub is TestBaseMessagingHub {
-    using stdStorage for StdStorage;
-
     uint256 public srcForkId;
     uint256 public dstForkId;
     WormholeHelper public wormholeHelper;
@@ -34,7 +31,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         _init();
 
         // Fork Arbitrum as destination chain and select it
-        dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 213946165);
+        dstForkId = _fork("ETH_NODE_URI_ARBITRUM", 176678420);
 
         wormholeHelper = new WormholeHelper();
 
@@ -93,12 +90,16 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _skipEpochDuration(3);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -117,11 +118,11 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
-
-        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
@@ -222,6 +223,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         messagingHub.sendFees(42161, 1000e6, 250_000);
 
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
         uint256 compoundingFee = (1000e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
@@ -233,8 +236,6 @@ contract TestMessagingHub is TestBaseMessagingHub {
             usdc.balanceOf(address(feeAccumulator)),
             usdcBalance - 1000e6
         );
-
-        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
@@ -258,6 +259,95 @@ contract TestMessagingHub is TestBaseMessagingHub {
         );
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
+    }
+
+    function test_sendFees_multiple_success() public {
+        deal(address(messagingHub), _ONE);
+        deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
+
+        uint256 daoBalance = usdc.balanceOf(address(this));
+        uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
+
+        vm.recordLogs();
+
+        messagingHub.sendFees(42161, 1000e6, 250_000);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 compoundingFee = (1000e6 *
+            centralRegistry.protocolCompoundFee()) /
+            centralRegistry.protocolHarvestFee();
+        uint256 pullAmount = 1000e6 - compoundingFee;
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
+        assertEq(usdc.balanceOf(address(this)), daoBalance + compoundingFee);
+        assertEq(
+            usdc.balanceOf(address(feeAccumulator)),
+            usdcBalance - 1000e6
+        );
+
+        // Select forked Arbitrum
+        vm.selectFork(dstForkId);
+
+        _initMainVariables();
+
+        rewardManager.notifyShutdown();
+
+        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
+
+        // Simulate wormhole cross-chain messaging with payloadType 1
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(messagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
+
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
+
+        // Select forked Ethereum
+        vm.selectFork(srcForkId);
+
+        _initMainVariables();
+
+        messagingHub.sendFees(42161, 1000e6, 250_000);
+
+        logs = vm.getRecordedLogs();
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
+        assertEq(
+            usdc.balanceOf(address(this)),
+            daoBalance + compoundingFee * 2
+        );
+        assertEq(
+            usdc.balanceOf(address(feeAccumulator)),
+            usdcBalance - 2000e6
+        );
+
+        // Select forked Arbitrum
+        vm.selectFork(dstForkId);
+
+        _initMainVariables();
+
+        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
+
+        // Simulate wormhole cross-chain messaging with payloadType 1
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(messagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
+
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount * 2);
     }
 
     function test_veCVE_bridgeLock_success() public {
@@ -302,10 +392,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
             0
         );
 
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
         assertEq(veCVE.balanceOf(user1), 0);
         assertEq(cve.totalSupply(), cveTotalSupply - veCVEBalance);
-
-        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);

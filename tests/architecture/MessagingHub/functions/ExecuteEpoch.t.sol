@@ -34,12 +34,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     {
         vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -58,12 +62,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
             2
         );
 
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -72,12 +80,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenResultIsNotNumber() public {
-        _prepareResponseAndSignatures(
-            abi.encode("wrong"),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode("wrong")
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -86,12 +98,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenBlockTimeIsStale() public {
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64((block.timestamp - 1000) * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -100,12 +116,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenChainIdIsInvalid() public {
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            24,
             block.number,
             uint64(block.timestamp * 1000000),
-            24,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -114,12 +134,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenToAddressIsInvalid() public {
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             address(1),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
@@ -128,12 +152,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_fail_whenCallDataIsInvalid() public {
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("wrong()")
         );
 
@@ -142,12 +170,16 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     }
 
     function test_executeEpoch_success() public {
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
             srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 

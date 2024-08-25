@@ -8,7 +8,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
 import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
@@ -33,8 +33,6 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
     CTokenPrimitive cWBTC;
 
-    IERC20 private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
-    IERC20 private WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address private PYTH = 0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
     function getRedstonePayload(
@@ -74,8 +72,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             redstoneSigners,
             1
         );
-        adapter.addAsset(address(WBTC), true, 8, 12 hours);
-        adapter.addAsset(address(WBTC), false, 18, 12 hours);
+        adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
+        adapter.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
 
         multicallDataChecker = new MulticallDataCheckerForRedstoneAdaptor(
             address(centralRegistry)
@@ -90,7 +88,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         bytes memory redstonePayload = getRedstonePayload("WBTC:60000:8");
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
-            WBTC,
+            _WBTC_ADDRESS,
             true
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
@@ -104,7 +102,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
         assertEq(success, true);
 
-        oracleRouter.addAssetPriceFeed(address(WBTC), address(adapter));
+        oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -138,13 +136,13 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             // deploy aura position vault
             cWBTC = new CTokenPrimitive(
                 ICentralRegistry(address(centralRegistry)),
-                WBTC,
+                wbtc,
                 address(marketManager)
             );
 
             // support market
             _prepareWBTC(owner, 1e8);
-            WBTC.approve(address(cWBTC), 1e8);
+            wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(cWBTC));
@@ -179,7 +177,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     }
 
     function _prepareWBTC(address user, uint256 amount) internal {
-        deal(address(WBTC), user, amount);
+        deal(_WBTC_ADDRESS, user, amount);
     }
 
     function provideEnoughLiquidityForLeverage() internal {
@@ -191,7 +189,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         usdc.approve(address(dUSDC), 200000e6);
         dUSDC.mint(200000e6);
         // mint cBALETH
-        WBTC.approve(address(cWBTC), 10 ether);
+        wbtc.approve(address(cWBTC), 10 ether);
         cWBTC.mint(10 ether, liquidityProvider);
         vm.stopPrank();
     }
@@ -205,7 +203,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
-        WBTC.approve(address(cWBTC), 1e8);
+        wbtc.approve(address(cWBTC), 1e8);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -214,7 +212,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
-            WBTC,
+            _WBTC_ADDRESS,
             true
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
@@ -237,7 +235,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
         assertEq(cWBTC.balanceOf(user1), 1e8);
         PriceReturnData memory priceData = adapter.getPrice(
-            address(WBTC),
+            _WBTC_ADDRESS,
             true,
             true
         );
@@ -257,7 +255,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
-            WBTC,
+            _WBTC_ADDRESS,
             true
         );
         bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
@@ -276,7 +274,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
 
         assertEq(dUSDC.balanceOf(user1), 1e6);
         PriceReturnData memory priceData = adapter.getPrice(
-            address(WBTC),
+            _WBTC_ADDRESS,
             true,
             true
         );
@@ -288,7 +286,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
             bytes memory encodedFunction = abi.encodeWithSignature(
                 "writePrice(address,bool)",
-                WBTC,
+                _WBTC_ADDRESS,
                 true
             );
             bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
@@ -312,7 +310,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
             bytes memory encodedFunction = abi.encodeWithSignature(
                 "writePriceSimple(address,bool)",
-                WBTC,
+                _WBTC_ADDRESS,
                 true
             );
             bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(

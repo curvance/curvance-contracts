@@ -8,7 +8,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
@@ -88,33 +87,41 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
             address(adaptor)
         );
 
-         (uint256 wethPrice, ) = oracleRouter.getPrice(
+        (uint256 wethPrice, ) = oracleRouter.getPrice(
             _WETH_ADDRESS,
             true,
             false
         );
-        console2.log('WETH price: ', wethPrice);
+        console2.log("WETH price: ", wethPrice);
 
         (uint256 rethPrice, ) = oracleRouter.getPrice(
             _RETH_ADDRESS,
             true,
             false
         );
-        console2.log('RETH price: ', rethPrice);
+        console2.log("RETH price: ", rethPrice);
 
-        uint256 expectedPriceFromTvl = WETH_RETH_TVL_USD * 1e18 / IERC20(_BAL_WETH_RETH_ADDRESS).totalSupply();
-        console2.log('expected RETH/WETH price from TVL: ', expectedPriceFromTvl);
+        uint256 expectedPriceFromTvl = (WETH_RETH_TVL_USD * 1e18) /
+            balRETH.totalSupply();
+        console2.log(
+            "expected RETH/WETH price from TVL: ",
+            expectedPriceFromTvl
+        );
 
-        uint256 expectedPriceFromRate = IBalancerPool(_BAL_WETH_RETH_ADDRESS).getRate() * wethPrice / 1e18;
-        console2.log('expected RETH/WETH price from ETH rate: ', expectedPriceFromRate);
+        uint256 expectedPriceFromRate = (IBalancerPool(_BAL_WETH_RETH_ADDRESS)
+            .getRate() * wethPrice) / 1e18;
+        console2.log(
+            "expected RETH/WETH price from ETH rate: ",
+            expectedPriceFromRate
+        );
 
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
             true,
             false
         );
-        
-        console2.log('computed RETH/WETH price: ', price);
+
+        console2.log("computed RETH/WETH price: ", price);
 
         assertEq(errorCode, 0);
         assertApproxEqRel(price, expectedPriceFromTvl, 0.002e18); // 0.2% error allowed

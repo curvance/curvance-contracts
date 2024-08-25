@@ -3,8 +3,9 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+
 import { WAD } from "contracts/libraries/Constants.sol";
-import { SafeTransferLib } from "contracts/libraries/ERC4626.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
@@ -234,6 +235,13 @@ contract PythAdaptor is BaseOracleAdaptor {
         // the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
         emit PythAssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 2;
     }
 
     /// INTERNAL FUNCTIONS ///

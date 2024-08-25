@@ -16,6 +16,15 @@ contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Checks attached calldata to validate that the target contract
+    ///         is an approved oracle adaptor and the proper function selector
+    ///         is being called.
+    /// @param caller Address of the user that will be updating the Pyth
+    ///               Adaptor price.
+    /// @param target Target contract address that will be called with `data`
+    ///               calldata.
+    /// @param data Calldata attached to target call, contains function
+    ///             signature being called which will be checked.
     function checkCallData(
         address caller,
         address target,

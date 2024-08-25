@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
-import { CurvanceDAOBonding } from "contracts/misc/CurvanceDAOBonding.sol";
+import { CurvanceDAOBonding } from "unused/contracts/misc/CurvanceDAOBonding.sol";
 
 contract DeployDAOBonding is Script {
     // forge script ./script/misc/DeployDAOBonding.s.sol --rpc-url $ETH_NODE_URI_ARB_SEPOLIA

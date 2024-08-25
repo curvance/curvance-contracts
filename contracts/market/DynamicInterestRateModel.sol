@@ -559,8 +559,7 @@ contract DynamicInterestRateModel is ERC165 {
     function _getVertexInterestRate(
         uint256 util
     ) internal view returns (uint256) {
-        // We divide by 1e36 (WAD_SQUARED) since we need to divide by WAD
-        // twice to maintain precision.
+        // We divide by WAD to maintain precision.
         return
             (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
             WAD;
@@ -632,11 +631,8 @@ contract DynamicInterestRateModel is ERC165 {
         // Where 3e36 is the theoretical maximum value of cFactor and
         // 2^256 - 1 is type(uint256).max.
         // As a result, we cap the vertex maximum before this number to
-        // prevent any overflows on values. Even if we didn't have this
-        // restriction we'd need to make sure:
-        // vertexMultiplierMax * vertexRatePerYear < type(uint192).max,
-        // or, 6.2771e57.
-        if (vertexMultiplierMax * vertexRatePerYear > 1e40) {
+        // prevent any overflows on values.
+        if (vertexMultiplierMax > 1e40) {
             revert DynamicInterestRateModel__InvalidMultiplierMax();
         }
 

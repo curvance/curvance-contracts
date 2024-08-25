@@ -1285,7 +1285,10 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
         // because the startMarket() assets can never be withdraw since the
         // market itself owns the corresponding dTokens.
-        if (marketUnderlyingHeld() - convertToAssets(totalReserves) < amount) {
+        if (
+            marketUnderlyingHeld() - convertToAssets(totalReserves) <
+            amount + _BASE_UNDERLYING_RESERVE
+        ) {
             revert DToken__InsufficientUnderlyingHeld();
         }
 
@@ -1386,7 +1389,14 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             _debtOf[account].principal = accountDebt - amount;
         }
         _debtOf[account].accountExchangeRate = marketData.exchangeRate;
-        totalBorrows -= amount;
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < amount) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= amount;
+        }
 
         emit Repay(payer, account, amount);
         return amount;
@@ -1461,7 +1471,15 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // failing on underflow.
         _debtOf[account].principal = accountDebt - amount;
         _debtOf[account].accountExchangeRate = marketData.exchangeRate;
-        totalBorrows -= amount;
+
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < amount) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= amount;
+        }
 
         emit Repay(liquidator, account, amount);
 

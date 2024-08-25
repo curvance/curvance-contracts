@@ -16,6 +16,13 @@ contract MulticallDataCheckerForRedstoneAdaptor is MulticallDataCheckerBase {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Checks attached calldata to validate that the target contract
+    ///         is an approved oracle adaptor and the proper function selector
+    ///         is being called.
+    /// @param target Target contract address that will be called with `data`
+    ///               calldata.
+    /// @param data Calldata attached to target call, contains function
+    ///             signature being called which will be checked.
     function checkCallData(
         address,
         address target,

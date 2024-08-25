@@ -239,7 +239,8 @@ contract ComplexZapper is ReentrancyGuard {
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            recipient
         );
 
         // Exit Curve lp position.
@@ -384,7 +385,8 @@ contract ComplexZapper is ReentrancyGuard {
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            recipient
         );
 
         // Exit Balancer lp position.
@@ -496,7 +498,8 @@ contract ComplexZapper is ReentrancyGuard {
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            recipient
         );
 
         // Exit Velodrome lp position.
@@ -567,7 +570,8 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,
-        uint256 expectedAssets
+        uint256 expectedAssets,
+        address recipient
     ) internal {
         if (cToken.underlying() != underlying) {
             revert ComplexZapper__ExecutionError();
@@ -575,7 +579,7 @@ contract ComplexZapper is ReentrancyGuard {
 
         uint256 assets;
 
-        // Transfer Curve lp token to the Zapper.
+        // Transfer underlying lp tokens to the Zapper.
         if (forceRedeemCollateral) {
             assets = cToken.redeemCollateralFor(
                 shares,
@@ -586,9 +590,18 @@ contract ComplexZapper is ReentrancyGuard {
             assets = cToken.redeemFor(shares, address(this), msg.sender);
         }
 
-        // Validate that output of redemption is sufficient.
+        // Validate output of redemption is sufficient.
         if (assets < expectedAssets) {
             revert ComplexZapper__ExecutionError();
+        }
+
+        // Return any excess assets backed to user.
+        if (assets > expectedAssets) {
+            _transferToRecipient(
+                underlying,
+                recipient,
+                assets - expectedAssets
+            );
         }
     }
 
