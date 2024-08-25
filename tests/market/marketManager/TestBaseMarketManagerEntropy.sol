@@ -178,15 +178,13 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             console2.log("user %s", i);
             while (true) {
-                (solvency, debt) = marketManager.solvencyOf(users[i]);
                 (accCollateral, accMaxDebt, accDebt) = marketManager.statusOf(
                     users[i]
                 );
                 amount = _genRandom(i, entropy, 100e18, 500e18);
                 console2.log("borrow amount %s", amount);
-                console2.log("solvency %s debt %s", solvency, debt);
                 console2.log(
-                    "status col %s max debt %s debt %s",
+                    "Status: col %s max debt %s debt %s",
                     accCollateral,
                     accMaxDebt,
                     accDebt
