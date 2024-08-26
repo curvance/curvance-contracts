@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract CanLiquidateTest is TestBaseMarketManager {
@@ -62,7 +62,9 @@ contract CanLiquidateTest is TestBaseMarketManager {
             1000
         );
 
-        vm.expectRevert(MarketManager.MarketManager__NoLiquidationAvailable.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__NoLiquidationAvailable.selector
+        );
         marketManager.canLiquidate(
             address(dUSDC),
             address(cBALRETH),
@@ -88,7 +90,9 @@ contract CanLiquidateTest is TestBaseMarketManager {
             1000
         );
 
-        vm.expectRevert(MarketManager.MarketManager__NoLiquidationAvailable.selector);
+        vm.expectRevert(
+            MarketManager.MarketManager__NoLiquidationAvailable.selector
+        );
         marketManager.canLiquidate(
             address(dUSDC),
             address(cBALRETH),
@@ -99,7 +103,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
     }
 
     function test_canLiquidate_fail_whenShortfallInsufficient() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -177,7 +181,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         caps[0] = 100_000e18;
         marketManager.setCTokenCollateralCaps(tokens, caps);
 
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
@@ -278,9 +282,11 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 (10 ** cBALRETH.decimals())) / (10 ** dUSDC.decimals());
             uint256 expectedLiquidatedTokens = (amountAdjusted *
                 debtToCollateralRatio) / WAD;
-            expectedLiqAmount =
-                (debtAmount * collateralAvailable) /
-                expectedLiquidatedTokens;
+            expectedLiqAmount = FixedPointMathLib.mulDivUp(
+                debtAmount,
+                collateralAvailable,
+                expectedLiquidatedTokens
+            );
             uint256 liqFee = (WAD * (10 * 1e14)) / liqBaseIncentive;
             expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
         }

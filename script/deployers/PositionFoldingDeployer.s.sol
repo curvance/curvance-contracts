@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { PositionFolding } from "contracts/market/utils/PositionFolding.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract PositionFoldingDeployer is DeployConfiguration {
-    address positionFolding;
+    address public positionFolding;
 
     function _deployPositionFolding(
         address centralRegistry,

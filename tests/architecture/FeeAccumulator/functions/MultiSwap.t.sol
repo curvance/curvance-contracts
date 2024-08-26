@@ -5,7 +5,6 @@ import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract MultiSwapTest is TestBaseFeeAccumulator {
     SwapperLib.Swap[] public swapData;
@@ -152,6 +151,6 @@ contract MultiSwapTest is TestBaseFeeAccumulator {
         vm.prank(harvester);
         feeAccumulator.multiSwap(abi.encode(swapData), tokens);
 
-        assertEq(IERC20(_WETH_ADDRESS).balanceOf(address(centralRegistry)), 0);
+        assertEq(weth.balanceOf(address(centralRegistry)), 0);
     }
 }

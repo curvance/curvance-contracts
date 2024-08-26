@@ -17,7 +17,8 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -28,7 +29,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -51,7 +51,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     RewardManager public rewardManager;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
-    ProtocolMessagingHub public protocolMessagingHub;
+    MessagingHub public messagingHub;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     DynamicInterestRateModel public interestRateModel;
@@ -80,7 +80,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     MockV3Aggregator public chainlinkDaiEth;
 
     MockToken public rewardToken;
-    GaugePool public gaugePool;
+    GaugeManager public gaugeManager;
 
     address public harvester;
     uint256 public voteBoostMultiplier = 10001; // 110%
@@ -109,8 +109,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployCVE();
         emit LogString("DEPLOYED: Reward Manager");
         _deployRewardManager();
-        emit LogString("DEPLOYED: ProtocolMessagingHub");
-        _deployProtocolMessagingHub();
+        emit LogString("DEPLOYED: MessagingHub");
+        _deployMessagingHub();
         emit LogString("DEPLOYED: FeeAccumulator");
         _deployFeeAccumulator();
 
@@ -122,7 +122,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployOracleRouter();
         _deployChainlinkAdaptors();
         emit LogString("DEPLOYED: GaugePool");
-        _deployGaugePool();
+        _deployGaugeManager();
         emit LogString("DEPLOYED: MarketManager");
         _deployMarketManager();
         emit LogString("DEPLOYED: DynamicInterestRateModel");
@@ -186,11 +186,11 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setOracleRouter(address(oracleRouter));
     }
 
-    function _deployProtocolMessagingHub() internal {
-        protocolMessagingHub = new ProtocolMessagingHub(
+    function _deployMessagingHub() internal {
+        messagingHub = new MessagingHub(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
+        centralRegistry.setMessagingHub(address(messagingHub));
     }
 
     function _deployFeeAccumulator() internal {
@@ -348,31 +348,27 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         );
     }
 
-    function _deployGaugePool() internal {
-        gaugePool = new GaugePool(ICentralRegistry(address(centralRegistry)));
-        centralRegistry.addLockingPermissions(address(gaugePool));
+    function _deployGaugeManager() internal {
+        gaugeManager = new GaugeManager(ICentralRegistry(address(centralRegistry)));
+        centralRegistry.addLockingPermissions(address(gaugeManager));
 
         // Additional logic for partner gauge pool fuzzing logic
         // partnerGaugePool = new PartnerGaugePool(
-        //     address(gaugePool),
+        //     address(gaugeManager),
         //     address(usdc),
         //     ICentralRegistry(address(centralRegistry))
         // );
-        // gaugePool.addPartnerGauge(address(partnerGaugePool));
+        // gaugeManager.addPartnerGauge(address(partnerGaugePool));
     }
 
     function _deployMarketManager() internal {
         marketManager = new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(gaugePool)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.addMarketManager(
             address(marketManager),
             marketInterestFactor
         );
-        try gaugePool.start(address(marketManager)) {} catch {
-            assertWithMsg(false, "start gauge pool failed");
-        }
     }
 
     function _deployDynamicInterestRateModel() internal {
@@ -524,7 +520,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function setUpFeeds() public {
         require(centralRegistry.hasElevatedPermissions(address(this)));
-        require(gaugePool.startTime() < block.timestamp);
+        require(gaugeManager.startTime() < block.timestamp);
         // use mock pricing for testing
         // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
         mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));

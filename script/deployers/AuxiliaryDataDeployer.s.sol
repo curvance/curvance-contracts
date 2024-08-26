@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract AuxiliaryDataDeployer is DeployConfiguration {
-    address auxiliaryData;
+    address public auxiliaryData;
 
     function _deployAuxiliaryData(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");

@@ -4,9 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-
-import "forge-std/console.sol";
 
 contract TestNonCollateralRedeem is TestBaseMarket {
     function setUp() public override {
@@ -29,7 +26,6 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         // List tokens
         marketManager.listToken(address(cBALRETH));
         marketManager.listToken(address(dUSDC));
-        gaugePool.start(address(marketManager));
 
         // Config collateral token
         marketManager.updateCollateralToken(

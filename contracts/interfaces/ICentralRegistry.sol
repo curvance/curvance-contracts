@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
 
 /// TYPES ///
@@ -55,14 +56,20 @@ interface ICentralRegistry {
     /// @notice Returns Reward Manager address.
     function rewardManager() external view returns (address);
 
+    /// @notice Returns Gauge Manager address.
+    function gaugeManager() external view returns (address);
+
     /// @notice Returns CVE address.
     function cve() external view returns (address);
 
     /// @notice Returns veCVE address.
     function veCVE() external view returns (address);
 
-    /// @notice Returns Protocol Messaging Hub address.
-    function protocolMessagingHub() external view returns (address);
+    /// @notice Returns Voting Hub address.
+    function votingHub() external view returns (address);
+
+    /// @notice Returns Messaging Hub address.
+    function messagingHub() external view returns (address);
 
     /// @notice Returns Oracle Router address.
     function oracleRouter() external view returns (address);
@@ -81,6 +88,12 @@ interface ICentralRegistry {
 
     /// @notice Returns Circle Token Messenger contract address.
     function circleTokenMessenger() external view returns (ITokenMessenger);
+
+    /// @notice Returns Circle Token Messenger contract address.
+    function circleMessageTransmitter()
+        external
+        view
+        returns (IMessageTransmitter);
 
     /// @notice Returns Wormhole TokenBridge contract address.
     function tokenBridge() external view returns (ITokenBridge);

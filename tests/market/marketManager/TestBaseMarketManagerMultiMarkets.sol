@@ -5,8 +5,10 @@ import "tests/market/TestBaseMarket.sol";
 import { MockCTokenPrimitive } from "contracts/mocks/MockCTokenPrimitive.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
+import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "forge-std/console2.sol";
 
@@ -159,9 +161,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     }
 
     function _borrow(address _user, DToken _dToken, uint256 _amount) internal {
-        vm.startPrank(_user);
+        vm.prank(_user);
         _dToken.borrow(_amount);
-        vm.stopPrank();
     }
 
     function _repay(address _user, DToken _dToken, uint256 _amount) internal {
@@ -242,7 +243,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         uint256 _collateralAvailable,
         address _user,
         DToken _dToken,
-        MockCTokenPrimitive _cToken
+        MockCTokenPrimitive _cToken,
+        bool _exact
     ) internal view returns (uint256, uint256, uint256) {
         (
             ,
@@ -272,7 +274,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
                 _cToken,
                 cFactor,
                 debtAmount,
-                data.price
+                data.price,
+                _exact
             );
     }
 
@@ -282,7 +285,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         MockCTokenPrimitive _cToken,
         uint256 /* cFactor */,
         uint256 debtAmount,
-        uint256 price
+        uint256 price,
+        bool _exact
     )
         internal
         view
@@ -325,9 +329,17 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         expectedLiqAmount = debtAmount;
 
         if (expectedLiquidatedTokens > collateralAvailable) {
-            expectedLiqAmount =
-                (expectedLiqAmount * collateralAvailable) /
-                expectedLiquidatedTokens;
+            if (_exact) {
+                expectedLiqAmount =
+                    (expectedLiqAmount * collateralAvailable) /
+                    expectedLiquidatedTokens;
+            } else {
+                expectedLiqAmount = FixedPointMathLib.mulDivUp(
+                    expectedLiqAmount,
+                    collateralAvailable,
+                    expectedLiquidatedTokens
+                );
+            }
         }
 
         expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
@@ -485,7 +497,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             _cToken.balanceOf(_user),
             _user,
             _dToken,
-            _cToken
+            _cToken,
+            _exact
         );
 
         console2.log("\n check liquidation");

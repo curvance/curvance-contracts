@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-
-import "tests/market/TestBaseMarket.sol";
+import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract User {}
 
 contract TestComplexZapperVelodrome is TestBaseMarket {
-    address _VELODROME_FACTORY = 0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
-    address _VELODROME_ROUTER = 0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858;
-    address _VELODROME_WETH_USDC = 0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
-    address _WETH = 0x4200000000000000000000000000000000000006;
-    address _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
-    bool _IS_STABLE = false;
+    address internal _VELODROME_FACTORY =
+        0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
+    address internal _VELODROME_ROUTER =
+        0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858;
+    address internal _VELODROME_WETH_USDC =
+        0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
+    address internal _WETH = 0x4200000000000000000000000000000000000006;
+    address internal _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
+    bool internal _IS_STABLE = false;
 
     address public owner;
     address public user;
@@ -27,7 +32,9 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
 
         _deployCentralRegistry();
         _deployCVE();
-        _deployGaugePool();
+        _deployRewardManager();
+        _deployVeCVE();
+        _deployGaugeManager();
         _deployMarketManager();
 
         complexZapper = new ComplexZapper(
@@ -51,7 +58,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user, ethAmount);
 
-        vm.startPrank(user);
+        vm.prank(user);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -66,7 +73,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             _VELODROME_FACTORY,
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user), 0);

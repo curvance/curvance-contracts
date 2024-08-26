@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { LiquidityManager, IOracleRouter, IMToken } from "contracts/market/LiquidityManager.sol";
+import { LiquidityManager, IOracleRouter, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -31,7 +30,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      cToken contracts while restricting the scale of exogenous risk.
-///      Every collateral asset as a "Collateral Cap", measured in shares.
+///      Every collateral asset has a "Collateral Cap", measured in shares.
 ///      As collateral is posted, the `collateralPosted` invariant increases,
 ///      and is compared to `collateralCaps`. By measuring collateral posted
 ///      in shares, this allows collateral caps to grow proportionally with
@@ -63,6 +62,11 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTANTS ///
 
+    /// @notice Maximum number of listed assets allowed inside a market.
+    /// @dev This restriction is to minimize the outside chance that a market
+    ///      manager has so many assets that a full account liquidation
+    ///      becomes too expensive to support.
+    uint256 public constant MAX_LISTED_ASSETS = 25;
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -103,9 +107,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-
-    /// @notice The address of the linked Gauge Pool.
-    IGaugePool public immutable gaugePool;
 
     /// STORAGE ///
 
@@ -182,20 +183,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address gaugePool_
-    ) LiquidityManager(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(gaugePool_),
-                type(IGaugePool).interfaceId
-            )
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        gaugePool = IGaugePool(gaugePool_);
-    }
+        ICentralRegistry centralRegistry_
+    ) LiquidityManager(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -257,12 +246,54 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to check bad debt status for.
-    /// @return The total market value of `account`'s collateral.
-    /// @return The total outstanding debt value of `account`.
-    function solvencyOf(
+    /// @return accountCollateral The total market value of `account`'s
+    ///                           collateral.
+    /// @return accountCollateralSoft The total market value of `account`'s
+    ///                               collateral offset by soft liquidation
+    ///                               requirements.
+    /// @return accountCollateralHard The total market value of `account`'s
+    ///                               collateral offset by hard liquidation
+    ///                               requirements.
+    /// @return accountDebt The total outstanding debt value of `account`.
+    function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256) {
-        return _solvencyOf(account);
+    ) external view returns (
+        uint256 accountCollateral,
+            uint256 accountCollateralSoft,
+            uint256 accountCollateralHard,
+            uint256 accountDebt
+        ) {
+        (
+            accountCollateral,
+            accountCollateralSoft,
+            accountCollateralHard,
+            accountDebt,,
+        ) = _liquidationValuesOf(account, address(0), address(0));
+    }
+
+    function LiquidationStatusOf(
+        address account,
+        address debtToken,
+        address collateralToken
+    )
+        public
+        view
+        returns (
+            uint256 lfactor,
+            uint256 debtTokenPrice,
+            uint256 collateralTokenPrice
+        )
+    {
+        LiqData memory result = _LiquidationStatusOf(
+            account,
+            debtToken,
+            collateralToken
+        );
+        return (
+            result.lFactor,
+            result.debtTokenPrice,
+            result.collateralTokenPrice
+        );
     }
 
     /// @notice Determine whether `account` can currently be liquidated
@@ -284,6 +315,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
     /// @notice Determine what the account liquidity would be if
     ///         the given amounts were redeemed/borrowed.
+    /// @dev Will natively revert if a hypothetical borrow will result in a
+    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`. 
     /// @param account The account to determine liquidity for.
     /// @param mTokenModified The market to hypothetically redeem/borrow in.
     /// @param redeemTokens The number of tokens to hypothetically redeem.
@@ -863,6 +896,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         // Sanity check to make sure its really a mToken.
         IMToken(mToken).isCToken();
 
+        uint256 numTokens = tokensListed.length;
+        if (numTokens == MAX_LISTED_ASSETS) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Immediately deposit into the market to prevent any rounding
         // exploits.
         if (!IMToken(mToken).startMarket(msg.sender)) {
@@ -872,8 +910,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         MarketToken storage token = tokenData[mToken];
         token.isListed = true;
         token.collRatio = 0;
-
-        uint256 numTokens = tokensListed.length;
 
         for (uint256 i; i < numTokens; ) {
             unchecked {
@@ -1056,7 +1092,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     }
 
     /// @notice Set `newCollateralizationCaps` for the given `mTokens`.
-    /// @dev Emits a {NewCollateralCap} event.
+    /// @dev Can emit {NewCollateralCap} events.
     /// @param mTokens The addresses of the markets (tokens) to
     ///                change the borrow caps for.
     /// @param newCollateralCaps The new collateral cap values in underlying
@@ -1272,7 +1308,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         checks have been passed.
     /// @dev Used as sort of a garbage collection system for any user positions
     ///      that should be closed to optimize future liquidity checks.
-    ///      May emits {TokenPositionClosed} events.
+    ///      May emit {TokenPositionClosed} events.
     /// @param account The address of the account to close a
     ///                `mToken` position for.
     /// @param positionsToClose Array containing all The address of the asset to be removed.
@@ -1329,7 +1365,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
-    /// @dev May emit a {TokenPositionCreated} event.
+    /// @dev Will natively revert if a hypothetical borrow will result in a
+    ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`. 
+    ///      May emit a {TokenPositionCreated} event.
     /// @param dToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
@@ -1597,9 +1635,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             }
         } else {
             if (liquidatedTokens > collateralAvailable) {
-                debtAmount =
-                    (debtAmount * collateralAvailable) /
-                    liquidatedTokens;
+                debtAmount = FixedPointMathLib.mulDivUp(
+                    debtAmount,
+                    collateralAvailable,
+                    liquidatedTokens
+                );
                 liquidatedTokens = collateralAvailable;
             }
         }

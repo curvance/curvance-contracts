@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { BaseVolatileLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseVolatileLPAdaptor.sol";
 
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICamelotPair } from "contracts/interfaces/external/camelot/ICamelotPair.sol";
 
@@ -60,5 +59,12 @@ contract CamelotVolatileLPAdaptor is BaseVolatileLPAdaptor {
 
         _removeAsset(asset);
         emit CamelotVolatileLPAssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 15;
     }
 }

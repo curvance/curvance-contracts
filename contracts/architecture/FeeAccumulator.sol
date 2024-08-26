@@ -23,7 +23,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///
 ///      Fees can be marked for OTC which will allow the Curvance DAO to
 ///      purchase them, at fair market value. The Fee accumulator also works
-///      in collaboration with the Protocol Messaging Hub to manage system
+///      in collaboration with the Messaging Hub to manage system
 ///      information and fees. Epoch fee distributions are distributed once a
 ///      single chain has recorded fees accumulated and tokens locked across
 ///      all supported chains inside the Curvance Protocol system.
@@ -239,13 +239,13 @@ contract FeeAccumulator is ReentrancyGuard {
     }
 
     /// @notice Sends collected fee tokens ex compounding bot stipend to the
-    ///         Protocol Messaging Hub.
-    /// @dev Only callable by the Protocol Messaging Hub. Does not fail if fees
+    ///         Messaging Hub.
+    /// @dev Only callable by the Messaging Hub. Does not fail if fees
     ///      collected equal 0.
     /// @param amount The amount of token to transfer.
-    /// @return The amount of transferred fee tokens to the Protocol Messaging Hub.
+    /// @return The amount of transferred fee tokens to the Messaging Hub.
     function pullFees(uint256 amount) external returns (uint256) {
-        address messagingHub = centralRegistry.protocolMessagingHub();
+        address messagingHub = centralRegistry.messagingHub();
 
         if (msg.sender != messagingHub) {
             revert FeeAccumulator__Unauthorized();
@@ -262,7 +262,7 @@ contract FeeAccumulator is ReentrancyGuard {
         }
 
         uint256 compoundingFee = (feeTokens * vaultCompoundFee()) /
-            vaultYieldFee();
+            vaultHarvestFee();
 
         // Move compounding fee accumulated to central registry to be used
         // for offchain harvester bots.
@@ -277,7 +277,7 @@ contract FeeAccumulator is ReentrancyGuard {
         feeTokens -= compoundingFee;
 
         if (feeTokens > 0) {
-            // Move remaining fees on this chain to PMH to distribute.
+            // Move remaining fees on this chain to Messaging Hub to distribute.
             SafeTransferLib.safeTransfer(feeToken, messagingHub, feeTokens);
         }
 
@@ -443,17 +443,19 @@ contract FeeAccumulator is ReentrancyGuard {
         return IOracleRouter(centralRegistry.oracleRouter());
     }
 
-    /// @notice Vault compound fee is in basis point form.
+    /// @notice Vault compound fee represented in basis point form (100 = 1%).
     /// @dev Returns the vaults current amount of yield used
     ///      for compounding rewards.
     function vaultCompoundFee() public view returns (uint256) {
         return centralRegistry.protocolCompoundFee();
     }
 
-    /// @notice Vault yield fee is in basis point form.
-    /// @dev Returns the vaults current protocol fee for compounding rewards.
-    function vaultYieldFee() public view returns (uint256) {
-        return centralRegistry.protocolYieldFee();
+    /// @notice Vault harvest fee represented in basis point form (100 = 1%).
+    /// @dev Returns the vaults current protocol fee for yield generated
+    ///      inside the Curvance Protocol. This is equal to
+    ///      Protocol Compounding Fee + Protocol Yield Fee.
+    function vaultHarvestFee() public view returns (uint256) {
+        return centralRegistry.protocolHarvestFee();
     }
 
     /// INTERNAL FUNCTIONS ///

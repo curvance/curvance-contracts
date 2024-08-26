@@ -7,8 +7,6 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -50,14 +48,10 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
+        vm.prank(user1);
 
         vm.expectRevert(RewardManager.RewardManager__NoEpochRewards.selector);
 
-        vm.prank(user1);
         rewardManager.claimRewards(rewardsData, abi.encode(swapData), 0);
     }
 
@@ -66,12 +60,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(_ONE);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 
@@ -85,12 +74,16 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
         vm.prank(address(rewardManager.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
-        deal(_USDC_ADDRESS, address(rewardManager), amount);
+        uint256 rewards = amount /= 1e12;
 
-        swapData.inputAmount = amount;
+        _recordEpochRewards(2, 1e6 * _ONE);
+
+        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+
+        swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-            amount,
+            rewards,
             0,
             path,
             address(simpleRewardZapper),
@@ -98,9 +91,9 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
         );
 
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(amount, path);
+            .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = IERC20(_WETH_ADDRESS).balanceOf(user1);
+        uint256 desiredTokenBalance = weth.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -112,9 +105,6 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(
-            IERC20(_WETH_ADDRESS).balanceOf(user1),
-            desiredTokenBalance + amountsOut[1]
-        );
+        assertEq(weth.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 }

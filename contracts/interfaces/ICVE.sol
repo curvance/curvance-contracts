@@ -7,11 +7,11 @@ interface ICVE {
     function approve(address spender, uint256 amount) external returns (bool);
 
     /// @notice Mints gauge emissions for the desired gauge pool.
-    /// @dev Only callable by the ProtocolMessagingHub.
-    /// @param gaugePool The address of the gauge pool where emissions will be
+    /// @dev Only callable by the MessagingHub.
+    /// @param gaugeManager The address of the gauge pool where emissions will be
     ///                  configured.
     /// @param amount The amount of gauge emissions to be minted.
-    function mintGaugeEmissions(address gaugePool, uint256 amount) external;
+    function mintGaugeEmissions(address gaugeManager, uint256 amount) external;
 
     /// @notice Mints CVE to the calling gauge pool to fund the users
     ///         lock boost.
@@ -20,15 +20,27 @@ interface ICVE {
 
     /// @notice Mint CVE to msg.sender,
     ///         which will always be the VeCVE contract.
-    /// @dev Only callable by the ProtocolMessagingHub.
+    /// @dev Only callable by the MessagingHub.
     ///      This function is used only for creating a bridged VeCVE lock.
     /// @param amount The amount of token to mint for the new veCVE lock.
-    function mintVeCVELock(uint256 amount) external;
+    function mintLockedTokens(address recipient, uint256 amount) external;
 
     /// @notice Burn CVE from msg.sender,
     ///         which will always be the VeCVE contract.
     /// @dev Only callable by VeCVE.
     ///      This function is used only for bridging VeCVE lock.
+    /// @param recipient The address of recipient on destination chain.
+    /// @param dstChainId Chain ID of the target blockchain.
     /// @param amount The amount of token to burn for a bridging veCVE lock.
-    function burnVeCVELock(uint256 amount) external;
+    function burnLockedTokens(
+        address recipient,
+        uint256 dstChainId,
+        uint256 amount
+    ) external;
+
+    /// @notice Finalizes bridging of CVE by minting `amount` CVE
+    ///         to `recipient`.
+    /// @param recipient The address of CVE recipient.
+    /// @param amount The amount of token to receive.
+    function completeBridge(address recipient, uint256 amount) external;
 }

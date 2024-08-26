@@ -10,8 +10,7 @@ contract WithdrawReservesMultiTest is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        gaugePool.start(address(marketManager));
-
+        
         dTokens.push(address(dUSDC));
         dTokens.push(address(dDAI));
 

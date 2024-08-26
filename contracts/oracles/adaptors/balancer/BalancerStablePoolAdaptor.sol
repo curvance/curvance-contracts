@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { BalancerBaseAdaptor, IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
-import { WAD, BAD_SOURCE } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
@@ -118,9 +118,18 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 return pData;
             }
 
-            // We did not have an error, so we can add the price
-            // to the average, and increment number of prices.
-            averagePrice += price;
+            // We must first normalize the price using the rate from the RateProvider.
+            // If there is no RateProvider, assume a rate of 1 (note that `rateProviderDecimals` is unreliable in this case).
+            address rateProvider = data.rateProviders[i];
+            uint256 normalizedPrice;
+            if (rateProvider == address(0)) {
+                normalizedPrice = price;
+            } else {
+                normalizedPrice =
+                    (price * (10 ** data.rateProviderDecimals[i])) /
+                    IRateProvider(rateProvider).getRate();
+            }
+            averagePrice += normalizedPrice;
             ++numPrices;
         }
 
@@ -221,5 +230,12 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         // the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
         emit BalancerStablePoolAssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 12;
     }
 }

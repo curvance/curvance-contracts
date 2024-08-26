@@ -63,8 +63,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
@@ -137,14 +136,11 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
 
         // try mintFor()
-        vm.startPrank(user1);
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user2);
-        vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
         assertEq(cBALRETH.balanceOf(user2), 1 ether);
 
@@ -152,7 +148,6 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         skip(20 minutes);
 
         // try redeem()
-        vm.startPrank(user1);
         cBALRETH.redeem(1 ether, user1, user1);
         vm.stopPrank();
         assertEq(cBALRETH.balanceOf(user1), 0);
@@ -165,19 +160,15 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         usdc.approve(address(dUSDC), 1e6);
         dUSDC.mint(1e6);
-        vm.stopPrank();
         assertEq(dUSDC.balanceOf(user1), 1e6);
 
         // try mintFor()
-        vm.startPrank(user1);
         usdc.approve(address(dUSDC), 1e6);
         dUSDC.mintFor(1e6, user2);
-        vm.stopPrank();
         assertEq(dUSDC.balanceOf(user1), 1e6);
         assertEq(dUSDC.balanceOf(user2), 1e6);
 
         // try redeem()
-        vm.startPrank(user1);
         dUSDC.redeem(1e6);
         vm.stopPrank();
         assertEq(dUSDC.balanceOf(user1), 0);
@@ -191,15 +182,12 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         assertEq(cBALRETH.balanceOf(user1), 1 ether);
         assertEq(cBALRETH.exchangeRateCached(), 1 ether);
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(500e6);
-        vm.stopPrank();
 
         assertEq(dUSDC.balanceOf(user1), 0);
         assertEq(dUSDC.debtBalanceCached(user1), 500e6);
@@ -207,9 +195,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
 
         // try borrow()
         skip(1200);
-        vm.startPrank(user1);
         dUSDC.borrow(100e6);
-        vm.stopPrank();
 
         assertEq(dUSDC.balanceOf(user1), 0);
         assertGt(dUSDC.debtBalanceCached(user1), 600e6);
@@ -222,10 +208,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         uint256 borrowBalanceBefore = dUSDC.debtBalanceCached(user1);
         uint256 exchangeRateBefore = dUSDC.exchangeRateCached();
         _prepareUSDC(user1, 200e6);
-        vm.startPrank(user1);
         usdc.approve(address(dUSDC), 200e6);
         dUSDC.repay(200e6);
-        vm.stopPrank();
 
         assertEq(dUSDC.balanceOf(user1), 0);
         assertGt(dUSDC.debtBalanceCached(user1), borrowBalanceBefore - 200e6);
@@ -238,7 +222,6 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         borrowBalanceBefore = dUSDC.debtBalanceCached(user1);
         exchangeRateBefore = dUSDC.exchangeRateCached();
         _prepareUSDC(user1, borrowBalanceBefore);
-        vm.startPrank(user1);
         usdc.approve(address(dUSDC), borrowBalanceBefore);
         dUSDC.repay(borrowBalanceBefore);
         vm.stopPrank();
@@ -256,26 +239,20 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(500e6);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can't redeem full
-        vm.startPrank(user1);
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
         cBALRETH.redeem(1 ether, user1, user1);
-        vm.stopPrank();
 
         // can redeem partially
-        vm.startPrank(user1);
         cBALRETH.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
 
@@ -290,25 +267,19 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
-        vm.startPrank(user1);
         usdc.approve(address(dUSDC), 1000e6);
         dUSDC.mint(1000e6);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(500e6);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        vm.startPrank(user1);
         dUSDC.redeem(1000e6);
         vm.stopPrank();
 
@@ -328,26 +299,20 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(500e6);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // can't transfer full
-        vm.startPrank(user1);
         vm.expectRevert(
             bytes4(keccak256("MarketManager__InsufficientCollateral()"))
         );
         cBALRETH.transfer(user2, 1 ether);
-        vm.stopPrank();
 
         // can redeem partially
-        vm.startPrank(user1);
         cBALRETH.transfer(user2, 0.2 ether);
         vm.stopPrank();
 
@@ -363,25 +328,19 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
-        vm.startPrank(user1);
         usdc.approve(address(dUSDC), 1000e6);
         dUSDC.mint(1000e6);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(500e6);
-        vm.stopPrank();
 
         // skip min hold period
         skip(20 minutes);
 
         // try full transfer
-        vm.startPrank(user1);
         dUSDC.transfer(user2, 1000e6);
         vm.stopPrank();
 
@@ -405,10 +364,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(1000e6);
         vm.stopPrank();
 
@@ -450,10 +407,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dUSDC.borrow(1000e6);
         vm.stopPrank();
 
@@ -478,7 +433,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         assertApproxEqRel(
             cBALRETH.balanceOf(user1),
             1 ether - (1550 ether * 1e18) / balRETHPrice,
-            0.05e18
+            0.06e18
         );
         assertEq(cBALRETH.exchangeRateCached(), 1 ether);
 

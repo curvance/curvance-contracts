@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "forge-std/console.sol";
 
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";

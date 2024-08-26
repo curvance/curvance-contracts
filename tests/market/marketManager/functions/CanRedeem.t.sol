@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 contract CanRedeemTest is TestBaseMarketManager {
     function setUp() public override {
@@ -49,7 +48,7 @@ contract CanRedeemTest is TestBaseMarketManager {
     }
 
     function test_canRedeem_fail_WhenCTokenInsufficientLiquidity() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);

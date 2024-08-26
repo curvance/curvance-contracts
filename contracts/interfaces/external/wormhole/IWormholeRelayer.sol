@@ -88,6 +88,40 @@ interface IWormholeRelayer {
         uint256 gasLimit
     ) external payable returns (uint64 sequence);
 
+    /// @notice Publishes an instruction for the default delivery provider to
+    ///         relay a payload to the address `targetAddress` on chain
+    ///         `targetChain` with gas limit `gasLimit` and msg.value` equal to
+    ///         `receiverValue`.
+    ///         `targetAddress` must implement the IWormholeReceiver interface.
+    ///         This function must be called with `msg.value` equal to
+    ///         `quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit)`.
+    ///         Any refunds (from leftover gas) will be paid to
+    ///         the delivery provider. In order to receive the refunds, use
+    ///         the `sendPayloadToEvm` function with `refundChain` and
+    ///         `refundAddress` as parameters.
+    /// @param targetChain In Wormhole Chain ID format.
+    /// @param targetAddress Address to call on targetChain
+    ///                      (that implements IWormholeReceiver).
+    /// @param payload Arbitrary bytes to pass in as parameter in call to
+    ///                `targetAddress`.
+    /// @param receiverValue msg.value that delivery provider should pass in
+    ///                      for call to `targetAddress`.
+    ///                      (in targetChain currency units)
+    /// @param gasLimit Gas limit with which to call `targetAddress`.
+    /// @param refundChain The chain to receive refunds on.
+    /// @param refundAddress The address to receive refunds on.
+    /// @return sequence Sequence number of published VAA containing delivery
+    ///                  instructions.
+    function sendPayloadToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        uint256 receiverValue,
+        uint256 gasLimit,
+        uint16 refundChain,
+        address refundAddress
+    ) external payable returns (uint64 sequence);
+
     /// @notice Publishes an instruction for the default delivery provider
     /// to relay a payload and VAAs specified by `vaaKeys` to the address `targetAddress` on chain `targetChain`
     /// with gas limit `gasLimit` and `msg.value` equal to `receiverValue`

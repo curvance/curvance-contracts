@@ -17,16 +17,19 @@ contract RecordEpochRewardsTest is TestBaseRewardManager {
         public
     {
         vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
-        rewardManager.recordEpochRewards(_ONE);
+        rewardManager.recordEpochRewards(1e6 * _ONE);
     }
 
     function test_recordEpochRewards_success() public {
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpochToDeliver), 0);
+        assertEq(rewardManager.epochRewardsPerPoint(nextEpochToDeliver), 0);
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
+        vm.prank(centralRegistry.messagingHub());
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
-        assertEq(rewardManager.epochRewardsPerCVE(nextEpochToDeliver), _ONE);
+        assertEq(
+            rewardManager.epochRewardsPerPoint(nextEpochToDeliver),
+            1e6 * _ONE
+        );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpochToDeliver + 1);
     }
 }

@@ -20,12 +20,7 @@ contract TestVeCVE is TestBaseVeCVE {
         deal(address(cve), address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         centralRegistry.transferDaoOwnership(user1);
     }
@@ -47,14 +42,14 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount);
 
-        vm.warp(veCVE.genesisEpoch() - 1 hours);
+        vm.warp(veCVE.genesisEpoch() - 13 hours);
         veCVE.createLock(amount, true, rewardsData, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
         assertEq(veCVE.balanceOf(address(this)), amount);
     }
 
-    function test_createLockWithContinuousLock_earlyExpireLock_revert_fuzzed(
+    function test_createLockWithContinuousLock_earlyExpireLock_success_fuzzed(
         uint16 penaltyMultiplier,
         uint256 amount,
         bool shouldLock,
@@ -113,12 +108,26 @@ contract TestVeCVE is TestBaseVeCVE {
 
         uint256 penaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
 
-        assertLt(penaltyAmount, prevPenaltyAmount);
+        assertEq(penaltyAmount, prevPenaltyAmount);
+
+        uint256 daoCveBalance = cve.balanceOf(centralRegistry.daoAddress());
 
         assertGt(penaltyAmount, 0);
 
-        vm.expectRevert(bytes4(keccak256("TransferFailed()")));
+        vm.expectEmit(true, true, true, true, address(veCVE));
+        emit UnlockedWithPenalty(address(this), amount, penaltyAmount);
+
         veCVE.earlyExpireLock(0, rewardsData, "", 0);
+
+        vm.expectRevert(VeCVE.VeCVE__InvalidLock.selector);
+        veCVE.getUnlockPenalty(address(this), 0);
+
+        assertEq(cve.balanceOf(user1), penaltyAmount);
+        assertEq(cve.balanceOf(address(this)), 100e18 - penaltyAmount);
+        assertEq(
+            cve.balanceOf(centralRegistry.daoAddress()),
+            daoCveBalance + penaltyAmount
+        );
     }
 
     function test_createLockWithDiscontinuousLock_earlyExpireLock_success_fuzzed(
@@ -204,5 +213,54 @@ contract TestVeCVE is TestBaseVeCVE {
             cve.balanceOf(centralRegistry.daoAddress()),
             daoCveBalance + penaltyAmount
         );
+    }
+
+    function test_LockAndUnlockInSameEpoch()
+        public
+        setRewardsData(false, false, false)
+    {
+        // 1. config poc env
+        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        uint256 genesisEpochTimestamp = veCVE.genesisEpoch();
+        vm.warp(genesisEpochTimestamp);
+
+        _skipRestrictionDuration();
+        _recordEpochRewards(1, 1e6 * _ONE);
+
+        assertEq(rewardManager.nextEpochToDeliver(), 1);
+
+        address user00 = address(0xACC00);
+        deal(address(cve), user00, 100 * 1e18);
+        vm.prank(user00);
+        cve.approve(address(veCVE), type(uint256).max);
+
+        // 2. user00 create the first lock
+        vm.prank(user00);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 1e18);
+        assertEq(veCVE.userUnlocksByEpoch(user00, 26), 0);
+
+        // 3. 26 epoch passed
+        _recordEpochRewards(26, 1e6 * _ONE);
+
+        assertEq(rewardManager.nextEpochToDeliver(), 27);
+
+        // 4. user00 close the first lock and create the second lock within the same epoch
+        vm.startPrank(user00);
+        veCVE.processExpiredLock(0, false, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 1e18);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
+        assertEq(veCVE.userPoints(user00), 2e18);
+        vm.stopPrank();
+
+        // 5. 1 epoch has passed, the user claim the reward and trigger the bug.
+        //    As a result, the user's points are repeatedly subtracted and become 0.
+        _recordEpochRewards(1, 1e6 * _ONE);
+
+        assertEq(rewardManager.nextEpochToDeliver(), 28);
+        assertEq(veCVE.userPoints(user00), 2e18);
+        vm.prank(user00);
+        rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
+        assertEq(veCVE.userPoints(user00), 1e18);
     }
 }

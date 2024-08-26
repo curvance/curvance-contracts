@@ -12,17 +12,17 @@ contract TestERC4626CToken is TestERC4626, TestBaseMarket {
     // test_redeem, test_withdraw have problem with allowance
     function setUp() public override(TestERC4626, TestBaseMarket) {
         vm.chainId(1);
-        _initMainConstantVariables();
+
+        _USDC_ADDRESSES[1] = address(new MockERC20Token());
 
         _deployCentralRegistry();
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         // start gauge to enable deposits
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime() + 1000);
 
         // deploy collateral token and cToken

@@ -11,7 +11,7 @@ interface IPositionFolding {
     /// @param borrowToken Address of dToken that will be borrowed from.
     /// @param borrowAmount The amount of underlying tokens from dToken
     ///                     that will be borrowed.
-    /// @param collateralToken Address of cToken that will borrowed funds
+    /// @param collateralToken Address of cToken that borrowed funds
     ///                        will be routed into.
     /// @param swapData Swapperlib swapping struct containing instructions
     ///                 on how to handle the necessary dToken swap
@@ -34,9 +34,9 @@ interface IPositionFolding {
     /// @param borrowToken Address of dToken that will have its underlying
     ///                    token debt repaid.
     /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                   on how to handle the necessary cToken outward zap
-    ///                   to a single token (e.g. dToken underlying) to
-    ///                   facilitate deleveraging.
+    ///                on how to handle the necessary cToken outward zap
+    ///                to a single token (e.g. dToken underlying) to
+    ///                facilitate deleveraging.
     /// @param swapData Optional Swapperlib swapping struct containing
     ///                 instructions on how to handle zapping into dToken
     ///                 underlying to facilitate deleveraging.
@@ -47,7 +47,7 @@ interface IPositionFolding {
         uint256 collateralAmount;
         DToken borrowToken;
         SwapperLib.Swap swapZap;
-        SwapperLib.Swap swapData;
+        SwapperLib.Swap[] swapData;
         uint256 repayAmount;
     }
 

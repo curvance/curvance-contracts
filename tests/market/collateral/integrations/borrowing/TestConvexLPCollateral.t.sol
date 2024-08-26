@@ -27,8 +27,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        gaugePool.start(address(marketManager));
-
+        
         cSTETH = new Convex2PoolCToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
@@ -74,7 +73,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         oracleRouter.addMTokenSupport(address(cSTETH));
 
         // Ensure STETH/USD, ETH/USD, and USDC/USD feeds are not stale
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
         chainlinkStethUsd.updateRoundData(
             0,
             1500e8,

@@ -81,8 +81,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         _prepareBALRETH(user, 1 ether);
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
@@ -154,8 +153,8 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
 
         deal(_USDC_ADDRESS, address(this), 300000e20);
         deal(_WETH_ADDRESS, address(this), 100e18);
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 300000e20);
-        IERC20(_WETH_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100e18);
+        usdc.approve(_UNISWAP_V2_ROUTER, 300000e20);
+        weth.approve(_UNISWAP_V2_ROUTER, 100e18);
         IUniswapV2Router(_UNISWAP_V2_ROUTER).addLiquidity(
             address(usdc),
             _WETH_ADDRESS,
@@ -248,7 +247,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
             address(positionFolding)
         );
 
-        positionFolding.leverage(leverageData, 1500);
+        positionFolding.leverage(leverageData, 2000);
 
         (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
             user
@@ -311,15 +310,16 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         );
 
         uint256 amountForDeleverage = 0.3 ether;
-        deleverageData.swapData.inputToken = _WETH_ADDRESS;
-        deleverageData.swapData.inputAmount = amountForDeleverage;
-        deleverageData.swapData.outputToken = address(usdc);
-        deleverageData.swapData.target = _UNISWAP_V2_ROUTER;
-        deleverageData.swapData.slippage = 50e16;
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
+        deleverageData.swapData[0].inputAmount = amountForDeleverage;
+        deleverageData.swapData[0].outputToken = address(usdc);
+        deleverageData.swapData[0].target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData[0].slippage = 50e16;
         address[] memory path = new address[](2);
         path[0] = _WETH_ADDRESS;
         path[1] = address(usdc);
-        deleverageData.swapData.call = abi.encodeWithSignature(
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
             amountForDeleverage,
             0,

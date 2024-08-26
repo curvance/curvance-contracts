@@ -7,12 +7,15 @@ import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
     BalancerStablePoolAdaptor adaptor;
+    uint256 private WETH_RETH_TVL_USD = 58_666_383e18; // from Balancer web UI at fork block
 
     function setUp() public override {
-        _fork(18031848);
+        _fork(19656276);
 
         _deployCentralRegistry();
         _deployOracleRouter();
@@ -84,13 +87,45 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
             address(adaptor)
         );
 
+        (uint256 wethPrice, ) = oracleRouter.getPrice(
+            _WETH_ADDRESS,
+            true,
+            false
+        );
+        console2.log("WETH price: ", wethPrice);
+
+        (uint256 rethPrice, ) = oracleRouter.getPrice(
+            _RETH_ADDRESS,
+            true,
+            false
+        );
+        console2.log("RETH price: ", rethPrice);
+
+        uint256 expectedPriceFromTvl = (WETH_RETH_TVL_USD * 1e18) /
+            balRETH.totalSupply();
+        console2.log(
+            "expected RETH/WETH price from TVL: ",
+            expectedPriceFromTvl
+        );
+
+        uint256 expectedPriceFromRate = (IBalancerPool(_BAL_WETH_RETH_ADDRESS)
+            .getRate() * wethPrice) / 1e18;
+        console2.log(
+            "expected RETH/WETH price from ETH rate: ",
+            expectedPriceFromRate
+        );
+
         (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
             true,
             false
         );
+
+        console2.log("computed RETH/WETH price: ", price);
+
         assertEq(errorCode, 0);
-        assertGt(price, 0);
+        assertApproxEqRel(price, expectedPriceFromTvl, 0.002e18); // 0.2% error allowed
+        assertApproxEqRel(price, expectedPriceFromRate, 0.002e18); // 0.2% error allowed
     }
 
     function testRevertAfterAssetRemove() public {

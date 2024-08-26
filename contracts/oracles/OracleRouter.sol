@@ -351,7 +351,9 @@ contract OracleRouter {
         bool inUSD
     ) external view returns (FeedData[] memory) {
         bool isMToken = mTokenAssets[asset].isMToken;
+        address parentAsset;
         if (isMToken) {
+            parentAsset = asset;
             asset = mTokenAssets[asset].underlying;
         }
 
@@ -362,13 +364,15 @@ contract OracleRouter {
 
         FeedData[] memory data = new FeedData[](numFeeds * 2);
 
-        // If the asset only has one price feed, we know itll be in
+        // If the asset only has one price feed, we know it will be in
         // feed slot 0 so get both prices and return
         if (numFeeds < 2) {
             data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
             data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
             if (isMToken) {
-                uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+                uint256 exchangeRate = IMToken(
+                    parentAsset
+                ).exchangeRateCached();
                 data[0].price = uint240((data[0].price * exchangeRate) / WAD);
                 data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             }
@@ -384,7 +388,7 @@ contract OracleRouter {
         data[3] = _getPriceFromFeed(asset, 1, inUSD, false);
 
         if (isMToken) {
-            uint256 exchangeRate = IMToken(asset).exchangeRateCached();
+            uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
             data[0].price = uint240((data[0].price * exchangeRate) / WAD);
             data[1].price = uint240((data[1].price * exchangeRate) / WAD);
             data[2].price = uint240((data[2].price * exchangeRate) / WAD);
@@ -392,6 +396,55 @@ contract OracleRouter {
         }
 
         return data;
+    }
+
+    /// @notice Returns the types of adaptors pricing `asset` uses.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @param  asset The asset whose adaptor types should be returned.
+    /// @return A tuple containing the types of adaptors pricing `asset`
+    ///         uses, a value of 0 indicates an unsupported or empty
+    ///         adaptor slot.
+    function getAdaptorTypes(
+        address asset
+    ) external view returns (uint256, uint256) {
+        bool isMToken = mTokenAssets[asset].isMToken;
+        if (isMToken) {
+            asset = mTokenAssets[asset].underlying;
+        }
+
+        uint256 numFeeds = assetPriceFeeds[asset].length;
+        if (numFeeds == 0) {
+            return (0, 0);
+        }
+
+        address adaptor;
+
+        // If the asset only has one price feed, we know it will be in
+        // feed slot 0 so get both prices and return
+        if (numFeeds < 2) {
+            adaptor = assetPriceFeeds[asset][0];
+            if (!isApprovedAdaptor[adaptor]) {
+                return (0, 0);
+            }
+
+            return (IOracleAdaptor(adaptor).adaptorType(), 0);
+        }
+
+        uint256 adaptorTypeA;
+        uint256 adaptorTypeB;
+
+        adaptor = assetPriceFeeds[asset][0];
+        adaptorTypeA = isApprovedAdaptor[adaptor] ? IOracleAdaptor(
+            adaptor
+        ).adaptorType() : 0;
+
+        adaptor = assetPriceFeeds[asset][1];
+        adaptorTypeB = isApprovedAdaptor[adaptor] ? IOracleAdaptor(
+            adaptor
+        ).adaptorType() : 0;
+
+        return (adaptorTypeA, adaptorTypeB);
     }
 
     /// @notice Checks if a given asset is supported by the Oracle Router.
@@ -436,6 +489,10 @@ contract OracleRouter {
         bool inUSD,
         bool getLower
     ) public view returns (uint256 price, uint256 errorCode) {
+        if (!_isSequencerValid()) {
+            return (0, 2);
+        }
+
         address mAsset;
         // Check whether asset is an mToken.
         if (mTokenAssets[asset].isMToken) {
@@ -691,12 +748,12 @@ contract OracleRouter {
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, uint256) {
-        address adapter = assetPriceFeeds[asset][0];
-        if (!isApprovedAdaptor[adapter]) {
+        address adaptor = assetPriceFeeds[asset][0];
+        if (!isApprovedAdaptor[adaptor]) {
             revert OracleRouter__AdaptorIsNotApproved();
         }
 
-        PriceReturnData memory data = IOracleAdaptor(adapter).getPrice(
+        PriceReturnData memory data = IOracleAdaptor(adaptor).getPrice(
             asset,
             inUSD,
             getLower
@@ -709,7 +766,8 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            (newPrice, data.hadError) = _getETHUSD(getLower);
+            bool ethUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
             if (data.hadError) {
                 return (0, BAD_SOURCE);
             }
@@ -742,12 +800,12 @@ contract OracleRouter {
         bool inUSD,
         bool getLower
     ) internal view returns (FeedData memory) {
-        address adapter = assetPriceFeeds[asset][feedNumber];
-        if (!isApprovedAdaptor[adapter]) {
+        address adaptor = assetPriceFeeds[asset][feedNumber];
+        if (!isApprovedAdaptor[adaptor]) {
             revert OracleRouter__AdaptorIsNotApproved();
         }
 
-        PriceReturnData memory data = IOracleAdaptor(adapter).getPrice(
+        PriceReturnData memory data = IOracleAdaptor(adaptor).getPrice(
             asset,
             inUSD,
             getLower
@@ -760,7 +818,8 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            (newPrice, data.hadError) = _getETHUSD(getLower);
+            bool ethUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
             if (data.hadError) {
                 return FeedData({ price: 0, hadError: true });
             }
@@ -784,10 +843,6 @@ contract OracleRouter {
     ///         it returns (answer, true).
     ///         Where true corresponded to hasError = true.
     function _getETHUSD(bool getLower) internal view returns (uint256, bool) {
-        if (!_isSequencerValid()) {
-            return (0, true);
-        }
-
         uint256 numFeeds = assetPriceFeeds[ETH].length;
         // Validate we have a feed or feeds to price `asset`.
         if (numFeeds == 0) {
@@ -825,9 +880,12 @@ contract OracleRouter {
             // Answer == 0: Sequencer is up.
             // Check that the sequencer is up or the grace period has passed
             // after the sequencer is back up.
-            if (
-                answer != 0 || block.timestamp < startedAt + GRACE_PERIOD_TIME
-            ) {
+            if (startedAt == 0) {
+                return false;
+            }
+
+            uint256 timeSinceUp = block.timestamp - startedAt;
+            if (answer != 0 || timeSinceUp <= GRACE_PERIOD_TIME) {
                 return false;
             }
         }

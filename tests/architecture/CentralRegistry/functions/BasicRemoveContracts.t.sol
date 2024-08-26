@@ -4,17 +4,18 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-// Dynamically tests multiple functions in CentralRegistry that remove a contract from a mapping
+// Dynamically tests multiple functions in CentralRegistry that
+// remove a contract from a mapping
 contract BasicRemoveContractsTest is TestBaseMarket {
     event RemovedCurvanceContract(
         string indexed contractType,
         address removedAddress
     );
 
-    string[] removeFuncs;
-    string[] maps;
-    string[] expectedLogs;
-    string[] addFuncs;
+    string[] public removeFuncs;
+    string[] public maps;
+    string[] public expectedLogs;
+    string[] public addFuncs;
 
     function setUp() public virtual override {
         super.setUp();
@@ -30,8 +31,8 @@ contract BasicRemoveContractsTest is TestBaseMarket {
 
     function test_removeFunc_fail_whenUnauthorized() public {
         uint8 length = uint8(removeFuncs.length);
+        vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {
-            vm.startPrank(address(0));
             bytes memory sig = abi.encodeWithSignature(removeFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig
@@ -42,8 +43,8 @@ contract BasicRemoveContractsTest is TestBaseMarket {
                 bytes32(data),
                 bytes32(CentralRegistry.CentralRegistry__Unauthorized.selector)
             );
-            vm.stopPrank();
         }
+        vm.stopPrank();
     }
 
     function test_removeFunc_fail_whenParametersMisconfigured() public {

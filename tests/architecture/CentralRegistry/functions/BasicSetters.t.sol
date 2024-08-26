@@ -7,18 +7,27 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 contract BasicSettersTest is TestBaseMarket {
     event CoreContractSet(string indexed contractType, address newAddress);
 
-    string[] setters;
-    string[] getters;
-    string[] expectedLogs;
+    string[] public setters;
+    string[] public getters;
+    string[] public expectedLogs;
 
     function setUp() public virtual override {
         super.setUp();
+
+        centralRegistry = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp,
+            address(0),
+            _USDC_ADDRESS
+        );
 
         setters = [
             "setCVE(address)",
             "setVeCVE(address)",
             "setRewardManager(address)",
-            "setProtocolMessagingHub(address)",
+            "setMessagingHub(address)",
             "setOracleRouter(address)",
             "setFeeAccumulator(address)"
         ];
@@ -26,7 +35,7 @@ contract BasicSettersTest is TestBaseMarket {
             "cve()",
             "veCVE()",
             "rewardManager()",
-            "protocolMessagingHub()",
+            "messagingHub()",
             "oracleRouter()",
             "feeAccumulator()"
         ];
@@ -34,7 +43,7 @@ contract BasicSettersTest is TestBaseMarket {
             "CVE",
             "VeCVE",
             "Reward Manager",
-            "Protocol Messaging Hub",
+            "Messaging Hub",
             "Oracle Router",
             "Fee Accumulator"
         ];
@@ -42,8 +51,8 @@ contract BasicSettersTest is TestBaseMarket {
 
     function test_setter_fail_whenUnauthorized() public {
         uint8 length = uint8(setters.length);
+        vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {
-            vm.startPrank(address(0));
             bytes memory sig = abi.encodeWithSignature(setters[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig
@@ -54,8 +63,8 @@ contract BasicSettersTest is TestBaseMarket {
                 bytes32(data),
                 bytes32(CentralRegistry.CentralRegistry__Unauthorized.selector)
             );
-            vm.stopPrank();
         }
+        vm.stopPrank();
     }
 
     function test_setter_success() public {

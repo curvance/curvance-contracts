@@ -9,8 +9,6 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-
 library SwapperLib {
     /// TYPES ///
 
@@ -166,9 +164,19 @@ library SwapperLib {
             }
 
             uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
-                (10 ** IERC20(swapData.inputToken).decimals());
+                (10 **
+                    (
+                        CommonLib.isETH(swapData.inputToken)
+                            ? 18
+                            : IERC20(swapData.inputToken).decimals()
+                    ));
             uint256 outputValue = (outputTokenPrice * outAmount) /
-                (10 ** IERC20(swapData.outputToken).decimals());
+                (10 **
+                    (
+                        CommonLib.isETH(swapData.outputToken)
+                            ? 18
+                            : IERC20(swapData.outputToken).decimals()
+                    ));
             uint256 diff = outputValue > inputValue
                 ? outputValue - inputValue
                 : inputValue - outputValue;

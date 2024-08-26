@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract CentralRegistryDeployer is DeployConfiguration {
-    address centralRegistry;
+    address public centralRegistry;
 
     function _deployCentralRegistry(
         address daoAddress,
@@ -74,20 +74,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setRewardManager: ", rewardManager);
     }
 
-    function _setProtocolMessagingHub(address protocolMessagingHub) internal {
+    function _setMessagingHub(address messagingHub) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(
-            protocolMessagingHub != address(0),
-            "Set the protocolMessagingHub!"
-        );
+        require(messagingHub != address(0), "Set the messagingHub!");
 
-        CentralRegistry(centralRegistry).setProtocolMessagingHub(
-            protocolMessagingHub
-        );
-        console.log(
-            "centralRegistry.setProtocolMessagingHub: ",
-            protocolMessagingHub
-        );
+        CentralRegistry(centralRegistry).setMessagingHub(messagingHub);
+        console.log("centralRegistry.setMessagingHub: ", messagingHub);
     }
 
     function _setFeeAccumulator(address feeAccumulator) internal {
@@ -129,6 +121,18 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log(
             "centralRegistry.setCircleTokenMessenger: ",
             circleTokenMessenger
+        );
+    }
+
+    function _setMessageTransmitter(address messageTransmitter) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+
+        CentralRegistry(centralRegistry).setMessageTransmitter(
+            messageTransmitter
+        );
+        console.log(
+            "centralRegistry.setMessageTransmitter: ",
+            messageTransmitter
         );
     }
 

@@ -5,6 +5,8 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -67,6 +69,8 @@ contract CurvanceDAOLBP {
     error CurvanceDAOLBP__InSale();
     error CurvanceDAOLBP__Closed();
     error CurvanceDAOLBP__Success();
+    error CurvanceDAOLBP__InvalidSwapData();
+    error CurvanceDAOLBP__InvalidSwapOutput();
 
     /// EVENTS ///
 
@@ -75,6 +79,8 @@ contract CurvanceDAOLBP {
     event Claimed(address user, uint256 cveAmount);
 
     /// CONSTRUCTOR ///
+
+    receive() external payable {}
 
     constructor(ICentralRegistry centralRegistry_) {
         if (
@@ -188,6 +194,52 @@ contract CurvanceDAOLBP {
 
         // Document commitment for `recipient`.
         _commit(amount, recipient);
+    }
+
+    function swapAndCommitFor(
+        SwapperLib.Swap memory swapperData,
+        uint256 commitAmount,
+        address recipient
+    ) external payable {
+        // Validate that LBP is active.
+        _canCommit();
+
+        if (swapperData.outputToken != paymentToken) {
+            revert CurvanceDAOLBP__InvalidSwapData();
+        }
+
+        if (CommonLib.isETH(swapperData.inputToken)) {
+            // Validate message has gas token attached.
+            if (swapperData.inputAmount != msg.value) {
+                revert CurvanceDAOLBP__InvalidSwapData();
+            }
+        } else {
+            SafeTransferLib.safeTransferFrom(
+                swapperData.inputToken,
+                msg.sender,
+                address(this),
+                swapperData.inputAmount
+            );
+        }
+
+        // Execute swap into dToken underlying.
+        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
+
+        if (amount < commitAmount) {
+            revert CurvanceDAOLBP__InvalidSwapOutput();
+        }
+
+        if (amount > commitAmount) {
+            // Refund remaining payment token
+            SafeTransferLib.safeTransfer(
+                paymentToken,
+                msg.sender,
+                amount - commitAmount
+            );
+        }
+
+        // Document commitment for `recipient`.
+        _commit(commitAmount, recipient);
     }
 
     /// @notice Distributes a callers CVE owed from prior commitments.

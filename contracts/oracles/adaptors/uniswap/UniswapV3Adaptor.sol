@@ -57,6 +57,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
 
     /// ERRORS ///
 
+    error UniswapV3Adaptor__ChainIsNotSupported();
     error UniswapV3Adaptor__AssetIsNotSupported();
     error UniswapV3Adaptor__SecondsAgoIsLessThanMinimum();
 
@@ -67,6 +68,9 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         IStaticOracle oracleAddress_,
         address WETH_
     ) BaseOracleAdaptor(centralRegistry_) {
+        if (block.chainid != 1) {
+            revert UniswapV3Adaptor__ChainIsNotSupported();
+        }
         uniswapOracleRouter = oracleAddress_;
         WETH = WETH_;
     }
@@ -269,5 +273,12 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         // to stop supporting the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
         emit UniswapV3AssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 7;
     }
 }

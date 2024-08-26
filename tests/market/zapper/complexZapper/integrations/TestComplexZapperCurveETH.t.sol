@@ -2,15 +2,19 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
 contract TestComplexZapperCurveETH is TestBaseMarket {
-    address _CURVE_STETH_LP = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _CURVE_STETH_MINTER = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _STETH_ADDRESS = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _CURVE_STETH_LP =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _CURVE_STETH_MINTER =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _STETH_ADDRESS =
+        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     address public owner;
     address public user;
@@ -37,10 +41,11 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user, ethAmount);
 
-        vm.startPrank(user);
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;
         tokens[1] = _STETH_ADDRESS;
+
+        vm.prank(user);
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -55,7 +60,6 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             tokens,
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(IERC20(_CURVE_STETH_LP).balanceOf(user), 0);

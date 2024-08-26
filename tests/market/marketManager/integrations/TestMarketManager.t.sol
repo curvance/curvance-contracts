@@ -12,7 +12,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
         // eth/usd is needed in price router constructor
@@ -25,7 +25,6 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         // start gauge to enable deposits
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime() + 1000);
         chainlinkEthUsd.updateAnswer(1500e8);
     }
@@ -61,20 +60,20 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
         (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], cTokens[0], 100e18);
+        _postCollateral(users[0], cTokens[0], 100e18);
 
-        _genCollateral(users[1], cTokens[1], 1 ether);
-        _postCollateral(users[1], cTokens[1], 1 ether);
+        _genCollateral(users[1], cTokens[1], 100e18);
+        _postCollateral(users[1], cTokens[1], 100e18);
 
-        _genCollateral(users[2], cTokens[1], 1 ether);
-        _postCollateral(users[2], cTokens[1], 1 ether);
+        _genCollateral(users[2], cTokens[1], 100e18);
+        _postCollateral(users[2], cTokens[1], 100e18);
 
-        _supplyDToken(users[2], dTokens[0], 3 ether);
+        _supplyDToken(users[2], dTokens[0], 300e18);
 
-        _borrow(users[0], dTokens[0], 0.7 ether);
-        _borrow(users[1], dTokens[0], 0.7 ether);
-        _borrow(users[2], dTokens[0], 0.7 ether);
+        _borrow(users[0], dTokens[0], 70e18);
+        _borrow(users[1], dTokens[0], 70e18);
+        _borrow(users[2], dTokens[0], 70e18);
 
         for (uint256 i = 0; i < noOfCollateralTokens; i++) {
             skip(20 minutes);
@@ -217,6 +216,53 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         marketManager.removeCollateral(address(cTokens[0]), 2 ether);
 
+        vm.prank(users[0]);
+        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+    }
+
+    function testRemoveCollateralAfterRedeemPaused() public {
+        address[] memory users = new address[](3);
+        users[0] = address(0x1111);
+        users[1] = address(0x2222);
+        users[2] = address(0x3333);
+
+        noOfCollateralTokens = 2;
+        noOfDebtTokens = 2;
+
+        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+            noOfCollateralTokens
+        );
+        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
+        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+            noOfCollateralTokens
+        );
+        MockV3Aggregator[]
+            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfCollateralTokens
+            );
+        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
+            noOfDebtTokens
+        );
+
+        (
+            cTokens,
+            cTokensAgg,
+            cTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
+        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+
+        _genCollateral(users[0], cTokens[0], 1 ether);
+        _postCollateral(users[0], cTokens[0], 1 ether);
+
+        skip(30 minutes);
+
+        marketManager.setRedeemPaused(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.prank(users[0]);
+        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+
+        marketManager.setRedeemPaused(false);
         vm.prank(users[0]);
         marketManager.removeCollateral(address(cTokens[0]), 1 ether);
     }
@@ -382,14 +428,14 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
         (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], cTokens[0], 500e18);
+        _postCollateral(users[0], cTokens[0], 500e18);
 
-        _supplyDToken(users[2], dTokens[0], 3 ether);
-        _borrow(users[0], dTokens[0], 0.6 ether);
+        _supplyDToken(users[2], dTokens[0], 1_500e18);
+        _borrow(users[0], dTokens[0], 300e18);
 
-        _supplyDToken(users[2], dTokens[1], 3 ether);
-        _borrow(users[0], dTokens[1], 0.1 ether);
+        _supplyDToken(users[2], dTokens[1], 1_500e18);
+        _borrow(users[0], dTokens[1], 50e18);
 
         skip(20 minutes);
         _updateRoundData(cTokensAgg[0], 0, 0.9e8);

@@ -39,7 +39,7 @@ contract TestStakedGMXCToken is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         centralRegistry.addHarvester(address(this));
@@ -53,8 +53,7 @@ contract TestStakedGMXCToken is TestBaseMarket {
             _WETH_ADDRESS
         );
 
-        gaugePool.start(address(marketManager));
-
+        
         _deployOracleRouter();
 
         chainlinkAdaptor = new ChainlinkAdaptor(

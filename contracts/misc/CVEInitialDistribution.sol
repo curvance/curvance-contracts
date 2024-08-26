@@ -164,6 +164,14 @@ contract CVEInitialDistribution is ReentrancyGuard {
         uint256 amount,
         bytes32[] calldata proof
     ) external view returns (bool) {
+        if (isPaused == 2){
+            return false;
+        }
+
+        if (merkleRoot == bytes32(0)) {
+            return false;
+        }
+
         if (amount > maximumClaimAmount) {
             return false;
         }

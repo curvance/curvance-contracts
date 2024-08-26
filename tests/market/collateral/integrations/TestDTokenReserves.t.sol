@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
@@ -60,8 +60,7 @@ contract TestDTokenReserves is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -123,6 +122,7 @@ contract TestDTokenReserves is TestBaseMarket {
         vm.startPrank(liquidityProvider);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
+        vm.stopPrank();
 
         _prepareBALRETH(user1, 1 ether);
 
@@ -131,10 +131,8 @@ contract TestDTokenReserves is TestBaseMarket {
         balRETH.approve(address(cBALRETH), 1 ether);
         cBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(cBALRETH), 1 ether - 1);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user1);
         dDAI.borrow(500 ether);
         vm.stopPrank();
 
@@ -146,18 +144,20 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             assertEq(totalBorrowsBefore, 500 ether);
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -175,7 +175,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -186,18 +186,20 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 totalReserves = dDAI.totalReserves();
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -210,7 +212,7 @@ contract TestDTokenReserves is TestBaseMarket {
             assertApproxEqRel(
                 dDAI.debtBalanceCached(user1),
                 debtBalanceBefore + debt,
-                10000
+                1 ether
             );
             assertGt(dDAI.exchangeRateCached(), exchangeRateBefore);
 
@@ -219,7 +221,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -230,7 +232,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
         uint256 exchangeRate = dDAI.exchangeRateCached();
         uint256 totalReservesBefore = dDAI.totalReserves();
-        uint256 gaugeBalanceBefore = gaugePool.balanceOf(address(dDAI), dao);
+        uint256 gaugeBalanceBefore = gaugeManager.balanceOf(address(dDAI), dao);
 
         uint256 depositAmount = 100 ether;
         _prepareDAI(dao, depositAmount);
@@ -244,7 +246,7 @@ contract TestDTokenReserves is TestBaseMarket {
             totalReservesBefore + (depositAmount * 1e18) / exchangeRate
         );
         assertEq(
-            gaugePool.balanceOf(address(dDAI), dao),
+            gaugeManager.balanceOf(address(dDAI), dao),
             gaugeBalanceBefore + (depositAmount * 1e18) / exchangeRate
         );
     }
@@ -257,23 +259,22 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 exchangeRate = dDAI.exchangeRateCached();
             uint256 totalReservesBefore = dDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
-            uint256 gaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
 
             uint256 withdrawAmount = ((totalReservesBefore / 2) *
                 exchangeRate) / 1e18;
-            vm.startPrank(dao);
+            vm.prank(dao);
             dDAI.withdrawReserves(withdrawAmount);
-            vm.stopPrank();
 
             assertEq(
                 dDAI.totalReserves(),
                 totalReservesBefore - ((withdrawAmount * 1e18) / exchangeRate)
             );
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 gaugeBalanceBefore - ((withdrawAmount * 1e18) / exchangeRate)
             );
             assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
@@ -290,12 +291,11 @@ contract TestDTokenReserves is TestBaseMarket {
             if ((withdrawAmount * 1e18) / exchangeRate < totalReservesBefore) {
                 withdrawAmount += 1;
             }
-            vm.startPrank(dao);
+            vm.prank(dao);
             dDAI.withdrawReserves(withdrawAmount);
-            vm.stopPrank();
 
             assertEq(dDAI.totalReserves(), 0);
-            assertEq(gaugePool.balanceOf(address(dDAI), dao), 0);
+            assertEq(gaugeManager.balanceOf(address(dDAI), dao), 0);
             assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
         }
     }

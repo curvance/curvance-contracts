@@ -1,9 +1,7 @@
 pragma solidity 0.8.19;
 import { MockCToken } from "contracts/mocks/MockCToken.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { MockToken } from "contracts/mocks/MockToken.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
@@ -124,7 +122,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 amount,
         bool lower
     ) public {
-        require(gaugePool.startTime() < block.timestamp);
+        require(gaugeManager.startTime() < block.timestamp);
         require(mtoken == address(cDAI) || mtoken == address(cUSDC));
         if (!marketManager.isListed(mtoken)) {
             list_token_should_succeed(mtoken);

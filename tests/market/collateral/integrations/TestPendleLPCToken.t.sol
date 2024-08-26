@@ -39,7 +39,7 @@ contract TestPendleLPCToken is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         centralRegistry.addHarvester(address(this));
@@ -57,7 +57,6 @@ contract TestPendleLPCToken is TestBaseMarket {
             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
     }
 
@@ -176,15 +175,10 @@ contract TestPendleLPCToken is TestBaseMarket {
     //     cSTETH.harvest(abi.encode(swaps, 0, approx));
     // }
 
-    function testReQueryRewardTokens() external {
-        cSTETH.reQueryRewardTokens();
+    function testReQueryTokens() external {
+        cSTETH.reQueryTokens();
 
         assertEq(cSTETH.rewardTokens().length, 1);
-    }
-
-    function testReQueryUnderlyingTokens() external {
-        cSTETH.reQueryUnderlyingTokens();
-
         assertEq(cSTETH.underlyingTokens().length, 4);
     }
 }

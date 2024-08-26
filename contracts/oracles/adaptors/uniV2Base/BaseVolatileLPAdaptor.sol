@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -106,12 +107,15 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         uint256 totalSupply = pool.totalSupply();
         // Query LP reserves.
         (uint256 reserve0, uint256 reserve1, ) = pool.getReserves();
-        // convert to 18 decimals.
-        reserve0 = (reserve0 * 1e18) / (10 ** data.decimals0);
-        reserve1 = (reserve1 * 1e18) / (10 ** data.decimals1);
 
-        // sqrt(reserve0 * reserve1).
-        uint256 sqrtReserve = FixedPointMathLib.sqrt(reserve0 * reserve1);
+        // Standardize reserve values to 18 decimals.
+        if (data.decimals0 != 18) {
+            reserve0 = (reserve0 * WAD) / (10 ** data.decimals0);
+        }
+
+        if (data.decimals1 != 18) {
+            reserve1 = (reserve1 * WAD) / (10 ** data.decimals1);
+        }
 
         uint256 price0;
         uint256 price1;
@@ -144,10 +148,13 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        // price = 2 * sqrt(reserve0 * reserve1) * sqrt(price0 * price1) / totalSupply.
-        uint256 finalPrice = (2 *
-            sqrtReserve *
-            FixedPointMathLib.sqrt(price0 * price1)) / totalSupply;
+        uint256 finalPrice = _getFairPrice(
+            reserve0,
+            reserve1,
+            price0,
+            price1,
+            totalSupply
+        );
 
         // Validate price will not overflow on conversion to uint240.
         if (_checkOracleOverflow(finalPrice)) {
@@ -198,5 +205,32 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         // Notify the oracle router that we are going to stop supporting
         // the asset.
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+    }
+
+    /// @notice Helper function in calculating the price of an lp token.
+    ///         Uses reserves, and pricing of each underlying token versus
+    ///         the total supply of lp tokens making up the pool.
+    /// @dev Prices volatile pairs NOT stable pairs.
+    ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
+    /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
+    /// @param price0 The price of token0 according to the Oracle Router.
+    /// @param price0 The price of token1 according to the Oracle Router.
+    /// @param totalSupply The total supply of lp tokens inside the lp.
+    /// @return Fair value pricing for the lp token.
+    function _getFairPrice(
+        uint256 reserve0,
+        uint256 reserve1,
+        uint256 price0,
+        uint256 price1,
+        uint256 totalSupply
+    ) internal pure returns (uint256) {
+        // sqrt(reserve0 * reserve1).
+        uint256 sqrtReserve = FixedPointMathLib.sqrt(reserve0 * reserve1);
+
+        // price = 2 * sqrt(reserve0 * reserve1) * sqrt(price0 * price1) / totalSupply.
+        return
+            (2 * sqrtReserve * FixedPointMathLib.sqrt(price0 * price1))
+            / totalSupply;
     }
 }

@@ -9,6 +9,19 @@ contract SetCVETest is TestBaseMarket {
 
     address public newCVE = makeAddr("CVE");
 
+    function setUp() public override {
+        super.setUp();
+
+        centralRegistry = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp,
+            address(0),
+            _USDC_ADDRESS
+        );
+    }
+
     function test_setCVE_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
@@ -18,8 +31,17 @@ contract SetCVETest is TestBaseMarket {
         centralRegistry.setCVE(newCVE);
     }
 
+    function test_setCVE_fail_whenCVEIsAlreadySet() public {
+        centralRegistry.setCVE(newCVE);
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setCVE(newCVE);
+    }
+
     function test_setCVE_success() public {
-        assertEq(centralRegistry.cve(), address(cve));
+        assertEq(centralRegistry.cve(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
         emit CoreContractSet("CVE", newCVE);

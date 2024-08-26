@@ -4,22 +4,21 @@ pragma solidity ^0.8.19;
 import { CVEInitialDistribution } from "contracts/misc/CVEInitialDistribution.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 import "tests/utils/merkle/Merkle.sol";
 
 contract TestCVEInitialDistribution is TestBaseMarket {
-    uint256 constant USER_LENGTH = 10;
+    uint256 public constant USER_LENGTH = 10;
 
     CVEInitialDistribution public distributor;
     Merkle public merkle;
 
-    uint256 maxClaimAmount = 3000000 ether;
-    address[] users;
-    uint256[] amounts;
-    bytes32[] leafs;
-    bytes32 root;
+    uint256 public maxClaimAmount = 3000000 ether;
+    address[] public users;
+    uint256[] public amounts;
+    bytes32[] public leafs;
+    bytes32 public root;
 
     function setUp() public override {
         super.setUp();
@@ -84,9 +83,8 @@ contract TestCVEInitialDistribution is TestBaseMarket {
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);
 
-            vm.startPrank(users[i]);
+            vm.prank(users[i]);
             distributor.claim(amounts[i], false, proof);
-            vm.stopPrank();
 
             assertEq(cve.balanceOf(users[i]), amounts[i]);
         }
@@ -98,17 +96,16 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         centralRegistry.addLockingPermissions(address(distributor));
 
-        vm.prank(centralRegistry.protocolMessagingHub());
-        rewardManager.recordEpochRewards(_ONE);
+        vm.prank(centralRegistry.messagingHub());
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
 
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);
 
-            vm.startPrank(users[i]);
+            vm.prank(users[i]);
             distributor.claim(amounts[i], true, proof);
-            vm.stopPrank();
 
             assertEq(
                 veCVE.balanceOf(users[i]),
@@ -122,12 +119,12 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         bytes32[] memory proof = merkle.getProof(leafs, 0);
 
+        vm.prank(users[0]);
+
         vm.expectRevert(
             CVEInitialDistribution.CVEInitialDistribution__Paused.selector
         );
-        vm.startPrank(users[0]);
         distributor.claim(amounts[0], false, proof);
-        vm.stopPrank();
     }
 
     function testClaimRevert__ParametersAreInvalid() public {
@@ -136,28 +133,28 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         bytes32[] memory proof = merkle.getProof(leafs, 0);
 
+        vm.prank(users[0]);
+
         vm.expectRevert(
             CVEInitialDistribution
                 .CVEInitialDistribution__ParametersAreInvalid
                 .selector
         );
-        vm.startPrank(users[0]);
         distributor.claim(maxClaimAmount + 1, false, proof);
-        vm.stopPrank();
     }
 
     function testClaimRevert__Unauthorized() public {
         distributor.setPauseState(false);
 
         bytes32[] memory proof = merkle.getProof(leafs, 0);
+        vm.prank(users[0]);
+
         vm.expectRevert(
             CVEInitialDistribution
                 .CVEInitialDistribution__Unauthorized
                 .selector
         );
-        vm.startPrank(users[0]);
         distributor.claim(amounts[0], false, proof);
-        vm.stopPrank();
     }
 
     function testClaimRevert__NotEligible() public {
@@ -166,23 +163,21 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         bytes32[] memory proof = merkle.getProof(leafs, 0);
         vm.startPrank(users[0]);
+
         distributor.claim(amounts[0], false, proof);
-        vm.stopPrank();
 
         vm.expectRevert(
             CVEInitialDistribution.CVEInitialDistribution__NotEligible.selector
         );
-        vm.startPrank(users[0]);
         distributor.claim(amounts[0], false, proof);
-        vm.stopPrank();
 
         skip(7 weeks);
 
         vm.expectRevert(
             CVEInitialDistribution.CVEInitialDistribution__NotEligible.selector
         );
-        vm.startPrank(users[0]);
         distributor.claim(amounts[0], false, proof);
+
         vm.stopPrank();
     }
 }

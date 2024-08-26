@@ -80,6 +80,11 @@ abstract contract BaseOracleAdaptor {
 
     /// FUNCTIONS TO OVERRIDE ///
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external virtual returns (uint256);
+
     /// @notice Removes a supported asset from the adaptor.
     /// @dev Calls back into oracle router to notify it of its removal.
     ///      Requires that `asset` is currently supported.

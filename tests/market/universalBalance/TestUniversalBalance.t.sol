@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -29,13 +27,9 @@ contract TestUniversalBalance is TestBaseMarket {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    CTokenPrimitive cWBTC;
-    UniversalBalance universalBalance;
-
-    IERC20 private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
-    IERC20 private WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
-    DToken dWETH;
+    CTokenPrimitive public cWBTC;
+    UniversalBalance public universalBalance;
+    DToken public dWETH;
 
     function setUp() public override {
         super.setUp();
@@ -102,8 +96,7 @@ contract TestUniversalBalance is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
@@ -113,7 +106,7 @@ contract TestUniversalBalance is TestBaseMarket {
         {
             // support market
             deal(_WETH_ADDRESS, owner, 200000 ether);
-            WETH.approve(address(dWETH), 200000e6);
+            weth.approve(address(dWETH), 200000e18);
             marketManager.listToken(address(dWETH));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(dWETH));
@@ -130,13 +123,13 @@ contract TestUniversalBalance is TestBaseMarket {
             // deploy aura position vault
             cWBTC = new CTokenPrimitive(
                 ICentralRegistry(address(centralRegistry)),
-                WBTC,
+                wbtc,
                 address(marketManager)
             );
 
             // support market
             deal(_WBTC_ADDRESS, owner, 1e8);
-            WBTC.approve(address(cWBTC), 1e8);
+            wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
             // add MToken support on price router
             oracleRouter.addMTokenSupport(address(cWBTC));
@@ -173,32 +166,28 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testDepositETH() public {
-        vm.deal(user1, 1 ether);
+        vm.deal(user1, 100e18);
         vm.startPrank(user1);
-        universalBalance.depositETH{ value: 1 ether }(false);
-        vm.stopPrank();
+        universalBalance.depositETH{ value: 100e18 }(false);
 
-        vm.deal(user1, 1 ether);
-        vm.startPrank(user1);
-        universalBalance.depositETH{ value: 1 ether }(true);
+        vm.deal(user1, 100e18);
+        universalBalance.depositETH{ value: 100e18 }(true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertEq(lentBalance, 1 ether);
+        assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 100e18);
     }
 
     function testDepositWETH() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, false);
-        vm.stopPrank();
 
         deal(_WETH_ADDRESS, user1, 1 ether);
-        vm.startPrank(user1);
-        IERC20(_WETH_ADDRESS).approve(address(universalBalance), 1 ether);
+        weth.approve(address(universalBalance), 1 ether);
         universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
 
@@ -221,9 +210,7 @@ contract TestUniversalBalance is TestBaseMarket {
             .userBalances(user1);
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, 1 ether);
-        vm.stopPrank();
 
-        vm.startPrank(user1);
         universalBalance.withdrawAsETH(1 ether, true);
 
         assertEq(user1.balance, ethBalance + 2 ether);
@@ -237,11 +224,9 @@ contract TestUniversalBalance is TestBaseMarket {
         testDepositETH();
 
         vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(1 ether, false);
-        vm.stopPrank();
+        universalBalance.withdrawAsWETH(100e18, false);
 
-        vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(1 ether, true);
+        universalBalance.withdrawAsWETH(100e18, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -253,7 +238,9 @@ contract TestUniversalBalance is TestBaseMarket {
     function testClaimForDAO() public {
         testDepositETH();
 
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
+        _skipEpochDuration(1);
+
         vm.roll(block.number + 1000);
 
         // set gauge weights
@@ -261,12 +248,11 @@ contract TestUniversalBalance is TestBaseMarket {
         tokensParam[0] = address(dWETH);
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
 
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 
         skip(1 weeks);
@@ -280,24 +266,27 @@ contract TestUniversalBalance is TestBaseMarket {
         testDepositETH();
 
         // mint cWBTC & borrow WETH
-        deal(_WBTC_ADDRESS, user2, 1e8);
+        deal(_WBTC_ADDRESS, user2, 100e8);
         vm.startPrank(user2);
-        WBTC.approve(address(cWBTC), 1e8);
-        cWBTC.mint(1e8, user2);
-        marketManager.postCollateral(user2, address(cWBTC), 1e8);
-        dWETH.borrow(0.5 ether);
+        wbtc.approve(address(cWBTC), 100e8);
+        cWBTC.mint(100e8, user2);
+        marketManager.postCollateral(user2, address(cWBTC), 100e8);
+        dWETH.borrow(50e18);
 
         vm.stopPrank();
 
         skip(10 weeks);
 
-        vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(0.5 ether, true);
-        vm.stopPrank();
+        deal(_WETH_ADDRESS, owner, 100e18);
+        weth.approve(address(dWETH), 100e18);
+        dWETH.mint(100e18);
+
+        vm.prank(user1);
+        universalBalance.withdrawAsWETH(50e18, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertGt(lentBalance, 0.5 ether);
+        assertEq(sittingBalance, 100e18);
+        assertGt(lentBalance, 50e18);
     }
 }

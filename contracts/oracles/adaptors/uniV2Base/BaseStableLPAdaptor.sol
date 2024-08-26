@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -80,7 +81,10 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Retrieves the price of `asset`, an lp token,
     ///         for a Univ2 style stable pool.
-    /// @dev Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    /// @dev Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///      NOTE: Values are different since stable pairs use constant
+    ///            product of constant product = x^3 * y + x * y^3. Instead of
+    ///            normal formula.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.
@@ -106,13 +110,14 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         uint256 totalSupply = pool.totalSupply();
         // Query LP reserves.
         (uint256 reserve0, uint256 reserve1, ) = pool.getReserves();
-        // convert to 18 decimals.
+
+        // Standardize reserve values to 18 decimals.
         if (data.decimals0 != 18) {
-            reserve0 = (reserve0 * 1e18) / (10 ** data.decimals0);
+            reserve0 = (reserve0 * WAD) / (10 ** data.decimals0);
         }
 
         if (data.decimals1 != 18) {
-            reserve1 = (reserve1 * 1e18) / (10 ** data.decimals1);
+            reserve1 = (reserve1 * WAD) / (10 ** data.decimals1);
         }
 
         uint256 price0;
@@ -208,6 +213,11 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     /// @notice Helper function in calculating the price of an lp token.
     ///         Uses reserves, and pricing of each underlying token versus
     ///         the total supply of lp tokens making up the pool.
+    /// @dev Prices stable pairs NOT volatile pairs.
+    ///      Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///      NOTE: Values are different since stable pairs use constant
+    ///            product of constant product = x^3 * y + x * y^3. Instead of
+    ///            normal formula.
     /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
     /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
     /// @param price0 The price of token0 according to the Oracle Router.
@@ -221,19 +231,19 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         uint256 price1,
         uint256 totalSupply
     ) internal pure returns (uint256) {
-        // constant product = x^3 * y + x * y^3.
+        // Constant product = x^3 * y + x * y^3.
         uint256 sqrtReserve = FixedPointMathLib.sqrt(
             FixedPointMathLib.sqrt(reserve0 * reserve1) *
                 FixedPointMathLib.sqrt(
                     reserve0 * reserve0 + reserve1 * reserve1
                 )
         );
-        uint256 ratio = ((1e18) * price0) / price1;
+        uint256 ratio = (WAD * price0) / price1;
         uint256 sqrtPrice = FixedPointMathLib.sqrt(
-            FixedPointMathLib.sqrt((1e18) * ratio) *
+            FixedPointMathLib.sqrt(WAD * ratio) *
                 FixedPointMathLib.sqrt(1e36 + ratio * ratio)
         );
         return
-            ((((1e18) * sqrtReserve) / sqrtPrice) * price0 * 2) / totalSupply;
+            (2 * sqrtReserve * price0 * WAD) / (sqrtPrice * totalSupply);
     }
 }

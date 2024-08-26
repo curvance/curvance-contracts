@@ -10,7 +10,9 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -20,9 +22,9 @@ import { PositionFolding } from "contracts/market/utils/PositionFolding.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -55,6 +57,7 @@ contract TestVariables {
     address internal _WORMHOLE_CORE;
     address internal _WORMHOLE_RELAYER;
     address internal _CIRCLE_TOKEN_MESSENGER;
+    address internal _CIRCLE_MESSAGE_TRANSMITTER;
     address internal _TOKEN_BRIDGE;
 
     // Chain ID => Data
@@ -81,6 +84,7 @@ contract TestVariables {
     mapping(uint256 => address) internal _WORMHOLE_CORES;
     mapping(uint256 => address) internal _WORMHOLE_RELAYERS;
     mapping(uint256 => address) internal _CIRCLE_TOKEN_MESSENGERS;
+    mapping(uint256 => address) internal _CIRCLE_MESSAGE_TRANSMITTERS;
     mapping(uint256 => address) internal _TOKEN_BRIDGES;
 
     CVE public cve;
@@ -89,7 +93,8 @@ contract TestVariables {
     SimpleRewardZapper public simpleRewardZapper;
     CentralRegistry public centralRegistry;
     FeeAccumulator public feeAccumulator;
-    ProtocolMessagingHub public protocolMessagingHub;
+    MessagingHub public messagingHub;
+    VotingHub public votingHub;
     BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
@@ -103,6 +108,8 @@ contract TestVariables {
     MockAuraCTokenWithExitFee public cBALRETHWithExitFee;
     IERC20 public usdc;
     IERC20 public dai;
+    IERC20 public weth;
+    IERC20 public wbtc;
     IERC20 public balRETH;
 
     MockV3Aggregator public chainlinkUsdcUsd;
@@ -112,8 +119,10 @@ contract TestVariables {
     MockV3Aggregator public chainlinkDaiUsd;
     MockV3Aggregator public chainlinkDaiEth;
 
+    address[] public redstoneSigners;
+
     MockToken public rewardToken;
-    GaugePool public gaugePool;
+    GaugeManager public gaugeManager;
     ComplexZapper public complexZapper;
 
     // Chain ID => Data
@@ -123,7 +132,8 @@ contract TestVariables {
     mapping(uint256 => SimpleRewardZapper) public simpleRewardZappers;
     mapping(uint256 => CentralRegistry) public centralRegistries;
     mapping(uint256 => FeeAccumulator) public feeAccumulators;
-    mapping(uint256 => ProtocolMessagingHub) public protocolMessagingHubs;
+    mapping(uint256 => MessagingHub) public messagingHubs;
+    mapping(uint256 => VotingHub) public votingHubs;
     mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
@@ -144,7 +154,7 @@ contract TestVariables {
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
 
     mapping(uint256 => MockToken) public rewardTokens;
-    mapping(uint256 => GaugePool) public gaugePools;
+    mapping(uint256 => GaugeManager) public gaugeManagers;
     mapping(uint256 => ComplexZapper) public complexZappers;
 
     address public harvester;
@@ -155,6 +165,9 @@ contract TestVariables {
     uint256 public voteBoostMultiplier = 11000; // 110%
     uint256 public lockBoostMultiplier = 10000; // 110%
     uint256 public marketInterestFactor = 1000; // 10%
+
+    bytes public response;
+    IWormhole.Signature[] public signatures;
 
     modifier initMainVariables() {
         _initMainVariables();
@@ -220,6 +233,9 @@ contract TestVariables {
         _CIRCLE_TOKEN_MESSENGERS[
             chainId
         ] = 0xBd3fa81B58Ba92a82136038B25aDec7066af3155;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0x0a992d191DEeC32aFe36203Ad87D7d289a738F81;
         _TOKEN_BRIDGES[chainId] = 0x3ee18B2214AFF97000D974cf647E7C347E8fa585;
     }
 
@@ -249,6 +265,9 @@ contract TestVariables {
         _CIRCLE_TOKEN_MESSENGERS[
             chainId
         ] = 0x19330d10D9Cc8751218eaf51E8885D058642E08A;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca;
         _TOKEN_BRIDGES[chainId] = 0x0b2402144Bb366A632D14B83F244D2e0e21bD39c;
     }
 
@@ -270,6 +289,17 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        _WORMHOLE_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
+        _WORMHOLE_RELAYERS[
+            chainId
+        ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
+        _CIRCLE_TOKEN_MESSENGERS[
+            chainId
+        ] = 0x2B4069517957735bE00ceE0fadAE88a26365528f;
+        _CIRCLE_MESSAGE_TRANSMITTERS[
+            chainId
+        ] = 0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8;
+        _TOKEN_BRIDGES[chainId] = 0x1D68124e65faFC907325e3EDbF8c4d84499DAa8b;
     }
 
     function _initBaseVariables() internal {
@@ -306,10 +336,13 @@ contract TestVariables {
         _WORMHOLE_CORE = _WORMHOLE_CORES[chainId];
         _WORMHOLE_RELAYER = _WORMHOLE_RELAYERS[chainId];
         _CIRCLE_TOKEN_MESSENGER = _CIRCLE_TOKEN_MESSENGERS[chainId];
+        _CIRCLE_MESSAGE_TRANSMITTER = _CIRCLE_MESSAGE_TRANSMITTERS[chainId];
         _TOKEN_BRIDGE = _TOKEN_BRIDGES[chainId];
 
         usdc = IERC20(_USDC_ADDRESS);
         dai = IERC20(_DAI_ADDRESS);
+        weth = IERC20(_WETH_ADDRESS);
+        wbtc = IERC20(_WBTC_ADDRESS);
         balRETH = IERC20(_BAL_WETH_RETH_ADDRESS);
     }
 
@@ -322,7 +355,8 @@ contract TestVariables {
         simpleRewardZapper = simpleRewardZappers[chainId];
         centralRegistry = centralRegistries[chainId];
         feeAccumulator = feeAccumulators[chainId];
-        protocolMessagingHub = protocolMessagingHubs[chainId];
+        messagingHub = messagingHubs[chainId];
+        votingHub = votingHubs[chainId];
         balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
@@ -343,7 +377,7 @@ contract TestVariables {
         chainlinkDaiEth = chainlinkDaiEths[chainId];
 
         rewardToken = rewardTokens[chainId];
-        gaugePool = gaugePools[chainId];
+        gaugeManager = gaugeManagers[chainId];
         complexZapper = complexZappers[chainId];
     }
 

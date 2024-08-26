@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
-
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
@@ -15,6 +12,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -67,6 +65,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     address public immutable underlying;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
 
     /// @dev `bytes4(keccak256(bytes("DToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xef419be2;
@@ -147,7 +147,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     error DToken__TransferError();
     error DToken__InsufficientUnderlyingHeld();
     error DToken__ValidationFailed();
-    error DToken__InvalidCentralRegistry();
     error DToken__UnderlyingAssetTotalSupplyExceedsMaximum();
     error DToken__MarketManagerIsNotLendingMarket();
 
@@ -164,15 +163,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address marketManager_,
         address interestRateModel_
     ) Delegable(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert DToken__InvalidCentralRegistry();
-        }
-
         // Set the marketManager after consulting Central Registry.
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(marketManager_)) {
@@ -181,6 +171,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new marketManager.
         marketManager = IMarketManager(marketManager_);
+        // Set `gaugeManager`.
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Initialize timestamp and borrow index.
         marketData.lastTimestampUpdated = uint40(block.timestamp);
@@ -235,7 +227,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
-        // Total Supply and contracy balance should always be 0 prior,
+        // Total Supply and contract's balance should always be 0 prior,
         // but we increment incase somehow invariants have been modified.
         totalSupply = totalSupply + amount;
         balanceOf[address(this)] = balanceOf[address(this)] + amount;
@@ -428,7 +420,14 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Wipe out the accounts debt since we are recognizing
         // unpaid debt as bad debt.
         delete _debtOf[account].principal;
-        totalBorrows -= accountDebt;
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < accountDebt) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= accountDebt;
+        }
 
         emit Repay(liquidator, account, repayAmount);
         emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
@@ -607,7 +606,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address daoAddress = centralRegistry.daoAddress();
 
         // Deposit new reserves into gauge.
-        _gaugePool().deposit(address(this), daoAddress, tokens);
+        gaugeManager.deposit(address(this), daoAddress, tokens);
 
         // Update reserves
         totalReserves = totalReserves + tokens;
@@ -641,7 +640,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address daoAddress = centralRegistry.daoAddress();
 
         // Withdraw reserves from gauge, in shares.
-        _gaugePool().withdraw(address(this), daoAddress, tokens);
+        gaugeManager.withdraw(address(this), daoAddress, tokens);
         // Transfer underlying to DAO, in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
@@ -674,7 +673,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
         // Withdraw reserves from gauge.
-        _gaugePool().withdraw(address(this), daoAddress, totalReservesCached);
+        gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
 
         // Transfer underlying to DAO measured in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
@@ -809,7 +808,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.utilizationRate(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -821,7 +820,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getBorrowRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -834,7 +833,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getPredictedBorrowRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves
+                convertToAssets(totalReserves)
             );
     }
 
@@ -846,7 +845,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             interestRateModel.getSupplyRatePerYear(
                 marketUnderlyingHeld(),
                 totalBorrows,
-                totalReserves,
+                convertToAssets(totalReserves),
                 interestFactor
             );
     }
@@ -1016,10 +1015,13 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to check for totalSupply = 0, because,
         // when we list a market we mint `_BASE_UNDERLYING_RESERVE` initially.
         // exchangeRate calculation:
-        // (Underlying Held + Total Borrows - Total Reserves) / Total Supply.
+        // (Underlying Held + Total Borrows) / (Total Supply + Total Reserves).
         return
-            ((marketUnderlyingHeld() + totalBorrows - totalReserves) * WAD) /
-            totalSupply;
+            FixedPointMathLib.mulDiv(
+                marketUnderlyingHeld() + totalBorrows,
+                WAD,
+                totalSupply + totalReserves
+            );
     }
 
     /// @notice Returns the amount of tokens that would be exchanged
@@ -1078,7 +1080,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         uint256 borrowRate = interestRateModel.getBorrowRateWithUpdate(
             marketUnderlyingHeld(),
             borrowsPrior,
-            reservesPrior
+            convertToAssets(reservesPrior)
         );
 
         // Calculate the interest compound cycles to update,
@@ -1100,16 +1102,18 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
                 (interestCompounds * cachedData.compoundRate)
         );
         marketData.exchangeRate = uint216(exchangeRateNew);
-        totalBorrows = totalBorrowsNew;
 
         // Check whether the DAO takes a cut of interest, and whether new debt
         // has accumulated (!= 0). Then update reserves if necessary.
-        uint256 newReserves = ((interestFactor * debtAccumulated) / WAD);
+        uint256 newReserves = ((interestFactor *
+            convertToShares(debtAccumulated)) / WAD);
+
+        totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
 
-            // Update gauge pool values for new reserves.
-            _gaugePool().deposit(
+            // Update Gauge Manager values for new reserves.
+            gaugeManager.deposit(
                 address(this),
                 centralRegistry.daoAddress(),
                 newReserves
@@ -1213,10 +1217,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[to] = balanceOf[to] + tokens;
         }
 
-        // Cache gaugePool, then update gauge pool values for `from` and `to`.
-        GaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), from, tokens);
-        gaugePool.deposit(address(this), to, tokens);
+        // Cache Gauge Manager, then update values for `from` and `to`.
+        gaugeManager.withdraw(address(this), from, tokens);
+        gaugeManager.deposit(address(this), to, tokens);
 
         // We emit a Transfer event.
         emit Transfer(from, to, tokens);
@@ -1258,8 +1261,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[recipient] = balanceOf[recipient] + tokens;
         }
 
-        // Update gauge pool values for `recipient`.
-        _gaugePool().deposit(address(this), recipient, tokens);
+        // Update Gauge Manager values for `recipient`.
+        gaugeManager.deposit(address(this), recipient, tokens);
 
         emit Transfer(address(0), recipient, tokens);
         return tokens;
@@ -1282,7 +1285,10 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
         // because the startMarket() assets can never be withdraw since the
         // market itself owns the corresponding dTokens.
-        if (marketUnderlyingHeld() < amount) {
+        if (
+            marketUnderlyingHeld() - convertToAssets(totalReserves) <
+            amount + _BASE_UNDERLYING_RESERVE
+        ) {
             revert DToken__InsufficientUnderlyingHeld();
         }
 
@@ -1294,9 +1300,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             totalSupply = totalSupply - tokens;
         }
 
-        // Update gauge pool values for `account`, while also checking
+        // Update Gauge Manager values for `account`, while also checking
         // if tokens == 0, causing reversion.
-        _gaugePool().withdraw(address(this), account, tokens);
+        gaugeManager.withdraw(address(this), account, tokens);
 
         // Transfer underlying to `recipient`.
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
@@ -1324,7 +1330,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // the system since there will always be at least
         // _BASE_UNDERLYING_RESERVE excess inside the market.
         if (
-            marketUnderlyingHeld() - totalReserves <
+            marketUnderlyingHeld() - convertToAssets(totalReserves) <
             amount + _BASE_UNDERLYING_RESERVE
         ) {
             revert DToken__InsufficientUnderlyingHeld();
@@ -1383,7 +1389,14 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             _debtOf[account].principal = accountDebt - amount;
         }
         _debtOf[account].accountExchangeRate = marketData.exchangeRate;
-        totalBorrows -= amount;
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < amount) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= amount;
+        }
 
         emit Repay(payer, account, amount);
         return amount;
@@ -1458,7 +1471,15 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // failing on underflow.
         _debtOf[account].principal = accountDebt - amount;
         _debtOf[account].accountExchangeRate = marketData.exchangeRate;
-        totalBorrows -= amount;
+
+        // We round user debt in favor of the protocol to prevent exchange
+        // rate manipulation, as a result in some cases the last user cannot
+        // fully repay their debt.
+        if (totalBorrows < amount) {
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= amount;
+        }
 
         emit Repay(liquidator, account, amount);
 
@@ -1479,12 +1500,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             address(collateralToken),
             liquidatedTokens
         );
-    }
-
-    /// @notice Returns the gauge pool contract address.
-    /// @return The gauge controller contract address, in `IGaugePool` form.
-    function _gaugePool() internal view returns (GaugePool) {
-        return marketManager.gaugePool();
     }
 
     /// @dev Helper function for reverting efficiently.

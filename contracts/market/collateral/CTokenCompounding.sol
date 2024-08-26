@@ -103,7 +103,7 @@ abstract contract CTokenCompounding is CTokenBase {
         address owner,
         uint256 assets,
         IPositionFolding.DeleverageStruct memory deleverageData
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -124,7 +124,7 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 shares = _previewWithdraw(assets, ta);
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
@@ -165,21 +165,6 @@ abstract contract CTokenCompounding is CTokenBase {
         return _unpackedVaultData(_vaultData);
     }
 
-    /// @notice Returns cToken vault compound fee, in `basis points`.
-    function vaultCompoundFee() external view returns (uint256) {
-        return centralRegistry.protocolCompoundFee();
-    }
-
-    /// @notice Returns cToken vault yield fee, in `basis points`.
-    function vaultYieldFee() external view returns (uint256) {
-        return centralRegistry.protocolYieldFee();
-    }
-
-    /// @notice Returns cToken vault harvest fee, in `basis points`.
-    function vaultHarvestFee() external view returns (uint256) {
-        return centralRegistry.protocolHarvestFee();
-    }
-
     // PERMISSIONED FUNCTIONS
 
     /// @notice Starts a cToken market, executed via marketManager.
@@ -196,24 +181,6 @@ abstract contract CTokenCompounding is CTokenBase {
         _setlastVestClaim(uint40(block.timestamp));
         compoundingPaused = 1;
         return true;
-    }
-
-    /// @notice Set approved assets
-    /// @param assets Assets list
-    /// @param approved approved or not
-    function setApprovedAssets(
-        address[] memory assets,
-        bool approved
-    ) external {
-        _checkDaoPermissions();
-
-        for (uint256 i = 0; i < assets.length; ++i) {
-            if (approved && assets[i] == asset()) {
-                revert CTokenCompounding__InvalidApprovedAsset();
-            }
-
-            isApprovedAsset[assets[i]] = approved;
-        }
     }
 
     /// @notice Permissioned function to set a new compounding vesting period.
@@ -332,7 +299,7 @@ abstract contract CTokenCompounding is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -363,7 +330,7 @@ abstract contract CTokenCompounding is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -403,7 +370,7 @@ abstract contract CTokenCompounding is CTokenBase {
             uint256 allowed = allowance(owner, msg.sender);
 
             if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, allowed - shares);
+                _spendAllowance(owner, msg.sender, shares);
             }
         }
 
@@ -417,7 +384,7 @@ abstract contract CTokenCompounding is CTokenBase {
         );
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(
             msg.sender,
@@ -463,7 +430,7 @@ abstract contract CTokenCompounding is CTokenBase {
                 uint256 allowed = allowance(owner, msg.sender);
 
                 if (allowed != type(uint256).max) {
-                    _spendAllowance(owner, msg.sender, allowed - shares);
+                    _spendAllowance(owner, msg.sender, shares);
                 }
             }
         }
@@ -493,7 +460,7 @@ abstract contract CTokenCompounding is CTokenBase {
         }
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(
             msg.sender,
@@ -766,15 +733,10 @@ abstract contract CTokenCompounding is CTokenBase {
         _totalAssets = currentAssets;
     }
 
-    /// @notice Vests pending rewards, and updates vault data,
-    ///         but only if needed.
+    /// @notice Vests pending rewards, and updates vault data.
     function _vestIfNeeded() internal {
-        uint256 pending = _calculatePendingRewards();
-        // Check whether there are pending rewards to vest.
-        if (pending > 0) {
-            // Vest pending rewards.
-            _vestRewards(_totalAssets + pending);
-        }
+        // Vest pending rewards.
+        _vestRewards(_totalAssets + _calculatePendingRewards());
     }
 
     /// @notice Updates the vesting period, if needed.

@@ -2,13 +2,12 @@
 pragma solidity 0.8.19;
 
 import { TestBaseFeeAccumulator } from "../TestBaseFeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
@@ -37,12 +36,13 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
 
+        centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[1]),
+            address(messagingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -55,7 +55,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         deal(_USDC_ADDRESS, address(this), 100000e6);
         deal(address(cve), address(this), 100e18);
 
-        IERC20(_USDC_ADDRESS).approve(_UNISWAP_V2_ROUTER, 100000e6);
+        usdc.approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
 
         _UNISWAP_V2_ROUTER.call(
@@ -82,7 +82,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         deal(address(cve), address(this), 100e18);
 
         centralRegistry.addChainSupport(
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
             address(cves[42161]),
             _USDC_ADDRESSES[42161],
             42161,
@@ -93,7 +93,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _createLock();
 
-        skip(rewardManager.EPOCH_DURATION() * 3);
+        _skipEpochDuration(3);
     }
 
     function testMultiSwap() public {
@@ -133,36 +133,34 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         feeAccumulator.multiSwap(abi.encode(multiSwapData), rewardTokens);
 
         // bridge...
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+            centralRegistry.protocolHarvestFee();
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -172,8 +170,11 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _initMainVariables();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+
+        vm.prank(address(messagingHub));
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
@@ -182,15 +183,24 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(messagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(
-            rewardManager.epochRewardsPerCVE(nextEpoch),
-            epochRewardsPerCVE
+            rewardManager.epochRewardsPerPoint(nextEpoch),
+            epochRewardsPerPoint
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            WAD;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -243,40 +253,38 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         // multiswap
         deal(_USDC_ADDRESS, address(this), 2500e8);
-        IERC20(_USDC_ADDRESS).approve(address(feeAccumulator), 2500e8);
+        usdc.approve(address(feeAccumulator), 2500e8);
         feeAccumulator.executeOTC(_WETH_ADDRESS, 1 ether);
 
         // bridge...
-        _prepareResponseAndSignatures(
-            abi.encode(_ONE),
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
             block.number,
             uint64(block.timestamp * 1000000),
-            23,
-            address(protocolMessagingHubs[42161]),
+            address(messagingHubs[42161]),
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(address(protocolMessagingHub), _ONE);
+        deal(address(messagingHub), _ONE);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
-            centralRegistry.protocolYieldFee();
-        uint256 epochRewardsPerCVE = ((100e6 - compoundingFee) * WAD) /
-            _ONE /
-            2;
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+            centralRegistry.protocolHarvestFee();
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         uint256 balanceBefore = usdc.balanceOf(address(this));
 
         vm.recordLogs();
 
-        protocolMessagingHub.executeEpoch(
-            response,
-            signatures,
-            100e6,
-            250_000
-        );
+        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(
             usdc.balanceOf(address(this)),
             balanceBefore + compoundingFee
@@ -289,8 +297,11 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         _initMainVariables();
 
-        assertEq(usdc.balanceOf(address(protocolMessagingHub)), 0);
+        assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+
+        vm.prank(centralRegistry.messagingHub());
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
         uint256 hypotheticalRewardsClaim = rewardManager
@@ -299,15 +310,25 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
 
         // Simulate wormhole cross-chain messaging
-        wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
+        // Simulate wormhole cross-chain messaging
+        wormholeHelper.helpWithCctpAndWormhole(
+            2,
+            dstForkId,
+            address(messagingHub),
+            _WORMHOLE_RELAYER,
+            _CIRCLE_MESSAGE_TRANSMITTER,
+            logs
+        );
 
         assertEq(
-            rewardManager.epochRewardsPerCVE(nextEpoch),
-            epochRewardsPerCVE
+            rewardManager.epochRewardsPerPoint(nextEpoch),
+            epochRewardsPerPoint
         );
         assertEq(rewardManager.nextEpochToDeliver(), nextEpoch + 1);
 
-        uint256 rewards = hypotheticalRewardsClaim + epochRewardsPerCVE;
+        uint256 rewards = hypotheticalRewardsClaim +
+            epochRewardsPerPoint /
+            WAD;
 
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
@@ -347,12 +368,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
     }
 
     function _createLock() internal {
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(100e6);
-        }
-
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         vm.startPrank(user1);
 

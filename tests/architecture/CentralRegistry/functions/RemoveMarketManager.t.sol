@@ -17,7 +17,7 @@ contract Market {
 contract RemoveMarketManagerTest is TestBaseMarket {
     using stdStorage for StdStorage;
 
-    address newMarket;
+    address public newMarket;
 
     event RemovedCurvanceContract(
         string indexed contractType,

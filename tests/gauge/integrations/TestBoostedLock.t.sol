@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 
 contract User {}
 
@@ -70,23 +70,24 @@ contract TestBoostedLock is TestBaseMarket {
                 }
             }
         }
- 
+
         address[] memory tokensParam = new address[](1);
         tokensParam[0] = tokens[0];
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100;
 
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(0, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        gaugePool.start(address(marketManager));
-
-        vm.warp(gaugePool.startTime());
+        
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
     }
 
     function testBoostedLockFromClaim() public {
+        _skipEpochDuration(1);
+
         // set gauge weights
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -94,12 +95,10 @@ contract TestBoostedLock is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](2);
         poolWeights[0] = 100e18 * 2 weeks;
         poolWeights[1] = 200e18 * 2 weeks;
-        vm.prank(address(protocolMessagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(protocolMessagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 300e18 * 2 weeks);
-
-        vm.warp(gaugePool.startTime() + 1 * 2 weeks);
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugeManager), 300e18 * 2 weeks);
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
@@ -112,11 +111,11 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             10000e18
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[1], users[2], address(cve)),
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
             20000e18
         );
 
@@ -131,35 +130,35 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugePool.pendingRewards(tokens[0], users[0], address(cve)),
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             12000e18
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[0], users[1], address(cve)),
+            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
             8000e18
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[1], users[2], address(cve)),
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
             24000e18
         );
         assertEq(
-            gaugePool.pendingRewards(tokens[1], users[3], address(cve)),
+            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
             16000e18
         );
 
-        for (uint256 i = 0; i < 3; i++) {
-            vm.prank(centralRegistry.protocolMessagingHub());
-            rewardManager.recordEpochRewards(1e6);
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(centralRegistry.messagingHub());
+            rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.RESTRICTION_DURATION() + 1);
+        _skipRestrictionDuration();
 
         // user0, user3 claims
         RewardsData memory rewardData;
         vm.prank(users[0]);
-        gaugePool.claimAndLock(tokens[0], false, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(tokens[0], false, rewardData, "0x", 0);
         vm.prank(users[3]);
-        gaugePool.claimAndLock(tokens[1], false, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(tokens[1], false, rewardData, "0x", 0);
         assertEq(veCVE.balanceOf(users[0]), 876020e18);
         assertEq(veCVE.balanceOf(users[3]), 6928160e18);
         assertApproxEqAbs(veCVE.getVotes(users[0]), 842326e18, 1e18);
@@ -169,9 +168,24 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugePool.claimAndExtendLock(tokens[0], 0, true, rewardData, "0x", 0);
+        gaugeManager.claimAndExtendLock(
+            _makeTokenArray(tokens[0]),
+            0,
+            true,
+            rewardData,
+            "0x",
+            0
+        );
         vm.prank(users[3]);
-        gaugePool.claimAndExtendLock(tokens[1], 0, false, rewardData, "0x", 0);
+        gaugeManager.claimAndExtendLock(
+            _makeTokenArray(tokens[1]),
+            0,
+            false,
+            rewardData,
+            "0x",
+            0
+        );
+
         assertEq(veCVE.balanceOf(users[0]), 896020e18);
         assertEq(veCVE.balanceOf(users[3]), 7088160e18);
         assertEq(veCVE.getVotes(users[0]), 985622e18);
@@ -185,14 +199,14 @@ contract TestBoostedLock is TestBaseMarket {
     }
 
     function testRevertClaimAndExtendLock() public {
-        vm.warp(gaugePool.startTime() - 1);
+        vm.warp(gaugeManager.startTime() - 1);
 
         RewardsData memory rewardData;
 
-        vm.expectRevert(GaugeErrors.NotStarted.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugePool.claimAndExtendLock(
-            address(cve),
+        gaugeManager.claimAndExtendLock(
+            _makeTokenArray(address(cve)),
             0,
             true,
             rewardData,
@@ -200,11 +214,11 @@ contract TestBoostedLock is TestBaseMarket {
             0
         );
 
-        vm.warp(gaugePool.startTime());
-        vm.expectRevert(GaugeErrors.NoReward.selector);
+        vm.warp(gaugeManager.startTime());
+        vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
-        gaugePool.claimAndExtendLock(
-            address(cve),
+        gaugeManager.claimAndExtendLock(
+            _makeTokenArray(address(cve)),
             0,
             true,
             rewardData,
@@ -214,17 +228,17 @@ contract TestBoostedLock is TestBaseMarket {
     }
 
     function testRevertClaimAndLock() public {
-        vm.warp(gaugePool.startTime() - 1);
+        vm.warp(gaugeManager.startTime() - 1);
 
         RewardsData memory rewardData;
 
-        vm.expectRevert(GaugeErrors.NotStarted.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugePool.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
 
-        vm.warp(gaugePool.startTime());
-        vm.expectRevert(GaugeErrors.NoReward.selector);
+        vm.warp(gaugeManager.startTime());
+        vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
-        gaugePool.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
     }
 }

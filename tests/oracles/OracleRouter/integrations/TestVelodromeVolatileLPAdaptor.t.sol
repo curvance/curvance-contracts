@@ -7,7 +7,6 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 import { BaseVolatileLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseVolatileLPAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 
 contract TestVelodromeVolatileLPAdaptor is TestBaseOracleRouter {
@@ -21,14 +20,11 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleRouter {
         _fork("ETH_NODE_URI_OPTIMISM", 110333246);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         adaptor = new VelodromeVolatileLPAdaptor(
             ICentralRegistry(address(centralRegistry))
@@ -119,8 +115,8 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleRouter {
             false
         );
 
-        assertEq(IERC20(_USDC_ADDRESS).balanceOf(address(this)), 0);
-        assertGt(IERC20(_WETH_ADDRESS).balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertGt(weth.balanceOf(address(this)), 0);
 
         uint256 priceAfter;
         (priceAfter, errorCode) = oracleRouter.getPrice(

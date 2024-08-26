@@ -9,27 +9,27 @@ contract RemoveMTokenSupportTest is TestBaseOracleRouter {
         vm.prank(address(1));
 
         vm.expectRevert(OracleRouter.OracleRouter__Unauthorized.selector);
-        oracleRouter.removeMTokenSupport(address(mUSDC));
+        oracleRouter.removeMTokenSupport(address(dUSDC));
     }
 
     function test_removeMTokenSupport_fail_whenMTokenIsNotConfigured() public {
         vm.expectRevert(OracleRouter.OracleRouter__InvalidParameter.selector);
-        oracleRouter.removeMTokenSupport(address(mUSDC));
+        oracleRouter.removeMTokenSupport(address(dUSDC));
     }
 
     function test_removeMTokenSupport_success() public {
-        oracleRouter.addMTokenSupport(address(mUSDC));
+        oracleRouter.addMTokenSupport(address(dUSDC));
 
         (bool isMToken, address underlying) = oracleRouter.mTokenAssets(
-            address(mUSDC)
+            address(dUSDC)
         );
 
         assertTrue(isMToken);
         assertEq(underlying, _USDC_ADDRESS);
 
-        oracleRouter.removeMTokenSupport(address(mUSDC));
+        oracleRouter.removeMTokenSupport(address(dUSDC));
 
-        (isMToken, underlying) = oracleRouter.mTokenAssets(address(mUSDC));
+        (isMToken, underlying) = oracleRouter.mTokenAssets(address(dUSDC));
 
         assertFalse(isMToken);
         assertEq(underlying, address(0));

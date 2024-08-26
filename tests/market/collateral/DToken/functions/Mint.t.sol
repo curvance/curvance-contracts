@@ -2,14 +2,14 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract DTokenMintTest is TestBaseDToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_dTokenMint_fail_whenTransferZeroAmount() public {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         dUSDC.mint(0);
     }
 

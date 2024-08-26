@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { BaseStableLPAdaptor } from "contracts/oracles/adaptors/uniV2Base/BaseStableLPAdaptor.sol";
 
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
@@ -60,5 +59,12 @@ contract VelodromeStableLPAdaptor is BaseStableLPAdaptor {
 
         _removeAsset(asset);
         emit VelodromeStableLPAssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 8;
     }
 }

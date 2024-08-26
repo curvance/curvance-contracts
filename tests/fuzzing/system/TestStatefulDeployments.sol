@@ -45,7 +45,7 @@ contract TestStatefulDeployments is StatefulBaseMarket {
     /// @custom:property curv-8 The central registry has the cve address setup correctly.
     /// @custom:property curv-9 The central registry has the veCVE address setup correctly.
     /// @custom:property curv-10 The central registry has the rewardManager setup correctly.
-    /// @custom:property curv-11 The central registry has the protocol messaging hub setup correctly.
+    /// @custom:property curv-11 The central registry has the messaging hub setup correctly.
     function CentralRegistry_is_setup() public {
         assertWithMsg(
             address(centralRegistry.cve()) == address(cve),
@@ -60,9 +60,8 @@ contract TestStatefulDeployments is StatefulBaseMarket {
             "CURV-10: CentralRegistry.rewardManager != rewardManager"
         );
         assertWithMsg(
-            address(centralRegistry.protocolMessagingHub()) ==
-                address(protocolMessagingHub),
-            "CURV-11: CentralRegistry.protocolMessagingHub == protocolMessagingHub"
+            address(centralRegistry.messagingHub()) == address(messagingHub),
+            "CURV-11: CentralRegistry.messagingHub == messagingHub"
         );
     }
 
@@ -86,14 +85,6 @@ contract TestStatefulDeployments is StatefulBaseMarket {
         assertWithMsg(
             cve.builderAllocationPerMonth() > 0,
             "CURV-15: CVE.builderAllocationPerMonth() > 0 failed"
-        );
-    }
-
-    /// @custom:property curv-16 The Market Manager’s gauge pool is set up correctly.
-    function MarketManager_is_deployed() public {
-        assertWithMsg(
-            address(marketManager.gaugePool()) == address(gaugePool),
-            "CURV-16: marketManager.gaugePool() == gaugePool failed"
         );
     }
 }

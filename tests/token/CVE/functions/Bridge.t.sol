@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
 contract BridgeTest is TestBaseMarket {
     function setUp() public override {
@@ -17,34 +17,26 @@ contract BridgeTest is TestBaseMarket {
         vm.prank(user1);
 
         vm.expectRevert(ERC20.InsufficientBalance.selector);
-        cve.bridge(42161, user1, _ONE + 1, 0);
+        cve.bridge(user1, 42161, _ONE + 1, 0);
     }
 
     function test_bridge_fail_whenDestinationChainIsNotRegistered() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        cve.bridge(138, user1, _ONE, 0);
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        cve.bridge(user1, 138, _ONE, 0);
     }
 
     function test_bridge_fail_whenRecipientIsZeroAddress() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            ProtocolMessagingHub
-                .ProtocolMessagingHub__InvalidParameter
-                .selector
-        );
-        cve.bridge(42161, address(0), _ONE, 0);
+        vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
+        cve.bridge(address(0), 42161, _ONE, 0);
     }
 
     function test_bridge_success() public {
         centralRegistry.addChainSupport(
-            address(protocolMessagingHub),
+            address(messagingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -53,17 +45,15 @@ contract BridgeTest is TestBaseMarket {
             3
         );
 
-        uint256 messageFee = protocolMessagingHub.quoteMessageFee(
-            42161,
-            true,
-            0
-        );
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, true, 0);
+
+        uint256 totalSupply = cve.totalSupply();
 
         vm.prank(user1);
 
-        cve.bridge{ value: messageFee }(42161, user1, _ONE, 0);
+        cve.bridge{ value: messageFee }(user1, 42161, _ONE, 0);
 
         assertEq(cve.balanceOf(user1), 0);
-        assertEq(cve.balanceOf(_TOKEN_BRIDGE), _ONE);
+        assertEq(cve.totalSupply(), totalSupply - _ONE);
     }
 }

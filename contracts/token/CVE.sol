@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IProtocolMessagingHub } from "contracts/interfaces/IProtocolMessagingHub.sol";
 
 /// @notice Curvance DAO's Canonical CVE Contract.
-contract CVE is ERC20 {
+contract CVE is CVEBase {
     /// CONSTANTS ///
 
     /// @notice Seconds in a month based on 365.2425 days.
     uint256 public constant MONTH = 2_629_746;
-
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
 
     // Timestamp when token was created
     uint256 public immutable tokenGenerationEventTimestamp;
@@ -31,13 +26,12 @@ contract CVE is ERC20 {
     /// @notice 3% as veCVE immediately, 10.5% vested over 4 years.
     uint256 public immutable builderAllocationPerMonth;
 
-    /// @dev `bytes4(keccak256(bytes("CVE__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x15f37077;
-
     /// STORAGE ///
 
     /// @notice Builder operating address.
     address public builderAddress;
+    /// @notice Pending builder operating address.
+    address public pendingBuilderAddress;
     /// @notice Number of DAO treasury tokens minted.
     uint256 public daoTreasuryMinted;
     /// @notice Number of Builder allocation tokens minted.
@@ -47,27 +41,18 @@ contract CVE is ERC20 {
 
     /// ERRORS ///
 
-    error CVE__Unauthorized();
     error CVE__InsufficientCVEAllocation();
-    error CVE__ParametersAreInvalid();
 
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_, address builder_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert CVE__ParametersAreInvalid();
-        }
-
+    constructor(
+        ICentralRegistry centralRegistry_,
+        address builder_
+    ) CVEBase(centralRegistry_) {
         if (builder_ == address(0)) {
             builder_ = msg.sender;
         }
 
-        centralRegistry = centralRegistry_;
         tokenGenerationEventTimestamp = block.timestamp;
         builderAddress = builder_;
 
@@ -91,57 +76,7 @@ contract CVE is ERC20 {
         _mint(msg.sender, initialTokenMint);
     }
 
-    /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Mints gauge emissions for the desired gauge pool.
-    /// @dev Only callable by the ProtocolMessagingHub.
-    /// @param gaugePool The address of the gauge pool where emissions will be
-    ///                  configured.
-    /// @param amount The amount of gauge emissions to be minted.
-    function mintGaugeEmissions(address gaugePool, uint256 amount) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _mint(gaugePool, amount);
-    }
-
-    /// @notice Mints CVE to the calling gauge pool to fund the users
-    ///         lock boost.
-    /// @param amount The amount of tokens to be minted.
-    function mintLockBoost(uint256 amount) external {
-        if (!centralRegistry.hasLockingPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _mint(msg.sender, amount);
-    }
-
-    /// @notice Mint CVE to msg.sender,
-    ///         which will always be the VeCVE contract.
-    /// @dev Only callable by the ProtocolMessagingHub.
-    ///      This function is used only for creating a bridged VeCVE lock.
-    /// @param amount The amount of token to mint for the new veCVE lock.
-    function mintVeCVELock(uint256 amount) external {
-        if (msg.sender != centralRegistry.protocolMessagingHub()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _mint(msg.sender, amount);
-    }
-
-    /// @notice Burn CVE from msg.sender,
-    ///         which will always be the VeCVE contract.
-    /// @dev Only callable by VeCVE.
-    ///      This function is used only for bridging VeCVE lock.
-    /// @param amount The amount of token to burn for a bridging veCVE lock.
-    function burnVeCVELock(uint256 amount) external {
-        if (msg.sender != centralRegistry.veCVE()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _burn(msg.sender, amount);
-    }
+    /// ALLOCATED CVE MINTING FUNCTIONS ///
 
     /// @notice Mint CVE for the DAO treasury.
     /// @param amount The amount of treasury tokens to be minted.
@@ -205,85 +140,30 @@ contract CVE is ERC20 {
         _mint(msg.sender, amount);
     }
 
-    /// @notice Sets the builder address.
-    /// @dev Allows the builders to change the builder's address.
-    /// @param newAddress The new address for the builder.
-    function setBuilderAddress(address newAddress) external {
+    /// @notice Sets the pending builder address to be claimed by `newAddress`.
+    /// @dev Allows the builder address to hand off its authority to another address.
+    /// @param newAddress The new address that can claim builder role.
+    function setPendingBuilderAddress(address newAddress) external {
         if (msg.sender != builderAddress) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (newAddress == address(0)) {
-            revert CVE__ParametersAreInvalid();
+        pendingBuilderAddress = newAddress;
+    }
+
+    /// @notice Sets the builder address.
+    /// @dev Allows `pendingBuilderAddress` to claim their builder address
+    ///      role.
+    function claimBuilderAddress() external {
+        if (msg.sender != pendingBuilderAddress) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        builderAddress = newAddress;
-    }
-
-    /// @notice Send wormhole message to bridge CVE.
-    /// @param dstChainId Chain ID of the target blockchain.
-    /// @param recipient The address of recipient on destination chain.
-    /// @param amount The amount of token to bridge.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
-    function bridge(
-        uint256 dstChainId,
-        address recipient,
-        uint256 amount,
-        uint256 gasLimit
-    ) external payable returns (uint64) {
-        address messagingHub = centralRegistry.protocolMessagingHub();
-        _burn(msg.sender, amount);
-        _mint(messagingHub, amount);
-
-        return
-            IProtocolMessagingHub(messagingHub).bridgeToken{
-                value: msg.value
-            }(dstChainId, recipient, amount, gasLimit, 5, false);
-    }
-
-    /// @notice Returns required amount of native asset for message fee.
-    /// @param dstChainId Chain ID of the target blockchain.
-    /// @param gasLimit Gas limit with which to call on destination chain.
-    /// @return Required fee.
-    function bridgeFee(
-        uint256 dstChainId,
-        uint256 gasLimit
-    ) external view returns (uint256) {
-        return
-            IProtocolMessagingHub(centralRegistry.protocolMessagingHub())
-                .quoteMessageFee(dstChainId, true, gasLimit);
-    }
-
-    /// PUBLIC FUNCTIONS ///
-
-    /// @dev Returns the name of the token.
-    function name() public pure override returns (string memory) {
-        return "Curvance";
-    }
-
-    /// @dev Returns the symbol of the token.
-    function symbol() public pure override returns (string memory) {
-        return "CVE";
+        builderAddress = pendingBuilderAddress;
+        delete pendingBuilderAddress;
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {

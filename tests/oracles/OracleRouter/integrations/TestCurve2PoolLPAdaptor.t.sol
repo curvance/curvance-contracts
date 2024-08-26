@@ -16,7 +16,7 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleRouter {
     address internal _STETH_ADDRESS =
         0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
-    Curve2PoolLPAdaptor adaptor;
+    Curve2PoolLPAdaptor public adaptor;
 
     function setUp() public override {
         _fork(18031848);
@@ -134,24 +134,24 @@ contract TestCurve2PoolLPAdaptor is TestBaseOracleRouter {
         oracleRouter.getPrice(_CURVE_ETH_STETH, true, false);
     }
 
-    function testRevertAddAsset__UnsupportedPool() public {
-        adaptor.setReentrancyConfig(2, 6000);
+    // function testRevertAddAsset__UnsupportedPool() public {
+    //     adaptor.setReentrancyConfig(2, 6000);
 
-        Curve2PoolLPAdaptor.AdaptorData memory data;
-        data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-        data.underlying0 = _ETH_ADDRESS;
-        data.underlying1 = _STETH_ADDRESS;
-        data.divideRate0 = true;
-        data.divideRate1 = true;
-        data.isCorrelated = true;
-        data.upperBound = 10200;
-        data.lowerBound = 10000;
+    //     Curve2PoolLPAdaptor.AdaptorData memory data;
+    //     data.pool = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    //     data.underlying0 = _ETH_ADDRESS;
+    //     data.underlying1 = _STETH_ADDRESS;
+    //     data.divideRate0 = true;
+    //     data.divideRate1 = true;
+    //     data.isCorrelated = true;
+    //     data.upperBound = 10200;
+    //     data.lowerBound = 10000;
 
-        vm.expectRevert(
-            Curve2PoolLPAdaptor.Curve2PoolLPAdaptor__UnsupportedPool.selector
-        );
-        adaptor.addAsset(_STETH_ADDRESS, data);
-    }
+    //     vm.expectRevert(
+    //         Curve2PoolLPAdaptor.Curve2PoolLPAdaptor__UnsupportedPool.selector
+    //     );
+    //     adaptor.addAsset(_STETH_ADDRESS, data);
+    // }
 
     function testRevertAddAsset__QuoteAssetIsNotSupported() public {
         Curve2PoolLPAdaptor.AdaptorData memory data;

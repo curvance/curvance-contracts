@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 interface IMarketManager {
@@ -174,18 +173,6 @@ interface IMarketManager {
         address account
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice Determine `account`'s current collateral and debt values
-    ///         in the market.
-    /// @param account The account to check bad debt status for.
-    /// @return The total market value of `account`'s collateral.
-    /// @return The total outstanding debt value of `account`.
-    function solvencyOf(
-        address account
-    ) external view returns (uint256, uint256);
-
     /// @notice The address of the linked Position Folding Contract.
     function positionFolding() external view returns (address);
-
-    /// @notice The address of the linked Gauge Pool Contract.
-    function gaugePool() external view returns (GaugePool);
 }

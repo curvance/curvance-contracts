@@ -1,4 +1,5 @@
 pragma solidity 0.8.19;
+
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
 
@@ -281,8 +282,8 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         );
         require(liquidityDeficit == 0);
 
-        (uint256 accountCollateral, uint256 accountDebt) = marketManager
-            .solvencyOf(address(this));
+        (uint256 accountCollateral,, uint256 accountDebt) = marketManager
+            .statusOf(address(this));
         require(accountDebt != 0);
         amount = clampBetween(amount, 1, accountCollateral);
         bool cToken = IMToken(mtoken).isCToken();

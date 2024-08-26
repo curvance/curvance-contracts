@@ -23,7 +23,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(0)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -38,7 +38,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         vm.expectRevert(CTokenBase.CTokenBase__InvalidMarketManager.selector);
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(1),
             109,
             _REWARDER,
@@ -62,7 +62,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         );
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -81,7 +81,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
         );
         new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -93,7 +93,7 @@ contract CTokenCompoundingWithExitFeeDeploymentTest is
     function test_cTokenCompoundingWithExitFeeDeployment_success() public {
         cBALRETHWithExitFee = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,

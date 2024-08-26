@@ -8,14 +8,15 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
 import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
 /// @title Curvance DAO Central Registry.
 /// @notice Manages permissions and protocol contract registration
@@ -86,8 +87,12 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Reward Manager contract address.
     address public rewardManager;
-    /// @notice This chain's Protocol Messaging Hub contract address.
-    address public protocolMessagingHub;
+    /// @notice Gauge Manager contract address.
+    address public gaugeManager;
+    /// @notice Voting Hub contract address.
+    address public votingHub;
+    /// @notice Messaging Hub contract address.
+    address public messagingHub;
     /// @notice Oracle Router contract address.
     address public oracleRouter;
     /// @notice Fee Accumulator contract address.
@@ -102,6 +107,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Address of Circle Token Messenger.
     ITokenMessenger public circleTokenMessenger;
+
+    /// @notice Address of Circle Token Messenger.
+    IMessageTransmitter public circleMessageTransmitter;
 
     /// @notice Wormhole TokenBridge.
     ITokenBridge public tokenBridge;
@@ -223,10 +231,17 @@ contract CentralRegistry is ERC165 {
     event WormholeCoreSet(address newAddress);
     event WormholeRelayerSet(address newAddress);
     event CircleTokenMessengerSet(address newAddress);
+    event MessageTransmitterSet(address newAddress);
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address operatorAddress);
     event RemovedChain(uint256 chainId, address operatorAddress);
+    event CallDataCheckerSet(
+        string indexed calldataType,
+        address targetAddress,
+        address calldataChecker
+    );
+    event MulticallProviderSet(address provider, bool supportedStatus);
 
     /// ERRORS ///
 
@@ -324,22 +339,30 @@ contract CentralRegistry is ERC165 {
         }
     }
 
-    /// @notice Sets a new CVE contract address.
+    /// @notice Sets a CVE contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
+        if (cve != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
     }
 
-    /// @notice Sets a new veCVE contract address.
+    /// @notice Sets a veCVE contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CoreContractSet} event.
+    ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
+        if (veCVE != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         veCVE = newVeCVE;
@@ -351,26 +374,51 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {CoreContractSet} event.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
+        if (rewardManager != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
     }
 
-    /// @notice Sets a new protocol messaging hub contract address.
+    /// @notice Sets a new Reward Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newProtocolMessagingHub The new address of protocolMessagingHub.
-    function setProtocolMessagingHub(
-        address newProtocolMessagingHub
-    ) external {
+    /// @param newGaugeManager The new address of Gauge Manager.
+    function setGaugeManager(address newGaugeManager) external {
+        if (gaugeManager != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
-        protocolMessagingHub = newProtocolMessagingHub;
-        emit CoreContractSet(
-            "Protocol Messaging Hub",
-            newProtocolMessagingHub
-        );
+        gaugeManager = newGaugeManager;
+        emit CoreContractSet("Gauge Manager", newGaugeManager);
+    }
+
+    /// @notice Sets a new voting hub contract address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CoreContractSet} event.
+    /// @param newVotingHub The new address of votingHub.
+    function setVotingHub(address newVotingHub) external {
+        _checkElevatedPermissions();
+
+        votingHub = newVotingHub;
+        emit CoreContractSet("Voting Hub", newVotingHub);
+    }
+
+    /// @notice Sets a new messaging hub contract address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CoreContractSet} event.
+    /// @param newMessagingHub The new address of messagingHub.
+    function setMessagingHub(address newMessagingHub) external {
+        _checkElevatedPermissions();
+
+        messagingHub = newMessagingHub;
+        emit CoreContractSet("Messaging Hub", newMessagingHub);
     }
 
     /// @notice Sets a new Oracle Router contract address.
@@ -428,6 +476,17 @@ contract CentralRegistry is ERC165 {
 
         circleTokenMessenger = ITokenMessenger(newCircleTokenMessenger);
         emit CircleTokenMessengerSet(newCircleTokenMessenger);
+    }
+
+    /// @notice Sets an address of Circle MessageTransmitter contract.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {MessageTransmitterSet} event.
+    /// @param newMessageTransmitter The new address of Circle MessageTransmitter.
+    function setMessageTransmitter(address newMessageTransmitter) external {
+        _checkElevatedPermissions();
+
+        circleMessageTransmitter = IMessageTransmitter(newMessageTransmitter);
+        emit MessageTransmitterSet(newMessageTransmitter);
     }
 
     /// @notice Sets an address of Wormhole TokenBridge contract.
@@ -578,14 +637,14 @@ contract CentralRegistry is ERC165 {
     /// @notice Sets the early unlock penalty value for when users want to
     ///         unlock their veCVE early.
     /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      must be between 30% and 90%.
+    ///      must be between 30% and 90%, or off, with a value of 0%.
     ///      Emits a {MultiplierSet} event.
     /// @param value The new penalty on early expiring a vote escrowed
     ///              cve position, in `basis points`.
     function setEarlyUnlockPenaltyMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Early unlock penalty cannot be more than 50%.
+        // Early unlock penalty cannot be more than 90%.
         if (value > 9000) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
@@ -673,7 +732,7 @@ contract CentralRegistry is ERC165 {
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {OwnershipTransferred} event.
     /// @param newDaoAddress The new DAO address.
-    function transferDaoOwnership(address newDaoAddress) external {
+    function transferDaoOwnership(address newDaoAddress) public virtual {
         _checkElevatedPermissions();
 
         // Cache old dao address for event emission.
@@ -796,7 +855,7 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param messagingHub Address for new chains Protocol Messaging Hub.
+    /// @param remoteMessagingHub Address for new chains Messaging Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
@@ -804,7 +863,7 @@ contract CentralRegistry is ERC165 {
     /// @param relayer Wormhole relayer address on the chain.
     /// @param domain CCTP domain for the chain.
     function addChainSupport(
-        address messagingHub,
+        address remoteMessagingHub,
         address cveAddress,
         address feeTokenAddress,
         uint256 chainId,
@@ -821,7 +880,7 @@ contract CentralRegistry is ERC165 {
 
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
-            messagingHub: messagingHub,
+            messagingHub: remoteMessagingHub,
             cveAddress: cveAddress,
             feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
@@ -834,13 +893,13 @@ contract CentralRegistry is ERC165 {
         ++supportedChains;
         foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, messagingHub);
+        emit NewChainAdded(chainId, remoteMessagingHub);
     }
 
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentMessagingHub Address for chains Protocol Messaging Hub.
+    /// @param currentMessagingHub Address for chains Messaging Hub.
     /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(
@@ -882,9 +941,10 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Sets an external calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CallDataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param callDataChecker The contract that will check call data prior
+    /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setExternalCallDataChecker(
         address target,
@@ -893,8 +953,16 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCallDataChecker[target] = callDataChecker;
+        emit CallDataCheckerSet("External", target, callDataChecker);
     }
 
+    /// @notice Sets a multicall calldata checker contract.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CallDataCheckerSet} event.
+    /// @param target The target contract for external calldata
+    ///               such as Pyth or Redstone.
+    /// @param callDataChecker The contract that will check calldata prior
+    ///                        to execution in `target`.
     function setMulticallDataChecker(
         address target,
         address callDataChecker
@@ -902,6 +970,34 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         multicallDataChecker[target] = callDataChecker;
+        emit CallDataCheckerSet("Multicall", target, callDataChecker);
+    }
+
+    /// @notice Sets multicall provider contracts, either enabling,
+    ///         or disabling support inside the Curvance Protocol.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits one or many {MulticallProviderSet} events.
+    /// @param providers Array containing the addresses of multicall provider
+    ///                  contracts such as collateral or debt token contracts.
+    /// @param supported Whether a provider should be supported or not.
+    function setMulticallProviders(
+        address[] calldata providers,
+        bool supported
+    ) external {
+        _checkElevatedPermissions();
+
+        uint256 numProviders = providers.length;
+        address provider;
+
+        for (uint256 i; i < numProviders; ++i) {
+            provider = providers[i];
+            if (isMulticallProvider[provider] == supported) {
+                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            }
+
+            isMulticallProvider[provider] = supported;
+            emit MulticallProviderSet(provider, supported);
+        }
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
@@ -940,20 +1036,6 @@ contract CentralRegistry is ERC165 {
         delete isHarvester[currentHarvester];
 
         emit RemovedCurvanceContract("Harvestor", currentHarvester);
-    }
-
-    function setMulticallProviders(
-        address[] memory providers,
-        bool supported
-    ) external {
-        _checkElevatedPermissions();
-
-        for (uint256 i = 0; i < providers.length; ++i) {
-            if (isMulticallProvider[providers[i]] == supported) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
-            isMulticallProvider[providers[i]] = supported;
-        }
     }
 
     /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
@@ -1080,8 +1162,8 @@ contract CentralRegistry is ERC165 {
         uint256 i;
         uint256 numForeignChainIds = foreignChainIds.length;
 
-        for (; i < numForeignChainIds; ) {
-            if (foreignChainIds[i++] == chainId) {
+        for (; i < numForeignChainIds; ++i) {
+            if (foreignChainIds[i] == chainId) {
                 break;
             }
         }

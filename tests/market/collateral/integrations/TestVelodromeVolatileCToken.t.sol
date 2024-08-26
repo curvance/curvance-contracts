@@ -11,8 +11,6 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import "tests/market/TestBaseMarket.sol";
 
 contract TestVelodromeVolatileCToken is TestBaseMarket {
-    IERC20 public WETH = IERC20(0x4200000000000000000000000000000000000006);
-    IERC20 public USDC = IERC20(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
     IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
     IERC20 public WETH_USDC =
         IERC20(0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b);
@@ -45,7 +43,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         centralRegistry.addHarvester(address(this));
@@ -64,7 +62,6 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
             veloRouter
         );
 
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
 
         _deployOracleRouter();
@@ -88,13 +85,13 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
 
         chainlinkWETH = new MockV3Aggregator(8, 3000e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkWETH),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(WETH),
+            _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -137,11 +134,11 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
         SwapperLib.Swap memory swapData;
         swapData.inputToken = address(VELO);
         swapData.inputAmount = amount;
-        swapData.outputToken = address(WETH);
+        swapData.outputToken = _WETH_ADDRESS;
         swapData.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = address(VELO);
-        routes[0].to = address(WETH);
+        routes[0].to = _WETH_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);
         swapData.call = abi.encodeWithSelector(

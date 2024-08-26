@@ -15,9 +15,12 @@ contract User {}
 contract TestSimpleZapper is TestBaseMarket {
     address private _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    address _CURVE_STETH_LP = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _CURVE_STETH_MINTER = 0x21E27a5E5513D6e65C4f830167390997aA84843a;
-    address _STETH_ADDRESS = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address internal _CURVE_STETH_LP =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _CURVE_STETH_MINTER =
+        0x21E27a5E5513D6e65C4f830167390997aA84843a;
+    address internal _STETH_ADDRESS =
+        0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
@@ -97,8 +100,7 @@ contract TestSimpleZapper is TestBaseMarket {
         oracleRouter.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         chainlinkEthUsd.updateRoundData(
@@ -162,6 +164,7 @@ contract TestSimpleZapper is TestBaseMarket {
             block.timestamp,
             block.timestamp
         );
+        vm.stopPrank();
     }
 
     function testInitialize() public {
@@ -200,13 +203,12 @@ contract TestSimpleZapper is TestBaseMarket {
             address(simpleZapper)
         );
 
-        vm.startPrank(user);
+        vm.prank(user);
         simpleZapper.zapAndDeposit{ value: ethAmount }(
             swapZap,
             address(cSTETH),
             user
         );
-        vm.stopPrank();
 
         assertEq(user.balance, 0);
         assertGt(cSTETH.balanceOf(user), 0);
@@ -216,10 +218,8 @@ contract TestSimpleZapper is TestBaseMarket {
         testZapAndDeposit();
         vm.startPrank(user);
         marketManager.postCollateral(user, address(cSTETH), 1 ether);
-        vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user);
         dDAI.borrow(500 ether);
         vm.stopPrank();
 
@@ -255,7 +255,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         deal(_USDC_ADDRESS, user, 500e6);
         vm.startPrank(user);
-        IERC20(_USDC_ADDRESS).approve(address(simpleZapper), 500e6);
+        usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user);
         vm.stopPrank();
 

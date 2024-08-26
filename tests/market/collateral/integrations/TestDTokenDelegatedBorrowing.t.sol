@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
@@ -60,8 +60,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -123,6 +122,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         vm.startPrank(liquidityProvider);
         dai.approve(address(dDAI), 1000 ether);
         dDAI.mint(1000 ether);
+        vm.stopPrank();
 
         _prepareBALRETH(user1, 1 ether);
 
@@ -137,9 +137,8 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
         vm.stopPrank();
 
         // try borrow()
-        vm.startPrank(user2);
+        vm.prank(user2);
         dDAI.borrowFor(user1, user2, 500 ether);
-        vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 0);
         assertEq(dai.balanceOf(user2), 500 ether);
@@ -152,18 +151,20 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             assertEq(totalBorrowsBefore, 500 ether);
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -181,7 +182,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -192,18 +193,20 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
             uint256 totalReserves = dDAI.totalReserves();
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
             uint256 debtBalanceBefore = dDAI.debtBalanceCached(user1);
+            uint256 rateBefore = dDAI.convertToShares(1e18);
 
             // skip 1 day
             skip(24 hours);
 
             dDAI.accrueInterest();
 
-            uint256 debt = dDAI.totalBorrows() - totalBorrowsBefore;
+            uint256 debt = ((dDAI.totalBorrows() - totalBorrowsBefore) *
+                rateBefore) / 1e18;
 
             // check interest calculation from debt accrued
             assertEq(
@@ -216,7 +219,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
             assertApproxEqRel(
                 dDAI.debtBalanceCached(user1),
                 debtBalanceBefore + debt,
-                10000
+                1 ether
             );
             assertGt(dDAI.exchangeRateCached(), exchangeRateBefore);
 
@@ -225,7 +228,7 @@ contract TestDTokenDelegatedBorrowing is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }

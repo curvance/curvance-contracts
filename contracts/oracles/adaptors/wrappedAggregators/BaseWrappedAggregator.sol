@@ -18,7 +18,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
         return address(this);
     }
 
-    /// @notice Returns the maximum value that the aggregator can returned.
+    /// @notice Returns the maximum value that the aggregator can return.
     function maxAnswer() external view returns (int192) {
         uint256 max = uint256(
             uint192(
@@ -96,6 +96,13 @@ abstract contract BaseWrappedAggregator is IChainlink {
         answer =
             (answer * _toInt256(getWrappedAssetWeight())) /
             _toInt256(WAD);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure returns (uint256) {
+        return 5;
     }
 
     /// PUBLIC FUNCTIONS TO OVERRIDE ///

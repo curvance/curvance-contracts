@@ -21,14 +21,11 @@ contract TestCamelotStableLPAdaptor is TestBaseOracleRouter {
         _fork("ETH_NODE_URI_ARBITRUM", 148061500);
 
         _deployCentralRegistry();
+        _deployOracleRouter();
+
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-
-        oracleRouter = new OracleRouter(
-            ICentralRegistry(address(centralRegistry))
-        );
-        centralRegistry.setOracleRouter(address(oracleRouter));
 
         adaptor = new CamelotStableLPAdaptor(
             ICentralRegistry(address(centralRegistry))

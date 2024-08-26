@@ -126,7 +126,10 @@ contract VelodromeStableCToken is CTokenCompounding {
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
-    /// @dev Only callable by Gelato Network bot.
+    /// @dev Only callable by Gelato Network bot. Passes a block.timestamp
+    ///      deadline meaning execution will always get passed, this is due to
+    ///      offchain infra calculating calldata right before execution,
+    ///      making deadlines irrelevant.
     ///      Emits a {Harvest} event.
     /// @param data Byte array for aggregator swap data.
     /// @return yield The amount of new assets acquired from compounding

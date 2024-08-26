@@ -176,7 +176,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             price =
                 (2 * virtualPrice * FixedPointMathLib.sqrt(price0)) /
                 FixedPointMathLib.sqrt(price1);
-            price = (price * price0) / WAD;
+            price = (price * price1) / WAD;
         }
 
         if (_checkOracleOverflow(price)) {
@@ -382,6 +382,15 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         data.lowerBound = newLowerBound;
         data.upperBound = newUpperBound;
     }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 13;
+    }
+
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function to check if `price` is within a reasonable
     ///         bound.

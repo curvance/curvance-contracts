@@ -7,10 +7,10 @@ import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.sol";
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
-import { ProtocolMessagingHubDeployer } from "./deployers/ProtocolMessagingHubDeployer.s.sol";
+import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
-import { GaugePoolDeployer } from "./deployers/GaugePoolDeployer.s.sol";
+import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
@@ -22,10 +22,10 @@ contract DeployCurvance is
     CentralRegistryDeployer,
     CveDeployer,
     RewardManagerDeployer,
-    ProtocolMessagingHubDeployer,
+    MessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
-    GaugePoolDeployer,
+    GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
     PositionFoldingDeployer,
@@ -70,6 +70,9 @@ contract DeployCurvance is
         _setCircleTokenMessenger(
             _readConfigAddress(".centralRegistry.circleTokenMessenger")
         );
+        _setMessageTransmitter(
+            _readConfigAddress(".centralRegistry.messageTransmitter")
+        );
         _setTokenBridge(_readConfigAddress(".centralRegistry.tokenBridge"));
         _addHarvester(_readConfigAddress(".centralRegistry.harvester"));
 
@@ -87,10 +90,10 @@ contract DeployCurvance is
         );
         _setRewardManager(rewardManager);
 
-        // Deploy ProtocolMessagingHub
+        // Deploy MessagingHub
 
-        _deployProtocolMessagingHub(centralRegistry);
-        _setProtocolMessagingHub(protocolMessagingHub);
+        _deployMessagingHub(centralRegistry);
+        _setMessagingHub(messagingHub);
 
         // Deploy FeeAccumulator
 
@@ -102,14 +105,14 @@ contract DeployCurvance is
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy GaugePool
+        // Deploy GaugeManagerPool
 
-        _deployGaugePool(centralRegistry);
-        _addLockingPermissions(gaugePool);
+        _deployGaugeManager(centralRegistry);
+        _addLockingPermissions(gaugeManager);
 
         // Deploy MarketManager
 
-        _deployMarketManager(centralRegistry, gaugePool);
+        _deployMarketManager(centralRegistry);
         _addMarketManager(
             marketManager,
             _readConfigUint256(".marketManager.marketInterestFactor")

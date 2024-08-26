@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
 
 contract DTokenBorrowTest is TestBaseDToken {
     event Borrow(address borrower, uint256 borrowAmount);
@@ -27,7 +26,7 @@ contract DTokenBorrowTest is TestBaseDToken {
     function test_dTokenBorrow_success() public {
         _setCbalRETHCollateralCaps(100_000e18);
 
-        deal(_USDC_ADDRESS, address(dUSDC), 2000e6);
+        dUSDC.mint(200e6);
 
         marketManager.postCollateral(
             address(this),

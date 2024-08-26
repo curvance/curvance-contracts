@@ -10,7 +10,9 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
-import { ProtocolMessagingHub } from "contracts/architecture/ProtocolMessagingHub.sol";
+import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
+import { VotingHub } from "contracts/architecture/VotingHub.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
@@ -22,14 +24,23 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
-import { GaugePool } from "contracts/gauge/GaugePool.sol";
+import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { QueryTest } from "tests/utils/QueryTest.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract TestBaseMarket is TestBase {
+    struct PerChainData {
+        uint256 chainId;
+        uint256 blockNumber;
+        uint64 timestamp;
+        address to;
+        bytes result;
+    }
+
     function setUp() public virtual {
         _fork(18031848);
 
@@ -43,7 +54,6 @@ contract TestBaseMarket is TestBase {
 
         _deployOracleRouter();
         _deployChainlinkAdaptors();
-        _deployGaugePool();
 
         _deployMarketManager();
         _deployDynamicInterestRateModel();
@@ -55,6 +65,8 @@ contract TestBaseMarket is TestBase {
         _deployComplexZapper();
         _deployPositionFolding();
 
+        _setRedstoneSigners();
+
         oracleRouters[chainId].addMTokenSupport(address(dUSDC));
         oracleRouters[chainId].addMTokenSupport(address(cBALRETH));
         oracleRouters[chainId].addMTokenSupport(address(cBALRETHWithExitFee));
@@ -65,11 +77,13 @@ contract TestBaseMarket is TestBase {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployProtocolMessagingHub();
+        _deployGaugeManager();
+        _deployMessagingHub();
+        _deployVotingHub();
         _deployFeeAccumulator();
     }
 
-    function _deployCentralRegistry() internal initMainVariables {
+    function _deployCentralRegistry() internal virtual initMainVariables {
         centralRegistry = centralRegistries[
             block.chainid
         ] = new CentralRegistry(
@@ -85,11 +99,20 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setCircleTokenMessenger(_CIRCLE_TOKEN_MESSENGER);
         centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
         centralRegistry.setWormholeCore(_WORMHOLE_CORE);
+        centralRegistry.setMessageTransmitter(
+            address(new MockMessageTransmitter())
+        );
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
         centralRegistry.setSlippageLimit(6000);
+
+        deal(
+            _USDC_ADDRESS,
+            address(centralRegistry.circleMessageTransmitter()),
+            1_000_000e6
+        );
     }
 
-    function _deployCVE() internal initMainVariables {
+    function _deployCVE() internal virtual initMainVariables {
         // If TokenBridgeRelayer doesn't exist on the address,
         // deploy mock TokenBridgeRelayer on the address.
         if (_TOKEN_BRIDGE.code.length == 0) {
@@ -133,13 +156,19 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setOracleRouter(address(oracleRouter));
     }
 
-    function _deployProtocolMessagingHub() internal initMainVariables {
-        protocolMessagingHub = protocolMessagingHubs[
-            block.chainid
-        ] = new ProtocolMessagingHub(
+    function _deployMessagingHub() internal initMainVariables {
+        messagingHub = messagingHubs[block.chainid] = new MessagingHub(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.setProtocolMessagingHub(address(protocolMessagingHub));
+        centralRegistry.setMessagingHub(address(messagingHub));
+    }
+
+    function _deployVotingHub() internal initMainVariables {
+        votingHub = votingHubs[block.chainid] = new VotingHub(
+            ICentralRegistry(address(centralRegistry)),
+            _ONE
+        );
+        centralRegistry.setVotingHub(address(votingHub));
     }
 
     function _deployFeeAccumulator() internal initMainVariables {
@@ -343,17 +372,17 @@ contract TestBaseMarket is TestBase {
         );
     }
 
-    function _deployGaugePool() internal initMainVariables {
-        gaugePool = gaugePools[block.chainid] = new GaugePool(
+    function _deployGaugeManager() internal initMainVariables {
+        gaugeManager = gaugeManagers[block.chainid] = new GaugeManager(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.addLockingPermissions(address(gaugePool));
+        centralRegistry.setGaugeManager(address(gaugeManager));
+        centralRegistry.addLockingPermissions(address(gaugeManager));
     }
 
     function _deployMarketManager() internal initMainVariables {
         marketManager = marketManagers[block.chainid] = new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(gaugePool)
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.addMarketManager(
             address(marketManager),
@@ -405,7 +434,7 @@ contract TestBaseMarket is TestBase {
     {
         cBALRETH = cBALRETHs[block.chainid] = new AuraCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -423,7 +452,7 @@ contract TestBaseMarket is TestBase {
             block.chainid
         ] = new MockAuraCTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_BAL_WETH_RETH_ADDRESS),
+            balRETH,
             address(marketManager),
             109,
             _REWARDER,
@@ -484,6 +513,13 @@ contract TestBaseMarket is TestBase {
         );
     }
 
+    function _setRedstoneSigners() internal initMainVariables {
+        redstoneSigners.push(0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774);
+        redstoneSigners.push(0xdEB22f54738d54976C4c0fe5ce6d408E40d88499);
+        redstoneSigners.push(0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202);
+        redstoneSigners.push(0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE);
+    }
+
     function _prepareUSDC(
         address user,
         uint256 amount
@@ -525,7 +561,152 @@ contract TestBaseMarket is TestBase {
         marketManager.setCTokenCollateralCaps(tokens, caps);
     }
 
+    function _skipRestrictionDuration() internal {
+        skip(veCVE.RESTRICTION_DURATION() + 1);
+    }
+
+    function _skipEpochDuration(uint256 numEpochs) internal {
+        skip(rewardManager.EPOCH_DURATION() * numEpochs);
+    }
+
+    function _recordEpochRewards(
+        uint256 numEpochs,
+        uint256 epochRewards
+    ) internal {
+        for (uint256 i = 0; i < numEpochs; i++) {
+            vm.prank(centralRegistry.messagingHub());
+            rewardManager.recordEpochRewards(epochRewards);
+        }
+
+        _skipEpochDuration(numEpochs);
+    }
+
+    function _prepareResponseAndSignatures(
+        PerChainData[] memory perChainData,
+        bytes memory callData
+    ) internal {
+        bytes[] memory perChainQueries = new bytes[](perChainData.length);
+        bytes[] memory perChainResponses = new bytes[](perChainData.length);
+
+        for (uint256 i = 0; i < perChainData.length; i++) {
+            bytes memory resultsBytes = QueryTest.buildEthCallResultBytes(
+                perChainData[i].result
+            );
+            bytes memory reponseBytes = QueryTest.buildEthCallResponseBytes(
+                uint64(perChainData[i].blockNumber),
+                bytes32(blockhash(perChainData[i].blockNumber)),
+                perChainData[i].timestamp,
+                1,
+                resultsBytes
+            );
+            perChainResponses[i] = QueryTest.buildPerChainResponseBytes(
+                uint16(perChainData[i].chainId),
+                1,
+                reponseBytes
+            );
+
+            bytes memory dataBytes = QueryTest.buildEthCallDataBytes(
+                perChainData[i].to,
+                callData
+            );
+            bytes memory requestBytes = QueryTest.buildEthCallRequestBytes(
+                abi.encode(perChainData[i].blockNumber),
+                1,
+                dataBytes
+            );
+            perChainQueries[i] = QueryTest.buildPerChainRequestBytes(
+                uint16(perChainData[i].chainId),
+                1,
+                requestBytes
+            );
+        }
+
+        response = _concatenateQueryResponseBytesOffChain(
+            0x01,
+            0x0000,
+            hex"ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f200",
+            0x01,
+            0xdd9914c6,
+            perChainQueries,
+            perChainResponses
+        );
+
+        bytes32 responseDigest = votingHub.getResponseDigest(response);
+        (uint8 sigV, bytes32 sigR, bytes32 sigS) = vm.sign(
+            0xcfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0,
+            responseDigest
+        );
+
+        signatures.push(
+            IWormhole.Signature({
+                r: sigR,
+                s: sigS,
+                v: sigV,
+                guardianIndex: 0
+            })
+        );
+    }
+
+    function _concatenateQueryResponseBytesOffChain(
+        uint8 version,
+        uint16 senderChainId,
+        bytes memory _signature,
+        uint8 queryRequestVersion,
+        uint32 queryRequestNonce,
+        bytes[] memory perChainQueries,
+        bytes[] memory perChainResponses
+    ) internal pure returns (bytes memory) {
+        bytes memory concatenatedPerChainQueries = _concatenateBytesArrays(
+            perChainQueries
+        );
+        bytes memory concatenatedPerChainResponses = _concatenateBytesArrays(
+            perChainResponses
+        );
+
+        bytes memory queryRequest = QueryTest.buildOffChainQueryRequestBytes(
+            queryRequestVersion,
+            queryRequestNonce,
+            uint8(perChainQueries.length),
+            concatenatedPerChainQueries
+        );
+        return
+            QueryTest.buildQueryResponseBytes(
+                version,
+                senderChainId,
+                _signature,
+                queryRequest,
+                uint8(perChainResponses.length),
+                concatenatedPerChainResponses
+            );
+    }
+
+    function _concatenateBytesArrays(
+        bytes[] memory arrays
+    ) internal pure returns (bytes memory concatenated) {
+        uint256 totalLength = 0;
+        for (uint256 i = 0; i < arrays.length; i++) {
+            totalLength += arrays[i].length;
+        }
+
+        concatenated = new bytes(totalLength);
+        uint256 offset = 0;
+        for (uint256 i = 0; i < arrays.length; i++) {
+            bytes memory array = arrays[i];
+            for (uint256 j = 0; j < array.length; j++) {
+                concatenated[offset + j] = array[j];
+            }
+            offset += array.length;
+        }
+    }
+
     function _addressToBytes32(address addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(addr)));
+    }
+
+    function _makeTokenArray(
+        address token
+    ) internal pure returns (address[] memory result) {
+        result = new address[](1);
+        result[0] = token;
     }
 }

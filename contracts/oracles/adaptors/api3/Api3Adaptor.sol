@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
@@ -184,6 +183,13 @@ contract Api3Adaptor is BaseOracleAdaptor {
         IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
 
         emit Api3AssetRemoved(asset);
+    }
+
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    function adaptorType() external pure override returns (uint256) {
+        return 4;
     }
 
     /// INTERNAL FUNCTIONS ///

@@ -52,6 +52,32 @@ interface IMToken {
     /// @param user User to query dToken balance for.
     function balanceOf(address user) external view returns (uint256);
 
+    /// @notice Caller deposits assets into the market and receives shares.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param receiver The account that should receive the cToken shares.
+    /// @return shares The amount of cToken shares received by `receiver`.
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+
+    /// @notice Caller deposits assets into the market, `receivier` receives
+    ///         shares, and turns on collateralization of the assets.
+    /// @dev Requires that `receiver` approves the caller prior to
+    ///      collateralize on their behalf.
+    ///      NOTE: Be careful who you approve here!
+    ///      They can delay redemption of assets through repeated
+    ///      collateralization preventing withdrawal.
+    ///      If the caller is not approved to collateralize the function will
+    ///      simply deposit assets on behalf of `receiver`.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param receiver The account that should receive the cToken shares.
+    /// @return shares The amount of cToken shares received by `receiver`.
+    function depositAsCollateralFor(
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+
     /// @notice Deposits underlying assets into the market,
     ///         and receives dTokens.
     /// @dev Updates pending interest before executing the mint inside
@@ -59,6 +85,18 @@ interface IMToken {
     /// @param amount The amount of the underlying assets to deposit.
     /// @return Returns the amount of dTokens minted.
     function mint(uint256 amount) external returns (uint256);
+
+    /// @notice Deposits underlying assets into the market,
+    ///         and `recipient` receives dTokens.
+    /// @dev Updates pending interest before executing the mint inside
+    ///      the internal helper function.
+    /// @param amount The amount of the underlying assets to deposit.
+    /// @param recipient The account that should receive the dTokens.
+    /// @return tokens Returns the amount of dTokens minted.
+    function mintFor(
+        uint256 amount,
+        address recipient
+    ) external returns (uint256);
 
     /// @notice Redeems dTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
