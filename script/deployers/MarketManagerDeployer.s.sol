@@ -12,14 +12,12 @@ contract MarketManagerDeployer is DeployConfiguration {
     address public marketManager;
 
     function _deployMarketManager(
-        address centralRegistry,
-        address gaugePool
+        address centralRegistry
     ) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(gaugePool != address(0), "Set the gaugePool!");
 
         marketManager = address(
-            new MarketManager(ICentralRegistry(centralRegistry), gaugePool)
+            new MarketManager(ICentralRegistry(centralRegistry))
         );
 
         console.log("marketManager: ", marketManager);

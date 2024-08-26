@@ -124,7 +124,7 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 shares = _previewWithdraw(assets, ta);
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
@@ -299,7 +299,7 @@ abstract contract CTokenCompounding is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -330,7 +330,7 @@ abstract contract CTokenCompounding is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -384,7 +384,7 @@ abstract contract CTokenCompounding is CTokenBase {
         );
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(
             msg.sender,
@@ -460,7 +460,7 @@ abstract contract CTokenCompounding is CTokenBase {
         }
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(
             msg.sender,

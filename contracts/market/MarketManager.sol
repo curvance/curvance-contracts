@@ -8,7 +8,6 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -109,9 +108,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
 
-    /// @notice The address of the linked Gauge Pool.
-    IGaugePool public immutable gaugePool;
-
     /// STORAGE ///
 
     /// @notice A list of all tokens inside this market for
@@ -187,20 +183,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address gaugePool_
-    ) LiquidityManager(centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(gaugePool_),
-                type(IGaugePool).interfaceId
-            )
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        gaugePool = IGaugePool(gaugePool_);
-    }
+        ICentralRegistry centralRegistry_
+    ) LiquidityManager(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -262,12 +246,54 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to check bad debt status for.
-    /// @return The total market value of `account`'s collateral.
-    /// @return The total outstanding debt value of `account`.
-    function solvencyOf(
+    /// @return accountCollateral The total market value of `account`'s
+    ///                           collateral.
+    /// @return accountCollateralSoft The total market value of `account`'s
+    ///                               collateral offset by soft liquidation
+    ///                               requirements.
+    /// @return accountCollateralHard The total market value of `account`'s
+    ///                               collateral offset by hard liquidation
+    ///                               requirements.
+    /// @return accountDebt The total outstanding debt value of `account`.
+    function liquidationValuesOf(
         address account
-    ) external view returns (uint256, uint256) {
-        return _solvencyOf(account);
+    ) external view returns (
+        uint256 accountCollateral,
+            uint256 accountCollateralSoft,
+            uint256 accountCollateralHard,
+            uint256 accountDebt
+        ) {
+        (
+            accountCollateral,
+            accountCollateralSoft,
+            accountCollateralHard,
+            accountDebt,,
+        ) = _liquidationValuesOf(account, address(0), address(0));
+    }
+
+    function LiquidationStatusOf(
+        address account,
+        address debtToken,
+        address collateralToken
+    )
+        public
+        view
+        returns (
+            uint256 lfactor,
+            uint256 debtTokenPrice,
+            uint256 collateralTokenPrice
+        )
+    {
+        LiqData memory result = _LiquidationStatusOf(
+            account,
+            debtToken,
+            collateralToken
+        );
+        return (
+            result.lFactor,
+            result.debtTokenPrice,
+            result.collateralTokenPrice
+        );
     }
 
     /// @notice Determine whether `account` can currently be liquidated

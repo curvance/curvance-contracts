@@ -8,10 +8,10 @@ interface ICVE {
 
     /// @notice Mints gauge emissions for the desired gauge pool.
     /// @dev Only callable by the MessagingHub.
-    /// @param gaugePool The address of the gauge pool where emissions will be
+    /// @param gaugeManager The address of the gauge pool where emissions will be
     ///                  configured.
     /// @param amount The amount of gauge emissions to be minted.
-    function mintGaugeEmissions(address gaugePool, uint256 amount) external;
+    function mintGaugeEmissions(address gaugeManager, uint256 amount) external;
 
     /// @notice Mints CVE to the calling gauge pool to fund the users
     ///         lock boost.

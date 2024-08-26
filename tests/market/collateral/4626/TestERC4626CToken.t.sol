@@ -19,11 +19,10 @@ contract TestERC4626CToken is TestERC4626, TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         // start gauge to enable deposits
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime() + 1000);
 
         // deploy collateral token and cToken

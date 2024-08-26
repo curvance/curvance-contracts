@@ -9,7 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
@@ -77,6 +77,8 @@ abstract contract CTokenBase is
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
 
     /// @notice Underlying asset for the CToken.
     IERC20 internal immutable _asset;
@@ -117,6 +119,8 @@ abstract contract CTokenBase is
 
         // Set `marketManager`.
         marketManager = IMarketManager(MarketManager_);
+        // Set `gaugeManager`.
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
@@ -429,14 +433,13 @@ abstract contract CTokenBase is
         // Fails if transfer not allowed.
         marketManager.canTransferCToken(address(this), msg.sender, amount);
 
-        // Cache gaugePool, then update gauge pool values for caller.
-        IGaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), msg.sender, amount);
+        // Cache Gauge Manager, then update values for caller.
+        gaugeManager.withdraw(address(this), msg.sender, amount);
 
         // Execute transfer.
         super.transfer(to, amount);
-        // Update gauge pool values for `to`.
-        gaugePool.deposit(address(this), to, amount);
+        // Update Gauge Manager values for `to`.
+        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -456,14 +459,13 @@ abstract contract CTokenBase is
         // Fails if transfer not allowed.
         marketManager.canTransferCToken(address(this), from, amount);
 
-        // Cache gaugePool, then update gauge pool values for `from`.
-        IGaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), from, amount);
+        // Cache Gauge Manager, then update values for `from`.
+        gaugeManager.withdraw(address(this), from, amount);
 
         // Execute transfer.
         super.transferFrom(from, to, amount);
-        // Update gauge pool values for `to`.
-        gaugePool.deposit(address(this), to, amount);
+        // Update Gauge Manager values for `to`.
+        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -496,21 +498,20 @@ abstract contract CTokenBase is
         // Calculate tokens to transfer to `liquidator`.
         uint256 liquidatorTokens = liquidatedTokens - protocolTokens;
 
-        // Cache gaugePool, then update gauge pool values for `account`.
-        IGaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), account, liquidatedTokens);
+        // Cache Gauge Manager, then update values for `account`.
+        gaugeManager.withdraw(address(this), account, liquidatedTokens);
 
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, liquidatorTokens);
-        // Update gauge pool values for `liquidator`.
-        gaugePool.deposit(address(this), liquidator, liquidatorTokens);
+        // Update Gauge Manager values for `liquidator`.
+        gaugeManager.deposit(address(this), liquidator, liquidatorTokens);
 
         if (protocolTokens > 0) {
             address daoAddress = centralRegistry.daoAddress();
             // Efficiently transfer token balances from `account` to `daoAddress`.
             _transferFromWithoutAllowance(account, daoAddress, protocolTokens);
-            // Update gauge pool values for new reserves.
-            gaugePool.deposit(address(this), daoAddress, protocolTokens);
+            // Update Gauge Manager values for new reserves.
+            gaugeManager.deposit(address(this), daoAddress, protocolTokens);
         }
     }
 
@@ -536,14 +537,13 @@ abstract contract CTokenBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Cache gaugePool, then update gauge pool values, for `account`.
-        IGaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), account, shares);
+        // Cache Gauge Manager, then update values, for `account`.
+        gaugeManager.withdraw(address(this), account, shares);
 
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
-        // Update gauge pool values for `liquidator`.
-        gaugePool.deposit(address(this), liquidator, shares);
+        // Update Gauge Manager values for `liquidator`.
+        gaugeManager.deposit(address(this), liquidator, shares);
     }
 
     /// @notice Returns the type of Curvance token.
@@ -863,12 +863,6 @@ abstract contract CTokenBase is
         uint256 ta
     ) internal view returns (uint256) {
         return _convertToAssets(shares, ta);
-    }
-
-    /// @notice Returns the gauge pool contract address.
-    /// @return The gauge controller contract address, in `IGaugePool` form.
-    function _gaugePool() internal view returns (IGaugePool) {
-        return marketManager.gaugePool();
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

@@ -114,8 +114,7 @@ contract TestAuraCToken is TestBaseMarket {
             address(chainlinkAdaptor)
         );
 
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);

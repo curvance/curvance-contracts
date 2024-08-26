@@ -13,25 +13,12 @@ contract MarketManagerDeploymentTest is TestBaseMarketManager {
         vm.expectRevert(
             LiquidityManager.LiquidityManager__InvalidParameter.selector
         );
-        new MarketManager(ICentralRegistry(address(0)), address(gaugePool));
-    }
-
-    function test_marketManagerDeployment_fail_whenGaugePoolIsZeroAddress()
-        public
-    {
-        vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
-        );
-        new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(0)
-        );
+        new MarketManager(ICentralRegistry(address(0)));
     }
 
     function test_marketManagerDeployment_success() public {
         marketManager = new MarketManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(gaugePool)
+            ICentralRegistry(address(centralRegistry))
         );
 
         assertEq(address(dUSDC.centralRegistry()), address(centralRegistry));

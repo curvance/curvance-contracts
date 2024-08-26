@@ -41,8 +41,6 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
 
         vm.stopPrank();
 
-        gaugePool.start(address(marketManager));
-
         swapData.inputToken = _WETH_ADDRESS;
         swapData.inputAmount = _ONE;
         swapData.outputToken = _USDC_ADDRESS;

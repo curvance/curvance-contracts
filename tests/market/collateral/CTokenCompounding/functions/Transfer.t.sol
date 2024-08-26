@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCTokenCompounding } from "../TestBaseCTokenCompounding.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CTokenCompoundingTransferTest is TestBaseCTokenCompounding {
@@ -17,7 +17,7 @@ contract CTokenCompoundingTransferTest is TestBaseCTokenCompounding {
     function test_cTokenCompoundingTransfer_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         cBALRETH.transfer(user1, 0);
     }
 

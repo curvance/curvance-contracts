@@ -60,8 +60,7 @@ contract TestDTokenReserves is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
@@ -145,7 +144,7 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             assertEq(totalBorrowsBefore, 500 ether);
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
@@ -176,7 +175,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -187,7 +186,7 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 totalReserves = dDAI.totalReserves();
             uint256 totalBorrowsBefore = dDAI.totalBorrows();
             uint256 daoBalanceBefore = dDAI.balanceOf(dao);
-            uint256 daoGaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 daoGaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
@@ -222,7 +221,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
             // check gauge balance
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
@@ -233,7 +232,7 @@ contract TestDTokenReserves is TestBaseMarket {
 
         uint256 exchangeRate = dDAI.exchangeRateCached();
         uint256 totalReservesBefore = dDAI.totalReserves();
-        uint256 gaugeBalanceBefore = gaugePool.balanceOf(address(dDAI), dao);
+        uint256 gaugeBalanceBefore = gaugeManager.balanceOf(address(dDAI), dao);
 
         uint256 depositAmount = 100 ether;
         _prepareDAI(dao, depositAmount);
@@ -247,7 +246,7 @@ contract TestDTokenReserves is TestBaseMarket {
             totalReservesBefore + (depositAmount * 1e18) / exchangeRate
         );
         assertEq(
-            gaugePool.balanceOf(address(dDAI), dao),
+            gaugeManager.balanceOf(address(dDAI), dao),
             gaugeBalanceBefore + (depositAmount * 1e18) / exchangeRate
         );
     }
@@ -260,7 +259,7 @@ contract TestDTokenReserves is TestBaseMarket {
             uint256 exchangeRate = dDAI.exchangeRateCached();
             uint256 totalReservesBefore = dDAI.totalReserves();
             uint256 daiBalanceBefore = dai.balanceOf(dao);
-            uint256 gaugeBalanceBefore = gaugePool.balanceOf(
+            uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
                 address(dDAI),
                 dao
             );
@@ -275,7 +274,7 @@ contract TestDTokenReserves is TestBaseMarket {
                 totalReservesBefore - ((withdrawAmount * 1e18) / exchangeRate)
             );
             assertEq(
-                gaugePool.balanceOf(address(dDAI), dao),
+                gaugeManager.balanceOf(address(dDAI), dao),
                 gaugeBalanceBefore - ((withdrawAmount * 1e18) / exchangeRate)
             );
             assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
@@ -296,7 +295,7 @@ contract TestDTokenReserves is TestBaseMarket {
             dDAI.withdrawReserves(withdrawAmount);
 
             assertEq(dDAI.totalReserves(), 0);
-            assertEq(gaugePool.balanceOf(address(dDAI), dao), 0);
+            assertEq(gaugeManager.balanceOf(address(dDAI), dao), 0);
             assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
         }
     }

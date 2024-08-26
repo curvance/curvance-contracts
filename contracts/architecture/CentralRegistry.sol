@@ -87,6 +87,8 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Reward Manager contract address.
     address public rewardManager;
+    /// @notice Gauge Manager contract address.
+    address public gaugeManager;
     /// @notice Voting Hub contract address.
     address public votingHub;
     /// @notice Messaging Hub contract address.
@@ -372,10 +374,29 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {CoreContractSet} event.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
+        if (rewardManager != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         _checkElevatedPermissions();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
+    }
+
+    /// @notice Sets a new Reward Manager contract address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {CoreContractSet} event.
+    /// @param newGaugeManager The new address of Gauge Manager.
+    function setGaugeManager(address newGaugeManager) external {
+        if (gaugeManager != address(0)) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        _checkElevatedPermissions();
+
+        gaugeManager = newGaugeManager;
+        emit CoreContractSet("Gauge Manager", newGaugeManager);
     }
 
     /// @notice Sets a new voting hub contract address.

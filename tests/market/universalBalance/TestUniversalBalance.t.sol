@@ -96,8 +96,7 @@ contract TestUniversalBalance is TestBaseMarket {
         );
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
@@ -239,7 +238,7 @@ contract TestUniversalBalance is TestBaseMarket {
     function testClaimForDAO() public {
         testDepositETH();
 
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -250,9 +249,9 @@ contract TestUniversalBalance is TestBaseMarket {
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 100 * 2 weeks;
         vm.prank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
         vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
+        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
 

@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 
 contract ClaimForDAOTest is TestBaseUniversalBalance {
     function setUp() public override {
@@ -16,8 +16,7 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        gaugePool.start(address(marketManager));
-
+        
         vm.startPrank(user1);
 
         universalBalance.depositETH{ value: _ONE }(true);
@@ -27,12 +26,12 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
     }
 
     function test_claimForDAO_fail_whenNotStarted() public {
-        vm.expectRevert(GaugeErrors.NotStarted.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         universalBalance.claimForDAO();
     }
 
     function test_claimForDAO_success() public {
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
 
         _skipEpochDuration(1);
 
@@ -43,8 +42,8 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
         poolWeights[0] = 100 * 2 weeks;
 
         vm.startPrank(address(messagingHub));
-        gaugePool.setEmissionRates(1, tokensParam, poolWeights);
-        cve.mintGaugeEmissions(address(gaugePool), 100 * 2 weeks);
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
+        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
         vm.stopPrank();
 
         skip(1 weeks);

@@ -47,8 +47,6 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         );
 
         vm.stopPrank();
-
-        gaugePool.start(address(marketManager));
     }
 
     function test_migrate_fail_whenMigrationIsNotStarted() public {

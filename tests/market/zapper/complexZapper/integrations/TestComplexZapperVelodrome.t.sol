@@ -34,7 +34,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         complexZapper = new ComplexZapper(

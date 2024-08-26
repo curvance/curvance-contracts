@@ -61,7 +61,7 @@ contract CTokenPrimitive is CTokenBase {
         uint256 shares = _previewWithdraw(assets, ta);
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
@@ -129,7 +129,7 @@ contract CTokenPrimitive is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -159,7 +159,7 @@ contract CTokenPrimitive is CTokenBase {
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta);
         // Update gauge pool values for `receiver`.
-        _gaugePool().deposit(address(this), receiver, shares);
+        gaugeManager.deposit(address(this), receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -211,7 +211,7 @@ contract CTokenPrimitive is CTokenBase {
         );
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(msg.sender, receiver, owner, assets, shares, ta);
     }
@@ -275,7 +275,7 @@ contract CTokenPrimitive is CTokenBase {
         }
 
         // Update gauge pool values for `owner`.
-        _gaugePool().withdraw(address(this), owner, shares);
+        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
         _processWithdraw(msg.sender, receiver, owner, assets, shares, ta);
     }

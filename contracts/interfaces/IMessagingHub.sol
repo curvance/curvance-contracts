@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-/// @param gaugePools The gauge pool contract addresses that emission data
-///                   corresponds to.
-/// @param emissionTotals The total amount of token emissions to allocate
-///                       to the gauge pools.
+/// @param emissionTotal The total amount of token emissions to allocate
+///                      to the Gauge Manager.
 /// @param tokens The token contract addresses receiving emissions.
 /// @param emissions The emission amounts that each token should receive.
 struct EmissionData {
-    address[] gaugePools;
-    uint256[] emissionTotals;
-    address[][] tokens;
-    uint256[][] emissions;
+    uint256 emissionTotal;
+    address[] tokens;
+    uint256[] emissions;
 }
 
 interface IMessagingHub {
@@ -32,13 +29,11 @@ interface IMessagingHub {
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.

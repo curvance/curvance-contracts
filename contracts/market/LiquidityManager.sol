@@ -437,109 +437,42 @@ abstract contract LiquidityManager {
     /// @param account The account to check bad debt status for.
     /// @return accountCollateral The total market value of
     ///                           `account`'s collateral.
+    /// @return accountCollateralSoft The total market value of `account`'s
+    ///                               collateral offset by soft liquidation
+    ///                               requirements.
+    /// @return accountCollateralHard The total market value of `account`'s
+    ///                               collateral offset by hard liquidation
+    ///                               requirements.
     /// @return accountDebt The total outstanding debt value of `account`.
-    function _solvencyOf(
-        address account
-    ) internal view returns (uint256 accountCollateral, uint256 accountDebt) {
+    /// @return collateralTokenPrice The current market value of
+    ///                              `collateralToken`, in USD WAD.
+    /// @return debtTokenPrice The current market value of `debtToken`,
+    ///                        in USD WAD.
+    function _liquidationValuesOf(
+        address account,
+        address debtToken,
+        address collateralToken
+    ) internal view returns (
+        uint256 accountCollateral,
+        uint256 accountCollateralSoft,
+        uint256 accountCollateralHard,
+        uint256 accountDebt,
+        uint256 collateralTokenPrice,
+        uint256 debtTokenPrice
+    ) {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory underlyingPrices,
             uint256 numAssets
         ) = _assetDataOf(account, 2);
         AccountSnapshot memory snapshot;
-
-        for (uint256 i; i < numAssets; ++i) {
-            snapshot = snapshots[i];
-
-            if (snapshot.isCToken) {
-                // If the cToken has a Collateralization Ratio,
-                // increment their collateral.
-                if (tokenData[snapshot.asset].collRatio != 0) {
-                    accountCollateral += _assetValue(
-                        ((tokenData[snapshot.asset]
-                            .accountPositions[account]
-                            .collateralPosted * snapshot.exchangeRate) / WAD),
-                        underlyingPrices[i],
-                        snapshot.decimals,
-                        true
-                    );
-                }
-            } else {
-                // If they have a debt balance, increment their debt.
-                if (snapshot.debtBalance > 0) {
-                    accountDebt += _assetValue(
-                        snapshot.debtBalance,
-                        underlyingPrices[i],
-                        snapshot.decimals,
-                        false
-                    );
-                }
-            }
-        }
-    }
-
-    function LiquidationStatusOf(
-        address account,
-        address debtToken,
-        address collateralToken
-    )
-        public
-        view
-        returns (
-            uint256 lfactor,
-            uint256 debtTokenPrice,
-            uint256 collateralTokenPrice
-        )
-    {
-        LiqData memory result = _LiquidationStatusOf(
-            account,
-            debtToken,
-            collateralToken
-        );
-        return (
-            result.lFactor,
-            result.debtTokenPrice,
-            result.collateralTokenPrice
-        );
-    }
-
-    /// @notice Determine whether `account` can be liquidated,
-    ///         by calculating their lFactor, based on their
-    ///         collateral versus outstanding debt.
-    /// @param account The account to check liquidation status for.
-    /// @param debtToken The dToken to be repaid during potential liquidation.
-    /// @param collateralToken The cToken to be seized during potential
-    ///                        liquidation.
-    /// @return result Containing values:
-    ///                Current `account` lFactor.
-    ///                Current price for `debtToken`.
-    ///                Current price for `collateralToken`.
-    function _LiquidationStatusOf(
-        address account,
-        address debtToken,
-        address collateralToken
-    ) internal view returns (LiqData memory result) {
-        (
-            AccountSnapshot[] memory snapshots,
-            uint256[] memory underlyingPrices,
-            uint256 numAssets
-        ) = _assetDataOf(account, 2);
-        AccountSnapshot memory snapshot;
-        // Collateral value.
-        uint256 accountCollateral;
-        // Collateral value for soft liquidation level.
-        uint256 accountCollateralSoft;
-        // Collateral value for hard liquidation level.
-        uint256 accountCollateralHard;
-        // Current outstanding account debt.
-        uint256 accountDebt;
 
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
             if (snapshot.isCToken) {
                 if (snapshot.asset == collateralToken) {
-                    result.collateralTokenPrice = underlyingPrices[i];
+                    collateralTokenPrice = underlyingPrices[i];
                 }
 
                 // If the asset has a CR increment their collateral.
@@ -559,7 +492,7 @@ abstract contract LiquidityManager {
                 }
             } else {
                 if (snapshot.asset == debtToken) {
-                    result.debtTokenPrice = underlyingPrices[i];
+                    debtTokenPrice = underlyingPrices[i];
                 }
 
                 // If they have a debt balance,
@@ -574,6 +507,34 @@ abstract contract LiquidityManager {
                 }
             }
         }
+    }
+
+    /// @notice Determine whether `account` can be liquidated,
+    ///         by calculating their lFactor, based on their
+    ///         collateral versus outstanding debt.
+    /// @param account The account to check liquidation status for.
+    /// @param debtToken The dToken to be repaid during potential liquidation.
+    /// @param collateralToken The cToken to be seized during potential
+    ///                        liquidation.
+    /// @return result Containing values:
+    ///                Current `account` lFactor.
+    ///                Current price for `debtToken`.
+    ///                Current price for `collateralToken`.
+    function _LiquidationStatusOf(
+        address account,
+        address debtToken,
+        address collateralToken
+    ) internal view returns (LiqData memory result) {
+        (
+            uint256 accountCollateral,
+            uint256 accountCollateralSoft,
+            uint256 accountCollateralHard,
+            uint256 accountDebt,
+            uint256 collateralTokenPrice,
+            uint256 debtTokenPrice
+        ) = _liquidationValuesOf(account, debtToken, collateralToken);
+        result.collateralTokenPrice = collateralTokenPrice;
+        result.debtTokenPrice = debtTokenPrice;
 
         // Indicates bad debt has accumulated and liquidation by
         // account should be used.

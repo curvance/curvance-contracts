@@ -48,7 +48,7 @@ contract CanRedeemTest is TestBaseMarketManager {
     }
 
     function test_canRedeem_fail_WhenCTokenInsufficientLiquidity() public {
-        skip(gaugePool.startTime() - block.timestamp);
+        skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);

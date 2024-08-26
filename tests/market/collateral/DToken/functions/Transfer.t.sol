@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseDToken } from "../TestBaseDToken.sol";
-import { GaugeErrors } from "contracts/gauge/GaugeErrors.sol";
+import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
@@ -15,7 +15,7 @@ contract DTokenTransferTest is TestBaseDToken {
     }
 
     function test_dTokenTransfer_fail_whenTransferZeroAmount() public {
-        vm.expectRevert(GaugeErrors.InvalidAmount.selector);
+        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         dUSDC.transfer(user1, 0);
     }
 

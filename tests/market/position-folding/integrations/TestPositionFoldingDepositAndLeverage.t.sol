@@ -84,8 +84,7 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         _prepareBALRETH(user, 1 ether);
 
         // start epoch
-        gaugePool.start(address(marketManager));
-        vm.warp(gaugePool.startTime());
+        vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
@@ -134,7 +133,7 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
             address(positionFolding)
         );
 
-        // vm.warp(gaugePool.startTime());
+        // vm.warp(gaugeManager.startTime());
         // vm.roll(block.number + 1000);
 
         // // set gauge settings of next epoch
@@ -145,9 +144,9 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         // poolWeights[0] = 100;
         // poolWeights[1] = 100;
         // vm.prank(messagingHub);
-        // gaugePool.setEmissionRates(1, tokensParam, poolWeights);
+        // gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
         // vm.prank(messagingHub);
-        // cve.mintGaugeEmissions(300 * 2 weeks, address(gaugePool));
+        // cve.mintGaugeEmissions(300 * 2 weeks, address(gaugeManager));
         // _skipEpochDuration(1);
 
         // provide enough liquidity for leverage

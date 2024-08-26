@@ -33,10 +33,8 @@ contract TestVotingHub is TestBaseVotingHub {
 
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
-        _deployGaugePool();
         _deployMarketManager();
 
-        gaugePool.start(address(marketManager));
         _skipEpochDuration(2);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
@@ -61,10 +59,8 @@ contract TestVotingHub is TestBaseVotingHub {
 
         // Deploy contracts on forked Optimism
         _deployBaseContracts();
-        _deployGaugePool();
         _deployMarketManager();
 
-        gaugePool.start(address(marketManager));
         _skipEpochDuration(2);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
@@ -113,37 +109,27 @@ contract TestVotingHub is TestBaseVotingHub {
         gasLimit.push(250_000);
         gasLimit.push(250_000);
 
-        _emissionData.gaugePools = new address[](1);
-        _emissionData.emissionTotals = new uint256[](1);
-        _emissionData.tokens = new address[][](1);
-        _emissionData.emissions = new uint256[][](1);
+        _emissionData.tokens = new address[](1);
+        _emissionData.emissions = new uint256[](1);
 
-        _emissionData.tokens[0] = new address[](1);
-        _emissionData.emissions[0] = new uint256[](1);
+        _emissionData.emissionTotal = _ONE;
+        _emissionData.emissions[0] = _ONE;
 
-        _emissionData.emissionTotals[0] = _ONE;
-        _emissionData.emissions[0][0] = _ONE;
-
-        _emissionData.gaugePools[0] = address(gaugePools[42161]);
-        _emissionData.tokens[0][0] = _USDC_ADDRESSES[42161];
+        _emissionData.tokens[0] = _USDC_ADDRESSES[42161];
         _remoteEmissionData.push(_emissionData);
 
-        _emissionData.gaugePools[0] = address(gaugePools[10]);
-        _emissionData.tokens[0][0] = _USDC_ADDRESSES[10];
+        _emissionData.tokens[0] = _USDC_ADDRESSES[10];
         _remoteEmissionData.push(_emissionData);
 
-        _emissionData.gaugePools[0] = address(gaugePool);
-        _emissionData.tokens[0][0] = _USDC_ADDRESS;
+        _emissionData.tokens[0] = _USDC_ADDRESS;
     }
 
     function test_executeEmissionConfiguration_multiple_success() public {
-        gaugePool.start(address(marketManager));
-
         _skipEpochDuration(2);
 
         votingHub.setEraTargetEmissions(_ONE * 5);
 
-        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugePool));
+        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
         vm.recordLogs();
 
@@ -178,13 +164,13 @@ contract TestVotingHub is TestBaseVotingHub {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        (uint256 totalWeights, uint256 poolWeight) = gaugePool.gaugeWeight(
+        (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
             1,
             _USDC_ADDRESS
         );
 
         assertEq(
-            cve.balanceOf(address(gaugePool)),
+            cve.balanceOf(address(gaugeManager)),
             gaugePoolCVEBalance + _ONE
         );
         assertEq(totalWeights, _ONE);
@@ -195,12 +181,12 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _initMainVariables();
 
-        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch(),
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
-        assertEq(cve.balanceOf(address(gaugePool)), 0);
+        assertEq(cve.balanceOf(address(gaugeManager)), 0);
         assertEq(totalWeights, 0);
         assertEq(poolWeight, 0);
 
@@ -209,12 +195,12 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _initMainVariables();
 
-        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch(),
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
-        assertEq(cve.balanceOf(address(gaugePool)), 0);
+        assertEq(cve.balanceOf(address(gaugeManager)), 0);
         assertEq(totalWeights, 0);
         assertEq(poolWeight, 0);
 
@@ -242,12 +228,12 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _initMainVariables();
 
-        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch(),
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
-        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
+        assertEq(cve.balanceOf(address(gaugeManager)), _ONE);
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
 
@@ -256,12 +242,12 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _initMainVariables();
 
-        (totalWeights, poolWeight) = gaugePool.gaugeWeight(
-            gaugePool.currentEpoch(),
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
-        assertEq(cve.balanceOf(address(gaugePool)), _ONE);
+        assertEq(cve.balanceOf(address(gaugeManager)), _ONE);
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
     }

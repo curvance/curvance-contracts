@@ -11,7 +11,7 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
@@ -51,6 +51,8 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
     /// @notice Address of fee token.
     address public immutable feeToken;
     /// @notice CVE contract address.
@@ -96,6 +98,7 @@ contract MessagingHub is QueryResponse {
 
         centralRegistry = centralRegistry_;
 
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         feeToken = centralRegistry.feeToken();
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
@@ -280,23 +283,20 @@ contract MessagingHub is QueryResponse {
                 (uint8, uint256, EmissionData)
             );
 
-            uint256 numPools = emissionData.gaugePools.length;
-            IGaugePool gaugePool;
+            IGaugeManager cachedGaugeManager = gaugeManager;
 
-            for (uint256 i; i < numPools; ++i) {
-                gaugePool = IGaugePool(emissionData.gaugePools[i]);
-                // Mint epoch gauge emissions to the gauge pool.
-                cve.mintGaugeEmissions(
-                    address(gaugePool),
-                    emissionData.emissionTotals[i]
-                );
-                // Set upcoming epoch emissions for voted configuration.
-                gaugePool.setEmissionRates(
-                    epoch,
-                    emissionData.tokens[i],
-                    emissionData.emissions[i]
-                );
-            }
+            // Mint appropriate gauge emissions to Gauge Manager.
+            cve.mintGaugeEmissions(
+                address(cachedGaugeManager),
+                emissionData.emissionTotal
+            );
+
+            // Set upcoming epoch emissions for voted configuration.
+            cachedGaugeManager.setEmissionRates(
+                epoch,
+                emissionData.tokens,
+                emissionData.emissions
+            );
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and
             //                   finalized epoch rewards data.
@@ -392,13 +392,11 @@ contract MessagingHub is QueryResponse {
     /// @param emissionData Struct containing information on emission
     ///                     configuration.
     ///                     Containing values:
-    ///                     1. The gauge pool contract addresses that emission
-    ///                        data corresponds to.
-    ///                     2. The total amount of token emissions to allocate
-    ///                        to the gauge pools.
-    ///                     3. The token contract addresses receiving
+    ///                     1. The total amount of token emissions to allocate
+    ///                        to the Gauge Manager.
+    ///                     2. The token contract addresses receiving
     ///                        emissions.
-    ///                     4. The emission amounts that each token should
+    ///                     3. The emission amounts that each token should
     ///                        receive.
     /// @param dstChainId The remote chain's ID that will have its token
     ///                   emissions values set, in GETH format.

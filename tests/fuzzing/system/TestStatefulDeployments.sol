@@ -87,12 +87,4 @@ contract TestStatefulDeployments is StatefulBaseMarket {
             "CURV-15: CVE.builderAllocationPerMonth() > 0 failed"
         );
     }
-
-    /// @custom:property curv-16 The Market Manager’s gauge pool is set up correctly.
-    function MarketManager_is_deployed() public {
-        assertWithMsg(
-            address(marketManager.gaugePool()) == address(gaugePool),
-            "CURV-16: marketManager.gaugePool() == gaugePool failed"
-        );
-    }
 }

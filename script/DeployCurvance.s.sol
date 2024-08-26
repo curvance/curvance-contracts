@@ -10,7 +10,7 @@ import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
-import { GaugePoolDeployer } from "./deployers/GaugePoolDeployer.s.sol";
+import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
@@ -25,7 +25,7 @@ contract DeployCurvance is
     MessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
-    GaugePoolDeployer,
+    GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
     PositionFoldingDeployer,
@@ -105,14 +105,14 @@ contract DeployCurvance is
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy GaugePool
+        // Deploy GaugeManagerPool
 
-        _deployGaugePool(centralRegistry);
-        _addLockingPermissions(gaugePool);
+        _deployGaugeManager(centralRegistry);
+        _addLockingPermissions(gaugeManager);
 
         // Deploy MarketManager
 
-        _deployMarketManager(centralRegistry, gaugePool);
+        _deployMarketManager(centralRegistry);
         _addMarketManager(
             marketManager,
             _readConfigUint256(".marketManager.marketInterestFactor")

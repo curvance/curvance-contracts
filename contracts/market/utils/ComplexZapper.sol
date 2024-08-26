@@ -595,7 +595,7 @@ contract ComplexZapper is ReentrancyGuard {
             revert ComplexZapper__ExecutionError();
         }
 
-        // Return any excess assets backed to user.
+        // Return any excess assets remaining back to the user.
         if (assets > expectedAssets) {
             _transferToRecipient(
                 underlying,

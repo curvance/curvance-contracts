@@ -12,7 +12,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugePool } from "contracts/interfaces/IGaugePool.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
@@ -65,6 +65,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     address public immutable underlying;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
 
     /// @dev `bytes4(keccak256(bytes("DToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xef419be2;
@@ -169,6 +171,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new marketManager.
         marketManager = IMarketManager(marketManager_);
+        // Set `gaugeManager`.
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Initialize timestamp and borrow index.
         marketData.lastTimestampUpdated = uint40(block.timestamp);
@@ -602,7 +606,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address daoAddress = centralRegistry.daoAddress();
 
         // Deposit new reserves into gauge.
-        _gaugePool().deposit(address(this), daoAddress, tokens);
+        gaugeManager.deposit(address(this), daoAddress, tokens);
 
         // Update reserves
         totalReserves = totalReserves + tokens;
@@ -636,7 +640,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address daoAddress = centralRegistry.daoAddress();
 
         // Withdraw reserves from gauge, in shares.
-        _gaugePool().withdraw(address(this), daoAddress, tokens);
+        gaugeManager.withdraw(address(this), daoAddress, tokens);
         // Transfer underlying to DAO, in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
@@ -669,7 +673,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
         // Withdraw reserves from gauge.
-        _gaugePool().withdraw(address(this), daoAddress, totalReservesCached);
+        gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
 
         // Transfer underlying to DAO measured in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
@@ -1108,8 +1112,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
 
-            // Update gauge pool values for new reserves.
-            _gaugePool().deposit(
+            // Update Gauge Manager values for new reserves.
+            gaugeManager.deposit(
                 address(this),
                 centralRegistry.daoAddress(),
                 newReserves
@@ -1213,10 +1217,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[to] = balanceOf[to] + tokens;
         }
 
-        // Cache gaugePool, then update gauge pool values for `from` and `to`.
-        IGaugePool gaugePool = _gaugePool();
-        gaugePool.withdraw(address(this), from, tokens);
-        gaugePool.deposit(address(this), to, tokens);
+        // Cache Gauge Manager, then update values for `from` and `to`.
+        gaugeManager.withdraw(address(this), from, tokens);
+        gaugeManager.deposit(address(this), to, tokens);
 
         // We emit a Transfer event.
         emit Transfer(from, to, tokens);
@@ -1258,8 +1261,8 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[recipient] = balanceOf[recipient] + tokens;
         }
 
-        // Update gauge pool values for `recipient`.
-        _gaugePool().deposit(address(this), recipient, tokens);
+        // Update Gauge Manager values for `recipient`.
+        gaugeManager.deposit(address(this), recipient, tokens);
 
         emit Transfer(address(0), recipient, tokens);
         return tokens;
@@ -1297,9 +1300,9 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             totalSupply = totalSupply - tokens;
         }
 
-        // Update gauge pool values for `account`, while also checking
+        // Update Gauge Manager values for `account`, while also checking
         // if tokens == 0, causing reversion.
-        _gaugePool().withdraw(address(this), account, tokens);
+        gaugeManager.withdraw(address(this), account, tokens);
 
         // Transfer underlying to `recipient`.
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
@@ -1497,12 +1500,6 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             address(collateralToken),
             liquidatedTokens
         );
-    }
-
-    /// @notice Returns the gauge pool contract address.
-    /// @return The gauge controller contract address, in `IGaugePool` form.
-    function _gaugePool() internal view returns (IGaugePool) {
-        return marketManager.gaugePool();
     }
 
     /// @dev Helper function for reverting efficiently.

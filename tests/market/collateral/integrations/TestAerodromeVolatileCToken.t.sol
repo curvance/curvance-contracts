@@ -42,7 +42,7 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         _deployCVE();
         _deployRewardManager();
         _deployVeCVE();
-        _deployGaugePool();
+        _deployGaugeManager();
         _deployMarketManager();
 
         centralRegistry.addHarvester(address(this));
@@ -61,7 +61,6 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
             veloRouter
         );
 
-        gaugePool.start(address(marketManager));
         vm.warp(veCVE.nextEpochStartTime());
 
         _deployOracleRouter();
