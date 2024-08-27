@@ -21,9 +21,9 @@ contract TestAerodromeStableCToken is TestBaseMarket {
     IVeloRouter public veloRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStableCToken cUSDCDAI;
-    MockV3Aggregator chainlinkAero;
-    MockV3Aggregator chainlinkDai;
+    AerodromeStableCToken public cUSDCDAI;
+    MockV3Aggregator public chainlinkAero;
+    MockV3Aggregator public chainlinkDai;
 
     receive() external payable {}
 
@@ -96,8 +96,9 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         centralRegistry.setSlippageLimit(6000);
     }
 
-    function testUsdcDaiStablePool() public {
-        uint256 assets = 100e18;
+    function testUsdcDaiStablePool_fuzzed(uint256 assets) public {
+        vm.assume(0.0001e18 < assets && assets < 1_000_000_000e18);
+
         deal(_AERODROME_USDC_DAI, user1, assets);
         deal(_AERODROME_USDC_DAI, address(this), 42069);
 

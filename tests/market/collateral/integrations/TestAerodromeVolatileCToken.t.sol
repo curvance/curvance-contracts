@@ -22,9 +22,9 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
     IVeloRouter public veloRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeVolatileCToken cWETHUSDC;
-    MockV3Aggregator chainlinkAERO;
-    MockV3Aggregator chainlinkWETH;
+    AerodromeVolatileCToken public cWETHUSDC;
+    MockV3Aggregator public chainlinkAERO;
+    MockV3Aggregator public chainlinkWETH;
 
     receive() external payable {}
 
@@ -97,8 +97,9 @@ contract TestAerodromeVolatileCToken is TestBaseMarket {
         centralRegistry.setSlippageLimit(6000);
     }
 
-    function testWethUsdcVolatilePool() public {
-        uint256 assets = 0.0001e18;
+    function testWethUsdcVolatilePool_fuzzed(uint256 assets) public {
+        vm.assume(0.0001e18 < assets && assets < 1_000_000_000e18);
+
         deal(_AERODROME_WETH_USDC, user1, assets);
         deal(_AERODROME_WETH_USDC, address(this), 42069);
 
