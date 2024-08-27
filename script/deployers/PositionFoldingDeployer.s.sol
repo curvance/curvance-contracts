@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { PositionFolding } from "contracts/market/position-folding/PositionFolding.sol";
+import { PositionFolding } from "contracts/market/position-management/PositionFolding.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";

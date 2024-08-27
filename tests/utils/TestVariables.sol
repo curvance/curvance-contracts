@@ -18,7 +18,7 @@ import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
-import { PositionFolding } from "contracts/market/position-folding/PositionFolding.sol";
+import { PositionFolding } from "contracts/market/position-management/PositionFolding.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleRouter } from "contracts/oracles/OracleRouter.sol";

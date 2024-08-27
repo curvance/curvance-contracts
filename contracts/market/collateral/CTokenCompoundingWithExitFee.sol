@@ -6,7 +6,7 @@ import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
@@ -65,7 +65,7 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
     function withdrawByPositionFolding(
         address owner,
         uint256 assets,
-        IPositionFolding.DeleverageStruct memory deleverageData
+        IPositionManagement.DeleverageStruct memory deleverageData
     ) external override nonReentrant {
         // Validate that the position folding contract is calling.
         if (msg.sender != marketManager.positionFolding()) {
@@ -105,7 +105,7 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         deleverageData.collateralAmount = assets;
 
         // Callback to PositionFolding that executes cToken specific logic.
-        IPositionFolding(msg.sender).onRedeem(
+        IPositionManagement(msg.sender).onRedeem(
             address(this),
             owner,
             assets,

@@ -15,7 +15,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
 /// @title Curvance's Debt Token Contract.
@@ -319,7 +319,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     function borrowForPositionFolding(
         address account,
         uint256 amount,
-        IPositionFolding.LeverageStruct memory leverageData
+        IPositionManagement.LeverageStruct memory leverageData
     ) external nonReentrant {
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -335,7 +335,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         _borrow(account, amount, msg.sender);
 
         // Callback to position folding to execute additional action.
-        IPositionFolding(msg.sender).onBorrow(
+        IPositionManagement(msg.sender).onBorrow(
             address(this),
             account,
             amount,
@@ -531,7 +531,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     function redeemUnderlyingForPositionFolding(
         address account,
         uint256 amount,
-        IPositionFolding.DeleverageStruct memory params
+        IPositionManagement.DeleverageStruct memory params
     ) external nonReentrant {
         if (msg.sender != marketManager.positionFolding()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -542,7 +542,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         _redeem(account, msg.sender, convertToShares(amount), amount);
 
-        IPositionFolding(msg.sender).onRedeem(
+        IPositionManagement(msg.sender).onRedeem(
             address(this),
             account,
             amount,

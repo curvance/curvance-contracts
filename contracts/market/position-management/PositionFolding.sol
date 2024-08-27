@@ -25,7 +25,7 @@ import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.s
 ///
 ///      CToken and DToken contracts facilitate these operations through
 ///      integration with Position Foldings callback functions.
-abstract contract PositionFoldingBase is
+contract PositionFolding is
     IPositionFolding,
     Delegable,
     ERC165,
@@ -75,13 +75,13 @@ abstract contract PositionFoldingBase is
             }
         }
 
-        (uint256 collateralBefore, uint256 debtBefore) = marketManager
-            .solvencyOf(account);
+        (uint256 collateralBefore,, uint256 debtBefore) = marketManager
+            .statusOf(account);
         uint256 liquidityBefore = collateralBefore - debtBefore;
 
         _;
 
-        (uint256 sumCollateral, uint256 sumDebt) = marketManager.solvencyOf(
+        (uint256 sumCollateral,, uint256 sumDebt) = marketManager.statusOf(
             account
         );
 
@@ -292,7 +292,43 @@ abstract contract PositionFoldingBase is
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = collateralToken.underlying();
 
-        _swapBorrowUnderlyingToCollateral(leverageData);
+        // Prepare cToken underlying.
+        SwapperLib.Swap memory swapData = leverageData.swapData;
+        SwapperLib.Swap memory swapZap = leverageData.swapZap;
+
+        // Check to make sure there is calldata attached to execute the swap.
+        if (swapData.call.length > 0) {
+            if (
+                swapData.target == address(0) ||
+                swapData.inputToken != borrowUnderlying ||
+                swapData.outputToken != swapZap.inputToken ||
+                (swapData.outputToken == swapZap.inputToken &&
+                    swapZap.call.length == 0) ||
+                swapData.inputAmount != borrowAmount
+            ) {
+                revert PositionFolding__InvalidSwapperParam();
+            }
+            // Swap borrow underlying to Zapper input token.
+            swapZap.inputAmount = SwapperLib.swapSafe(
+                centralRegistry,
+                swapData
+            );
+        }
+
+        // Check to make sure there is calldata attached to execute the zap.
+        if (swapZap.call.length > 0) {
+            if (
+                swapZap.target == address(0) ||
+                swapZap.outputToken != collateralUnderlying ||
+                swapZap.inputAmount == 0
+            ) {
+                revert PositionFolding__InvalidSwapperParam();
+            }
+
+            // Execute Zap from `borrowToken` underlying into cToken
+            // underlying.
+            SwapperLib.swapSafe(centralRegistry, swapZap);
+        }
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
@@ -306,7 +342,20 @@ abstract contract PositionFoldingBase is
         // Enter Curvance.
         collateralToken.depositAsCollateral(amount, borrower);
 
-        uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this));
+        uint256 remaining = IERC20(swapZap.inputToken).balanceOf(
+            address(this)
+        );
+
+        // Transfer remaining Zapper input token back to the user.
+        if (remaining > 0) {
+            SafeTransferLib.safeTransfer(
+                swapZap.inputToken,
+                borrower,
+                remaining
+            );
+        }
+
+        remaining = IERC20(borrowUnderlying).balanceOf(address(this));
 
         // Transfer remaining borrow underlying back to the user.
         if (remaining > 0) {
@@ -382,8 +431,6 @@ abstract contract PositionFoldingBase is
                 fee
             );
         }
-
-        _swapCollateralToBorrowUnderyling(deleverageData);
 
         SwapperLib.Swap memory swapZap = deleverageData.swapZap;
 
@@ -566,11 +613,11 @@ abstract contract PositionFoldingBase is
             );
         }
 
-        borrowToken.borrowForPositionFolding(
-            account,
-            borrowAmount,
-            leverageData
-        );
+        // borrowToken.borrowForPositionFolding(
+        //     account,
+        //     borrowAmount,
+        //     leverageData
+        // );
     }
 
     /// @notice Deleverages an active Curvance position in favor of decreasing
@@ -583,20 +630,12 @@ abstract contract PositionFoldingBase is
         DeleverageStruct memory deleverageData,
         address account
     ) internal {
-        deleverageData.collateralToken.withdrawByPositionFolding(
-            account,
-            deleverageData.collateralAmount,
-            deleverageData
-        );
+        // deleverageData.collateralToken.withdrawByPositionFolding(
+        //     account,
+        //     deleverageData.collateralAmount,
+        //     deleverageData
+        // );
     }
-
-    function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
-    ) internal virtual {}
-
-    function _swapCollateralToBorrowUnderyling(
-        DeleverageStruct memory deleverageData
-    ) internal virtual {}
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {

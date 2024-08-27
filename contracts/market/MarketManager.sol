@@ -10,7 +10,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance DAO Market Manager.
@@ -1213,7 +1213,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         if (
             !ERC165Checker.supportsInterface(
                 newPositionFolding,
-                type(IPositionFolding).interfaceId
+                type(IPositionManagement).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);

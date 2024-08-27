@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
+
+import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
+import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
+import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+
+contract PositionManagementAerodromeVolatile is PositionManagementBase {
+
+    address public pool;
+
+    address public pairFactory;
+
+    IVeloRouter public router;
+
+    /// ERRORS ///
+    
+    error PositionManagementAerodromeStable__SlippageError();
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        ICentralRegistry centralRegistry_,
+        address marketManager_,
+        address pool_,
+        IVeloRouter router_
+    ) PositionManagementBase(centralRegistry_, marketManager_) {
+        pool = pool_;
+        router = router_;
+    }
+
+    function _swapBorrowUnderlyingToCollateral(
+        LeverageStruct memory leverageData
+    ) internal virtual override {
+        // Cache asset to minimize storage reads.
+        address _asset = pool;
+        address token0 = IVeloPool(_asset).token0();
+        address token1 = IVeloPool(_asset).token1();
+        
+        SwapperLib.Swap memory swapData = leverageData.swapData;
+        address borrowUnderlying = leverageData.borrowToken.underlying();
+
+        if (borrowUnderlying != token0 && borrowUnderlying != token1) {
+            if(swapData.call.length == 0) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
+            if (
+                swapData.target == address(0) ||
+                swapData.inputToken != borrowUnderlying ||
+                swapData.outputToken != token0 ||
+                swapData.inputAmount != leverageData.borrowAmount
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
+            // Swap borrow underlying to collateral underlying
+            SwapperLib.swapSafe(
+                centralRegistry,
+                swapData
+            );
+        }
+
+        uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
+        // Make sure swap was routed into token0, or that token0 is AERO.
+        if (totalAmountA == 0) {
+            revert PositionManagementAerodromeStable__SlippageError();
+        }
+
+        {
+            // Pull reserve data so we can swap half of token0 into token1
+            // optimally.
+            (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
+            uint256 reserveA = token0 ==
+                IVeloPair(_asset).token0()
+                ? r0
+                : r1;
+            // Feed library pair factory, lpToken, and stable = true,
+            // plus calculated data.
+            uint256 swapAmount = VelodromeLib._optimalDeposit(
+                address(pairFactory),
+                _asset,
+                totalAmountA,
+                reserveA,
+                0,
+                0,
+                0,
+                false
+            );
+            // Feed calculated data, and stable = true.
+            VelodromeLib._swapExactTokensForTokens(
+                address(router),
+                _asset,
+                token0,
+                token1,
+                swapAmount,
+                false
+            );
+            totalAmountA -= swapAmount;
+        }
+
+        // Add liquidity to Aerodrome lp with stable params.
+        VelodromeLib._addLiquidity(
+            address(router),
+            token0,
+            token1,
+            false,
+            totalAmountA,
+            IERC20(token1).balanceOf(address(this)), // totalAmountB
+            VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
+        );
+    }
+
+    function _swapCollateralToBorrowUnderyling(
+        DeleverageStruct memory deleverageData
+    ) internal virtual override {
+        VelodromeLib.exitVelodrome(
+            address(router),
+            pool,
+            deleverageData.collateralAmount
+        );
+
+        // Check to make sure there is calldata attached to execute the swap.
+        if (deleverageData.swapData.length > 0) {
+            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+                // Swap Swapper input token for borrow underlying.
+                SwapperLib.swapSafe(
+                    centralRegistry,
+                    deleverageData.swapData[i]
+                );
+            }
+        }
+    }
+}
