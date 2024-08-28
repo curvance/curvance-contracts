@@ -58,6 +58,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         address chainlinkUsdAggregator;
     }
 
+    bool public is_movement = false;
     bool public is_berachain = false;
 
     function _is_testnet(string memory network) internal pure returns (bool) {
@@ -67,13 +68,18 @@ contract StartContractsConfig is Script, DeployConfiguration {
             network_hash == keccak256(abi.encodePacked("sepolia")) ||
             network_hash == keccak256(abi.encodePacked("arb_sepolia")) ||
             network_hash == keccak256(abi.encodePacked("bartio")) ||
-            network_hash == keccak256(abi.encodePacked("localhost"));
+            network_hash == keccak256(abi.encodePacked("localhost")) ||
+            network_hash == keccak256(abi.encodePacked("movement"));
     }
 
     function _after_deploy_config(string memory network) internal {
         bytes32 network_hash = keccak256(abi.encodePacked(network));
         if (network_hash == keccak256(abi.encodePacked("bartio"))) {
             is_berachain = true;
+        }
+
+        if (network_hash == keccak256(abi.encodePacked("movement"))) {
+            is_movement = true;
         }
 
         _startRewardManager();
@@ -151,7 +157,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
     }
 
     function _deployMockTokens() internal {
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             address m_eth = address(new TestnetToken("mETH", "mETH", 18));
             address m_usd = address(new TestnetToken("mUSD", "mUSD", 18));
             address mk_usd = address(
@@ -199,7 +205,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
             ".oracleRouter.chainlinkEthUsd"
         );
 
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             address m_eth = _getDeployedContract("mETH");
             address m_usd = _getDeployedContract("mUSD");
 
@@ -234,7 +240,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         MarketTokenDeploy[] memory fourthDebtTokens = new MarketTokenDeploy[](
             1
         );
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             fourthDebtTokens = new MarketTokenDeploy[](2);
         }
         fourthCollateralTokens[0] = MarketTokenDeploy(
@@ -251,7 +257,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
             chainlinkUsdcFeedInUsd
         );
 
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             address mk_usd = _getDeployedContract("mkUSD");
 
             fourthDebtTokens[1] = MarketTokenDeploy(
@@ -640,7 +646,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         // Load with 5M tokens from testnet tokens
         address[] memory mockTokens = new address[](4);
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             mockTokens = new address[](7);
         }
 
@@ -649,7 +655,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         mockTokens[2] = _getDeployedContract("WBTC");
         mockTokens[3] = _getDeployedContract("SWETH");
 
-        if (!is_berachain) {
+        if (!is_berachain && !is_movement) {
             mockTokens[4] = _getDeployedContract("mETH");
             mockTokens[5] = _getDeployedContract("mUSD");
             mockTokens[6] = _getDeployedContract("mkUSD");
