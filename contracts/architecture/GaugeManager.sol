@@ -236,6 +236,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             revert GaugeManager__InvalidLength();
         }
 
+        updatePool(cve);
+
         Epoch storage info = _epochInfo[epoch];
         address priorAddress;
         for (uint256 i; i < numTokens; ) {
@@ -246,11 +248,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 revert GaugeManager__InvalidToken();
             }
 
-            info.totalWeights =
-                info.totalWeights +
-                weights[i] -
-                info.tokenWeight[token];
-            info.tokenWeight[token] = weights[i];
+            info.totalWeights = info.totalWeights + weights[i];
+            info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
 
             if (rewardTokenToIndex[token][cve] == 0) {
                 rewardTokens[token].push(cve);

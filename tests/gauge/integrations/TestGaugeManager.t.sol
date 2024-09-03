@@ -8,7 +8,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
-contract TestGaugePool is TestBaseMarket {
+contract TestGaugeManager is TestBaseMarket {
     address public owner;
     address[] public tokens;
     address[] public users;
@@ -200,6 +200,53 @@ contract TestGaugePool is TestBaseMarket {
         (totalWeights, poolWeight) = gaugeManager.gaugeWeight(0, tokens[1]);
         assertEq(totalWeights, 300);
         assertEq(poolWeight, 200);
+    }
+
+    function testSecondEmissionRatesSetOfEachEpoch() public {
+        vm.warp(gaugeManager.startTime());
+        vm.roll(block.number + 1000);
+
+        assertEq(gaugeManager.currentEpoch(), 0);
+        assertEq(gaugeManager.epochOfTimestamp(block.timestamp + 3 weeks), 1);
+        assertEq(gaugeManager.epochStartTime(1), block.timestamp + 2 weeks);
+        assertEq(gaugeManager.epochEndTime(1), block.timestamp + 4 weeks);
+
+        // set gauge settings of current epoch
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100;
+        poolWeights[1] = 200;
+
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
+
+        (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
+            0,
+            tokens[0]
+        );
+        assertEq(totalWeights, 300);
+        assertEq(poolWeight, 100);
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(0, tokens[1]);
+        assertEq(totalWeights, 300);
+        assertEq(poolWeight, 200);
+
+        poolWeights[0] = 200;
+        poolWeights[1] = 100;
+
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
+
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            0,
+            tokens[0]
+        );
+        assertEq(totalWeights, 600);
+        assertEq(poolWeight, 300);
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(0, tokens[1]);
+        assertEq(totalWeights, 600);
+        assertEq(poolWeight, 300);
     }
 
     function testCanOnlyUpdateEmissionRatesOfNextEpoch() public {
