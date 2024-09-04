@@ -332,6 +332,12 @@ contract TestCTokenForPendlePT is TestBaseMarket {
         // try borrow()
         dUSDC.borrow(500e6);
 
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dUSDC.redeem(1000e6);
+
         // skip min hold period
         skip(20 minutes);
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestTokensWithDifferentDecimals is TestBaseMarket {
@@ -275,6 +276,12 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
 
         // try borrow()
         dUSDC.borrow(500e6);
+
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dUSDC.redeem(1000e6);
 
         // skip min hold period
         skip(20 minutes);

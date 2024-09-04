@@ -273,6 +273,12 @@ contract TestTokenInteractions is TestBaseMarket {
         // try borrow()
         dDAI.borrow(500 ether);
 
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dDAI.redeem(1000 ether);
+
         // skip min hold period
         skip(20 minutes);
 
