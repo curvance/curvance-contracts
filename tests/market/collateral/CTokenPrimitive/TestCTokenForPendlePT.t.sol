@@ -34,8 +34,8 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    CTokenPrimitive cPendlePT;
-    IERC20 pendlePT = IERC20(_PT_STETH);
+    CTokenPrimitive public cPendlePT;
+    IERC20 public pendlePT = IERC20(_PT_STETH);
 
     function setUp() public override {
         super.setUp();
