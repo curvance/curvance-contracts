@@ -17,7 +17,7 @@ library BalancerLib {
 
     /// FUNCTIONS ///
 
-    /// @notice Enter a balancer position.
+    /// @notice Enter a Balancer position.
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
     /// @param lpToken The BPT address.
@@ -84,7 +84,7 @@ library BalancerLib {
         }
     }
 
-    /// @dev Exit a balancer position.
+    /// @dev Exit a Balancer position.
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
     /// @param lpToken The BPT address.

@@ -8,6 +8,7 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { CurveLib } from "contracts/libraries/CurveLib.sol";
 import { BalancerLib } from "contracts/libraries/BalancerLib.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -506,6 +507,136 @@ contract ComplexZapper is ReentrancyGuard {
         outAmount = _exitVelodrome(router, zapData, tokenSwaps, recipient);
     }
 
+    /// @notice Swaps then deposits `zapData.inputToken` into Pendle
+    ///         market, and enters into Curvance position.
+    /// @param cToken The Curvance cToken address.
+    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param recipient Address that should receive Zapped deposit.
+    /// @return outAmount The output amount received from Zapping.
+    function enterPendle(
+        address cToken,
+        ZapperData calldata zapData,
+        SwapperLib.Swap[] calldata tokenSwaps,
+        address router,
+        bool isPt,
+        PendleLib.PendleData calldata data,
+        address recipient
+    ) external payable nonReentrant returns (uint256 outAmount) {
+        // Swap input token for underlyings.
+        _swapForUnderlyings(
+            zapData.inputToken,
+            zapData.inputAmount,
+            tokenSwaps,
+            zapData.depositInputAsWETH
+        );
+
+        // Enter Pendle position.
+        outAmount = PendleLib.enterPendle(
+            router,
+            isPt,
+            data,
+            zapData.outputToken,
+            zapData.minimumOut
+        );
+
+        // Enter Curvance cToken position.
+        outAmount = _enterCurvance(
+            cToken,
+            zapData.outputToken,
+            outAmount,
+            recipient
+        );
+    }
+
+    /// @notice Exits a Pendle market, and zaps it into desired
+    ///         token (zapData.outputToken).
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param token The underlying token address of the SY.
+    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @return outAmount The output amount received from Zapping.
+    function exitPendle(
+        address router,
+        bool isPt,
+        address token,
+        PendleLib.PendleData calldata data,
+        ZapperData calldata zapData,
+        SwapperLib.Swap[] calldata tokenSwaps,
+        address recipient
+    ) external nonReentrant returns (uint256 outAmount) {
+        // Transfer the Pendle market to the Zapper.
+        SafeTransferLib.safeTransferFrom(
+            zapData.inputToken,
+            msg.sender,
+            address(this),
+            zapData.inputAmount
+        );
+
+        // Exit Pendle lp position.
+        outAmount = _exitPendle(
+            router,
+            isPt,
+            token,
+            data,
+            zapData,
+            tokenSwaps,
+            recipient
+        );
+    }
+
+    /// @notice Withdraws a Curvance Pendle market position, and zaps it
+    ///         into desired token (zapData.outputToken).
+    /// @param redemptionData Struct containing information on redemption action
+    ///                       to execute. Containing values:
+    ///                       1. The address of the cToken corresponding to Curve lp
+    ///                          token to be exited.
+    ///                       2. The amount of shares to redeemed.
+    ///                       3. Whether the collateral should be always
+    ///                          reduced from callers collateralPosted.
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param token The underlying token address of the SY.
+    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @return outAmount The output amount received from Zapping.
+    function redeemAndExitPendle(
+        RedemptionData calldata redemptionData,
+        address router,
+        bool isPt,
+        address token,
+        PendleLib.PendleData calldata data,
+        ZapperData calldata zapData,
+        SwapperLib.Swap[] calldata tokenSwaps,
+        address recipient
+    ) external nonReentrant returns (uint256 outAmount) {
+        // Exit Curvance position.
+        _exitCurvance(
+            CTokenPrimitive(redemptionData.cToken),
+            redemptionData.shares,
+            redemptionData.forceRedeemCollateral,
+            zapData.inputToken,
+            zapData.inputAmount,
+            recipient
+        );
+
+        // Exit Pendle lp position.
+        outAmount = _exitPendle(
+            router,
+            isPt,
+            token,
+            data,
+            zapData,
+            tokenSwaps,
+            recipient
+        );
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Routes lp/BPT into Curvance cToken contract.
@@ -727,6 +858,51 @@ contract ComplexZapper is ReentrancyGuard {
         // Exit Velodrome sAMM/vAMM position.
         VelodromeLib.exitVelodrome(
             router,
+            zapData.inputToken,
+            zapData.inputAmount
+        );
+
+        uint256 numTokenSwaps = tokenSwaps.length;
+        // Swap unwrapped tokens into `zapData.outputToken`.
+        for (uint256 i; i < numTokenSwaps; ) {
+            // Execute swap(s) into `zapData.outputToken`.
+            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+        }
+
+        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        // Validate zap output is sufficient.
+        if (outAmount < zapData.minimumOut) {
+            revert ComplexZapper__SlippageError();
+        }
+
+        // Transfer output tokens to `recipient`.
+        _transferToRecipient(zapData.outputToken, recipient, outAmount);
+    }
+
+    /// @notice Withdraws a Curvance Pendle market position, and zaps it
+    ///         into desired token (zapData.outputToken).
+    /// @param router The Pendle router address.
+    /// @param isPt Whether lp token is PT or not.
+    /// @param token The underlying token address of the SY.
+    /// @param zapData Zap instruction data to execute the Zap.
+    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param recipient Address that should receive Zapped withdrawal.
+    /// @return outAmount The output amount received from Zapping.
+    function _exitPendle(
+        address router,
+        bool isPt,
+        address token,
+        PendleLib.PendleData calldata data,
+        ZapperData calldata zapData,
+        SwapperLib.Swap[] calldata tokenSwaps,
+        address recipient
+    ) internal returns (uint256 outAmount) {
+        // Exit Pendle market position.
+        PendleLib.exitPendle(
+            router,
+            isPt,
+            token,
+            data,
             zapData.inputToken,
             zapData.inputAmount
         );

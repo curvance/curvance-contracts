@@ -21,7 +21,7 @@ library VelodromeLib {
 
     /// CONSTANTS ///
 
-    /// @notice Maximum slippage allowed for velodrome add liquidity call.
+    /// @notice Maximum slippage allowed for Velodrome add liquidity call.
     /// @dev Usually you would not want to hardcode a % slippage value but we
     ///      check lp output amount with a minimum afterwards, so the native
     ///      add liquidity slippage check is semi redundant.
@@ -141,7 +141,7 @@ library VelodromeLib {
         }
     }
 
-    /// @notice Exit a velodrome position.
+    /// @notice Exit a Velodrome position.
     /// @param router The Velodrome router address.
     /// @param lpToken The Velodrome lp token address.
     /// @param lpAmount The Velodrome lp amount to exit.
@@ -170,8 +170,8 @@ library VelodromeLib {
         );
     }
 
-    /// @notice Adds `token0` and `token1` into a velodrome LP.
-    /// @param router The velodrome router address.
+    /// @notice Adds `token0` and `token1` into a Velodrome LP.
+    /// @param router The Velodrome router address.
     /// @param token0 The first token of the pair.
     /// @param token1 The second token of the pair.
     /// @param stable Whether the Velodrome lp token is stable or volatile.

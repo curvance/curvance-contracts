@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
 import { CallDataCheckerBase, SwapperLib } from "./CallDataCheckerBase.sol";
+import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
 contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
     /// CONSTRUCTOR ///
@@ -232,6 +233,83 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
                     (
                         ComplexZapper.RedemptionData,
                         address,
+                        ComplexZapper.ZapperData,
+                        SwapperLib.Swap[],
+                        address
+                    )
+                );
+            recipient = _recipient;
+            inputToken = redemptionData.cToken;
+            inputAmount = desc.inputAmount;
+            outputToken = desc.outputToken;
+        } else if (funcSigHash == ComplexZapper.enterPendle.selector) {
+            (
+                address cToken,
+                ComplexZapper.ZapperData memory desc,
+                ,
+                ,
+                ,
+                ,
+                address _recipient
+            ) = abi.decode(
+                    getFuncParams(swapData.call),
+                    (
+                        address,
+                        ComplexZapper.ZapperData,
+                        SwapperLib.Swap[],
+                        address,
+                        bool,
+                        PendleLib.PendleData,
+                        address
+                    )
+                );
+            recipient = _recipient;
+            inputToken = desc.inputToken;
+            inputAmount = desc.inputAmount;
+            outputToken = cToken == address(0) ? desc.outputToken : cToken;
+        } else if (funcSigHash == ComplexZapper.exitPendle.selector) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ComplexZapper.ZapperData memory desc,
+                ,
+                address _recipient
+            ) = abi.decode(
+                    getFuncParams(swapData.call),
+                    (
+                        address,
+                        bool,
+                        address,
+                        PendleLib.PendleData,
+                        ComplexZapper.ZapperData,
+                        SwapperLib.Swap[],
+                        address
+                    )
+                );
+            recipient = _recipient;
+            inputToken = desc.inputToken;
+            inputAmount = desc.inputAmount;
+            outputToken = desc.outputToken;
+        } else if (funcSigHash == ComplexZapper.redeemAndExitPendle.selector) {
+            (
+                ComplexZapper.RedemptionData memory redemptionData,
+                ,
+                ,
+                ,
+                ,
+                ComplexZapper.ZapperData memory desc,
+                ,
+                address _recipient
+            ) = abi.decode(
+                    getFuncParams(swapData.call),
+                    (
+                        ComplexZapper.RedemptionData,
+                        address,
+                        bool,
+                        address,
+                        PendleLib.PendleData,
                         ComplexZapper.ZapperData,
                         SwapperLib.Swap[],
                         address
