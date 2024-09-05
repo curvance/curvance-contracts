@@ -69,7 +69,7 @@ contract CallDataCheckerForOdos is CallDataCheckerBase {
                     }
                 }
                 let result := 0
-                let pos := add(swapData, 0xa0)
+                let pos := 296
 
                 result, pos := getAddress(pos)
                 mstore(tokenInfo, result)
