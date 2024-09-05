@@ -51,16 +51,29 @@ library PendleLib {
 
             for (uint256 i = 0; i < numTokens; ++i) {
                 token = tokens[i];
-                balance = IERC20(token).balanceOf(address(this));
 
-                if (balance > 0) {
-                    SwapperLib._approveTokenIfNeeded(
-                        token,
-                        address(sy),
-                        balance
-                    );
-                    // Mint SY in ERC20s.
-                    sy.deposit(address(this), token, balance, 0);
+                if (token == address(0)) {
+                    balance = address(this).balance;
+
+                    if (balance > 0) {
+                        sy.deposit{ value: balance }(
+                            address(this),
+                            token,
+                            balance,
+                            0
+                        );
+                    }
+                } else {
+                    balance = IERC20(token).balanceOf(address(this));
+
+                    if (balance > 0) {
+                        SwapperLib._approveTokenIfNeeded(
+                            token,
+                            address(sy),
+                            balance
+                        );
+                        sy.deposit(address(this), token, balance, 0);
+                    }
                 }
             }
 
@@ -93,6 +106,8 @@ library PendleLib {
         address lpToken,
         uint256 lpAmount
     ) internal {
+        SwapperLib._approveTokenIfNeeded(lpToken, router, lpAmount);
+
         if (isPt) {
             IPendleRouter(router).swapExactPtForToken(
                 address(this),
@@ -102,7 +117,6 @@ library PendleLib {
                 data.limit
             );
         } else {
-            (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
             (uint256 balance, ) = IPendleRouter(router)
                 .removeLiquiditySingleSy(
                     address(this),
@@ -111,6 +125,8 @@ library PendleLib {
                     0,
                     data.limit
                 );
+
+            (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
             sy.redeem(address(this), balance, token, 0, false);
         }
     }
