@@ -198,7 +198,7 @@ contract CreateLockTest is TestBaseVeCVE {
         );
     }
 
-    function test_createLock_with_claimRewards(
+    function test_createLock_success_withClaimRewards(
         uint256 amount,
         bool shouldLock,
         bool isFreshLock,

@@ -95,8 +95,8 @@ library PendleLib {
     /// @notice Exit a Pendle position.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param lpToken The Pendle lp token address.
     /// @param token The underlying token address of the SY.
+    /// @param lpToken The Pendle lp token address.
     /// @param lpAmount The Pendle lp amount to exit.
     function exitPendle(
         address router,
