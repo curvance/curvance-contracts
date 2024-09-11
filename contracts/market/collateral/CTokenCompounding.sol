@@ -585,6 +585,22 @@ abstract contract CTokenCompounding is CTokenBase {
         }
     }
 
+    /// @notice Starts a cToken market, executed via marketManager.
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    /// @dev Emits a {Deposit} event.
+    /// @param by The account initializing the cToken market.
+    function _startMarket(address by) internal override {
+        super._startMarket(by);
+
+        uint256 assets = 42069;
+        uint256 shares = _initialConvertToShares(assets);
+
+        // Execute any deposit strategy.
+        _afterDeposit(assets, shares);  
+    }
+
     /// @notice Sets a new `_vaultData` invariant based on `yieldToVest`,
     ///         and `periodToVest` parameters together with the current
     ///         block timestamp.

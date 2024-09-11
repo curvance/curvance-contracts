@@ -730,7 +730,7 @@ abstract contract CTokenBase is
     ///      better safe than sorry.
     /// @dev Emits a {Deposit} event.
     /// @param by The account initializing the cToken market.
-    function _startMarket(address by) internal {
+    function _startMarket(address by) internal virtual {
         if (msg.sender != address(marketManager)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -744,7 +744,7 @@ abstract contract CTokenBase is
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(shares, market);
+        _mint(market, shares);
         _totalAssets = assets;
 
         assembly {
@@ -760,6 +760,8 @@ abstract contract CTokenBase is
                 and(m, market)
             )
         }
+        // Update gauge pool values for market.
+        gaugeManager.deposit(market, market, shares);
     }
 
     /// @dev Returns the decimals of the underlying asset.
