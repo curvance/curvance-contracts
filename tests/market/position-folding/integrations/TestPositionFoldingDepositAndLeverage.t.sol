@@ -14,7 +14,6 @@ contract User {}
 
 contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
     address public owner;
-    address public user;
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
@@ -28,7 +27,6 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         super.setUp();
 
         owner = address(this);
-        user = user1;
 
         // use mock pricing for testing
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
@@ -79,9 +77,9 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
             false
         );
 
-        _prepareUSDC(user, 200000e6);
-        _prepareDAI(user, 200000e18);
-        _prepareBALRETH(user, 1 ether);
+        _prepareUSDC(user1, 200000e6);
+        _prepareDAI(user1, 200000e18);
+        _prepareBALRETH(user1, 1 ether);
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -184,7 +182,7 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
     }
 
     function testLeverage() public {
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         uint256 amountToDeposit = 1 ether;
         // approve
@@ -243,12 +241,14 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
 
         positionFolding.depositAndleverage(amountToDeposit, leverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
+        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
+            user1
+        );
         assertEq(dDAIBalance, 0);
         assertEq(dDAIBorrowed, amountForLeverage);
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
+            .getSnapshot(user1);
         assertGt(cBALRETHBalance, 1.5 ether);
         assertEq(cBALRETHBorrowed, 0 ether);
 
@@ -261,12 +261,12 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         vm.warp(block.timestamp + 20 minutes);
         dDAI.accrueInterest();
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         PositionFolding.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user);
+        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user1);
+        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user1);
 
         deleverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
         deleverageData.collateralAmount = 0.3 ether;
@@ -326,7 +326,9 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         cBALRETH.approve(address(positionFolding), type(uint256).max);
         positionFolding.deleverage(deleverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
+        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
+            user1
+        );
         assertEq(dDAIBalance, 0);
         assertEq(
             dDAIBorrowed,
@@ -334,7 +336,7 @@ contract TestPositionFoldingDepositAndLeverage is TestBaseMarket {
         );
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
+            .getSnapshot(user1);
         assertEq(
             cBALRETHBalance,
             cBALRETHBalanceBefore - deleverageData.collateralAmount

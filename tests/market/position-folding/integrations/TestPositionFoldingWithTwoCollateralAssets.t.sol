@@ -14,7 +14,6 @@ contract User {}
 
 contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
     address public owner;
-    address public user;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
@@ -27,7 +26,6 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         super.setUp();
 
         owner = address(this);
-        user = user1;
 
         // use mock pricing for testing
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
@@ -65,8 +63,8 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             false
         );
 
-        _prepareDAI(user, 200000e18);
-        _prepareBALRETH(user, 2 ether);
+        _prepareDAI(user1, 200000e18);
+        _prepareBALRETH(user1, 2 ether);
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -178,32 +176,32 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
     }
 
     function testLeverage() public {
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         // approve
         balRETH.approve(address(cBALRETH), 1 ether);
 
         // mint
-        assertGt(cBALRETH.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(cBALRETH), 1 ether);
-        assertEq(cBALRETH.balanceOf(user), 1 ether);
+        assertGt(cBALRETH.deposit(1 ether, user1), 0);
+        marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
+        assertEq(cBALRETH.balanceOf(user1), 1 ether);
 
         // approve
         balRETH.approve(address(cBALRETHWithExitFee), 1 ether);
 
         // mint
-        assertGt(cBALRETHWithExitFee.deposit(1 ether, user), 0);
+        assertGt(cBALRETHWithExitFee.deposit(1 ether, user1), 0);
         marketManager.postCollateral(
-            user,
+            user1,
             address(cBALRETHWithExitFee),
             1 ether
         );
-        assertEq(cBALRETHWithExitFee.balanceOf(user), 1 ether);
+        assertEq(cBALRETHWithExitFee.balanceOf(user1), 1 ether);
 
-        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        uint256 balanceBeforeBorrow = dai.balanceOf(user1);
         // borrow
         dDAI.borrow(100 ether);
-        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user1));
 
         uint256 snapshot = vm.snapshot();
 
@@ -211,8 +209,8 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             // with cBALRETH
             // try leverage with 50% of max
             uint256 amountForLeverage = (positionFolding
-                .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
-                100;
+                .queryAmountToBorrowForLeverageMax(user1, address(dDAI)) *
+                50) / 100;
 
             PositionFolding.LeverageStruct memory leverageData;
             leverageData.borrowToken = dDAI;
@@ -265,13 +263,13 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             positionFolding.leverage(leverageData, 500);
 
             (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
-                user
+                user1
             );
             assertEq(dDAIBalance, 0);
             assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
 
             (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-                .getSnapshot(user);
+                .getSnapshot(user1);
             assertGt(cBALRETHBalance, 1.39 ether);
             assertEq(cBALRETHBorrowed, 0 ether);
         }
@@ -279,12 +277,12 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         vm.revertTo(snapshot);
 
         {
-            (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
+            (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user1);
             // with cBALRETHWithExitFee
             // try leverage with 50% of max
             uint256 amountForLeverage = (positionFolding
-                .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
-                100;
+                .queryAmountToBorrowForLeverageMax(user1, address(dDAI)) *
+                50) / 100;
 
             PositionFolding.LeverageStruct memory leverageData;
             leverageData.borrowToken = dDAI;
@@ -339,7 +337,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
             positionFolding.leverage(leverageData, 500);
 
             (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
-                user
+                user1
             );
             assertEq(dDAIBalance, 0);
             assertEq(dDAIBorrowed, dDAIBorrowedBefore + amountForLeverage);
@@ -348,7 +346,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
                 uint256 cBALRETHBalance,
                 uint256 cBALRETHBorrowed,
 
-            ) = cBALRETHWithExitFee.getSnapshot(user);
+            ) = cBALRETHWithExitFee.getSnapshot(user1);
             assertGt(cBALRETHBalance, 1.09 ether);
             assertEq(cBALRETHBorrowed, 0 ether);
         }
@@ -362,12 +360,12 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         vm.warp(block.timestamp + 20 minutes);
         dDAI.accrueInterest();
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         PositionFolding.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user);
+        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user1);
+        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user1);
 
         deleverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
         deleverageData.collateralAmount = 0.3 ether;
@@ -427,7 +425,9 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         cBALRETH.approve(address(positionFolding), type(uint256).max);
         positionFolding.deleverage(deleverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
+        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(
+            user1
+        );
         assertEq(dDAIBalance, 0);
         assertEq(
             dDAIBorrowed,
@@ -435,7 +435,7 @@ contract TestPositionFoldingWithTwoCollateralAssets is TestBaseMarket {
         );
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
+            .getSnapshot(user1);
         assertEq(
             cBALRETHBalance,
             cBALRETHBalanceBefore - deleverageData.collateralAmount

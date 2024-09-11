@@ -11,8 +11,8 @@ import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerP
 import { console2 } from "forge-std/console2.sol";
 
 contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
+    uint256 internal _WETH_RETH_TVL_USD = 58_666_383e18; // from Balancer web UI at fork block
     BalancerStablePoolAdaptor public adaptor;
-    uint256 private WETH_RETH_TVL_USD = 58_666_383e18; // from Balancer web UI at fork block
 
     function setUp() public override {
         _fork(19656276);
@@ -101,7 +101,7 @@ contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
         );
         console2.log("RETH price: ", rethPrice);
 
-        uint256 expectedPriceFromTvl = (WETH_RETH_TVL_USD * 1e18) /
+        uint256 expectedPriceFromTvl = (_WETH_RETH_TVL_USD * 1e18) /
             balRETH.totalSupply();
         console2.log(
             "expected RETH/WETH price from TVL: ",

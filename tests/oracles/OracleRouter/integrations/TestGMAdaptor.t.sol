@@ -13,7 +13,6 @@ contract TestGMAdaptor is TestBaseOracleRouter {
     address internal _GMX_DATASTORE =
         0xFD70de6b91282D8017aA4E741e9Ae325CAb992d8;
     address internal _GM_BTC_USDC = 0x47c031236e19d024b42f8AE6780E44A573170703;
-
     address internal _CHAINLINK_WBTC_USD =
         0xd0C7101eACbB49F3deCcCc166d238410D6D46d57;
 

@@ -13,7 +13,6 @@ import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOrac
 contract TestUniswapV3Adaptor is TestBaseOracleRouter {
     address internal _UNISWAP_V3_ORACLE =
         0xB210CE856631EeEB767eFa666EC7C1C57738d438;
-
     address internal _WBTC_WETH = 0xCBCdF9626bC03E24f779434178A73a0B4bad62eD;
     address internal _WBTC_USDC = 0x9a772018FbD77fcD2d25657e5C547BAfF3Fd7D16;
 

@@ -11,9 +11,9 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import "tests/market/TestBaseMarket.sol";
 
 contract TestVelodromeVolatileCToken is TestBaseMarket {
-    IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
-    IERC20 public WETH_USDC =
-        IERC20(0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b);
+    address internal _VELO_ADDRESS =
+        0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db;
+    address internal _WETH_USDC = 0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
 
     IVeloPairFactory public veloPairFactory =
         IVeloPairFactory(0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a);
@@ -55,7 +55,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
 
         cWETHUSDC = new VelodromeVolatileCToken(
             ICentralRegistry(address(centralRegistry)),
-            WETH_USDC,
+            IERC20(_WETH_USDC),
             address(marketManager),
             gauge,
             veloPairFactory,
@@ -73,13 +73,13 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
 
         chainlinkVELO = new MockV3Aggregator(8, 0.08e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(VELO),
+            _VELO_ADDRESS,
             address(chainlinkVELO),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(VELO),
+            _VELO_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -100,14 +100,14 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
 
     function testWethUsdcVolatilePool() public {
         uint256 assets = 0.0001e18;
-        deal(address(WETH_USDC), user1, assets);
-        deal(address(WETH_USDC), address(this), 42069);
+        deal(_WETH_USDC, user1, assets);
+        deal(_WETH_USDC, address(this), 42069);
 
-        WETH_USDC.approve(address(cWETHUSDC), 42069);
+        IERC20(_WETH_USDC).approve(address(cWETHUSDC), 42069);
         marketManager.listToken(address(cWETHUSDC));
 
         vm.prank(user1);
-        WETH_USDC.approve(address(cWETHUSDC), assets);
+        IERC20(_WETH_USDC).approve(address(cWETHUSDC), assets);
 
         vm.prank(user1);
         cWETHUSDC.deposit(assets, user1);
@@ -119,7 +119,7 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
         );
 
         vm.startPrank(gauge.voter());
-        VELO.approve(address(gauge), 10e18);
+        IERC20(_VELO_ADDRESS).approve(address(gauge), 10e18);
         gauge.notifyRewardAmount(10e18);
         vm.stopPrank();
 
@@ -132,12 +132,12 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
         uint256 earned = gauge.earned(address(cWETHUSDC));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
-        swapData.inputToken = address(VELO);
+        swapData.inputToken = _VELO_ADDRESS;
         swapData.inputAmount = amount;
         swapData.outputToken = _WETH_ADDRESS;
         swapData.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
-        routes[0].from = address(VELO);
+        routes[0].from = _VELO_ADDRESS;
         routes[0].to = _WETH_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);

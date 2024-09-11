@@ -13,7 +13,7 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestSimpleZapper is TestBaseMarket {
-    address private _UNISWAP_V3_SWAP_ROUTER =
+    address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address internal _CURVE_STETH_LP =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;

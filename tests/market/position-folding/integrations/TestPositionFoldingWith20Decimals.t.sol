@@ -15,7 +15,6 @@ contract User {}
 
 contract TestPositionFoldingWith20Decimals is TestBaseMarket {
     address public owner;
-    address public user;
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
@@ -34,7 +33,6 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         _init();
 
         owner = address(this);
-        user = user1;
 
         // use mock pricing for testing
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
@@ -77,8 +75,8 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
             false
         );
 
-        _prepareUSDC(user, 200000e20);
-        _prepareBALRETH(user, 1 ether);
+        _prepareUSDC(user1, 200000e20);
+        _prepareBALRETH(user1, 1 ether);
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -179,24 +177,24 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
     }
 
     function testLeverage() public {
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         // approve
         balRETH.approve(address(cBALRETH), 1 ether);
 
         // mint
         assertGt(cBALRETH.deposit(1 ether, user1), 0);
-        marketManager.postCollateral(user, address(cBALRETH), 1 ether);
-        assertEq(cBALRETH.balanceOf(user), 1 ether);
+        marketManager.postCollateral(user1, address(cBALRETH), 1 ether);
+        assertEq(cBALRETH.balanceOf(user1), 1 ether);
 
-        uint256 balanceBeforeBorrow = usdc.balanceOf(user);
+        uint256 balanceBeforeBorrow = usdc.balanceOf(user1);
         // borrow
         dUSDC.borrow(100e20);
-        assertEq(balanceBeforeBorrow + 100e20, usdc.balanceOf(user));
+        assertEq(balanceBeforeBorrow + 100e20, usdc.balanceOf(user1));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionFolding
-            .queryAmountToBorrowForLeverageMax(user, address(dUSDC)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
             100;
 
         PositionFolding.LeverageStruct memory leverageData;
@@ -250,13 +248,13 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         positionFolding.leverage(leverageData, 2000);
 
         (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
-            user
+            user1
         );
         assertEq(dUSDCBalance, 0);
         assertEq(dUSDCBorrowed, 100e20 + amountForLeverage);
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
+            .getSnapshot(user1);
         assertGt(cBALRETHBalance, 1.5 ether);
         assertEq(cBALRETHBorrowed, 0 ether);
 
@@ -269,12 +267,12 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         vm.warp(block.timestamp + 20 minutes);
         dUSDC.accrueInterest();
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
 
         PositionFolding.DeleverageStruct memory deleverageData;
 
-        (, uint256 dUSDCBorrowedBefore, ) = dUSDC.getSnapshot(user);
-        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user);
+        (, uint256 dUSDCBorrowedBefore, ) = dUSDC.getSnapshot(user1);
+        (uint256 cBALRETHBalanceBefore, , ) = cBALRETH.getSnapshot(user1);
 
         deleverageData.collateralToken = CTokenPrimitive(address(cBALRETH));
         deleverageData.collateralAmount = 0.3 ether;
@@ -335,7 +333,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         positionFolding.deleverage(deleverageData, 1500);
 
         (uint256 dUSDCBalance, uint256 dUSDCBorrowed, ) = dUSDC.getSnapshot(
-            user
+            user1
         );
         assertEq(dUSDCBalance, 0);
         assertEq(
@@ -344,7 +342,7 @@ contract TestPositionFoldingWith20Decimals is TestBaseMarket {
         );
 
         (uint256 cBALRETHBalance, uint256 cBALRETHBorrowed, ) = cBALRETH
-            .getSnapshot(user);
+            .getSnapshot(user1);
         assertEq(
             cBALRETHBalance,
             cBALRETHBalanceBefore - deleverageData.collateralAmount
