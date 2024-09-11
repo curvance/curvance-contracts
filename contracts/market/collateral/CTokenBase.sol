@@ -744,7 +744,7 @@ abstract contract CTokenBase is
         // is called, this will always be the initial call.
         uint256 shares = _initialConvertToShares(assets);
 
-        _mint(market, shares);
+        _mint(shares, market);
         _totalAssets = assets;
 
         assembly {

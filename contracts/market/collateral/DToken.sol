@@ -218,21 +218,31 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         uint256 amount = _BASE_UNDERLYING_RESERVE;
+        address market = address(this);
+
         SafeTransferLib.safeTransferFrom(
             underlying,
             by,
-            address(this),
+            market,
             amount
         );
+
+        // Calculate dTokens to be minted.
+        uint256 tokens = convertToShares(amount);
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
         // Total Supply and contract's balance should always be 0 prior,
         // but we increment incase somehow invariants have been modified.
-        totalSupply = totalSupply + amount;
-        balanceOf[address(this)] = balanceOf[address(this)] + amount;
+        unchecked {
+            totalSupply = totalSupply + tokens;
+            balanceOf[market] = balanceOf[market] + tokens;
+        }
+        
+        // Update Gauge Manager values for market depositing itself.
+        gaugeManager.deposit(market, market, tokens);
 
-        emit Transfer(address(0), address(this), amount);
+        emit Transfer(address(0), market, amount);
         return true;
     }
 
