@@ -122,8 +122,8 @@ contract TestTokenInteractions is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cBALRETH.isCToken(), true);
-        assertEq(dDAI.isCToken(), false);
+        assertTrue(cBALRETH.isCToken());
+        assertFalse(dDAI.isCToken());
     }
 
     function testCTokenMintRedeem() public {

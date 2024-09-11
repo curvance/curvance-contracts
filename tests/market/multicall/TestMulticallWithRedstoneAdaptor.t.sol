@@ -100,7 +100,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         (bool success, ) = address(adapter).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
@@ -112,7 +112,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         (success, ) = address(adapter).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         // deploy dUSDC
         {
@@ -195,8 +195,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cWBTC.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cWBTC.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintMulticall() public {

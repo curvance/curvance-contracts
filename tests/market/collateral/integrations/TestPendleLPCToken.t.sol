@@ -99,7 +99,7 @@ contract TestPendleLPCToken is TestBaseMarket {
         chainlinkEthUsd.updateAnswer(3000e8);
 
         // Mint some extra rewards for Vault.
-        deal(address(_PENDLE), address(cSTETH), 100e18);
+        deal(_PENDLE, address(cSTETH), 100e18);
         deal(address(cSTETH), 1e18);
 
         uint256 rewardAmount = (100e18 * 84) / 100; // 16% for protocol harvest fee;
@@ -171,7 +171,7 @@ contract TestPendleLPCToken is TestBaseMarket {
         chainlinkEthUsd.updateAnswer(3000e8);
 
         // Mint some extra rewards for Vault.
-        deal(address(_PENDLE), address(cSTETH), 100e18);
+        deal(_PENDLE, address(cSTETH), 100e18);
 
         uint256 rewardAmount = (100e18 * 84) / 100; // 16% for protocol harvest fee;
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);

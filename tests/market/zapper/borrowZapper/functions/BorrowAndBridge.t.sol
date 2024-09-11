@@ -226,7 +226,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
     function test_borrowAndBridge_success() public {
         uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
-        uint256 balance = address(user1).balance;
+        uint256 balance = user1.balance;
 
         vm.startPrank(user1);
 
@@ -242,7 +242,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.stopPrank();
 
-        assertEq(address(user1).balance, balance - messageFee);
+        assertEq(user1.balance, balance - messageFee);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

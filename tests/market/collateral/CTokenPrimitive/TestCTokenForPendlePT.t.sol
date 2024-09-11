@@ -179,8 +179,8 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cPendlePT.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cPendlePT.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintRedeem() public {

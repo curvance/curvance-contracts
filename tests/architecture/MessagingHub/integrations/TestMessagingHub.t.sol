@@ -467,11 +467,11 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        assertEq(cve.balanceOf(address(user1)), 0);
+        assertEq(cve.balanceOf(user1), 0);
 
         wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
 
-        assertEq(cve.balanceOf(address(user1)), _ONE);
+        assertEq(cve.balanceOf(user1), _ONE);
     }
 
     function _createLock() internal {

@@ -125,8 +125,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cBALRETH.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cBALRETH.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintRedeem() public {

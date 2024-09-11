@@ -60,7 +60,7 @@ contract TestConvex2PoolCToken is TestBaseMarket {
         );
 
         address owner = address(this);
-        deal(address(CONVEX_STETH_ETH_POOL), address(owner), 1 ether);
+        deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
 
@@ -122,12 +122,12 @@ contract TestConvex2PoolCToken is TestBaseMarket {
 
     function testConvexStethEthPool() public {
         uint256 assets = 100e18;
-        deal(address(CONVEX_STETH_ETH_POOL), address(user1), assets);
+        deal(address(CONVEX_STETH_ETH_POOL), user1, assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cSTETH.deposit(assets, user1);
 
         assertEq(
@@ -213,7 +213,7 @@ contract TestConvex2PoolCToken is TestBaseMarket {
 
         uint256 balance = cSTETH.balanceOf(user1);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cSTETH.withdraw(balance, user1, user1);
     }
 }

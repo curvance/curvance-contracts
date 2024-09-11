@@ -137,10 +137,10 @@ contract TestAuraCToken is TestBaseMarket {
         uint256 assets = 100e18;
         _prepareBALRETH(user1, assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         balRETH.approve(address(cBALRETH), assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cBALRETH.deposit(assets, user1);
 
         assertEq(
@@ -195,7 +195,7 @@ contract TestAuraCToken is TestBaseMarket {
             "Total Assets should equal user deposit."
         );
 
-        vm.startPrank(address(user1));
+        vm.startPrank(user1);
         cBALRETH.withdraw(cBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
     }

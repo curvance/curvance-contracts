@@ -40,6 +40,6 @@ contract CurvancePrefarmDeploymentTest is TestBaseCurvancePrefarm {
         );
         assertEq(curvancePrefarm.prefarmManager(), manager);
         assertEq(curvancePrefarm.prefarmEndTimestamp(), endTimestamp);
-        assertEq(isApproved, true);
+        assertTrue(isApproved);
     }
 }

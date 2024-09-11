@@ -160,13 +160,13 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
             false
         );
         assertGt(data.price, 0);
-        assertEq(data.hadError, false);
-        assertEq(data.inUSD, true);
+        assertFalse(data.hadError);
+        assertTrue(data.inUSD);
 
         data = adaptor.getPrice(_USDC_ADDRESS, false, false);
         assertGt(data.price, 0);
-        assertEq(data.hadError, false);
-        assertEq(data.inUSD, false);
+        assertFalse(data.hadError);
+        assertFalse(data.inUSD);
     }
 
     function testRevertRemoveAsset__Unauthorized() public {

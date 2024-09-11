@@ -229,8 +229,8 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cWBTC.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cWBTC.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintMulticall() public {

@@ -77,7 +77,7 @@ contract TestGaugePool is TestBaseMarket {
         // gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        
+
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
@@ -1005,7 +1005,6 @@ contract TestGaugePool is TestBaseMarket {
     }
 
     function testRedeemRevertInvalidAmount() public {
-        address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IMToken(tokens[0]).mint(100 ether);
