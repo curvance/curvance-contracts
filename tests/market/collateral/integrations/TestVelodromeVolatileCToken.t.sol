@@ -23,9 +23,9 @@ contract TestVelodromeVolatileCToken is TestBaseMarket {
     IVeloGauge public gauge =
         IVeloGauge(0xE7630c9560C59CCBf5EEd8f33dd0ccA2E67a3981);
 
-    VelodromeVolatileCToken cWETHUSDC;
-    MockV3Aggregator chainlinkVELO;
-    MockV3Aggregator chainlinkWETH;
+    VelodromeVolatileCToken public cWETHUSDC;
+    MockV3Aggregator public chainlinkVELO;
+    MockV3Aggregator public chainlinkWETH;
 
     receive() external payable {}
 

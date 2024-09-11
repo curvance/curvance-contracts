@@ -23,8 +23,8 @@ contract TestStakedGMXCToken is TestBaseMarket {
     address internal _UNISWAP_V3_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
-    StakedGMXCToken public cStakedGMX;
     IERC20 public gmx = IERC20(_GMX_ADDRESS);
+    StakedGMXCToken public cStakedGMX;
     MockV3Aggregator public chainlinkWETH;
     MockV3Aggregator public chainlinkGMX;
 
@@ -53,7 +53,6 @@ contract TestStakedGMXCToken is TestBaseMarket {
             _WETH_ADDRESS
         );
 
-        
         _deployOracleRouter();
 
         chainlinkAdaptor = new ChainlinkAdaptor(

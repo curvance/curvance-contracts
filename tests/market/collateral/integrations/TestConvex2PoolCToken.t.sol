@@ -23,9 +23,9 @@ contract TestConvex2PoolCToken is TestBaseMarket {
     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
     address public SUSHI_ROUTER = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
 
-    MockDataFeed mockCRVFeed;
-    MockDataFeed mockCVXFeed;
-    MockDataFeed mockWethFeed;
+    MockDataFeed public mockCRVFeed;
+    MockDataFeed public mockCVXFeed;
+    MockDataFeed public mockWethFeed;
     Convex2PoolCToken public cSTETH;
 
     /*

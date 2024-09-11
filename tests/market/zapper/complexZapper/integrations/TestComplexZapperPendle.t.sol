@@ -16,8 +16,6 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
     bool internal _IS_PT = false;
 
-    address public user;
-
     receive() external payable {}
 
     fallback() external payable {}

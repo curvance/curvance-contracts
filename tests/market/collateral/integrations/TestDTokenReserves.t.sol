@@ -9,13 +9,13 @@ contract TestDTokenReserves is TestBaseMarket {
     address public owner;
     address public dao;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();
@@ -232,7 +232,10 @@ contract TestDTokenReserves is TestBaseMarket {
 
         uint256 exchangeRate = dDAI.exchangeRateCached();
         uint256 totalReservesBefore = dDAI.totalReserves();
-        uint256 gaugeBalanceBefore = gaugeManager.balanceOf(address(dDAI), dao);
+        uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
+            address(dDAI),
+            dao
+        );
 
         uint256 depositAmount = 100 ether;
         _prepareDAI(dao, depositAmount);

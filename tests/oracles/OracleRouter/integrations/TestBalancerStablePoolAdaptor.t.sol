@@ -11,7 +11,7 @@ import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerP
 import { console2 } from "forge-std/console2.sol";
 
 contract TestBalancerStablePoolAdaptor is TestBaseOracleRouter {
-    BalancerStablePoolAdaptor adaptor;
+    BalancerStablePoolAdaptor public adaptor;
     uint256 private WETH_RETH_TVL_USD = 58_666_383e18; // from Balancer web UI at fork block
 
     function setUp() public override {

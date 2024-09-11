@@ -10,13 +10,13 @@ import "tests/market/TestBaseMarket.sol";
 contract TestTokenInteractions is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();

@@ -17,10 +17,6 @@ contract User {}
 contract TestCTokenForPendlePT is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     address internal constant _PT_ORACLE =
         0x14030836AEc15B2ad48bB097bd57032559339c92;
 
@@ -28,7 +24,7 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
-    PendlePrincipalTokenAdaptor adapter;
+    PendlePrincipalTokenAdaptor public adapter;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -36,6 +32,10 @@ contract TestCTokenForPendlePT is TestBaseMarket {
 
     CTokenPrimitive public cPendlePT;
     IERC20 public pendlePT = IERC20(_PT_STETH);
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();

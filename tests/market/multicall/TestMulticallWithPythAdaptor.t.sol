@@ -22,24 +22,24 @@ contract User {}
 contract TestMulticallWithPythAdaptor is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
-    MockPythAdaptor adapter;
-    MulticallDataCheckerForPythAdaptor multicallDataChecker;
+    MockPythAdaptor public adapter;
+    MulticallDataCheckerForPythAdaptor public multicallDataChecker;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    CTokenPrimitive cWBTC;
-    UniversalBalance universalBalance;
+    CTokenPrimitive public cWBTC;
+    UniversalBalance public universalBalance;
 
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
-    DToken dWETH;
+    DToken public dWETH;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();

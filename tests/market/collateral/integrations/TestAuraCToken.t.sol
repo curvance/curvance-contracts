@@ -20,8 +20,8 @@ contract TestAuraCToken is TestBaseMarket {
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
-    MockDataFeed mockBALFeed;
-    MockDataFeed mockAURAFeed;
+    MockDataFeed public mockBALFeed;
+    MockDataFeed public mockAURAFeed;
 
     receive() external payable {}
 
