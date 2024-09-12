@@ -901,15 +901,16 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // List the token and set collateralization to 0%.
+        MarketToken storage token = tokenData[mToken];
+        token.collRatio = 0;
+        token.isListed = true;
+        
         // Immediately deposit into the market to prevent any rounding
         // exploits.
         if (!IMToken(mToken).startMarket(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
-
-        MarketToken storage token = tokenData[mToken];
-        token.isListed = true;
-        token.collRatio = 0;
 
         for (uint256 i; i < numTokens; ) {
             unchecked {
