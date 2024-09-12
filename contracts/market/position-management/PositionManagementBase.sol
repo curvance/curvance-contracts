@@ -540,7 +540,7 @@ abstract contract PositionManagementBase is
             );
         }
 
-        borrowToken.borrowForPositionFolding(
+        borrowToken.borrowForPositionManagement(
             account,
             borrowAmount,
             leverageData
@@ -557,7 +557,7 @@ abstract contract PositionManagementBase is
         DeleverageStruct memory deleverageData,
         address account
     ) internal {
-        deleverageData.collateralToken.withdrawByPositionFolding(
+        deleverageData.collateralToken.withdrawByPositionManagement(
             account,
             deleverageData.collateralAmount,
             deleverageData

@@ -19,7 +19,6 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { CallDataCheckerForComplexZapper } from "contracts/market/swap-checker/CallDataCheckerForComplexZapper.sol";
-import { PositionFolding } from "contracts/market/position-management/PositionFolding.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -63,7 +62,6 @@ contract TestBaseMarket is TestBase {
         _deployCBALRETHWithExitFee();
 
         _deployComplexZapper();
-        _deployPositionFolding();
 
         _setRedstoneSigners();
 
@@ -479,20 +477,6 @@ contract TestBaseMarket is TestBase {
             )
         );
         return complexZapper;
-    }
-
-    function _deployPositionFolding()
-        internal
-        initMainVariables
-        returns (PositionFolding)
-    {
-        positionFolding = positionFoldings[
-            block.chainid
-        ] = new PositionFolding(
-            ICentralRegistry(address(centralRegistry)),
-            address(marketManager)
-        );
-        return positionFolding;
     }
 
     function _addSinglePriceFeed() internal initMainVariables {

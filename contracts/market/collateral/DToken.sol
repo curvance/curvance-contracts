@@ -308,20 +308,20 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         _borrow(account, amount, recipient);
     }
 
-    /// @notice Used by the position folding contract to borrow underlying tokens
+    /// @notice Used by the position management contract to borrow underlying tokens
     ///         from lenders, based on collateral posted inside this market
     ///         by `account` to apply a complex action.
-    /// @dev Only Position folding contract can call this function.
+    /// @dev Only Position Management contract can call this function.
     ///      Updates pending interest before executing the borrow.
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
     /// @param leverageData Callback calldata to execute after borrow.
-    function borrowForPositionFolding(
+    function borrowForPositionManagement(
         address account,
         uint256 amount,
         IPositionManagement.LeverageStruct memory leverageData
     ) external nonReentrant {
-        if (msg.sender != marketManager.positionFolding()) {
+        if (msg.sender != marketManager.positionManagement()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -517,7 +517,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         amount = _redeem(account, recipient, tokens, convertToAssets(tokens));
     }
 
-    /// @notice Used by the position folding contract to redeem underlying tokens
+    /// @notice Used by the position management contract to redeem underlying tokens
     ///         from the market, on behalf of `account` to apply a complex action.
     /// @dev Only Position folding contract can call this function.
     ///      Updates interest before executing the redemption.
@@ -528,12 +528,12 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account address to redeem dTokens on behalf of.
     /// @param amount The amount of the underlying asset to redeem.
     /// @param params Callback calldata to execute after redemption.
-    function redeemUnderlyingForPositionFolding(
+    function redeemUnderlyingForPositionManagement(
         address account,
         uint256 amount,
         IPositionManagement.DeleverageStruct memory params
     ) external nonReentrant {
-        if (msg.sender != marketManager.positionFolding()) {
+        if (msg.sender != marketManager.positionManagement()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

@@ -95,17 +95,17 @@ abstract contract CTokenCompounding is CTokenBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Helper function for Position Folding contract to
+    /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
-    function withdrawByPositionFolding(
+    function withdrawByPositionManagement(
         address owner,
         uint256 assets,
         IPositionManagement.DeleverageStruct memory deleverageData
     ) external virtual nonReentrant {
         // Validate that the position folding contract is calling.
-        if (msg.sender != marketManager.positionFolding()) {
+        if (msg.sender != marketManager.positionManagement()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -138,7 +138,7 @@ abstract contract CTokenCompounding is CTokenBase {
             pending
         );
 
-        // Callback to PositionFolding that executes cToken specific logic.
+        // Callback to PositionManagement that executes cToken specific logic.
         IPositionManagement(msg.sender).onRedeem(
             address(this),
             owner,
