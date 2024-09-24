@@ -25,11 +25,17 @@ contract DepositETHTest is TestBaseUniversalBalance {
         oracleRouter.addMTokenSupport(address(dWETH));
     }
 
-    function test_depositETH_fail_whenHasNoEnoughETH() public {
+    function test_depositETH_fail_whenHasNoEnoughETH_fuzzed(
+        uint256 amount
+    ) public {
+        vm.assume(amount < type(uint256).max);
+
+        deal(user1, amount);
+
         vm.prank(user1);
 
         vm.expectRevert();
-        universalBalance.depositETH{ value: _ONE + 1 }(true);
+        universalBalance.depositETH{ value: amount + 1 }(true);
     }
 
     function test_depositETH_fail_whenTokenIsNotListed() public {
@@ -54,8 +60,12 @@ contract DepositETHTest is TestBaseUniversalBalance {
         universalBalance.depositETH{ value: 0 }(false);
     }
 
-    function test_depositETH_success_withLend() public {
-        uint256 receiveAmount = dWETH.convertToShares(_ONE);
+    function test_depositETH_success_withLend_fuzzed(uint256 amount) public {
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
+
+        deal(user1, amount);
+
+        uint256 receiveAmount = dWETH.convertToShares(amount);
         uint256 ethBalance = address(universalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(universalBalance));
         uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
@@ -64,9 +74,9 @@ contract DepositETHTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, _ONE, receiveAmount);
+        emit Deposit(user1, user1, amount, receiveAmount);
 
-        universalBalance.depositETH{ value: _ONE }(true);
+        universalBalance.depositETH{ value: amount }(true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -79,10 +89,16 @@ contract DepositETHTest is TestBaseUniversalBalance {
             dWETH.balanceOf(address(universalBalance)),
             dWETHBalance + receiveAmount
         );
-        assertEq(user1.balance, userETHBalance - _ONE);
+        assertEq(user1.balance, userETHBalance - amount);
     }
 
-    function test_depositETH_success_withoutLend() public {
+    function test_depositETH_success_withoutLend_fuzzed(
+        uint256 amount
+    ) public {
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
+
+        deal(user1, amount);
+
         uint256 ethBalance = address(universalBalance).balance;
         uint256 wethBalance = weth.balanceOf(address(universalBalance));
         uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
@@ -91,21 +107,21 @@ contract DepositETHTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, _ONE, _ONE);
+        emit Deposit(user1, user1, amount, amount);
 
-        universalBalance.depositETH{ value: _ONE }(false);
+        universalBalance.depositETH{ value: amount }(false);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
 
-        assertEq(sittingBalance, _ONE);
+        assertEq(sittingBalance, amount);
         assertEq(lentBalance, 0);
         assertEq(address(universalBalance).balance, ethBalance);
         assertEq(
             weth.balanceOf(address(universalBalance)),
-            wethBalance + _ONE
+            wethBalance + amount
         );
         assertEq(dWETH.balanceOf(address(universalBalance)), dWETHBalance);
-        assertEq(user1.balance, userETHBalance - _ONE);
+        assertEq(user1.balance, userETHBalance - amount);
     }
 }

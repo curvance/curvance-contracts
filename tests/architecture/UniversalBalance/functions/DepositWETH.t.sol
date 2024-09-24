@@ -24,29 +24,43 @@ contract DepositWETHTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        
+
         vm.prank(user1);
         weth.approve(address(universalBalance), _ONE);
     }
 
-    function test_depositWETH_fail_whenHasNoEnoughWETH() public {
+    function test_depositWETH_fail_whenHasNoEnoughWETH_fuzzed(
+        uint256 amount
+    ) public {
+        vm.assume(amount < type(uint256).max);
+
+        deal(_WETH_ADDRESS, user1, amount);
+
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), _ONE + 1);
+        weth.approve(address(universalBalance), amount + 1);
 
         vm.expectRevert();
-        universalBalance.depositWETH(_ONE + 1, true);
+        universalBalance.depositWETH(amount + 1, true);
 
         vm.stopPrank();
     }
 
-    function test_depositWETH_fail_whenExceedsAllowance() public {
-        deal(_WETH_ADDRESS, user1, _ONE + 1);
+    function test_depositWETH_fail_whenExceedsAllowance_fuzzed(
+        uint256 amount
+    ) public {
+        vm.assume(amount < type(uint256).max);
 
-        vm.prank(user1);
+        deal(_WETH_ADDRESS, user1, amount + 1);
+
+        vm.startPrank(user1);
+
+        weth.approve(address(universalBalance), amount);
 
         vm.expectRevert();
-        universalBalance.depositWETH(_ONE + 1, true);
+        universalBalance.depositWETH(amount + 1, true);
+
+        vm.stopPrank();
     }
 
     function test_depositWETH_fail_whenTokenIsNotListed() public {
@@ -75,18 +89,26 @@ contract DepositWETHTest is TestBaseUniversalBalance {
         universalBalance.depositWETH(0, false);
     }
 
-    function test_depositWETH_success_withLend() public {
-        uint256 receiveAmount = dWETH.convertToShares(_ONE);
+    function test_depositWETH_success_withLend_fuzzed(uint256 amount) public {
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
+
+        deal(_WETH_ADDRESS, user1, amount);
+
+        uint256 receiveAmount = dWETH.convertToShares(amount);
         uint256 wethBalance = weth.balanceOf(address(universalBalance));
         uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
         uint256 userWETHBalance = weth.balanceOf(user1);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        weth.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, _ONE, receiveAmount);
+        emit Deposit(user1, user1, amount, receiveAmount);
 
-        universalBalance.depositWETH(_ONE, true);
+        universalBalance.depositWETH(amount, true);
+
+        vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -98,31 +120,41 @@ contract DepositWETHTest is TestBaseUniversalBalance {
             dWETH.balanceOf(address(universalBalance)),
             dWETHBalance + receiveAmount
         );
-        assertEq(weth.balanceOf(user1), userWETHBalance - _ONE);
+        assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 
-    function test_depositWETH_success_withoutLend() public {
+    function test_depositWETH_success_withoutLend_fuzzed(
+        uint256 amount
+    ) public {
+        vm.assume(0 < amount && amount < type(uint256).max / _ONE);
+
+        deal(_WETH_ADDRESS, user1, amount);
+
         uint256 wethBalance = weth.balanceOf(address(universalBalance));
         uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
         uint256 userWETHBalance = weth.balanceOf(user1);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        weth.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, _ONE, _ONE);
+        emit Deposit(user1, user1, amount, amount);
 
-        universalBalance.depositWETH(_ONE, false);
+        universalBalance.depositWETH(amount, false);
+
+        vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
 
-        assertEq(sittingBalance, _ONE);
+        assertEq(sittingBalance, amount);
         assertEq(lentBalance, 0);
         assertEq(
             weth.balanceOf(address(universalBalance)),
-            wethBalance + _ONE
+            wethBalance + amount
         );
         assertEq(dWETH.balanceOf(address(universalBalance)), dWETHBalance);
-        assertEq(weth.balanceOf(user1), userWETHBalance - _ONE);
+        assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 }

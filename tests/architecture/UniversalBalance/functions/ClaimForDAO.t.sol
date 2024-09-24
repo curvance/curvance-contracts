@@ -16,7 +16,7 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
         weth.approve(address(dWETH), 10e18);
         marketManager.listToken(address(dWETH));
         oracleRouter.addMTokenSupport(address(dWETH));
-        
+
         vm.startPrank(user1);
 
         universalBalance.depositETH{ value: _ONE }(true);
