@@ -3,20 +3,8 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
-    function setUp() public override {
-        super.setUp();
-
-        deal(_WETH_ADDRESS, address(this), 10e18);
-        deal(user1, _ONE);
-
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleRouter.addMTokenSupport(address(dWETH));
-    }
-
     function test_useBalanceForOracleUpdate_fail_whenCallerIsNotAuthorized()
         public
     {

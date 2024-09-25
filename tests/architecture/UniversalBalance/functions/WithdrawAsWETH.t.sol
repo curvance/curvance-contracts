@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract WithdrawAsWETHTest is TestBaseUniversalBalance {
     event Withdraw(
@@ -13,16 +12,6 @@ contract WithdrawAsWETHTest is TestBaseUniversalBalance {
         uint256 assets,
         uint256 shares
     );
-
-    function setUp() public override {
-        super.setUp();
-
-        deal(_WETH_ADDRESS, address(this), 10e18);
-
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleRouter.addMTokenSupport(address(dWETH));
-    }
 
     function test_withdrawAsWETH_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount

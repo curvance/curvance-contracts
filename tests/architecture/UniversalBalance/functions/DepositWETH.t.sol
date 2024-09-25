@@ -14,21 +14,6 @@ contract DepositWETHTest is TestBaseUniversalBalance {
         uint256 shares
     );
 
-    function setUp() public override {
-        super.setUp();
-
-        deal(_WETH_ADDRESS, address(this), 10e18);
-        deal(_WETH_ADDRESS, user1, _ONE);
-        deal(user1, _ONE);
-
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleRouter.addMTokenSupport(address(dWETH));
-
-        vm.prank(user1);
-        weth.approve(address(universalBalance), _ONE);
-    }
-
     function test_depositWETH_fail_whenHasNoEnoughWETH_fuzzed(
         uint256 amount
     ) public {
@@ -64,6 +49,8 @@ contract DepositWETHTest is TestBaseUniversalBalance {
     }
 
     function test_depositWETH_fail_whenTokenIsNotListed() public {
+        deal(_WETH_ADDRESS, user1, _ONE);
+
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
             address(dUSDC),

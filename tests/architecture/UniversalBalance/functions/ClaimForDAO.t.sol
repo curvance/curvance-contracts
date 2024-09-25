@@ -3,19 +3,13 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 
 contract ClaimForDAOTest is TestBaseUniversalBalance {
     function setUp() public override {
         super.setUp();
 
-        deal(_WETH_ADDRESS, address(this), 10e18);
         deal(user1, _ONE * 2);
-
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleRouter.addMTokenSupport(address(dWETH));
 
         vm.startPrank(user1);
 
@@ -52,6 +46,11 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
 
         universalBalance.claimForDAO();
 
-        assertEq(cve.balanceOf(address(this)), cveBalance + 100 * 1 weeks);
+        assertEq(
+            cve.balanceOf(address(this)),
+            cveBalance +
+                (100 * 1 weeks * _ONE) /
+                (gaugeManager.totalSupply(address(dWETH)))
+        );
     }
 }

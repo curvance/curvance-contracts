@@ -14,17 +14,6 @@ contract DepositETHTest is TestBaseUniversalBalance {
         uint256 shares
     );
 
-    function setUp() public override {
-        super.setUp();
-
-        deal(_WETH_ADDRESS, address(this), 10e18);
-        deal(user1, _ONE);
-
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleRouter.addMTokenSupport(address(dWETH));
-    }
-
     function test_depositETH_fail_whenHasNoEnoughETH_fuzzed(
         uint256 amount
     ) public {
