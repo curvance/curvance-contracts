@@ -548,19 +548,9 @@ contract StartContractsConfig is Script, DeployConfiguration {
     }
 
     function _deploy_redstone_price_feeds(
-        string memory network,
-        bool allow_sepolia
+        bool setup,
+        bool executeFeeds
     ) internal {
-        bytes32 network_hash = keccak256(abi.encodePacked(network));
-        if (
-            network_hash == keccak256(abi.encodePacked("sepolia")) &&
-            !allow_sepolia
-        ) {
-            // Sepolia is too slow to fetch & set these prices in time,
-            // so they have to be done seperately in their own script
-            return;
-        }
-
         CentralRegistry centralRegistry = CentralRegistry(
             _getDeployedContract("centralRegistry")
         );
@@ -581,19 +571,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
             address underlying = mockTokens[i];
             IERC20 underlyingToken = IERC20(underlying);
 
-            if (!adaptor.isSupportedAsset(underlying)) {
-                adaptor.addAsset(underlying, true, 8, 12 hours);
-            }
-
-            if (!router.isApprovedAdaptor(redstoneAdaptor)) {
-                router.addApprovedAdaptor(redstoneAdaptor);
-            }
-
-            try router.assetPriceFeeds(underlying, 0) returns (address feed) {
-                if (feed != redstoneAdaptor) {
-                    _addRedstonePriceFeed(underlyingToken, adaptor, router);
+            if (setup) {
+                if (!adaptor.isSupportedAsset(underlying)) {
+                    adaptor.addAsset(underlying, true, 8, 12 hours);
                 }
-            } catch {
+
+                if (!router.isApprovedAdaptor(redstoneAdaptor)) {
+                    router.addApprovedAdaptor(redstoneAdaptor);
+                }
+            }
+
+            if (executeFeeds) {
                 _addRedstonePriceFeed(underlyingToken, adaptor, router);
             }
         }
@@ -627,6 +615,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         require(success, "Failed to get price from Redstone API");
 
+        // TODO: This could be extracted out to speed up the redstone price execution
         router.addAssetPriceFeed(address(underlyingToken), address(adaptor));
     }
 

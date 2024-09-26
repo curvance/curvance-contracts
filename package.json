@@ -6,6 +6,7 @@
   "dependencies": {
     "@redstone-finance/protocol": "^0.3.6",
     "@redstone-finance/sdk": "^0.6.1",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2"
   }
 }

@@ -8,6 +8,7 @@ import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.s
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
+import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
@@ -49,7 +50,6 @@ contract DeployCurvance is
     function _deploy(string memory network) internal {
         _setConfigurationPath(network);
         _setDeploymentPath(network);
-        _clearDeployedContracts();
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
@@ -60,28 +60,13 @@ contract DeployCurvance is
         address feeToken = _readConfigAddress(".centralRegistry.feeToken");
         address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
         if (_is_testnet(network)) {
-            _deployMockTokens();
             feeToken = _getDeployedContract("USDC");
             rewardToken = _getDeployedContract("USDC");
         }
 
-        // Deploy CentralRegistry
-        _deployCentralRegistry(
-            deployer,
-            deployer,
-            deployer,
-            _readConfigUint256(".centralRegistry.genesisEpoch"),
-            _readConfigAddress(".centralRegistry.sequencer"),
-            feeToken
-        );
-
-        // Deploy OracleRouter
-        _deployOracleRouter(centralRegistry);
-        _setOracleRouter(oracleRouter);
-
-        // Deploy RedstoneAdaptor
-        _deployRedstoneAdaptor(centralRegistry);
-        _deploy_redstone_price_feeds(network, false);
+        centralRegistry = _getDeployedContract("centralRegistry");
+        address oracleRouter = _getDeployedContract("oracleRouter");
+        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
 
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
