@@ -4,7 +4,7 @@
     "harvester": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "timelock": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "emergencyCouncil": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
-    "wormholeCore": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "wormholeCore": "0xebfb7e62686ea3cb4b793dd3cd1a8827b170724d",
     "tokenBridge": "0x0000000000000000000000000000000000000000",
     "wormholeRelayer": "0x0000000000000000000000000000000000000000",
     "messageTransmitter": "0x0000000000000000000000000000000000000000",
@@ -21,7 +21,7 @@
     "teamAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB"
   },
   "zapper": {
-    "weth": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB"
+    "weth": "0xd9145CCE52D386f254917e481eB44e9943F39138"
   },
   "oracleRouter": {
     "chainlinkEthUsd": "0x0000000000000000000000000000000000000000",
