@@ -10,12 +10,15 @@ import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
 import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
+import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
 import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
+import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
+import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 
 contract DeployCurvance is
     DeployConfiguration,
@@ -25,12 +28,15 @@ contract DeployCurvance is
     MessagingHubDeployer,
     FeeAccumulatorDeployer,
     VeCveDeployer,
+    VotingHubDeployer,
     GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
     PositionFoldingDeployer,
     OracleRouterDeployer,
-    AuxiliaryDataDeployer
+    AuxiliaryDataDeployer,
+    RedstoneAdaptorDeployer,
+    StartContractsConfig
 {
     function run() external {
         _deploy("ethereum");
@@ -43,6 +49,7 @@ contract DeployCurvance is
     function _deploy(string memory network) internal {
         _setConfigurationPath(network);
         _setDeploymentPath(network);
+        _clearDeployedContracts();
 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
@@ -50,16 +57,32 @@ contract DeployCurvance is
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy CentralRegistry
+        address feeToken = _readConfigAddress(".centralRegistry.feeToken");
+        address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
+        if (_is_testnet(network)) {
+            _deployMockTokens();
+            feeToken = _getDeployedContract("USDC");
+            rewardToken = _getDeployedContract("USDC");
+        }
 
+        // Deploy CentralRegistry
         _deployCentralRegistry(
             deployer,
             deployer,
             deployer,
             _readConfigUint256(".centralRegistry.genesisEpoch"),
             _readConfigAddress(".centralRegistry.sequencer"),
-            _readConfigAddress(".centralRegistry.feeToken")
+            feeToken
         );
+
+        // Deploy OracleRouter
+        _deployOracleRouter(centralRegistry);
+        _setOracleRouter(oracleRouter);
+
+        // Deploy RedstoneAdaptor
+        _deployRedstoneAdaptor(centralRegistry);
+        _deploy_redstone_price_feeds(network, false);
+
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
         );
@@ -84,16 +107,8 @@ contract DeployCurvance is
 
         // Deploy Reward Manager
 
-        _deployRewardManager(
-            centralRegistry,
-            _readConfigAddress(".rewardManager.rewardToken")
-        );
+        _deployRewardManager(centralRegistry, rewardToken);
         _setRewardManager(rewardManager);
-
-        // Deploy MessagingHub
-
-        _deployMessagingHub(centralRegistry);
-        _setMessagingHub(messagingHub);
 
         // Deploy FeeAccumulator
 
@@ -101,17 +116,22 @@ contract DeployCurvance is
         _setFeeAccumulator(feeAccumulator);
 
         // Deploy VeCVE
-
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy GaugeManagerPool
+        // Deploy MessagingHub
+        _deployMessagingHub(centralRegistry);
+        _setMessagingHub(messagingHub);
+        _addLockingPermissions(messagingHub);
 
+        // Deploy GaugeManagerPool
         _deployGaugeManager(centralRegistry);
         _addLockingPermissions(gaugeManager);
 
-        // Deploy MarketManager
+        // Deploy VotingHub
+        _deployVotingHub(centralRegistry, 1000);
 
+        // Deploy MarketManager
         _deployMarketManager(centralRegistry);
         _addMarketManager(
             marketManager,
@@ -119,7 +139,6 @@ contract DeployCurvance is
         );
 
         // Deploy ComplexZapper
-
         _deployComplexZapper(
             centralRegistry,
             marketManager,
@@ -127,18 +146,9 @@ contract DeployCurvance is
         );
 
         // Deploy PositionFolding
-
         _deployPositionFolding(centralRegistry, marketManager);
 
-        _deployOracleRouter(
-            centralRegistry,
-            _readConfigAddress(".oracleRouter.chainlinkEthUsd")
-        );
-
-        _setOracleRouter(oracleRouter);
-
         //  Deploy Auxiliary Data
-
         _deployAuxiliaryData(centralRegistry);
 
         // transfer dao, timelock, emergency council
@@ -151,6 +161,9 @@ contract DeployCurvance is
         // _transferEmergencyCouncil(
         //     _readConfigAddress(".centralRegistry.emergencyCouncil")
         // );
+
+        // Setup
+        _after_deploy_config(network);
 
         vm.stopBroadcast();
     }

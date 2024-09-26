@@ -11,9 +11,11 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
+
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @notice An auxiliary contract for querying nuanced data
@@ -45,6 +47,18 @@ contract CurvanceAuxiliaryData {
         uint256 collateralOrDebtAmount;
     }
 
+    struct MarketAssetConfig {
+        bool isListed;
+        uint256 collRatio;
+        uint256 collReqSoft;
+        uint256 collReqHard;
+        uint256 liqBaseIncentive;
+        uint256 liqCurve;
+        uint256 liqFee;
+        uint256 baseCFactor;
+        uint256 cFactorCurve;
+    }
+
     struct MarketDTokenData {
         address assetAddress;
         address marketAddress;
@@ -60,7 +74,9 @@ contract CurvanceAuxiliaryData {
         uint256 predictedBorrowRatePerYear;
         uint256 utilizationRate;
         uint256 liquidityAvailable;
-        uint256 price;
+        uint256 sharePrice;
+        uint256 tokenPrice;
+        MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
 
@@ -75,7 +91,9 @@ contract CurvanceAuxiliaryData {
         uint256 totalCollateralTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
-        uint256 price;
+        uint256 sharePrice;
+        uint256 tokenPrice;
+        MarketAssetConfig config;
         AccountAssetPosition userTokenPosition;
     }
 
@@ -171,6 +189,7 @@ contract CurvanceAuxiliaryData {
     /// EXTERNAL TOKEN-SPECIFIC FUNCTIONS ///
 
     /// @notice Returns if an account has an active position in `token`,
+    /// @notice Returns if an account has an active position in `token`,
     ///         and any user balances or collateral posted in `token`.
     /// @param account The address of the account to check token data of.
     /// @param token The address of the market token.
@@ -241,7 +260,6 @@ contract CurvanceAuxiliaryData {
     }
 
     function getBaseRewards(address token) external view returns (uint256) {}
-
     function getCVERewards(address token) external view returns (uint256) {}
 
     /// ORACLE ROUTER FUNCTIONS ///
@@ -322,6 +340,7 @@ contract CurvanceAuxiliaryData {
         view
         returns (MarketDTokenData[] memory, MarketCTokenData[] memory)
     {
+        MarketManager mm = MarketManager(market);
         address[] memory cTokens = getMarketCollateralAssets(market);
         MarketCTokenData[] memory cResults = new MarketCTokenData[](
             cTokens.length
@@ -353,12 +372,11 @@ contract CurvanceAuxiliaryData {
             cTokenData.totalCollateralTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            cTokenData.totalCollateralPosted = MarketManager(market)
-                .collateralPosted(cTokens[i]);
-            cTokenData.collateralCap = MarketManager(market).collateralCaps(
-                cTokens[i]
-            );
-            cTokenData.price = _getTokenPrice(cTokens[i], true);
+            cTokenData.totalCollateralPosted = mm.collateralPosted(cTokens[i]);
+            cTokenData.collateralCap = mm.collateralCaps(cTokens[i]);
+            cTokenData.sharePrice = _getTokenPrice(cTokens[i], true);
+            cTokenData.tokenPrice = _getTokenPrice(address(token), true);
+            cTokenData.config = _getTokenConfig(cTokens[i], mm);
 
             cResults[i] = cTokenData;
         }
@@ -401,7 +419,9 @@ contract CurvanceAuxiliaryData {
             dTokenData.predictedBorrowRatePerYear = this
                 .getPredictedBorrowRatePerYear(dTokens[i]);
             dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
-            dTokenData.price = _getTokenPrice(dTokens[i], false);
+            dTokenData.sharePrice = _getTokenPrice(dTokens[i], false);
+            dTokenData.tokenPrice = _getTokenPrice(address(token), false);
+            dTokenData.config = _getTokenConfig(dTokens[i], mm);
 
             if (dTokenData.tvl > dTokenData.borrows) {
                 dTokenData.liquidityAvailable =
@@ -619,6 +639,36 @@ contract CurvanceAuxiliaryData {
     }
 
     /// INTERNAL FUNCTIONS ///
+    function _getTokenConfig(
+        address token,
+        MarketManager mm
+    ) internal view returns (MarketAssetConfig memory) {
+        MarketAssetConfig memory config;
+
+        (
+            bool isListed,
+            uint256 collRatio,
+            uint256 collReqSoft,
+            uint256 collReqHard,
+            uint256 liqBaseIncentive,
+            uint256 liqCurve,
+            uint256 liqFee,
+            uint256 baseCFactor,
+            uint256 cFactorCurve
+        ) = mm.tokenData(token);
+
+        config.isListed = isListed;
+        config.collRatio = collRatio;
+        config.collReqSoft = collReqSoft;
+        config.collReqHard = collReqHard;
+        config.liqBaseIncentive = liqBaseIncentive;
+        config.liqCurve = liqCurve;
+        config.liqFee = liqFee;
+        config.baseCFactor = baseCFactor;
+        config.cFactorCurve = cFactorCurve;
+
+        return config;
+    }
 
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
