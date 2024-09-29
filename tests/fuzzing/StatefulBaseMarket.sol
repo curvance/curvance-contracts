@@ -23,8 +23,7 @@ import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
-import { PositionFolding } from "contracts/market/utils/PositionFolding.sol";
+import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -56,7 +55,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     ChainlinkAdaptor public dualChainlinkAdaptor;
     DynamicInterestRateModel public interestRateModel;
     MarketManager public marketManager;
-    PositionFolding public positionFolding;
     OracleRouter public oracleRouter;
 
     AuraCToken public cBALRETH;
@@ -137,8 +135,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         _deployCDAI();
         // emit LogString("DEPLOYED: ZAPPER");
         // _deployComplexZapper();
-        emit LogString("DEPLOYED: PositionFolding");
-        _deployPositionFolding();
     }
 
     function _deployCentralRegistry() internal {
@@ -422,14 +418,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
                 address(marketManager),
                 address(interestRateModel)
             );
-    }
-
-    function _deployPositionFolding() internal returns (PositionFolding) {
-        positionFolding = new PositionFolding(
-            ICentralRegistry(address(centralRegistry)),
-            address(marketManager)
-        );
-        return positionFolding;
     }
 
     function _addSinglePriceFeed() internal {

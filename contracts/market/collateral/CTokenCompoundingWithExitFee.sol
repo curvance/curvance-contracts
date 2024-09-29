@@ -6,7 +6,7 @@ import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
@@ -58,17 +58,17 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         _setExitFee(newExitFee);
     }
 
-    /// @notice Helper function for Position Folding contract to
+    /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
-    function withdrawByPositionFolding(
+    function withdrawByPositionManagement(
         address owner,
         uint256 assets,
-        IPositionFolding.DeleverageStruct memory deleverageData
+        IPositionManagement.DeleverageStruct memory deleverageData
     ) external override nonReentrant {
         // Validate that the position folding contract is calling.
-        if (msg.sender != marketManager.positionFolding()) {
+        if (msg.sender != marketManager.positionManagement()) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -104,8 +104,8 @@ abstract contract CTokenCompoundingWithExitFee is CTokenCompounding {
         assets = _removeExitFeeFromAssets(assets);
         deleverageData.collateralAmount = assets;
 
-        // Callback to PositionFolding that executes cToken specific logic.
-        IPositionFolding(msg.sender).onRedeem(
+        // Callback to PositionManagement that executes cToken specific logic.
+        IPositionManagement(msg.sender).onRedeem(
             address(this),
             owner,
             assets,
