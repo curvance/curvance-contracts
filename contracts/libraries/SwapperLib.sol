@@ -11,7 +11,6 @@ import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
 library SwapperLib {
     /// TYPES ///
-
     /// @notice Used to execute a swap, which is selling one token for another.
     /// @param inputToken Address of input token to swap from.
     /// @param inputAmount The amount of `inputToken` to swap.

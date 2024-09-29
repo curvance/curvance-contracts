@@ -28,4 +28,12 @@ interface IPendleRouter {
         ApproxParams calldata guessPtReceivedFromSy,
         LimitOrderData calldata limit
     ) external returns (uint256 netLpOut, uint256 netSyFee);
+
+    function removeLiquiditySingleSy(
+        address receiver,
+        address market,
+        uint256 netLpToRemove,
+        uint256 minSyOut,
+        LimitOrderData calldata limit
+    ) external returns (uint256 netSyOut, uint256 netSyFee);
 }

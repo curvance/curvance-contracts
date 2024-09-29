@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { SimpleZapper } from "contracts/market/utils/SimpleZapper.sol";
+import { SimpleZapper } from "contracts/market/zapper/SimpleZapper.sol";
 import { Convex2PoolCToken, IERC20 } from "contracts/market/collateral/Convex2PoolCToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";

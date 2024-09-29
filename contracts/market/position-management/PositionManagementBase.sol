@@ -17,7 +17,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
 ///      usually would require multiple looped actions to facilitate,
@@ -25,8 +25,8 @@ import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.s
 ///
 ///      CToken and DToken contracts facilitate these operations through
 ///      integration with Position Foldings callback functions.
-contract PositionFolding is
-    IPositionFolding,
+abstract contract PositionManagementBase is
+    IPositionManagement,
     Delegable,
     ERC165,
     ReentrancyGuard,
@@ -41,7 +41,7 @@ contract PositionFolding is
     /// @dev 9900 = 99% = 0.99.
     uint256 public constant MAX_LEVERAGE = 9900;
 
-    /// @dev `bytes4(keccak256(bytes("PositionFolding__Unauthorized()")))`
+    /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x1d52945b;
 
     /// @notice Address of the Market Manager linked to this contract.
@@ -49,14 +49,14 @@ contract PositionFolding is
 
     /// ERRORS ///
 
-    error PositionFolding__Unauthorized();
-    error PositionFolding__InvalidSlippage();
-    error PositionFolding__InvalidMarketManager();
-    error PositionFolding__InvalidSwapperParam();
-    error PositionFolding__InvalidParam();
-    error PositionFolding__InvalidAmount();
-    error PositionFolding__InvalidTokenPrice();
-    error PositionFolding__ExceedsMaximumBorrowAmount(
+    error PositionManagementBase__Unauthorized();
+    error PositionManagementBase__InvalidSlippage();
+    error PositionManagementBase__InvalidMarketManager();
+    error PositionManagementBase__InvalidSwapperParam();
+    error PositionManagementBase__InvalidParam();
+    error PositionManagementBase__InvalidAmount();
+    error PositionManagementBase__InvalidTokenPrice();
+    error PositionManagementBase__ExceedsMaximumBorrowAmount(
         uint256 amount,
         uint256 maximum
     );
@@ -75,13 +75,14 @@ contract PositionFolding is
             }
         }
 
-        (uint256 collateralBefore,, uint256 debtBefore) = marketManager
-            .statusOf(account);
+        (uint256 collateralBefore, , uint256 debtBefore) = marketManager.statusOf(
+            account
+        );
         uint256 liquidityBefore = collateralBefore - debtBefore;
 
         _;
 
-        (uint256 sumCollateral,, uint256 sumDebt) = marketManager.statusOf(
+        (uint256 sumCollateral, , uint256 sumDebt) = marketManager.statusOf(
             account
         );
 
@@ -92,7 +93,7 @@ contract PositionFolding is
                 liquidityBefore - liquidityAfter >=
                 (liquidityBefore * slippage) / DENOMINATOR
             ) {
-                revert PositionFolding__InvalidSlippage();
+                revert PositionManagementBase__InvalidSlippage();
             }
         }
     }
@@ -108,7 +109,7 @@ contract PositionFolding is
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {
-            revert PositionFolding__InvalidMarketManager();
+            revert PositionManagementBase__InvalidMarketManager();
         }
 
         marketManager = IMarketManager(marketManager_);
@@ -264,13 +265,13 @@ contract PositionFolding is
             borrowToken != address(leverageData.borrowToken) ||
             borrowAmount != leverageData.borrowAmount
         ) {
-            revert PositionFolding__InvalidParam();
+            revert PositionManagementBase__InvalidParam();
         }
 
         address borrowUnderlying = CTokenPrimitive(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
-            revert PositionFolding__InvalidAmount();
+            revert PositionManagementBase__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -292,43 +293,7 @@ contract PositionFolding is
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = collateralToken.underlying();
 
-        // Prepare cToken underlying.
-        SwapperLib.Swap memory swapData = leverageData.swapData;
-        SwapperLib.Swap memory swapZap = leverageData.swapZap;
-
-        // Check to make sure there is calldata attached to execute the swap.
-        if (swapData.call.length > 0) {
-            if (
-                swapData.target == address(0) ||
-                swapData.inputToken != borrowUnderlying ||
-                swapData.outputToken != swapZap.inputToken ||
-                (swapData.outputToken == swapZap.inputToken &&
-                    swapZap.call.length == 0) ||
-                swapData.inputAmount != borrowAmount
-            ) {
-                revert PositionFolding__InvalidSwapperParam();
-            }
-            // Swap borrow underlying to Zapper input token.
-            swapZap.inputAmount = SwapperLib.swapSafe(
-                centralRegistry,
-                swapData
-            );
-        }
-
-        // Check to make sure there is calldata attached to execute the zap.
-        if (swapZap.call.length > 0) {
-            if (
-                swapZap.target == address(0) ||
-                swapZap.outputToken != collateralUnderlying ||
-                swapZap.inputAmount == 0
-            ) {
-                revert PositionFolding__InvalidSwapperParam();
-            }
-
-            // Execute Zap from `borrowToken` underlying into cToken
-            // underlying.
-            SwapperLib.swapSafe(centralRegistry, swapZap);
-        }
+        _swapBorrowUnderlyingToCollateral(leverageData);
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
@@ -342,20 +307,7 @@ contract PositionFolding is
         // Enter Curvance.
         collateralToken.depositAsCollateral(amount, borrower);
 
-        uint256 remaining = IERC20(swapZap.inputToken).balanceOf(
-            address(this)
-        );
-
-        // Transfer remaining Zapper input token back to the user.
-        if (remaining > 0) {
-            SafeTransferLib.safeTransfer(
-                swapZap.inputToken,
-                borrower,
-                remaining
-            );
-        }
-
-        remaining = IERC20(borrowUnderlying).balanceOf(address(this));
+        uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this));
 
         // Transfer remaining borrow underlying back to the user.
         if (remaining > 0) {
@@ -406,7 +358,7 @@ contract PositionFolding is
             collateralToken != address(deleverageData.collateralToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
-            revert PositionFolding__InvalidParam();
+            revert PositionManagementBase__InvalidParam();
         }
 
         // Swap collateral token (cToken underlying) to
@@ -418,7 +370,7 @@ contract PositionFolding is
             IERC20(collateralUnderlying).balanceOf(address(this)) <
             collateralAmount
         ) {
-            revert PositionFolding__InvalidAmount();
+            revert PositionManagementBase__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -431,33 +383,8 @@ contract PositionFolding is
                 fee
             );
         }
-
-        SwapperLib.Swap memory swapZap = deleverageData.swapZap;
-
-        // Check to make sure there is calldata attached to execute the swap.
-        if (swapZap.call.length > 0) {
-            if (
-                swapZap.target == address(0) ||
-                swapZap.inputToken != collateralUnderlying ||
-                swapZap.inputAmount != collateralAmount
-            ) {
-                revert PositionFolding__InvalidSwapperParam();
-            }
-
-            // Execute Zap from cToken underlying into unwrapped assets.
-            SwapperLib.swapSafe(centralRegistry, swapZap);
-        }
-
-        // Check to make sure there is calldata attached to execute the swap.
-        if (deleverageData.swapData.length > 0) {
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
-                // Swap Swapper input token for borrow underlying.
-                SwapperLib.swapSafe(
-                    centralRegistry,
-                    deleverageData.swapData[i]
-                );
-            }
-        }
+        deleverageData.collateralAmount = collateralAmount;
+        _swapCollateralToBorrowUnderyling(deleverageData);
 
         // We do not need to check whether borrowToken is listed
         // or not as even if they found a way to input a malicious
@@ -568,7 +495,7 @@ contract PositionFolding is
 
         // Validate we got a price for `borrowToken`.
         if (errorCode != 0) {
-            revert PositionFolding__InvalidTokenPrice();
+            revert PositionManagementBase__InvalidTokenPrice();
         }
 
         return
@@ -581,7 +508,7 @@ contract PositionFolding is
         bytes4 interfaceId
     ) public view override returns (bool) {
         return
-            interfaceId == type(IPositionFolding).interfaceId ||
+            interfaceId == type(IPositionManagement).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -607,13 +534,13 @@ contract PositionFolding is
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
         if (borrowAmount > maxBorrowAmount) {
-            revert PositionFolding__ExceedsMaximumBorrowAmount(
+            revert PositionManagementBase__ExceedsMaximumBorrowAmount(
                 borrowAmount,
                 maxBorrowAmount
             );
         }
 
-        borrowToken.borrowForPositionFolding(
+        borrowToken.borrowForPositionManagement(
             account,
             borrowAmount,
             leverageData
@@ -630,12 +557,20 @@ contract PositionFolding is
         DeleverageStruct memory deleverageData,
         address account
     ) internal {
-        deleverageData.collateralToken.withdrawByPositionFolding(
+        deleverageData.collateralToken.withdrawByPositionManagement(
             account,
             deleverageData.collateralAmount,
             deleverageData
         );
     }
+
+    function _swapBorrowUnderlyingToCollateral(
+        LeverageStruct memory leverageData
+    ) internal virtual {}
+
+    function _swapCollateralToBorrowUnderyling(
+        DeleverageStruct memory deleverageData
+    ) internal virtual {}
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
