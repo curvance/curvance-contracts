@@ -486,8 +486,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        // Validate that `tokens` can be redeemed and maintain collateral
-        // requirements.
+        // Validate that `tokens` can be redeemed based on holding time.
         marketManager.canRedeem(address(this), msg.sender, tokens);
 
         amount = _redeem(

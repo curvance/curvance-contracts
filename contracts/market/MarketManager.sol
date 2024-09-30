@@ -567,8 +567,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
-        // We require a `minimumHoldPeriod` to break flashloan manipulations attempts
-        // as well as short term price manipulations if the dynamic dual oracle
+        // We require a `minimumHoldPeriod` to break flashloan
+        // and multi-block price manipulations if the dynamic dual oracle
         // fails to protect the market somehow.
         if (
             accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
@@ -1436,8 +1436,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
-        // We require a `minimumHoldPeriod` to break flashloan manipulations attempts
-        // as well as short term price manipulations if the dynamic dual oracle
+        // We require a `minimumHoldPeriod` to break flashloan
+        // and multi-block price manipulations if the dynamic dual oracle
         // fails to protect the market somehow.
         if (
             accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
@@ -1524,6 +1524,20 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
             if (updateNeeded == 2) {
                 _closePositions(account, positionsToClose);
+            }
+        } else {
+            if (!tokenData[cToken].isListed) {
+                _revert(_TOKEN_NOT_LISTED_SELECTOR);
+            }
+            
+            // We require a `minimumHoldPeriod` to break flashloan
+            // and multi-block price manipulations if the dynamic dual oracle
+            // fails to protect the market somehow.
+            if (
+                accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
+                block.timestamp
+            ) {
+                revert MarketManager__MinimumHoldPeriod();
             }
         }
     }
