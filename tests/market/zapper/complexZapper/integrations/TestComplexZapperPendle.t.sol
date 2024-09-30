@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
-import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract TestComplexZapperPendle is TestBaseMarket {
