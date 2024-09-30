@@ -15,7 +15,6 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-import "forge-std/console.sol";
 
 /// @title Curvance Gauge Manager.
 /// @notice A market specific system for distributing rewards to Curvance

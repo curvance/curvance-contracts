@@ -22,6 +22,8 @@ library PendleLib {
     /// @notice Enter a Pendle position.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
+    /// @param data Pendle specific execution data including input/output,
+    ///             and limit order data.
     /// @param lpToken The Pendle lp/pt token address.
     /// @param lpMinOutAmount The minimum output amount acceptable.
     /// @return lpOutAmount The output amount of Pendle lp received.
@@ -96,6 +98,8 @@ library PendleLib {
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
+    /// @param data Pendle specific execution data including input/output,
+    ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
     /// @param lpAmount The Pendle lp amount to exit.
     function exitPendle(

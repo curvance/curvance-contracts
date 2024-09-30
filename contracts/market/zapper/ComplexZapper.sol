@@ -514,6 +514,8 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
+    /// @param data Pendle specific execution data including input/output,
+    ///             and limit order data.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
@@ -556,6 +558,8 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
+    /// @param data Pendle specific execution data including input/output,
+    ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
@@ -601,6 +605,8 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
+    /// @param data Pendle specific execution data including input/output,
+    ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
