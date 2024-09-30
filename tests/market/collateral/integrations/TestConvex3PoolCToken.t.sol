@@ -60,19 +60,19 @@ pragma solidity ^0.8.19;
 //         );
 
 //         address owner = address(this);
-//         deal(address(CONVEX_USDT_WBTC_WETH_POOL), address(owner), 1 ether);
+//         deal(address(CONVEX_USDT_WBTC_WETH_POOL), owner, 1 ether);
 //         CONVEX_USDT_WBTC_WETH_POOL.approve(address(cToken), 1 ether);
 //         marketManager.listToken(address(cToken));
 //     }
 
 //     function testConvexUsdtWbtcWethPool() public {
 //         uint256 assets = 100e18;
-//         deal(address(CONVEX_USDT_WBTC_WETH_POOL), address(user1), assets);
+//         deal(address(CONVEX_USDT_WBTC_WETH_POOL), user1, assets);
 
-//         vm.prank(address(user1));
+//         vm.prank(user1);
 //         CONVEX_USDT_WBTC_WETH_POOL.approve(address(cToken), assets);
 
-//         vm.prank(address(user1));
+//         vm.prank(user1);
 //         cToken.deposit(assets, user1);
 
 //         assertEq(
@@ -114,7 +114,7 @@ pragma solidity ^0.8.19;
 //             "Total Assets should greater than original deposit."
 //         );
 
-//         vm.startPrank(address(user1));
+//         vm.startPrank(user1);
 //         cToken.withdraw(cToken.balanceOf(user1), user1, user1);
 //         vm.stopPrank();
 //     }

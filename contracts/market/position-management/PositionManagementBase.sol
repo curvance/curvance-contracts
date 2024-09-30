@@ -75,9 +75,8 @@ abstract contract PositionManagementBase is
             }
         }
 
-        (uint256 collateralBefore, , uint256 debtBefore) = marketManager.statusOf(
-            account
-        );
+        (uint256 collateralBefore, , uint256 debtBefore) = marketManager
+            .statusOf(account);
         uint256 liquidityBefore = collateralBefore - debtBefore;
 
         _;

@@ -65,7 +65,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 

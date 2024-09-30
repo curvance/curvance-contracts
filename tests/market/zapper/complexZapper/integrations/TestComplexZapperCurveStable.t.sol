@@ -6,27 +6,15 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
-contract User {}
-
 contract TestComplexZapperCurveStable is TestBaseMarket {
     address internal _CURVE_TRICRYPTO_LP =
         0xc4AD29ba4B3c580e6D59105FFf484999997675Ff;
     address internal _CURVE_TRICRYPTO_MINTER =
         0xD51a44d3FaE010294C616388b506AcdA1bfAAE46;
 
-    address public owner;
-    address public user;
-
     receive() external payable {}
 
     fallback() external payable {}
-
-    function setUp() public override {
-        super.setUp();
-
-        owner = address(this);
-        user = user1;
-    }
 
     function testInitialize() public {
         assertEq(
@@ -37,9 +25,9 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
 
     function testEnterCurveWithETH() public {
         uint256 ethAmount = 3 ether;
-        vm.deal(user, ethAmount);
+        vm.deal(user1, ethAmount);
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
         address[] memory tokens = new address[](3);
         tokens[0] = _USDT_ADDRESS;
         tokens[1] = _WBTC_ADDRESS;
@@ -56,19 +44,19 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
-            user
+            user1
         );
         vm.stopPrank();
 
-        assertEq(user.balance, 0);
-        assertGt(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user), 0);
+        assertEq(user1.balance, 0);
+        assertGt(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user1), 0);
     }
 
     function testEnterCurveWithWETH() public {
         uint256 wethAmount = 3 ether;
-        deal(_WETH_ADDRESS, user, wethAmount);
+        deal(_WETH_ADDRESS, user1, wethAmount);
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
         weth.approve(address(complexZapper), wethAmount);
         address[] memory tokens = new address[](3);
         tokens[0] = _USDT_ADDRESS;
@@ -86,20 +74,20 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
-            user
+            user1
         );
         vm.stopPrank();
 
-        assertEq(user.balance, 0);
-        assertGt(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user), 0);
+        assertEq(user1.balance, 0);
+        assertGt(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user1), 0);
     }
 
     function testExitCurve() public {
         testEnterCurveWithETH();
 
-        uint256 withdrawAmount = IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user);
+        uint256 withdrawAmount = IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user1);
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
         address[] memory tokens = new address[](3);
         tokens[0] = _USDT_ADDRESS;
         tokens[1] = _WBTC_ADDRESS;
@@ -121,11 +109,11 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             1,
             2,
             new SwapperLib.Swap[](0),
-            user
+            user1
         );
         vm.stopPrank();
 
-        assertApproxEqRel(weth.balanceOf(user), 3 ether, 0.01 ether);
-        assertEq(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user), 0);
+        assertApproxEqRel(weth.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(IERC20(_CURVE_TRICRYPTO_LP).balanceOf(user1), 0);
     }
 }

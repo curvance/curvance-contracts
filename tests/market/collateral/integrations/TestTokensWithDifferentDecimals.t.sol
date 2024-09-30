@@ -3,18 +3,19 @@ pragma solidity ^0.8.19;
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestTokensWithDifferentDecimals is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();
@@ -124,8 +125,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cBALRETH.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cBALRETH.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintRedeem() public {
@@ -275,6 +276,12 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
 
         // try borrow()
         dUSDC.borrow(500e6);
+
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dUSDC.redeem(1000e6);
 
         // skip min hold period
         skip(20 minutes);

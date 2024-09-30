@@ -13,7 +13,7 @@ contract TestWstETHAdaptor is TestBaseOracleRouter {
     address internal _WSTETH_ADDRESS =
         0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
-    WstETHAggregator aggregator;
+    WstETHAggregator public aggregator;
 
     function setUp() public override {
         _fork(18031848);

@@ -13,7 +13,7 @@ import "tests/market/TestBaseMarket.sol";
 contract User {}
 
 contract TestSimpleZapper is TestBaseMarket {
-    address private _UNISWAP_V3_SWAP_ROUTER =
+    address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address internal _CURVE_STETH_LP =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
@@ -30,7 +30,6 @@ contract TestSimpleZapper is TestBaseMarket {
     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
 
     address public owner;
-    address public user;
 
     Convex2PoolCToken public cSTETH;
     SimpleZapper public simpleZapper;
@@ -43,7 +42,6 @@ contract TestSimpleZapper is TestBaseMarket {
         super.setUp();
 
         owner = address(this);
-        user = user1;
 
         simpleZapper = new SimpleZapper(
             ICentralRegistry(address(centralRegistry)),
@@ -120,7 +118,7 @@ contract TestSimpleZapper is TestBaseMarket {
             CONVEX_BOOSTER
         );
 
-        deal(address(CONVEX_STETH_ETH_POOL), address(owner), 1 ether);
+        deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
         oracleRouter.addMTokenSupport(address(cSTETH));
@@ -176,7 +174,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
     function testZapAndDeposit() public {
         uint256 ethAmount = 3 ether;
-        vm.deal(user, ethAmount);
+        vm.deal(user1, ethAmount);
 
         SwapperLib.Swap memory swapZap;
         swapZap.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -203,28 +201,28 @@ contract TestSimpleZapper is TestBaseMarket {
             address(simpleZapper)
         );
 
-        vm.prank(user);
+        vm.prank(user1);
         simpleZapper.zapAndDeposit{ value: ethAmount }(
             swapZap,
             address(cSTETH),
-            user
+            user1
         );
 
-        assertEq(user.balance, 0);
-        assertGt(cSTETH.balanceOf(user), 0);
+        assertEq(user1.balance, 0);
+        assertGt(cSTETH.balanceOf(user1), 0);
     }
 
     function testSwapAndRepay() external {
         testZapAndDeposit();
-        vm.startPrank(user);
-        marketManager.postCollateral(user, address(cSTETH), 1 ether);
+        vm.startPrank(user1);
+        marketManager.postCollateral(user1, address(cSTETH), 1 ether);
 
         // try borrow()
         dDAI.borrow(500 ether);
         vm.stopPrank();
 
-        assertEq(dai.balanceOf(user), 500 ether);
-        assertApproxEqAbs(dDAI.debtBalanceCached(user), 500 ether, 1 ether);
+        assertEq(dai.balanceOf(user1), 500 ether);
+        assertApproxEqAbs(dDAI.debtBalanceCached(user1), 500 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
@@ -253,13 +251,13 @@ contract TestSimpleZapper is TestBaseMarket {
             params
         );
 
-        deal(_USDC_ADDRESS, user, 500e6);
-        vm.startPrank(user);
+        deal(_USDC_ADDRESS, user1, 500e6);
+        vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
-        simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user);
+        simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user1);
         vm.stopPrank();
 
-        assertApproxEqAbs(dai.balanceOf(user), 550 ether, 1 ether);
-        assertApproxEqAbs(dDAI.debtBalanceCached(user), 50 ether, 1 ether);
+        assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
+        assertApproxEqAbs(dDAI.debtBalanceCached(user1), 50 ether, 1 ether);
     }
 }

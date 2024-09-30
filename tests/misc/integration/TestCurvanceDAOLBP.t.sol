@@ -207,9 +207,6 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
     function testCommitSaleAmount() public {
         testStartSuccess();
 
-        address user1 = address(100000001);
-        address user2 = address(100000002);
-
         uint256 commitAmount = 100e18;
         _prepareCommit(user1, commitAmount);
         _prepareCommit(user2, commitAmount);

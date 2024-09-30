@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BorrowZapper, ICentralRegistry } from "contracts/market/utils/BorrowZapper.sol";
+import { BorrowZapper, ICentralRegistry } from "contracts/market/zapper/BorrowZapper.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
 contract BlastBorrowZapper is BorrowZapper, BlastYieldDelegable {

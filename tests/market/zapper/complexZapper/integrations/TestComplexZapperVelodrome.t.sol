@@ -7,8 +7,6 @@ import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract User {}
-
 contract TestComplexZapperVelodrome is TestBaseMarket {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
@@ -19,9 +17,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
     address internal _WETH = 0x4200000000000000000000000000000000000006;
     address internal _USDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
     bool internal _IS_STABLE = false;
-
-    address public owner;
-    address public user;
 
     receive() external payable {}
 
@@ -42,9 +37,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             address(marketManager),
             _WETH
         );
-
-        owner = address(this);
-        user = user1;
     }
 
     function testInitialize() public {
@@ -56,9 +48,9 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
 
     function testEnterVelodrome() public {
         uint256 ethAmount = 3 ether;
-        vm.deal(user, ethAmount);
+        vm.deal(user1, ethAmount);
 
-        vm.prank(user);
+        vm.prank(user1);
         complexZapper.enterVelodrome{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -71,19 +63,19 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
-            user
+            user1
         );
 
-        assertEq(user.balance, 0);
-        assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user), 0);
+        assertEq(user1.balance, 0);
+        assertGt(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
     }
 
     function testExitVelodrome() public {
         testEnterVelodrome();
 
-        uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user);
+        uint256 withdrawAmount = IERC20(_VELODROME_WETH_USDC).balanceOf(user1);
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
         IERC20(_VELODROME_WETH_USDC).approve(
             address(complexZapper),
             withdrawAmount
@@ -98,12 +90,12 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
                 false
             ),
             new SwapperLib.Swap[](0),
-            user
+            user1
         );
         vm.stopPrank();
 
-        assertGt(IERC20(_WETH).balanceOf(user), 0);
-        // assertGt(IERC20(_USDC).balanceOf(user), 0);
-        assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user), 0);
+        assertGt(IERC20(_WETH).balanceOf(user1), 0);
+        // assertGt(IERC20(_USDC).balanceOf(user1), 0);
+        assertEq(IERC20(_VELODROME_WETH_USDC).balanceOf(user1), 0);
     }
 }
