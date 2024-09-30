@@ -148,7 +148,7 @@ abstract contract CTokenBase is
 
         if (
             msg.sender == receiver ||
-            msg.sender == marketManager.positionFolding()
+            msg.sender == marketManager.positionManagement()
         ) {
             marketManager.postCollateral(receiver, address(this), shares);
         }

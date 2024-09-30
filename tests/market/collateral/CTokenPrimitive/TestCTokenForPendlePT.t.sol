@@ -17,10 +17,6 @@ contract User {}
 contract TestCTokenForPendlePT is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     address internal constant _PT_ORACLE =
         0x14030836AEc15B2ad48bB097bd57032559339c92;
 
@@ -28,14 +24,18 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     address internal _PT_STETH = 0x7758896b6AC966BbABcf143eFA963030f17D3EdF; // PT-stETH-26DEC24
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
 
-    PendlePrincipalTokenAdaptor adapter;
+    PendlePrincipalTokenAdaptor public adapter;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    CTokenPrimitive cPendlePT;
-    IERC20 pendlePT = IERC20(_PT_STETH);
+    CTokenPrimitive public cPendlePT;
+    IERC20 public pendlePT = IERC20(_PT_STETH);
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();
@@ -179,8 +179,8 @@ contract TestCTokenForPendlePT is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cPendlePT.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cPendlePT.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintRedeem() public {
@@ -331,6 +331,12 @@ contract TestCTokenForPendlePT is TestBaseMarket {
 
         // try borrow()
         dUSDC.borrow(500e6);
+
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dUSDC.redeem(1000e6);
 
         // skip min hold period
         skip(20 minutes);

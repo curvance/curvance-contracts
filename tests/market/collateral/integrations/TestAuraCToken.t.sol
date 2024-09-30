@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IERC20 } from "contracts/market/collateral/Convex2PoolCToken.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -11,17 +10,16 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import "tests/market/TestBaseMarket.sol";
 
 contract TestAuraCToken is TestBaseMarket {
-    IERC20 public constant BAL =
-        IERC20(0xba100000625a3754423978a60c9317c58a424e3D);
-    IERC20 public constant AURA =
-        IERC20(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
+    address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
+    address internal _AURA_ADDRESS =
+        0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
-    MockDataFeed mockBALFeed;
-    MockDataFeed mockAURAFeed;
+    MockDataFeed public mockBALFeed;
+    MockDataFeed public mockAURAFeed;
 
     receive() external payable {}
 
@@ -93,9 +91,9 @@ contract TestAuraCToken is TestBaseMarket {
             0xdF2917806E30300537aEB49A7663062F4d1F2b5F
         );
         mockBALFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(address(BAL), address(mockBALFeed), 0, true);
+        chainlinkAdaptor.addAsset(_BAL_ADDRESS, address(mockBALFeed), 0, true);
         oracleRouter.addAssetPriceFeed(
-            address(BAL),
+            _BAL_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -104,13 +102,13 @@ contract TestAuraCToken is TestBaseMarket {
         );
         mockAURAFeed.setMockUpdatedAt(block.timestamp);
         chainlinkAdaptor.addAsset(
-            address(AURA),
+            _AURA_ADDRESS,
             address(mockAURAFeed),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(AURA),
+            _AURA_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -137,10 +135,10 @@ contract TestAuraCToken is TestBaseMarket {
         uint256 assets = 100e18;
         _prepareBALRETH(user1, assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         balRETH.approve(address(cBALRETH), assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cBALRETH.deposit(assets, user1);
 
         assertEq(
@@ -169,12 +167,12 @@ contract TestAuraCToken is TestBaseMarket {
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](1);
         uint256 balAmount = 100 ether;
         swaps[0].slippage = 0.3e18;
-        swaps[0].inputToken = address(BAL);
+        swaps[0].inputToken = _BAL_ADDRESS;
         swaps[0].inputAmount = balAmount;
         swaps[0].outputToken = _WETH_ADDRESS;
         swaps[0].target = _UNISWAP_V2_ROUTER;
         address[] memory path = new address[](2);
-        path[0] = address(BAL);
+        path[0] = _BAL_ADDRESS;
         path[1] = _WETH_ADDRESS;
         swaps[0].call = abi.encodeWithSignature(
             "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
@@ -195,7 +193,7 @@ contract TestAuraCToken is TestBaseMarket {
             "Total Assets should equal user deposit."
         );
 
-        vm.startPrank(address(user1));
+        vm.startPrank(user1);
         cBALRETH.withdraw(cBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
     }

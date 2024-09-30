@@ -4,26 +4,29 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/AerodromeStableCToken.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract TestAerodromeStableCToken is TestBaseMarket {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
-    address internal _AERODROME_USDC_DAI =
+    address internal _AERODROME_DAI_USDC =
         0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc;
     IVeloGauge public gauge =
         IVeloGauge(0x640e9ef68e1353112fF18826c4eDa844E1dC5eD0);
-    IVeloPairFactory public veloPairFactory =
+    IVeloPairFactory public aeroPairFactory =
         IVeloPairFactory(0x420DD381b31aEf6683db6B902084cB0FFECe40Da);
-    IVeloRouter public veloRouter =
+    IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStableCToken cUSDCDAI;
-    MockV3Aggregator chainlinkAero;
-    MockV3Aggregator chainlinkDai;
+    AerodromeStableCToken public cUSDCDAI;
+    VelodromeStableLPAdaptor public adaptor;
+    MockV3Aggregator public chainlinkAERO;
+    MockV3Aggregator public chainlinkDAI;
+    MockV3Aggregator public chainlinkUSDC;
 
     receive() external payable {}
 
@@ -35,7 +38,7 @@ contract TestAerodromeStableCToken is TestBaseMarket {
     }
 
     function setUp() public override {
-        _fork("ETH_NODE_URI_BASE", 10585060);
+        _fork("ETH_NODE_URI_BASE", 19000000);
 
         _deployCentralRegistry();
         _deployCVE();
@@ -47,17 +50,17 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeAccumulator(address(this));
         centralRegistry.setExternalCallDataChecker(
-            address(veloRouter),
-            address(new MockCallDataChecker(address(veloRouter)))
+            address(aeroRouter),
+            address(new MockCallDataChecker(address(aeroRouter)))
         );
 
         cUSDCDAI = new AerodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(_AERODROME_USDC_DAI),
+            IERC20(_AERODROME_DAI_USDC),
             address(marketManager),
             gauge,
-            veloPairFactory,
-            veloRouter
+            aeroPairFactory,
+            aeroRouter
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -69,10 +72,10 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         );
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
 
-        chainlinkAero = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
+        chainlinkAERO = new MockV3Aggregator(8, 0.65e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _AERO_ADDRESS,
-            address(chainlinkAero),
+            address(chainlinkAERO),
             0,
             true
         );
@@ -81,10 +84,10 @@ contract TestAerodromeStableCToken is TestBaseMarket {
             address(chainlinkAdaptor)
         );
 
-        chainlinkDai = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkDAI = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
             _DAI_ADDRESS,
-            address(chainlinkDai),
+            address(chainlinkDAI),
             0,
             true
         );
@@ -92,20 +95,103 @@ contract TestAerodromeStableCToken is TestBaseMarket {
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
+
+        chainlinkUSDC = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(chainlinkUSDC),
+            0,
+            true
+        );
+        oracleRouter.addAssetPriceFeed(
+            _USDC_ADDRESS,
+            address(chainlinkAdaptor)
+        );
+
+        adaptor = new VelodromeStableLPAdaptor(
+            ICentralRegistry(address(centralRegistry))
+        );
+        adaptor.addAsset(_AERODROME_DAI_USDC);
+        oracleRouter.addApprovedAdaptor(address(adaptor));
+        oracleRouter.addAssetPriceFeed(_AERODROME_DAI_USDC, address(adaptor));
 
         centralRegistry.setSlippageLimit(6000);
     }
 
-    function testUsdcDaiStablePool() public {
-        uint256 assets = 100e18;
-        deal(_AERODROME_USDC_DAI, user1, assets);
-        deal(_AERODROME_USDC_DAI, address(this), 42069);
+    function testDaiUsdcStablePool_fuzzed(uint256 amount0) public {
+        vm.assume(100e18 < amount0 && amount0 < 500_000e18);
 
-        IERC20(_AERODROME_USDC_DAI).approve(address(cUSDCDAI), 42069);
+        (uint256 price, uint256 errorCode) = oracleRouter.getPrice(
+            _AERODROME_DAI_USDC,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertGt(price, 0);
+
+        deal(_DAI_ADDRESS, user1, amount0 * 2);
+
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _DAI_ADDRESS;
+        routes[0].to = _USDC_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(aeroPairFactory);
+
+        vm.startPrank(user1);
+
+        SwapperLib._approveTokenIfNeeded(
+            _DAI_ADDRESS,
+            address(aeroRouter),
+            amount0
+        );
+        aeroRouter.swapExactTokensForTokens(
+            amount0,
+            0,
+            routes,
+            user1,
+            type(uint256).max
+        );
+
+        uint256 amount1 = usdc.balanceOf(user1);
+
+        SwapperLib._approveTokenIfNeeded(
+            _DAI_ADDRESS,
+            address(aeroRouter),
+            amount0
+        );
+        SwapperLib._approveTokenIfNeeded(
+            _USDC_ADDRESS,
+            address(aeroRouter),
+            amount1
+        );
+        (, , uint256 assets) = aeroRouter.addLiquidity(
+            _DAI_ADDRESS,
+            _USDC_ADDRESS,
+            true,
+            amount0,
+            amount1,
+            0,
+            0,
+            user1,
+            block.timestamp
+        );
+
+        vm.stopPrank();
+
+        (uint256 updatedPrice, ) = oracleRouter.getPrice(
+            _AERODROME_DAI_USDC,
+            true,
+            false
+        );
+        assertApproxEqRel(updatedPrice, price, 0.0001e18);
+
+        deal(_AERODROME_DAI_USDC, address(this), 42069);
+
+        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 42069);
         marketManager.listToken(address(cUSDCDAI));
 
         vm.prank(user1);
-        IERC20(_AERODROME_USDC_DAI).approve(address(cUSDCDAI), assets);
+        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), assets);
 
         vm.prank(user1);
         cUSDCDAI.deposit(assets, user1);
@@ -124,8 +210,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
 
         // Advance time to earn CRV and CVX rewards
         vm.warp(block.timestamp + 1 days);
-        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
-        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
         uint256 earned = gauge.earned(address(cUSDCDAI));
@@ -134,12 +220,12 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         swapData.inputToken = _AERO_ADDRESS;
         swapData.inputAmount = amount;
         swapData.outputToken = _DAI_ADDRESS;
-        swapData.target = address(veloRouter);
-        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        swapData.target = address(aeroRouter);
+        routes = new IVeloRouter.Route[](1);
         routes[0].from = _AERO_ADDRESS;
         routes[0].to = _DAI_ADDRESS;
         routes[0].stable = false;
-        routes[0].factory = address(veloPairFactory);
+        routes[0].factory = address(aeroPairFactory);
         swapData.call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
             amount,
@@ -159,8 +245,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         );
 
         vm.warp(block.timestamp + 8 days);
-        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
-        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         // Mint some extra rewards for Vault.
         earned = gauge.earned(address(cUSDCDAI));
@@ -177,8 +263,8 @@ contract TestAerodromeStableCToken is TestBaseMarket {
         cUSDCDAI.harvest(abi.encode(swapData));
 
         vm.warp(block.timestamp + 7 days);
-        chainlinkAero.updateAnswer(chainlinkAero.latestAnswer());
-        chainlinkDai.updateAnswer(chainlinkDai.latestAnswer());
+        chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
+        chainlinkDAI.updateAnswer(chainlinkDAI.latestAnswer());
 
         assertGt(
             cUSDCDAI.totalAssets(),

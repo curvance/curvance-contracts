@@ -10,9 +10,9 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
 contract TestVelodromeStableCToken is TestBaseMarket {
-    IERC20 public VELO = IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
-    IERC20 public USDC_DAI =
-        IERC20(0x19715771E30c93915A5bbDa134d782b81A820076);
+    address internal _VELO_ADDRESS =
+        0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db;
+    address internal _USDC_DAI = 0x19715771E30c93915A5bbDa134d782b81A820076;
     IVeloGauge public gauge =
         IVeloGauge(0x6998089F6bDd9c74C7D8d01b99d7e379ccCcb02D);
     IVeloPairFactory public veloPairFactory =
@@ -53,7 +53,7 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
         cUSDCDAI = new VelodromeStableCToken(
             ICentralRegistry(address(centralRegistry)),
-            USDC_DAI,
+            IERC20(_USDC_DAI),
             address(marketManager),
             gauge,
             veloPairFactory,
@@ -71,13 +71,13 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
         chainlinkVELO = new MockV3Aggregator(8, 0.06e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
-            address(VELO),
+            _VELO_ADDRESS,
             address(chainlinkVELO),
             0,
             true
         );
         oracleRouter.addAssetPriceFeed(
-            address(VELO),
+            _VELO_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -98,14 +98,14 @@ contract TestVelodromeStableCToken is TestBaseMarket {
 
     function testUsdcDaiStablePool() public {
         uint256 assets = 100e18;
-        deal(address(USDC_DAI), user1, assets);
-        deal(address(USDC_DAI), address(this), 42069);
+        deal(_USDC_DAI, user1, assets);
+        deal(_USDC_DAI, address(this), 42069);
 
-        USDC_DAI.approve(address(cUSDCDAI), 42069);
+        IERC20(_USDC_DAI).approve(address(cUSDCDAI), 42069);
         marketManager.listToken(address(cUSDCDAI));
 
         vm.prank(user1);
-        USDC_DAI.approve(address(cUSDCDAI), assets);
+        IERC20(_USDC_DAI).approve(address(cUSDCDAI), assets);
 
         vm.prank(user1);
         cUSDCDAI.deposit(assets, user1);
@@ -117,7 +117,7 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         );
 
         vm.startPrank(gauge.voter());
-        VELO.approve(address(gauge), 10e18);
+        IERC20(_VELO_ADDRESS).approve(address(gauge), 10e18);
         gauge.notifyRewardAmount(10e18);
         vm.stopPrank();
 
@@ -130,12 +130,12 @@ contract TestVelodromeStableCToken is TestBaseMarket {
         uint256 earned = gauge.earned(address(cUSDCDAI));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
-        swapData.inputToken = address(VELO);
+        swapData.inputToken = _VELO_ADDRESS;
         swapData.inputAmount = amount;
         swapData.outputToken = _USDC_ADDRESS;
         swapData.target = address(veloRouter);
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
-        routes[0].from = address(VELO);
+        routes[0].from = _VELO_ADDRESS;
         routes[0].to = _USDC_ADDRESS;
         routes[0].stable = false;
         routes[0].factory = address(veloPairFactory);

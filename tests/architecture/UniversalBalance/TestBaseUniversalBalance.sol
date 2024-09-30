@@ -20,5 +20,14 @@ contract TestBaseUniversalBalance is TestBaseMarket {
             address(dWETH),
             _WETH_ADDRESS
         );
+
+        deal(_WETH_ADDRESS, address(this), 10e18);
+        deal(user1, _ONE);
+
+        weth.approve(address(dWETH), 10e18);
+        marketManager.listToken(address(dWETH));
+        oracleRouter.addMTokenSupport(address(dWETH));
+
+        dWETH.depositReserves(_ONE + 1);
     }
 }

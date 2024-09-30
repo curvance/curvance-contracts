@@ -20,18 +20,18 @@ contract User {}
 contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
-    MockRedstoneCoreAdaptor adapter;
-    MulticallDataCheckerForRedstoneAdaptor multicallDataChecker;
+    MockRedstoneCoreAdaptor public adapter;
+    MulticallDataCheckerForRedstoneAdaptor public multicallDataChecker;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    CTokenPrimitive cWBTC;
+    CTokenPrimitive public cWBTC;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     address private PYTH = 0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
@@ -100,7 +100,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         (bool success, ) = address(adapter).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
@@ -112,7 +112,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         (success, ) = address(adapter).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         // deploy dUSDC
         {
@@ -195,8 +195,8 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cWBTC.isCToken(), true);
-        assertEq(dUSDC.isCToken(), false);
+        assertTrue(cWBTC.isCToken());
+        assertFalse(dUSDC.isCToken());
     }
 
     function testCTokenMintMulticall() public {

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
@@ -62,11 +63,65 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             block.timestamp
         );
 
+        vm.prank(address(dUSDC));
+
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        vm.prank(address(dUSDC));
         marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
+    }
+
+    function test_canBorrowWithPrune_fail_whenInsufficientLoanSize() public {
+        chainlinkEthUsd.updateRoundData(
+            0,
+            1500e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1500e18,
+            block.timestamp,
+            block.timestamp
+        );
+
+        marketManager.listToken(address(cBALRETH));
+        marketManager.updateCollateralToken(
+            IMToken(address(cBALRETH)),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            10,
+            1000
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(cBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManager.setCTokenCollateralCaps(tokens, caps);
+
+        // Need some CTokens/collateral to have enough liquidity for borrowing
+        deal(address(balRETH), user1, 1_000e18);
+        vm.startPrank(user1);
+        balRETH.approve(address(cBALRETH), 10e18);
+        cBALRETH.deposit(10e18, user1);
+        marketManager.postCollateral(user1, address(cBALRETH), 10e18);
+        vm.stopPrank();
+
+        vm.prank(address(dUSDC));
+
+        vm.expectRevert(
+            LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
+        );
+        marketManager.canBorrowWithPrune(address(dUSDC), user1, 10e6);
     }
 
     function test_canBorrowWithPrune_success_whenSufficientLiquidity() public {

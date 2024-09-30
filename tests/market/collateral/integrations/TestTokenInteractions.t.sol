@@ -10,13 +10,13 @@ import "tests/market/TestBaseMarket.sol";
 contract TestTokenInteractions is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();
@@ -122,8 +122,8 @@ contract TestTokenInteractions is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(cBALRETH.isCToken(), true);
-        assertEq(dDAI.isCToken(), false);
+        assertTrue(cBALRETH.isCToken());
+        assertFalse(dDAI.isCToken());
     }
 
     function testCTokenMintRedeem() public {
@@ -272,6 +272,12 @@ contract TestTokenInteractions is TestBaseMarket {
 
         // try borrow()
         dDAI.borrow(500 ether);
+
+        // fail to redeem before minimum hold time pass
+        vm.expectRevert(
+            MarketManager.MarketManager__MinimumHoldPeriod.selector
+        );
+        dDAI.redeem(1000 ether);
 
         // skip min hold period
         skip(20 minutes);

@@ -312,9 +312,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
     /// @notice Removes an extra reward from the gauge system.
     /// @param newReward The address of the extra reward to be removed.
-    function removeExtraRewardToken(
-        address newReward
-    ) external {
+    function removeExtraRewardToken(address newReward) external {
         _checkDaoPermissions();
 
         // Cannot remove CVE as a reward token.
@@ -330,13 +328,17 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
     /// @notice Returns the active reward tokens on the Gauge Manager,
     ///         for ease of integration by third parties.
-    function getRewardTokens(address token) external view returns (address[] memory) {
+    function getRewardTokens(
+        address token
+    ) external view returns (address[] memory) {
         return rewardTokens[token];
     }
 
     /// @notice Returns the number of active reward tokens on the Gauge Manager,
     ///         for ease of integration by third parties.
-    function getRewardTokensLength(address token) external view returns (uint256) {
+    function getRewardTokensLength(
+        address token
+    ) external view returns (uint256) {
         return rewardTokens[token].length;
     }
 
@@ -376,9 +378,13 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             }
             uint256 lastEpoch = lastEpochOf[token][_rewardToken];
             if (currentEpoch() > lastEpoch + SIX_MONTH_IN_EPOCH) {
-                uint256 indexToRemove = rewardTokenToIndex[token][_rewardToken];
+                uint256 indexToRemove = rewardTokenToIndex[token][
+                    _rewardToken
+                ];
                 if (indexToRemove != (rewardTokensLength - 1)) {
-                    rewardTokens[token][indexToRemove] = rewardTokens[token][rewardTokensLength - 1];
+                    rewardTokens[token][indexToRemove] = rewardTokens[token][
+                        rewardTokensLength - 1
+                    ];
                 }
                 rewardTokens[token].pop();
                 rewardTokenToIndex[token][_rewardToken] = 0;
@@ -388,7 +394,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         uint256 index = rewardTokenToIndex[token][rewardToken];
         if (index == 0) {
             rewardTokens[token].push(rewardToken);
-            rewardTokenToIndex[token][rewardToken] = ++lastRewardTokenIndex[token];
+            rewardTokenToIndex[token][rewardToken] = ++lastRewardTokenIndex[
+                token
+            ];
             index = lastRewardTokenIndex[token];
         }
 
@@ -405,9 +413,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             amount
         );
 
-        _epochRewardPerSec[token][epoch][index] +=
-            amount /
-            EPOCH_DURATION;
+        _epochRewardPerSec[token][epoch][index] += amount / EPOCH_DURATION;
 
         if (lastEpochOf[token][rewardToken] < epoch) {
             lastEpochOf[token][rewardToken] = epoch;
@@ -471,7 +477,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         }
 
         return (EPOCH_DURATION *
-            _epochRewardPerSec[token][epoch][rewardTokenToIndex[token][rewardToken]]);
+            _epochRewardPerSec[token][epoch][
+                rewardTokenToIndex[token][rewardToken]
+            ]);
     }
 
     /// @notice Returns pending reward of user.

@@ -11,7 +11,6 @@ import { TestBaseOracleRouter } from "../TestBaseOracleRouter.sol";
 contract TestCamelotVolatileLPAdaptor is TestBaseOracleRouter {
     address internal _BRIDGED_USDC_ADDRESS =
         0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
-
     address internal _CAMELOT_WETH_USDC =
         0x84652bb2539513BAf36e225c930Fdd8eaa63CE27;
 
