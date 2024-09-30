@@ -228,7 +228,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         );
 
         // Calculate dTokens to be minted.
-        uint256 tokens = convertToShares(amount);
+        uint256 tokens = amount;
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
