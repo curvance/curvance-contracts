@@ -581,7 +581,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
                 }
             }
 
-            if (executeFeeds) {
+            if (executeFeeds && !router.isSupportedAsset(underlying)) {
                 _addRedstonePriceFeed(underlyingToken, adaptor, router);
             }
         }

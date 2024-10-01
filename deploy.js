@@ -37,6 +37,7 @@ async function main() {
         '--skip-simulation',
         '--no-storage-caching',
         '--priority-gas-price 150',
+        '-g 230'
       ]);
       console.log(`Deploying to ${network}`);
     }
