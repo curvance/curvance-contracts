@@ -177,7 +177,6 @@ abstract contract CTokenCompounding is CTokenBase {
         address by
     ) external override nonReentrant returns (bool) {
         _startMarket(by);
-        _afterDeposit(42069, 42069);
         _setlastVestClaim(uint40(block.timestamp));
         compoundingPaused = 1;
         return true;
@@ -598,7 +597,7 @@ abstract contract CTokenCompounding is CTokenBase {
         uint256 shares = _initialConvertToShares(assets);
 
         // Execute any deposit strategy.
-        _afterDeposit(assets, shares);  
+        _afterDeposit(assets, shares);
     }
 
     /// @notice Sets a new `_vaultData` invariant based on `yieldToVest`,
