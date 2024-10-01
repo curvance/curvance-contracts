@@ -6,6 +6,8 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract RewardManagerRescueTokenTest is TestBaseRewardManager {
+    receive() external payable {}
+
     function setUp() public override {
         super.setUp();
 

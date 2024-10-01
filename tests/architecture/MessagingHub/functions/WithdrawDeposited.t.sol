@@ -5,6 +5,8 @@ import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 
 contract WithdrawDepositedTest is TestBaseMessagingHub {
+    receive() external payable {}
+
     function setUp() public override {
         super.setUp();
 
