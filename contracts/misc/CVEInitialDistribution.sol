@@ -203,7 +203,7 @@ contract CVEInitialDistribution is ReentrancyGuard {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == cve) {
                 revert CVEInitialDistribution__TransferError();

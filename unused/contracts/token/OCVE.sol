@@ -98,7 +98,7 @@ contract OCVE is ERC20 {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == cve) {
                 revert OCVE__TransferError();

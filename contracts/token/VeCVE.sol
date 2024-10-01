@@ -243,7 +243,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == address(cve)) {
                 revert VeCVE__NonTransferrable();

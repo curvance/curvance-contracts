@@ -540,7 +540,7 @@ contract MessagingHub is QueryResponse {
         uint256 feeTokenBalance = _getFeeTokenHeld();
 
         if (gasTokenBalance > 0) {
-            SafeTransferLib.forceSafeTransferETH(
+            SafeTransferLib.safeTransferETH(
                 _getDaoAddress(),
                 gasTokenBalance
             );

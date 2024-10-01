@@ -166,7 +166,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == rewardToken) {
                 _revert(_UNAUTHORIZED_SELECTOR);

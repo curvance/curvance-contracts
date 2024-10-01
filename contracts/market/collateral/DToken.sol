@@ -720,7 +720,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == underlying) {
                 revert DToken__TransferError();

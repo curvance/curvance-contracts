@@ -328,7 +328,7 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 amount
     ) internal {
         if (CommonLib.isETH(token)) {
-            return SafeTransferLib.forceSafeTransferETH(recipient, amount);
+            return SafeTransferLib.safeTransferETH(recipient, amount);
         }
 
         SafeTransferLib.safeTransfer(token, recipient, amount);

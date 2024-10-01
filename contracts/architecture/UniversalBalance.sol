@@ -110,7 +110,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     function withdrawAsETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
         IWETH(WETH).withdraw(amount);
-        SafeTransferLib.forceSafeTransferETH(msg.sender, amount);
+        SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
 
     function withdrawAsWETH(uint256 amount, bool isLent) external {
@@ -252,7 +252,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
                 msg.sender,
                 msg.sender,
                 msg.sender,
-                amount,
+                tokensReceived,
                 tokensToRedeem
             );
             return tokensReceived;
