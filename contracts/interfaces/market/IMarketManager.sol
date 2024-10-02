@@ -174,5 +174,5 @@ interface IMarketManager {
     ) external view returns (uint256, uint256, uint256);
 
     /// @notice The address of the linked Position Folding Contract.
-    function positionManagement() external view returns (address);
+    function positionManagement(address positionContract) external view returns (bool);
 }

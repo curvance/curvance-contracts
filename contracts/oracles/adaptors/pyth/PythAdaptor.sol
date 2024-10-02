@@ -129,7 +129,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
         // refund remaining eth
-        uint256 remaining = address(this).balance;
+        uint256 remaining = msg.value - fee;
         if (remaining > 0) {
             SafeTransferLib.safeTransferETH(msg.sender, remaining);
         }
