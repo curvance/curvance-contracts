@@ -43,7 +43,7 @@ interface IMToken {
     function decimals() external view returns (uint8);
 
     /// @notice Returns the type of Curvance token.
-    /// @dev true = Collateral token; false = Debt token.
+    /// @dev true = Position token; false = Earn token.
     /// @return Whether this token is a pToken or not.
     function isPToken() external view returns (bool);
 
@@ -104,7 +104,7 @@ interface IMToken {
     /// @return Returns amount of underlying asset redeemed.
     function redeem(uint256 tokens) external returns (uint256);
 
-    /// @notice Transfers collateral tokens (this pToken) from `account`
+    /// @notice Transfers position tokens (this pToken) from `account`
     ///         to `liquidator`.
     /// @dev Will fail unless called by a eToken during the process
     ///      of liquidation.
@@ -137,7 +137,7 @@ interface IMToken {
         uint256 repayRatio
     ) external;
 
-    /// @notice Transfers collateral tokens (this market) to the liquidator.
+    /// @notice Transfers position tokens (this market) to the liquidator.
     /// @dev Will fail unless called by the MarketManager itself during
     ///      the process of liquidation.
     ///      NOTE: The protocol never takes a fee on account liquidation

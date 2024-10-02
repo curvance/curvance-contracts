@@ -341,13 +341,13 @@ abstract contract PositionManagementBase is
         uint256 collateralAmount,
         DeleverageStruct memory deleverageData
     ) external override {
-        // Validate that the collateral token itself is executing
+        // Validate that the position token itself is executing
         // the callback.
         if (msg.sender != positionToken) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Validate the collateral token is actually listed to this
+        // Validate the position token is actually listed to this
         // Market Manager.
         if (!marketManager.isListed(positionToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -360,7 +360,7 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidParam();
         }
 
-        // Swap collateral token (pToken underlying) to
+        // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
         address collateralUnderlying = PTokenPrimitive(positionToken)
             .underlying();

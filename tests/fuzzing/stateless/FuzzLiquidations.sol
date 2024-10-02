@@ -5,7 +5,7 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 contract FuzzLiquidations is StatefulBaseMarket {
-    /// @notice the collateral token to be used in liquidations
+    /// @notice the position token to be used in liquidations
     address positionToken;
     /// @notice the debt token to be used in liquidations
     address earnToken;
@@ -280,9 +280,9 @@ contract FuzzLiquidations is StatefulBaseMarket {
         calculated.debtToCollateralRatio = debtToCollateralRatio;
     }
 
-    /// @custom:property liq-9 if collateral token and debt token have the same number of decimals, amountAdjusted = debtBalanceCached
-    /// @custom:property liq-10 if collateral token decimals > earnTokenDecimals, amountAdjusted > debtBalanceCached
-    /// @custom:property liq-11 if collateral token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
+    /// @custom:property liq-9 if position token and debt token have the same number of decimals, amountAdjusted = debtBalanceCached
+    /// @custom:property liq-10 if position token decimals > earnTokenDecimals, amountAdjusted > debtBalanceCached
+    /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
     function _calculateAmountAdjusted() private {
         // Saves state
         uint256 positionTokenDecimals = IMToken(positionToken).decimals();
@@ -303,14 +303,14 @@ contract FuzzLiquidations is StatefulBaseMarket {
             if (amountAdjusted <= data.debtBalanceCached) {
                 errors[10] = HasError(
                     true,
-                    "LIQ-10 - amountAdjusted > debtBalanceCached when collateral token < debt token decimals"
+                    "LIQ-10 - amountAdjusted > debtBalanceCached when position token < debt token decimals"
                 );
             }
         } else if (positionTokenDecimals < earnTokenDecimals) {
             if (amountAdjusted >= data.debtBalanceCached) {
                 errors[11] = HasError(
                     true,
-                    "LIQ-11 - amountAdjusted < debtBalanceCached when collateral token < debt token decimals"
+                    "LIQ-11 - amountAdjusted < debtBalanceCached when position token < debt token decimals"
                 );
             }
         }

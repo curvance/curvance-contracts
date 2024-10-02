@@ -130,7 +130,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
             marketManager.listToken(address(cPendlePT));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cPendlePT));
-            // set collateral token configuration
+            // set position token configuration
             marketManager.updatePositionToken(
                 IMToken(address(cPendlePT)),
                 7000,

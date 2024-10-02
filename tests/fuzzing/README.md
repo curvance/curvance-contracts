@@ -140,7 +140,7 @@
 | MARKET-33 | Calling closePosition with correct preconditions should reduce the user asset list by 1 element, where collateral posted for the user is equal to 0.                | Passed1 |
 | MARKET-34 | Calling closePosition with correct preconditions should succeed, where collateral posted for the user is equal to 0.                                                | Passed  |
 | MARKET-35 | Liquidating an entire account should succeed with the correct preconditions.                                                                                        | Failed  |
-| MARKET-36 | Liquidating an entire account should zero out users’ balance for every collateral token they deposited.                                                             | Passed  |
+| MARKET-36 | Liquidating an entire account should zero out users’ balance for every position token they deposited.                                                               | Passed  |
 | MARKET-37 | Liquidating an entire account should remove the user’s position in every asset.                                                                                     | Passed  |
 | MARKET-38 | Attempting to liquidate an entire account (hard liquidation) should fail if the collateral >= debt with NoLiquidationAvailable.                                     | Passed  |
 | MARKET-39 | Attempting to liquidate an entire account (hard liquidation) should fail if a user is attempting to liquidate themselves with Unauthorized.                         | Passed  |
@@ -211,21 +211,21 @@
 
 ## Market Manager – Liquidation Invariants
 
-| ID     | Property                                                                                                            | Result |
-| ------ | ------------------------------------------------------------------------------------------------------------------- | ------ |
-| LIQ-1  | The baseCFactor must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                         | Passed |
-| LIQ-2  | The lFactor must be bound between 1 and WAD.                                                                        | Passed |
-| LIQ-3  | The resulting cFactor be bound between baseCFactor and WAD                                                          | Passed |
-| LIQ-4  | The liqBaseIncentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE                  | Passed |
-| LIQ-5  | The resulting incentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE               | Passed |
-| LIQ-6  | If cfactor is equivalent to 0, maxAmount should be equal to the 0.                                                  | Passed |
-| LIQ-7  | If cfactor is equivalent to WAD, maxAmount is equal to debtBalanceCached                                            | Passed |
-| LIQ-8  | If cfactor is bound between 0 and WAD, non-inclusive, the maxAmount is bound between 0, debtBalanceCached.          | Passed |
-| LIQ-9  | If the collateral token has less decimals than the debt token, amountAdjusted should be less than the debt balance. | Passed |
-| LIQ-10 | If the collateral token has more decimals than the debt token, amountAdjusted > debtBalanceCached.                  | Passed |
-| LIQ-11 | If collateral token decimals has less decimals than the debtTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
-| LIQ-12 | If amountAdjusted==0, tokens to be liquidated should be equal to 0.                                                 | Passed |
-| LIQ-13 | If debtToCollateralRatio==0, tokens to be liquidated should be equal to 0.                                          | Passed |
+| ID     | Property                                                                                                          | Result |
+| ------ | ----------------------------------------------------------------------------------------------------------------- | ------ |
+| LIQ-1  | The baseCFactor must be bound between MIN_BASE_CFACTOR and MAX_BASE_CFACTOR                                       | Passed |
+| LIQ-2  | The lFactor must be bound between 1 and WAD.                                                                      | Passed |
+| LIQ-3  | The resulting cFactor be bound between baseCFactor and WAD                                                        | Passed |
+| LIQ-4  | The liqBaseIncentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE                | Passed |
+| LIQ-5  | The resulting incentive must be bound between MIN_LIQUIDATION_INCENTIVE and MAX_LIQUIDATION_INCENTIVE             | Passed |
+| LIQ-6  | If cfactor is equivalent to 0, maxAmount should be equal to the 0.                                                | Passed |
+| LIQ-7  | If cfactor is equivalent to WAD, maxAmount is equal to debtBalanceCached                                          | Passed |
+| LIQ-8  | If cfactor is bound between 0 and WAD, non-inclusive, the maxAmount is bound between 0, debtBalanceCached.        | Passed |
+| LIQ-9  | If the position token has less decimals than the debt token, amountAdjusted should be less than the debt balance. | Passed |
+| LIQ-10 | If the position token has more decimals than the debt token, amountAdjusted > debtBalanceCached.                  | Passed |
+| LIQ-11 | If position token decimals has less decimals than the debtTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
+| LIQ-12 | If amountAdjusted==0, tokens to be liquidated should be equal to 0.                                               | Passed |
+| LIQ-13 | If debtToCollateralRatio==0, tokens to be liquidated should be equal to 0.                                        | Passed |
 
 ## EToken - Functional Invariants
 
@@ -250,16 +250,16 @@
 | DTOK-17 | Repaying an amount with interest accruing should make totalBorrows equivalent to totalBorrows - preTotalBorrows - amount - (abs(new_exchange_rate - old_exchange_rate)\*accountDebt) | Passed |
 | DTOK-18 | The mint function should revert if amount \* WAD / exchangRate == 0, when trying to deposit to the GaugePool.                                                                        | Passed |
 | DTOK-19 | Applying a soft liquidation of exactly 0 tokens should fail with InvalidParameter or InvalidParameter errors.                                                                        | Failed |
-| DTOK-20 | Liquidating a non-exact amount should remove the user's position in the collateral token                                                                                             | Passed |
-| DTOK-21 | Liquidating a non-exact amount should zero out the collateral posted for a user in the collateral token.                                                                             | Passed |
+| DTOK-20 | Liquidating a non-exact amount should remove the user's position in the position token                                                                                               | Passed |
+| DTOK-21 | Liquidating a non-exact amount should zero out the collateral posted for a user in the position token.                                                                               | Passed |
 | DTOK-22 | Liquidating a non-exact amount should zero out the debt balance of the respective debt token.                                                                                        | Passed |
 | DTOK-23 | Liquidating a non-exact amount should decrease collateral balance for an account.                                                                                                    | Failed |
 | DTOK-24 | Liquidating a non-exact amount should decrease the liquidator's underlying eTokenBalance by debtToLiquidate.                                                                         | Passed |
-| DTOK-25 | Liquidating a non-exact amount should increase the collateral token balance by (amount seized by liquidation - amount seized by protocol).                                           | Failed |
+| DTOK-25 | Liquidating a non-exact amount should increase the position token balance by (amount seized by liquidation - amount seized by protocol).                                             | Failed |
 | DTOK-26 | Liquidating an exact amount should result in the priorCollateral - currentCollateral being equal to the amount seized for liquidation.                                               | Passed |
 | DTOK-27 | Liquidating an exact amount should result in account debt decreasing by debtToLiquidate.                                                                                             | Passed |
 | DTOK-28 | Liquidating an exact amount should result in the underlying token balance of msg.sender after liquidation being equal to the previous underlying balance + debt to liquidate.        | Passed |
-| DTOK-29 | Liquidating an exact amount should result in collateral token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)                     | Passed |
+| DTOK-29 | Liquidating an exact amount should result in position token balance of the sender increasing by (amount seized by liquidation - amount seized by the protocol)                       | Passed |
 
 ## EToken – System Invariants
 
@@ -283,7 +283,7 @@ Tips and tricks:
 ### System-wide limitations
 
 - Larger range on oracle prices – This will allow the fuzzer to explore large price deviations – the current test suite uses a default price to match the unit tests of 1e8 for each asset
-- More token interactions – A larger range of debt and collateral tokens the fuzzer can transact with, with additional assets valued in USD and ETH would be meaningful for the rest of the system. This can also include decimal checks.
+- More token interactions – A larger range of debt and position tokens the fuzzer can transact with, with additional assets valued in USD and ETH would be meaningful for the rest of the system. This can also include decimal checks.
 - Larger input ranges – Input ranges being expanded to test entire full range of inputs (i.e: for uint256, testing the full range of 0 - type(uint256).max
 - No significant coverage in OracleManager while this fuzzing suite may consume input and output from the OracleManager, there are no stateful fuzzing tests targeting the correctness of these return values.
   - In liquidateAccount, an attempt is being made to show an example of how to introduce dynamic oracle pricing into the fuzzing suite, but will likely affect the rest of the market manager functions on edge cases, due to the need to check for underflow / overflow issues.

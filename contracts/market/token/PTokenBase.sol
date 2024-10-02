@@ -473,7 +473,7 @@ abstract contract PTokenBase is
         return true;
     }
 
-    /// @notice Transfers collateral tokens (this pToken) from `account`
+    /// @notice Transfers position tokens (this pToken) from `account`
     ///         to `liquidator`.
     /// @dev Will fail unless called by a eToken during the process
     ///      of liquidation.
@@ -518,7 +518,7 @@ abstract contract PTokenBase is
         }
     }
 
-    /// @notice Transfers collateral tokens (this market) to the liquidator.
+    /// @notice Transfers position tokens (this market) to the liquidator.
     /// @dev Will fail unless called by the MarketManager itself during
     ///      the process of liquidation.
     ///      NOTE: The protocol never takes a fee on account liquidation
@@ -550,7 +550,7 @@ abstract contract PTokenBase is
     }
 
     /// @notice Returns the type of Curvance token.
-    /// @dev true = Collateral token; false = Debt token.
+    /// @dev true = Position token; false = Debt token.
     /// @return Whether this token is a pToken or not.
     function isPToken() public pure returns (bool) {
         return true;

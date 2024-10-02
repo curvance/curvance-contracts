@@ -101,7 +101,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             marketManager.listToken(address(cWETH));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cWETH));
-            // set collateral token configuration
+            // set position token configuration
             marketManager.updatePositionToken(
                 IMToken(address(cWETH)),
                 7000,

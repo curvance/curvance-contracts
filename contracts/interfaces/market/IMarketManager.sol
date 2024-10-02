@@ -86,10 +86,10 @@ interface IMarketManager {
     function canRepay(address mToken, address account) external;
 
     /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many collateral tokens should be seized
+    ///         and returns how many position tokens should be seized
     ///         on liquidation.
     /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Collateral token which was used as collateral and will
+    /// @param pToken Position token which was used as collateral and will
     ///        be seized.
     /// @param account The address of the account to be liquidated.
     /// @param amount The amount of `earnToken` underlying being repaid.

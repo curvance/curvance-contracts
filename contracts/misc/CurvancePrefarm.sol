@@ -278,13 +278,13 @@ contract CurvancePrefarm {
 
         // Migrate prefarm asset into Curvance protocol.
         if (migrationToken.isPToken) {
-            // Migrate a collateral token.
+            // Migrate a position token.
             if (collateralize) {
-                // Migrate to a collateral token and immediately
+                // Migrate to a position token and immediately
                 // collateralize it.
                 IMToken(mToken).depositAsCollateralFor(amount, msg.sender);
             } else {
-                // Migrate to a collateral token and just deposit it.
+                // Migrate to a position token and just deposit it.
                 IMToken(mToken).deposit(amount, msg.sender);
             }
         } else {

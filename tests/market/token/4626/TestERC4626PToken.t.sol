@@ -25,7 +25,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarket {
         // start gauge to enable deposits
         vm.warp(veCVE.nextEpochStartTime() + 1000);
 
-        // deploy collateral token and pToken
+        // deploy position token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
         MockPTokenPrimitive mockPToken = new MockPTokenPrimitive(

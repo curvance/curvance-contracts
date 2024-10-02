@@ -367,8 +367,8 @@ contract BlastNativeYieldManager is ReentrancyGuard {
     /// @notice Sets routing of pToken rewards to eToken lenders.
     /// @dev This is a 1:1 mapping so in cases of cross margin markets
     ///      these mappings will need to be monitored.
-    /// @param pToken The collateral token to route native yield from.
-    /// @param pToken The debt token to route native yield to.
+    /// @param pToken The position token to route native yield from.
+    /// @param eToken The earn token to route native yield to.
     function setPTokenToETokenYieldDonation(
         address pToken,
         address eToken

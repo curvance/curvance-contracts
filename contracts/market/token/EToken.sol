@@ -984,7 +984,7 @@ contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @notice Returns the type of Curvance token.
-    /// @dev true = Collateral token; false = Debt token.
+    /// @dev true = Position token; false = Debt token.
     /// @return Whether this token is a pToken or not.
     function isPToken() public pure returns (bool) {
         return false;
@@ -1436,7 +1436,7 @@ contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
             }
         }
 
-        // The MToken must be a collateral token.
+        // The MToken must be a position token.
         if (!positionToken.isPToken()) {
             revert EToken__ValidationFailed();
         }
@@ -1487,7 +1487,7 @@ contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         emit Repay(liquidator, account, amount);
 
-        // We check above that the mToken must be a collateral token,
+        // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
         positionToken.seize(

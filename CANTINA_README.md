@@ -8,7 +8,7 @@ Curvance is a cross-chain money market for yield bearing assets. Maximize yield 
 
 Curvance operates as a hybrid model between a yield optimizer and a cross-margin money market. This model has various characteristics atypical for incumbent money markets such as:
 
-- Collateral deposits and debt deposits receive two different types of tokens, collateral tokens (pTokens) and debt tokens (eTokens).
+- Collateral deposits and debt deposits receive two different types of tokens, position tokens (pTokens) and debt tokens (eTokens).
 - Rehypothecation has been removed. This allows for the support of long-tail assets which, if borrowable, could introduce systemic risk to DeFi.
 - "Collateral Posting", by introducing a hybrid model, users can yield farm an unlimited amount of assets, but, to leverage the corresponding money market, the collateral must be "posted", like a perpetual exchange. Collateral posting has restrictions on the total amount of exogenous risk allowed to be introduced into the system.
 - Dynamic Interest Rates with interest rate decay, vertex slope can be adjusted upward or downward based on utilization similar to kashi, however, a new continuous negative decay rate is applied every cycle when interest rates slope is elevated.
@@ -22,7 +22,7 @@ Curvance operates as a hybrid model between a yield optimizer and a cross-margin
 ### Money Market System
 
 There are two types of tokens inside Curvance:
-Collateral tokens, aka pTokens that can be posted as collateral. Debt tokens, aka eTokens that can be lent out to pToken depositors. Unique to Curvance, rehypothecation of collateral token deposits is disabled, this decision was made to allow for vastly improved market risk modeling and the expansion of supportable assets to nearly any erc20 in existence.
+Position tokens, aka pTokens that can be posted as collateral. Debt tokens, aka eTokens that can be lent out to pToken depositors. Unique to Curvance, rehypothecation of position token deposits is disabled, this decision was made to allow for vastly improved market risk modeling and the expansion of supportable assets to nearly any erc20 in existence.
 
 All management of both pTokens and eTokens actions are managed by the Market Manager. These tokens are collectively referred to as Market Tokens, or mTokens. All pTokens and eTokens are mTokens but, not all pTokens are eTokens, and vice versa.
 
@@ -36,7 +36,7 @@ Additionally, a new "Dynamic Liquidation Engine" or DLE allows for more nuanced 
 
 Bad debt is minimized via a "Bad Debt Socialization" system. When a user's debt is greater than their collateral assets, the entire user's account can be liquidated with lenders paying any collateral shortfall.
 
-#### Collateral Tokens
+#### Position Tokens
 
 Curvance's pTokens are ERC4626 compliant. However, they follow their own design flow modifying underlying mechanisms such as totalAssets following a vesting mechanism in compounding vaults but a direct conversion in basic or "primitive" vaults.
 

@@ -16,9 +16,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
 /// @dev There are two types of tokens inside Curvance:
-///      Collateral tokens, aka pTokens that can be posted as collateral.
+///      Position tokens, aka pTokens that can be posted as collateral.
 ///      Debt tokens, aka eTokens that can be lent out to pToken depositors.
-///      Unique to Curvance, rehypothecation of collateral token deposits
+///      Unique to Curvance, rehypothecation of position token deposits
 ///      is disabled, this decision was made to allow for vastly improved
 ///      market risk modeling and the expansion of supportable assets to
 ///      nearly any erc20 in existence.
@@ -338,7 +338,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         uint256 borrowAmount // in Assets.
     ) external view returns (uint256, uint256, bool[] memory) {
         // Make sure they are not trying to hypothetically borrow
-        // a collateral token.
+        // a position token.
         if (IMToken(mTokenModified).isPToken() && borrowAmount > 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -363,7 +363,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     }
 
     /// @notice Posts `tokens` of `pToken` as collateral inside this market.
-    /// @dev The collateral token must have collateralization
+    /// @dev The position token must have collateralization
     ///      enabled (collRatio > 0).
     /// @param account The account posting collateral.
     /// @param pToken The address of the pToken to post collateral for.
@@ -585,10 +585,10 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many collateral tokens should be seized
+    ///         and returns how many position tokens should be seized
     ///         on liquidation.
     /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Collateral token collateralized by `account` and will
+    /// @param pToken Position token collateralized by `account` and will
     ///               be seized.
     /// @param account The address of the account to be liquidated.
     /// @param amount The amount of `earnToken` underlying being repaid.
@@ -611,10 +611,10 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many collateral tokens should be seized
+    ///         and returns how many position tokens should be seized
     ///         on liquidation.
     /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Collateral token which was used as collateral and will
+    /// @param pToken Position token which was used as collateral and will
     ///        be seized.
     /// @param account The address of the account to be liquidated.
     /// @param amount The amount of `earnToken` underlying being repaid.
@@ -1485,7 +1485,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the mToken itself
     ///      (specifically pTokens, because eTokens are never collateral).
-    /// @param pToken The collateral token to verify the redemption against.
+    /// @param pToken The position token to verify the redemption against.
     /// @param account The account which would redeem the tokens.
     /// @param balance The current mTokens balance of `account`.
     /// @param amount The number of mTokens to exchange
@@ -1614,7 +1614,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 WAD;
 
             // Get the exchange rate, and calculate the number of
-            // collateral tokens to seize.
+            // position tokens to seize.
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *

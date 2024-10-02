@@ -864,7 +864,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     }
 
     /// @custom:property market-35 Liquidating an acount with the correct preconditions should succeed (i.e: no revert, no panic)
-    /// @custom:property market-36 Liquidating an account should result in all collateral token balances being zeroed out.
+    /// @custom:property market-36 Liquidating an account should result in all position token balances being zeroed out.
     /// @custom:property market-37 Liquidating an account should result in all debtBalanceCached() for all debt tokens being zeroed out.
     /// @custom:property market-42 Liquidating an account should result in no more than a 1 wei difference btwn totalborrows and accountDebt
     /// @custom:precondition seizePaused must !=2 (i.e: market manager does not have seizePaused)
@@ -1101,7 +1101,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 daiPrice,
         uint256 usdcPrice
     ) internal returns (uint256) {
-        // ensure price feeds are up to date and in sync before updating collateral token and listing
+        // ensure price feeds are up to date and in sync before updating position token and listing
         _check_price_feed();
         {
             (

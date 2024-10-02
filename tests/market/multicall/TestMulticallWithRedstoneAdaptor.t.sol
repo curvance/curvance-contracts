@@ -146,7 +146,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             marketManager.listToken(address(cWBTC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cWBTC));
-            // set collateral token configuration
+            // set position token configuration
             marketManager.updatePositionToken(
                 IMToken(address(cWBTC)),
                 7000,

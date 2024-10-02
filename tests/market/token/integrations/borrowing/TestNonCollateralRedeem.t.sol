@@ -27,7 +27,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         marketManager.listToken(address(pBALRETH));
         marketManager.listToken(address(eUSDC));
 
-        // Config collateral token
+        // Config position token
         marketManager.updatePositionToken(
             IMToken(address(pBALRETH)),
             7000,
