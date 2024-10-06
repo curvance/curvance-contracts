@@ -17,6 +17,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         super.setUp();
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        srcVotingHub = makeAddr("SrcVotingHub");
         additionalMessages.push(abi.encode("1", "1"));
 
         centralRegistry.addChainSupport(

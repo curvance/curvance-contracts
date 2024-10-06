@@ -12,6 +12,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         _fork(19140000);
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        srcVotingHub = makeAddr("SrcVotingHub");
         _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
