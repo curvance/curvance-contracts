@@ -17,6 +17,7 @@ contract AddChainSupportTest is TestBaseMarket {
         );
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
@@ -29,6 +30,7 @@ contract AddChainSupportTest is TestBaseMarket {
     function test_addChainSupport_fail_whenChainOperatorAlreadyAdded() public {
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
@@ -40,6 +42,7 @@ contract AddChainSupportTest is TestBaseMarket {
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.addChainSupport(
+            address(this),
             address(this),
             address(1),
             _USDC_ADDRESS,
@@ -53,6 +56,7 @@ contract AddChainSupportTest is TestBaseMarket {
     function test_addChainSupport_fail_whenChainAlreadyAdded() public {
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(1),
             _USDC_ADDRESS,
             42161,
@@ -64,6 +68,7 @@ contract AddChainSupportTest is TestBaseMarket {
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.addChainSupport(
+            address(this),
             address(this),
             address(1),
             _USDC_ADDRESS,
@@ -84,6 +89,7 @@ contract AddChainSupportTest is TestBaseMarket {
 
         centralRegistry.addChainSupport(
             address(messagingHub),
+            address(votingHub),
             address(1),
             _USDC_ADDRESS,
             42161,
@@ -95,6 +101,7 @@ contract AddChainSupportTest is TestBaseMarket {
         (
             uint256 isSupported,
             address messagingHub,
+            address votingHub,
             address cveAddress,
             address feeTokenAddress,
             uint16 messagingChainId,
@@ -104,6 +111,7 @@ contract AddChainSupportTest is TestBaseMarket {
 
         assertEq(isSupported, 2);
         assertEq(messagingHub, address(messagingHub));
+        assertEq(votingHub, address(votingHub));
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESS);
         assertEq(messagingChainId, 23);

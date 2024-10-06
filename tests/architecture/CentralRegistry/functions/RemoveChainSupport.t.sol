@@ -17,6 +17,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
 
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(1),
             _USDC_ADDRESSES[10],
             10,
@@ -26,6 +27,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         );
 
         centralRegistry.addChainSupport(
+            address(this),
             address(this),
             address(1),
             _USDC_ADDRESSES[42161],
@@ -77,6 +79,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         (
             uint256 isSupported,
             address messagingHub,
+            address votingHub,
             address cveAddress,
             address feeTokenAddress,
             uint16 messagingChainId,
@@ -86,6 +89,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
 
         assertEq(isSupported, 2);
         assertEq(messagingHub, address(this));
+        assertEq(votingHub, address(this));
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESSES[42161]);
         assertEq(messagingChainId, 23);
@@ -99,7 +103,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         emit RemovedChain(42161, messagingHub);
         centralRegistry.removeChainSupport(messagingHub, 42161);
 
-        (isSupported, , , , , , ) = centralRegistry.supportedChainData(42161);
+        (isSupported, , , , , , , ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 1);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);

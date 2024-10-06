@@ -153,8 +153,8 @@ contract VotingHub is QueryResponse {
             bytes4[] memory validFunctionSignatures = new bytes4[](1);
 
             // Validate our responses came from the
-            // expected contract (Messaging Hub), and expected function.
-            validAddresses[0] = _getChainData(chainIds[i]).messagingHub;
+            // expected contract (Voting Hub), and expected function.
+            validAddresses[0] = _getChainData(chainIds[i]).votingHub;
             validFunctionSignatures[0] = _QUERY_EMISSIONS_ALLOCATED_SELECTOR;
             validateMultipleEthCallData(
                 eqr.result,
