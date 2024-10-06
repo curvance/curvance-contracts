@@ -59,7 +59,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -93,7 +93,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -141,7 +141,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -168,7 +168,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 

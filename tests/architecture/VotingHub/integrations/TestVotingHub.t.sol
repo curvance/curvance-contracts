@@ -142,14 +142,14 @@ contract TestVotingHub is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            address(messagingHubs[42161]),
+            address(votingHubs[42161]),
             abi.encode(_ONE)
         );
         perChainData[1] = PerChainData(
             24,
             block.number,
             uint64(block.timestamp * 1000000),
-            address(messagingHubs[10]),
+            address(votingHubs[10]),
             abi.encode(_ONE)
         );
 
