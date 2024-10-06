@@ -217,7 +217,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     ///      Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
     ///      NOTE: Values are different since stable pairs use constant
     ///            product of constant product = x^3 * y + x * y^3. Instead of
-    ///            normal formula.
+    ///            original AMM formula.
     /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
     /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
     /// @param price0 The price of token0 according to the Oracle Router.

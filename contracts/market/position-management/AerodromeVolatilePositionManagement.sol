@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 
-import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
-contract PositionManagementAerodromeVolatile is PositionManagementBase {
+contract AerodromeVolatilePositionManagement is BasePositionManagement {
 
     address public pairFactory;
 
@@ -19,7 +19,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
 
     /// ERRORS ///
     
-    error PositionManagementAerodromeVolatile__SlippageError();
+    error AerodromeVolatilePositionManagement__SlippageError();
 
     /// CONSTRUCTOR ///
 
@@ -28,7 +28,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
         address marketManager_,
         address router_,
         address pairFactory_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    ) BasePositionManagement(centralRegistry_, marketManager_) {
         router = router_;
         pairFactory = pairFactory_;
     }
@@ -47,7 +47,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
 
         if (borrowUnderlying != token0) {
             if(swapData.call.length == 0) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             if (
@@ -56,7 +56,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
                 swapData.outputToken != token0 ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             // Swap borrow underlying to token0
@@ -69,7 +69,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
         // Make sure swap was routed into token0, or that token0 is AERO.
         if (totalAmountA == 0) {
-            revert PositionManagementAerodromeVolatile__SlippageError();
+            revert AerodromeVolatilePositionManagement__SlippageError();
         }
 
         {   

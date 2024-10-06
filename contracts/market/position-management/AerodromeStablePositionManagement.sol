@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 
-import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
-contract PositionManagementVelodromeVolatile is PositionManagementBase {
+contract AerodromeStablePositionManagement is BasePositionManagement {
 
     address public pairFactory;
 
@@ -19,7 +19,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
     /// ERRORS ///
     
-    error PositionManagementVelodromeVolatile__SlippageError();
+    error AerodromeStablePositionManagement__SlippageError();
 
     /// CONSTRUCTOR ///
 
@@ -28,7 +28,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         address marketManager_,
         address router_,
         address pairFactory_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    ) BasePositionManagement(centralRegistry_, marketManager_) {
         router = router_;
         pairFactory = pairFactory_;
     }
@@ -47,7 +47,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
         if (borrowUnderlying != token0) {
             if(swapData.call.length == 0) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             if (
@@ -56,7 +56,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
                 swapData.outputToken != token0 ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             // Swap borrow underlying to token0
@@ -69,7 +69,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
         // Make sure swap was routed into token0, or that token0 is AERO.
         if (totalAmountA == 0) {
-            revert PositionManagementVelodromeVolatile__SlippageError();
+            revert AerodromeStablePositionManagement__SlippageError();
         }
 
         {   
@@ -82,7 +82,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
                 IVeloPair(_asset).token0()
                 ? (r0, r1)
                 : (r1, r0);
-            // Feed library pair factory, lpToken, and stable = false,
+            // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(
                 pairFactory,
@@ -92,16 +92,16 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
                 reserveB,
                 decimalsA,
                 decimalsB,
-                false
+                true
             );
-            // Feed calculated data, and stable = false.
+            // Feed calculated data, and stable = true.
             VelodromeLib._swapExactTokensForTokens(
                 router,
                 _asset,
                 token0,
                 token1,
                 swapAmount,
-                false
+                true
             );
             totalAmountA -= swapAmount;
         }
@@ -111,7 +111,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             router,
             token0,
             token1,
-            false,
+            true,
             totalAmountA,
             IERC20(token1).balanceOf(address(this)), // totalAmountB
             VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE

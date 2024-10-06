@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
 
-import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -13,7 +13,7 @@ import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincip
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
-contract PositionManagementPendle is PositionManagementBase {
+contract PendlePositionManagement is BasePositionManagement {
 
     IPendleRouter public router;
 
@@ -39,7 +39,7 @@ contract PositionManagementPendle is PositionManagementBase {
         address marketManager_,
         IPendleRouter router_,
         IPMarket lp_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    ) BasePositionManagement(centralRegistry_, marketManager_) {
         router = router_;
         lp = lp_;
         (sy, pt, yt) = lp.readTokens();
@@ -60,7 +60,7 @@ contract PositionManagementPendle is PositionManagementBase {
         address collateralUnderlying = leverageData.collateralToken.underlying();
 
         if(swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -70,7 +70,7 @@ contract PositionManagementPendle is PositionManagementBase {
             isUnderlyingToken[swapData.outputToken] == false ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap borrow underlying to collateral underlying
