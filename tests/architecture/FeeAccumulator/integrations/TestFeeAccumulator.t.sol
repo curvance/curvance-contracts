@@ -43,6 +43,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
+            address(votingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -83,6 +84,7 @@ contract TestFeeAccumulator is TestBaseFeeAccumulator {
 
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),
+            address(votingHubs[42161]),
             address(cves[42161]),
             _USDC_ADDRESSES[42161],
             42161,

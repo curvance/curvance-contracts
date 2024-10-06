@@ -10,6 +10,7 @@ import { WormholeMock } from "tests/utils/WormholeMock.sol";
 // FIX: Test
 contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     address public srcMessagingHub;
+    address public srcVotingHub;
     uint256[] public gasLimit;
     EmissionData internal _emissionData;
     EmissionData[] internal _remoteEmissionData;
@@ -18,12 +19,14 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
         _fork(19140000);
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        srcVotingHub = makeAddr("SrcVotingHub");
         _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 
         centralRegistry.addChainSupport(
             srcMessagingHub,
+            srcVotingHub,
             address(cve),
             _USDC_ADDRESSES[42161],
             42161,
@@ -56,7 +59,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -90,7 +93,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -138,7 +141,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 
@@ -165,7 +168,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            srcMessagingHub,
+            srcVotingHub,
             abi.encode(_ONE)
         );
 

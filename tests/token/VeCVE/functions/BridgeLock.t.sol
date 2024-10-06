@@ -13,6 +13,7 @@ contract BridgeLockTest is TestBaseVeCVE {
 
         centralRegistry.addChainSupport(
             address(messagingHub),
+            address(votingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
