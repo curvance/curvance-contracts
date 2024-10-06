@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { PTokenCompounding } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
-contract PTokenCompoundingWithExitFeeMintTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenMintTest is
+    TestCompoundingWithExitFeePToken
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_pTokenCompoundingWithExitFeeMint_fail_whenTransferZeroAmount()
+    function test_CompoundingWithExitFeePTokenMint_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(
-            PTokenCompounding.PTokenCompounding__ZeroShares.selector
+            CompoundingPToken.CompoundingPToken__ZeroShares.selector
         );
         pBALRETHWithExitFee.mint(0, address(this));
     }
 
-    function test_pTokenCompoundingWithExitFeeMint_fail_whenMintIsNotAllowed()
+    function test_CompoundingWithExitFeePTokenMint_fail_whenMintIsNotAllowed()
         public
     {
         marketManager.setMintPaused(address(pBALRETHWithExitFee), true);
@@ -28,7 +28,7 @@ contract PTokenCompoundingWithExitFeeMintTest is
         pBALRETHWithExitFee.mint(100, address(this));
     }
 
-    function test_pTokenCompoundingWithExitFeeMint_success() public {
+    function test_CompoundingWithExitFeePTokenMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
         uint256 balance = pBALRETHWithExitFee.balanceOf(address(this));
         uint256 totalSupply = pBALRETHWithExitFee.totalSupply();

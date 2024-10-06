@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
-import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract PTokenCompoundingWithExitFeeStartMarketTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenStartMarketTest is
+    TestCompoundingWithExitFeePToken
 {
-    function test_pTokenCompoundingWithExitFeeStartMarket_fail_whenCallerIsNotMarketManager()
+    function test_CompoundingWithExitFeePTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
-        vm.expectRevert(PTokenBase.PTokenBase__Unauthorized.selector);
+        vm.expectRevert(BasePToken.BasePToken__Unauthorized.selector);
 
         pBALRETHWithExitFee.startMarket(address(0));
     }
 
-    function test_pTokenCompoundingWithExitFeeStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_CompoundingWithExitFeePTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
@@ -25,7 +25,7 @@ contract PTokenCompoundingWithExitFeeStartMarketTest is
         pBALRETHWithExitFee.startMarket(address(0));
     }
 
-    function test_pTokenCompoundingWithExitFeeStartMarket_success() public {
+    function test_CompoundingWithExitFeePTokenStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,

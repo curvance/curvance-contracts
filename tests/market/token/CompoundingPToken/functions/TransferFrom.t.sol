@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompounding } from "../TestBasePTokenCompounding.sol";
+import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract PTokenCompoundingTransferFromTest is TestBasePTokenCompounding {
+contract CompoundingPTokenTransferFromTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function setUp() public override {
@@ -14,21 +14,21 @@ contract PTokenCompoundingTransferFromTest is TestBasePTokenCompounding {
         pBALRETH.mint(100, address(this));
     }
 
-    function test_pTokenCompoundingTransferFrom_fail_whenTransferZeroAmount()
+    function test_CompoundingPTokenTransferFrom_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         pBALRETH.transferFrom(address(this), user1, 0);
     }
 
-    function test_pTokenCompoundingTransferFrom_fail_whenAllowanceIsInvalid()
+    function test_CompoundingPTokenTransferFrom_fail_whenAllowanceIsInvalid()
         public
     {
         vm.expectRevert();
         pBALRETH.transferFrom(user1, address(this), 100);
     }
 
-    function test_pTokenCompoundingTransferFrom_fail_whenTransferIsNotAllowed()
+    function test_CompoundingPTokenTransferFrom_fail_whenTransferIsNotAllowed()
         public
     {
         marketManager.setTransferPaused(true);
@@ -37,7 +37,7 @@ contract PTokenCompoundingTransferFromTest is TestBasePTokenCompounding {
         pBALRETH.transferFrom(address(this), user1, 100);
     }
 
-    function test_pTokenCompoundingTransferFrom_success() public {
+    function test_CompoundingPTokenTransferFrom_success() public {
         uint256 balance = pBALRETH.balanceOf(address(this));
         uint256 user1Balance = pBALRETH.balanceOf(user1);
 

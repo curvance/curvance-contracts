@@ -9,7 +9,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -23,7 +23,7 @@ contract TestUniversalBalance is TestBaseMarket {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    PTokenPrimitive public cWBTC;
+    SimplePToken public cWBTC;
     UniversalBalance public universalBalance;
     EToken public dWETH;
 
@@ -121,7 +121,7 @@ contract TestUniversalBalance is TestBaseMarket {
         // deploy cWBTC
         {
             // deploy aura position vault
-            cWBTC = new PTokenPrimitive(
+            cWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManager)

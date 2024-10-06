@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompounding } from "../TestBasePTokenCompounding.sol";
+import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract PTokenCompoundingTransferTest is TestBasePTokenCompounding {
+contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function setUp() public override {
@@ -14,14 +14,14 @@ contract PTokenCompoundingTransferTest is TestBasePTokenCompounding {
         pBALRETH.mint(100, address(this));
     }
 
-    function test_pTokenCompoundingTransfer_fail_whenTransferZeroAmount()
+    function test_CompoundingPTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         pBALRETH.transfer(user1, 0);
     }
 
-    function test_pTokenCompoundingTransfer_fail_whenTransferIsNotAllowed()
+    function test_CompoundingPTokenTransfer_fail_whenTransferIsNotAllowed()
         public
     {
         marketManager.setTransferPaused(true);
@@ -30,7 +30,7 @@ contract PTokenCompoundingTransferTest is TestBasePTokenCompounding {
         pBALRETH.transfer(user1, 0);
     }
 
-    function test_pTokenCompoundingTransfer_success() public {
+    function test_CompoundingPTokenTransfer_success() public {
         uint256 balance = pBALRETH.balanceOf(address(this));
         uint256 user1Balance = pBALRETH.balanceOf(user1);
 

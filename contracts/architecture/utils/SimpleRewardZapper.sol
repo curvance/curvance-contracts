@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -340,7 +340,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         address pToken,
         address recipient
     ) internal returns (uint256) {
-        address pTokenUnderlying = PTokenPrimitive(pToken).underlying();
+        address pTokenUnderlying = SimplePToken(pToken).underlying();
         uint256 balance = IERC20(pTokenUnderlying).balanceOf(address(this));
 
         // Approve pToken to take `inputToken`.
@@ -350,7 +350,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
         // Enter Curvance pToken position and make sure `recipient` got
         // pTokens.
-        if (PTokenPrimitive(pToken).deposit(balance, recipient) == 0) {
+        if (SimplePToken(pToken).deposit(balance, recipient) == 0) {
             revert SimpleRewardZapper__ExecutionError();
         }
 

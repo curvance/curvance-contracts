@@ -34,8 +34,8 @@ forge script ./script/DeployCurvance.s.sol $network --sig "run(string)" --rpc-ur
 forge script ./script/DeployEToken.s.sol $network $symbol --sig "run(string,string)" --rpc-url $rpc --broadcast
 ```
 
-## Deploy CTokenPrimitive
+## Deploy SimplePToken
 
 ```
-forge script ./script/DeployCTokenPrimitive.s.sol $network $symbol --sig "run(string,string)" --rpc-url $rpc --broadcast
+forge script ./script/DeploySimplePToken.s.sol $network $symbol --sig "run(string,string)" --rpc-url $rpc --broadcast
 ```

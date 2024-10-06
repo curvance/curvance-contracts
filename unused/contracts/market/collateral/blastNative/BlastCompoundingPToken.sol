@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenCompounding, ICentralRegistry, IERC20 } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, ICentralRegistry, IERC20 } from "contracts/market/token/CompoundingPToken.sol";
 
 import { IBlastNativeYieldManager } from "contracts/interfaces/blast/IBlastNativeYieldManager.sol";
 import { IBlastCentralRegistry } from "contracts/interfaces/blast/IBlastCentralRegistry.sol";
@@ -9,7 +9,7 @@ import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
 import { IERC20Rebasing } from "contracts/interfaces/external/blast/IERC20Rebasing.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
-abstract contract BlastPTokenCompounding is PTokenCompounding {
+abstract contract BlastCompoundingPToken is CompoundingPToken {
     /// CONSTANTS ///
 
     /// @notice The address managing ETH/Gas yield.
@@ -30,7 +30,7 @@ abstract contract BlastPTokenCompounding is PTokenCompounding {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         nativeYieldManager = IBlastCentralRegistry(address(centralRegistry_))
             .nativeYieldManager();
 
@@ -41,7 +41,7 @@ abstract contract BlastPTokenCompounding is PTokenCompounding {
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
-    /// @dev NOTE: Needs to be overridden in each BlastPTokenCompounding
+    /// @dev NOTE: Needs to be overridden in each BlastCompoundingPToken
     ///      composable asset, this needs to be asset to asset so Gelato
     ///      can swap into proper underlyings.
     /// @return yield The amount of new assets acquired from compounding

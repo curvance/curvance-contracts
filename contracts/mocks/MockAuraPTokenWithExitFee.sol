@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
-import { PTokenCompoundingWithExitFee } from "contracts/market/token/PTokenCompoundingWithExitFee.sol";
+import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingWithExitFeePToken } from "contracts/market/token/CompoundingWithExitFeePToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -13,7 +13,7 @@ import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancer
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IStashWrapper } from "contracts/interfaces/external/aura/IStashWrapper.sol";
 
-contract MockAuraPTokenWithExitFee is PTokenCompoundingWithExitFee {
+contract MockAuraPTokenWithExitFee is CompoundingWithExitFeePToken {
     /// TYPES ///
 
     struct StrategyData {
@@ -60,7 +60,7 @@ contract MockAuraPTokenWithExitFee is PTokenCompoundingWithExitFee {
         address booster_,
         uint256 exitFee_
     )
-        PTokenCompoundingWithExitFee(
+        CompoundingWithExitFeePToken(
             centralRegistry_,
             asset_,
             marketManager_,

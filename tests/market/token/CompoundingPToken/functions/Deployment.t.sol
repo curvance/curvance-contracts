@@ -2,19 +2,19 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
-import { TestBasePTokenCompounding } from "../TestBasePTokenCompounding.sol";
-import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
+import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract PTokenCompoundingDeploymentTest is TestBasePTokenCompounding {
+contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
     using stdStorage for StdStorage;
 
     event NewMarketManager(address oldMarketManager, address newMarketManager);
 
-    function test_pTokenCompoundingDeployment_fail_whenCentralRegistryIsInvalid()
+    function test_CompoundingPTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
@@ -28,10 +28,10 @@ contract PTokenCompoundingDeploymentTest is TestBasePTokenCompounding {
         );
     }
 
-    function test_pTokenCompoundingDeployment_fail_whenMarketManagerIsNotSet()
+    function test_CompoundingPTokenDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
-        vm.expectRevert(PTokenBase.PTokenBase__InvalidMarketManager.selector);
+        vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
         new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
@@ -42,7 +42,7 @@ contract PTokenCompoundingDeploymentTest is TestBasePTokenCompounding {
         );
     }
 
-    function test_pTokenCompoundingDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
+    function test_CompoundingPTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
         public
     {
         stdstore
@@ -51,8 +51,8 @@ contract PTokenCompoundingDeploymentTest is TestBasePTokenCompounding {
             .checked_write(type(uint232).max);
 
         vm.expectRevert(
-            PTokenBase
-                .PTokenBase__UnderlyingAssetTotalSupplyExceedsMaximum
+            BasePToken
+                .BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum
                 .selector
         );
         new AuraPToken(
@@ -65,7 +65,7 @@ contract PTokenCompoundingDeploymentTest is TestBasePTokenCompounding {
         );
     }
 
-    function test_pTokenCompoundingDeployment_success() public {
+    function test_CompoundingPTokenDeployment_success() public {
         pBALRETH = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,

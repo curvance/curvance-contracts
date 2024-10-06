@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -236,7 +236,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            PTokenPrimitive(redemptionData.pToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -382,7 +382,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            PTokenPrimitive(redemptionData.pToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -495,7 +495,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            PTokenPrimitive(redemptionData.pToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -623,7 +623,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            PTokenPrimitive(redemptionData.pToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -672,7 +672,7 @@ contract ComplexZapper is ReentrancyGuard {
         }
 
         // Validate inputToken matches underlying token of pToken contract.
-        if (PTokenPrimitive(pToken).underlying() != inputToken) {
+        if (SimplePToken(pToken).underlying() != inputToken) {
             revert ComplexZapper__PTokenUnderlyingIsNotInputToken();
         }
 
@@ -683,7 +683,7 @@ contract ComplexZapper is ReentrancyGuard {
 
         // Enter Curvance pToken position and make sure `recipient` got
         // pTokens.
-        if (PTokenPrimitive(pToken).deposit(amount, recipient) == 0) {
+        if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
             revert ComplexZapper__ExecutionError();
         }
 
@@ -703,7 +703,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
     function _exitCurvance(
-        PTokenPrimitive pToken,
+        SimplePToken pToken,
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,

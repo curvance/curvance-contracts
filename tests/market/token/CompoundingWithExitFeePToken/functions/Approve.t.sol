@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
 
-contract PTokenCompoundingWithExitFeeApproveTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenApproveTest is
+    TestCompoundingWithExitFeePToken
 {
     event Approval(
         address indexed owner,
@@ -12,7 +12,7 @@ contract PTokenCompoundingWithExitFeeApproveTest is
         uint256 amount
     );
 
-    function test_PTokenCompoundingWithExitFeeApprove_success() public {
+    function test_CompoundingWithExitFeePTokenApprove_success() public {
         uint256 allowance = pBALRETHWithExitFee.allowance(
             address(this),
             user1

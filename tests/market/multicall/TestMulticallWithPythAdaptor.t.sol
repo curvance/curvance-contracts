@@ -9,7 +9,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockPythAdaptor } from "contracts/mocks/MockPythAdaptor.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
@@ -29,7 +29,7 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    PTokenPrimitive public cWBTC;
+    SimplePToken public cWBTC;
     UniversalBalance public universalBalance;
 
     address internal _PYTH_ADDRESS =
@@ -159,7 +159,7 @@ contract TestMulticallWithPythAdaptor is TestBaseMarket {
         // deploy cWBTC
         {
             // deploy aura position vault
-            cWBTC = new PTokenPrimitive(
+            cWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManager)

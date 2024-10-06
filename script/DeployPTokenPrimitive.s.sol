@@ -6,7 +6,7 @@ import "forge-std/Script.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { PTokenDeployer } from "./deployers/pToken/PTokenDeployer.s.sol";
 
-contract DeployPTokenPrimitive is Script, DeployConfiguration, PTokenDeployer {
+contract DeploySimplePToken is Script, DeployConfiguration, PTokenDeployer {
     using stdJson for string;
 
     function run(string memory name) external {

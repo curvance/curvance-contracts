@@ -8,7 +8,7 @@ import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZap
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { PTokenPrimitive, IERC20 } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
@@ -21,7 +21,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
 
-    PTokenPrimitive public cWETH;
+    SimplePToken public cWETH;
 
     function setUp() public override {
         super.setUp();
@@ -89,7 +89,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         // deploy cWETH
         {
             // deploy aura position vault
-            cWETH = new PTokenPrimitive(
+            cWETH = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
                 address(marketManager)

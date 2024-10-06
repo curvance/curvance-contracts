@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenCompounding, SafeTransferLib, IERC20, FixedPointMathLib, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, SafeTransferLib, IERC20, FixedPointMathLib, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IRewardRouter } from "contracts/interfaces/external/gmx/IRewardRouter.sol";
 
-contract StakedGMXPToken is PTokenCompounding {
+contract StakedGMXPToken is CompoundingPToken {
     /// CONSTANTS ///
 
     /// @notice The address of WETH on this chain.
@@ -40,7 +40,7 @@ contract StakedGMXPToken is PTokenCompounding {
         address marketManager_,
         address rewardRouter_,
         address weth_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         if (block.chainid != _ARBITRUM_CHAIN_ID) {
             revert StakedGMXPToken__ChainIsNotSupported();
         }

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
-import { PTokenCompounding } from "contracts/market/token/PTokenCompounding.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
-contract PTokenCompoundingWithExitFeeRedeemTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenRedeemTest is
+    TestCompoundingWithExitFeePToken
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_pTokenCompoundingWithExitFeeRedeem_fail_whenNoEnoughToRedeem()
+    function test_CompoundingWithExitFeePTokenRedeem_fail_whenNoEnoughToRedeem()
         public
     {
         vm.prank(address(1));
@@ -18,18 +18,18 @@ contract PTokenCompoundingWithExitFeeRedeemTest is
         pBALRETHWithExitFee.redeem(100, address(this), address(this));
     }
 
-    function test_pTokenCompoundingWithExitFeeRedeem_fail_whenAmountIsZero()
+    function test_CompoundingWithExitFeePTokenRedeem_fail_whenAmountIsZero()
         public
     {
         pBALRETHWithExitFee.mint(100, address(this));
 
         vm.expectRevert(
-            PTokenCompounding.PTokenCompounding__ZeroAssets.selector
+            CompoundingPToken.CompoundingPToken__ZeroAssets.selector
         );
         pBALRETHWithExitFee.redeem(0, address(this), address(this));
     }
 
-    function test_pTokenCompoundingWithExitFeeRedeem_success() public {
+    function test_CompoundingWithExitFeePTokenRedeem_success() public {
         pBALRETHWithExitFee.mint(100, address(this));
 
         uint256 underlyingBalance = balRETH.balanceOf(address(this));

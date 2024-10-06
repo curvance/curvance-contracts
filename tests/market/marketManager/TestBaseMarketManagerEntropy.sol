@@ -26,12 +26,12 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
     )
         internal
         returns (
-            MockPTokenPrimitive[] memory,
+            MockSimplePToken[] memory,
             MockV3Aggregator[] memory,
             MockV3Aggregator[] memory
         )
     {
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             _noOfTokens
         );
         MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
@@ -40,7 +40,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         MockV3Aggregator[]
             memory pTokensUnderlyingAgg = new MockV3Aggregator[](_noOfTokens);
         for (uint256 i = 0; i < _noOfTokens; i++) {
-            MockPTokenPrimitive pToken = _deployCollaterToken();
+            MockSimplePToken pToken = _deployCollaterToken();
             pTokens[i] = pToken;
             pTokensAgg[i] = _deployOracleManagerForToken(pToken.underlying());
             pTokensUnderlyingAgg[i] = _deployOracleManagerForToken(
@@ -115,7 +115,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
 
     function _genColWithEntropy(
         address user,
-        MockPTokenPrimitive pToken,
+        MockSimplePToken pToken,
         uint256 amount
     ) internal {
         _genCollateral(user, pToken, amount);
@@ -164,7 +164,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
     function _executeBorrows(
         address[] memory users,
         EToken[] memory eTokens,
-        MockPTokenPrimitive[] memory /* colToken */
+        MockSimplePToken[] memory /* colToken */
     ) internal {
         uint256 amount;
         //uint256 borrowToken;

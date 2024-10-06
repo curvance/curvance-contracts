@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -19,7 +19,7 @@ interface IPositionManagement {
     struct LeverageStruct {
         EToken borrowToken;
         uint256 borrowAmount;
-        PTokenPrimitive positionToken;
+        SimplePToken positionToken;
         SwapperLib.Swap swapData;
         bytes data;
     }
@@ -36,7 +36,7 @@ interface IPositionManagement {
     /// @param repayAmount The amount of underlying tokens from eToken that
     ///                    will be repaid.
     struct DeleverageStruct {
-        PTokenPrimitive positionToken;
+        SimplePToken positionToken;
         uint256 collateralAmount;
         EToken borrowToken;
         SwapperLib.Swap[] swapData;

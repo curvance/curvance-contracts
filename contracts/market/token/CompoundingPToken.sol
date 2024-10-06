@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenBase, FixedPointMathLib, SafeTransferLib, WAD } from "contracts/market/token/PTokenBase.sol";
+import { BasePToken, FixedPointMathLib, SafeTransferLib, WAD } from "contracts/market/token/BasePToken.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -13,7 +13,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 /// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
 ///      is not actually using the balances stored in the contract,
 ///      rather it only uses an internal balance.
-abstract contract PTokenCompounding is PTokenBase {
+abstract contract CompoundingPToken is BasePToken {
     /// TYPES ///
 
     /// @notice Storage format of _vaultData bitshifted data structure.
@@ -77,13 +77,13 @@ abstract contract PTokenCompounding is PTokenBase {
 
     /// ERRORS ///
 
-    error PTokenCompounding__InvalidVestPeriod();
-    error PTokenCompounding__CompoundingPaused();
-    error PTokenCompounding__RedeemMoreThanMax();
-    error PTokenCompounding__WithdrawMoreThanMax();
-    error PTokenCompounding__ZeroShares();
-    error PTokenCompounding__ZeroAssets();
-    error PTokenCompounding__InvalidApprovedAsset();
+    error CompoundingPToken__InvalidVestPeriod();
+    error CompoundingPToken__CompoundingPaused();
+    error CompoundingPToken__RedeemMoreThanMax();
+    error CompoundingPToken__WithdrawMoreThanMax();
+    error CompoundingPToken__ZeroShares();
+    error CompoundingPToken__ZeroAssets();
+    error CompoundingPToken__InvalidApprovedAsset();
 
     /// CONSTRUCTOR ///
 
@@ -91,7 +91,7 @@ abstract contract PTokenCompounding is PTokenBase {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) PTokenBase(centralRegistry_, asset_, marketManager_) {}
+    ) BasePToken(centralRegistry_, asset_, marketManager_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -116,7 +116,7 @@ abstract contract PTokenCompounding is PTokenBase {
 
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "PTokenCompounding__WithdrawMoreThanMax".
+            // revert with "CompoundingPToken__WithdrawMoreThanMax".
             _revert(0x2735eaab);
         }
 
@@ -190,7 +190,7 @@ abstract contract PTokenCompounding is PTokenBase {
         _checkDaoPermissions();
 
         if (newVestingPeriod > 7 days) {
-            revert PTokenCompounding__InvalidVestPeriod();
+            revert CompoundingPToken__InvalidVestPeriod();
         }
 
         pendingVestUpdate.updateNeeded = true;
@@ -279,7 +279,7 @@ abstract contract PTokenCompounding is PTokenBase {
         address receiver
     ) internal override returns (uint256 shares) {
         if (assets == 0) {
-            revert PTokenCompounding__ZeroAssets();
+            revert CompoundingPToken__ZeroAssets();
         }
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
@@ -292,7 +292,7 @@ abstract contract PTokenCompounding is PTokenBase {
 
         // Check for rounding error, since we round down in previewDeposit.
         if ((shares = _previewDeposit(assets, ta)) == 0) {
-            revert PTokenCompounding__ZeroShares();
+            revert CompoundingPToken__ZeroShares();
         }
 
         // Execute deposit.
@@ -312,7 +312,7 @@ abstract contract PTokenCompounding is PTokenBase {
         address receiver
     ) internal override returns (uint256 assets) {
         if (shares == 0) {
-            revert PTokenCompounding__ZeroShares();
+            revert CompoundingPToken__ZeroShares();
         }
 
         // Fail if mint not allowed, this stands in for a maxMint
@@ -356,7 +356,7 @@ abstract contract PTokenCompounding is PTokenBase {
 
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balanceOf(owner), ta)) {
-            // revert with "PTokenCompounding__WithdrawMoreThanMax".
+            // revert with "CompoundingPToken__WithdrawMoreThanMax".
             _revert(0x05203273);
         }
 
@@ -436,7 +436,7 @@ abstract contract PTokenCompounding is PTokenBase {
 
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
-            // revert with "PTokenCompounding__RedeemMoreThanMax".
+            // revert with "CompoundingPToken__RedeemMoreThanMax".
             _revert(0xcc3c42c0);
         }
 
@@ -455,7 +455,7 @@ abstract contract PTokenCompounding is PTokenBase {
 
         // Check for rounding error, since we round down in previewRedeem.
         if ((assets = _previewRedeem(shares, ta)) == 0) {
-            revert PTokenCompounding__ZeroAssets();
+            revert CompoundingPToken__ZeroAssets();
         }
 
         // Update gauge pool values for `owner`.
@@ -734,7 +734,7 @@ abstract contract PTokenCompounding is PTokenBase {
         }
 
         if (compoundingPaused == 2) {
-            revert PTokenCompounding__CompoundingPaused();
+            revert CompoundingPToken__CompoundingPaused();
         }
     }
 

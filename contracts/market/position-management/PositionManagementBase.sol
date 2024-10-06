@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -135,7 +135,7 @@ abstract contract PositionManagementBase is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        PTokenPrimitive pToken = leverageData.positionToken;
+        SimplePToken pToken = leverageData.positionToken;
         address pTokenUnderlying = pToken.asset();
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
@@ -267,7 +267,7 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidParam();
         }
 
-        address borrowUnderlying = PTokenPrimitive(borrowToken).underlying();
+        address borrowUnderlying = SimplePToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
             revert PositionManagementBase__InvalidAmount();
@@ -287,7 +287,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        PTokenPrimitive positionToken = leverageData.positionToken;
+        SimplePToken positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = positionToken.underlying();
@@ -362,7 +362,7 @@ abstract contract PositionManagementBase is
 
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
-        address collateralUnderlying = PTokenPrimitive(positionToken)
+        address collateralUnderlying = SimplePToken(positionToken)
             .underlying();
 
         if (

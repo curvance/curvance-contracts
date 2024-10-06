@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -11,7 +11,7 @@ import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewar
 import { IRewards } from "contracts/interfaces/external/convex/IRewards.sol";
 import { ICurveFi } from "contracts/interfaces/external/curve/ICurveFi.sol";
 
-contract Convex3PoolPToken is PTokenCompounding {
+contract Convex3PoolPToken is CompoundingPToken {
     /// TYPES ///
 
     /// @param curvePool Address of Curve Pool.
@@ -71,7 +71,7 @@ contract Convex3PoolPToken is PTokenCompounding {
         uint256 pid_,
         address rewarder_,
         address booster_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         if (block.chainid != 1) {
             revert Convex3PoolPToken__UnsafePool();
         }

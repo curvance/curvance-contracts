@@ -191,7 +191,7 @@ contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
 
         underlying = underlying_;
         name = string.concat(
-            "Curvance interest bearing ",
+            "Curvance interest-bearing ",
             IERC20(underlying_).name()
         );
         symbol = string.concat("c", IERC20(underlying_).symbol());

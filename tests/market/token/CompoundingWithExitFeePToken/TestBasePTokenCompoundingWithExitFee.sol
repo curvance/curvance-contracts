@@ -5,7 +5,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract TestBasePTokenCompounding is TestBaseMarket {
+contract TestCompoundingWithExitFeePToken is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
@@ -76,9 +76,9 @@ contract TestBasePTokenCompounding is TestBaseMarket {
 
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
+            address(pBALRETHWithExitFee),
             _ONE
         );
-        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETHWithExitFee));
     }
 }

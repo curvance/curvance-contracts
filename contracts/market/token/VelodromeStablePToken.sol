@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -12,7 +12,7 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
-contract VelodromeStablePToken is PTokenCompounding {
+contract VelodromeStablePToken is CompoundingPToken {
     /// TYPES ///
 
     /// @param gauge Address of Velodrome Gauge.
@@ -72,7 +72,7 @@ contract VelodromeStablePToken is PTokenCompounding {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         if (block.chainid != 10) {
             revert VelodromeStablePToken__ChainIsNotSupported();
         }

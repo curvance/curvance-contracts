@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenCompounding } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -14,7 +14,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 /// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
 ///      is not actually using the balances stored in the position,
 ///      rather it only uses an internal balance.
-abstract contract PTokenCompoundingWithExitFee is PTokenCompounding {
+abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
     /// CONSTANTS ///
 
     /// @notice Maximum exit fee configurable by DAO.
@@ -32,7 +32,7 @@ abstract contract PTokenCompoundingWithExitFee is PTokenCompounding {
 
     /// ERRORS ///
 
-    error PTokenCompoundingWithExitFee__InvalidExitFee();
+    error CompoundingWithExitFeePToken__InvalidExitFee();
 
     /// CONSTRUCTOR ///
 
@@ -41,7 +41,7 @@ abstract contract PTokenCompoundingWithExitFee is PTokenCompounding {
         IERC20 asset_,
         address marketManager_,
         uint256 exitFee_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         _setExitFee(exitFee_);
     }
 
@@ -79,7 +79,7 @@ abstract contract PTokenCompoundingWithExitFee is PTokenCompounding {
 
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "PTokenCompounding__WithdrawMoreThanMax".
+            // revert with "CompoundingPToken__WithdrawMoreThanMax".
             _revert(0x2735eaab);
         }
 
@@ -176,7 +176,7 @@ abstract contract PTokenCompoundingWithExitFee is PTokenCompounding {
 
         // Check if the proposed exit fee is above the allowed maximum.
         if (newExitFee > MAXIMUM_EXIT_FEE) {
-            revert PTokenCompoundingWithExitFee__InvalidExitFee();
+            revert CompoundingWithExitFeePToken__InvalidExitFee();
         }
 
         // Cache the old exit fee for event emission.

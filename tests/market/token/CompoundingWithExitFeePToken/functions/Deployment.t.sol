@@ -2,22 +2,22 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
-import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
-import { PTokenCompoundingWithExitFee } from "contracts/market/token/PTokenCompoundingWithExitFee.sol";
+import { CompoundingWithExitFeePToken } from "contracts/market/token/CompoundingWithExitFeePToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-contract PTokenCompoundingWithExitFeeDeploymentTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenDeploymentTest is
+    TestCompoundingWithExitFeePToken
 {
     using stdStorage for StdStorage;
 
     event NewMarketManager(address oldMarketManager, address newMarketManager);
 
-    function test_pTokenCompoundingWithExitFeeDeployment_fail_whenCentralRegistryIsInvalid()
+    function test_CompoundingWithExitFeePTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
         vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
@@ -32,10 +32,10 @@ contract PTokenCompoundingWithExitFeeDeploymentTest is
         );
     }
 
-    function test_pTokenCompoundingWithExitFeeDeployment_fail_whenMarketManagerIsNotSet()
+    function test_CompoundingWithExitFeePTokenDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
-        vm.expectRevert(PTokenBase.PTokenBase__InvalidMarketManager.selector);
+        vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
@@ -47,7 +47,7 @@ contract PTokenCompoundingWithExitFeeDeploymentTest is
         );
     }
 
-    function test_pTokenCompoundingWithExitFeeDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
+    function test_CompoundingWithExitFeePTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
         public
     {
         stdstore
@@ -56,8 +56,8 @@ contract PTokenCompoundingWithExitFeeDeploymentTest is
             .checked_write(type(uint232).max);
 
         vm.expectRevert(
-            PTokenBase
-                .PTokenBase__UnderlyingAssetTotalSupplyExceedsMaximum
+            BasePToken
+                .BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum
                 .selector
         );
         new MockAuraPTokenWithExitFee(
@@ -71,12 +71,12 @@ contract PTokenCompoundingWithExitFeeDeploymentTest is
         );
     }
 
-    function test_pTokenCompoundingWithExitFeeDeployment_fail_whenExitFeeExceedsMaximum()
+    function test_CompoundingWithExitFeePTokenDeployment_fail_whenExitFeeExceedsMaximum()
         public
     {
         vm.expectRevert(
-            PTokenCompoundingWithExitFee
-                .PTokenCompoundingWithExitFee__InvalidExitFee
+            CompoundingWithExitFeePToken
+                .CompoundingWithExitFeePToken__InvalidExitFee
                 .selector
         );
         new MockAuraPTokenWithExitFee(
@@ -90,7 +90,7 @@ contract PTokenCompoundingWithExitFeeDeploymentTest is
         );
     }
 
-    function test_pTokenCompoundingWithExitFeeDeployment_success() public {
+    function test_CompoundingWithExitFeePTokenDeployment_success() public {
         pBALRETHWithExitFee = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,

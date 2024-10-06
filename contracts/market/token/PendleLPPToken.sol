@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { PTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -11,7 +11,7 @@ import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincip
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
-contract PendleLPPToken is PTokenCompounding {
+contract PendleLPPToken is CompoundingPToken {
     /// TYPES ///
 
     /// @param router Address of Pendle Router.
@@ -59,7 +59,7 @@ contract PendleLPPToken is PTokenCompounding {
         IERC20 asset_,
         address marketManager_,
         IPendleRouter router_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         strategyData.router = router_;
         strategyData.lp = IPMarket(address(asset_));
         // Query actual Pendle pool configuration data.

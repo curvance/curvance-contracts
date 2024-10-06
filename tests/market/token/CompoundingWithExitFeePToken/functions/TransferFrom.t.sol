@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompoundingWithExitFee } from "../TestBasePTokenCompoundingWithExitFee.sol";
+import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract PTokenCompoundingWithExitFeeTransferTest is
-    TestBasePTokenCompoundingWithExitFee
+contract CompoundingWithExitFeePTokenTransferFromTest is
+    TestCompoundingWithExitFeePToken
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
@@ -16,30 +16,39 @@ contract PTokenCompoundingWithExitFeeTransferTest is
         pBALRETHWithExitFee.mint(100, address(this));
     }
 
-    function test_pTokenCompoundingWithExitFeeTransfer_fail_whenTransferZeroAmount()
+    function test_CompoundingWithExitFeePTokenTransferFrom_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
-        pBALRETHWithExitFee.transfer(user1, 0);
+        pBALRETHWithExitFee.transferFrom(address(this), user1, 0);
     }
 
-    function test_pTokenCompoundingWithExitFeeTransfer_fail_whenTransferIsNotAllowed()
+    function test_CompoundingWithExitFeePTokenTransferFrom_fail_whenAllowanceIsInvalid()
+        public
+    {
+        vm.expectRevert();
+        pBALRETHWithExitFee.transferFrom(user1, address(this), 100);
+    }
+
+    function test_CompoundingWithExitFeePTokenTransferFrom_fail_whenTransferIsNotAllowed()
         public
     {
         marketManager.setTransferPaused(true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        pBALRETHWithExitFee.transfer(user1, 0);
+        pBALRETHWithExitFee.transferFrom(address(this), user1, 100);
     }
 
-    function test_pTokenCompoundingWithExitFeeTransfer_success() public {
+    function test_CompoundingWithExitFeePTokenTransferFrom_success() public {
         uint256 balance = pBALRETHWithExitFee.balanceOf(address(this));
         uint256 user1Balance = pBALRETHWithExitFee.balanceOf(user1);
+
+        pBALRETHWithExitFee.approve(address(this), 100);
 
         vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
         emit Transfer(address(this), user1, 100);
 
-        pBALRETHWithExitFee.transfer(user1, 100);
+        pBALRETHWithExitFee.transferFrom(address(this), user1, 100);
 
         assertEq(pBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
         assertEq(pBALRETHWithExitFee.balanceOf(user1), user1Balance + 100);

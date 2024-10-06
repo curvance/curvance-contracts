@@ -7,7 +7,7 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import { PTokenPrimitive, IERC20 } from "contracts/market/token/PTokenPrimitive.sol";
+import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -30,7 +30,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    PTokenPrimitive public cPendlePT;
+    SimplePToken public cPendlePT;
     IERC20 public pendlePT = IERC20(_PT_STETH);
 
     receive() external payable {}
@@ -118,7 +118,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         // deploy cPendlePT
         {
             // deploy aura position vault
-            cPendlePT = new PTokenPrimitive(
+            cPendlePT = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 pendlePT,
                 address(marketManager)

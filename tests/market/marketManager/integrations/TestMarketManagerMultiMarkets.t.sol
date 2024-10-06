@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "../TestBaseMarketManagerEntropy.sol";
-import { MockPTokenPrimitive } from "contracts/mocks/MockPTokenPrimitive.sol";
+import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -45,7 +45,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
     )
         internal
         returns (
-            MockPTokenPrimitive[] memory,
+            MockSimplePToken[] memory,
             EToken[] memory,
             address[] memory,
             MockV3Aggregator[] memory,
@@ -61,7 +61,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         noOfUsers = noOfUsersCollateral + noOfUsersDebt + noOfUsersMixed;
         entropy = uint256(_entropy) + 1;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -102,7 +102,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         uint256 collateralLimit,
         uint256 debtLimit,
         address[] memory users,
-        MockPTokenPrimitive[] memory pTokens,
+        MockSimplePToken[] memory pTokens,
         EToken[] memory eTokens
     ) internal {
         uint256 runs;
@@ -158,7 +158,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -214,7 +214,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         uint16 _entropy
     ) public {
         (
-            MockPTokenPrimitive[] memory pTokens,
+            MockSimplePToken[] memory pTokens,
             EToken[] memory eTokens,
             address[] memory users,
             MockV3Aggregator[] memory pTokensAgg,
@@ -243,7 +243,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         uint16 _entropy
     ) public {
         (
-            MockPTokenPrimitive[] memory pTokens,
+            MockSimplePToken[] memory pTokens,
             EToken[] memory eTokens,
             address[] memory users,
             MockV3Aggregator[] memory pTokensAgg,
@@ -272,7 +272,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         uint16 _entropy
     ) public {
         (
-            MockPTokenPrimitive[] memory pTokens,
+            MockSimplePToken[] memory pTokens,
             EToken[] memory eTokens,
             address[] memory users,
             MockV3Aggregator[] memory pTokensAgg,

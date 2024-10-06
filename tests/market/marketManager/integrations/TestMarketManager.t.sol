@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "../TestBaseMarketManagerEntropy.sol";
-import { MockPTokenPrimitive } from "contracts/mocks/MockPTokenPrimitive.sol";
+import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 
 contract TestMarketManager is TestBaseMarketManagerEntropy {
     function setUp() public override {
@@ -38,7 +38,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -106,7 +106,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -175,7 +175,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -229,7 +229,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -276,7 +276,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -341,7 +341,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);
@@ -406,7 +406,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         noOfPositionTokens = 2;
         noOfEarnTokens = 2;
 
-        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             noOfPositionTokens
         );
         EToken[] memory eTokens = new EToken[](noOfEarnTokens);

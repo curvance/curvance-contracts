@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PTokenBase, SafeTransferLib } from "contracts/market/token/PTokenBase.sol";
+import { BasePToken, SafeTransferLib } from "contracts/market/token/BasePToken.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -11,16 +11,15 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 ///         IE assets can NOT be locked.
 ///         This way assets can be easily liquidated when loans default.
 /// @dev Built to support assets that do not generate rewards in external,
-///      claimable tokens. This means PTokenPrimitive is built for assets
-///      such as:
+///      claimable tokens. Meaning SimplePToken is built for assets such as:
 ///      WETH, LSTs, LRTs, PTs, UNI, USDC, sDAI, etc.
-contract PTokenPrimitive is PTokenBase {
+contract SimplePToken is BasePToken {
     /// ERRORS ///
 
-    error PTokenPrimitive__RedeemMoreThanMax();
-    error PTokenPrimitive__WithdrawMoreThanMax();
-    error PTokenPrimitive__ZeroShares();
-    error PTokenPrimitive__ZeroAssets();
+    error SimplePToken__RedeemMoreThanMax();
+    error SimplePToken__WithdrawMoreThanMax();
+    error SimplePToken__ZeroShares();
+    error SimplePToken__ZeroAssets();
 
     /// CONSTRUCTOR ///
 
@@ -28,7 +27,7 @@ contract PTokenPrimitive is PTokenBase {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_
-    ) PTokenBase(centralRegistry_, asset_, marketManager_) {}
+    ) BasePToken(centralRegistry_, asset_, marketManager_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -53,7 +52,7 @@ contract PTokenPrimitive is PTokenBase {
         // We use a modified version of maxWithdraw which more directly
         // checks whether `assets` is allowed.
         if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "PTokenPrimitive__WithdrawMoreThanMax".
+            // revert with "SimplePToken__WithdrawMoreThanMax".
             _revert(0xc6e63cc0);
         }
 
@@ -111,7 +110,7 @@ contract PTokenPrimitive is PTokenBase {
         address receiver
     ) internal override returns (uint256 shares) {
         if (assets == 0) {
-            revert PTokenPrimitive__ZeroAssets();
+            revert SimplePToken__ZeroAssets();
         }
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
@@ -123,7 +122,7 @@ contract PTokenPrimitive is PTokenBase {
 
         // Check for rounding error, since we round down in previewDeposit.
         if ((shares = _previewDeposit(assets, ta)) == 0) {
-            revert PTokenPrimitive__ZeroShares();
+            revert SimplePToken__ZeroShares();
         }
 
         // Execute deposit.
@@ -143,7 +142,7 @@ contract PTokenPrimitive is PTokenBase {
         address receiver
     ) internal override returns (uint256 assets) {
         if (shares == 0) {
-            revert PTokenPrimitive__ZeroShares();
+            revert SimplePToken__ZeroShares();
         }
 
         // Fail if mint not allowed, this stands in for a maxMint
@@ -184,7 +183,7 @@ contract PTokenPrimitive is PTokenBase {
         // We use a modified version of maxWithdraw which more directly
         // checks whether `assets` is allowed.
         if (assets > _convertToAssets(balanceOf(owner), ta)) {
-            // revert with "PTokenPrimitive__WithdrawMoreThanMax"
+            // revert with "SimplePToken__WithdrawMoreThanMax"
             _revert(0xc6e63cc0);
         }
 
@@ -253,7 +252,7 @@ contract PTokenPrimitive is PTokenBase {
 
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
-            // revert with "PTokenPrimitive__RedeemMoreThanMax".
+            // revert with "SimplePToken__RedeemMoreThanMax".
             _revert(0xb1652d68);
         }
 
@@ -271,7 +270,7 @@ contract PTokenPrimitive is PTokenBase {
 
         // Check for rounding error, since we round down in previewRedeem.
         if ((assets = _previewRedeem(shares, ta)) == 0) {
-            revert PTokenPrimitive__ZeroAssets();
+            revert SimplePToken__ZeroAssets();
         }
 
         // Update gauge pool values for `owner`.

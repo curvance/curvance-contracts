@@ -6,7 +6,7 @@ import "forge-std/Script.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { PendlePTDeployer } from "./deployers/pToken/PendlePTDeployer.s.sol";
 
-contract DeployPTokenPrimitive is
+contract DeploySimplePToken is
     Script,
     DeployConfiguration,
     PendlePTDeployer

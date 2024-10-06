@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "tests/market/TestBaseMarket.sol";
-import { MockPTokenPrimitive } from "contracts/mocks/MockPTokenPrimitive.sol";
+import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
 import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
@@ -51,24 +51,24 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         return (eTokens, eTokensAgg);
     }
 
-    function _deployCollaterToken() internal returns (MockPTokenPrimitive) {
+    function _deployCollaterToken() internal returns (MockSimplePToken) {
         // deploy collateral token and pToken
         MockERC20Token mockUnderlying = new MockERC20Token();
         vm.label(address(mockUnderlying), "tokenCollateral");
-        MockPTokenPrimitive pTokenPrimitive = new MockPTokenPrimitive(
+        MockSimplePToken SimplePToken = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
             address(marketManager)
         );
-        vm.label(address(pTokenPrimitive), "pToken");
+        vm.label(address(SimplePToken), "pToken");
 
         // start market for pToken
         uint256 startAmount = 42069;
         mockUnderlying.mint(address(this), startAmount);
-        mockUnderlying.approve(address(pTokenPrimitive), startAmount);
-        marketManager.listToken(address(pTokenPrimitive));
+        mockUnderlying.approve(address(SimplePToken), startAmount);
+        marketManager.listToken(address(SimplePToken));
         vm.label(address(marketManager), "marketManager");
-        return pTokenPrimitive;
+        return SimplePToken;
     }
 
     function _deployEarnToken() internal returns (EToken) {
@@ -114,7 +114,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _genCollateral(
         address _user,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 _amount
     ) internal {
         MockERC20Token tokenCollateral = MockERC20Token(_pToken.underlying());
@@ -127,7 +127,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _postCollateral(
         address _user,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 _amount
     ) internal {
         vm.prank(_user);
@@ -140,7 +140,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _withdraw(
         address _user,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 /* _amount */
     ) internal {
         vm.prank(_user);
@@ -176,7 +176,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     function _checkLiquidation(
         address _user,
         EToken _eToken,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 _amount,
         bool _exact
     )
@@ -243,7 +243,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         uint256 _collateralAvailable,
         address _user,
         EToken _eToken,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         bool _exact
     ) internal view returns (uint256, uint256, uint256) {
         (
@@ -282,7 +282,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     function _calcExpected(
         uint256 _collateralAvailable,
         EToken _eToken,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 /* cFactor */,
         uint256 debtAmount,
         uint256 price,
@@ -369,12 +369,12 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         address userToLiquidate,
         address liquidator,
         EToken _eToken,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         uint256 _expectedLiqAmount
     ) internal {
         EToken[] memory _eTokens = new EToken[](1);
         _eTokens[0] = _eToken;
-        MockPTokenPrimitive[] memory _pTokens = new MockPTokenPrimitive[](1);
+        MockSimplePToken[] memory _pTokens = new MockSimplePToken[](1);
         _pTokens[0] = _pToken;
         address[] memory _users = new address[](2);
         _users[0] = userToLiquidate;
@@ -412,7 +412,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _liquidateAllExact(
         EToken[] memory eTokens,
-        MockPTokenPrimitive[] memory pTokens,
+        MockSimplePToken[] memory pTokens,
         address[] memory users
     ) internal {
         console2.log("_liquidateExact");
@@ -449,7 +449,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _liquidateAllByEToken(
         EToken[] memory eTokens,
-        MockPTokenPrimitive[] memory pTokens,
+        MockSimplePToken[] memory pTokens,
         address[] memory users
     ) internal {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
@@ -486,7 +486,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _liquidate(
         EToken _eToken,
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         address _user,
         bool _exact
     ) internal {
@@ -531,7 +531,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _eTokenLiquidateExact(
         EToken _eToken,
-        MockPTokenPrimitive _collateral,
+        MockSimplePToken _collateral,
         uint256 _expectedLiqAmount,
         address _account,
         address _liquidator
@@ -546,7 +546,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _eTokenLiquidate(
         EToken _eToken,
-        MockPTokenPrimitive _collateral,
+        MockSimplePToken _collateral,
         address _account,
         address _liquidator
     ) internal {
@@ -603,7 +603,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
 
     function _checkAssets(
         EToken[] memory _eTokens,
-        MockPTokenPrimitive[] memory _pTokens,
+        MockSimplePToken[] memory _pTokens,
         address[] memory _users
     ) internal view returns (bool) {
         address user;
@@ -649,7 +649,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     }
 
     function _checkAssetPToken(
-        MockPTokenPrimitive _pToken,
+        MockSimplePToken _pToken,
         address _user
     ) internal view returns (bool) {
         console2.log(

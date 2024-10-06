@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { PTokenCompounding, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -12,7 +12,7 @@ import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancer
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IStashWrapper } from "contracts/interfaces/external/aura/IStashWrapper.sol";
 
-contract AuraPToken is PTokenCompounding {
+contract AuraPToken is CompoundingPToken {
     /// TYPES ///
 
     /// @param balancerVault Address of Balancer Vault.
@@ -70,7 +70,7 @@ contract AuraPToken is PTokenCompounding {
         uint256 pid_,
         address rewarder_,
         address booster_
-    ) PTokenCompounding(centralRegistry_, asset_, marketManager_) {
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
         if (block.chainid != 1) {
             revert AuraPToken__UnsafePool();
         }

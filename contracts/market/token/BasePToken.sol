@@ -48,7 +48,7 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
 ///
-abstract contract PTokenBase is
+abstract contract BasePToken is
     ERC4626,
     Delegable,
     ReentrancyGuard,
@@ -56,7 +56,7 @@ abstract contract PTokenBase is
 {
     /// CONSTANTS ///
 
-    /// @dev `bytes4(keccak256(bytes("PTokenBase__Unauthorized()")))`
+    /// @dev `bytes4(keccak256(bytes("BasePToken__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x489ae6bb;
     /// @dev `keccak256(bytes("Deposit(address,address,uint256,uint256)"))`.
     uint256 internal constant _DEPOSIT_EVENT_SIGNATURE =
@@ -99,9 +99,9 @@ abstract contract PTokenBase is
 
     /// ERRORS ///
 
-    error PTokenBase__Unauthorized();
-    error PTokenBase__InvalidMarketManager();
-    error PTokenBase__UnderlyingAssetTotalSupplyExceedsMaximum();
+    error BasePToken__Unauthorized();
+    error BasePToken__InvalidMarketManager();
+    error BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum();
 
     /// CONSTRUCTOR ///
 
@@ -111,13 +111,13 @@ abstract contract PTokenBase is
         address MarketManager_
     ) Delegable(centralRegistry_) {
         _asset = asset_;
-        _name = string.concat("Curvance collateralized ", asset_.name());
+        _name = string.concat("Curvance ", asset_.name());
         _symbol = string.concat("c", asset_.symbol());
         _decimals = asset_.decimals();
 
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(MarketManager_)) {
-            revert PTokenBase__InvalidMarketManager();
+            revert BasePToken__InvalidMarketManager();
         }
 
         // Set `marketManager`.
@@ -128,7 +128,7 @@ abstract contract PTokenBase is
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
         if (asset_.totalSupply() >= type(uint232).max) {
-            revert PTokenBase__UnderlyingAssetTotalSupplyExceedsMaximum();
+            revert BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum();
         }
     }
 
@@ -490,7 +490,7 @@ abstract contract PTokenBase is
         // Fails if borrower = liquidator.
         assembly {
             if eq(liquidator, account) {
-                // revert with "PTokenBase__Unauthorized".
+                // revert with "BasePToken__Unauthorized".
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)
                 revert(0x1c, 0x04)
             }

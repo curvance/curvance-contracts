@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBasePTokenCompounding } from "../TestBasePTokenCompounding.sol";
+import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { PTokenCompounding } from "contracts/market/token/PTokenCompounding.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
-contract PTokenCompoundingMintTest is TestBasePTokenCompounding {
+contract CompoundingPTokenMintTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_pTokenCompoundingMint_fail_whenTransferZeroAmount() public {
+    function test_CompoundingPTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
-            PTokenCompounding.PTokenCompounding__ZeroShares.selector
+            CompoundingPToken.CompoundingPToken__ZeroShares.selector
         );
         pBALRETH.mint(0, address(this));
     }
 
-    function test_pTokenCompoundingMint_fail_whenMintIsNotAllowed() public {
+    function test_CompoundingPTokenMint_fail_whenMintIsNotAllowed() public {
         marketManager.setMintPaused(address(pBALRETH), true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
         pBALRETH.mint(100, address(this));
     }
 
-    function test_pTokenCompoundingMint_success() public {
+    function test_CompoundingPTokenMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
         uint256 balance = pBALRETH.balanceOf(address(this));
         uint256 totalSupply = pBALRETH.totalSupply();

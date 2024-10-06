@@ -162,7 +162,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                     "convert to shares error did overflow",
                     convertSharesError
                 );
-                // PTokenBase._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
+                // BasePToken._convertToShares will revert when `mulDivDown` overflows with `revert(0,0)
                 if (convertSharesError == 2904890407) {
                     convertToSharesOverflow = true;
                 }
