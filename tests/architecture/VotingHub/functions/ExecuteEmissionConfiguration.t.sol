@@ -10,6 +10,7 @@ import { WormholeMock } from "tests/utils/WormholeMock.sol";
 // FIX: Test
 contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     address public srcMessagingHub;
+    address public srcVotingHub;
     uint256[] public gasLimit;
     EmissionData internal _emissionData;
     EmissionData[] internal _remoteEmissionData;

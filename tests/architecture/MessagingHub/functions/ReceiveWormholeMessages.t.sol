@@ -11,6 +11,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     using stdStorage for StdStorage;
 
     address public srcMessagingHub;
+    address public srcVotingHub;
     bytes[] public additionalMessages;
 
     function setUp() public override {

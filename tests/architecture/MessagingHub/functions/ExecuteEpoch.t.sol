@@ -7,6 +7,7 @@ import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
 contract ExecuteEpochTest is TestBaseMessagingHub {
     address public srcMessagingHub;
+    address public srcVotingHub;
 
     function setUp() public override {
         _fork(19140000);
