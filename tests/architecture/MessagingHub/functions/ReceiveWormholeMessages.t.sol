@@ -11,16 +11,19 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     using stdStorage for StdStorage;
 
     address public srcMessagingHub;
+    address public srcVotingHub;
     bytes[] public additionalMessages;
 
     function setUp() public override {
         super.setUp();
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        srcVotingHub = makeAddr("SrcVotingHub");
         additionalMessages.push(abi.encode("1", "1"));
 
         centralRegistry.addChainSupport(
             srcMessagingHub,
+            srcVotingHub,
             address(cve),
             _USDC_ADDRESS,
             42161,

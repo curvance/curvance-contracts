@@ -13,6 +13,7 @@ contract SendFeesTest is TestBaseMessagingHub {
 
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(cve),
             _USDC_ADDRESS,
             42161,

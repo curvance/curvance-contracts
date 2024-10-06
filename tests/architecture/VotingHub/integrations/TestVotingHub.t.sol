@@ -46,6 +46,7 @@ contract TestVotingHub is TestBaseVotingHub {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
+            address(votingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -72,6 +73,7 @@ contract TestVotingHub is TestBaseVotingHub {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
+            address(votingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -87,6 +89,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),
+            address(votingHubs[42161]),
             address(cve),
             _USDC_ADDRESSES[42161],
             42161,
@@ -96,6 +99,7 @@ contract TestVotingHub is TestBaseVotingHub {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[10]),
+            address(votingHubs[10]),
             address(cve),
             _USDC_ADDRESSES[10],
             10,
@@ -138,14 +142,14 @@ contract TestVotingHub is TestBaseVotingHub {
             23,
             block.number,
             uint64(block.timestamp * 1000000),
-            address(messagingHubs[42161]),
+            address(votingHubs[42161]),
             abi.encode(_ONE)
         );
         perChainData[1] = PerChainData(
             24,
             block.number,
             uint64(block.timestamp * 1000000),
-            address(messagingHubs[10]),
+            address(votingHubs[10]),
             abi.encode(_ONE)
         );
 
