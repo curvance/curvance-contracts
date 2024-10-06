@@ -112,7 +112,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         );
         assertEq(
             pBALRETHWithExitFee.name(),
-            "Curvance collateralized Balancer rETH Stable Pool"
+            "Curvance Balancer rETH Stable Pool"
         );
         assertEq(pBALRETHWithExitFee.exitFee(), 0.02e18);
     }

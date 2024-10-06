@@ -193,10 +193,10 @@
 | SC-MARKET-19 | The canRepay function should succeed when mtoken is listed and MIN_HOLD_PERIOD has passed.                                                                                   | Passed |
 | SC-MARKET-20 | The canRepay function should revert when mtoken is not listed.                                                                                                               | Passed |
 | SC-MARKET-21 | The canRepay function should revert when MIN_HOLD_PERIOD has not passed.                                                                                                     | Passed |
-| SC-MARKET-22 | The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same lendtroller.                              | Passed |
+| SC-MARKET-22 | The canSeize function should succeed when seize is not paused, collateral and debt token are listed, and both tokens have the same Market Manager.                              | Passed |
 | SC-MARKET-23 | The canSeize function should revert when seize is paused.                                                                                                                    | Passed |
-| SC-MARKET-24 | The canSeize function should revert when collateral or debt token are not listed in the Lendtroller.                                                                         | Passed |
-| SC-MARKET-25 | The canSeize function should revert when both tokens do not have the same Lendtroller.                                                                                       | Passed |
+| SC-MARKET-24 | The canSeize function should revert when collateral or debt token are not listed in the Market Manager.                                                                         | Passed |
+| SC-MARKET-25 | The canSeize function should revert when both tokens do not have the same Market Manager.                                                                                       | Passed |
 
 ## Market Manager – System Invariants
 
@@ -267,7 +267,7 @@
 | -------- | ------------------------------------------------------------------------------------------------------------ | ------ |
 | S-DTOK-1 | Market underlying held for a EToken must be equivalent to the balanceOf the underlying token.                | Passed |
 | S-DTOK-2 | The number of decimals for the EToken must be equivalent to the number of decimals for the underlying token. | Passed |
-| S-DTOK-3 | The isCToken function for a EToken must not return true.                                                     | Passed |
+| S-DTOK-3 | The isPToken function for a EToken must not return true.                                                     | Passed |
 
 ## So you found a failure?
 
@@ -316,7 +316,7 @@ Tips and tricks:
             EToken(eToken).marketManager() ==
                 EToken(collateralToken).marketManager()
         );
-        require(IMToken(collateralToken).isCToken());
+        require(IMToken(collateralToken).isPToken());
         require(marketManager.collateralPosted(collateralToken) > 0);
         require(marketManager.seizePaused() != 2);
         (

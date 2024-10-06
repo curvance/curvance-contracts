@@ -207,7 +207,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         _liquidateAccount(users[2], liquidator);
     }
 
-    function testLiquidationMultipleMarketsWithEntropyDtoken(
+    function testLiquidationMultipleMarketsWithEntropyEtoken(
         uint16 _noOfPositionTokens,
         uint16 _noOfEarnTokens,
         uint16 _noOfUsers,

@@ -385,7 +385,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         console2.log("\n liquidate");
         uint256 snapshot = vm.snapshot();
 
-        console2.log("lendTroller liquidateAccount");
+        console2.log("Market Manager liquidateAccount");
 
         _liquidateAccount(userToLiquidate, liquidator);
         _checkAssets(_eTokens, _pTokens, _users);

@@ -83,7 +83,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         assertEq(address(pBALRETH.marketManager()), address(marketManager));
         assertEq(
             pBALRETH.name(),
-            "Curvance collateralized Balancer rETH Stable Pool"
+            "Curvance Balancer rETH Stable Pool"
         );
     }
 }

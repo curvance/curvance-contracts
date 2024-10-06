@@ -57,7 +57,7 @@ abstract contract BasePToken is
     /// CONSTANTS ///
 
     /// @dev `bytes4(keccak256(bytes("BasePToken__Unauthorized()")))`
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x489ae6bb;
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc123b8f2;
     /// @dev `keccak256(bytes("Deposit(address,address,uint256,uint256)"))`.
     uint256 internal constant _DEPOSIT_EVENT_SIGNATURE =
         0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7;
