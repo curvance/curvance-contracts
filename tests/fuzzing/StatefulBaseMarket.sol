@@ -395,7 +395,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     function _deployPUSDC() internal returns (MockSimplePToken) {
         pUSDC = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(address(usdc)),
+            address(usdc),
             address(marketManager)
         );
         return pUSDC;
@@ -404,7 +404,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     function _deployPDAI() internal returns (MockSimplePToken) {
         pDAI = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
-            IERC20(address(dai)),
+            address(dai),
             address(marketManager)
         );
         return pDAI;
