@@ -4,39 +4,39 @@ pragma solidity ^0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
-contract MintBuilderTest is TestBaseMarket {
-    function test_mintBuilder_fail_whenUnauthorized() public {
+contract MintContributorTest is TestBaseMarket {
+    function test_mintContributor_fail_whenUnauthorized() public {
         vm.prank(address(0));
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
-        cve.mintBuilder();
+        cve.mintContributor();
     }
 
-    function test_mintBuilder_fail_whenCVEParametersAreInvalid() public {
+    function test_mintContributor_fail_whenCVEParametersAreInvalid() public {
         address contributorAddress = cve.contributorAddress();
         vm.prank(contributorAddress);
         vm.expectRevert(CVEBase.CVE__ParametersAreInvalid.selector);
-        cve.mintBuilder();
+        cve.mintContributor();
     }
 
-    function test_mintBuilder_success() public {
+    function test_mintContributor_success() public {
         assertEq(cve.contributorAllocationMinted(), 0);
 
         skip(62 days);
         address contributorAddress = cve.contributorAddress();
         uint256 prevBalance = cve.balanceOf(contributorAddress);
         vm.prank(contributorAddress);
-        cve.mintBuilder();
+        cve.mintContributor();
 
-        // 2 months worth of builder allocation
+        // 2 months worth of contributor allocation
         uint256 expectedAmount = 2 * cve.contributorAllocationPerMonth();
         assertEq(expectedAmount, cve.contributorAllocationMinted());
         assertEq(cve.balanceOf(contributorAddress), prevBalance + expectedAmount);
 
         skip(31 days);
         vm.prank(contributorAddress);
-        cve.mintBuilder();
+        cve.mintContributor();
 
-        // 3 months worth of builder allocation
+        // 3 months worth of contributor allocation
         expectedAmount = cve.contributorAllocationPerMonth() * 3;
         assertEq(expectedAmount, cve.contributorAllocationMinted());
         assertEq(cve.balanceOf(contributorAddress), prevBalance + expectedAmount);
@@ -44,7 +44,7 @@ contract MintBuilderTest is TestBaseMarket {
         // 4 years
         skip(1460 days);
         vm.prank(contributorAddress);
-        cve.mintBuilder();
+        cve.mintContributor();
 
         expectedAmount = cve.contributorAllocation();
         assertEq(expectedAmount, cve.contributorAllocationMinted());
