@@ -38,6 +38,7 @@ contract BridgeTest is TestBaseRemoteCVE {
     function test_bridge_success() public {
         centralRegistry.addChainSupport(
             address(messagingHub),
+            address(votingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,

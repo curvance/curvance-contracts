@@ -24,6 +24,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         centralRegistry.addChainSupport(
             srcMessagingHub,
+            srcVotingHub,
             address(cve),
             _USDC_ADDRESSES[42161],
             42161,

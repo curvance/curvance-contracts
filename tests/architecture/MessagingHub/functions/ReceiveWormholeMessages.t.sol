@@ -21,6 +21,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
 
         centralRegistry.addChainSupport(
             srcMessagingHub,
+            srcVotingHub,
             address(cve),
             _USDC_ADDRESS,
             42161,
