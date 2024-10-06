@@ -39,6 +39,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
 
         centralRegistry.addChainSupport(
             address(this),
+            address(this),
             address(1),
             _USDC_ADDRESSES[8453],
             8453,
