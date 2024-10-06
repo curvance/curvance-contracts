@@ -5,14 +5,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-import { MulticallDataCheckerBase } from "./MulticallDataCheckerBase.sol";
+import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 
-contract MulticallDataCheckerForRedstoneAdaptor is MulticallDataCheckerBase {
+contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///
 
     constructor(
         address _centralRegistry
-    ) MulticallDataCheckerBase(_centralRegistry) {}
+    ) BaseMulticallChecker(_centralRegistry) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -23,7 +23,7 @@ contract MulticallDataCheckerForRedstoneAdaptor is MulticallDataCheckerBase {
     ///               calldata.
     /// @param data Calldata attached to target call, contains function
     ///             signature being called which will be checked.
-    function checkCallData(
+    function checkCalldata(
         address,
         address target,
         bytes memory data
@@ -33,12 +33,12 @@ contract MulticallDataCheckerForRedstoneAdaptor is MulticallDataCheckerBase {
         );
 
         if (!oracleManager.isApprovedAdaptor(target)) {
-            revert MulticallDataChecker__TargetError();
+            revert MulticallChecker__TargetError();
         }
 
         bytes4 functionSig = getFuncSigHash(data);
         if (functionSig != RedstoneCoreAdaptor.writePrice.selector) {
-            revert MulticallDataChecker__InvalidFuncSig();
+            revert MulticallChecker__InvalidFuncSig();
         }
     }
 }

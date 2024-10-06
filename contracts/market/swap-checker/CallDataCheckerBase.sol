@@ -26,7 +26,7 @@ abstract contract CallDataCheckerBase is IExternalCallDataChecker {
 
     /// @notice Overridden in child CallData checker contracts,
     ///         used to inspect and validate calldata safety.
-    function checkCallData(
+    function checkCalldata(
         SwapperLib.Swap memory _swapData,
         address _recipient
     ) external view virtual override;

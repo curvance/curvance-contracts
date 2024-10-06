@@ -6,7 +6,7 @@ import { CallDataCheckerBase, SwapperLib } from "contracts/market/swap-checker/C
 contract MockCallDataChecker is CallDataCheckerBase {
     constructor(address _target) CallDataCheckerBase(_target) {}
 
-    function checkCallData(
+    function checkCalldata(
         SwapperLib.Swap memory _swapData,
         address _recipient
     ) external view override {}

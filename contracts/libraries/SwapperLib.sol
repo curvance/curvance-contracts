@@ -52,7 +52,7 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCallDataChecker(callDataChecker).checkCallData(
+        IExternalCallDataChecker(callDataChecker).checkCalldata(
             swapData,
             address(this)
         );
@@ -103,7 +103,7 @@ library SwapperLib {
             }
 
             // Verify calldata integrity.
-            IExternalCallDataChecker(callDataChecker).checkCallData(
+            IExternalCallDataChecker(callDataChecker).checkCalldata(
                 swapData,
                 address(this)
             );

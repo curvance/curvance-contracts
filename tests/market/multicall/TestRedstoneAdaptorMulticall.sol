@@ -10,18 +10,18 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
-import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
-import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
+import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
+import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
-contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
+contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     address public owner;
 
     MockRedstoneCoreAdaptor public adapter;
-    MulticallDataCheckerForRedstoneAdaptor public multicallDataChecker;
+    RedstoneAdaptorMulticallChecker public multicallChecker;
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
@@ -75,12 +75,12 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         adapter.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
         adapter.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
 
-        multicallDataChecker = new MulticallDataCheckerForRedstoneAdaptor(
+        multicallChecker = new RedstoneAdaptorMulticallChecker(
             address(centralRegistry)
         );
-        centralRegistry.setMulticallDataChecker(
+        centralRegistry.setMulticallChecker(
             address(adapter),
-            address(multicallDataChecker)
+            address(multicallChecker)
         );
 
         oracleManager.addApprovedAdaptor(address(adapter));
@@ -281,7 +281,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         assertEq(priceData.price, 61000e18);
     }
 
-    function testCheckCallData() public {
+    function testCheckCalldata() public {
         {
             bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
             bytes memory encodedFunction = abi.encodeWithSignature(
@@ -295,11 +295,11 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             );
 
             vm.expectRevert(
-                MulticallDataCheckerBase
-                    .MulticallDataChecker__TargetError
+                BaseMulticallChecker
+                    .MulticallChecker__TargetError
                     .selector
             );
-            multicallDataChecker.checkCallData(
+            multicallChecker.checkCalldata(
                 address(this),
                 address(this),
                 encodedFunctionWithRedstonePayload
@@ -318,11 +318,11 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
                 redstonePayload
             );
             vm.expectRevert(
-                MulticallDataCheckerBase
-                    .MulticallDataChecker__InvalidFuncSig
+                BaseMulticallChecker
+                    .MulticallChecker__InvalidFuncSig
                     .selector
             );
-            multicallDataChecker.checkCallData(
+            multicallChecker.checkCalldata(
                 address(this),
                 address(adapter),
                 encodedFunctionWithRedstonePayload

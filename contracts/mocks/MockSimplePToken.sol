@@ -8,6 +8,6 @@ contract MockSimplePToken is SimplePToken {
     constructor(
         ICentralRegistry centralRegistry_,
         address asset_,
-        address lendtroller_
-    ) SimplePToken(centralRegistry_, IERC20(asset_), lendtroller_) {}
+        address marketManager_
+    ) SimplePToken(centralRegistry_, IERC20(asset_), marketManager_) {}
 }

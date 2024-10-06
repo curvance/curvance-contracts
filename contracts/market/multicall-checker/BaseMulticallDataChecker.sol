@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IMulticallDataChecker } from "contracts/interfaces/IMulticallDataChecker.sol";
+import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 
-abstract contract MulticallDataCheckerBase is IMulticallDataChecker {
+abstract contract BaseMulticallChecker is IMulticallChecker {
     /// ERRORS ///
-    error MulticallDataChecker__TargetError();
-    error MulticallDataChecker__InvalidFuncSig();
-    error MulticallDataChecker__InvalidCallData();
+    error MulticallChecker__TargetError();
+    error MulticallChecker__InvalidFuncSig();
+    error MulticallChecker__InvalidCallData();
 
     /// STORAGE ///
     address public centralRegistry;
@@ -20,7 +20,7 @@ abstract contract MulticallDataCheckerBase is IMulticallDataChecker {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function checkCallData(
+    function checkCalldata(
         address caller,
         address target,
         bytes memory data

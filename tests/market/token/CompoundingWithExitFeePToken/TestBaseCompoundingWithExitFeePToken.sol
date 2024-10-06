@@ -5,7 +5,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract TestCompoundingWithExitFeePToken is TestBaseMarket {
+contract TestBaseCompoundingWithExitFeePToken is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;

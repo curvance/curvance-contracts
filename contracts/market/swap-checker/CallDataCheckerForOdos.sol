@@ -32,7 +32,7 @@ contract CallDataCheckerForOdos is CallDataCheckerBase {
     /// @param swapData Zap/swap instruction data including both direct
     ///                 parameters and decodeable calldata.
     /// @param expectedRecipient User who will receive results of Zap/swap.
-    function checkCallData(
+    function checkCalldata(
         SwapperLib.Swap memory swapData,
         address expectedRecipient
     ) external view override {

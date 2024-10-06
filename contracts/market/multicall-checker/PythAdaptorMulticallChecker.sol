@@ -5,14 +5,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-import { MulticallDataCheckerBase } from "./MulticallDataCheckerBase.sol";
+import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 
-contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
+contract PythAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///
 
     constructor(
         address _centralRegistry
-    ) MulticallDataCheckerBase(_centralRegistry) {}
+    ) BaseMulticallChecker(_centralRegistry) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -25,7 +25,7 @@ contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
     ///               calldata.
     /// @param data Calldata attached to target call, contains function
     ///             signature being called which will be checked.
-    function checkCallData(
+    function checkCalldata(
         address caller,
         address target,
         bytes memory data
@@ -35,7 +35,7 @@ contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
         );
 
         if (!oracleManager.isApprovedAdaptor(target)) {
-            revert MulticallDataChecker__TargetError();
+            revert MulticallChecker__TargetError();
         }
 
         bytes4 functionSig = getFuncSigHash(data);
@@ -47,10 +47,10 @@ contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
                 (bytes[], address)
             );
             if (caller != user) {
-                revert MulticallDataChecker__InvalidCallData();
+                revert MulticallChecker__InvalidCallData();
             }
         } else {
-            revert MulticallDataChecker__InvalidFuncSig();
+            revert MulticallChecker__InvalidFuncSig();
         }
     }
 }

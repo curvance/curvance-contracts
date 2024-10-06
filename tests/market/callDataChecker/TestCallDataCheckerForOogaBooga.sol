@@ -26,16 +26,16 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         );
     }
 
-    function testCheckCallDataRevert__TargetError() public {
+    function testCheckCalldataRevert__TargetError() public {
         swapData.target = address(0);
 
         vm.expectRevert(
             CallDataCheckerBase.CallDataChecker__TargetError.selector
         );
-        checker.checkCallData(swapData, recipient);
+        checker.checkCalldata(swapData, recipient);
     }
 
-    function testCheckCallDataRevert__RecipientError() public {
+    function testCheckCalldataRevert__RecipientError() public {
         recipient = address(0);
         swapData.inputToken = 0x7507c1dc16935B82698e4C63f2746A2fCf994dF8;
         swapData.inputAmount = 1000000000000000000;
@@ -48,10 +48,10 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         vm.expectRevert(
             CallDataCheckerBase.CallDataChecker__RecipientError.selector
         );
-        checker.checkCallData(swapData, address(1));
+        checker.checkCalldata(swapData, address(1));
     }
 
-    function testCheckCallDataRevert__InputTokenError() public {
+    function testCheckCalldataRevert__InputTokenError() public {
         recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
         swapData.inputToken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         swapData.inputAmount = 1000000000000000000;
@@ -66,10 +66,10 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         vm.expectRevert(
             CallDataCheckerBase.CallDataChecker__InputTokenError.selector
         );
-        checker.checkCallData(swapData, recipient);
+        checker.checkCalldata(swapData, recipient);
     }
 
-    function testCheckCallDataRevert__InputAmountError() public {
+    function testCheckCalldataRevert__InputAmountError() public {
         recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
         swapData.inputToken = 0x7507c1dc16935B82698e4C63f2746A2fCf994dF8;
         swapData.inputAmount = 1000000000;
@@ -84,10 +84,10 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         vm.expectRevert(
             CallDataCheckerBase.CallDataChecker__InputAmountError.selector
         );
-        checker.checkCallData(swapData, recipient);
+        checker.checkCalldata(swapData, recipient);
     }
 
-    function testCheckCallDataRevert__OutputTokenError() public {
+    function testCheckCalldataRevert__OutputTokenError() public {
         recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
         swapData.inputToken = 0x7507c1dc16935B82698e4C63f2746A2fCf994dF8;
         swapData.inputAmount = 1000000000000000000;
@@ -102,10 +102,10 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         vm.expectRevert(
             CallDataCheckerBase.CallDataChecker__OutputTokenError.selector
         );
-        checker.checkCallData(swapData, recipient);
+        checker.checkCalldata(swapData, recipient);
     }
 
-    function testCheckCallDataSuccess() public {
+    function testCheckCalldataSuccess() public {
         recipient = address(0x47E2D28169738039755586743E2dfCF3bd643f86);
         swapData.inputToken = 0x7507c1dc16935B82698e4C63f2746A2fCf994dF8;
         swapData.inputAmount = 1000000000000000000;
@@ -115,6 +115,6 @@ contract TestCallDataCheckerForOogaBooga is TestBaseMarket {
         swapData
             .call = hex"d46cadbc0000000000000000000000007507c1dc16935b82698e4c63f2746a2fcf994df80000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000e4aaf1351de4c0264c5c7056ef3777b41bd8e0300000000000000000000000000000000000000000000000152e7a5abde0ac99c0000000000000000000000000000000000000000000000014c2074472666bb5600000000000000000000000047e2d28169738039755586743e2dfcf3bd643f860000000000000000000000000000000000000000000000000000000000000120000000000000000000000000da547d8ce09e23e9e8053dd187b58841b5fb8d5d000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000001860E4aaF1351de4c0264C5c7056Ef3777b41BD8e03A954f73434D48df52040eC85b30209C53b560B6B01017507c1dc16935B82698e4C63f2746A2fCf994dF80213b1000Ee9b725d8509Ce2119d60795125d7ef6eF8CE0300Da547d8ce09e23E9e8053dd187B58841B5fB8D5d000bb8ffff0a21e2C0AFd058A89FCf7caf3aEA3cB84Ae977B73D0000000000000000000000000000000000000000000000000000000000008ca0000E4aaF1351de4c0264C5c7056Ef3777b41BD8e03Da547d8ce09e23E9e8053dd187B58841B5fB8D5d0105D0dD5135E3eF3aDE32a9eF9Cb06e8D37A6795D01ffff0a21e2C0AFd058A89FCf7caf3aEA3cB84Ae977B73D0000000000000000000000000000000000000000000000000000000000008ca001d6D83aF58a19Cd14eF3CF6fe848C9A4d21e5727cDa547d8ce09e23E9e8053dd187B58841B5fB8D5d01d6D83aF58a19Cd14eF3CF6fe848C9A4d21e5727c01ffff0164F18443596880Df5237411591Afe7Ae69f9e9B900Da547d8ce09e23E9e8053dd187B58841B5fB8D5d0000000000000000000000000000000000000000000000000000";
 
-        checker.checkCallData(swapData, recipient);
+        checker.checkCalldata(swapData, recipient);
     }
 }

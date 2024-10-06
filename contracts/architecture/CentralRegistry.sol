@@ -200,7 +200,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => bool) public isMarketManager;
     mapping(address => address) public externalCallDataChecker;
     mapping(address => bool) public isMulticallProvider;
-    mapping(address => address) public multicallDataChecker;
+    mapping(address => address) public multicallChecker;
 
     /// EVENTS ///
 
@@ -966,13 +966,13 @@ contract CentralRegistry is ERC165 {
     ///               such as Pyth or Redstone.
     /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setMulticallDataChecker(
+    function setMulticallChecker(
         address target,
         address callDataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallDataChecker[target] = callDataChecker;
+        multicallChecker[target] = callDataChecker;
         emit CallDataCheckerSet("Multicall", target, callDataChecker);
     }
 
