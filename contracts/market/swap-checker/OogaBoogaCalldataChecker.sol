@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
 import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 
+/// @notice WARNING: Currently built for Router V1.
 contract OogaBoogaCalldataChecker is BaseCalldataChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;

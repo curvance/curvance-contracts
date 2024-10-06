@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract CompoundingWithExitFeePTokenStartMarketTest is
-    TestCompoundingWithExitFeePToken
+    TestBaseCompoundingWithExitFeePToken
 {
     function test_CompoundingWithExitFeePTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public

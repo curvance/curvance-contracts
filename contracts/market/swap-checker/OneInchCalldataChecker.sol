@@ -6,7 +6,7 @@ import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Po
 import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 
 /// @notice WARNING: Currently built for Aggregation Router V5.
-contract 1InchCalldataChecker is BaseCalldataChecker {
+contract OneInchCalldataChecker is BaseCalldataChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =

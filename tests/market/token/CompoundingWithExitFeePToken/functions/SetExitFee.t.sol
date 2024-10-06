@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { CompoundingWithExitFeePToken } from "contracts/market/token/CompoundingWithExitFeePToken.sol";
 
 contract CompoundingWithExitFeePTokenSetExitFeeTest is
-    TestCompoundingWithExitFeePToken
+    TestBaseCompoundingWithExitFeePToken
 {
     event ExitFeeSet(uint256 oldExitFee, uint256 newExitFee);
 

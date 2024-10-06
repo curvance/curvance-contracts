@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
-import { TestCompoundingWithExitFeePToken } from "../TestCompoundingWithExitFeePToken.sol";
+import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract CompoundingWithExitFeePTokenDeploymentTest is
-    TestCompoundingWithExitFeePToken
+    TestBaseCompoundingWithExitFeePToken
 {
     using stdStorage for StdStorage;
 

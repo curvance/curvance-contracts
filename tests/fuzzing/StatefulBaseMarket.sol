@@ -8,7 +8,7 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { %MockSimplePToken } from "contracts/mocks/%MockSimplePToken.sol";
+import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 
@@ -62,8 +62,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     EToken public eUSDC;
     EToken public eDAI;
 
-    %MockSimplePToken public pDAI;
-    %MockSimplePToken public pUSDC;
+    MockSimplePToken public pDAI;
+    MockSimplePToken public pUSDC;
     MockToken public usdc;
     MockToken public dai;
     MockToken public WETH;
@@ -392,8 +392,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         return eDAI;
     }
 
-    function _deployPUSDC() internal returns (%MockSimplePToken) {
-        pUSDC = new %MockSimplePToken(
+    function _deployPUSDC() internal returns (MockSimplePToken) {
+        pUSDC = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(address(usdc)),
             address(marketManager)
@@ -401,8 +401,8 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         return pUSDC;
     }
 
-    function _deployPDAI() internal returns (%MockSimplePToken) {
-        pDAI = new %MockSimplePToken(
+    function _deployPDAI() internal returns (MockSimplePToken) {
+        pDAI = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(address(dai)),
             address(marketManager)

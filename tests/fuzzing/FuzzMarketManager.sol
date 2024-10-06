@@ -1,5 +1,5 @@
 pragma solidity 0.8.19;
-import { %MockSimplePToken } from "contracts/mocks/%MockSimplePToken.sol";
+import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
@@ -129,17 +129,17 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
         require(marketManager.mintPaused(mtoken) != 2);
 
-        address underlyingAddress = %MockSimplePToken(mtoken).underlying();
+        address underlyingAddress = MockSimplePToken(mtoken).underlying();
         amount = clampBetweenBoundsFromOne(lower, amount);
         require(_mintAndApprove(underlyingAddress, mtoken, amount));
-        uint256 prePTokenBalanceThis = %MockSimplePToken(mtoken).balanceOf(
+        uint256 prePTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
             address(this)
         );
-        uint256 preTotalAssets = %MockSimplePToken(mtoken).totalAssets();
+        uint256 preTotalAssets = MockSimplePToken(mtoken).totalAssets();
 
         // TODO: investigate 20 min hold period for debt token ()
-        try %MockSimplePToken(mtoken).deposit(amount, address(this)) {
-            uint256 postPTokenBalanceThis = %MockSimplePToken(mtoken).balanceOf(
+        try MockSimplePToken(mtoken).deposit(amount, address(this)) {
+            uint256 postPTokenBalanceThis = MockSimplePToken(mtoken).balanceOf(
                 address(this)
             );
 
@@ -152,7 +152,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             uint256 errorSelector = extractErrorSelector(revertData);
             bool convertToSharesOverflow;
 
-            try %MockSimplePToken(mtoken).convertToShares(amount) {} catch (
+            try MockSimplePToken(mtoken).convertToShares(amount) {} catch (
                 bytes memory convertSharesData
             ) {
                 uint256 convertSharesError = extractErrorSelector(
@@ -482,7 +482,7 @@ contract FuzzMarketManager is FuzzLiquidations {
                 // ensure account collateral has increased by # of tokens
                 uint256 newCollateralForUser = _collateralPostedFor(mtoken);
 
-                uint256 mtokenExchange = %MockSimplePToken(mtoken).exchangeRateSafe();
+                uint256 mtokenExchange = MockSimplePToken(mtoken).exchangeRateSafe();
                 assertEq(
                     (newCollateralForUser) * mtokenExchange,
                     (oldCollateralForUser + tokens) * mtokenExchange,

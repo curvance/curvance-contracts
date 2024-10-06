@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { 1InchCalldataChecker } from "contracts/market/swap-checker/1InchCalldataChecker.sol";
+import { OneInchCalldataChecker } from "contracts/market/swap-checker/OneInchCalldataChecker.sol";
 import { BaseCalldataChecker } from "contracts/market/swap-checker/BaseCalldataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
-contract Test1InchCalldataChecker is TestBaseMarket {
+contract TestOneInchCalldataChecker is TestBaseMarket {
     address public oneInchRouterV5 =
         0x1111111254EEB25477B68fb85Ed929f73A960582;
-    1InchCalldataChecker public checker;
+    OneInchCalldataChecker public checker;
 
     SwapperLib.Swap public swapData;
     address public recipient;
@@ -21,7 +21,7 @@ contract Test1InchCalldataChecker is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        checker = new 1InchCalldataChecker(
+        checker = new OneInchCalldataChecker(
             oneInchRouterV5
         );
     }
