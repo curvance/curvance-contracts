@@ -7,17 +7,20 @@ import { WormholeMock } from "tests/utils/WormholeMock.sol";
 
 contract ExecuteEpochTest is TestBaseMessagingHub {
     address public srcMessagingHub;
+    address public srcVotingHub;
 
     function setUp() public override {
         _fork(19140000);
 
         srcMessagingHub = makeAddr("SrcMessagingHub");
+        srcVotingHub = makeAddr("SrcVotingHub");
         _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
 
         _init();
 
         centralRegistry.addChainSupport(
             srcMessagingHub,
+            srcVotingHub,
             address(cve),
             _USDC_ADDRESSES[42161],
             42161,
@@ -53,6 +56,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
     function test_executeEpoch_fail_whenNumResponseIsMismatch() public {
         centralRegistry.addChainSupport(
+            address(this),
             address(this),
             address(1),
             _USDC_ADDRESSES[10],
