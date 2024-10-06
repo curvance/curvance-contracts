@@ -514,7 +514,9 @@ contract MessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (newMessagingStatus > 2) {
+        // It is more dangerous to unpause the protocol than to pause it,
+        // so turning message creation back on requires elevated permissions.
+        if (newMessagingStatus == 1) {
             if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
