@@ -2,9 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.sol";
-import { CallDataCheckerBase, SwapperLib } from "./CallDataCheckerBase.sol";
+import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 
-contract CallDataCheckerForOdos is CallDataCheckerBase {
+/// @notice WARNING: Currently built for Router V2.
+contract OdosCalldataChecker is BaseCalldataChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =
@@ -18,7 +19,7 @@ contract CallDataCheckerForOdos is CallDataCheckerBase {
 
     /// CONSTRUCTOR ///
 
-    constructor(address _target, address[] memory addresses) CallDataCheckerBase(_target) {
+    constructor(address _target, address[] memory addresses) BaseCalldataChecker(_target) {
         for (uint256 i = 0; i < addresses.length; i++) {
            addressList.push(addresses[i]);
         }

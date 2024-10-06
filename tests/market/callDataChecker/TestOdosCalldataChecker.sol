@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { CallDataCheckerForOdos } from "contracts/market/swap-checker/CallDataCheckerForOdos.sol";
-import { CallDataCheckerBase } from "contracts/market/swap-checker/CallDataCheckerBase.sol";
+import { OdosCalldataChecker } from "contracts/market/swap-checker/OdosCalldataChecker.sol";
+import { BaseCalldataChecker } from "contracts/market/swap-checker/BaseCalldataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
-contract TestCallDataCheckerForOdos is TestBaseMarket {
-    address public odosRouterV2 =
-        0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
-    CallDataCheckerForOdos public checker;
+contract TestOdosCalldataChecker is TestBaseMarket {
+    address public odosRouterV2 = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
+    OdosCalldataChecker public checker;
 
     SwapperLib.Swap public swapData;
     address public recipient;
@@ -22,7 +21,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         super.setUp();
         address[] memory addressList;
 
-        checker = new CallDataCheckerForOdos(
+        checker = new OdosCalldataChecker(
             odosRouterV2,
             addressList
         );
@@ -32,7 +31,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.target = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__TargetError.selector
+            BaseCalldataChecker.CallDataChecker__TargetError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -48,7 +47,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
             .call = hex"83bd37f90001d533a949740bb3306d119cc777fa900ba034cd5200016b3595068778dd592e39a122f4f5a5cf09c90fe20a021e19e0c9bab24000000a01010e690a4e1400000000c49b000128104d4F703EE5B5011cefe106f54eFd56F33f950000000147E2D28169738039755586743E2dfCF3bd643f860000000004010205000d010202030002030001000104001eff000000000000000000000000795065dcc9f64b5614c407a6efdc400da6221fb0919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000";
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__RecipientError.selector
+            BaseCalldataChecker.CallDataChecker__RecipientError.selector
         );
         checker.checkCalldata(swapData, address(1));
     }
@@ -66,7 +65,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__InputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -84,7 +83,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.inputAmount = 0;
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputAmountError.selector
+            BaseCalldataChecker.CallDataChecker__InputAmountError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -102,7 +101,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.outputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__OutputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -131,7 +130,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
             .call = hex"3b635ce4000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd5200000000000000000000000000000000000000000000021e19e0c9bab240000000000000000000000000000028104d4f703ee5b5011cefe106f54efd56f33f950000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe2000000000000000000000000000000000000000000000105ec5fe9f564d000000000000000000000000000000000000000000000000001052337b0ae41f0000000000000000000000000000047e2d28169738039755586743e2dfcf3bd643f86000000000000000000000000000000000000000000000000000000000000014000000000000000000000000028104d4f703ee5b5011cefe106f54efd56f33f9500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070010205000d010202030002030001000104001eff000000000000000000000000795065dcc9f64b5614c407a6efdc400da6221fb0919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000";
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__RecipientError.selector
+            BaseCalldataChecker.CallDataChecker__RecipientError.selector
         );
         checker.checkCalldata(swapData, address(1));
     }
@@ -149,7 +148,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__InputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -167,7 +166,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.inputAmount = 0;
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputAmountError.selector
+            BaseCalldataChecker.CallDataChecker__InputAmountError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -185,7 +184,7 @@ contract TestCallDataCheckerForOdos is TestBaseMarket {
         swapData.outputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__OutputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }

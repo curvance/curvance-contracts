@@ -6,7 +6,7 @@ import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
@@ -28,7 +28,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         deal(_USDC_ADDRESS, address(rewardManager), 1e18);

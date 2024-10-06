@@ -18,7 +18,7 @@ import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
-import { CallDataCheckerForComplexZapper } from "contracts/market/swap-checker/CallDataCheckerForComplexZapper.sol";
+import { ComplexZapperCalldataChecker } from "contracts/market/swap-checker/ComplexZapperCalldataChecker.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -473,7 +473,7 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setExternalCallDataChecker(
             address(complexZapper),
             address(
-                new CallDataCheckerForComplexZapper(address(complexZapper))
+                new ComplexZapperCalldataChecker(address(complexZapper))
             )
         );
         return complexZapper;

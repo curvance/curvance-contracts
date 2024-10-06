@@ -5,7 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -64,11 +64,11 @@ contract TestConvex2PoolPToken is TestBaseMarket {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.setExternalCallDataChecker(
             SUSHI_ROUTER,
-            address(new MockCallDataChecker(SUSHI_ROUTER))
+            address(new MockCalldataChecker(SUSHI_ROUTER))
         );
 
         mockCRVFeed = new MockDataFeed(

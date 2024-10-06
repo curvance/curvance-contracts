@@ -2,13 +2,13 @@
 pragma solidity ^0.8.19;
 
 import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
-import { CallDataCheckerBase, SwapperLib } from "./CallDataCheckerBase.sol";
+import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
-contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
+contract ComplexZapperCalldataChecker is BaseCalldataChecker {
     /// CONSTRUCTOR ///
 
-    constructor(address _target) CallDataCheckerBase(_target) {}
+    constructor(address _target) BaseCalldataChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
@@ -50,7 +50,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         centralRegistry.setFeeManager(address(this));
         centralRegistry.setExternalCallDataChecker(
             address(veloRouter),
-            address(new MockCallDataChecker(address(veloRouter)))
+            address(new MockCalldataChecker(address(veloRouter)))
         );
 
         cWETHUSDC = new VelodromeVolatilePToken(

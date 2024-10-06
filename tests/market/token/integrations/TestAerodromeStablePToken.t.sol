@@ -5,7 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeStablePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeStablePToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
@@ -51,7 +51,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
         centralRegistry.setFeeManager(address(this));
         centralRegistry.setExternalCallDataChecker(
             address(aeroRouter),
-            address(new MockCallDataChecker(address(aeroRouter)))
+            address(new MockCalldataChecker(address(aeroRouter)))
         );
 
         pUSDCDAI = new AerodromeStablePToken(

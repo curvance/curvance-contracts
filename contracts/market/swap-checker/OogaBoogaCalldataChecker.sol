@@ -2,9 +2,9 @@
 pragma solidity ^0.8.19;
 
 import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
-import { CallDataCheckerBase, SwapperLib } from "./CallDataCheckerBase.sol";
+import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 
-contract CallDataCheckerForOogaBooga is CallDataCheckerBase {
+contract OogaBoogaCalldataChecker is BaseCalldataChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =
@@ -12,7 +12,7 @@ contract CallDataCheckerForOogaBooga is CallDataCheckerBase {
 
     /// CONSTRUCTOR ///
 
-    constructor(address _target) CallDataCheckerBase(_target) {}
+    constructor(address _target) BaseCalldataChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
 

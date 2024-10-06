@@ -6,7 +6,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -66,7 +66,7 @@ contract TestPendleLPPToken is TestBaseMarket {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
         vm.warp(veCVE.nextEpochStartTime());

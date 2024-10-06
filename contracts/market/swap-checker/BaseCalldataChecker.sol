@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
-abstract contract CallDataCheckerBase is IExternalCallDataChecker {
+abstract contract BaseCalldataChecker is IExternalCallDataChecker {
     /// ERRORS ///
     error CallDataChecker__TargetError();
     error CallDataChecker__RecipientError();

@@ -6,7 +6,7 @@ import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -36,7 +36,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         deal(_USDC_ADDRESS, address(rewardManager), 1e18);

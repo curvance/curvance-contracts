@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { CallDataCheckerFor1InchAggregationRouterV5 } from "contracts/market/swap-checker/CallDataCheckerFor1Inch.sol";
-import { CallDataCheckerBase } from "contracts/market/swap-checker/CallDataCheckerBase.sol";
+import { 1InchCalldataChecker } from "contracts/market/swap-checker/1InchCalldataChecker.sol";
+import { BaseCalldataChecker } from "contracts/market/swap-checker/BaseCalldataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
-contract TestCallDataCheckerFor1Inch is TestBaseMarket {
+contract Test1InchCalldataChecker is TestBaseMarket {
     address public oneInchRouterV5 =
         0x1111111254EEB25477B68fb85Ed929f73A960582;
-    CallDataCheckerFor1InchAggregationRouterV5 public checker;
+    1InchCalldataChecker public checker;
 
     SwapperLib.Swap public swapData;
     address public recipient;
@@ -21,7 +21,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        checker = new CallDataCheckerFor1InchAggregationRouterV5(
+        checker = new 1InchCalldataChecker(
             oneInchRouterV5
         );
     }
@@ -30,7 +30,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
         swapData.target = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__TargetError.selector
+            BaseCalldataChecker.CallDataChecker__TargetError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -46,7 +46,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
             .call = hex"12aa3caf000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd520000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe2000000000000000000000000e37e799d5077682fa0a244d46e5649f71457bd09000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021e19e0c9bab24000000000000000000000000000000000000000000000000000e0c267176dae176b5d000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001700000000000000000000000000000000000000000000001520001240000da00a007e5c0d20000000000000000000000000000000000000000000000000000b600006302a00000000000000000000000000000000000000000000000001978fc787c1b3265ee63c1e580919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52795065dcc9f64b5614c407a6efdc400da6221fb000206ae4071118002dc6c0795065dcc9f64b5614c407a6efdc400da6221fb00000000000000000000000000000000000000000000000e0c267176dae176b5dc02aaa39b223fe8d0a0e5c4f27ead9083c756cc200a0f2fa6b666b3595068778dd592e39a122f4f5a5cf09c90fe20000000000000000000000000000000000000000000000e30799439feb5321760000000000000000349d7e6836c4f96680a06c4eca276b3595068778dd592e39a122f4f5a5cf09c90fe21111111254eeb25477b68fb85ed929f73a960582000000000000000000000000000000008b1ccac8";
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__RecipientError.selector
+            BaseCalldataChecker.CallDataChecker__RecipientError.selector
         );
         checker.checkCalldata(swapData, address(1));
     }
@@ -64,7 +64,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__InputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -82,7 +82,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
         swapData.inputAmount = 0;
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__InputAmountError.selector
+            BaseCalldataChecker.CallDataChecker__InputAmountError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -100,7 +100,7 @@ contract TestCallDataCheckerFor1Inch is TestBaseMarket {
         swapData.outputToken = address(0);
 
         vm.expectRevert(
-            CallDataCheckerBase.CallDataChecker__OutputTokenError.selector
+            BaseCalldataChecker.CallDataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }

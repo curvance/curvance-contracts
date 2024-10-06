@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -35,7 +35,7 @@ contract TestAuraPToken is TestBaseMarket {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         // use mock pricing for testing

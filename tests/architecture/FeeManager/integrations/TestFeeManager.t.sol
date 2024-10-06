@@ -7,7 +7,7 @@ import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
@@ -39,7 +39,7 @@ contract TestFeeManager is TestBaseFeeManager {
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -103,7 +103,7 @@ contract TestFeeManager is TestBaseFeeManager {
         centralRegistry.addHarvester(address(this));
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         chainlinkEthUsd.updateAnswer(2500e8);
         chainlinkUsdcUsd.updateAnswer(1e8);

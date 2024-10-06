@@ -9,7 +9,7 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -43,7 +43,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -69,7 +69,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),

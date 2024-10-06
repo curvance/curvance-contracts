@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract MultiSwapTest is TestBaseFeeManager {
     SwapperLib.Swap[] public swapData;
@@ -45,7 +45,7 @@ contract MultiSwapTest is TestBaseFeeManager {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
     }
 

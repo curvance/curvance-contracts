@@ -8,7 +8,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IStakedGMX } from "contracts/interfaces/external/gmx/IStakedGMX.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { StakedGMXPToken, IERC20 } from "contracts/market/token/StakedGMXPToken.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
@@ -90,7 +90,7 @@ contract TestStakedGMXPToken is TestBaseMarket {
     function testGmxStakedGMX() public {
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_ROUTER))
         );
 
         uint256 assets = 100e18;
