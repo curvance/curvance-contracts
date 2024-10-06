@@ -35,7 +35,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
         public
     {
-        vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
+        vm.warp(block.timestamp - rewardManager.epochDuration() * 2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
