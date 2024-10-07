@@ -231,7 +231,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         return (2 * k * price0 * WAD) / (sqrtPrice * totalSupply);
     }
 
-    function _sqrt(uint256 x) internal returns (uint256) {
+    function _sqrt(uint256 x) internal pure returns (uint256) {
         return FixedPointMathLib.sqrt(x);
     }
 }
