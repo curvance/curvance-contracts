@@ -212,7 +212,7 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     ///            product k = x^3 * y + x * y^3. Instead
     ///            of normal formula of x*y = k.
     /// @param k The value of k in the Pool, based on its reserves. Equal to
-                 k = x^3 * y + x * y^3.
+    ///          k = x^3 * y + x * y^3.
     /// @param price0 The price of token0 according to the Oracle Router.
     /// @param price0 The price of token1 according to the Oracle Router.
     /// @param totalSupply The total supply of lp tokens inside the lp.

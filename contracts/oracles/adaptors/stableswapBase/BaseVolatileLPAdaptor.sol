@@ -207,7 +207,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
     ///      Uses k = x * y.
     /// @param k The value of k in the Pool, based on its reserves. Equal to
-                 k = x * y.
+    ///          k = x * y.
     /// @param price0 The price of token0 according to the Oracle Router.
     /// @param price0 The price of token1 according to the Oracle Router.
     /// @param totalSupply The total supply of lp tokens inside the lp.
