@@ -9,7 +9,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
-import { IUniswapV2Pair } from "contracts/interfaces/external/uniswap/IUniswapV2Pair.sol";
+import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// TYPES ///
@@ -36,6 +36,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// ERRORS ///
 
     error BaseVolatileLPAdaptor__AssetIsNotSupported();
+    error BaseVolatileLPAdaptor__InvalidAssetType();
 
     /// CONSTRUCTOR ///
 
@@ -101,22 +102,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
         // Cache AdaptorData and grab pool tokens.
         AdaptorData memory data = adaptorData[asset];
-        IUniswapV2Pair pool = IUniswapV2Pair(asset);
+        IVeloPool pool = IVeloPool(asset);
 
-        // Query LP total supply.
+        // Get k (k = x * y) and LP total supply with reentry lock.
+        uint256 k = pool.getK();
         uint256 totalSupply = pool.totalSupply();
-        // Query LP reserves.
-        (uint256 reserve0, uint256 reserve1, ) = pool.getReserves();
-
-        // Standardize reserve values to 18 decimals.
-        if (data.decimals0 != 18) {
-            reserve0 = (reserve0 * WAD) / (10 ** data.decimals0);
-        }
-
-        if (data.decimals1 != 18) {
-            reserve1 = (reserve1 * WAD) / (10 ** data.decimals1);
-        }
-
         uint256 price0;
         uint256 price1;
         uint256 errorCode;
@@ -149,8 +139,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         }
 
         uint256 finalPrice = _getFairPrice(
-            reserve0,
-            reserve1,
+            k,
             price0,
             price1,
             totalSupply
@@ -174,7 +163,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     function _addAsset(
         address asset
     ) internal returns (AdaptorData memory data) {
-        IUniswapV2Pair pool = IUniswapV2Pair(asset);
+        IVeloPool pool = IVeloPool(asset);
+        if (pool.stable()) {
+            revert BaseVolatileLPAdaptor__InvalidAssetType();
+        }
+
         data.token0 = pool.token0();
         data.token1 = pool.token1();
         data.decimals0 = IERC20(data.token0).decimals();
@@ -212,25 +205,24 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     ///         the total supply of lp tokens making up the pool.
     /// @dev Prices volatile pairs NOT stable pairs.
     ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
-    /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
-    /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
+    ///      Uses k = x * y.
+    /// @param k The value of k in the Pool, based on its reserves. Equal to
+                 k = x * y.
     /// @param price0 The price of token0 according to the Oracle Router.
     /// @param price0 The price of token1 according to the Oracle Router.
     /// @param totalSupply The total supply of lp tokens inside the lp.
     /// @return Fair value pricing for the lp token.
     function _getFairPrice(
-        uint256 reserve0,
-        uint256 reserve1,
+        uint256 k,
         uint256 price0,
         uint256 price1,
         uint256 totalSupply
     ) internal pure returns (uint256) {
-        // sqrt(reserve0 * reserve1).
-        uint256 sqrtReserve = FixedPointMathLib.sqrt(reserve0 * reserve1);
+        // price = 2 * (x * y) * sqrt(price0 * price1) / totalSupply.
+        return (2 * k * _sqrt(price0 * price1)) / totalSupply;
+    }
 
-        // price = 2 * sqrt(reserve0 * reserve1) * sqrt(price0 * price1) / totalSupply.
-        return
-            (2 * sqrtReserve * FixedPointMathLib.sqrt(price0 * price1))
-            / totalSupply;
+    function _sqrt(uint256 x) internal returns (uint256) {
+        return FixedPointMathLib.sqrt(x);
     }
 }
