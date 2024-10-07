@@ -896,13 +896,11 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
                 // Update rewards from lastRewardTimestamp to endTimestamp.
                 reward =
-                    ((endTimestamp - lastRewardTimestamp) *
+                    (WAD_SQUARED * (endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
                     EPOCH_DURATION;
                 accRewardPerShare =
-                    accRewardPerShare +
-                    (reward * (WAD_SQUARED)) /
-                    totalDeposited;
+                    accRewardPerShare + (reward / totalDeposited);
 
                 ++lastEpoch;
                 lastRewardTimestamp = endTimestamp;
@@ -910,13 +908,10 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
             // Update rewards from lastRewardTimestamp to current timestamp.
             reward =
-                ((block.timestamp - lastRewardTimestamp) *
+                (WAD_SQUARED * (block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 EPOCH_DURATION;
-            accRewardPerShare =
-                accRewardPerShare +
-                (reward * (WAD_SQUARED)) /
-                totalDeposited;
+            accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
 
             poolAccRewardPerShare[token][index] = accRewardPerShare;
         }
