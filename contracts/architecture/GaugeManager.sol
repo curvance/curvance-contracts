@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DENOMINATOR, WAD_SQUARED } from "contracts/libraries/Constants.sol";
+import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -517,7 +517,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                     EPOCH_DURATION;
                 accRewardPerShare =
                     accRewardPerShare +
-                    (reward * (WAD_SQUARED)) /
+                    (reward * WAD /
                     totalDeposited;
 
                 ++lastEpoch;
@@ -531,7 +531,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 EPOCH_DURATION;
             accRewardPerShare =
                 accRewardPerShare +
-                (reward * (WAD_SQUARED)) /
+                (reward * WAD) /
                 totalDeposited;
         }
 
@@ -539,8 +539,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         return
             info.rewardPending +
             (balanceOf[token][user] * accRewardPerShare) /
-            (WAD_SQUARED) -
-            info.rewardDebt;
+                WAD - info.rewardDebt;
     }
 
     /// @notice Returns pending rewards of user.
@@ -608,7 +607,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                     uint256 index = rewardTokenToIndex[token][rewardToken];
                     uint256 unallocatedRewards = (poolAccRewardPerShare[token][
                         index
-                    ] * totalSupply[token]) / WAD_SQUARED;
+                    ] * totalSupply[token]) / WAD;
                     if (unallocatedRewards > 0) {
                         SafeTransferLib.safeTransfer(
                             rewardToken,
@@ -896,7 +895,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
                 // Update rewards from lastRewardTimestamp to endTimestamp.
                 reward =
-                    (WAD_SQUARED * (endTimestamp - lastRewardTimestamp) *
+                    (WAD * (endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
                     EPOCH_DURATION;
                 accRewardPerShare =
@@ -908,7 +907,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
             // Update rewards from lastRewardTimestamp to current timestamp.
             reward =
-                (WAD_SQUARED * (block.timestamp - lastRewardTimestamp) *
+                (WAD * (block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 EPOCH_DURATION;
             accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
@@ -960,8 +959,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             info.rewardPending +=
                 (balanceOf[token][user] *
                     poolAccRewardPerShare[token][index]) /
-                (WAD_SQUARED) -
-                info.rewardDebt;
+                WAD - info.rewardDebt;
         }
     }
 
@@ -979,8 +977,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardDebt =
                 (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][index]) /
-                (WAD_SQUARED);
+                    poolAccRewardPerShare[token][index]) / WAD;
         }
     }
 }
