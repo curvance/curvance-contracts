@@ -624,6 +624,10 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
+    /// @dev WARNING: Our CCTP message implementation requires finality
+    ///               on a chain, meaning if finality takes longer than
+    ///               CCTP's attestation, message and value delivery can
+    ///               be longer than expected.
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.

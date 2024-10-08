@@ -550,7 +550,7 @@ contract TestBaseMarket is TestBase {
     }
 
     function _skipEpochDuration(uint256 numEpochs) internal {
-        skip(rewardManager.EPOCH_DURATION() * numEpochs);
+        skip(rewardManager.epochDuration() * numEpochs);
     }
 
     function _recordEpochRewards(

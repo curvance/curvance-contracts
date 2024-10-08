@@ -12,7 +12,7 @@ contract CVE is CVEBase {
     /// @notice Seconds in a month based on 365.2425 days.
     uint256 public constant MONTH = 2_629_746;
 
-    // Timestamp when token was created
+    // Timestamp when CVE token was created.
     uint256 public immutable tokenGenerationEventTimestamp;
     /// @notice DAO treasury allocation of CVE,
     ///         can be minted as needed by the DAO. 14.5%.
@@ -21,23 +21,27 @@ contract CVE is CVEBase {
     ///         can be minted as needed by the DAO. 3.75%.
     uint256 public immutable initialCommunityAllocation;
     /// @notice Buildier allocation of CVE,
-    ///         can be minted on a monthly basis. 13.5%
-    uint256 public immutable builderAllocation;
+    ///         can be minted on a monthly basis. 13.5%.
+    uint256 public immutable contributorAllocation;
     /// @notice 3% as veCVE immediately, 10.5% vested over 4 years.
-    uint256 public immutable builderAllocationPerMonth;
+    uint256 public immutable contributorAllocationPerMonth;
 
     /// STORAGE ///
 
-    /// @notice Builder operating address.
-    address public builderAddress;
-    /// @notice Pending builder operating address.
-    address public pendingBuilderAddress;
+    /// @notice Contributor operating address.
+    address public contributorAddress;
+    /// @notice Pending contributor operating address.
+    address public pendingContributorAddress;
     /// @notice Number of DAO treasury tokens minted.
     uint256 public daoTreasuryMinted;
-    /// @notice Number of Builder allocation tokens minted.
-    uint256 public builderAllocationMinted;
+    /// @notice Number of Contributor allocation tokens minted.
+    uint256 public contributorAllocationMinted;
     /// @notice Number of Call Option reserved tokens minted.
     uint256 public initialCommunityMinted;
+
+    /// EVENTS ///
+
+    event tokenGenerationEventSet(uint256 timestamp);
 
     /// ERRORS ///
 
@@ -47,14 +51,17 @@ contract CVE is CVEBase {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address builder_
+        address contributorAddress_
     ) CVEBase(centralRegistry_) {
-        if (builder_ == address(0)) {
-            builder_ = msg.sender;
+        if (contributorAddress_ == address(0)) {
+            contributorAddress_ = msg.sender;
         }
 
-        tokenGenerationEventTimestamp = block.timestamp;
-        builderAddress = builder_;
+        contributorAddress = contributorAddress_;
+
+        uint256 tokenGenerationEventTimestamp_ = centralRegistry_.genesisEpoch();
+        tokenGenerationEventTimestamp = tokenGenerationEventTimestamp_;
+        emit tokenGenerationEventSet(tokenGenerationEventTimestamp_);
 
         // All allocations and mints are in 18 decimal form to match CVE.
 
@@ -63,13 +70,13 @@ contract CVE is CVEBase {
         // 15,750,002.59 tokens (3.75%) minted on conclusion of LBP.
         initialCommunityAllocation = 1575000259e16;
         // 44,100,007.245 tokens (10.5%) vested over 4 years.
-        builderAllocation = 44100007245e15;
-        // Builder Vesting is for 4 years and unlocked monthly.
-        builderAllocationPerMonth = builderAllocation / 48;
+        contributorAllocation = 44100007245e15;
+        // Contributor Vesting is for 4 years and unlocked monthly.
+        contributorAllocationPerMonth = contributorAllocation / 48;
 
         // 50,400,008.285 (12%) minted initially for:
-        // 29,400,004.83 (7%) from Capital Raises.
-        // 12,600,002.075 (3%) builder veCVE initial allocation.
+        // 29,400,004.83 (7%) for early backers.
+        // 12,600,002.075 (3%) contributor veCVE initial allocation.
         // 8,400,001.38 (2%) LBP allocation.
         uint256 initialTokenMint = 50400008285e15;
 
@@ -110,57 +117,57 @@ contract CVE is CVEBase {
         _mint(msg.sender, amount);
     }
 
-    /// @notice Mint CVE from builder allocation.
-    /// @dev Allows the DAO Manager to mint new tokens for the builder
+    /// @notice Mint CVE from contributor allocation.
+    /// @dev Allows the DAO Manager to mint new tokens for the contributor
     ///      allocation.
     /// @dev The amount of tokens minted is calculated based on the time passed
     ///      since the Token Generation Event.
-    /// @dev The number of tokens minted is capped by the total builder allocation.
-    function mintBuilder() external {
-        if (msg.sender != builderAddress) {
+    /// @dev The number of tokens minted is capped by the total contributor allocation.
+    function mintContributor() external {
+        if (msg.sender != contributorAddress) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         uint256 timeSinceTGE = block.timestamp - tokenGenerationEventTimestamp;
         uint256 monthsSinceTGE = timeSinceTGE / MONTH;
-        uint256 _builderAllocationMinted = builderAllocationMinted;
+        uint256 _contributorAllocationMinted = contributorAllocationMinted;
 
-        uint256 amount = (monthsSinceTGE * builderAllocationPerMonth) -
-            _builderAllocationMinted;
+        uint256 amount = (monthsSinceTGE * contributorAllocationPerMonth) -
+            _contributorAllocationMinted;
 
-        if (builderAllocation <= _builderAllocationMinted + amount) {
-            amount = builderAllocation - builderAllocationMinted;
+        if (contributorAllocation <= _contributorAllocationMinted + amount) {
+            amount = contributorAllocation - contributorAllocationMinted;
         }
 
         if (amount == 0) {
             revert CVE__ParametersAreInvalid();
         }
 
-        builderAllocationMinted = _builderAllocationMinted + amount;
+        contributorAllocationMinted = _contributorAllocationMinted + amount;
         _mint(msg.sender, amount);
     }
 
-    /// @notice Sets the pending builder address to be claimed by `newAddress`.
-    /// @dev Allows the builder address to hand off its authority to another address.
-    /// @param newAddress The new address that can claim builder role.
-    function setPendingBuilderAddress(address newAddress) external {
-        if (msg.sender != builderAddress) {
+    /// @notice Sets the pending contributor address to be claimed by `newAddress`.
+    /// @dev Allows the contributor address to hand off its authority to another address.
+    /// @param newAddress The new address that can claim contributor role.
+    function setPendingContributorAddress(address newAddress) external {
+        if (msg.sender != contributorAddress) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        pendingBuilderAddress = newAddress;
+        pendingContributorAddress = newAddress;
     }
 
-    /// @notice Sets the builder address.
-    /// @dev Allows `pendingBuilderAddress` to claim their builder address
+    /// @notice Sets the contributor address.
+    /// @dev Allows `pendingContributorAddress` to claim their contributor address
     ///      role.
-    function claimBuilderAddress() external {
-        if (msg.sender != pendingBuilderAddress) {
+    function claimContributorAddress() external {
+        if (msg.sender != pendingContributorAddress) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        builderAddress = pendingBuilderAddress;
-        delete pendingBuilderAddress;
+        contributorAddress = pendingContributorAddress;
+        delete pendingContributorAddress;
     }
 
     /// INTERNAL FUNCTIONS ///

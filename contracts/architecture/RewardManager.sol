@@ -42,15 +42,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RewardManager is Delegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_DURATION = 2 weeks;
-
     /// @notice The address of the CVE contract.
     address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
+    /// @notice The length of one protocol epoch, in unix time.
+    uint256 public immutable epochDuration;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
@@ -108,6 +107,8 @@ contract RewardManager is Delegable, ReentrancyGuard {
         }
 
         genesisEpoch = centralRegistry.genesisEpoch();
+        epochDuration = centralRegistry.EPOCH_DURATION();
+        
         rewardToken = rewardToken_;
         cve = centralRegistry.cve();
     }
@@ -202,7 +203,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             return 0;
         }
 
-        return ((time - genesisEpoch) / EPOCH_DURATION);
+        return ((time - genesisEpoch) / epochDuration);
     }
 
     /// @notice Checks if a user has any rewards to claim.
