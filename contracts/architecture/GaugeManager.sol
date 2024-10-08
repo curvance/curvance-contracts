@@ -516,9 +516,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                         rewardAllocation(token, lastEpoch, rewardToken)) /
                     EPOCH_DURATION;
                 accRewardPerShare =
-                    accRewardPerShare +
-                    (reward * WAD /
-                    totalDeposited;
+                    accRewardPerShare + (reward * WAD) / totalDeposited;
 
                 ++lastEpoch;
                 lastRewardTimestamp = endTimestamp;
@@ -530,9 +528,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 EPOCH_DURATION;
             accRewardPerShare =
-                accRewardPerShare +
-                (reward * WAD) /
-                totalDeposited;
+                accRewardPerShare + (reward * WAD) / totalDeposited;
         }
 
         UserRewardInfo memory info = userDebtInfo[token][user][index];
