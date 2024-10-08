@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DToken, ICentralRegistry } from "contracts/market/collateral/DToken.sol";
+import { EToken, ICentralRegistry } from "contracts/market/token/EToken.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
-abstract contract BlastDToken is DToken, BlastYieldDelegable {
+abstract contract BlastEToken is EToken, BlastYieldDelegable {
     /// CONSTRUCTOR ///
 
     constructor(
@@ -13,7 +13,7 @@ abstract contract BlastDToken is DToken, BlastYieldDelegable {
         address marketManager_,
         address interestRateModel_
     )
-        DToken(
+        EToken(
             centralRegistry_,
             underlying_,
             marketManager_,

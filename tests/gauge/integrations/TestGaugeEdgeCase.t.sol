@@ -8,6 +8,7 @@ import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
+
 // FIX
 contract TestGaugeEdgeCase is TestBaseMarket {
     address public owner;
@@ -43,7 +44,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
+            tokens[i] = address(_deployEDAI());
         }
 
         for (uint256 i = 0; i < 10; i++) {
@@ -51,8 +52,8 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
 
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(tokens[i]);
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(tokens[i]);
 
             for (uint256 j = 0; j < 10; j++) {
                 address user = users[j];
@@ -105,7 +106,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
         // start epoch
-        
+
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IMToken(tokens[0]).mint(100 ether);
@@ -121,7 +122,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
     function testCanDepositWithdrawAfterGaugeStartTime() public {
         // start epoch
-        
+
         vm.warp(gaugeManager.startTime() + 10 seconds);
         vm.roll(block.number + 1000);
 
@@ -148,7 +149,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        
+
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugeManager.addExtraRewards(
@@ -218,7 +219,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        
+
         // setup partner gauge without CVE
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             gaugeManager.addExtraRewards(

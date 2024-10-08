@@ -188,32 +188,32 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         );
 
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+        deal(_USDC_ADDRESS, address(feeManager), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+        assertEq(usdc.balanceOf(address(feeManager)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
-        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+        deal(_USDC_ADDRESS, address(feeManager), 100e6);
 
         rewardManager.notifyShutdown();
 
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+        assertEq(usdc.balanceOf(address(feeManager)), 100e6);
 
         messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee * 2);
     }
 }

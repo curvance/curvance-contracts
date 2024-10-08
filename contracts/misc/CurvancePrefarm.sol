@@ -18,12 +18,12 @@ contract CurvancePrefarm {
     /// @param mTokenAddress The protocol linked mToken address for a token
     ///                      deposited inside the prefarm, configured on
     ///                      protocol deployment.
-    /// @param isCToken Whether protocol linked mToken address is a cToken or
+    /// @param isPToken Whether protocol linked mToken address is a pToken or
     ///                 not, configured on protocol deployment.
     struct TokenData {
         bool isApproved;
         address mTokenAddress;
-        bool isCToken;
+        bool isPToken;
     }
 
     /// CONSTANTS ///
@@ -195,7 +195,7 @@ contract CurvancePrefarm {
             );
         }
 
-        // Execute swap into dToken underlying.
+        // Execute swap into eToken underlying.
         uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         if (amount < depositAmount) {
@@ -244,7 +244,7 @@ contract CurvancePrefarm {
     /// @param collateralize Whether the mToken deposit should be
     ///                      collateralized or not, only used in cases where
     ///                      the prefarm token is being deposited into a
-    ///                      cToken position.
+    ///                      pToken position.
     function migrate(
         address token,
         uint256 amount,
@@ -277,7 +277,7 @@ contract CurvancePrefarm {
         SwapperLib._approveTokenIfNeeded(token, mToken, amount);
 
         // Migrate prefarm asset into Curvance protocol.
-        if (migrationToken.isCToken) {
+        if (migrationToken.isPToken) {
             // Migrate a collateral token.
             if (collateralize) {
                 // Migrate to a collateral token and immediately
@@ -355,7 +355,7 @@ contract CurvancePrefarm {
 
         // Pull the data directly from the contract rather than from parameter
         // input.
-        tokenData[prefarmToken].isCToken = IMToken(protocolToken).isCToken();
+        tokenData[prefarmToken].isPToken = IMToken(protocolToken).isPToken();
         tokenData[prefarmToken].mTokenAddress = protocolToken;
 
         emit MigrationTokenConfigured(prefarmToken, protocolToken);

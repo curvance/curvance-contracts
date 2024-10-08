@@ -52,10 +52,10 @@ contract BlastNativeYieldManager is ReentrancyGuard {
     /// @dev Address => is Market Manager.
     mapping(address => bool) public isMarketManager;
 
-    /// @notice Whether there is a debt token that a cToken should donate
+    /// @notice Whether there is a debt token that a pToken should donate
     ///         its native yield to.
-    /// @dev cToken Address => dToken Address receiving additional rewards.
-    mapping(address => address) public cTokenToDTokenYieldRouted;
+    /// @dev pToken Address => eToken Address receiving additional rewards.
+    mapping(address => address) public pTokenToETokenYieldRouted;
 
     /// @notice The amount of pending WETH yield held for an address.
     /// @dev Address => Pending WETH yield.
@@ -136,7 +136,9 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
 
         // Cache Gauge Manager.
-        IGaugeManager gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        IGaugeManager gaugeManager = IGaugeManager(
+            centralRegistry.gaugeManager()
+        );
         uint256 nextEpoch = gaugeManager.currentEpoch() + 1;
 
         // Validate that the Gauge Manager has not already set gauge rewards
@@ -160,7 +162,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         uint256 WETHPrior = WETH_YIELD_MANAGER.balanceOf(address(this));
         uint256 USDBPrior = USDB_YIELD_MANAGER.balanceOf(address(this));
 
-        address yieldDestination = cTokenToDTokenYieldRouted[msg.sender];
+        address yieldDestination = pTokenToETokenYieldRouted[msg.sender];
 
         // If the listed token is not currently routing its yield to another token,
         // route yield to itself.
@@ -362,28 +364,28 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
     }
 
-    /// @notice Sets routing of cToken rewards to dToken lenders.
+    /// @notice Sets routing of pToken rewards to eToken lenders.
     /// @dev This is a 1:1 mapping so in cases of cross margin markets
     ///      these mappings will need to be monitored.
-    /// @param cToken The collateral token to route native yield from.
-    /// @param cToken The debt token to route native yield to.
-    function setCTokenToDTokenYieldDonation(
-        address cToken,
-        address dToken
+    /// @param pToken The collateral token to route native yield from.
+    /// @param pToken The debt token to route native yield to.
+    function setPTokenToETokenYieldDonation(
+        address pToken,
+        address eToken
     ) external {
         _checkElevatedPermissions();
 
         if (
-            IMToken(cToken).marketManager() != IMToken(dToken).marketManager()
+            IMToken(pToken).marketManager() != IMToken(eToken).marketManager()
         ) {
             revert BlastNativeYieldManager__MarketManagerMismatch();
         }
 
-        if (!IMToken(cToken).isCToken() || IMToken(dToken).isCToken()) {
+        if (!IMToken(pToken).isPToken() || IMToken(eToken).isPToken()) {
             revert BlastNativeYieldManager__InvalidTokenTypes();
         }
 
-        cTokenToDTokenYieldRouted[cToken] = dToken;
+        pTokenToETokenYieldRouted[pToken] = eToken;
     }
 
     /// @notice Withdraws all native yield fees from non-MToken addresses.
@@ -411,7 +413,7 @@ contract BlastNativeYieldManager is ReentrancyGuard {
         }
 
         IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: yieldClaimed }();
-        
+
         SafeTransferLib.safeTransfer(
             address(WETH_YIELD_MANAGER),
             centralRegistry.daoAddress(),

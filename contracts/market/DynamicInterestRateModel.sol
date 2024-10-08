@@ -23,7 +23,7 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///      This model then builds on top of the previous systems by introducing
 ///      a dynamic "Vertex Multiplier" which increases the skew of
 ///      `vertexInterestRate`. The Vertex Multiplier is adjusted upward or
-///      downward based on the utilization of liquidity inside the dToken
+///      downward based on the utilization of liquidity inside the eToken
 ///      market.
 ///
 ///      This means that if utilization remains elevated during update
@@ -44,7 +44,7 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///      velocity is applied to it, regardless of positive or negative
 ///      acceleration applied due to liquidity utilization. By having a
 ///      naturally decreasing interest rate model users are incentivized to
-///      continually borrow from the dToken market over other solutions. Then,
+///      continually borrow from the eToken market over other solutions. Then,
 ///      when liquidity dries up, the interest rate model attracts new lenders.
 ///      The combination of these two forces should, in theory, create an
 ///      efficient system that naturally stimulates market growth while also
@@ -370,7 +370,8 @@ contract DynamicInterestRateModel is ERC165 {
     ) external view returns (uint256) {
         return
             _SECONDS_PER_YEAR *
-            (getBorrowRate(underlyingHeld, borrows, reserves) / INTEREST_COMPOUND_RATE);
+            (getBorrowRate(underlyingHeld, borrows, reserves) /
+                INTEREST_COMPOUND_RATE);
     }
 
     /// @notice Calculates the current supply rate per year.
@@ -429,7 +430,8 @@ contract DynamicInterestRateModel is ERC165 {
             return 0;
         }
 
-        uint256 utilRate = (borrows * WAD) / (underlyingHeld + borrows - reserves);
+        uint256 utilRate = (borrows * WAD) /
+            (underlyingHeld + borrows - reserves);
         // If reserves end up growing too much and cause util > 100%,
         // cap it to 100%.
         return utilRate > WAD ? WAD : utilRate;
@@ -464,8 +466,10 @@ contract DynamicInterestRateModel is ERC165 {
 
         uint256 vertexInterestRate = ratesConfig.vertexInterestRate;
         uint256 newMultiplier = _updateForAboveVertex(config, util);
-        return _getBaseInterestRate(vertexPoint) +
-         ((util - vertexPoint) * vertexInterestRate * newMultiplier) / WAD_SQUARED;
+        return
+            _getBaseInterestRate(vertexPoint) +
+            ((util - vertexPoint) * vertexInterestRate * newMultiplier) /
+            WAD_SQUARED;
     }
 
     /// @notice Calculates the current borrow rate, per compound.
@@ -511,11 +515,16 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 interestFee
     ) public view returns (uint256) {
         // RateToPool = (borrowRate * oneMinusReserveFactor) / WAD.
-        uint256 rateToPool = (getBorrowRate(underlyingHeld, borrows, reserves) *
-            (WAD - interestFee)) / WAD;
+        uint256 rateToPool = (getBorrowRate(
+            underlyingHeld,
+            borrows,
+            reserves
+        ) * (WAD - interestFee)) / WAD;
 
         // Supply Rate = (utilizationRate * rateToPool) / WAD.
-        return (utilizationRate(underlyingHeld, borrows, reserves) * rateToPool) / WAD;
+        return
+            (utilizationRate(underlyingHeld, borrows, reserves) * rateToPool) /
+            WAD;
     }
 
     /// @notice Returns the multiplier applied to the vertex interest rate,
@@ -561,8 +570,7 @@ contract DynamicInterestRateModel is ERC165 {
     ) internal view returns (uint256) {
         // We divide by WAD to maintain precision.
         return
-            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
-            WAD;
+            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) / WAD;
     }
 
     /// @notice Updates the parameters of the dynamic interest rate model
@@ -627,7 +635,7 @@ contract DynamicInterestRateModel is ERC165 {
         }
 
         // Our theoretical limit for the vertex multiplier is:
-        // (2^256 - 1) / 3e36 = 3.8597e40. 
+        // (2^256 - 1) / 3e36 = 3.8597e40.
         // Where 3e36 is the theoretical maximum value of cFactor and
         // 2^256 - 1 is type(uint256).max.
         // As a result, we cap the vertex maximum before this number to
@@ -693,7 +701,7 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates and returns the updated multiplier for scenarios
     ///         where the utilization rate is above the vertex.
     /// @dev This function is used to adjust the vertex multiplier based on
-    ///      the dToken's current borrow utilization.
+    ///      the eToken's current borrow utilization.
     ///      A decay mechanism is incorporated to gradually decrease the
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.
@@ -754,7 +762,7 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates and returns the updated multiplier for scenarios
     ///         where the utilization rate is below the vertex.
     /// @dev This function is used to adjust the vertex multiplier based on
-    ///      the dToken's current borrow utilization.
+    ///      the eToken's current borrow utilization.
     ///      A decay mechanism is incorporated to gradually decrease the
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.

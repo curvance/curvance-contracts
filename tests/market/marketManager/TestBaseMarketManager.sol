@@ -12,18 +12,17 @@ contract TestBaseMarketManager is TestBaseMarket {
     function setUp() public virtual override {
         super.setUp();
 
-        
         _prepareUSDC(address(this), _ONE);
         _prepareDAI(address(this), _ONE);
         _prepareBALRETH(address(this), _ONE);
 
-        oracleRouter.addMTokenSupport(address(dDAI));
+        oracleManager.addMTokenSupport(address(eDAI));
 
-        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(dUSDC), _ONE);
-        SafeTransferLib.safeApprove(_DAI_ADDRESS, address(dDAI), _ONE);
+        SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), _ONE);
+        SafeTransferLib.safeApprove(_DAI_ADDRESS, address(eDAI), _ONE);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
-            address(cBALRETH),
+            address(pBALRETH),
             _ONE
         );
 

@@ -3,10 +3,10 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { Convex2PoolCToken } from "contracts/market/collateral/Convex2PoolCToken.sol";
+import { Convex2PoolPToken } from "contracts/market/token/Convex2PoolPToken.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -46,9 +46,9 @@ contract ConvexMarketDeployer is DeployConfiguration {
         address marketManager = _getDeployedContract("marketManager");
         console.log("marketManager =", marketManager);
         require(marketManager != address(0), "Set the marketManager!");
-        address oracleRouter = _getDeployedContract("oracleRouter");
-        console.log("oracleRouter =", oracleRouter);
-        require(oracleRouter != address(0), "Set the oracleRouter!");
+        address oracleManager = _getDeployedContract("oracleManager");
+        console.log("oracleManager =", oracleManager);
+        require(oracleManager != address(0), "Set the oracleManager!");
 
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         if (chainlinkAdaptor == address(0)) {
@@ -101,38 +101,40 @@ contract ConvexMarketDeployer is DeployConfiguration {
             }
 
             if (
-                !OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)
+                !OracleManager(oracleManager).isApprovedAdaptor(
+                    chainlinkAdaptor
+                )
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(
+                OracleManager(oracleManager).addApprovedAdaptor(
                     chainlinkAdaptor
                 );
                 console.log(
-                    "oracleRouter.addApprovedAdaptor: ",
+                    "oracleManager.addApprovedAdaptor: ",
                     chainlinkAdaptor
                 );
             }
 
             try
-                OracleRouter(oracleRouter).assetPriceFeeds(
+                OracleManager(oracleManager).assetPriceFeeds(
                     underlyingParam.asset,
                     0
                 )
             returns (address /* feed */) {} catch {
-                OracleRouter(oracleRouter).addAssetPriceFeed(
+                OracleManager(oracleManager).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
                 );
                 console.log(
-                    "oracleRouter.addAssetPriceFeed: ",
+                    "oracleManager.addAssetPriceFeed: ",
                     underlyingParam.asset
                 );
             }
         }
 
         // Deploy Curve adapter
-        if (!OracleRouter(oracleRouter).isApprovedAdaptor(curveAdaptor)) {
-            OracleRouter(oracleRouter).addApprovedAdaptor(curveAdaptor);
-            console.log("oracleRouter.addApprovedAdaptor: ", curveAdaptor);
+        if (!OracleManager(oracleManager).isApprovedAdaptor(curveAdaptor)) {
+            OracleManager(oracleManager).addApprovedAdaptor(curveAdaptor);
+            console.log("oracleManager.addApprovedAdaptor: ", curveAdaptor);
         }
         if (!Curve2PoolLPAdaptor(curveAdaptor).isSupportedAsset(param.asset)) {
             Curve2PoolLPAdaptor.AdaptorData memory data;
@@ -149,21 +151,21 @@ contract ConvexMarketDeployer is DeployConfiguration {
             console.log("curveAdaptor.addAsset");
         }
         try
-            OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
+            OracleManager(oracleManager).assetPriceFeeds(param.asset, 0)
         returns (address /* feed */) {} catch {
-            OracleRouter(oracleRouter).addAssetPriceFeed(
+            OracleManager(oracleManager).addAssetPriceFeed(
                 param.asset,
                 curveAdaptor
             );
-            console.log("oracleRouter.addAssetPriceFeed: ", param.asset);
+            console.log("oracleManager.addAssetPriceFeed: ", param.asset);
         }
 
-        // Deploy CToken
-        address cToken = _getDeployedContract(name);
-        if (cToken == address(0)) {
+        // Deploy PToken
+        address pToken = _getDeployedContract(name);
+        if (pToken == address(0)) {
             if (param.underlyings.length == 2) {
-                cToken = address(
-                    new Convex2PoolCToken(
+                pToken = address(
+                    new Convex2PoolPToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,
@@ -173,8 +175,8 @@ contract ConvexMarketDeployer is DeployConfiguration {
                     )
                 );
             } else if (param.underlyings.length == 3) {
-                cToken = address(
-                    new Convex2PoolCToken(
+                pToken = address(
+                    new Convex2PoolPToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,
@@ -184,8 +186,8 @@ contract ConvexMarketDeployer is DeployConfiguration {
                     )
                 );
             } else if (param.underlyings.length == 4) {
-                cToken = address(
-                    new Convex2PoolCToken(
+                pToken = address(
+                    new Convex2PoolPToken(
                         ICentralRegistry(centralRegistry),
                         IERC20(param.asset),
                         marketManager,
@@ -195,13 +197,13 @@ contract ConvexMarketDeployer is DeployConfiguration {
                     )
                 );
             }
-            console.log("cToken: ", cToken);
-            _saveDeployedContracts(name, cToken);
+            console.log("pToken: ", pToken);
+            _saveDeployedContracts(name, pToken);
         }
 
         // followings should be done separate because it requires dust amount deposits
         // marketManager.listToken;
-        // marketManager.updateCollateralToken
-        // marketManager.setCTokenCollateralCaps
+        // marketManager.updatePositionToken
+        // marketManager.setPTokenCollateralCaps
     }
 }

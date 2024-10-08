@@ -7,7 +7,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Liquidity Manager.
 /// @notice Calculates liquidity of an account in various positions.
@@ -31,8 +31,8 @@ abstract contract LiquidityManager {
     ///                       an active position in the token.
     ///                       0 or 1 for no; 2 for yes.
     /// @param collateralPosted The amount of collateral an account has posted
-    ///                         inside the market. Only applicable to cTokens,
-    ///                         not dTokens.
+    ///                         inside the market. Only applicable to pTokens,
+    ///                         not eTokens.
     struct AccountPosition {
         uint256 activePosition;
         uint256 collateralPosted;
@@ -127,13 +127,13 @@ abstract contract LiquidityManager {
     ///                posted collateral vs outstanding debt. A lFactor of 0
     ///                corresponds to no liquidation available, an lFactor of
     ///                100% corresponds to a full hard liquidation.
-    /// @param collateralTokenPrice The current price of the cToken
-    ///                             to be liquidated.
-    /// @param debtTokenPrice The current price of the dToken to be repaid.
+    /// @param positionTokenPrice The current price of the pToken
+    ///                           to be liquidated.
+    /// @param earnTokenPrice The current price of the eToken to be repaid.
     struct LiqData {
         uint256 lFactor;
-        uint256 collateralTokenPrice;
-        uint256 debtTokenPrice;
+        uint256 positionTokenPrice;
+        uint256 earnTokenPrice;
     }
 
     /// @notice Data structure returned on Bad Debt calculation containing
@@ -217,7 +217,7 @@ abstract contract LiquidityManager {
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
-            if (snapshot.isCToken) {
+            if (snapshot.isPToken) {
                 // If the asset has a CR increment their collateral
                 // and max borrow value.
                 if (tokenData[snapshot.asset].collRatio != 0) {
@@ -296,11 +296,11 @@ abstract contract LiquidityManager {
                 uint256 cr;
                 snapshot = snapshots[i];
 
-                if (snapshot.isCToken) {
-                    // Cache Collateralization for cToken status and potential
+                if (snapshot.isPToken) {
+                    // Cache Collateralization for pToken status and potential
                     // hypothetical action below.
                     cr = tokenData[snapshot.asset].collRatio;
-                    // If the cToken has a Collateralization Ratio,
+                    // If the pToken has a Collateralization Ratio,
                     // increment their collateral and max borrow value.
                     if (cr != 0) {
                         // Cache collateral posted.
@@ -322,7 +322,7 @@ abstract contract LiquidityManager {
                                 }
                             }
                         } else {
-                            // There is collateral posted in this cToken, and the user
+                            // There is collateral posted in this pToken, and the user
                             // can take on more debt.
                             maxDebt = _addLiquidityValue(
                                 maxDebt,
@@ -358,13 +358,13 @@ abstract contract LiquidityManager {
 
                 // Calculate impact of mTokenModified action.
                 if (action.mTokenModified == snapshot.asset) {
-                    // If its a CToken our only option is to redeem it since
+                    // If its a PToken our only option is to redeem it since
                     // it cant be borrowed.
-                    // If its a DToken we can redeem it but it will not have
-                    // any effect on borrow amount since DToken have a collateral
+                    // If its a EToken we can redeem it but it will not have
+                    // any effect on borrow amount since EToken have a collateral
                     // value of 0.
-                    if (snapshot.isCToken) {
-                        // If the cToken has a Collateralization Ratio,
+                    if (snapshot.isPToken) {
+                        // If the pToken has a Collateralization Ratio,
                         // increase their new debt.
                         if (cr != 0) {
                             // If they are trying to redeem more tokens than they have,
@@ -444,22 +444,26 @@ abstract contract LiquidityManager {
     ///                               collateral offset by hard liquidation
     ///                               requirements.
     /// @return accountDebt The total outstanding debt value of `account`.
-    /// @return collateralTokenPrice The current market value of
-    ///                              `collateralToken`, in USD WAD.
-    /// @return debtTokenPrice The current market value of `debtToken`,
+    /// @return positionTokenPrice The current market value of
+    ///                              `positionToken`, in USD WAD.
+    /// @return earnTokenPrice The current market value of `earnToken`,
     ///                        in USD WAD.
     function _liquidationValuesOf(
         address account,
-        address debtToken,
-        address collateralToken
-    ) internal view returns (
-        uint256 accountCollateral,
-        uint256 accountCollateralSoft,
-        uint256 accountCollateralHard,
-        uint256 accountDebt,
-        uint256 collateralTokenPrice,
-        uint256 debtTokenPrice
-    ) {
+        address earnToken,
+        address positionToken
+    )
+        internal
+        view
+        returns (
+            uint256 accountCollateral,
+            uint256 accountCollateralSoft,
+            uint256 accountCollateralHard,
+            uint256 accountDebt,
+            uint256 positionTokenPrice,
+            uint256 earnTokenPrice
+        )
+    {
         (
             AccountSnapshot[] memory snapshots,
             uint256[] memory underlyingPrices,
@@ -470,9 +474,9 @@ abstract contract LiquidityManager {
         for (uint256 i; i < numAssets; ++i) {
             snapshot = snapshots[i];
 
-            if (snapshot.isCToken) {
-                if (snapshot.asset == collateralToken) {
-                    collateralTokenPrice = underlyingPrices[i];
+            if (snapshot.isPToken) {
+                if (snapshot.asset == positionToken) {
+                    positionTokenPrice = underlyingPrices[i];
                 }
 
                 // If the asset has a CR increment their collateral.
@@ -482,17 +486,17 @@ abstract contract LiquidityManager {
                         accountCollateralSoft,
                         accountCollateralHard
                     ) = _addLiquidationValues(
-                            snapshot,
-                            account,
-                            underlyingPrices[i],
-                            accountCollateral,
-                            accountCollateralSoft,
-                            accountCollateralHard
-                        );
+                        snapshot,
+                        account,
+                        underlyingPrices[i],
+                        accountCollateral,
+                        accountCollateralSoft,
+                        accountCollateralHard
+                    );
                 }
             } else {
-                if (snapshot.asset == debtToken) {
-                    debtTokenPrice = underlyingPrices[i];
+                if (snapshot.asset == earnToken) {
+                    earnTokenPrice = underlyingPrices[i];
                 }
 
                 // If they have a debt balance,
@@ -513,28 +517,28 @@ abstract contract LiquidityManager {
     ///         by calculating their lFactor, based on their
     ///         collateral versus outstanding debt.
     /// @param account The account to check liquidation status for.
-    /// @param debtToken The dToken to be repaid during potential liquidation.
-    /// @param collateralToken The cToken to be seized during potential
+    /// @param earnToken The eToken to be repaid during potential liquidation.
+    /// @param positionToken The pToken to be seized during potential
     ///                        liquidation.
     /// @return result Containing values:
     ///                Current `account` lFactor.
-    ///                Current price for `debtToken`.
-    ///                Current price for `collateralToken`.
+    ///                Current price for `earnToken`.
+    ///                Current price for `positionToken`.
     function _LiquidationStatusOf(
         address account,
-        address debtToken,
-        address collateralToken
+        address earnToken,
+        address positionToken
     ) internal view returns (LiqData memory result) {
         (
             uint256 accountCollateral,
             uint256 accountCollateralSoft,
             uint256 accountCollateralHard,
             uint256 accountDebt,
-            uint256 collateralTokenPrice,
-            uint256 debtTokenPrice
-        ) = _liquidationValuesOf(account, debtToken, collateralToken);
-        result.collateralTokenPrice = collateralTokenPrice;
-        result.debtTokenPrice = debtTokenPrice;
+            uint256 positionTokenPrice,
+            uint256 earnTokenPrice
+        ) = _liquidationValuesOf(account, earnToken, positionToken);
+        result.positionTokenPrice = positionTokenPrice;
+        result.earnTokenPrice = earnTokenPrice;
 
         // Indicates bad debt has accumulated and liquidation by
         // account should be used.
@@ -593,8 +597,8 @@ abstract contract LiquidityManager {
             for (uint256 i; i < numAssets; ++i) {
                 snapshot = snapshots[i];
 
-                if (snapshot.isCToken) {
-                    // If the cToken has a Collateralization Ratio,
+                if (snapshot.isPToken) {
+                    // If the pToken has a Collateralization Ratio,
                     // increment their collateral and debt to pay.
                     if (tokenData[snapshot.asset].collRatio != 0) {
                         // Cache collateral posted.
@@ -650,7 +654,7 @@ abstract contract LiquidityManager {
         returns (AccountSnapshot[] memory, uint256[] memory, uint256)
     {
         return
-            IOracleRouter(centralRegistry.oracleRouter()).getPricesForMarket(
+            IOracleManager(centralRegistry.oracleManager()).getPricesForMarket(
                 account,
                 accountAssets[account].assets,
                 errorCodeBreakpoint
@@ -684,7 +688,7 @@ abstract contract LiquidityManager {
     /// @notice Calculates a redemptions value based on its `amount`,
     ///         `exchangeRate`, `price`, `collRatio`, and adjusts for decimals.
     /// @param amount The asset amount to redeem.
-    /// @param exchangeRate The exchange rate between cToken and underlying.
+    /// @param exchangeRate The exchange rate between pToken and underlying.
     /// @param price The asset's price, in `WAD`.
     /// @param decimals The asset's decimals to adjust redemption value
     ///                 into proper form.
@@ -713,7 +717,7 @@ abstract contract LiquidityManager {
     /// @param liqForBorrowPrior Prior liquidity value to sum with asset value
     ///                          calculated for new maximum borrow allowed.
     /// @param posted Current collateral posted.
-    /// @param exchangeRate The exchange rate between cToken and underlying.
+    /// @param exchangeRate The exchange rate between pToken and underlying.
     /// @param price The asset's price, in `WAD`.
     /// @param decimals The asset's decimals to adjust liquidity value
     ///                 into proper form.

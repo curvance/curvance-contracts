@@ -30,7 +30,7 @@ contract DepositETHTest is TestBaseUniversalBalance {
     function test_depositETH_fail_whenTokenIsNotListed() public {
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(dUSDC),
+            address(eUSDC),
             _WETH_ADDRESS
         );
 

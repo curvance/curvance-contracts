@@ -39,7 +39,7 @@ contract TestGaugeManager is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
+            tokens[i] = address(_deployEDAI());
         }
 
         for (uint256 i = 0; i < 10; i++) {
@@ -47,8 +47,8 @@ contract TestGaugeManager is TestBaseMarket {
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
 
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(tokens[i]);
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(tokens[i]);
 
             for (uint256 j = 0; j < 10; j++) {
                 address user = users[j];
@@ -77,7 +77,7 @@ contract TestGaugeManager is TestBaseMarket {
         // gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        
+
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
@@ -238,10 +238,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
-        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
-            0,
-            tokens[0]
-        );
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(0, tokens[0]);
         assertEq(totalWeights, 600);
         assertEq(poolWeight, 300);
         (totalWeights, poolWeight) = gaugeManager.gaugeWeight(0, tokens[1]);
@@ -1005,14 +1002,14 @@ contract TestGaugeManager is TestBaseMarket {
         _deployCBALRETH();
         _prepareBALRETH(address(this), 1 ether);
 
-        balRETH.approve(address(cBALRETH), 1 ether);
-        marketManager.listToken(address(cBALRETH));
+        balRETH.approve(address(pBALRETH), 1 ether);
+        marketManager.listToken(address(pBALRETH));
 
-        oracleRouter.addMTokenSupport(address(cBALRETH));
+        oracleManager.addMTokenSupport(address(pBALRETH));
 
         // set collateral factor
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             0,
             4000,
             3000,
@@ -1024,29 +1021,29 @@ contract TestGaugeManager is TestBaseMarket {
 
         // set up emission rates and fund the gauge pool with cve
         address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(cBALRETH);
+        tokensParam[0] = address(pBALRETH);
         uint256[] memory poolWeights = new uint256[](1);
         poolWeights[0] = 1e18;
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
         deal(address(cve), address(gaugeManager), 1e18);
 
-        vm.startPrank(address(cBALRETH));
+        vm.startPrank(address(pBALRETH));
 
         // make a deposit before start time
-        gaugeManager.deposit(address(cBALRETH), address(this), 1 ether);
+        gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
 
         // make a withdrawal before start time
-        gaugeManager.withdraw(address(cBALRETH), address(this), 1 ether);
+        gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
 
         // fast forward to after start time
         vm.warp(gaugeManager.startTime() + 2 weeks);
 
         // make a deposit after start time
-        gaugeManager.deposit(address(cBALRETH), address(this), 1 ether);
+        gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);
 
         // make a withdrawal after start time
-        gaugeManager.withdraw(address(cBALRETH), address(this), 1 ether);
+        gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
 
         vm.stopPrank();
     }

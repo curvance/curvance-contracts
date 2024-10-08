@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
 import { MulticallDataCheckerBase } from "./MulticallDataCheckerBase.sol";
 
@@ -30,11 +30,11 @@ contract MulticallDataCheckerForPythAdaptor is MulticallDataCheckerBase {
         address target,
         bytes memory data
     ) external view override {
-        OracleRouter oracleRouter = OracleRouter(
-            ICentralRegistry(centralRegistry).oracleRouter()
+        OracleManager oracleManager = OracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
         );
 
-        if (!oracleRouter.isApprovedAdaptor(target)) {
+        if (!oracleManager.isApprovedAdaptor(target)) {
             revert MulticallDataChecker__TargetError();
         }
 

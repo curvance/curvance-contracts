@@ -14,7 +14,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
+import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -540,10 +540,7 @@ contract MessagingHub is QueryResponse {
         uint256 feeTokenBalance = _getFeeTokenHeld();
 
         if (gasTokenBalance > 0) {
-            SafeTransferLib.safeTransferETH(
-                _getDaoAddress(),
-                gasTokenBalance
-            );
+            SafeTransferLib.safeTransferETH(_getDaoAddress(), gasTokenBalance);
         }
 
         if (feeTokenBalance > 0) {
@@ -734,11 +731,10 @@ contract MessagingHub is QueryResponse {
         }
     }
 
-    /// @dev Pulls `amount` fee tokens from the fee accumulator to
+    /// @dev Pulls `amount` fee tokens from the fee manager to
     ///      aggregate fees.
     function _pullFees(uint256 amount) internal returns (uint256) {
-        return
-            IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
+        return IFeeManager(centralRegistry.feeManager()).pullFees(amount);
     }
 
     /// @dev Receives fee tokens from Circle from provided message.

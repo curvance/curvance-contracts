@@ -6,24 +6,24 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 contract FuzzMarketManagerSystem is StatefulBaseMarket {
     // Stateful Functions
 
-    // if closing position with a dtoken, ensure position cannot be created
-    // invariant: for any dtoken, collateralPostedFor(dtoken, addr(this)) = 0
+    // if closing position with a eToken, ensure position cannot be created
+    // invariant: for any eToken, collateralPostedFor(eToken, addr(this)) = 0
 
     // system invariant:
-    // should not have an active position in a dtoken if one does not have debt
+    // should not have an active position in a eToken if one does not have debt
 
-    /// @custom:property s-market-1 A user’s cToken balance must always be greater than the total collateral posted for a ctoken.
-    function cToken_balance_gte_collateral_posted(address ctoken) public {
-        uint256 cTokenBalance = MockToken(ctoken).balanceOf(address(this));
+    /// @custom:property s-market-1 A user’s pToken balance must always be greater than the total collateral posted for a pToken.
+    function pToken_balance_gte_collateral_posted(address pToken) public {
+        uint256 pTokenBalance = MockToken(pToken).balanceOf(address(this));
 
         uint256 collateralPostedForAddress = marketManager.collateralPosted(
             address(this)
         );
 
         assertGte(
-            cTokenBalance,
+            pTokenBalance,
             collateralPostedForAddress,
-            "S-MARKET-1 - cTokenBalance must exceed collateral posted"
+            "S-MARKET-1 - pTokenBalance must exceed collateral posted"
         );
     }
 

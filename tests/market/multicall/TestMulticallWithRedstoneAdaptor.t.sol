@@ -8,7 +8,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { MulticallDataCheckerBase } from "contracts/market/multicall-checker/MulticallDataCheckerBase.sol";
 import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
@@ -27,7 +27,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    CTokenPrimitive public cWBTC;
+    PTokenPrimitive public cWBTC;
 
     receive() external payable {}
 
@@ -83,7 +83,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             address(multicallDataChecker)
         );
 
-        oracleRouter.addApprovedAdaptor(address(adapter));
+        oracleManager.addApprovedAdaptor(address(adapter));
 
         bytes memory redstonePayload = getRedstonePayload("WBTC:60000:8");
         bytes memory encodedFunction = abi.encodeWithSignature(
@@ -102,7 +102,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
         assertTrue(success);
 
-        oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
+        oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -114,17 +114,17 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         );
         assertTrue(success);
 
-        // deploy dUSDC
+        // deploy eUSDC
         {
-            _deployDUSDC();
+            _deployEUSDC();
             // support market
             _prepareUSDC(owner, 200000e6);
-            usdc.approve(address(dUSDC), 200000e6);
-            marketManager.listToken(address(dUSDC));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dUSDC));
+            usdc.approve(address(eUSDC), 200000e6);
+            marketManager.listToken(address(eUSDC));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
-            markets[0] = address(dUSDC);
+            markets[0] = address(eUSDC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -134,7 +134,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         // deploy cWBTC
         {
             // deploy aura position vault
-            cWBTC = new CTokenPrimitive(
+            cWBTC = new PTokenPrimitive(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManager)
@@ -144,10 +144,10 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(cWBTC));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(cWBTC));
             // set collateral token configuration
-            marketManager.updateCollateralToken(
+            marketManager.updatePositionToken(
                 IMToken(address(cWBTC)),
                 7000,
                 4000, // liquidate at 71%
@@ -162,7 +162,7 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
             mTokens[0] = address(cWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setCTokenCollateralCaps(mTokens, caps);
+            marketManager.setPTokenCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(cWBTC);
@@ -184,10 +184,10 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         address liquidityProvider = address(new User());
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
-        // mint dUSDC
+        // mint eUSDC
         vm.startPrank(liquidityProvider);
-        usdc.approve(address(dUSDC), 200000e6);
-        dUSDC.mint(200000e6);
+        usdc.approve(address(eUSDC), 200000e6);
+        eUSDC.mint(200000e6);
         // mint cBALETH
         wbtc.approve(address(cWBTC), 10 ether);
         cWBTC.mint(10 ether, liquidityProvider);
@@ -195,11 +195,11 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertTrue(cWBTC.isCToken());
-        assertFalse(dUSDC.isCToken());
+        assertTrue(cWBTC.isPToken());
+        assertFalse(eUSDC.isPToken());
     }
 
-    function testCTokenMintMulticall() public {
+    function testPTokenMintMulticall() public {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
@@ -242,11 +242,11 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         assertEq(priceData.price, 61000e18);
     }
 
-    function testDTokenMintWithMulticall() public {
+    function testETokenMintWithMulticall() public {
         _prepareUSDC(user1, 2e6);
 
         vm.prank(user1);
-        usdc.approve(address(dUSDC), 1e6);
+        usdc.approve(address(eUSDC), 1e6);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -265,14 +265,14 @@ contract TestMulticallWithRedstoneAdaptor is TestBaseMarket {
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(dUSDC);
-        calls[1].data = abi.encodeWithSelector(dUSDC.mint.selector, 1e6);
+        calls[1].target = address(eUSDC);
+        calls[1].data = abi.encodeWithSelector(eUSDC.mint.selector, 1e6);
 
         // try mint()
         vm.prank(user1);
-        dUSDC.multicall(calls);
+        eUSDC.multicall(calls);
 
-        assertEq(dUSDC.balanceOf(user1), 1e6);
+        assertEq(eUSDC.balanceOf(user1), 1e6);
         PriceReturnData memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,

@@ -22,10 +22,10 @@ contract DeployPendleMarkets is Script, DeployConfiguration, PendleLPDeployer {
         vm.startBroadcast(deployerPrivateKey);
 
         _deployPendleLP(
-            "C-PendleLP-stETH-26DEC24",
+            "P-PendleLP-stETH-26DEC24",
             abi.decode(
                 configurationJson.parseRaw(
-                    ".markets.cTokens.PendleLP-stETH-26DEC24"
+                    ".markets.pTokens.PendleLP-stETH-26DEC24"
                 ),
                 (PendleLPDeployer.PendleLPParam)
             )

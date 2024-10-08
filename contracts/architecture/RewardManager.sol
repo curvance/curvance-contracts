@@ -114,13 +114,13 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by the fee accumulator to record rewards allocated to
+    /// @notice Called by the Fee Manager to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Accumulator.
+    /// @dev Only callable on by the Fee Manager.
     /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
     ///                      the next reward epoch delivered.
     function recordEpochRewards(uint256 rewardsPerCVE) external {
-        // Validate the caller reporting epoch data is the fee accumulator,
+        // Validate the caller reporting epoch data is the fee manager,
         // or messaging hub.
         if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);

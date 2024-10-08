@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { DToken, WAD } from "contracts/market/collateral/DToken.sol";
+import { PTokenPrimitive } from "contracts/market/token/PTokenPrimitive.sol";
+import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
@@ -14,7 +14,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
@@ -23,7 +23,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 ///      usually would require multiple looped actions to facilitate,
 ///      namely leveraging a position up or deleveraging it for withdrawal.
 ///
-///      CToken and DToken contracts facilitate these operations through
+///      PToken and EToken contracts facilitate these operations through
 ///      integration with Position Foldings callback functions.
 abstract contract PositionManagementBase is
     IPositionManagement,
@@ -70,7 +70,7 @@ abstract contract PositionManagementBase is
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
-            if (!mTokens[i].isCToken()) {
+            if (!mTokens[i].isPToken()) {
                 mTokens[i].accrueInterest();
             }
         }
@@ -135,20 +135,20 @@ abstract contract PositionManagementBase is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        CTokenPrimitive cToken = leverageData.collateralToken;
-        address cTokenUnderlying = cToken.asset();
+        PTokenPrimitive pToken = leverageData.positionToken;
+        address pTokenUnderlying = pToken.asset();
         SafeTransferLib.safeTransferFrom(
-            cTokenUnderlying,
+            pTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
         SwapperLib._approveTokenIfNeeded(
-            cTokenUnderlying,
-            address(cToken),
+            pTokenUnderlying,
+            address(pToken),
             assets
         );
-        cToken.depositAsCollateralFor(assets, msg.sender);
+        pToken.depositAsCollateralFor(assets, msg.sender);
         _leverage(leverageData, msg.sender);
     }
 
@@ -267,7 +267,7 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidParam();
         }
 
-        address borrowUnderlying = CTokenPrimitive(borrowToken).underlying();
+        address borrowUnderlying = PTokenPrimitive(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
             revert PositionManagementBase__InvalidAmount();
@@ -283,28 +283,28 @@ abstract contract PositionManagementBase is
             );
         }
 
-        // We do not need to check whether collateralToken is listed
+        // We do not need to check whether positionToken is listed
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        CTokenPrimitive collateralToken = leverageData.collateralToken;
+        PTokenPrimitive positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
-        address collateralUnderlying = collateralToken.underlying();
+        address collateralUnderlying = positionToken.underlying();
 
         _swapBorrowUnderlyingToCollateral(leverageData);
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
-        // Approve `amount` of `collateralUnderlying` to cToken contract.
+        // Approve `amount` of `collateralUnderlying` to pToken contract.
         SwapperLib._approveTokenIfNeeded(
             collateralUnderlying,
-            address(collateralToken),
+            address(positionToken),
             amount
         );
 
         // Enter Curvance.
-        collateralToken.depositAsCollateral(amount, borrower);
+        positionToken.depositAsCollateral(amount, borrower);
 
         uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this));
 
@@ -325,44 +325,44 @@ abstract contract PositionManagementBase is
     }
 
     /// @notice Callback function to execute post redemption of
-    ///         `collateralToken`'s underlying and swap it to repay
+    ///         `positionToken`'s underlying and swap it to repay
     ///         active debt for `redeemer`.
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
-    /// @param collateralToken The cToken redeemed for its underlying.
+    /// @param positionToken The pToken redeemed for its underlying.
     /// @param redeemer The account redeeming collateral that will be used to
     ///                 repay their active debt.
-    /// @param collateralAmount The amount of `collateralToken` underlying
+    /// @param collateralAmount The amount of `positionToken` underlying
     ///                         redeemed.
     /// @param deleverageData Swap and repayment instructions.
     function onRedeem(
-        address collateralToken,
+        address positionToken,
         address redeemer,
         uint256 collateralAmount,
         DeleverageStruct memory deleverageData
     ) external override {
         // Validate that the collateral token itself is executing
         // the callback.
-        if (msg.sender != collateralToken) {
+        if (msg.sender != positionToken) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // Validate the collateral token is actually listed to this
         // Market Manager.
-        if (!marketManager.isListed(collateralToken)) {
+        if (!marketManager.isListed(positionToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (
-            collateralToken != address(deleverageData.collateralToken) ||
+            positionToken != address(deleverageData.positionToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
             revert PositionManagementBase__InvalidParam();
         }
 
-        // Swap collateral token (cToken underlying) to
-        // borrow token (dToken underlying).
-        address collateralUnderlying = CTokenPrimitive(collateralToken)
+        // Swap collateral token (pToken underlying) to
+        // borrow token (eToken underlying).
+        address collateralUnderlying = PTokenPrimitive(positionToken)
             .underlying();
 
         if (
@@ -389,7 +389,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        DToken borrowToken = deleverageData.borrowToken;
+        EToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = borrowToken.underlying();
@@ -397,7 +397,7 @@ abstract contract PositionManagementBase is
         uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this)) -
             repayAmount;
 
-        // Approve `repayAmount` of `borrowUnderlying` to dToken contract.
+        // Approve `repayAmount` of `borrowUnderlying` to eToken contract.
         SwapperLib._approveTokenIfNeeded(
             borrowUnderlying,
             address(borrowToken),
@@ -456,9 +456,9 @@ abstract contract PositionManagementBase is
     /// @dev Applies a minor dampening effect to calculated maximum leverage
     ///      via `MAX_LEVERAGE`.
     /// @param account The account to query maximum borrow amount for.
-    /// @param borrowToken The dToken that `account` will borrow from
+    /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
-    /// @return The maximum borrow amount allowed from dToken, measured in
+    /// @return The maximum borrow amount allowed from eToken, measured in
     ///         underlying token amount.
     function queryAmountToBorrowForLeverageMax(
         address account,
@@ -488,8 +488,8 @@ abstract contract PositionManagementBase is
             (sumCollateral - maxDebt) /
             DENOMINATOR;
 
-        (uint256 price, uint256 errorCode) = IOracleRouter(
-            ICentralRegistry(centralRegistry).oracleRouter()
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
         ).getPrice(address(borrowToken), true, false);
 
         // Validate we got a price for `borrowToken`.
@@ -523,7 +523,7 @@ abstract contract PositionManagementBase is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        DToken borrowToken = leverageData.borrowToken;
+        EToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = queryAmountToBorrowForLeverageMax(
             account,
@@ -556,7 +556,7 @@ abstract contract PositionManagementBase is
         DeleverageStruct memory deleverageData,
         address account
     ) internal {
-        deleverageData.collateralToken.withdrawByPositionManagement(
+        deleverageData.positionToken.withdrawByPositionManagement(
             account,
             deleverageData.collateralAmount,
             deleverageData

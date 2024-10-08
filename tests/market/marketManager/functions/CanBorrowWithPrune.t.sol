@@ -12,7 +12,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
         skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -20,33 +20,33 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
     }
 
     function test_canBorrowWithPrune_fail_whenBorrowPaused() public {
-        marketManager.setBorrowPaused(address(dUSDC), true);
+        marketManager.setBorrowPaused(address(eUSDC), true);
 
-        vm.prank(address(dUSDC));
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 100e6);
     }
 
     function test_canBorrowWithPrune_fail_whenMTokenIsNotListed() public {
-        marketManager.listToken(address(dDAI));
+        marketManager.listToken(address(eDAI));
 
-        vm.prank(address(dDAI));
+        vm.prank(address(eDAI));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
 
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 100e6);
     }
 
     function test_canBorrowWithPrune_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
         public
     {
-        marketManager.listToken(address(dDAI));
+        marketManager.listToken(address(eDAI));
 
-        vm.prank(address(dUSDC));
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrowWithPrune(address(dDAI), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(eDAI), user1, 100e6);
     }
 
     function test_canBorrowWithPrune_fail_whenInsufficientLiquidity() public {
@@ -63,12 +63,12 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             block.timestamp
         );
 
-        vm.prank(address(dUSDC));
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 100e6);
     }
 
     function test_canBorrowWithPrune_fail_whenInsufficientLoanSize() public {
@@ -91,9 +91,9 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             block.timestamp
         );
 
-        marketManager.listToken(address(cBALRETH));
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        marketManager.listToken(address(pBALRETH));
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             7000,
             4000,
             3000,
@@ -103,25 +103,25 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             1000
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cBALRETH);
+        tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        // Need some CTokens/collateral to have enough liquidity for borrowing
+        // Need some PTokens/collateral to have enough liquidity for borrowing
         deal(address(balRETH), user1, 1_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(cBALRETH), 10e18);
-        cBALRETH.deposit(10e18, user1);
-        marketManager.postCollateral(user1, address(cBALRETH), 10e18);
+        balRETH.approve(address(pBALRETH), 10e18);
+        pBALRETH.deposit(10e18, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), 10e18);
         vm.stopPrank();
 
-        vm.prank(address(dUSDC));
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(
             LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
         );
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 10e6);
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 10e6);
     }
 
     function test_canBorrowWithPrune_success_whenSufficientLiquidity() public {
@@ -144,9 +144,9 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             block.timestamp
         );
 
-        marketManager.listToken(address(cBALRETH));
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        marketManager.listToken(address(pBALRETH));
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             7000,
             4000,
             3000,
@@ -156,49 +156,49 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             1000
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cBALRETH);
+        tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        // Need some CTokens/collateral to have enough liquidity for borrowing
+        // Need some PTokens/collateral to have enough liquidity for borrowing
         deal(address(balRETH), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(cBALRETH), 1_000e18);
-        cBALRETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(cBALRETH), 999e18);
+        balRETH.approve(address(pBALRETH), 1_000e18);
+        pBALRETH.deposit(1_000e18, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), 999e18);
         vm.stopPrank();
 
-        vm.prank(address(dUSDC));
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 100e6);
+        vm.prank(address(eUSDC));
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 100e6);
 
-        AccountSnapshot memory snapshot = cBALRETH.getSnapshotPacked(user1);
-        (uint256 price, ) = oracleRouter.getPrice(
-            cBALRETH.asset(),
+        AccountSnapshot memory snapshot = pBALRETH.getSnapshotPacked(user1);
+        (uint256 price, ) = oracleManager.getPrice(
+            pBALRETH.asset(),
             true,
             true
         );
         (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
-            address(cBALRETH)
+            address(pBALRETH)
         );
         uint256 assetValue = (price *
             ((999e18 * snapshot.exchangeRate) / 1e18)) /
-            10 ** cBALRETH.decimals();
+            10 ** pBALRETH.decimals();
         uint256 maxBorrow = (assetValue * collRatio) / 1e18;
 
-        // max amount of USDC that can be borrowed based on provided collateral in cBALRETH
-        uint256 borrowInUSDC = (maxBorrow / 10 ** cBALRETH.decimals()) *
-            10 ** dUSDC.decimals();
-        vm.prank(address(dUSDC));
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, borrowInUSDC);
+        // max amount of USDC that can be borrowed based on provided collateral in pBALRETH
+        uint256 borrowInUSDC = (maxBorrow / 10 ** pBALRETH.decimals()) *
+            10 ** eUSDC.decimals();
+        vm.prank(address(eUSDC));
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, borrowInUSDC);
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        vm.prank(address(dUSDC));
+        vm.prank(address(eUSDC));
         marketManager.canBorrowWithPrune(
-            address(dUSDC),
+            address(eUSDC),
             user1,
             borrowInUSDC + 1e6
         );
@@ -219,7 +219,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         );
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 0);
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 0);
     }
 
     function test_canBorrowWithPrune_success_entersUserInMarket() external {
@@ -245,9 +245,9 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             block.timestamp
         );
 
-        marketManager.listToken(address(cBALRETH));
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        marketManager.listToken(address(pBALRETH));
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             7000,
             4000,
             3000,
@@ -258,37 +258,37 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         );
 
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cBALRETH);
+        tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        // Need some CTokens/collateral to have enough liquidity for borrowing
+        // Need some PTokens/collateral to have enough liquidity for borrowing
         deal(address(balRETH), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(cBALRETH), 1_000e18);
-        cBALRETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(cBALRETH), 999e18);
+        balRETH.approve(address(pBALRETH), 1_000e18);
+        pBALRETH.deposit(1_000e18, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), 999e18);
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManager.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
-        vm.prank(address(dUSDC));
-        marketManager.canBorrowWithPrune(address(dUSDC), user1, 1_000e6);
+        vm.prank(address(eUSDC));
+        marketManager.canBorrowWithPrune(address(eUSDC), user1, 1_000e6);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
 
         assertTrue(hasPosition);
 
         accountAssets = marketManager.assetsOf(user1);
         assertEq(accountAssets.length, 2);
-        assertEq(address(accountAssets[0]), address(cBALRETH));
-        assertEq(address(accountAssets[1]), address(dUSDC));
+        assertEq(address(accountAssets[0]), address(pBALRETH));
+        assertEq(address(accountAssets[1]), address(eUSDC));
     }
 
     // function test_canBorrowWithPrune_fail_whenExceedsBorrowCap() external {
@@ -307,15 +307,15 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
 
     //     IMToken[] memory mTokens = new IMToken[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = IMToken(address(cBALRETH));
+    //     mTokens[0] = IMToken(address(pBALRETH));
     //     borrowCaps[0] = 100e6 - 1;
 
-    //     marketManager.listToken(address(cBALRETH));
-    //     marketManager.setCTokenCollateralCaps(mTokens, borrowCaps);
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
 
     //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
-    //     vm.prank(address(cBALRETH));
-    //     marketManager.canBorrowWithPrune(address(cBALRETH), user1, 100e6);
+    //     vm.prank(address(pBALRETH));
+    //     marketManager.canBorrowWithPrune(address(pBALRETH), user1, 100e6);
     // }
 
     // function test_canBorrowWithPrune_success_whenCapNotExceeded() external {
@@ -334,13 +334,13 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
 
     //     IMToken[] memory mTokens = new IMToken[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = IMToken(address(cBALRETH));
+    //     mTokens[0] = IMToken(address(pBALRETH));
     //     borrowCaps[0] = 100e6;
 
-    //     marketManager.listToken(address(cBALRETH));
-    //     marketManager.setCTokenCollateralCaps(mTokens, borrowCaps);
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.prank(address(cBALRETH));
-    //     marketManager.canBorrowWithPrune(address(cBALRETH), user1, borrowCaps[0] - 1);
+    //     vm.prank(address(pBALRETH));
+    //     marketManager.canBorrowWithPrune(address(pBALRETH), user1, borrowCaps[0] - 1);
     // }
 }

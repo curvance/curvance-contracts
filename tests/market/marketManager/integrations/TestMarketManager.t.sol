@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "../TestBaseMarketManagerEntropy.sol";
-import { MockCTokenPrimitive } from "contracts/mocks/MockCTokenPrimitive.sol";
+import { MockPTokenPrimitive } from "contracts/mocks/MockPTokenPrimitive.sol";
 
 contract TestMarketManager is TestBaseMarketManagerEntropy {
     function setUp() public override {
@@ -15,15 +15,15 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _deployGaugeManager();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
-        // eth/usd is needed in price router constructor
+        // eth/usd is needed in oracle manager constructor
         chainlinkEthUsd = chainlinkEthUsds[
             block.chainid
         ] = new MockV3Aggregator(8, 1500e8, 1e50, 1e6);
-        _deployOracleRouter();
+        _deployOracleManager();
         chainlinkAdaptor = chainlinkAdaptors[
             block.chainid
         ] = new ChainlinkAdaptor(ICentralRegistry(address(centralRegistry)));
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
         // start gauge to enable deposits
         vm.warp(veCVE.nextEpochStartTime() + 1000);
         chainlinkEthUsd.updateAnswer(1500e8);
@@ -35,49 +35,49 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 100e18);
-        _postCollateral(users[0], cTokens[0], 100e18);
+        _genCollateral(users[0], pTokens[0], 100e18);
+        _postCollateral(users[0], pTokens[0], 100e18);
 
-        _genCollateral(users[1], cTokens[1], 100e18);
-        _postCollateral(users[1], cTokens[1], 100e18);
+        _genCollateral(users[1], pTokens[1], 100e18);
+        _postCollateral(users[1], pTokens[1], 100e18);
 
-        _genCollateral(users[2], cTokens[1], 100e18);
-        _postCollateral(users[2], cTokens[1], 100e18);
+        _genCollateral(users[2], pTokens[1], 100e18);
+        _postCollateral(users[2], pTokens[1], 100e18);
 
-        _supplyDToken(users[2], dTokens[0], 300e18);
+        _supplyEToken(users[2], eTokens[0], 300e18);
 
-        _borrow(users[0], dTokens[0], 70e18);
-        _borrow(users[1], dTokens[0], 70e18);
-        _borrow(users[2], dTokens[0], 70e18);
+        _borrow(users[0], eTokens[0], 70e18);
+        _borrow(users[1], eTokens[0], 70e18);
+        _borrow(users[2], eTokens[0], 70e18);
 
-        for (uint256 i = 0; i < noOfCollateralTokens; i++) {
+        for (uint256 i = 0; i < noOfPositionTokens; i++) {
             skip(20 minutes);
-            _updateRoundData(cTokensAgg[i], 0, 1e7);
+            _updateRoundData(pTokensAgg[i], 0, 1e7);
         }
 
         vm.expectRevert(
@@ -85,13 +85,13 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         );
         marketManager.hypotheticalLiquidityOf(
             users[0],
-            address(cTokens[0]),
+            address(pTokens[0]),
             0,
             1
         );
 
         (uint256 liquidity, uint256 debt, ) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(liquidity, 0);
         assertGt(debt, 0);
@@ -103,32 +103,32 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], pTokens[0], 1 ether);
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
@@ -136,7 +136,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         marketManager.postCollateral(
             address(users[0]),
-            address(cTokens[0]),
+            address(pTokens[0]),
             0
         );
 
@@ -154,14 +154,14 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         marketManager.postCollateral(
             address(users[0]),
-            address(cTokens[0]),
+            address(pTokens[0]),
             2 ether
         );
 
         vm.prank(users[0]);
         marketManager.postCollateral(
             address(users[0]),
-            address(cTokens[0]),
+            address(pTokens[0]),
             1 ether
         );
     }
@@ -172,52 +172,52 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], pTokens[0], 1 ether);
+        _postCollateral(users[0], pTokens[0], 1 ether);
 
         skip(30 minutes);
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.removeCollateral(address(cTokens[0]), 0);
+        marketManager.removeCollateral(address(pTokens[0]), 0);
 
         vm.expectRevert(MarketManager.MarketManager__InvariantError.selector);
-        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 1 ether);
 
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(users[0]);
-        marketManager.removeCollateral(address(cTokens[0]), 2 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 2 ether);
 
         vm.prank(users[0]);
-        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 1 ether);
     }
 
     function testRemoveCollateralAfterRedeemPaused() public {
@@ -226,33 +226,33 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], pTokens[0], 1 ether);
+        _postCollateral(users[0], pTokens[0], 1 ether);
 
         skip(30 minutes);
 
@@ -260,11 +260,11 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
         vm.prank(users[0]);
-        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 1 ether);
 
         marketManager.setRedeemPaused(false);
         vm.prank(users[0]);
-        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 1 ether);
     }
 
     function testPositionCloseAfterRemoveCollateral() public {
@@ -273,33 +273,33 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], pTokens[0], 1 ether);
+        _postCollateral(users[0], pTokens[0], 1 ether);
 
         skip(30 minutes);
 
@@ -307,27 +307,27 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
         assertFalse(positionsToClose[0]);
         (bool hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertTrue(hasPosition);
 
         vm.prank(users[0]);
-        marketManager.removeCollateral(address(cTokens[0]), 1 ether);
+        marketManager.removeCollateral(address(pTokens[0]), 1 ether);
 
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertFalse(hasPosition);
 
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
         assertEq(collateralSurplus, 0);
         assertEq(liquidityDeficit, 0);
     }
@@ -338,33 +338,33 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 1 ether);
-        _postCollateral(users[0], cTokens[0], 1 ether);
+        _genCollateral(users[0], pTokens[0], 1 ether);
+        _postCollateral(users[0], pTokens[0], 1 ether);
 
         skip(30 minutes);
 
@@ -372,27 +372,27 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
         assertFalse(positionsToClose[0]);
         (bool hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertTrue(hasPosition);
 
         vm.prank(users[0]);
-        cTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
+        pTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
 
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertFalse(hasPosition);
 
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
         assertEq(collateralSurplus, 0);
         assertEq(liquidityDeficit, 0);
     }
@@ -403,48 +403,48 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         users[1] = address(0x2222);
         users[2] = address(0x3333);
 
-        noOfCollateralTokens = 2;
-        noOfDebtTokens = 2;
+        noOfPositionTokens = 2;
+        noOfEarnTokens = 2;
 
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
-            noOfCollateralTokens
+        MockPTokenPrimitive[] memory pTokens = new MockPTokenPrimitive[](
+            noOfPositionTokens
         );
-        DToken[] memory dTokens = new DToken[](noOfDebtTokens);
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
-            noOfCollateralTokens
+        EToken[] memory eTokens = new EToken[](noOfEarnTokens);
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
+            noOfPositionTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](
-                noOfCollateralTokens
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](
+                noOfPositionTokens
             );
-        MockV3Aggregator[] memory dTokensAgg = new MockV3Aggregator[](
-            noOfDebtTokens
+        MockV3Aggregator[] memory eTokensAgg = new MockV3Aggregator[](
+            noOfEarnTokens
         );
 
         (
-            cTokens,
-            cTokensAgg,
-            cTokensUnderlyingAgg
-        ) = _genCollateralateraltoken(noOfCollateralTokens, 0);
-        (dTokens, dTokensAgg) = _genDebtToken(noOfDebtTokens);
+            pTokens,
+            pTokensAgg,
+            pTokensUnderlyingAgg
+        ) = _genCollateralateraltoken(noOfPositionTokens, 0);
+        (eTokens, eTokensAgg) = _genEarnToken(noOfEarnTokens);
 
-        _genCollateral(users[0], cTokens[0], 500e18);
-        _postCollateral(users[0], cTokens[0], 500e18);
+        _genCollateral(users[0], pTokens[0], 500e18);
+        _postCollateral(users[0], pTokens[0], 500e18);
 
-        _supplyDToken(users[2], dTokens[0], 1_500e18);
-        _borrow(users[0], dTokens[0], 300e18);
+        _supplyEToken(users[2], eTokens[0], 1_500e18);
+        _borrow(users[0], eTokens[0], 300e18);
 
-        _supplyDToken(users[2], dTokens[1], 1_500e18);
-        _borrow(users[0], dTokens[1], 50e18);
+        _supplyEToken(users[2], eTokens[1], 1_500e18);
+        _borrow(users[0], eTokens[1], 50e18);
 
         skip(20 minutes);
-        _updateRoundData(cTokensAgg[0], 0, 0.9e8);
+        _updateRoundData(pTokensAgg[0], 0, 0.9e8);
 
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         bool hasPosition;
         assertEq(positionsToClose.length, 3);
@@ -453,24 +453,24 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         assertFalse(positionsToClose[2]);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertTrue(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[0])
+            address(eTokens[0])
         );
         assertTrue(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[1])
+            address(eTokens[1])
         );
         assertTrue(hasPosition);
 
-        _liquidate(dTokens[0], cTokens[0], users[0], true);
+        _liquidate(eTokens[0], pTokens[0], users[0], true);
 
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 3);
         assertFalse(positionsToClose[0]);
@@ -478,42 +478,42 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         assertFalse(positionsToClose[2]);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertTrue(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[0])
+            address(eTokens[0])
         );
         assertTrue(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[1])
+            address(eTokens[1])
         );
         assertTrue(hasPosition);
-        vm.prank(address(dTokens[1]));
-        marketManager.canBorrowWithPrune(address(dTokens[1]), users[0], 0);
+        vm.prank(address(eTokens[1]));
+        marketManager.canBorrowWithPrune(address(eTokens[1]), users[0], 0);
         vm.prank(users[0]);
 
         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
-            .hypotheticalLiquidityOf(users[0], address(cTokens[0]), 0, 0);
+            .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 2);
         assertFalse(positionsToClose[0]);
         assertFalse(positionsToClose[1]);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(cTokens[0])
+            address(pTokens[0])
         );
         assertTrue(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[0])
+            address(eTokens[0])
         );
         assertFalse(hasPosition);
         (hasPosition, , ) = marketManager.tokenDataOf(
             users[0],
-            address(dTokens[1])
+            address(eTokens[1])
         );
         assertTrue(hasPosition);
     }

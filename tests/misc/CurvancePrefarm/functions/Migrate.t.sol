@@ -22,11 +22,11 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         curvancePrefarm.addPrefarmTokens(newPrefarmTokens);
         vm.stopPrank();
 
-        usdc.approve(address(dUSDC), 1000e6);
-        balRETH.approve(address(cBALRETH), 1000e18);
+        usdc.approve(address(eUSDC), 1000e6);
+        balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManager.listToken(address(dUSDC));
-        marketManager.listToken(address(cBALRETH));
+        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(pBALRETH));
 
         vm.startPrank(user1);
 
@@ -40,10 +40,10 @@ contract MigrateTest is TestBaseCurvancePrefarm {
 
         vm.startPrank(manager);
 
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
         curvancePrefarm.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(cBALRETH)
+            address(pBALRETH)
         );
 
         vm.stopPrank();
@@ -86,10 +86,10 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         vm.stopPrank();
     }
 
-    function test_migrate_success_withCToken_withCollateralize() public {
+    function test_migrate_success_withPToken_withCollateralize() public {
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(cBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
 
         assertEq(
             curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -106,14 +106,14 @@ contract MigrateTest is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(balRETH.balanceOf(address(cBALRETH)), underlyingBalance);
-        assertEq(cBALRETH.balanceOf(user1), 100e18);
+        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
+        assertEq(pBALRETH.balanceOf(user1), 100e18);
     }
 
-    function test_migrate_success_withCToken_withoutCollateralize() public {
+    function test_migrate_success_withPToken_withoutCollateralize() public {
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(cBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
 
         assertEq(
             curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -130,14 +130,14 @@ contract MigrateTest is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(balRETH.balanceOf(address(cBALRETH)), underlyingBalance);
-        assertEq(cBALRETH.balanceOf(user1), 100e18);
+        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
+        assertEq(pBALRETH.balanceOf(user1), 100e18);
     }
 
-    function test_migrate_success_withDToken() public {
+    function test_migrate_success_withEToken() public {
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = dUSDC.marketUnderlyingHeld();
+        uint256 marketUnderlyingHeld = eUSDC.marketUnderlyingHeld();
 
         assertEq(curvancePrefarm.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(curvancePrefarm)), 100e6);
@@ -151,7 +151,7 @@ contract MigrateTest is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(dUSDC.marketUnderlyingHeld(), marketUnderlyingHeld + 100e6);
-        assertEq(dUSDC.balanceOf(user1), 100e6);
+        assertEq(eUSDC.marketUnderlyingHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(eUSDC.balanceOf(user1), 100e6);
     }
 }

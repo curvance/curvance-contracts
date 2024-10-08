@@ -29,7 +29,7 @@ contract CamelotVolatileLPAdaptor is BaseVolatileLPAdaptor {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Adds pricing support for `asset`, a new Camelot Volatile LP.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
     function addAsset(address asset) external override {
@@ -50,7 +50,7 @@ contract CamelotVolatileLPAdaptor is BaseVolatileLPAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.

@@ -33,7 +33,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
         address outputToken;
         if (funcSigHash == ComplexZapper.enterCurve.selector) {
             (
-                address cToken,
+                address pToken,
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
@@ -53,7 +53,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            outputToken = pToken == address(0) ? desc.outputToken : pToken;
         } else if (funcSigHash == ComplexZapper.exitCurve.selector) {
             (
                 ,
@@ -103,12 +103,12 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redemptionData.pToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterBalancer.selector) {
             (
-                address cToken,
+                address pToken,
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
@@ -130,7 +130,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            outputToken = pToken == address(0) ? desc.outputToken : pToken;
         } else if (funcSigHash == ComplexZapper.exitBalancer.selector) {
             (
                 ,
@@ -174,12 +174,12 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redemptionData.pToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterVelodrome.selector) {
             (
-                address cToken,
+                address pToken,
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
@@ -199,7 +199,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            outputToken = pToken == address(0) ? desc.outputToken : pToken;
         } else if (funcSigHash == ComplexZapper.exitVelodrome.selector) {
             (
                 ,
@@ -239,12 +239,12 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redemptionData.pToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterPendle.selector) {
             (
-                address cToken,
+                address pToken,
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
@@ -266,7 +266,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
             recipient = _recipient;
             inputToken = desc.inputToken;
             inputAmount = desc.inputAmount;
-            outputToken = cToken == address(0) ? desc.outputToken : cToken;
+            outputToken = pToken == address(0) ? desc.outputToken : pToken;
         } else if (funcSigHash == ComplexZapper.exitPendle.selector) {
             (
                 ,
@@ -316,7 +316,7 @@ contract CallDataCheckerForComplexZapper is CallDataCheckerBase {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.cToken;
+            inputToken = redemptionData.pToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {

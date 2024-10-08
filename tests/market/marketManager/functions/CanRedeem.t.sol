@@ -8,25 +8,25 @@ contract CanRedeemTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canRedeem(address(cBALRETH), user1, 100e6);
+        marketManager.canRedeem(address(pBALRETH), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenWithinMinimumHoldPeriod() public {
-        vm.prank(address(dUSDC));
-        marketManager.notifyBorrow(address(dUSDC), user1);
+        vm.prank(address(eUSDC));
+        marketManager.notifyBorrow(address(eUSDC), user1);
 
         vm.expectRevert(
             MarketManager.MarketManager__MinimumHoldPeriod.selector
         );
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_fail_whenCTokenInsufficientLiquidity() public {
+    function test_canRedeem_fail_whenPTokenInsufficientLiquidity() public {
         skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -49,21 +49,21 @@ contract CanRedeemTest is TestBaseMarketManager {
             block.timestamp,
             block.timestamp
         );
-        marketManager.listToken(address(cBALRETH));
+        marketManager.listToken(address(pBALRETH));
         _setCbalRETHCollateralCaps(100_000e18);
 
-        assertTrue(cBALRETH.isCToken());
+        assertTrue(pBALRETH.isPToken());
         deal(address(balRETH), user1, 10_000e18);
         vm.startPrank(user1);
-        balRETH.approve(address(cBALRETH), 1_000e18);
-        cBALRETH.deposit(1e18, user1);
-        marketManager.postCollateral(user1, address(cBALRETH), 9e17);
+        balRETH.approve(address(pBALRETH), 1_000e18);
+        pBALRETH.deposit(1e18, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), 9e17);
         vm.stopPrank();
 
         bool hasPosition;
         (hasPosition, , ) = marketManager.tokenDataOf(
             user1,
-            address(cBALRETH)
+            address(pBALRETH)
         );
 
         assertTrue(hasPosition);
@@ -72,27 +72,27 @@ contract CanRedeemTest is TestBaseMarketManager {
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canRedeem(address(cBALRETH), user1, 100e18);
+        marketManager.canRedeem(address(pBALRETH), user1, 100e18);
     }
 
     function test_canRedeem_success_whenPastMinimumHoldPeriod() public {
-        vm.prank(address(dUSDC));
-        marketManager.notifyBorrow(address(dUSDC), user1);
+        vm.prank(address(eUSDC));
+        marketManager.notifyBorrow(address(eUSDC), user1);
 
         skip(20 minutes);
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_success_whenRedeemerNotInMarket() public {
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_success_DTokenCanAlwaysBeRedeemed() public {
-        assertFalse(dUSDC.isCToken());
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+    function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public {
+        assertFalse(eUSDC.isPToken());
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 }

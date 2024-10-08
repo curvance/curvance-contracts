@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-
 import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PositionManagementSimple is PositionManagementBase {
-
     /// CONSTRUCTOR ///
 
     constructor(
@@ -21,13 +18,13 @@ contract PositionManagementSimple is PositionManagementBase {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData.collateralToken.underlying();
+        address collateralUnderlying = leverageData.positionToken.underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
         }
 
-        if(swapData.call.length == 0) {
+        if (swapData.call.length == 0) {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
@@ -41,10 +38,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         // Swap borrow underlying to collateral underlying
-        SwapperLib.swapSafe(
-            centralRegistry,
-            swapData
-        );
+        SwapperLib.swapSafe(centralRegistry, swapData);
     }
 
     function _swapCollateralToBorrowUnderyling(
@@ -56,13 +50,15 @@ contract PositionManagementSimple is PositionManagementBase {
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
         address borrowUnderlying = deleverageData.borrowToken.underlying();
-        address collateralUnderlying = deleverageData.collateralToken.underlying();
+        address collateralUnderlying = deleverageData
+            .positionToken
+            .underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
         }
 
-        if(swapData.call.length == 0) {
+        if (swapData.call.length == 0) {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
@@ -76,9 +72,6 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         // Swap collateral underlying to borrow underlying
-        SwapperLib.swapSafe(
-            centralRegistry,
-            swapData
-        );
+        SwapperLib.swapSafe(centralRegistry, swapData);
     }
 }

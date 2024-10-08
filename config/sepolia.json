@@ -28,7 +28,7 @@
   "cveLocker": {
     "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
   },
-  "feeAccumulator": {
+  "feeManager": {
     "gasForCalldata": 1e9,
     "gasForCrosschain": 1e9
   },
@@ -38,7 +38,7 @@
   "zapper": {
     "weth": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9"
   },
-  "oracleRouter": {
+  "oracleManager": {
     "chainlinkEthUsd": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
   },
   "markets": {

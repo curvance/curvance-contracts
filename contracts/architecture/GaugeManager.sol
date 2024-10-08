@@ -623,7 +623,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @notice Registers a withdrawal of `token` deposits by `user`
     ///         from the Gauge Manager.
     /// @dev This does not actually include any token transfers as tokens
-    ///      are permissionlessly escrowed by CToken/DToken contracts and
+    ///      are permissionlessly escrowed by PToken/EToken contracts and
     ///      we simply record deposits/withdraws here.
     /// @param token Pool token address.
     /// @param user The user address.

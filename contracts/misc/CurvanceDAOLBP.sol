@@ -10,7 +10,7 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 contract CurvanceDAOLBP {
     /// TYPES ///
@@ -128,8 +128,8 @@ contract CurvanceDAOLBP {
         }
 
         uint256 errorCode;
-        (paymentTokenPrice, errorCode) = IOracleRouter(
-            centralRegistry.oracleRouter()
+        (paymentTokenPrice, errorCode) = IOracleManager(
+            centralRegistry.oracleManager()
         ).getPrice(paymentTokenAddress, true, true);
 
         // Make sure that we didnt have a catastrophic error when pricing
@@ -222,7 +222,7 @@ contract CurvanceDAOLBP {
             );
         }
 
-        // Execute swap into dToken underlying.
+        // Execute swap into eToken underlying.
         uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
 
         if (amount < commitAmount) {

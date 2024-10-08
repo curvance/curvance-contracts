@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { FeeAccumulator, ICentralRegistry } from "contracts/architecture/FeeAccumulator.sol";
+import { FeeManager, ICentralRegistry } from "contracts/architecture/FeeManager.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
-contract BlastFeeAccumulator is FeeAccumulator, BlastYieldDelegable {
+contract BlastFeeManager is FeeManager, BlastYieldDelegable {
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) FeeAccumulator(centralRegistry_) BlastYieldDelegable(centralRegistry_) {}
+    ) FeeManager(centralRegistry_) BlastYieldDelegable(centralRegistry_) {}
 }

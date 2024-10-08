@@ -3,7 +3,7 @@
 
 // import "forge-std/console.sol";
 
-// import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+// import { OracleManager } from "contracts/oracles/OracleManager.sol";
 // import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 // import { GMAdaptor } from "contracts/oracles/adaptors/gmx/GMAdaptor.sol";
 
@@ -26,9 +26,9 @@
 //         console.log("marketManager =", marketManager);
 //         require(marketManager != address(0), "Set the marketManager!");
 
-//         address oracleRouter = _getDeployedContract("oracleRouter");
-//         console.log("oracleRouter =", oracleRouter);
-//         require(oracleRouter != address(0), "Set the oracleRouter!");
+//         address oracleManager = _getDeployedContract("oracleManager");
+//         console.log("oracleManager =", oracleManager);
+//         require(oracleManager != address(0), "Set the oracleManager!");
 
 //         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
 //         if (chainlinkAdaptor == address(0)) {
@@ -52,33 +52,33 @@
 //             _saveDeployedContracts("gmAdaptor", gmAdaptor);
 //         }
 
-//         if (!OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)) {
-//             OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
-//             console.log("oracleRouter.addApprovedAdaptor: ", chainlinkAdaptor);
+//         if (!OracleManager(oracleManager).isApprovedAdaptor(chainlinkAdaptor)) {
+//             OracleManager(oracleManager).addApprovedAdaptor(chainlinkAdaptor);
+//             console.log("oracleManager.addApprovedAdaptor: ", chainlinkAdaptor);
 //         }
 
-//         if (!OracleRouter(oracleRouter).isApprovedAdaptor(gmAdaptor)) {
-//             OracleRouter(oracleRouter).addApprovedAdaptor(gmAdaptor);
-//             console.log("oracleRouter.addApprovedAdaptor: ", gmAdaptor);
+//         if (!OracleManager(oracleManager).isApprovedAdaptor(gmAdaptor)) {
+//             OracleManager(oracleManager).addApprovedAdaptor(gmAdaptor);
+//             console.log("oracleManager.addApprovedAdaptor: ", gmAdaptor);
 //         }
 
 //         if (!GMAdaptor(gmAdaptor).isSupportedAsset(asset)) {
 //             GMAdaptor(gmAdaptor).addAsset(asset, alteredToken);
 //         }
 
-//         try OracleRouter(oracleRouter).assetPriceFeeds(asset, 0) returns (
+//         try OracleManager(oracleManager).assetPriceFeeds(asset, 0) returns (
 //             address
 //         ) {} catch {
-//             OracleRouter(oracleRouter).addAssetPriceFeed(asset, gmAdaptor);
-//             console.log("oracleRouter.addAssetPriceFeed: ", asset);
+//             OracleManager(oracleManager).addAssetPriceFeed(asset, gmAdaptor);
+//             console.log("oracleManager.addAssetPriceFeed: ", asset);
 //         }
 
-//         // Deploy CToken
-//         address cToken = _getDeployedContract(name);
+//         // Deploy PToken
+//         address pToken = _getDeployedContract(name);
 
-//         if (cToken == address(0)) {
-//             cToken = address(
-//                 new GMCToken(
+//         if (pToken == address(0)) {
+//             pToken = address(
+//                 new GMPToken(
 //                     ICentralRegistry(centralRegistry),
 //                     IERC20(asset),
 //                     marketManager,
@@ -91,8 +91,8 @@
 //                 )
 //             );
 
-//             console.log("cToken: ", cToken);
-//             _saveDeployedContracts(name, cToken);
+//             console.log("pToken: ", pToken);
+//             _saveDeployedContracts(name, pToken);
 //         }
 //     }
 // }

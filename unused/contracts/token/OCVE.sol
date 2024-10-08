@@ -7,7 +7,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract OCVE is ERC20 {
@@ -162,11 +162,11 @@ contract OCVE is ERC20 {
         // Give them 4 weeks to exercise their options before they expire.
         optionsEndTimestamp = optionsStartTimestamp + (4 weeks);
 
-        // Get the current price of the payment token from the oracle router
+        // Get the current price of the payment token from the Oracle Manager
         // in USD and multiply it by the Strike Price to see how much per CVE
         // they must pay.
-        (uint256 currentPrice, uint256 error) = IOracleRouter(
-            centralRegistry.oracleRouter()
+        (uint256 currentPrice, uint256 error) = IOracleManager(
+            centralRegistry.oracleManager()
         ).getPrice(paymentToken, true, true);
 
         // Make sure that we didnt have a catastrophic error when pricing

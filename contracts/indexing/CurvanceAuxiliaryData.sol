@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DToken } from "contracts/market/collateral/DToken.sol";
-import { CTokenBase } from "contracts/market/collateral/CTokenBase.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -11,7 +11,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -45,7 +45,7 @@ contract CurvanceAuxiliaryData {
         uint256 collateralOrDebtAmount;
     }
 
-    struct MarketDTokenData {
+    struct MarketETokenData {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -64,7 +64,7 @@ contract CurvanceAuxiliaryData {
         AccountAssetPosition userTokenPosition;
     }
 
-    struct MarketCTokenData {
+    struct MarketPTokenData {
         address assetAddress;
         address marketAddress;
         address underlyingAddress;
@@ -72,7 +72,7 @@ contract CurvanceAuxiliaryData {
         string underlyingName;
         string underlyingSymbol;
         uint8 underlyingDecimal;
-        uint256 totalCollateralTokens;
+        uint256 totalPositionTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
         uint256 price;
@@ -81,8 +81,8 @@ contract CurvanceAuxiliaryData {
 
     struct AllMarketData {
         MarketData marketData;
-        MarketDTokenData[] dTokenData;
-        MarketCTokenData[] cTokenData;
+        MarketETokenData[] eTokenData;
+        MarketPTokenData[] pTokenData;
     }
 
     /// CONSTANTS ///
@@ -189,11 +189,11 @@ contract CurvanceAuxiliaryData {
         IMarketManager marketManager = IMarketManager(
             IMToken(token).marketManager()
         );
-        bool isCToken = IMToken(token).isCToken();
+        bool isPToken = IMToken(token).isPToken();
 
         (hasPosition, balanceOf, collateralOrDebtAmount) = marketManager
             .tokenDataOf(account, token);
-        collateralOrDebtAmount = isCToken
+        collateralOrDebtAmount = isPToken
             ? collateralOrDebtAmount
             : IMToken(token).debtBalanceCached(account);
     }
@@ -244,14 +244,14 @@ contract CurvanceAuxiliaryData {
 
     function getCVERewards(address token) external view returns (uint256) {}
 
-    /// ORACLE ROUTER FUNCTIONS ///
+    /// Oracle Manager FUNCTIONS ///
 
     function getPrices(
         address[] calldata assets,
         bool[] calldata inUSD,
         bool[] calldata getLower
     ) external view returns (uint256[] memory, uint256[] memory) {
-        return _getOracleRouter().getPrices(assets, inUSD, getLower);
+        return _getOracleManager().getPrices(assets, inUSD, getLower);
     }
 
     function hasRewards(address user) external view returns (bool) {
@@ -270,13 +270,13 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numMarkets; i++) {
             (
-                MarketDTokenData[] memory dTokenData,
-                MarketCTokenData[] memory cTokenData
+                MarketETokenData[] memory eTokenData,
+                MarketPTokenData[] memory pTokenData
             ) = this.getMarketAssetData(markets[i], account);
             results[i] = AllMarketData(
                 this.getMarketData(markets[i], account),
-                dTokenData,
-                cTokenData
+                eTokenData,
+                pTokenData
             );
         }
 
@@ -320,98 +320,98 @@ contract CurvanceAuxiliaryData {
     )
         external
         view
-        returns (MarketDTokenData[] memory, MarketCTokenData[] memory)
+        returns (MarketETokenData[] memory, MarketPTokenData[] memory)
     {
-        address[] memory cTokens = getMarketCollateralAssets(market);
-        MarketCTokenData[] memory cResults = new MarketCTokenData[](
-            cTokens.length
+        address[] memory pTokens = getMarketCollateralAssets(market);
+        MarketPTokenData[] memory cResults = new MarketPTokenData[](
+            pTokens.length
         );
-        for (uint256 i = 0; i < cTokens.length; i++) {
-            CTokenBase marketToken = CTokenBase(cTokens[i]);
+        for (uint256 i = 0; i < pTokens.length; i++) {
+            PTokenBase marketToken = PTokenBase(pTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
-            MarketCTokenData memory cTokenData;
+            MarketPTokenData memory pTokenData;
 
             if (account != address(0)) {
-                cTokenData.underlyingBalance = token.balanceOf(account);
+                pTokenData.underlyingBalance = token.balanceOf(account);
 
                 (
-                    cTokenData.userTokenPosition.hasPosition,
-                    cTokenData.userTokenPosition.shareAmount,
-                    cTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = this.getAccountTokenData(account, cTokens[i]);
+                    pTokenData.userTokenPosition.hasPosition,
+                    pTokenData.userTokenPosition.shareAmount,
+                    pTokenData.userTokenPosition.collateralOrDebtAmount
+                ) = this.getAccountTokenData(account, pTokens[i]);
 
-                cTokenData.userTokenPosition.tokenAmount = marketToken
-                    .convertToAssets(cTokenData.userTokenPosition.shareAmount);
+                pTokenData.userTokenPosition.tokenAmount = marketToken
+                    .convertToAssets(pTokenData.userTokenPosition.shareAmount);
             }
 
-            cTokenData.assetAddress = cTokens[i];
-            cTokenData.marketAddress = market;
-            cTokenData.underlyingAddress = address(token);
-            cTokenData.underlyingName = token.name();
-            cTokenData.underlyingSymbol = token.symbol();
-            cTokenData.underlyingDecimal = token.decimals();
-            cTokenData.totalCollateralTokens =
+            pTokenData.assetAddress = pTokens[i];
+            pTokenData.marketAddress = market;
+            pTokenData.underlyingAddress = address(token);
+            pTokenData.underlyingName = token.name();
+            pTokenData.underlyingSymbol = token.symbol();
+            pTokenData.underlyingDecimal = token.decimals();
+            pTokenData.totalPositionTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            cTokenData.totalCollateralPosted = MarketManager(market)
-                .collateralPosted(cTokens[i]);
-            cTokenData.collateralCap = MarketManager(market).collateralCaps(
-                cTokens[i]
+            pTokenData.totalCollateralPosted = MarketManager(market)
+                .collateralPosted(pTokens[i]);
+            pTokenData.collateralCap = MarketManager(market).collateralCaps(
+                pTokens[i]
             );
-            cTokenData.price = _getTokenPrice(cTokens[i], true);
+            pTokenData.price = _getTokenPrice(pTokens[i], true);
 
-            cResults[i] = cTokenData;
+            cResults[i] = pTokenData;
         }
 
-        address[] memory dTokens = getMarketDebtAssets(market);
-        MarketDTokenData[] memory dResults = new MarketDTokenData[](
-            dTokens.length
+        address[] memory eTokens = getMarketDebtAssets(market);
+        MarketETokenData[] memory dResults = new MarketETokenData[](
+            eTokens.length
         );
-        for (uint256 i = 0; i < dTokens.length; i++) {
-            MarketDTokenData memory dTokenData;
-            DToken marketToken = DToken(dTokens[i]);
+        for (uint256 i = 0; i < eTokens.length; i++) {
+            MarketETokenData memory eTokenData;
+            EToken marketToken = EToken(eTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
 
             if (account != address(0)) {
-                dTokenData.underlyingBalance = token.balanceOf(account);
+                eTokenData.underlyingBalance = token.balanceOf(account);
                 (
-                    dTokenData.userTokenPosition.hasPosition,
-                    dTokenData.userTokenPosition.shareAmount,
-                    dTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = this.getAccountTokenData(account, dTokens[i]);
+                    eTokenData.userTokenPosition.hasPosition,
+                    eTokenData.userTokenPosition.shareAmount,
+                    eTokenData.userTokenPosition.collateralOrDebtAmount
+                ) = this.getAccountTokenData(account, eTokens[i]);
 
-                dTokenData.userTokenPosition.tokenAmount = marketToken
-                    .convertToAssets(dTokenData.userTokenPosition.shareAmount);
+                eTokenData.userTokenPosition.tokenAmount = marketToken
+                    .convertToAssets(eTokenData.userTokenPosition.shareAmount);
             }
 
-            dTokenData.assetAddress = dTokens[i];
-            dTokenData.marketAddress = market;
-            dTokenData.underlyingAddress = address(token);
-            dTokenData.underlyingName = token.name();
-            dTokenData.underlyingSymbol = token.symbol();
-            dTokenData.underlyingDecimal = token.decimals();
-            dTokenData.tvl = this.getTokenTVL(dTokens[i], false);
-            dTokenData.borrows = this.getTokenBorrows(dTokens[i]);
-            dTokenData.supplyRatePerYear = this.getSupplyRatePerYear(
-                dTokens[i]
+            eTokenData.assetAddress = eTokens[i];
+            eTokenData.marketAddress = market;
+            eTokenData.underlyingAddress = address(token);
+            eTokenData.underlyingName = token.name();
+            eTokenData.underlyingSymbol = token.symbol();
+            eTokenData.underlyingDecimal = token.decimals();
+            eTokenData.tvl = this.getTokenTVL(eTokens[i], false);
+            eTokenData.borrows = this.getTokenBorrows(eTokens[i]);
+            eTokenData.supplyRatePerYear = this.getSupplyRatePerYear(
+                eTokens[i]
             );
-            dTokenData.borrowRatePerYear = this.getBorrowRatePerYear(
-                dTokens[i]
+            eTokenData.borrowRatePerYear = this.getBorrowRatePerYear(
+                eTokens[i]
             );
-            dTokenData.predictedBorrowRatePerYear = this
-                .getPredictedBorrowRatePerYear(dTokens[i]);
-            dTokenData.utilizationRate = this.getUtilizationRate(dTokens[i]);
-            dTokenData.price = _getTokenPrice(dTokens[i], false);
+            eTokenData.predictedBorrowRatePerYear = this
+                .getPredictedBorrowRatePerYear(eTokens[i]);
+            eTokenData.utilizationRate = this.getUtilizationRate(eTokens[i]);
+            eTokenData.price = _getTokenPrice(eTokens[i], false);
 
-            if (dTokenData.tvl > dTokenData.borrows) {
-                dTokenData.liquidityAvailable =
-                    dTokenData.tvl -
-                    dTokenData.borrows;
+            if (eTokenData.tvl > eTokenData.borrows) {
+                eTokenData.liquidityAvailable =
+                    eTokenData.tvl -
+                    eTokenData.borrows;
             } else {
-                dTokenData.liquidityAvailable = 0;
+                eTokenData.liquidityAvailable = 0;
             }
 
-            dResults[i] = dTokenData;
+            dResults[i] = eTokenData;
         }
 
         return (dResults, cResults);
@@ -430,7 +430,7 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ) {
             token = assets[i++];
-            getLower = IMToken(token).isCToken() ? true : false;
+            getLower = IMToken(token).isPToken() ? true : false;
             result += getTokenTVL(token, getLower);
         }
     }
@@ -506,7 +506,7 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isCToken()) {
+            if (IMToken(asset).isPToken()) {
                 ++numCollateralAssets;
             }
         }
@@ -516,7 +516,7 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (IMToken(asset).isCToken()) {
+            if (IMToken(asset).isPToken()) {
                 collateralAssets[collateralAssetsIndex++] = asset;
             }
         }
@@ -537,7 +537,7 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isCToken()) {
+            if (!IMToken(asset).isPToken()) {
                 ++numDebtAssets;
             }
         }
@@ -547,7 +547,7 @@ contract CurvanceAuxiliaryData {
 
         for (uint256 i; i < numAssets; ++i) {
             asset = assets[i];
-            if (!IMToken(asset).isCToken()) {
+            if (!IMToken(asset).isPToken()) {
                 debtAssets[debtAssetsIndex++] = asset;
             }
         }
@@ -599,7 +599,7 @@ contract CurvanceAuxiliaryData {
             10 ** IMToken(token).decimals();
     }
 
-    /// @notice Returns the outstanding underlying tokens borrowed from a DToken market.
+    /// @notice Returns the outstanding underlying tokens borrowed from a EToken market.
     /// @param token The token to query outstanding borrows for.
     /// @return result The outstanding underlying tokens, in `WAD`.
     function getTokenBorrows(
@@ -615,7 +615,7 @@ contract CurvanceAuxiliaryData {
     }
 
     function getTokenPrice(address token) public view returns (uint256) {
-        return _getTokenPrice(token, IMToken(token).isCToken() ? true : false);
+        return _getTokenPrice(token, IMToken(token).isPToken() ? true : false);
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -624,8 +624,8 @@ contract CurvanceAuxiliaryData {
         return IRewardManager(centralRegistry.rewardManager());
     }
 
-    function _getOracleRouter() internal view returns (IOracleRouter) {
-        return IOracleRouter(centralRegistry.oracleRouter());
+    function _getOracleManager() internal view returns (IOracleManager) {
+        return IOracleManager(centralRegistry.oracleManager());
     }
 
     function _getTokenPrice(
@@ -633,7 +633,7 @@ contract CurvanceAuxiliaryData {
         bool getLower
     ) internal view returns (uint256 price) {
         uint256 errorCode;
-        (price, errorCode) = _getOracleRouter().getPrice(
+        (price, errorCode) = _getOracleManager().getPrice(
             mToken,
             true,
             getLower
