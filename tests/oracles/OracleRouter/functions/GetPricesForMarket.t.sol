@@ -60,7 +60,7 @@ contract GetPricesForMarket is TestBaseOracleRouter {
         vm.prank(address(marketManager));
         dUSDC.startMarket(address(this));
 
-        // vm.expectRevert(OracleRouter.OracleRouter__ErrorCodeFlagged.selector);
+        vm.expectRevert(OracleRouter.OracleRouter__ErrorCodeFlagged.selector);
         oracleRouter.getPricesForMarket(address(this), assets, 0);
     }
 
