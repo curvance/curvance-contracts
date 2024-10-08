@@ -60,8 +60,10 @@ contract GetPricesForMarket is TestBaseOracleManager {
         vm.prank(address(marketManager));
         eUSDC.startMarket(address(this));
 
-        vm.expectRevert(OracleRouter.OracleRouter__ErrorCodeFlagged.selector);
-        oracleRouter.getPricesForMarket(address(this), assets, 0);
+        vm.expectRevert(
+            OracleManager.OracleManager__ErrorCodeFlagged.selector
+        );
+        oracleManager.getPricesForMarket(address(this), assets, 0);
     }
 
     function test_getPricesForMarket_success() public {
