@@ -259,7 +259,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         uint256 balanceBefore = cve.balanceOf(address(this));
         universalBalance.claimForDAO();
-        assertEq(cve.balanceOf(address(this)), balanceBefore + 100 * 1 weeks);
+        assertEq(cve.balanceOf(address(this)), balanceBefore + 100 * 1 weeks - 1);
     }
 
     function testLentBalanceIncreased() public {

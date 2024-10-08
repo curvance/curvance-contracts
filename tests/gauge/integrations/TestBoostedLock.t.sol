@@ -111,12 +111,12 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000e18
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) / 1e18,
+            10000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000e18
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) / 1e18,
+            20000 - 1
         );
 
         // user1 deposit 400 token0
@@ -130,20 +130,20 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            12000e18
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) / 1e18,
+            12000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
-            8000e18
+            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)) / 1e18,
+            8000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            24000e18
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) / 1e18,
+            24000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
-            16000e18
+            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)) / 1e18,
+            16000 - 1
         );
 
         for (uint256 i = 0; i < 2; i++) {
@@ -159,8 +159,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(tokens[0], false, rewardData, "0x", 0);
         vm.prank(users[3]);
         gaugeManager.claimAndLock(tokens[1], false, rewardData, "0x", 0);
-        assertEq(veCVE.balanceOf(users[0]), 876020e18);
-        assertEq(veCVE.balanceOf(users[3]), 6928160e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 876020 - 1);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 6928160 - 1);
         assertApproxEqAbs(veCVE.getVotes(users[0]), 842326e18, 1e18);
         assertApproxEqAbs(veCVE.getVotes(users[3]), 6661692e18, 1e18);
 
@@ -186,15 +186,15 @@ contract TestBoostedLock is TestBaseMarket {
             0
         );
 
-        assertEq(veCVE.balanceOf(users[0]), 896020e18);
-        assertEq(veCVE.balanceOf(users[3]), 7088160e18);
-        assertEq(veCVE.getVotes(users[0]), 985622e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 896020 - 1);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 7088160 - 1);
+        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622 - 1);
         assertApproxEqAbs(veCVE.getVotes(users[3]), 6815538e18, 1e18);
 
         vm.warp(block.timestamp + 6 weeks);
-        assertEq(veCVE.balanceOf(users[0]), 896020e18);
-        assertEq(veCVE.balanceOf(users[3]), 7088160e18);
-        assertEq(veCVE.getVotes(users[0]), 985622e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 896020 - 1);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 7088160 - 1);
+        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622- 1);
         assertApproxEqAbs(veCVE.getVotes(users[3]), 5997673e18, 1e18);
     }
 

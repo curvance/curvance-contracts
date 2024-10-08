@@ -40,8 +40,7 @@ contract GetPricesForAssetTest is TestBaseOracleRouter {
         deal(_USDC_ADDRESS, address(this), 1e18);
         vm.prank(address(this));
         usdc.approve(address(dUSDC), 1e18);
-        vm.prank(address(marketManager));
-        dUSDC.startMarket(address(this));
+ 
 
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         chainlinkAdaptor.addAsset(
@@ -55,6 +54,11 @@ contract GetPricesForAssetTest is TestBaseOracleRouter {
             address(chainlinkAdaptor)
         );
         oracleRouter.addMTokenSupport(address(dUSDC));
+
+        marketManager.listToken(address(dUSDC));
+
+        vm.prank(address(marketManager));
+        dUSDC.startMarket(address(this));
 
         (, int256 usdcPrice, , , ) = IChainlink(_CHAINLINK_USDC_USD)
             .latestRoundData();

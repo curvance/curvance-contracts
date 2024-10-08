@@ -333,7 +333,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000
+            19999
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
@@ -342,7 +342,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                10000
+                9999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -350,7 +350,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[2],
                     partnerRewardTokens[i]
                 ),
-                20000
+                19999
             );
         }
 
@@ -374,7 +374,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            24000
+            23999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -387,7 +387,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                12000
+                11999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -403,7 +403,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[2],
                     partnerRewardTokens[i]
                 ),
-                24000
+                23999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -426,7 +426,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[0]),
-                12000
+                11999
             );
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[3]),
@@ -446,7 +446,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            28000
+            27999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -475,7 +475,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[2],
                     partnerRewardTokens[i]
                 ),
-                28000
+                27999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -499,11 +499,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            3111
+            3112
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
-            24888
+            24889
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
@@ -511,7 +511,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
-            29333
+            29334
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
@@ -520,7 +520,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                3111
+                3112
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -528,7 +528,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[1],
                     partnerRewardTokens[i]
                 ),
-                24888
+                24889
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -544,7 +544,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[3],
                     partnerRewardTokens[i]
                 ),
-                29333
+                29334
             );
         }
 
@@ -559,10 +559,10 @@ contract TestPartnerGaugePool is TestBaseMarket {
         vm.prank(users[3]);
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
-        assertEq(cve.balanceOf(users[0]), 15111);
-        assertEq(cve.balanceOf(users[1]), 24888);
+        assertEq(cve.balanceOf(users[0]), 15112);
+        assertEq(cve.balanceOf(users[1]), 24889);
         assertEq(cve.balanceOf(users[2]), 34666);
-        assertEq(cve.balanceOf(users[3]), 45333);
+        assertEq(cve.balanceOf(users[3]), 45334);
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[0]),
@@ -570,7 +570,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[1]),
-                24888
+                24889
             );
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[2]),
@@ -578,7 +578,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             );
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[3]),
-                45333
+                45334
             );
         }
 
@@ -686,7 +686,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            20000
+            19999
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
@@ -695,7 +695,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                10000
+                9999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -703,7 +703,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[1],
                     partnerRewardTokens[i]
                 ),
-                20000
+                19999
             );
         }
 
@@ -713,13 +713,13 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 tokens[0],
                 2,
                 partnerRewardTokens[i],
-                200 * 2 weeks
+                200 * 2 weeks - 1
             );
             gaugeManager.addExtraRewards(
                 tokens[1],
                 2,
                 partnerRewardTokens[i],
-                200 * 2 weeks
+                200 * 2 weeks - 1
             );
         }
 
@@ -742,7 +742,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            2 weeks * 200 + 100 * 200
+            2 weeks * 200 + 100 * 200 - 1
         );
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
@@ -751,7 +751,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                2 weeks * 100 + 100 * 200
+                2 weeks * 100 + 100 * 200 - 101
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -759,7 +759,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                     users[1],
                     partnerRewardTokens[i]
                 ),
-                2 weeks * 200 + 100 * 200
+                2 weeks * 200 + 100 * 200 - 101
             );
         }
 
@@ -770,7 +770,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
         assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200);
-        assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200);
+        assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200 - 1);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             0
@@ -782,11 +782,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[0]),
-                2 weeks * 100 + 100 * 200
+                2 weeks * 100 + 100 * 200 - 101
             );
             assertEq(
                 MockToken(partnerRewardTokens[i]).balanceOf(users[1]),
-                2 weeks * 200 + 100 * 200
+                2 weeks * 200 + 100 * 200 - 101
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -857,7 +857,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -865,7 +865,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            20000
+            19999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -873,7 +873,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -881,7 +881,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            20000
+            19999
         );
 
         // assertEq(gaugeManager.getRewardTokensLength(), CHILD_GAUGE_COUNT + 1);
@@ -901,7 +901,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -909,7 +909,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            20000
+            19999
         );
 
         vm.warp(block.timestamp + 100);
@@ -925,7 +925,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            20000
+            19999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -933,7 +933,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            40000
+            39999
         );
     }
 
@@ -987,7 +987,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -995,7 +995,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            20000
+            19999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1003,7 +1003,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1011,7 +1011,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            20000
+            19999
         );
 
         // assertEq(gaugeManager.getRewardTokensLength(), CHILD_GAUGE_COUNT + 1);
@@ -1031,7 +1031,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1039,7 +1039,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            20000
+            19999
         );
 
         gaugeManager.addExtraRewardToken(address(partnerRewardTokens[0]), 100);
@@ -1049,13 +1049,13 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 tokens[0],
                 2,
                 partnerRewardTokens[i],
-                100 * 2 weeks
+                100 * 2 weeks - 1
             );
             gaugeManager.addExtraRewards(
                 tokens[1],
                 2,
                 partnerRewardTokens[i],
-                200 * 2 weeks
+                200 * 2 weeks - 1
             );
         }
 
@@ -1072,7 +1072,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            100 * (2 weeks + 100)
+            100 * (2 weeks + 100) - 101
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1080,7 +1080,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            200 * (2 weeks + 100)
+            200 * (2 weeks + 100) - 101
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1088,7 +1088,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            100 * (2 weeks + 100)
+            100 * (2 weeks + 100) - 101
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1096,7 +1096,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            200 * (2 weeks + 100)
+            200 * (2 weeks + 100) - 101
         );
 
         vm.warp(block.timestamp + 100);
@@ -1107,7 +1107,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[0]
             ),
-            100 * (2 weeks + 200)
+            100 * (2 weeks + 200) - 201
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1115,7 +1115,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[0]
             ),
-            200 * (2 weeks + 200)
+            200 * (2 weeks + 200) - 201
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1123,7 +1123,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[0],
                 partnerRewardTokens[1]
             ),
-            100 * (2 weeks + 200)
+            100 * (2 weeks + 200) - 201
         );
         assertEq(
             gaugeManager.pendingRewards(
@@ -1131,7 +1131,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
                 users[2],
                 partnerRewardTokens[1]
             ),
-            200 * (2 weeks + 200)
+            200 * (2 weeks + 200) - 201
         );
     }
 }

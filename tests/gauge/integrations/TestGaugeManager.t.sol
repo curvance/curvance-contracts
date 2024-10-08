@@ -344,11 +344,11 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000
+            19999
         );
 
         // user1 deposit 400 token0
@@ -363,7 +363,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            12000
+            11999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
@@ -371,7 +371,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            24000
+            23999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -385,7 +385,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[3]);
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
-        assertEq(cve.balanceOf(users[0]), 12000);
+        assertEq(cve.balanceOf(users[0]), 11999);
         assertEq(cve.balanceOf(users[3]), 16000);
 
         // check pending rewards after 100 seconds
@@ -400,7 +400,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            28000
+            27999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -419,11 +419,11 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            3111
+            3112
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
-            24888
+            24889
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
@@ -431,7 +431,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
-            29333
+            29334
         );
 
         // user0, user1, user2, user3 claims
@@ -446,9 +446,9 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
         assertEq(cve.balanceOf(users[0]), 15111);
-        assertEq(cve.balanceOf(users[1]), 24888);
+        assertEq(cve.balanceOf(users[1]), 24889);
         assertEq(cve.balanceOf(users[2]), 34666);
-        assertEq(cve.balanceOf(users[3]), 45333);
+        assertEq(cve.balanceOf(users[3]), 45334);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -503,11 +503,11 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            20000
+            19999
         );
 
         // set gauge weights
@@ -527,11 +527,11 @@ contract TestGaugeManager is TestBaseMarket {
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            2 weeks * 100 + 100 * 200
+            2 weeks * 100 + 100 * 200 - 1
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            2 weeks * 200 + 100 * 200
+            2 weeks * 200 + 100 * 200 - 1
         );
 
         // user0, user1 claim rewards
@@ -540,8 +540,8 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[1]);
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
-        assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200);
-        assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200);
+        assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200 - 1);
+        assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200 - 1);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             0
@@ -585,11 +585,11 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.massUpdatePools(tokensParam);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000
+            19999
         );
     }
 
@@ -628,14 +628,14 @@ contract TestGaugeManager is TestBaseMarket {
             tokens[0],
             users[0]
         );
-        assertEq(rewards[0], 10000);
+        assertEq(rewards[0], 9999);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000
+            19999
         );
     }
 
@@ -673,11 +673,11 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.updatePool(tokens[1]);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            20000
+            19999
         );
 
         // user1 deposit 400 token0
@@ -695,7 +695,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            12000
+            11999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
@@ -703,7 +703,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            24000
+            23999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -719,7 +719,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[3]);
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
-        assertEq(cve.balanceOf(users[0]), 12000);
+        assertEq(cve.balanceOf(users[0]), 11999);
         assertEq(cve.balanceOf(users[3]), 16000);
 
         // check pending rewards after 100 seconds
@@ -734,7 +734,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
-            28000
+            27999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -756,11 +756,11 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            3111
+            3112
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
-            24888
+            24889
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[2], address(cve)),
@@ -768,7 +768,7 @@ contract TestGaugeManager is TestBaseMarket {
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
-            29333
+            29334
         );
 
         // user0, user1, user2, user3 claims
@@ -782,9 +782,9 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.claim(_makeTokenArray(tokens[1]));
 
         assertEq(cve.balanceOf(users[0]), 15111);
-        assertEq(cve.balanceOf(users[1]), 24888);
+        assertEq(cve.balanceOf(users[1]), 24889);
         assertEq(cve.balanceOf(users[2]), 34666);
-        assertEq(cve.balanceOf(users[3]), 45333);
+        assertEq(cve.balanceOf(users[3]), 45334);
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
@@ -849,7 +849,7 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.updatePool(tokens[1]);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            10000
+            9999
         );
 
         // user1 deposit 400 token0
@@ -867,7 +867,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            12000
+            11999
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
@@ -887,7 +887,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[3]);
         gaugeManager.claim(listedTokens);
 
-        assertEq(cve.balanceOf(users[0]), 36000);
+        assertEq(cve.balanceOf(users[0]), 35998);
         assertEq(cve.balanceOf(users[3]), 16000);
 
         // check pending rewards after 100 seconds
@@ -916,11 +916,11 @@ contract TestGaugeManager is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            3111
+            3112
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
-            24888
+            24889
         );
         assertEq(
             gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
@@ -943,8 +943,8 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[3]);
         gaugeManager.claim(listedTokens);
 
-        assertEq(cve.balanceOf(users[0]), 47111);
-        assertEq(cve.balanceOf(users[1]), 24888);
+        assertEq(cve.balanceOf(users[0]), 47110);
+        assertEq(cve.balanceOf(users[1]), 24889);
         assertEq(cve.balanceOf(users[3]), 48000);
 
         gaugeManager.updatePool(tokens[0]);

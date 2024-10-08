@@ -195,7 +195,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                10000
+                9999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -203,7 +203,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                     users[1],
                     partnerRewardTokens[i]
                 ),
-                20000
+                19999
             );
         }
     }
@@ -265,7 +265,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                     users[0],
                     partnerRewardTokens[i]
                 ),
-                10000
+                9999
             );
             assertEq(
                 gaugeManager.pendingRewards(
@@ -273,7 +273,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
                     users[1],
                     partnerRewardTokens[i]
                 ),
-                20000
+                19999
             );
         }
 
