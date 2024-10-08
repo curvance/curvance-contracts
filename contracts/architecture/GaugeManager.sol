@@ -919,7 +919,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 epochDuration;
             accRewardPerShare =
                 accRewardPerShare +
-                (reward * (WAD_SQUARED)) /
+                (reward * WAD) /
                 totalDeposited;
 
             poolAccRewardPerShare[token][index] = accRewardPerShare;
