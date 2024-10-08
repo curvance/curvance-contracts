@@ -521,7 +521,7 @@ abstract contract CTokenCompounding is CTokenBase {
             log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
         }
 
-        // Execute any deposit strategy.
+        // Deposit into strategy.
         _afterDeposit(assets, shares);
     }
 
@@ -593,10 +593,10 @@ abstract contract CTokenCompounding is CTokenBase {
     function _startMarket(address by) internal override {
         super._startMarket(by);
 
-        uint256 assets = 42069;
+        uint256 assets = _BASE_UNDERLYING_RESERVE;
         uint256 shares = _initialConvertToShares(assets);
 
-        // Execute any deposit strategy.
+        // Deposit into strategy.
         _afterDeposit(assets, shares);
     }
 

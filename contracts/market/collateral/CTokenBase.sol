@@ -74,6 +74,9 @@ abstract contract CTokenBase is
     ///     let balanceSlot := keccak256(0x0c, 0x20)
     /// ```
     uint256 internal constant _BALANCE_SLOT_SEED = 0x87a211a2;
+    /// @dev The base underlying asset requirement held in order to minimize
+    ///      rounding exploits, and more generally, invariant manipulation.
+    uint256 internal constant _BASE_UNDERLYING_RESERVE = 42069;
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
@@ -735,7 +738,7 @@ abstract contract CTokenBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        uint256 assets = 42069;
+        uint256 assets = _BASE_UNDERLYING_RESERVE;
         address market = address(this);
 
         SafeTransferLib.safeTransferFrom(asset(), by, market, assets);
