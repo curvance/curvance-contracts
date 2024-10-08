@@ -98,10 +98,12 @@ contract MessagingHub is QueryResponse {
 
         centralRegistry = centralRegistry_;
 
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
-        feeToken = centralRegistry.feeToken();
+        // Query gauge and token configuration directly to minimize potential
+        // human error.
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        feeToken = centralRegistry.feeToken();
     }
 
     /// EXTERNAL FUNCTIONS ///

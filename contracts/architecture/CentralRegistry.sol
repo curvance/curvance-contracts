@@ -53,7 +53,7 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 contract CentralRegistry is ERC165 {
     /// CONSTANTS ///
 
-    /// @notice The length of one protocol epoch, in unix time.
+    /// @notice The length of one protocol epoch, in seconds.
     uint256 public constant EPOCH_DURATION = 2 weeks;
     
     /// @notice Genesis Epoch timestamp.

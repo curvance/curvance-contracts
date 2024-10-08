@@ -83,7 +83,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     address public immutable cve;
     /// @notice VeCVE contract address.
     IVeCVE public immutable veCVE;
-    /// @notice The length of one protocol epoch, in unix time.
+    /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
@@ -178,12 +178,14 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             revert GaugeManager__InvalidAddress();
         }
         centralRegistry = centralRegistry_;
-        // Query cve/veCVE directly to minimize potential human error.
-        epochDuration = centralRegistry.EPOCH_DURATION();
 
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
+        epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
+
         approvedRewardTokens[cve] = true;
     }
 

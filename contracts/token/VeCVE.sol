@@ -139,7 +139,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     IRewardManager public immutable rewardManager;
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
-    /// @notice The length of one protocol epoch, in unix time.
+    /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
@@ -221,11 +221,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         centralRegistry = centralRegistry_;
-        genesisEpoch = centralRegistry.genesisEpoch();
-        epochDuration = centralRegistry.EPOCH_DURATION();
 
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
         cve = centralRegistry.cve();
         rewardManager = IRewardManager(centralRegistry.rewardManager());
+        genesisEpoch = centralRegistry.genesisEpoch();
+        epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
     /// EXTERNAL FUNCTIONS ///

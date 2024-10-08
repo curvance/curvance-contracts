@@ -18,17 +18,17 @@ contract VotingHub is QueryResponse {
     /// @notice Number of Protocol Eras, corresponds to how many different
     ///         periods there are with token emission incentives.
     uint256 public constant PROTOCOL_REWARD_ERAS = 6;
-    /// @notice The length of one protocol epoch, in unix time.
-    uint256 public immutable EPOCH_DURATION;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
     /// @notice CVE contract address.
     ICVE public immutable cve;
     /// @notice VeCVE contract address.
     IVeCVE public immutable veCVE;
+    /// @notice Address of the Gauge Manager.
+    IGaugeManager public immutable gaugeManager;
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable epochDuration;
 
     /// @dev `bytes4(keccak256(bytes("VotingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xef474362;
@@ -68,12 +68,14 @@ contract VotingHub is QueryResponse {
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
         
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
-        EPOCH_DURATION = veCVE.EPOCH_DURATION();
-
+        
         _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
@@ -243,7 +245,7 @@ contract VotingHub is QueryResponse {
         return
             timestamp < startTime
                 ? 0
-                : (timestamp - startTime) / EPOCH_DURATION;
+                : (timestamp - startTime) / epochDuration;
     }
 
     /// INTERNAL FUNCTIONS ///

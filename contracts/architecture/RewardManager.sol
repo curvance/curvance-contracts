@@ -48,7 +48,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     address public immutable rewardToken;
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
-    /// @notice The length of one protocol epoch, in unix time.
+    /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
@@ -106,11 +106,13 @@ contract RewardManager is Delegable, ReentrancyGuard {
             revert RewardManager__RewardTokenIsZeroAddress();
         }
 
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
+        cve = centralRegistry.cve();
         genesisEpoch = centralRegistry.genesisEpoch();
         epochDuration = centralRegistry.EPOCH_DURATION();
         
         rewardToken = rewardToken_;
-        cve = centralRegistry.cve();
     }
 
     /// EXTERNAL FUNCTIONS ///
