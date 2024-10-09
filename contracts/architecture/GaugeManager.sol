@@ -519,7 +519,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                         rewardAllocation(token, lastEpoch, rewardToken)) /
                     epochDuration;
                 accRewardPerShare =
-                    accRewardPerShare + (reward * RAY) / totalDeposited;
+                    accRewardPerShare +
+                    (reward * RAY) /
+                    totalDeposited;
 
                 ++lastEpoch;
                 lastRewardTimestamp = endTimestamp;
@@ -531,14 +533,17 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 epochDuration;
             accRewardPerShare =
-                accRewardPerShare + (reward * RAY) / totalDeposited;
+                accRewardPerShare +
+                (reward * RAY) /
+                totalDeposited;
         }
 
         UserRewardInfo memory info = userDebtInfo[token][user][index];
         return
             info.rewardPending +
             (balanceOf[token][user] * accRewardPerShare) /
-                RAY - info.rewardDebt;
+            RAY -
+            info.rewardDebt;
     }
 
     /// @notice Returns pending rewards of user.
@@ -894,7 +899,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
                 // Update rewards from lastRewardTimestamp to endTimestamp.
                 reward =
-                    (RAY * (endTimestamp - lastRewardTimestamp) *
+                    (RAY *
+                        (endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
                     epochDuration;
                 accRewardPerShare =
@@ -907,12 +913,13 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
             // Update rewards from lastRewardTimestamp to current timestamp.
             reward =
-                (RAY * (block.timestamp - lastRewardTimestamp) *
+                (RAY *
+                    (block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 epochDuration;
             accRewardPerShare =
                 accRewardPerShare +
-                (reward * WAD) /
+                (reward * RAY) /
                 totalDeposited;
 
             poolAccRewardPerShare[token][index] = accRewardPerShare;
@@ -962,7 +969,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             info.rewardPending +=
                 (balanceOf[token][user] *
                     poolAccRewardPerShare[token][index]) /
-                RAY - info.rewardDebt;
+                RAY -
+                info.rewardDebt;
         }
     }
 
@@ -980,7 +988,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardDebt =
                 (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][index]) / RAY;
+                    poolAccRewardPerShare[token][index]) /
+                RAY;
         }
     }
 }
