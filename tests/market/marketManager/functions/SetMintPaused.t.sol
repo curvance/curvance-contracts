@@ -11,39 +11,39 @@ contract SetMintPausedTest is TestBaseMarketManager {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.setMintPaused(address(dUSDC), true);
+        marketManager.setMintPaused(address(eUSDC), true);
     }
 
     function test_setMintPaused_fail_whenMTokenIsNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canMint(address(dUSDC));
+        marketManager.canMint(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.setMintPaused(address(dUSDC), true);
+        marketManager.setMintPaused(address(eUSDC), true);
     }
 
     function test_setMintPaused_success() public {
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
 
-        marketManager.canMint(address(dUSDC));
+        marketManager.canMint(address(eUSDC));
 
-        assertEq(marketManager.mintPaused(address(dUSDC)), 0);
+        assertEq(marketManager.mintPaused(address(eUSDC)), 0);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit TokenActionPaused(address(dUSDC), "Mint Paused", true);
+        emit TokenActionPaused(address(eUSDC), "Mint Paused", true);
 
-        marketManager.setMintPaused(address(dUSDC), true);
+        marketManager.setMintPaused(address(eUSDC), true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canMint(address(dUSDC));
+        marketManager.canMint(address(eUSDC));
 
-        assertEq(marketManager.mintPaused(address(dUSDC)), 2);
+        assertEq(marketManager.mintPaused(address(eUSDC)), 2);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
-        emit TokenActionPaused(address(dUSDC), "Mint Paused", false);
+        emit TokenActionPaused(address(eUSDC), "Mint Paused", false);
 
-        marketManager.setMintPaused(address(dUSDC), false);
+        marketManager.setMintPaused(address(eUSDC), false);
 
-        assertEq(marketManager.mintPaused(address(dUSDC)), 1);
+        assertEq(marketManager.mintPaused(address(eUSDC)), 1);
     }
 }

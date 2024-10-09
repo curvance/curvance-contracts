@@ -82,12 +82,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setMessagingHub: ", messagingHub);
     }
 
-    function _setFeeAccumulator(address feeAccumulator) internal {
+    function _setFeeManager(address feeManager) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(feeAccumulator != address(0), "Set the feeAccumulator!");
+        require(feeManager != address(0), "Set the feeManager!");
 
-        CentralRegistry(centralRegistry).setFeeAccumulator(feeAccumulator);
-        console.log("centralRegistry.setFeeAccumulator: ", feeAccumulator);
+        CentralRegistry(centralRegistry).setFeeManager(feeManager);
+        console.log("centralRegistry.setFeeManager: ", feeManager);
     }
 
     function _setVeCVE(address veCve) internal {
@@ -155,12 +155,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         );
     }
 
-    function _setOracleRouter(address oracleRouter) internal {
+    function _setOracleManager(address oracleManager) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(oracleRouter != address(0), "Set the oracleRouter!");
+        require(oracleManager != address(0), "Set the oracleManager!");
 
-        CentralRegistry(centralRegistry).setOracleRouter(oracleRouter);
-        console.log("centralRegistry._setOracleRouter: ", oracleRouter);
+        CentralRegistry(centralRegistry).setOracleManager(oracleManager);
+        console.log("centralRegistry._setOracleManager: ", oracleManager);
     }
 
     function _addLockingPermissions(address newApprovedAddress) internal {

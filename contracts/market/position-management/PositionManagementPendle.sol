@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
-
 import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter, ApproxParams, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
@@ -14,7 +13,6 @@ import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
 contract PositionManagementPendle is PositionManagementBase {
-
     IPendleRouter public router;
 
     IPMarket public lp;
@@ -57,9 +55,9 @@ contract PositionManagementPendle is PositionManagementBase {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData.collateralToken.underlying();
+        address collateralUnderlying = leverageData.positionToken.underlying();
 
-        if(swapData.call.length == 0) {
+        if (swapData.call.length == 0) {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
@@ -74,14 +72,11 @@ contract PositionManagementPendle is PositionManagementBase {
         }
 
         // Swap borrow underlying to collateral underlying
-        SwapperLib.swapSafe(
-            centralRegistry,
-            swapData
-        );
+        SwapperLib.swapSafe(centralRegistry, swapData);
 
-        {      
+        {
             address underlyingToken = swapData.outputToken;
-            uint256 balance; 
+            uint256 balance;
 
             if (underlyingToken == address(0)) {
                 balance = address(this).balance;
@@ -95,9 +90,7 @@ contract PositionManagementPendle is PositionManagementBase {
                     );
                 }
             } else {
-                balance = IERC20(underlyingToken).balanceOf(
-                    address(this)
-                );
+                balance = IERC20(underlyingToken).balanceOf(address(this));
                 if (balance > 0) {
                     SwapperLib._approveTokenIfNeeded(
                         underlyingToken,
@@ -105,12 +98,7 @@ contract PositionManagementPendle is PositionManagementBase {
                         balance
                     );
                     // Mint SY in ERC20s.
-                    sy.deposit(
-                        address(this),
-                        underlyingToken,
-                        balance,
-                        0
-                    );
+                    sy.deposit(address(this), underlyingToken, balance, 0);
                 }
             }
         }
@@ -128,9 +116,9 @@ contract PositionManagementPendle is PositionManagementBase {
                 ApproxParams memory approx,
                 LimitOrderData memory limit
             ) = abi.decode(
-                leverageData.data,
-                (uint256, ApproxParams, LimitOrderData)
-            );
+                    leverageData.data,
+                    (uint256, ApproxParams, LimitOrderData)
+                );
 
             // Add liquidity to Pendle lp via SY.
             router.addLiquiditySingleSy(
@@ -148,10 +136,7 @@ contract PositionManagementPendle is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         {
-            (
-                uint256 minSyOut,
-                LimitOrderData memory limit
-            ) = abi.decode(
+            (uint256 minSyOut, LimitOrderData memory limit) = abi.decode(
                 deleverageData.data,
                 (uint256, LimitOrderData)
             );

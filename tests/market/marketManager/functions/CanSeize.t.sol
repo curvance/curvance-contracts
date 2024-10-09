@@ -10,40 +10,40 @@ contract CanSeizeTest is TestBaseMarketManager {
         marketManager.setSeizePaused(true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canSeize(address(cBALRETH), address(dUSDC));
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
-    function test_canSeize_fail_whenCTokenNotListed() public {
+    function test_canSeize_fail_whenPTokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(cBALRETH), address(dUSDC));
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
-    function test_canSeize_fail_whenDTokenNotListed() public {
-        marketManager.listToken(address(cBALRETH));
+    function test_canSeize_fail_whenETokenNotListed() public {
+        marketManager.listToken(address(pBALRETH));
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(cBALRETH), address(dUSDC));
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     function test_canSeize_success() public {
-        marketManager.listToken(address(cBALRETH));
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(eUSDC));
 
-        marketManager.canSeize(address(cBALRETH), address(dUSDC));
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     // function test_canSeize_fail_whenMarketManagersMismatch() public {
-    //     marketManager.listToken(address(cBALRETH));
-    //     marketManager.listToken(address(dUSDC));
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.listToken(address(eUSDC));
 
     //     MarketManager newMarketManager = new MarketManager(
     //         ICentralRegistry(address(centralRegistry)),
     //         address(gaugeManager)
     //     );
     //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
-    //     dUSDC.setMarketManager(address(newMarketManager));
+    //     eUSDC.setMarketManager(address(newMarketManager));
 
     //     vm.expectRevert(MarketManager.MarketManager__MarketManagerMismatch.selector);
-    //     marketManager.canSeize(address(cBALRETH), address(dUSDC));
+    //     marketManager.canSeize(address(pBALRETH), address(eUSDC));
     // }
 }

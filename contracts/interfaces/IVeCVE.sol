@@ -49,9 +49,6 @@ interface IVeCVE {
         address user
     ) external view returns (uint256[] memory, uint256[] memory);
 
-    /// @notice The length of one protocol epoch, in unix time.
-    function EPOCH_DURATION() external view returns (uint256);
-
     /// @notice Returns the current epoch for the given time.
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.

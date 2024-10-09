@@ -42,7 +42,7 @@ contract TestBoostedLock is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
+            tokens[i] = address(_deployEDAI());
         }
 
         for (uint256 i = 0; i < 10; i++) {
@@ -50,8 +50,8 @@ contract TestBoostedLock is TestBaseMarket {
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
 
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(tokens[i]);
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(tokens[i]);
 
             for (uint256 j = 0; j < 10; j++) {
                 address user = users[j];
@@ -80,7 +80,7 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
         // start epoch
-        
+
         vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
     }

@@ -18,13 +18,13 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
     }
 
-    function test_universalBalanceDeployment_fail_whenTokenIsCToken() public {
+    function test_universalBalanceDeployment_fail_whenTokenIsPToken() public {
         vm.expectRevert(
             UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(cBALRETH),
+            address(pBALRETH),
             _WETH_ADDRESS
         );
     }
@@ -40,7 +40,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
             address(universalBalance.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(universalBalance.linkedDToken()), address(dWETH));
+        assertEq(address(universalBalance.linkedEToken()), address(dWETH));
         assertEq(universalBalance.WETH(), _WETH_ADDRESS);
         assertEq(
             weth.allowance(address(universalBalance), address(dWETH)),

@@ -19,9 +19,9 @@ interface IRewardManager {
     /// @notice Returns the reward token for the Reward Manager.
     function rewardToken() external view returns (address);
 
-    /// @notice Called by the fee accumulator to record rewards allocated to
+    /// @notice Called by the Fee Manager to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Accumulator.
+    /// @dev Only callable on by the Fee Manager.
     /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
     ///                      the next reward epoch delivered.
     function recordEpochRewards(uint256 rewardsPerCVE) external;

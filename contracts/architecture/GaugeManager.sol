@@ -83,8 +83,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     address public immutable cve;
     /// @notice VeCVE contract address.
     IVeCVE public immutable veCVE;
-    /// @notice The length of one protocol epoch, in unix time.
-    uint256 public immutable EPOCH_DURATION;
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable epochDuration;
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -178,11 +178,14 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             revert GaugeManager__InvalidAddress();
         }
         centralRegistry = centralRegistry_;
-        // Query cve/veCVE directly to minimize potential human error.
+
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
-        EPOCH_DURATION = veCVE.EPOCH_DURATION();
+        epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
+
         approvedRewardTokens[cve] = true;
     }
 
@@ -413,7 +416,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             amount
         );
 
-        _epochRewardPerSec[token][epoch][index] += amount / EPOCH_DURATION;
+        _epochRewardPerSec[token][epoch][index] += amount / epochDuration;
 
         if (lastEpochOf[token][rewardToken] < epoch) {
             lastEpochOf[token][rewardToken] = epoch;
@@ -436,21 +439,21 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         return
             timestamp < startTime
                 ? 0
-                : (timestamp - startTime) / EPOCH_DURATION;
+                : (timestamp - startTime) / epochDuration;
     }
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + epoch * EPOCH_DURATION;
+        return startTime + epoch * epochDuration;
     }
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + (epoch + 1) * EPOCH_DURATION;
+        return startTime + (epoch + 1) * epochDuration;
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -476,7 +479,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             return _epochInfo[epoch].tokenWeight[token];
         }
 
-        return (EPOCH_DURATION *
+        return (epochDuration *
             _epochRewardPerSec[token][epoch][
                 rewardTokenToIndex[token][rewardToken]
             ]);
@@ -514,9 +517,11 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_DURATION;
+                    epochDuration;
                 accRewardPerShare =
-                    accRewardPerShare + (reward * RAY) / totalDeposited;
+                    accRewardPerShare +
+                    (reward * RAY) /
+                    totalDeposited;
 
                 ++lastEpoch;
                 lastRewardTimestamp = endTimestamp;
@@ -526,16 +531,19 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_DURATION;
+                epochDuration;
             accRewardPerShare =
-                accRewardPerShare + (reward * RAY) / totalDeposited;
+                accRewardPerShare +
+                (reward * RAY) /
+                totalDeposited;
         }
 
         UserRewardInfo memory info = userDebtInfo[token][user][index];
         return
             info.rewardPending +
             (balanceOf[token][user] * accRewardPerShare) /
-                RAY - info.rewardDebt;
+            RAY -
+            info.rewardDebt;
     }
 
     /// @notice Returns pending rewards of user.
@@ -623,7 +631,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @notice Registers a withdrawal of `token` deposits by `user`
     ///         from the Gauge Manager.
     /// @dev This does not actually include any token transfers as tokens
-    ///      are permissionlessly escrowed by CToken/DToken contracts and
+    ///      are permissionlessly escrowed by PToken/EToken contracts and
     ///      we simply record deposits/withdraws here.
     /// @param token Pool token address.
     /// @param user The user address.
@@ -891,11 +899,13 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
                 // Update rewards from lastRewardTimestamp to endTimestamp.
                 reward =
-                    (RAY * (endTimestamp - lastRewardTimestamp) *
+                    (RAY *
+                        (endTimestamp - lastRewardTimestamp) *
                         rewardAllocation(token, lastEpoch, rewardToken)) /
-                    EPOCH_DURATION;
+                    epochDuration;
                 accRewardPerShare =
-                    accRewardPerShare + (reward / totalDeposited);
+                    accRewardPerShare +
+                    (reward / totalDeposited);
 
                 ++lastEpoch;
                 lastRewardTimestamp = endTimestamp;
@@ -903,10 +913,11 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
             // Update rewards from lastRewardTimestamp to current timestamp.
             reward =
-                (RAY * (block.timestamp - lastRewardTimestamp) *
+                (RAY *
+                    (block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
-                EPOCH_DURATION;
-            accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
+                epochDuration;
+            accRewardPerShare = accRewardPerShare + reward / totalDeposited;
 
             poolAccRewardPerShare[token][index] = accRewardPerShare;
         }
@@ -955,7 +966,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             info.rewardPending +=
                 (balanceOf[token][user] *
                     poolAccRewardPerShare[token][index]) /
-                RAY - info.rewardDebt;
+                RAY -
+                info.rewardDebt;
         }
     }
 
@@ -973,7 +985,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             UserRewardInfo storage info = userDebtInfo[token][user][index];
             info.rewardDebt =
                 (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][index]) / RAY;
+                    poolAccRewardPerShare[token][index]) /
+                RAY;
         }
     }
 }

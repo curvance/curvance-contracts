@@ -5,11 +5,11 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -23,9 +23,9 @@ contract TestUniversalBalance is TestBaseMarket {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    CTokenPrimitive public cWBTC;
+    SimplePToken public cWBTC;
     UniversalBalance public universalBalance;
-    DToken public dWETH;
+    EToken public dWETH;
 
     receive() external payable {}
 
@@ -78,16 +78,16 @@ contract TestUniversalBalance is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _WBTC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _WBTC_ADDRESS,
             address(dualChainlinkAdaptor)
         );
 
-        dWETH = _deployDToken(_WETH_ADDRESS);
+        dWETH = _deployEToken(_WETH_ADDRESS);
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -108,8 +108,8 @@ contract TestUniversalBalance is TestBaseMarket {
             deal(_WETH_ADDRESS, owner, 200000 ether);
             weth.approve(address(dWETH), 200000e18);
             marketManager.listToken(address(dWETH));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dWETH));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(dWETH));
             address[] memory markets = new address[](1);
             markets[0] = address(dWETH);
             // vm.prank(user1);
@@ -121,7 +121,7 @@ contract TestUniversalBalance is TestBaseMarket {
         // deploy cWBTC
         {
             // deploy aura position vault
-            cWBTC = new CTokenPrimitive(
+            cWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManager)
@@ -131,10 +131,10 @@ contract TestUniversalBalance is TestBaseMarket {
             deal(_WBTC_ADDRESS, owner, 1e8);
             wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(cWBTC));
-            // set collateral token configuration
-            marketManager.updateCollateralToken(
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(cWBTC));
+            // set position token configuration
+            marketManager.updatePositionToken(
                 IMToken(address(cWBTC)),
                 7000,
                 4000, // liquidate at 71%
@@ -149,7 +149,7 @@ contract TestUniversalBalance is TestBaseMarket {
             mTokens[0] = address(cWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setCTokenCollateralCaps(mTokens, caps);
+            marketManager.setPTokenCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(cWBTC);
@@ -161,7 +161,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(universalBalance.linkedDToken()), address(dWETH));
+        assertEq(address(universalBalance.linkedEToken()), address(dWETH));
         assertEq(universalBalance.WETH(), _WETH_ADDRESS);
     }
 

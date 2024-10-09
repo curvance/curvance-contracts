@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -53,18 +53,18 @@ contract BorrowZapper is ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Borrows on behalf of the caller from `dToken` then bridge
+    /// @notice Borrows on behalf of the caller from `eToken` then bridge
     ///         funds to desired destination chain.
     /// @dev Requires that caller delegated borrowing functionality to this
     ///      contract prior.
-    /// @param dToken The dToken contract to borrow from.
-    /// @param borrowAmount The amount of dToken underlying to borrow.
-    /// @param swapData Swap instruction data to route from dToken underlying
+    /// @param eToken The eToken contract to borrow from.
+    /// @param borrowAmount The amount of eToken underlying to borrow.
+    /// @param swapData Swap instruction data to route from eToken underlying
     ///                 to `feeToken`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.
     function borrowAndBridge(
-        address dToken,
+        address eToken,
         uint256 borrowAmount,
         SwapperLib.Swap memory swapData,
         uint256 dstChainId,
@@ -73,9 +73,9 @@ contract BorrowZapper is ReentrancyGuard {
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
         // Borrow on behalf of caller.
-        DToken(dToken).borrowFor(msg.sender, address(this), borrowAmount);
+        EToken(eToken).borrowFor(msg.sender, address(this), borrowAmount);
 
-        address underlying = DToken(dToken).underlying();
+        address underlying = EToken(eToken).underlying();
 
         // Check if swapping is necessary.
         if (underlying != feeToken) {
@@ -163,7 +163,7 @@ contract BorrowZapper is ReentrancyGuard {
         if (msg.value < wormholeFee) {
             revert BorrowZapper__InsufficientGasToken();
         }
-        
+
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId

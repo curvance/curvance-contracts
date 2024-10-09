@@ -47,7 +47,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
+            tokens[i] = address(_deployEDAI());
         }
 
         for (uint256 i = 0; i < 10; i++) {
@@ -55,8 +55,8 @@ contract TestPartnerGaugePool is TestBaseMarket {
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
 
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(tokens[i]);
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(tokens[i]);
 
             for (uint256 j = 0; j < 10; j++) {
                 address user = users[j];
@@ -106,14 +106,14 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
     function startGauge() internal {
         // start epoch
-        
+
         vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
     }
 
     function testPartnerGaugesRewardsBeforeGaugeStart() public {
         // start epoch
-        
+
         assertGt(gaugeManager.startTime(), block.timestamp);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
@@ -184,7 +184,9 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testSetMinDistributionAmountRevertInvalidRewardToken() public {
         startGauge();
 
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
         gaugeManager.setMinDistributionAmount(address(0), 400);
     }
 
@@ -247,14 +249,21 @@ contract TestPartnerGaugePool is TestBaseMarket {
         startGauge();
 
         vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
-        gaugeManager.addExtraRewards(tokens[0], 0, address(cve), 300 * 2 weeks);
+        gaugeManager.addExtraRewards(
+            tokens[0],
+            0,
+            address(cve),
+            300 * 2 weeks
+        );
     }
 
     function testRevertAddExtraRewardsInvalidRewardToken() public {
         startGauge();
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
+            vm.expectRevert(
+                GaugeManager.GaugeManager__InvalidRewardToken.selector
+            );
             gaugeManager.addExtraRewards(
                 tokens[0],
                 1,
@@ -890,10 +899,22 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // assertEq(gaugeManager.getRewardTokensLength(), CHILD_GAUGE_COUNT);
 
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[0], users[0], partnerRewardTokens[0]);
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[1], users[2], partnerRewardTokens[0]);
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[0],
+            users[0],
+            partnerRewardTokens[0]
+        );
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[1],
+            users[2],
+            partnerRewardTokens[0]
+        );
 
         assertEq(
             gaugeManager.pendingRewards(
@@ -914,10 +935,22 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         vm.warp(block.timestamp + 100);
 
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[0], users[0], partnerRewardTokens[0]);
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[1], users[2], partnerRewardTokens[0]);
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[0],
+            users[0],
+            partnerRewardTokens[0]
+        );
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[1],
+            users[2],
+            partnerRewardTokens[0]
+        );
 
         assertEq(
             gaugeManager.pendingRewards(
@@ -1020,10 +1053,22 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // assertEq(gaugeManager.getRewardTokensLength(), CHILD_GAUGE_COUNT);
 
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[0], users[0], partnerRewardTokens[0]);
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidRewardToken.selector);
-        gaugeManager.pendingRewards(tokens[1], users[2], partnerRewardTokens[0]);
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[0],
+            users[0],
+            partnerRewardTokens[0]
+        );
+        vm.expectRevert(
+            GaugeManager.GaugeManager__InvalidRewardToken.selector
+        );
+        gaugeManager.pendingRewards(
+            tokens[1],
+            users[2],
+            partnerRewardTokens[0]
+        );
 
         assertEq(
             gaugeManager.pendingRewards(

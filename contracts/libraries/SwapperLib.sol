@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -52,7 +52,7 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCallDataChecker(callDataChecker).checkCallData(
+        IExternalCallDataChecker(callDataChecker).checkCalldata(
             swapData,
             address(this)
         );
@@ -103,7 +103,7 @@ library SwapperLib {
             }
 
             // Verify calldata integrity.
-            IExternalCallDataChecker(callDataChecker).checkCallData(
+            IExternalCallDataChecker(callDataChecker).checkCalldata(
                 swapData,
                 address(this)
             );
@@ -143,17 +143,17 @@ library SwapperLib {
         }
 
         {
-            IOracleRouter oracleRouter = IOracleRouter(
-                centralRegistry.oracleRouter()
+            IOracleManager oracleManager = IOracleManager(
+                centralRegistry.oracleManager()
             );
-            (uint256 inputTokenPrice, uint256 errorCode) = oracleRouter
+            (uint256 inputTokenPrice, uint256 errorCode) = oracleManager
                 .getPrice(swapData.inputToken, true, true);
             if (errorCode != NO_ERROR) {
                 revert SwapperLib__TokenPrice(swapData.inputToken);
             }
 
             uint256 outputTokenPrice;
-            (outputTokenPrice, errorCode) = oracleRouter.getPrice(
+            (outputTokenPrice, errorCode) = oracleManager.getPrice(
                 swapData.outputToken,
                 true,
                 true

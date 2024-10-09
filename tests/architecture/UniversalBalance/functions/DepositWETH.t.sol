@@ -53,7 +53,7 @@ contract DepositWETHTest is TestBaseUniversalBalance {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(dUSDC),
+            address(eUSDC),
             _WETH_ADDRESS
         );
 

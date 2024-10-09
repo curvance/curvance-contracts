@@ -21,6 +21,6 @@ contract MarketManagerDeploymentTest is TestBaseMarketManager {
             ICentralRegistry(address(centralRegistry))
         );
 
-        assertEq(address(dUSDC.centralRegistry()), address(centralRegistry));
+        assertEq(address(eUSDC.centralRegistry()), address(centralRegistry));
     }
 }

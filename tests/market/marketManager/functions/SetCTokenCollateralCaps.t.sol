@@ -5,7 +5,7 @@ import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 
-contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
+contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
     address[] public mTokens;
     uint256[] public collateralCaps;
 
@@ -14,60 +14,60 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        mTokens.push(address(dUSDC));
-        mTokens.push(address(dDAI));
-        mTokens.push(address(cBALRETH));
+        mTokens.push(address(eUSDC));
+        mTokens.push(address(eDAI));
+        mTokens.push(address(pBALRETH));
         collateralCaps.push(100e6);
         collateralCaps.push(100e18);
         collateralCaps.push(100e18);
     }
 
-    function test_setCTokenCollateralCaps_fail_whenCallerIsNotAuthorized()
+    function test_setPTokenCollateralCaps_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.setCTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
     }
 
-    function test_setCTokenCollateralCaps_fail_whenMTokenLengthIsZero()
+    function test_setPTokenCollateralCaps_fail_whenMTokenLengthIsZero()
         public
     {
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCTokenCollateralCaps(
+        marketManager.setPTokenCollateralCaps(
             new address[](0),
             collateralCaps
         );
     }
 
-    function test_setCTokenCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
+    function test_setPTokenCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
-        mTokens.push(address(dUSDC));
+        mTokens.push(address(eUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
         mTokens.pop();
     }
 
-    function test_setCTokenCollateralCaps_fail_whenNotCToken() public {
+    function test_setPTokenCollateralCaps_fail_whenNotPToken() public {
         assertEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
     }
 
-    function test_setCTokenCollateralCaps_success() public {
+    function test_setPTokenCollateralCaps_success() public {
         deal(_BAL_WETH_RETH_ADDRESS, address(this), 1 ether);
-        balRETH.approve(address(cBALRETH), 1 ether);
-        marketManager.listToken(address(cBALRETH));
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        balRETH.approve(address(pBALRETH), 1 ether);
+        marketManager.listToken(address(pBALRETH));
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             7000,
             4000,
             3000,
@@ -78,8 +78,8 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
         );
 
         address[] memory validMTokens = new address[](2);
-        validMTokens[0] = address(cBALRETH);
-        validMTokens[1] = address(cBALRETH);
+        validMTokens[0] = address(pBALRETH);
+        validMTokens[1] = address(pBALRETH);
         uint256[] memory validCollateralCaps = new uint256[](2);
         validCollateralCaps[0] = 100e18;
         validCollateralCaps[1] = 10e18;
@@ -89,13 +89,13 @@ contract SetCTokenCollateralCapsTest is TestBaseMarketManager {
             emit NewCollateralCap(validMTokens[i], validCollateralCaps[i]);
         }
 
-        marketManager.setCTokenCollateralCaps(
+        marketManager.setPTokenCollateralCaps(
             validMTokens,
             validCollateralCaps
         );
 
         assertEq(
-            marketManager.collateralCaps(address(cBALRETH)),
+            marketManager.collateralCaps(address(pBALRETH)),
             validCollateralCaps[1]
         );
     }

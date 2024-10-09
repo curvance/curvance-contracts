@@ -4,28 +4,28 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetFeeAccumulatorTest is TestBaseMarket {
+contract SetFeeManagerTest is TestBaseMarket {
     event CoreContractSet(string indexed contractType, address newAddress);
 
-    address public newFeeAccumulator = makeAddr("Fee Accumulator");
+    address public newFeeManager = makeAddr("Fee Manager");
 
-    function test_setFeeAccumulator_fail_whenUnauthorized() public {
+    function test_setFeeManager_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setFeeAccumulator(newFeeAccumulator);
+        centralRegistry.setFeeManager(newFeeManager);
     }
 
-    function test_setFeeAccumulator_success() public {
-        assertEq(centralRegistry.feeAccumulator(), address(feeAccumulator));
+    function test_setFeeManager_success() public {
+        assertEq(centralRegistry.feeManager(), address(feeManager));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Fee Accumulator", newFeeAccumulator);
+        emit CoreContractSet("Fee Manager", newFeeManager);
 
-        centralRegistry.setFeeAccumulator(newFeeAccumulator);
+        centralRegistry.setFeeManager(newFeeManager);
 
-        assertEq(centralRegistry.feeAccumulator(), newFeeAccumulator);
+        assertEq(centralRegistry.feeManager(), newFeeManager);
     }
 }

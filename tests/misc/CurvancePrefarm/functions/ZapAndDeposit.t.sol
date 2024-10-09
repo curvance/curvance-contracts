@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseCurvancePrefarm } from "../TestBaseCurvancePrefarm.sol";
 import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract ZapAndDepositTest is TestBaseCurvancePrefarm {
     event Deposited(address user, address token, uint256 amount);
@@ -35,7 +35,7 @@ contract ZapAndDepositTest is TestBaseCurvancePrefarm {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
     }
 

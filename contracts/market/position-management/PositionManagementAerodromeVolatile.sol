@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive, IERC20 } from "contracts/market/collateral/CTokenPrimitive.sol";
-
 import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 
 contract PositionManagementAerodromeVolatile is PositionManagementBase {
-
     address public pool;
 
     address public pairFactory;
@@ -21,7 +19,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
     IVeloRouter public router;
 
     /// ERRORS ///
-    
+
     error PositionManagementAerodromeStable__SlippageError();
 
     /// CONSTRUCTOR ///
@@ -43,12 +41,12 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
         address _asset = pool;
         address token0 = IVeloPool(_asset).token0();
         address token1 = IVeloPool(_asset).token1();
-        
+
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
         if (borrowUnderlying != token0 && borrowUnderlying != token1) {
-            if(swapData.call.length == 0) {
+            if (swapData.call.length == 0) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
 
@@ -62,10 +60,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
             }
 
             // Swap borrow underlying to collateral underlying
-            SwapperLib.swapSafe(
-                centralRegistry,
-                swapData
-            );
+            SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
@@ -78,10 +73,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
             // Pull reserve data so we can swap half of token0 into token1
             // optimally.
             (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
-            uint256 reserveA = token0 ==
-                IVeloPair(_asset).token0()
-                ? r0
-                : r1;
+            uint256 reserveA = token0 == IVeloPair(_asset).token0() ? r0 : r1;
             // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(

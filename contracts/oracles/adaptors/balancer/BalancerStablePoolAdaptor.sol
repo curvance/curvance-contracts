@@ -8,7 +8,7 @@ import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerP
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     /// TYPES ///
@@ -87,8 +87,8 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         IBalancerPool pool = IBalancerPool(asset);
 
         pData.inUSD = inUSD;
-        IOracleRouter oracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
 
         // Find the minimum price of all the pool tokens.
@@ -106,7 +106,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
                 break;
             }
 
-            (price, errorCode) = oracleRouter.getPrice(
+            (price, errorCode) = oracleManager.getPrice(
                 data.underlyingOrConstituent[i],
                 inUSD,
                 getLower
@@ -151,7 +151,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a new Balancer BPT.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the BPT to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
@@ -176,7 +176,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
             }
 
             if (
-                !IOracleRouter(centralRegistry.oracleRouter())
+                !IOracleManager(centralRegistry.oracleManager())
                     .isSupportedAsset(data.underlyingOrConstituent[i])
             ) {
                 revert BalancerStablePoolAdaptor__ConfigurationError();
@@ -209,7 +209,7 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -226,9 +226,11 @@ contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
         delete isSupportedAsset[asset];
         delete adaptorData[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit BalancerStablePoolAssetRemoved(asset);
     }
 

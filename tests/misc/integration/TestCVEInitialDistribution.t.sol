@@ -99,7 +99,7 @@ contract TestCVEInitialDistribution is TestBaseMarket {
         vm.prank(centralRegistry.messagingHub());
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
-        skip(veCVE.EPOCH_DURATION() + veCVE.RESTRICTION_DURATION() + 1);
+        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
 
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);

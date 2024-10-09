@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/market/zapper/SimpleZapper.sol";
-import { Convex2PoolCToken, IERC20 } from "contracts/market/collateral/Convex2PoolCToken.sol";
+import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -31,7 +31,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
     address public owner;
 
-    Convex2PoolCToken public cSTETH;
+    Convex2PoolPToken public cSTETH;
     SimpleZapper public simpleZapper;
 
     receive() external payable {}
@@ -50,7 +50,7 @@ contract TestSimpleZapper is TestBaseMarket {
         );
 
         centralRegistry.addHarvester(address(this));
-        centralRegistry.setFeeAccumulator(address(this));
+        centralRegistry.setFeeManager(address(this));
 
         // set price oracle
         chainlinkAdaptor = new ChainlinkAdaptor(
@@ -69,12 +69,12 @@ contract TestSimpleZapper is TestBaseMarket {
             true
         );
 
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
             0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _STETH_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -94,8 +94,8 @@ contract TestSimpleZapper is TestBaseMarket {
         data.lowerBound = 10000;
         adaptor.addAsset(_CURVE_STETH_LP, data);
 
-        oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addAssetPriceFeed(_CURVE_STETH_LP, address(adaptor));
 
         // start epoch
         vm.warp(gaugeManager.startTime());
@@ -109,7 +109,7 @@ contract TestSimpleZapper is TestBaseMarket {
         );
 
         // deploy cSTETH
-        cSTETH = new Convex2PoolCToken(
+        cSTETH = new Convex2PoolPToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
             address(marketManager),
@@ -121,9 +121,9 @@ contract TestSimpleZapper is TestBaseMarket {
         deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
-        oracleRouter.addMTokenSupport(address(cSTETH));
+        oracleManager.addMTokenSupport(address(cSTETH));
 
-        marketManager.updateCollateralToken(
+        marketManager.updatePositionToken(
             IMToken(address(cSTETH)),
             5000,
             1500,
@@ -137,24 +137,24 @@ contract TestSimpleZapper is TestBaseMarket {
         tokens[0] = address(cSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        // deploy dDAI
+        // deploy eDAI
         {
             // support market
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(eDAI));
         }
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
-        // mint dDAI
+        // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(dDAI), 1000 ether);
-        dDAI.mint(1000 ether);
+        dai.approve(address(eDAI), 1000 ether);
+        eDAI.mint(1000 ether);
 
         chainlinkDaiUsd.updateRoundData(
             0,
@@ -218,18 +218,18 @@ contract TestSimpleZapper is TestBaseMarket {
         marketManager.postCollateral(user1, address(cSTETH), 1 ether);
 
         // try borrow()
-        dDAI.borrow(500 ether);
+        eDAI.borrow(500 ether);
         vm.stopPrank();
 
         assertEq(dai.balanceOf(user1), 500 ether);
-        assertApproxEqAbs(dDAI.debtBalanceCached(user1), 500 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 500 ether, 1 ether);
 
         // skip min hold period
         skip(20 minutes);
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
         SwapperLib.Swap memory swapData;
@@ -254,10 +254,10 @@ contract TestSimpleZapper is TestBaseMarket {
         deal(_USDC_ADDRESS, user1, 500e6);
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
-        simpleZapper.swapAndRepay(swapData, address(dDAI), 450e18, user1);
+        simpleZapper.swapAndRepay(swapData, address(eDAI), 450e18, user1);
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
-        assertApproxEqAbs(dDAI.debtBalanceCached(user1), 50 ether, 1 ether);
+        assertApproxEqAbs(eDAI.debtBalanceCached(user1), 50 ether, 1 ether);
     }
 }

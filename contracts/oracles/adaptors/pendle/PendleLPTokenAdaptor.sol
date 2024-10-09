@@ -6,7 +6,7 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { PendleLpOracleLib } from "contracts/libraries/external/pendle/PendleLpOracleLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPMarket, IPPrincipalToken, IStandardizedYield } from "contracts/interfaces/external/pendle/IPMarket.sol";
@@ -97,8 +97,8 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         // Get LP to underlying asset ratio conversion.
         uint256 lpRate = IPMarket(asset).getLpToAssetRate(data.twapDuration);
 
-        (uint256 price, uint256 errorCode) = IOracleRouter(
-            centralRegistry.oracleRouter()
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            centralRegistry.oracleManager()
         ).getPrice(data.quoteAsset, inUSD, getLower);
 
         // Validate we did not run into any errors pricing the quote asset.
@@ -122,7 +122,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a pendle lp token.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the Pendle lp token to add pricing
     ///              support for.
@@ -155,7 +155,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
         // Validate we support the pricing quote asset for this LP token.
         if (
-            !IOracleRouter(centralRegistry.oracleRouter()).isSupportedAsset(
+            !IOracleManager(centralRegistry.oracleManager()).isSupportedAsset(
                 data.quoteAsset
             )
         ) {
@@ -176,7 +176,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -193,9 +193,11 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
         delete adaptorData[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit PendleLPAssetRemoved(asset);
     }
 

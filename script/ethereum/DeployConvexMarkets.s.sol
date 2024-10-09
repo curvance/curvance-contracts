@@ -26,10 +26,10 @@ contract DeployConvexMarkets is
         vm.startBroadcast(deployerPrivateKey);
 
         _deployConvexMarket(
-            "C-CONVEX-STETH-ETH-177",
+            "P-CONVEX-STETH-ETH-177",
             abi.decode(
                 configurationJson.parseRaw(
-                    ".markets.cTokens.CONVEX-STETH-ETH-177"
+                    ".markets.pTokens.CONVEX-STETH-ETH-177"
                 ),
                 (ConvexMarketDeployer.ConvexMarketParam)
             )

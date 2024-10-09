@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -42,7 +42,7 @@ contract TestVotingHub is TestBaseVotingHub {
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -69,7 +69,7 @@ contract TestVotingHub is TestBaseVotingHub {
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),

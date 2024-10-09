@@ -5,7 +5,7 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IDiaOracle } from "contracts/interfaces/external/dia/IDiaOracle.sol";
 
@@ -96,7 +96,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param adaptor The adaptor configuration
@@ -130,7 +130,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -149,9 +149,11 @@ contract DIAAdaptor is BaseOracleAdaptor {
         delete adaptorDataUSD[asset];
         delete adaptorDataNonUSD[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit DIAAssetRemoved(asset);
     }
 

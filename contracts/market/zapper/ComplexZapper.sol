@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -37,13 +37,13 @@ contract ComplexZapper is ReentrancyGuard {
         bool depositInputAsWETH;
     }
 
-    /// @param cToken The address of the cToken corresponding to Curve lp
+    /// @param pToken The address of the pToken corresponding to Curve lp
     ///               token to be exited.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
     struct RedemptionData {
-        address cToken;
+        address pToken;
         uint256 shares;
         bool forceRedeemCollateral;
     }
@@ -78,7 +78,7 @@ contract ComplexZapper is ReentrancyGuard {
     error ComplexZapper__ExecutionError();
     error ComplexZapper__InvalidCentralRegistry();
     error ComplexZapper__InvalidMarketManager();
-    error ComplexZapper__CTokenUnderlyingIsNotInputToken();
+    error ComplexZapper__PTokenUnderlyingIsNotInputToken();
     error ComplexZapper__Unauthorized();
     error ComplexZapper__SlippageError();
 
@@ -116,7 +116,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Curve lp token,
     ///         and enters into Curvance position.
-    /// @param cToken The Curvance cToken address.
+    /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param lpMinter The minter address of the Curve lp token.
@@ -124,7 +124,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterCurve(
-        address cToken,
+        address pToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata tokenSwaps,
         address lpMinter,
@@ -147,9 +147,9 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.minimumOut
         );
 
-        // Enter Curvance cToken position.
+        // Enter Curvance pToken position.
         outAmount = _enterCurvance(
-            cToken,
+            pToken,
             zapData.outputToken,
             lpOutAmount,
             recipient
@@ -205,7 +205,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///         desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on redemption action
     ///                       to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to Curve lp
+    ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
@@ -236,7 +236,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            CTokenPrimitive(redemptionData.cToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -258,7 +258,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into a BPT, and
     ///         enters into Curvance position.
-    /// @param cToken The Curvance cToken address.
+    /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param balancerVault The Balancer vault address.
@@ -267,7 +267,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterBalancer(
-        address cToken,
+        address pToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata tokenSwaps,
         address balancerVault,
@@ -292,9 +292,9 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.minimumOut
         );
 
-        // Enter Curvance cToken position.
+        // Enter Curvance pToken position.
         outAmount = _enterCurvance(
-            cToken,
+            pToken,
             zapData.outputToken,
             lpOutAmount,
             recipient
@@ -351,7 +351,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///         desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on redemption action
     ///                       to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to Curve lp
+    ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
@@ -382,7 +382,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            CTokenPrimitive(redemptionData.cToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -405,7 +405,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Velodrome
     ///         sAMM/vAMM, and enters into Curvance position.
-    /// @param cToken The Curvance cToken address.
+    /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
@@ -413,7 +413,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterVelodrome(
-        address cToken,
+        address pToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata tokenSwaps,
         address router,
@@ -438,9 +438,9 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.minimumOut
         );
 
-        // Enter Curvance cToken position.
+        // Enter Curvance pToken position.
         outAmount = _enterCurvance(
-            cToken,
+            pToken,
             zapData.outputToken,
             outAmount,
             recipient
@@ -476,7 +476,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///         into desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on redemption action
     ///                       to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to Curve lp
+    ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
@@ -495,7 +495,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            CTokenPrimitive(redemptionData.cToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -509,7 +509,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Pendle
     ///         market, and enters into Curvance position.
-    /// @param cToken The Curvance cToken address.
+    /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokenSwaps Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
@@ -519,7 +519,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
-        address cToken,
+        address pToken,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata tokenSwaps,
         address router,
@@ -544,9 +544,9 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.minimumOut
         );
 
-        // Enter Curvance cToken position.
+        // Enter Curvance pToken position.
         outAmount = _enterCurvance(
-            cToken,
+            pToken,
             zapData.outputToken,
             outAmount,
             recipient
@@ -597,7 +597,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///         into desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on redemption action
     ///                       to execute. Containing values:
-    ///                       1. The address of the cToken corresponding to Curve lp
+    ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
@@ -623,7 +623,7 @@ contract ComplexZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            CTokenPrimitive(redemptionData.cToken),
+            SimplePToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -645,72 +645,72 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Routes lp/BPT into Curvance cToken contract.
-    /// @param cToken The Curvance cToken address.
+    /// @notice Routes lp/BPT into Curvance pToken contract.
+    /// @param pToken The Curvance pToken address.
     /// @param inputToken The input token address, should match
-    ///                   cToken.underlying().
-    /// @param amount The amount of `inputToken` to deposit into cToken
+    ///                   pToken.underlying().
+    /// @param amount The amount of `inputToken` to deposit into pToken
     ///               position.
-    /// @param recipient Address that should receive Curvance cTokens.
-    /// @return The output amount of cTokens received.
+    /// @param recipient Address that should receive Curvance pTokens.
+    /// @return The output amount of pTokens received.
     function _enterCurvance(
-        address cToken,
+        address pToken,
         address inputToken,
         uint256 amount,
         address recipient
     ) internal returns (uint256) {
-        // cToken not configured so transfer their token back and return.
-        if (cToken == address(0)) {
+        // pToken not configured so transfer their token back and return.
+        if (pToken == address(0)) {
             SafeTransferLib.safeTransfer(inputToken, recipient, amount);
             return amount;
         }
 
-        // Validate that `cToken` is listed inside the associated
+        // Validate that `pToken` is listed inside the associated
         // Market Manager.
-        if (!marketManager.isListed(cToken)) {
+        if (!marketManager.isListed(pToken)) {
             revert ComplexZapper__Unauthorized();
         }
 
-        // Validate inputToken matches underlying token of cToken contract.
-        if (CTokenPrimitive(cToken).underlying() != inputToken) {
-            revert ComplexZapper__CTokenUnderlyingIsNotInputToken();
+        // Validate inputToken matches underlying token of pToken contract.
+        if (SimplePToken(pToken).underlying() != inputToken) {
+            revert ComplexZapper__PTokenUnderlyingIsNotInputToken();
         }
 
-        // Approve cToken to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(inputToken, cToken, amount);
+        // Approve pToken to take `inputToken`.
+        SwapperLib._approveTokenIfNeeded(inputToken, pToken, amount);
 
-        uint256 priorBalance = IERC20(cToken).balanceOf(recipient);
+        uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
 
-        // Enter Curvance cToken position and make sure `recipient` got
-        // cTokens.
-        if (CTokenPrimitive(cToken).deposit(amount, recipient) == 0) {
+        // Enter Curvance pToken position and make sure `recipient` got
+        // pTokens.
+        if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
             revert ComplexZapper__ExecutionError();
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(inputToken, cToken);
+        SwapperLib._removeApprovalIfNeeded(inputToken, pToken);
 
-        // Bubble up how many cTokens `recipient` received.
-        return IERC20(cToken).balanceOf(recipient) - priorBalance;
+        // Bubble up how many pTokens `recipient` received.
+        return IERC20(pToken).balanceOf(recipient) - priorBalance;
     }
 
     /// @notice Exits a Curvance position.
-    /// @param cToken The address of the cToken to be exited.
+    /// @param pToken The address of the pToken to be exited.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
-    /// @param underlying The expected underlying token of `cToken`.
+    /// @param underlying The expected underlying token of `pToken`.
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
     function _exitCurvance(
-        CTokenPrimitive cToken,
+        SimplePToken pToken,
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,
         uint256 expectedAssets,
         address recipient
     ) internal {
-        if (cToken.underlying() != underlying) {
+        if (pToken.underlying() != underlying) {
             revert ComplexZapper__ExecutionError();
         }
 
@@ -718,13 +718,13 @@ contract ComplexZapper is ReentrancyGuard {
 
         // Transfer underlying lp tokens to the Zapper.
         if (forceRedeemCollateral) {
-            assets = cToken.redeemCollateralFor(
+            assets = pToken.redeemCollateralFor(
                 shares,
                 address(this),
                 msg.sender
             );
         } else {
-            assets = cToken.redeemFor(shares, address(this), msg.sender);
+            assets = pToken.redeemFor(shares, address(this), msg.sender);
         }
 
         // Validate output of redemption is sufficient.
@@ -930,7 +930,7 @@ contract ComplexZapper is ReentrancyGuard {
         _transferToRecipient(zapData.outputToken, recipient, outAmount);
     }
 
-    /// @notice Swap `inputToken` into desired cToken underlying tokens.
+    /// @notice Swap `inputToken` into desired pToken underlying tokens.
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
@@ -965,7 +965,7 @@ contract ComplexZapper is ReentrancyGuard {
         }
 
         uint256 numTokenSwaps = tokenSwaps.length;
-        // Swap `inputToken` into desired cToken underlying tokens.
+        // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
                 CommonLib.isETH(tokenSwaps[i].inputToken) && depositInputAsWETH

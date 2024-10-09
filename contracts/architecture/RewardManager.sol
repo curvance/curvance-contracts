@@ -42,15 +42,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RewardManager is Delegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_DURATION = 2 weeks;
-
     /// @notice The address of the CVE contract.
     address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable epochDuration;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
@@ -107,20 +106,24 @@ contract RewardManager is Delegable, ReentrancyGuard {
             revert RewardManager__RewardTokenIsZeroAddress();
         }
 
-        genesisEpoch = centralRegistry.genesisEpoch();
-        rewardToken = rewardToken_;
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
         cve = centralRegistry.cve();
+        genesisEpoch = centralRegistry.genesisEpoch();
+        epochDuration = centralRegistry.EPOCH_DURATION();
+        
+        rewardToken = rewardToken_;
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by the fee accumulator to record rewards allocated to
+    /// @notice Called by the Fee Manager to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Accumulator.
+    /// @dev Only callable on by the Fee Manager.
     /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
     ///                      the next reward epoch delivered.
     function recordEpochRewards(uint256 rewardsPerCVE) external {
-        // Validate the caller reporting epoch data is the fee accumulator,
+        // Validate the caller reporting epoch data is the fee manager,
         // or messaging hub.
         if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -202,7 +205,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             return 0;
         }
 
-        return ((time - genesisEpoch) / EPOCH_DURATION);
+        return ((time - genesisEpoch) / epochDuration);
     }
 
     /// @notice Checks if a user has any rewards to claim.

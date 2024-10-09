@@ -42,7 +42,7 @@ contract TestGaugePoolGas is TestBaseMarket {
             _prepareDAI(users[i], 200000e18);
         }
         for (uint256 i = 0; i < 10; i++) {
-            tokens[i] = address(_deployDDAI());
+            tokens[i] = address(_deployEDAI());
         }
 
         for (uint256 i = 0; i < 10; i++) {
@@ -50,8 +50,8 @@ contract TestGaugePoolGas is TestBaseMarket {
             dai.approve(address(tokens[i]), 200000e18);
             marketManager.listToken(tokens[i]);
 
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(tokens[i]);
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(tokens[i]);
 
             for (uint256 j = 0; j < 10; j++) {
                 address user = users[j];
@@ -96,7 +96,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         }
 
         // start epoch
-        
+
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }

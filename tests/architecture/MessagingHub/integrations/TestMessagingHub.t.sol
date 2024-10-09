@@ -9,7 +9,7 @@ import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -43,7 +43,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -69,7 +69,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),
@@ -105,7 +105,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+        deal(_USDC_ADDRESS, address(feeManager), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
@@ -113,7 +113,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+        assertEq(usdc.balanceOf(address(feeManager)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         vm.recordLogs();
@@ -123,7 +123,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
         // Select forked Arbitrum
@@ -134,7 +134,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         _createLock();
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
 
         _recordEpochRewards(1, 1e6 * _ONE);
 
@@ -202,24 +202,24 @@ contract TestMessagingHub is TestBaseMessagingHub {
     }
 
     function test_executeOTC_sendFees_success() public {
-        feeAccumulator.setEarmarked(_WETH_ADDRESS, true);
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
 
         deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(_WETH_ADDRESS, address(feeAccumulator), _ONE);
+        deal(_WETH_ADDRESS, address(feeManager), _ONE);
 
         assertEq(weth.balanceOf(address(this)), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
 
-        usdc.approve(address(feeAccumulator), 10000e6);
+        usdc.approve(address(feeManager), 10000e6);
 
-        feeAccumulator.executeOTC(_WETH_ADDRESS, _ONE);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
 
         assertLt(usdc.balanceOf(address(this)), 10000e6);
-        assertEq(weth.balanceOf(address(feeAccumulator)), 0);
+        assertEq(weth.balanceOf(address(feeManager)), 0);
         assertEq(weth.balanceOf(address(this)), _ONE);
 
         uint256 daoBalance = usdc.balanceOf(address(this));
-        uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
+        uint256 usdcBalance = usdc.balanceOf(address(feeManager));
 
         vm.recordLogs();
 
@@ -234,10 +234,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), daoBalance + compoundingFee);
-        assertEq(
-            usdc.balanceOf(address(feeAccumulator)),
-            usdcBalance - 1000e6
-        );
+        assertEq(usdc.balanceOf(address(feeManager)), usdcBalance - 1000e6);
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
@@ -265,10 +262,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
     function test_sendFees_multiple_success() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeAccumulator), _ONE);
+        deal(_USDC_ADDRESS, address(feeManager), _ONE);
 
         uint256 daoBalance = usdc.balanceOf(address(this));
-        uint256 usdcBalance = usdc.balanceOf(address(feeAccumulator));
+        uint256 usdcBalance = usdc.balanceOf(address(feeManager));
 
         vm.recordLogs();
 
@@ -283,10 +280,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), daoBalance + compoundingFee);
-        assertEq(
-            usdc.balanceOf(address(feeAccumulator)),
-            usdcBalance - 1000e6
-        );
+        assertEq(usdc.balanceOf(address(feeManager)), usdcBalance - 1000e6);
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
@@ -325,10 +319,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             usdc.balanceOf(address(this)),
             daoBalance + compoundingFee * 2
         );
-        assertEq(
-            usdc.balanceOf(address(feeAccumulator)),
-            usdcBalance - 2000e6
-        );
+        assertEq(usdc.balanceOf(address(feeManager)), usdcBalance - 2000e6);
 
         // Select forked Arbitrum
         vm.selectFork(dstForkId);
@@ -429,7 +420,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(
             unlockTime,
             veCVE.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
                 veCVE.LOCK_DURATION()
         );
 

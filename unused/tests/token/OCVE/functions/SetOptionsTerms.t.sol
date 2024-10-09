@@ -12,7 +12,7 @@
 
 //         skip(1000);
 
-//         (paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _USDC_ADDRESS,
 //             true,
 //             true

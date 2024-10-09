@@ -9,23 +9,23 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { FeeAccumulator } from "contracts/architecture/FeeAccumulator.sol";
+import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
-import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
-import { CallDataCheckerForComplexZapper } from "contracts/market/swap-checker/CallDataCheckerForComplexZapper.sol";
+import { ComplexZapperCalldataChecker } from "contracts/market/swap-checker/ComplexZapperCalldataChecker.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
-import { MockAuraCTokenWithExitFee } from "contracts/mocks/MockAuraCTokenWithExitFee.sol";
+import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -51,13 +51,13 @@ contract TestBaseMarket is TestBase {
 
         _deployBaseContracts();
 
-        _deployOracleRouter();
+        _deployOracleManager();
         _deployChainlinkAdaptors();
 
         _deployMarketManager();
         _deployDynamicInterestRateModel();
-        _deployDUSDC();
-        _deployDDAI();
+        _deployEUSDC();
+        _deployEDAI();
         _deployCBALRETH();
         _deployCBALRETHWithExitFee();
 
@@ -65,9 +65,9 @@ contract TestBaseMarket is TestBase {
 
         _setRedstoneSigners();
 
-        oracleRouters[chainId].addMTokenSupport(address(dUSDC));
-        oracleRouters[chainId].addMTokenSupport(address(cBALRETH));
-        oracleRouters[chainId].addMTokenSupport(address(cBALRETHWithExitFee));
+        oracleManagers[chainId].addMTokenSupport(address(eUSDC));
+        oracleManagers[chainId].addMTokenSupport(address(pBALRETH));
+        oracleManagers[chainId].addMTokenSupport(address(pBALRETHWithExitFee));
     }
 
     function _deployBaseContracts() internal {
@@ -78,7 +78,7 @@ contract TestBaseMarket is TestBase {
         _deployGaugeManager();
         _deployMessagingHub();
         _deployVotingHub();
-        _deployFeeAccumulator();
+        _deployFeeManager();
     }
 
     function _deployCentralRegistry() internal virtual initMainVariables {
@@ -146,12 +146,12 @@ contract TestBaseMarket is TestBase {
         rewardManager.startRewardManager();
     }
 
-    function _deployOracleRouter() internal initMainVariables {
-        oracleRouter = oracleRouters[block.chainid] = new OracleRouter(
+    function _deployOracleManager() internal initMainVariables {
+        oracleManager = oracleManagers[block.chainid] = new OracleManager(
             ICentralRegistry(address(centralRegistry))
         );
 
-        centralRegistry.setOracleRouter(address(oracleRouter));
+        centralRegistry.setOracleManager(address(oracleManager));
     }
 
     function _deployMessagingHub() internal initMainVariables {
@@ -169,14 +169,14 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setVotingHub(address(votingHub));
     }
 
-    function _deployFeeAccumulator() internal initMainVariables {
+    function _deployFeeManager() internal initMainVariables {
         harvester = makeAddr("harvester");
         centralRegistry.addHarvester(harvester);
 
-        feeAccumulator = feeAccumulators[block.chainid] = new FeeAccumulator(
+        feeManager = feeManagers[block.chainid] = new FeeManager(
             ICentralRegistry(address(centralRegistry))
         );
-        centralRegistry.setFeeAccumulator(address(feeAccumulator));
+        centralRegistry.setFeeManager(address(feeManager));
     }
 
     function _deployChainlinkAdaptors() internal initMainVariables {
@@ -265,24 +265,24 @@ contract TestBaseMarket is TestBase {
             false
         );
 
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _RETH_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -329,20 +329,20 @@ contract TestBaseMarket is TestBase {
             0,
             false
         );
-        oracleRouter.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
             address(dualChainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
             address(dualChainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _RETH_ADDRESS,
             address(dualChainlinkAdaptor)
         );
@@ -363,8 +363,8 @@ contract TestBaseMarket is TestBase {
         adapterData.underlyingOrConstituent[0] = _RETH_ADDRESS;
         adapterData.underlyingOrConstituent[1] = _WETH_ADDRESS;
         balRETHAdapter.addAsset(_BAL_WETH_RETH_ADDRESS, adapterData);
-        oracleRouter.addApprovedAdaptor(address(balRETHAdapter));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(balRETHAdapter));
+        oracleManager.addAssetPriceFeed(
             _BAL_WETH_RETH_ADDRESS,
             address(balRETHAdapter)
         );
@@ -403,21 +403,21 @@ contract TestBaseMarket is TestBase {
         );
     }
 
-    function _deployDUSDC() internal initMainVariables returns (DToken) {
-        dUSDC = dUSDCs[block.chainid] = _deployDToken(_USDC_ADDRESS);
-        return dUSDC;
+    function _deployEUSDC() internal initMainVariables returns (EToken) {
+        eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
+        return eUSDC;
     }
 
-    function _deployDDAI() internal initMainVariables returns (DToken) {
-        dDAI = dDAIs[block.chainid] = _deployDToken(_DAI_ADDRESS);
-        return dDAI;
+    function _deployEDAI() internal initMainVariables returns (EToken) {
+        eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
+        return eDAI;
     }
 
-    function _deployDToken(
+    function _deployEToken(
         address token
-    ) internal initMainVariables returns (DToken) {
+    ) internal initMainVariables returns (EToken) {
         return
-            new DToken(
+            new EToken(
                 ICentralRegistry(address(centralRegistry)),
                 token,
                 address(marketManager),
@@ -428,9 +428,9 @@ contract TestBaseMarket is TestBase {
     function _deployCBALRETH()
         internal
         initMainVariables
-        returns (AuraCToken)
+        returns (AuraPToken)
     {
-        cBALRETH = cBALRETHs[block.chainid] = new AuraCToken(
+        pBALRETH = cBALRETHs[block.chainid] = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManager),
@@ -438,17 +438,17 @@ contract TestBaseMarket is TestBase {
             _REWARDER,
             _AURA_BOOSTER
         );
-        return cBALRETH;
+        return pBALRETH;
     }
 
     function _deployCBALRETHWithExitFee()
         internal
         initMainVariables
-        returns (MockAuraCTokenWithExitFee)
+        returns (MockAuraPTokenWithExitFee)
     {
-        cBALRETHWithExitFee = cBALRETHWithExitFees[
+        pBALRETHWithExitFee = cBALRETHWithExitFees[
             block.chainid
-        ] = new MockAuraCTokenWithExitFee(
+        ] = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManager),
@@ -457,7 +457,7 @@ contract TestBaseMarket is TestBase {
             _AURA_BOOSTER,
             200
         );
-        return cBALRETHWithExitFee;
+        return pBALRETHWithExitFee;
     }
 
     function _deployComplexZapper()
@@ -473,15 +473,15 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setExternalCallDataChecker(
             address(complexZapper),
             address(
-                new CallDataCheckerForComplexZapper(address(complexZapper))
+                new ComplexZapperCalldataChecker(address(complexZapper))
             )
         );
         return complexZapper;
     }
 
     function _addSinglePriceFeed() internal initMainVariables {
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -490,8 +490,8 @@ contract TestBaseMarket is TestBase {
     function _addDualPriceFeed() internal initMainVariables {
         _addSinglePriceFeed();
 
-        oracleRouter.addApprovedAdaptor(address(dualChainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addApprovedAdaptor(address(dualChainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(dualChainlinkAdaptor)
         );
@@ -528,8 +528,8 @@ contract TestBaseMarket is TestBase {
     function _setCbalRETHCollateralCaps(
         uint256 cap
     ) internal initMainVariables {
-        marketManager.updateCollateralToken(
-            IMToken(address(cBALRETH)),
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
             7000,
             4000,
             3000,
@@ -539,10 +539,10 @@ contract TestBaseMarket is TestBase {
             1000
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cBALRETH);
+        tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
     function _skipRestrictionDuration() internal {
@@ -550,7 +550,7 @@ contract TestBaseMarket is TestBase {
     }
 
     function _skipEpochDuration(uint256 numEpochs) internal {
-        skip(rewardManager.EPOCH_DURATION() * numEpochs);
+        skip(rewardManager.epochDuration() * numEpochs);
     }
 
     function _recordEpochRewards(

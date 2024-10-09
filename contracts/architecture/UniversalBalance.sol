@@ -9,7 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
@@ -25,8 +25,8 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     /// CONSTANTS ///
 
-    /// @notice The address of the dToken linked to this contract.
-    IMToken public immutable linkedDToken;
+    /// @notice The address of the eToken linked to this contract.
+    IMToken public immutable linkedEToken;
 
     /// @notice The address of WETH on this chain.
     address public immutable WETH;
@@ -77,17 +77,17 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address dToken,
+        address eToken,
         address WETH_
     ) Delegable(centralRegistry_) {
-        if (IMToken(dToken).isCToken()) {
+        if (IMToken(eToken).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedDToken = IMToken(dToken);
+        linkedEToken = IMToken(eToken);
         WETH = WETH_;
 
-        IERC20(WETH_).approve(dToken, type(uint256).max);
+        IERC20(WETH_).approve(eToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -121,7 +121,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
         // Check for amount == 0 in oracle adaptor.
         if (
-            !IOracleRouter(centralRegistry.oracleRouter()).isApprovedAdaptor(
+            !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(
                 msg.sender
             )
         ) {
@@ -129,7 +129,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         }
 
         UserBalance memory userBalance = userBalances[user];
-        uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
+        uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
         uint256 pointerAmount;
         uint256 remainingAmount = amount;
 
@@ -161,7 +161,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             // Reduce user lent balance.
             userBalances[user].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedDToken.redeem(pointerAmount);
+            pointerAmount = linkedEToken.redeem(pointerAmount);
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {
                 revert UniversalBalance__SlippageError();
@@ -180,7 +180,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             centralRegistry.gaugeManager()
         );
         address[] memory rewardTokens = gaugeManager.getRewardTokens(
-            address(linkedDToken)
+            address(linkedEToken)
         );
 
         uint256 numRewardTokens = rewardTokens.length;
@@ -193,7 +193,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         }
 
         address[] memory claimTokens = new address[](1);
-        claimTokens[0] = address(linkedDToken);
+        claimTokens[0] = address(linkedEToken);
 
         gaugeManager.claim(claimTokens);
         address daoAddress = centralRegistry.daoAddress();
@@ -222,7 +222,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         if (isLent) {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedDToken.mint(amount);
+            uint256 tokensReceived = linkedEToken.mint(amount);
             userBalances[msg.sender].lentBalance += tokensReceived;
             emit Deposit(msg.sender, msg.sender, amount, tokensReceived);
             return;
@@ -241,13 +241,13 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         bool isLent
     ) internal returns (uint256) {
         if (isLent) {
-            uint256 exchangeRate = linkedDToken.exchangeRateWithUpdate();
+            uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             uint256 tokensToRedeem = _mulDiv(amount, WAD, exchangeRate);
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
-            uint256 tokensReceived = linkedDToken.redeem(tokensToRedeem);
+            uint256 tokensReceived = linkedEToken.redeem(tokensToRedeem);
             emit Withdraw(
                 msg.sender,
                 msg.sender,

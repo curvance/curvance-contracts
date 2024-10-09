@@ -53,6 +53,9 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 contract CentralRegistry is ERC165 {
     /// CONSTANTS ///
 
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public constant EPOCH_DURATION = 2 weeks;
+    
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
     /// @notice Sequencer Uptime feed address for L2.
@@ -93,10 +96,10 @@ contract CentralRegistry is ERC165 {
     address public votingHub;
     /// @notice Messaging Hub contract address.
     address public messagingHub;
-    /// @notice Oracle Router contract address.
-    address public oracleRouter;
-    /// @notice Fee Accumulator contract address.
-    address public feeAccumulator;
+    /// @notice Oracle Manager contract address.
+    address public oracleManager;
+    /// @notice Fee Manager contract address.
+    address public feeManager;
 
     // CROSS-CHAIN MESSAGING DATA
 
@@ -200,7 +203,7 @@ contract CentralRegistry is ERC165 {
     mapping(address => bool) public isMarketManager;
     mapping(address => address) public externalCallDataChecker;
     mapping(address => bool) public isMulticallProvider;
-    mapping(address => address) public multicallDataChecker;
+    mapping(address => address) public multicallChecker;
 
     /// EVENTS ///
 
@@ -314,28 +317,28 @@ contract CentralRegistry is ERC165 {
         );
     }
 
-    /// @notice Withdraws all protocol reserve fees from a dToken
+    /// @notice Withdraws all protocol reserve fees from a eToken
     ///         from interest generated and liquidations.
-    /// @param dTokens Array of dToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata dTokens) external {
+    /// @param eTokens Array of eToken addresses to withdraw fees from.
+    function withdrawReservesMulti(address[] calldata eTokens) external {
         // Match permissioning check to normal withdrawReserves().
         _checkDaoPermissions();
 
-        uint256 dTokenLength = dTokens.length;
-        if (dTokenLength == 0) {
+        uint256 eTokenLength = eTokens.length;
+        if (eTokenLength == 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IMToken dToken;
+        IMToken eToken;
 
-        for (uint256 i; i < dTokenLength; ) {
-            dToken = IMToken(dTokens[i++]);
+        for (uint256 i; i < eTokenLength; ) {
+            eToken = IMToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (dToken.isCToken()) {
+            if (eToken.isPToken()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            dToken.processWithdrawReserves();
+            eToken.processWithdrawReserves();
         }
     }
 
@@ -421,26 +424,26 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("Messaging Hub", newMessagingHub);
     }
 
-    /// @notice Sets a new Oracle Router contract address.
+    /// @notice Sets a new Oracle Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newOracleRouter The new address of oracleRouter.
-    function setOracleRouter(address newOracleRouter) external {
+    /// @param newOracleManager The new address of oracleManager.
+    function setOracleManager(address newOracleManager) external {
         _checkElevatedPermissions();
 
-        oracleRouter = newOracleRouter;
-        emit CoreContractSet("Oracle Router", newOracleRouter);
+        oracleManager = newOracleManager;
+        emit CoreContractSet("Oracle Manager", newOracleManager);
     }
 
-    /// @notice Sets a new fee accumulator contract address.
+    /// @notice Sets a new fee manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newFeeAccumulator The new address of feeAccumulator.
-    function setFeeAccumulator(address newFeeAccumulator) external {
+    /// @param newFeeManager The new address of feeManager.
+    function setFeeManager(address newFeeManager) external {
         _checkElevatedPermissions();
 
-        feeAccumulator = newFeeAccumulator;
-        emit CoreContractSet("Fee Accumulator", newFeeAccumulator);
+        feeManager = newFeeManager;
+        emit CoreContractSet("Fee Manager", newFeeManager);
     }
 
     /// @notice Sets a new WormholeCore contract address.
@@ -770,9 +773,18 @@ contract CentralRegistry is ERC165 {
         timelock = newTimelock;
 
         // Delete permission data.
-        delete hasDaoPermissions[previousTimelock];
-        delete hasElevatedPermissions[previousTimelock];
+        // If the previous Timelock also has Emergency Council permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousTimelock != emergencyCouncil) {
+            delete hasElevatedPermissions[previousTimelock];
 
+            // If the previous Timelock also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousTimelock != daoAddress) {
+                delete hasDaoPermissions[previousTimelock];
+            }
+        }
+        
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
         hasElevatedPermissions[newTimelock] = true;
@@ -791,10 +803,18 @@ contract CentralRegistry is ERC165 {
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
 
-        // Delete permission data.
-        delete hasDaoPermissions[previousEmergencyCouncil];
-        delete hasElevatedPermissions[previousEmergencyCouncil];
+        // If the previous Emergency Council also has timelock permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousEmergencyCouncil != timelock) {
+            delete hasElevatedPermissions[previousEmergencyCouncil];
 
+            // If the previous Emergency Council also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousEmergencyCouncil != daoAddress) {
+                delete hasDaoPermissions[previousEmergencyCouncil];
+            }
+        }
+        
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
         hasElevatedPermissions[newEmergencyCouncil] = true;
@@ -966,13 +986,13 @@ contract CentralRegistry is ERC165 {
     ///               such as Pyth or Redstone.
     /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setMulticallDataChecker(
+    function setMulticallChecker(
         address target,
         address callDataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallDataChecker[target] = callDataChecker;
+        multicallChecker[target] = callDataChecker;
         emit CallDataCheckerSet("Multicall", target, callDataChecker);
     }
 

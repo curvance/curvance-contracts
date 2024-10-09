@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -132,18 +132,18 @@ contract SimpleRewardZapper is ReentrancyGuard {
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
-    ///         `zapperCall.inputToken`, a cToken underlying, and enters
+    ///         `zapperCall.inputToken`, a pToken underlying, and enters
     ///         into Curvance collateral position.
     /// @param swapZap Zap instruction data to execute the Zap.
     /// @param marketManager The Curvance market manager address which has
-    ///                      listed `cToken`.
-    /// @param cToken The Curvance cToken address.
+    ///                      listed `pToken`.
+    /// @param pToken The Curvance pToken address.
     /// @param recipient Address that should receive Zapped deposit.
-    /// @return The output amount of cTokens received from Zapping.
+    /// @return The output amount of pTokens received from Zapping.
     function claimZapAndDeposit(
         SwapperLib.Swap memory swapZap,
         address marketManager,
-        address cToken,
+        address pToken,
         address recipient
     ) external nonReentrant returns (uint256) {
         // Normally in swappers we check whether the input is a network's gas
@@ -163,14 +163,14 @@ contract SimpleRewardZapper is ReentrancyGuard {
             revert SimpleRewardZapper__UnknownOutputToken();
         }
 
-        // Validate that `cToken` is listed inside the associated
+        // Validate that `pToken` is listed inside the associated
         // Market Manager.
-        if (!IMarketManager(marketManager).isListed(cToken)) {
+        if (!IMarketManager(marketManager).isListed(pToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // We do not need to check for an output token approval here since all
-        // cTokens are natively authorized.
+        // pTokens are natively authorized.
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
@@ -180,29 +180,29 @@ contract SimpleRewardZapper is ReentrancyGuard {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
-        // Execute Zap into cToken underlying.
+        // Execute Zap into pToken underlying.
         SwapperLib.swapUnsafe(centralRegistry, swapZap);
 
-        // Enter Curvance cToken position.
-        return _enterCurvance(cToken, recipient);
+        // Enter Curvance pToken position.
+        return _enterCurvance(pToken, recipient);
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
-    ///         dToken debt inside Curvance.
-    /// @dev Sends any excess dToken underlying to `recipient`.
-    ///      Only needs to swap if `rewardToken` != dToken underlying.
+    ///         eToken debt inside Curvance.
+    /// @dev Sends any excess eToken underlying to `recipient`.
+    ///      Only needs to swap if `rewardToken` != eToken underlying.
     /// @param swapperData Optional swap instruction data to execute the repayment.
     /// @param marketManager The Curvance market manager address which has
-    ///                      listed `dToken`.
-    /// @param dToken The Curvance dToken address.
-    /// @param repayAmount The amount of dToken underlying to be repaid.
+    ///                      listed `eToken`.
+    /// @param eToken The Curvance eToken address.
+    /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have its outstanding debt repaid.
-    /// @return The excess amount of dToken underlying that was returned
+    /// @return The excess amount of eToken underlying that was returned
     ///         to `recipient`.
     function claimSwapAndRepay(
         SwapperLib.Swap memory swapperData,
         address marketManager,
-        address dToken,
+        address eToken,
         uint256 repayAmount,
         address recipient
     ) external nonReentrant returns (uint256) {
@@ -223,9 +223,9 @@ contract SimpleRewardZapper is ReentrancyGuard {
             revert SimpleRewardZapper__UnknownOutputToken();
         }
 
-        // Validate that `dToken` is listed inside the associated
+        // Validate that `eToken` is listed inside the associated
         // Market Manager.
-        if (!IMarketManager(marketManager).isListed(dToken)) {
+        if (!IMarketManager(marketManager).isListed(eToken)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -238,21 +238,21 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Cache underlying to minimize external calls.
-        address dTokenUnderlying = DToken(dToken).underlying();
+        address eTokenUnderlying = EToken(eToken).underlying();
 
-        if (rewardToken != dTokenUnderlying) {
+        if (rewardToken != eTokenUnderlying) {
             // Validate that if we are swapping that the output token
             // matches the underlying needed.
-            if (swapperData.outputToken != dTokenUnderlying) {
+            if (swapperData.outputToken != eTokenUnderlying) {
                 revert SimpleRewardZapper__ExecutionError();
             }
 
-            // Swap from reward token into `dTokenUnderlying`.
+            // Swap from reward token into `eTokenUnderlying`.
             SwapperLib.swapUnsafe(centralRegistry, swapperData);
         }
 
-        // Repay Curvance dToken debt.
-        return _repayDebt(dToken, dTokenUnderlying, repayAmount, recipient);
+        // Repay Curvance eToken debt.
+        return _repayDebt(eToken, eTokenUnderlying, repayAmount, recipient);
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -332,46 +332,46 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Deposits cToken underlying into Curvance cToken contract.
-    /// @param cToken The Curvance cToken address.
-    /// @param recipient Address that should receive Curvance cTokens.
-    /// @return The output amount of cTokens received.
+    /// @notice Deposits pToken underlying into Curvance pToken contract.
+    /// @param pToken The Curvance pToken address.
+    /// @param recipient Address that should receive Curvance pTokens.
+    /// @return The output amount of pTokens received.
     function _enterCurvance(
-        address cToken,
+        address pToken,
         address recipient
     ) internal returns (uint256) {
-        address cTokenUnderlying = CTokenPrimitive(cToken).underlying();
-        uint256 balance = IERC20(cTokenUnderlying).balanceOf(address(this));
+        address pTokenUnderlying = SimplePToken(pToken).underlying();
+        uint256 balance = IERC20(pTokenUnderlying).balanceOf(address(this));
 
-        // Approve cToken to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(cTokenUnderlying, cToken, balance);
+        // Approve pToken to take `inputToken`.
+        SwapperLib._approveTokenIfNeeded(pTokenUnderlying, pToken, balance);
 
-        uint256 priorBalance = IERC20(cToken).balanceOf(recipient);
+        uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
 
-        // Enter Curvance cToken position and make sure `recipient` got
-        // cTokens.
-        if (CTokenPrimitive(cToken).deposit(balance, recipient) == 0) {
+        // Enter Curvance pToken position and make sure `recipient` got
+        // pTokens.
+        if (SimplePToken(pToken).deposit(balance, recipient) == 0) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(cTokenUnderlying, cToken);
+        SwapperLib._removeApprovalIfNeeded(pTokenUnderlying, pToken);
 
-        // Bubble up how many cTokens `recipient` received.
-        return IERC20(cToken).balanceOf(recipient) - priorBalance;
+        // Bubble up how many pTokens `recipient` received.
+        return IERC20(pToken).balanceOf(recipient) - priorBalance;
     }
 
-    /// @notice Repays Curvance lenders dToken underlying owed on behalf
+    /// @notice Repays Curvance lenders eToken underlying owed on behalf
     ///         of `recipient`.
-    /// @param dToken The Curvance dToken address.
-    /// @param dTokenUnderlying The underlying token for `dToken`.
-    /// @param repayAmount The amount of dToken underlying to be repaid.
+    /// @param eToken The Curvance eToken address.
+    /// @param eTokenUnderlying The underlying token for `eToken`.
+    /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have outstanding debt repaid.
-    /// @return outAmount The excess amount of dToken underlying that was
+    /// @return outAmount The excess amount of eToken underlying that was
     ///                   returned to `recipient`.
     function _repayDebt(
-        address dToken,
-        address dTokenUnderlying,
+        address eToken,
+        address eTokenUnderlying,
         uint256 repayAmount,
         address recipient
     ) internal returns (uint256 outAmount) {
@@ -379,32 +379,32 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // rewardToken == outputToken.
         // We also never need to worry about this capturing other peoples
         // balances since the Zapper should never be holding any reward token,
-        // or dToken underlying itself.
-        outAmount = IERC20(dTokenUnderlying).balanceOf(address(this));
+        // or eToken underlying itself.
+        outAmount = IERC20(eTokenUnderlying).balanceOf(address(this));
 
         // Revert if the swap experienced too much slippage.
         if (outAmount < repayAmount) {
             revert SimpleRewardZapper__InsufficientToRepay();
         }
 
-        // Approve `dTokenUnderlying` to dToken contract, if necessary.
+        // Approve `eTokenUnderlying` to eToken contract, if necessary.
         SwapperLib._approveTokenIfNeeded(
-            dTokenUnderlying,
-            dToken,
+            eTokenUnderlying,
+            eToken,
             repayAmount
         );
 
-        // Execute repayment of dToken debt.
-        DToken(dToken).repayFor(recipient, repayAmount);
+        // Execute repayment of eToken debt.
+        EToken(eToken).repayFor(recipient, repayAmount);
 
         // Remove any excess approval.
-        SwapperLib._removeApprovalIfNeeded(dTokenUnderlying, dToken);
+        SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);
 
         outAmount -= repayAmount;
 
-        // Transfer any remaining `dTokenUnderlying` to `recipient`.
+        // Transfer any remaining `eTokenUnderlying` to `recipient`.
         if (outAmount > 0) {
-            _transferToRecipient(dTokenUnderlying, recipient, outAmount);
+            _transferToRecipient(eTokenUnderlying, recipient, outAmount);
         }
     }
 

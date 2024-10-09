@@ -26,44 +26,44 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
     )
         internal
         returns (
-            MockCTokenPrimitive[] memory,
+            MockSimplePToken[] memory,
             MockV3Aggregator[] memory,
             MockV3Aggregator[] memory
         )
     {
-        MockCTokenPrimitive[] memory cTokens = new MockCTokenPrimitive[](
+        MockSimplePToken[] memory pTokens = new MockSimplePToken[](
             _noOfTokens
         );
-        MockV3Aggregator[] memory cTokensAgg = new MockV3Aggregator[](
+        MockV3Aggregator[] memory pTokensAgg = new MockV3Aggregator[](
             _noOfTokens
         );
         MockV3Aggregator[]
-            memory cTokensUnderlyingAgg = new MockV3Aggregator[](_noOfTokens);
+            memory pTokensUnderlyingAgg = new MockV3Aggregator[](_noOfTokens);
         for (uint256 i = 0; i < _noOfTokens; i++) {
-            MockCTokenPrimitive cToken = _deployCollaterToken();
-            cTokens[i] = cToken;
-            cTokensAgg[i] = _deployOracleRouterForToken(cToken.underlying());
-            cTokensUnderlyingAgg[i] = _deployOracleRouterForToken(
-                address(cToken)
+            MockSimplePToken pToken = _deployCollaterToken();
+            pTokens[i] = pToken;
+            pTokensAgg[i] = _deployOracleManagerForToken(pToken.underlying());
+            pTokensUnderlyingAgg[i] = _deployOracleManagerForToken(
+                address(pToken)
             );
             if (_entropy > 0) {
                 console2.log("a %s", i);
                 _setCollateralDataWithEntropy(
-                    address(cToken),
+                    address(pToken),
                     i,
                     _entropy + i
                 );
             } else {
-                _setCollateralData(address(cToken));
+                _setCollateralData(address(pToken));
             }
             console2.log("b %s", i);
-            _setCollateralData(address(cToken));
+            _setCollateralData(address(pToken));
         }
-        return (cTokens, cTokensAgg, cTokensUnderlyingAgg);
+        return (pTokens, pTokensAgg, pTokensUnderlyingAgg);
     }
 
     function _setCollateralDataWithEntropy(
-        address collateralToken,
+        address positionToken,
         uint256 index,
         uint256 randomEntropy
     ) internal {
@@ -96,8 +96,8 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
                 1;
         }
 
-        marketManager.updateCollateralToken(
-            IMToken(collateralToken),
+        marketManager.updatePositionToken(
+            IMToken(positionToken),
             collRatio,
             collReqA,
             collReqB,
@@ -107,49 +107,49 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
             1000
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(collateralToken);
+        tokens[0] = address(positionToken);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
     function _genColWithEntropy(
         address user,
-        MockCTokenPrimitive cToken,
+        MockSimplePToken pToken,
         uint256 amount
     ) internal {
-        _genCollateral(user, cToken, amount);
-        _postCollateral(user, cToken, amount);
+        _genCollateral(user, pToken, amount);
+        _postCollateral(user, pToken, amount);
     }
 
-    function _supplyDTokenWithEntropy(
+    function _supplyETokenWithEntropy(
         address user,
-        DToken dToken,
+        EToken eToken,
         uint256 amount
     ) internal {
-        _supplyDToken(user, dToken, amount);
+        _supplyEToken(user, eToken, amount);
     }
 
     function _selectBorrow(
         uint256 i,
-        DToken[] memory dTokens,
-        uint256 noOfDebtTokens
-    ) internal view returns (bool, DToken, uint256) {
+        EToken[] memory eTokens,
+        uint256 noOfEarnTokens
+    ) internal view returns (bool, EToken, uint256) {
         console2.log("select borrow");
-        DToken borrowToken = dTokens[
-            _genRandom(i, entropy, 0, noOfDebtTokens)
+        EToken borrowToken = eTokens[
+            _genRandom(i, entropy, 0, noOfEarnTokens)
         ];
         uint256 underlyingHeld = borrowToken.marketUnderlyingHeld();
         uint256 amount = underlyingHeld - BASE_UNDERLYING_RESERVE;
 
         console2.log("amount %s", amount);
         if (amount < uint256(borrowToken.decimals()) * 100) {
-            for (uint256 j = 0; j < noOfDebtTokens; j++) {
+            for (uint256 j = 0; j < noOfEarnTokens; j++) {
                 if (
-                    dTokens[j].marketUnderlyingHeld() >
-                    uint256(dTokens[j].decimals()) * 100
+                    eTokens[j].marketUnderlyingHeld() >
+                    uint256(eTokens[j].decimals()) * 100
                 ) {
-                    borrowToken = dTokens[j];
+                    borrowToken = eTokens[j];
                     underlyingHeld = borrowToken.marketUnderlyingHeld();
                     amount = underlyingHeld - BASE_UNDERLYING_RESERVE;
 
@@ -163,13 +163,13 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
 
     function _executeBorrows(
         address[] memory users,
-        DToken[] memory dTokens,
-        MockCTokenPrimitive[] memory /* colToken */
+        EToken[] memory eTokens,
+        MockSimplePToken[] memory /* colToken */
     ) internal {
         uint256 amount;
         //uint256 borrowToken;
 
-        for (uint256 i = 0; i < noOfCollateralTokens; i++) {
+        for (uint256 i = 0; i < noOfPositionTokens; i++) {
             console2.log("col token %s col ratio %s", i, colRatios[i]);
         }
 
@@ -189,10 +189,10 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
                     accMaxDebt,
                     accDebt
                 );
-                (, DToken borrowToken, uint256 avail) = _selectBorrow(
+                (, EToken borrowToken, uint256 avail) = _selectBorrow(
                     i,
-                    dTokens,
-                    noOfDebtTokens
+                    eTokens,
+                    noOfEarnTokens
                 );
 
                 console2.log("avail %s amount %s", avail, amount);

@@ -4,28 +4,28 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetOracleRouterTest is TestBaseMarket {
+contract SetOracleManagerTest is TestBaseMarket {
     event CoreContractSet(string indexed contractType, address newAddress);
 
-    address public newOracleRouter = makeAddr("Oracle Router");
+    address public newOracleManager = makeAddr("Oracle Manager");
 
-    function test_setOracleRouter_fail_whenUnauthorized() public {
+    function test_setOracleManager_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setOracleRouter(newOracleRouter);
+        centralRegistry.setOracleManager(newOracleManager);
     }
 
-    function test_setOracleRouter_success() public {
-        assertEq(centralRegistry.oracleRouter(), address(oracleRouter));
+    function test_setOracleManager_success() public {
+        assertEq(centralRegistry.oracleManager(), address(oracleManager));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Oracle Router", newOracleRouter);
+        emit CoreContractSet("Oracle Manager", newOracleManager);
 
-        centralRegistry.setOracleRouter(newOracleRouter);
+        centralRegistry.setOracleManager(newOracleManager);
 
-        assertEq(centralRegistry.oracleRouter(), newOracleRouter);
+        assertEq(centralRegistry.oracleManager(), newOracleManager);
     }
 }

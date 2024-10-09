@@ -14,7 +14,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
+import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -98,10 +98,12 @@ contract MessagingHub is QueryResponse {
 
         centralRegistry = centralRegistry_;
 
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
-        feeToken = centralRegistry.feeToken();
+        // Query gauge and token configuration directly to minimize potential
+        // human error.
         cve = ICVE(centralRegistry.cve());
         veCVE = IVeCVE(centralRegistry.veCVE());
+        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        feeToken = centralRegistry.feeToken();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -514,7 +516,9 @@ contract MessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (newMessagingStatus > 2) {
+        // It is more dangerous to unpause the protocol than to pause it,
+        // so turning message creation back on requires elevated permissions.
+        if (newMessagingStatus == 1) {
             if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
@@ -540,10 +544,7 @@ contract MessagingHub is QueryResponse {
         uint256 feeTokenBalance = _getFeeTokenHeld();
 
         if (gasTokenBalance > 0) {
-            SafeTransferLib.safeTransferETH(
-                _getDaoAddress(),
-                gasTokenBalance
-            );
+            SafeTransferLib.safeTransferETH(_getDaoAddress(), gasTokenBalance);
         }
 
         if (feeTokenBalance > 0) {
@@ -625,6 +626,10 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
+    /// @dev WARNING: Our CCTP message implementation requires finality
+    ///               on a chain, meaning if finality takes longer than
+    ///               CCTP's attestation, message and value delivery can
+    ///               be longer than expected.
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
@@ -734,11 +739,10 @@ contract MessagingHub is QueryResponse {
         }
     }
 
-    /// @dev Pulls `amount` fee tokens from the fee accumulator to
+    /// @dev Pulls `amount` fee tokens from the fee manager to
     ///      aggregate fees.
     function _pullFees(uint256 amount) internal returns (uint256) {
-        return
-            IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
+        return IFeeManager(centralRegistry.feeManager()).pullFees(amount);
     }
 
     /// @dev Receives fee tokens from Circle from provided message.

@@ -7,7 +7,7 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowZapper } from "contracts/market/zapper/BorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
@@ -76,24 +76,24 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
         chainlinkEthUsd.updateAnswer(ethPrice);
 
-        // setup dDAI
+        // setup eDAI
         {
             _prepareDAI(address(this), 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
-            // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(eDAI));
         }
 
         // setup CBALRETH
         {
             // support market
             _prepareBALRETH(address(this), _ONE);
-            balRETH.approve(address(cBALRETH), _ONE);
-            marketManager.listToken(address(cBALRETH));
+            balRETH.approve(address(pBALRETH), _ONE);
+            marketManager.listToken(address(pBALRETH));
             // set collateral factor
-            marketManager.updateCollateralToken(
-                IMToken(address(cBALRETH)),
+            marketManager.updatePositionToken(
+                IMToken(address(pBALRETH)),
                 7000,
                 4000,
                 3000,
@@ -103,10 +103,10 @@ contract BorrowAndBridgeTest is TestBaseMarket {
                 1000
             );
             address[] memory tokens = new address[](1);
-            tokens[0] = address(cBALRETH);
+            tokens[0] = address(pBALRETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
-            marketManager.setCTokenCollateralCaps(tokens, caps);
+            marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
         // provide enough liquidity
@@ -133,17 +133,17 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         // try mint()
         vm.startPrank(user1);
-        balRETH.approve(address(cBALRETH), _ONE);
-        cBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(cBALRETH), _ONE);
+        balRETH.approve(address(pBALRETH), _ONE);
+        pBALRETH.deposit(_ONE, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
         vm.stopPrank();
 
-        assertEq(cBALRETH.balanceOf(user1), _ONE);
-        assertEq(cBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.balanceOf(user1), _ONE);
+        assertEq(pBALRETH.exchangeRateCached(), _ONE);
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
         swapData.inputToken = _DAI_ADDRESS;
@@ -169,11 +169,11 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        dDAI.setDelegateApproval(address(borrowZapper), true);
+        eDAI.setDelegateApproval(address(borrowZapper), true);
 
         vm.expectRevert(BorrowZapper.BorrowZapper__InvalidSwapData.selector);
         borrowZapper.borrowAndBridge{ value: _ONE }(
-            address(dDAI),
+            address(eDAI),
             500e18,
             swapData,
             42161,
@@ -188,13 +188,13 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        dDAI.setDelegateApproval(address(borrowZapper), true);
+        eDAI.setDelegateApproval(address(borrowZapper), true);
 
         vm.expectRevert(
             BorrowZapper.BorrowZapper__CCTPIsNotConfigured.selector
         );
         borrowZapper.borrowAndBridge{ value: _ONE }(
-            address(dDAI),
+            address(eDAI),
             500e18,
             swapData,
             42161,
@@ -209,13 +209,13 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        dDAI.setDelegateApproval(address(borrowZapper), true);
+        eDAI.setDelegateApproval(address(borrowZapper), true);
 
         vm.expectRevert(
             BorrowZapper.BorrowZapper__InsufficientGasToken.selector
         );
         borrowZapper.borrowAndBridge{ value: messageFee - 1 }(
-            address(dDAI),
+            address(eDAI),
             500e18,
             swapData,
             42161,
@@ -231,15 +231,15 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        dDAI.setDelegateApproval(address(borrowZapper), true);
+        eDAI.setDelegateApproval(address(borrowZapper), true);
         borrowZapper.borrowAndBridge{ value: _ONE }(
-            address(dDAI),
+            address(eDAI),
             500e18,
             swapData,
             42161,
             0
         );
-        dDAI.borrow(500e18);
+        eDAI.borrow(500e18);
 
         vm.stopPrank();
 
@@ -250,13 +250,13 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 200000e18);
         _prepareBALRETH(liquidityProvider, 10e18);
-        // mint dDAI
+        // mint eDAI
         vm.startPrank(liquidityProvider);
-        dai.approve(address(dDAI), 200000e18);
-        dDAI.mint(200000e18);
+        dai.approve(address(eDAI), 200000e18);
+        eDAI.mint(200000e18);
         // mint cBALETH
-        balRETH.approve(address(cBALRETH), 10e18);
-        cBALRETH.deposit(10e18, liquidityProvider);
+        balRETH.approve(address(pBALRETH), 10e18);
+        pBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
     }
 }

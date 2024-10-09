@@ -8,12 +8,12 @@ import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.s
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
-import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
+import { FeeManagerDeployer } from "./deployers/FeeManagerDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
-import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
+import { OracleManagerDeployer } from "./deployers/OracleManagerDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
 
 contract DeployCurvance is
@@ -22,12 +22,12 @@ contract DeployCurvance is
     CveDeployer,
     RewardManagerDeployer,
     MessagingHubDeployer,
-    FeeAccumulatorDeployer,
+    FeeManagerDeployer,
     VeCveDeployer,
     GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
-    OracleRouterDeployer,
+    OracleManagerDeployer,
     AuxiliaryDataDeployer
 {
     function run() external {
@@ -93,10 +93,10 @@ contract DeployCurvance is
         _deployMessagingHub(centralRegistry);
         _setMessagingHub(messagingHub);
 
-        // Deploy FeeAccumulator
+        // Deploy FeeManager
 
-        _deployFeeAccumulator(centralRegistry);
-        _setFeeAccumulator(feeAccumulator);
+        _deployFeeManager(centralRegistry);
+        _setFeeManager(feeManager);
 
         // Deploy VeCVE
 
@@ -124,12 +124,12 @@ contract DeployCurvance is
             _readConfigAddress(".zapper.weth")
         );
 
-        _deployOracleRouter(
+        _deployOracleManager(
             centralRegistry,
-            _readConfigAddress(".oracleRouter.chainlinkEthUsd")
+            _readConfigAddress(".oracleManager.chainlinkEthUsd")
         );
 
-        _setOracleRouter(oracleRouter);
+        _setOracleManager(oracleManager);
 
         //  Deploy Auxiliary Data
 

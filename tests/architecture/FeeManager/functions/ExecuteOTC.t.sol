@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
+
+import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
+import { FeeManager } from "contracts/architecture/FeeManager.sol";
+
+contract ExecuteOTCTest is TestBaseFeeManager {
+    function test_executeOTC_fail_whenCallerIsNotAuthorized() public {
+        vm.prank(user1);
+
+        vm.expectRevert(FeeManager.FeeManager__Unauthorized.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+    }
+
+    function test_executeOTC_fail_whenTokenIsNotEarmarked() public {
+        vm.expectRevert(FeeManager.FeeManager__TokenIsNotEarmarked.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+    }
+
+    function test_executeOTC_fail_whenFeeTokenIsNotApproved() public {
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
+
+        vm.expectRevert();
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+    }
+
+    function test_executeOTC_fail_whenPriceIsInvalid() public {
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
+
+        chainlinkEthUsd.updateAnswer(0);
+
+        vm.expectRevert(FeeManager.FeeManager__ConfigurationError.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+
+        chainlinkUsdcUsd.updateAnswer(0);
+
+        vm.expectRevert(FeeManager.FeeManager__ConfigurationError.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+    }
+
+    function test_executeOTC_success() public {
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
+
+        deal(_USDC_ADDRESS, address(this), _ONE);
+        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+
+        assertEq(weth.balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(centralRegistry)), 0);
+
+        usdc.approve(address(feeManager), _ONE);
+
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE);
+
+        assertLt(usdc.balanceOf(address(this)), _ONE);
+        assertLt(weth.balanceOf(address(feeManager)), _ONE);
+        assertEq(weth.balanceOf(address(this)), _ONE);
+    }
+}
