@@ -12,13 +12,6 @@ contract MockRedstoneCoreAdaptor is RedstoneCoreAdaptor {
         uint256 _uniqueSignersThreshold
     ) RedstoneCoreAdaptor(centralRegistry_, signers, _uniqueSignersThreshold) {}
 
-    function getAuthorisedSignerIndex(
-        address /* signerAddress */
-    ) public view virtual override returns (uint8) {
-        // authorize everyone
-        return 0;
-    }
-
     function validateTimestamp(
         uint256 receivedTimestampMilliseconds
     ) public view override {
