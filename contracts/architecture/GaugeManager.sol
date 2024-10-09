@@ -917,10 +917,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                     (block.timestamp - lastRewardTimestamp) *
                     rewardAllocation(token, lastEpoch, rewardToken)) /
                 epochDuration;
-            accRewardPerShare =
-                accRewardPerShare +
-                (reward * RAY) /
-                totalDeposited;
+            accRewardPerShare = accRewardPerShare + reward / totalDeposited;
 
             poolAccRewardPerShare[token][index] = accRewardPerShare;
         }
