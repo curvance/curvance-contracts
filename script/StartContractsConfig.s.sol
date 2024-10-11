@@ -146,13 +146,13 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _loadFaucet();
 
         // Lock 25%
-        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
-        CVE cve = CVE(_getDeployedContract("cve"));
-        VeCVE veCVE = VeCVE(centralRegistry.veCVE());
-        uint256 lockAmount = cve.balanceOf(deployer) / 4;
-        cve.approve(address(veCVE), lockAmount);
-        RewardsData memory rewardsData;
-        veCVE.createLock(lockAmount, true, rewardsData, "", 0);
+        // address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
+        // CVE cve = CVE(_getDeployedContract("cve"));
+        // VeCVE veCVE = VeCVE(centralRegistry.veCVE());
+        // uint256 lockAmount = cve.balanceOf(deployer) / 4;
+        // cve.approve(address(veCVE), lockAmount);
+        // RewardsData memory rewardsData;
+        // veCVE.createLock(lockAmount, true, rewardsData, "", 0);
     }
 
     function _deployMockTokens() internal {
@@ -567,6 +567,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleRouter router = OracleRouter(oracleRouter);
 
+        address[] memory priceFeedAdds = new address[](mockTokens.length);
         for (uint256 i = 0; i < mockTokens.length; i++) {
             address underlying = mockTokens[i];
             IERC20 underlyingToken = IERC20(underlying);
@@ -583,7 +584,16 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
             if (executeFeeds && !router.isSupportedAsset(underlying)) {
                 _addRedstonePriceFeed(underlyingToken, adaptor, router);
+                priceFeedAdds[i] = address(underlying);
             }
+        }
+
+        for (uint256 i = 0; i < priceFeedAdds.length; i++) {
+            if (priceFeedAdds[i] == address(0)) {
+                continue;
+            }
+
+            router.addAssetPriceFeed(priceFeedAdds[i], address(adaptor));
         }
     }
 
@@ -616,7 +626,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         require(success, "Failed to get price from Redstone API");
 
         // TODO: This could be extracted out to speed up the redstone price execution
-        router.addAssetPriceFeed(address(underlyingToken), address(adaptor));
+        // router.addAssetPriceFeed(address(underlyingToken), address(adaptor));
     }
 
     function _loadFaucet() internal {
