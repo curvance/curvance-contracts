@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowZapper } from "contracts/market/utils/BorrowZapper.sol";
+import { BorrowZapper } from "contracts/market/zapper/BorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
@@ -120,6 +120,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         centralRegistry.addChainSupport(
             address(messagingHub),
+            address(votingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,
@@ -226,7 +227,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
     function test_borrowAndBridge_success() public {
         uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
-        uint256 balance = address(user1).balance;
+        uint256 balance = user1.balance;
 
         vm.startPrank(user1);
 
@@ -242,7 +243,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.stopPrank();
 
-        assertEq(address(user1).balance, balance - messageFee);
+        assertEq(user1.balance, balance - messageFee);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

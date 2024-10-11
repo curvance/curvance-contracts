@@ -11,10 +11,8 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestConvex2PoolCToken is TestBaseMarket {
-    IERC20 public constant CVX =
-        IERC20(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B);
-    IERC20 public constant CRV =
-        IERC20(0xD533a949740bb3306d119CC777fa900bA034cd52);
+    address internal _CVX_ADDRESS = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
+    address internal _CRV_ADDRESS = 0xD533a949740bb3306d119CC777fa900bA034cd52;
     IERC20 public CONVEX_STETH_ETH_POOL =
         IERC20(0x21E27a5E5513D6e65C4f830167390997aA84843a);
     uint256 public CONVEX_STETH_ETH_POOL_ID = 177;
@@ -23,9 +21,9 @@ contract TestConvex2PoolCToken is TestBaseMarket {
     address public CONVEX_BOOSTER = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31;
     address public SUSHI_ROUTER = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
 
-    MockDataFeed mockCRVFeed;
-    MockDataFeed mockCVXFeed;
-    MockDataFeed mockWethFeed;
+    MockDataFeed public mockCRVFeed;
+    MockDataFeed public mockCVXFeed;
+    MockDataFeed public mockWethFeed;
     Convex2PoolCToken public cSTETH;
 
     /*
@@ -60,7 +58,7 @@ contract TestConvex2PoolCToken is TestBaseMarket {
         );
 
         address owner = address(this);
-        deal(address(CONVEX_STETH_ETH_POOL), address(owner), 1 ether);
+        deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
 
@@ -77,9 +75,9 @@ contract TestConvex2PoolCToken is TestBaseMarket {
             0xCd627aA160A6fA45Eb793D19Ef54f5062F20f33f
         );
         mockCRVFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(address(CRV), address(mockCRVFeed), 0, true);
+        chainlinkAdaptor.addAsset(_CRV_ADDRESS, address(mockCRVFeed), 0, true);
         oracleRouter.addAssetPriceFeed(
-            address(CRV),
+            _CRV_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -87,9 +85,9 @@ contract TestConvex2PoolCToken is TestBaseMarket {
             0xd962fC30A72A84cE50161031391756Bf2876Af5D
         );
         mockCVXFeed.setMockUpdatedAt(block.timestamp);
-        chainlinkAdaptor.addAsset(address(CVX), address(mockCVXFeed), 0, true);
+        chainlinkAdaptor.addAsset(_CVX_ADDRESS, address(mockCVXFeed), 0, true);
         oracleRouter.addAssetPriceFeed(
-            address(CVX),
+            _CVX_ADDRESS,
             address(chainlinkAdaptor)
         );
 
@@ -122,12 +120,12 @@ contract TestConvex2PoolCToken is TestBaseMarket {
 
     function testConvexStethEthPool() public {
         uint256 assets = 100e18;
-        deal(address(CONVEX_STETH_ETH_POOL), address(user1), assets);
+        deal(address(CONVEX_STETH_ETH_POOL), user1, assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), assets);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cSTETH.deposit(assets, user1);
 
         assertEq(
@@ -146,19 +144,19 @@ contract TestConvex2PoolCToken is TestBaseMarket {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
 
         // Mint some extra rewards for Vault.
-        // deal(address(CRV), address(cSTETH), 100e18);
-        // deal(address(CVX), address(cSTETH), 100e18);
+        // deal(_CRV_ADDRESS, address(cSTETH), 100e18);
+        // deal(_CVX_ADDRESS, address(cSTETH), 100e18);
         // deal(address(cSTETH), 1 ether);
 
         SwapperLib.Swap[] memory swaps = new SwapperLib.Swap[](2);
         uint256 crvAmount = 200 ether;
         swaps[0].slippage = 0.3e18;
-        swaps[0].inputToken = address(CRV);
+        swaps[0].inputToken = _CRV_ADDRESS;
         swaps[0].inputAmount = crvAmount;
         swaps[0].outputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         swaps[0].target = _UNISWAP_V2_ROUTER;
         address[] memory path = new address[](2);
-        path[0] = address(CRV);
+        path[0] = _CRV_ADDRESS;
         path[1] = _WETH_ADDRESS;
         swaps[0].call = abi.encodeWithSignature(
             "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
@@ -171,11 +169,11 @@ contract TestConvex2PoolCToken is TestBaseMarket {
 
         uint256 cvxAmount = 2 ether;
         swaps[1].slippage = 0.3e18;
-        swaps[1].inputToken = address(CVX);
+        swaps[1].inputToken = _CVX_ADDRESS;
         swaps[1].inputAmount = cvxAmount;
         swaps[1].outputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         swaps[1].target = SUSHI_ROUTER;
-        path[0] = address(CVX);
+        path[0] = _CVX_ADDRESS;
         path[1] = _WETH_ADDRESS;
         swaps[1].call = abi.encodeWithSignature(
             "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
@@ -197,8 +195,8 @@ contract TestConvex2PoolCToken is TestBaseMarket {
         vm.warp(block.timestamp + 8 days);
 
         // Mint some extra rewards for Vault.
-        deal(address(CRV), address(cSTETH), 100e18);
-        deal(address(CVX), address(cSTETH), 100e18);
+        deal(_CRV_ADDRESS, address(cSTETH), 100e18);
+        deal(_CVX_ADDRESS, address(cSTETH), 100e18);
         deal(address(cSTETH), 1 ether);
         cSTETH.harvest(abi.encode(new SwapperLib.Swap[](0)));
         vm.warp(block.timestamp + 7 days);
@@ -213,7 +211,7 @@ contract TestConvex2PoolCToken is TestBaseMarket {
 
         uint256 balance = cSTETH.balanceOf(user1);
 
-        vm.prank(address(user1));
+        vm.prank(user1);
         cSTETH.withdraw(balance, user1, user1);
     }
 }

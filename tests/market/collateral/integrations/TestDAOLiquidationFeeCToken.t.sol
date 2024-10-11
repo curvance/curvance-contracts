@@ -8,13 +8,13 @@ contract TestCTokenReserves is TestBaseMarket {
     address public owner;
     address public dao;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();

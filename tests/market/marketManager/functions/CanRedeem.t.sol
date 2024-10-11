@@ -26,28 +26,7 @@ contract CanRedeemTest is TestBaseMarketManager {
         marketManager.canRedeem(address(dUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_success_whenPastMinimumHoldPeriod() public {
-        vm.prank(address(dUSDC));
-        marketManager.notifyBorrow(address(dUSDC), user1);
-
-        skip(20 minutes);
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
-    }
-
-    function test_canRedeem_success_whenRedeemerNotInMarket() public {
-        bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
-
-        assertFalse(hasPosition);
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
-    }
-
-    function test_canRedeem_success_DTokenCanAlwaysBeRedeemed() public {
-        assertFalse(dUSDC.isCToken());
-        marketManager.canRedeem(address(dUSDC), user1, 100e6);
-    }
-
-    function test_canRedeem_fail_WhenCTokenInsufficientLiquidity() public {
+    function test_canRedeem_fail_whenCTokenInsufficientLiquidity() public {
         skip(gaugeManager.startTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -94,5 +73,26 @@ contract CanRedeemTest is TestBaseMarketManager {
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         marketManager.canRedeem(address(cBALRETH), user1, 100e18);
+    }
+
+    function test_canRedeem_success_whenPastMinimumHoldPeriod() public {
+        vm.prank(address(dUSDC));
+        marketManager.notifyBorrow(address(dUSDC), user1);
+
+        skip(20 minutes);
+        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+    }
+
+    function test_canRedeem_success_whenRedeemerNotInMarket() public {
+        bool hasPosition;
+        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(dUSDC));
+
+        assertFalse(hasPosition);
+        marketManager.canRedeem(address(dUSDC), user1, 100e6);
+    }
+
+    function test_canRedeem_success_DTokenCanAlwaysBeRedeemed() public {
+        assertFalse(dUSDC.isCToken());
+        marketManager.canRedeem(address(dUSDC), user1, 100e6);
     }
 }

@@ -855,7 +855,8 @@ contract CentralRegistry is ERC165 {
     /// @notice Adds support for a new chain.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {NewChainAdded} event.
-    /// @param remoteMessagingHub Address for new chains Messaging Hub.
+    /// @param remoteMessagingHub Address for new chain's Messaging Hub.
+    /// @param remoteVotingHub Address for new chain's Voting Hub.
     /// @param feeTokenAddress Fee token address on the chain. (USDC)
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
@@ -864,6 +865,7 @@ contract CentralRegistry is ERC165 {
     /// @param domain CCTP domain for the chain.
     function addChainSupport(
         address remoteMessagingHub,
+        address remoteVotingHub,
         address cveAddress,
         address feeTokenAddress,
         uint256 chainId,
@@ -881,6 +883,7 @@ contract CentralRegistry is ERC165 {
         supportedChainData[chainId] = ChainData({
             isSupported: 2,
             messagingHub: remoteMessagingHub,
+            votingHub: remoteVotingHub,
             cveAddress: cveAddress,
             feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
@@ -893,7 +896,7 @@ contract CentralRegistry is ERC165 {
         ++supportedChains;
         foreignChainIds.push(chainId);
 
-        emit NewChainAdded(chainId, remoteMessagingHub);
+        emit NewChainAdded(chainId, relayer);
     }
 
     /// @notice Removes support for a chain.

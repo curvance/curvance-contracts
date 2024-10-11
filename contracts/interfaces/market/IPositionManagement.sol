@@ -5,7 +5,7 @@ import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol
 import { DToken } from "contracts/market/collateral/DToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
-interface IPositionFolding {
+interface IPositionManagement {
     /// TYPES ///
 
     /// @param borrowToken Address of dToken that will be borrowed from.
@@ -16,15 +16,12 @@ interface IPositionFolding {
     /// @param swapData Swapperlib swapping struct containing instructions
     ///                 on how to handle the necessary dToken swap
     ///                 to facilitate leveraging.
-    /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                   on how to handle the necessary cToken zap
-    ///                   to facilitate leveraging.
     struct LeverageStruct {
         DToken borrowToken;
         uint256 borrowAmount;
         CTokenPrimitive collateralToken;
         SwapperLib.Swap swapData;
-        SwapperLib.Swap swapZap;
+        bytes data;
     }
 
     /// @param collateralToken Address of cToken that will be routed into
@@ -33,10 +30,6 @@ interface IPositionFolding {
     ///                         deleveraged.
     /// @param borrowToken Address of dToken that will have its underlying
     ///                    token debt repaid.
-    /// @param swapZap Swapperlib zapping struct containing instructions
-    ///                on how to handle the necessary cToken outward zap
-    ///                to a single token (e.g. dToken underlying) to
-    ///                facilitate deleveraging.
     /// @param swapData Optional Swapperlib swapping struct containing
     ///                 instructions on how to handle zapping into dToken
     ///                 underlying to facilitate deleveraging.
@@ -46,9 +39,9 @@ interface IPositionFolding {
         CTokenPrimitive collateralToken;
         uint256 collateralAmount;
         DToken borrowToken;
-        SwapperLib.Swap swapZap;
         SwapperLib.Swap[] swapData;
         uint256 repayAmount;
+        bytes data;
     }
 
     /// @notice Callback function to execute post borrow of

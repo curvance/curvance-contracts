@@ -17,9 +17,8 @@ import { DToken } from "contracts/market/collateral/DToken.sol";
 import { AuraCToken } from "contracts/market/collateral/AuraCToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/market/utils/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
 import { CallDataCheckerForComplexZapper } from "contracts/market/swap-checker/CallDataCheckerForComplexZapper.sol";
-import { PositionFolding } from "contracts/market/utils/PositionFolding.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -63,7 +62,6 @@ contract TestBaseMarket is TestBase {
         _deployCBALRETHWithExitFee();
 
         _deployComplexZapper();
-        _deployPositionFolding();
 
         _setRedstoneSigners();
 
@@ -481,20 +479,6 @@ contract TestBaseMarket is TestBase {
         return complexZapper;
     }
 
-    function _deployPositionFolding()
-        internal
-        initMainVariables
-        returns (PositionFolding)
-    {
-        positionFolding = positionFoldings[
-            block.chainid
-        ] = new PositionFolding(
-            ICentralRegistry(address(centralRegistry)),
-            address(marketManager)
-        );
-        return positionFolding;
-    }
-
     function _addSinglePriceFeed() internal initMainVariables {
         oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
         oracleRouter.addAssetPriceFeed(
@@ -514,10 +498,10 @@ contract TestBaseMarket is TestBase {
     }
 
     function _setRedstoneSigners() internal initMainVariables {
-        redstoneSigners.push(0x8BB8F32Df04c8b654987DAaeD53D6B6091e3B774);
-        redstoneSigners.push(0xdEB22f54738d54976C4c0fe5ce6d408E40d88499);
-        redstoneSigners.push(0x51Ce04Be4b3E32572C4Ec9135221d0691Ba7d202);
-        redstoneSigners.push(0xDD682daEC5A90dD295d14DA4b0bec9281017b5bE);
+        redstoneSigners.push(0x96729dF85d393546e41CD5F860d10Ea8Bd107a28);
+        redstoneSigners.push(0x47fCB422783DC56BC61FaeFC48DC2287F6Bce8A5);
+        redstoneSigners.push(0x53C875cB2f8Bfab574FD91047B5893F5ACcC9381);
+        redstoneSigners.push(0xfb5009a8573762f98E9E99304195197a6f188de1);
     }
 
     function _prepareUSDC(

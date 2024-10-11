@@ -13,7 +13,6 @@ import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOrac
 contract TestUniswapV3Adaptor is TestBaseOracleRouter {
     address internal _UNISWAP_V3_ORACLE =
         0xB210CE856631EeEB767eFa666EC7C1C57738d438;
-
     address internal _WBTC_WETH = 0xCBCdF9626bC03E24f779434178A73a0B4bad62eD;
     address internal _WBTC_USDC = 0x9a772018FbD77fcD2d25657e5C547BAfF3Fd7D16;
 
@@ -160,13 +159,13 @@ contract TestUniswapV3Adaptor is TestBaseOracleRouter {
             false
         );
         assertGt(data.price, 0);
-        assertEq(data.hadError, false);
-        assertEq(data.inUSD, true);
+        assertFalse(data.hadError);
+        assertTrue(data.inUSD);
 
         data = adaptor.getPrice(_USDC_ADDRESS, false, false);
         assertGt(data.price, 0);
-        assertEq(data.hadError, false);
-        assertEq(data.inUSD, false);
+        assertFalse(data.hadError);
+        assertFalse(data.inUSD);
     }
 
     function testRevertRemoveAsset__Unauthorized() public {

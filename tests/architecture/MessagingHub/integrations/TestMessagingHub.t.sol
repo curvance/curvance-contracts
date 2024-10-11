@@ -47,6 +47,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
+            address(votingHubs[1]),
             address(cves[1]),
             _USDC_ADDRESSES[1],
             1,
@@ -72,6 +73,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),
+            address(votingHubs[42161]),
             address(cves[42161]),
             _USDC_ADDRESSES[42161],
             42161,
@@ -467,11 +469,11 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        assertEq(cve.balanceOf(address(user1)), 0);
+        assertEq(cve.balanceOf(user1), 0);
 
         wormholeHelper.help(2, dstForkId, _WORMHOLE_RELAYER, logs);
 
-        assertEq(cve.balanceOf(address(user1)), _ONE);
+        assertEq(cve.balanceOf(user1), _ONE);
     }
 
     function _createLock() internal {

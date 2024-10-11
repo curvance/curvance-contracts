@@ -30,7 +30,7 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Adds pricing support for `asset`, a new Camelot Volatile LP.
+    /// @notice Adds pricing support for `asset`, a new Velodrome Volatile LP.
     /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.

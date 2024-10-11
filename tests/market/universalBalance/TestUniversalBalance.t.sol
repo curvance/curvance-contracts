@@ -18,10 +18,6 @@ contract User {}
 contract TestUniversalBalance is TestBaseMarket {
     address public owner;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
@@ -30,6 +26,10 @@ contract TestUniversalBalance is TestBaseMarket {
     CTokenPrimitive public cWBTC;
     UniversalBalance public universalBalance;
     DToken public dWETH;
+
+    receive() external payable {}
+
+    fallback() external payable {}
 
     function setUp() public override {
         super.setUp();

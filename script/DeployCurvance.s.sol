@@ -15,7 +15,6 @@ import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
-import { PositionFoldingDeployer } from "./deployers/PositionFoldingDeployer.s.sol";
 import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
 import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
@@ -33,7 +32,6 @@ contract DeployCurvance is
     GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
-    PositionFoldingDeployer,
     OracleRouterDeployer,
     AuxiliaryDataDeployer,
     RedstoneAdaptorDeployer,
@@ -125,9 +123,6 @@ contract DeployCurvance is
             marketManager,
             _readConfigAddress(".zapper.weth")
         );
-
-        // Deploy PositionFolding
-        _deployPositionFolding(centralRegistry, marketManager);
 
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);

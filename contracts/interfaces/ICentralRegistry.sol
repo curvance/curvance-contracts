@@ -13,6 +13,7 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///                    2 = yes
 ///                    0 or 1 = no
 /// @param messagingHub Messaging Hub address on the chain.
+/// @param votingHub Voting Hub address on the chain.
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param messagingChainId Messaging Chain ID where this address authorized.
@@ -21,6 +22,7 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 struct ChainData {
     uint256 isSupported;
     address messagingHub;
+    address votingHub;
     address cveAddress;
     address feeTokenAddress;
     uint16 messagingChainId;

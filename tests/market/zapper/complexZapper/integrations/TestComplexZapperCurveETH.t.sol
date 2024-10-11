@@ -6,8 +6,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
-contract User {}
-
 contract TestComplexZapperCurveETH is TestBaseMarket {
     address internal _CURVE_STETH_LP =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
@@ -16,19 +14,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     address internal _STETH_ADDRESS =
         0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
-    address public owner;
-    address public user;
-
     receive() external payable {}
 
     fallback() external payable {}
-
-    function setUp() public override {
-        super.setUp();
-
-        owner = address(this);
-        user = user1;
-    }
 
     function testInitialize() public {
         assertEq(
@@ -39,13 +27,13 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
     function testEnterCurveWithETH() public {
         uint256 ethAmount = 3 ether;
-        vm.deal(user, ethAmount);
+        vm.deal(user1, ethAmount);
 
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;
         tokens[1] = _STETH_ADDRESS;
 
-        vm.prank(user);
+        vm.prank(user1);
         complexZapper.enterCurve{ value: ethAmount }(
             address(0),
             ComplexZapper.ZapperData(
@@ -58,19 +46,19 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
-            user
+            user1
         );
 
-        assertEq(user.balance, 0);
-        assertGt(IERC20(_CURVE_STETH_LP).balanceOf(user), 0);
+        assertEq(user1.balance, 0);
+        assertGt(IERC20(_CURVE_STETH_LP).balanceOf(user1), 0);
     }
 
     function testExitCurve() public {
         testEnterCurveWithETH();
 
-        uint256 withdrawAmount = IERC20(_CURVE_STETH_LP).balanceOf(user);
+        uint256 withdrawAmount = IERC20(_CURVE_STETH_LP).balanceOf(user1);
 
-        vm.startPrank(user);
+        vm.startPrank(user1);
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;
         tokens[1] = _STETH_ADDRESS;
@@ -91,11 +79,11 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             2,
             0,
             new SwapperLib.Swap[](0),
-            user
+            user1
         );
         vm.stopPrank();
 
-        assertApproxEqRel(user.balance, 3 ether, 0.01 ether);
-        assertEq(IERC20(_CURVE_STETH_LP).balanceOf(user), 0);
+        assertApproxEqRel(user1.balance, 3 ether, 0.01 ether);
+        assertEq(IERC20(_CURVE_STETH_LP).balanceOf(user1), 0);
     }
 }

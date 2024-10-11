@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowZapper } from "contracts/market/utils/BorrowZapper.sol";
+import { BorrowZapper } from "contracts/market/zapper/BorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 
@@ -118,6 +118,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
 
         centralRegistry.addChainSupport(
             address(messagingHub),
+            address(votingHub),
             address(cve),
             _USDC_ADDRESS,
             42161,

@@ -10,7 +10,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IPositionFolding } from "contracts/interfaces/market/IPositionFolding.sol";
+import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance DAO Market Manager.
@@ -114,8 +114,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         offchain querying.
     address[] public tokensListed;
 
-    /// @notice PositionFolding contract address.
-    address public positionFolding;
+    /// @notice positionManagement contract address.
+    address public positionManagement;
 
     /// MARKET STATE
     /// @notice Whether mToken transfers are paused.
@@ -164,7 +164,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
-    event NewPositionFoldingContract(address oldPF, address newPF);
+    event NewPositionManagementContract(address oldPF, address newPF);
 
     /// ERRORS ///
 
@@ -1205,29 +1205,29 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @notice Used to set the position folding address to allow
     ///         complex position actions.
     /// @dev Requires timelock authority.
-    ///      Emits a {NewPositionFoldingContract} event.
-    /// @param newPositionFolding The new position folding address.
-    function setPositionFolding(address newPositionFolding) external {
+    ///      Emits a {NewPositionManagementContract} event.
+    /// @param newPositionManagement The new position management address.
+    function setPositionManagement(address newPositionManagement) external {
         _checkElevatedPermissions();
 
         if (
             !ERC165Checker.supportsInterface(
-                newPositionFolding,
-                type(IPositionFolding).interfaceId
+                newPositionManagement,
+                type(IPositionManagement).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Cache the current value for event log.
-        address oldPositionFolding = positionFolding;
+        address oldPositionManagement = positionManagement;
 
         // Assign new position folding contract.
-        positionFolding = newPositionFolding;
+        positionManagement = newPositionManagement;
 
-        emit NewPositionFoldingContract(
-            oldPositionFolding,
-            newPositionFolding
+        emit NewPositionManagementContract(
+            oldPositionManagement,
+            newPositionManagement
         );
     }
 

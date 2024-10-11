@@ -10,7 +10,6 @@ import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
 contract TestCurve2PoolLPAdaptor is TestBaseOracleRouter {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
-
     address internal _CURVE_ETH_STETH =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
     address internal _STETH_ADDRESS =

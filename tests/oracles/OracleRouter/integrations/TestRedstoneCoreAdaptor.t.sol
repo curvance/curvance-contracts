@@ -36,7 +36,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
         adaptor = new MockRedstoneCoreAdaptor(
             ICentralRegistry(address(centralRegistry)),
             redstoneSigners,
-            1
+            2
         );
         adaptor.addAsset(_WBTC_ADDRESS, true, 8, 12 hours);
         adaptor.addAsset(_WBTC_ADDRESS, false, 18, 12 hours);
@@ -65,7 +65,7 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleRouter {
         (bool success, ) = address(adaptor).call(
             encodedFunctionWithRedstonePayload
         );
-        assertEq(success, true);
+        assertTrue(success);
 
         oracleRouter.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
 
