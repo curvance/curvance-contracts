@@ -107,8 +107,18 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         AdaptorData memory data = adaptorData[asset];
         IVeloPool pool = IVeloPool(asset);
 
-        // Get k (k = x^3 * y + x * y^3) and LP total supply with reentry lock.
-        uint256 k = pool.getK();
+        // Query LP reserves.
+        (uint256 reserve0, uint256 reserve1, ) = pool.getReserves();
+
+        // Standardize reserve values to 18 decimals.
+        if (data.decimals0 != 18) {
+            reserve0 = (reserve0 * WAD) / (10 ** data.decimals0);
+        }
+
+        if (data.decimals1 != 18) {
+            reserve1 = (reserve1 * WAD) / (10 ** data.decimals1);
+        }
+
         uint256 totalSupply = pool.totalSupply();
         uint256 price0;
         uint256 price1;
@@ -142,7 +152,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         }
 
         uint256 finalPrice = _getFairPrice(
-            k,
+            reserve0,
+            reserve1,
             price0,
             price1,
             totalSupply
@@ -211,18 +222,26 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     ///      NOTE: Values are different since stable pairs use constant
     ///            product k = x^3 * y + x * y^3. Instead
     ///            of normal formula of x*y = k.
-    /// @param k The value of k in the Pool, based on its reserves. Equal to
-    ///          k = x^3 * y + x * y^3.
+    /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
+    /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
     /// @param price0 The price of token0 according to the Oracle Router.
     /// @param price0 The price of token1 according to the Oracle Router.
     /// @param totalSupply The total supply of lp tokens inside the lp.
     /// @return Fair value pricing for the lp token.
     function _getFairPrice(
-        uint256 k,
+        uint256 reserve0,
+        uint256 reserve1,
         uint256 price0,
         uint256 price1,
         uint256 totalSupply
     ) internal pure returns (uint256) {
+        uint256 a = (reserve0 * reserve1) / WAD;
+        uint256 b = ((reserve0 * reserve0) / WAD 
+            + (reserve1 * reserve1) / WAD);
+
+        // k >= x^3 * y + x * y^3. Where x = reserve0, y = reserve1.
+        uint256 k = (a * b) / WAD; // x3y+y3x >= k
+
         uint256 ratio = (WAD * price0) / price1;
         uint256 sqrtPrice = _sqrt(
             _sqrt(WAD * ratio) *
