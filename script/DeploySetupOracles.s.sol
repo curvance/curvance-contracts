@@ -9,6 +9,8 @@ import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
 import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
 
+import { console } from "forge-std/console.sol";
+
 contract DeploySetupOracles is
     DeployConfiguration,
     StartContractsConfig,
@@ -35,10 +37,11 @@ contract DeploySetupOracles is
         vm.startBroadcast(deployerPrivateKey);
 
         address feeToken = _readConfigAddress(".centralRegistry.feeToken");
-        address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
+        uint256 genesisEpoch = _readConfigUint256(
+            ".centralRegistry.genesisEpoch"
+        );
         if (_is_testnet(network)) {
-            feeToken = _getDeployedContract("USDC");
-            rewardToken = _getDeployedContract("USDC");
+            genesisEpoch = block.timestamp;
         }
 
         // Deploy CentralRegistry
@@ -46,7 +49,7 @@ contract DeploySetupOracles is
             deployer,
             deployer,
             deployer,
-            _readConfigUint256(".centralRegistry.genesisEpoch"),
+            genesisEpoch,
             _readConfigAddress(".centralRegistry.sequencer"),
             feeToken
         );

@@ -59,10 +59,6 @@ contract DeployCurvance is
 
         address feeToken = _readConfigAddress(".centralRegistry.feeToken");
         address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
-        if (_is_testnet(network)) {
-            feeToken = _getDeployedContract("USDC");
-            rewardToken = _getDeployedContract("USDC");
-        }
 
         centralRegistry = _getDeployedContract("centralRegistry");
         address oracleRouter = _getDeployedContract("oracleRouter");

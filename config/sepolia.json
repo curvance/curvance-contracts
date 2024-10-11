@@ -10,7 +10,7 @@
     "lockBoostMultiplier": 10000,
     "harvester": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "sequencer": "0x0000000000000000000000000000000000000000",
-    "feeToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A",
+    "feeToken": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
     "wormholeCore": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78",
     "wormholeRelayer": "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
     "circleTokenMessenger": "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5",
@@ -29,7 +29,7 @@
     "voteBoostMultiplier": 11000
   },
   "rewardManager": {
-    "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
+    "rewardToken": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
   },
   "feeAccumulator": {
     "gasForCalldata": 1e9,
@@ -48,7 +48,7 @@
   "markets": {
     "dTokens": {
       "USDC": {
-        "asset": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A",
+        "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
         "chainlinkEth": "0x0000000000000000000000000000000000000000",
         "chainlinkUsd": "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
         "interestRateParam": {
