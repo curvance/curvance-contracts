@@ -48,10 +48,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Retrieves the price of `asset`, an lp token,
     ///         for a Univ2 style volatile pool.
-    /// @dev Price is returned in USD or ETH depending on 'inUSD' parameter.
+    /// @dev Price is returned in USD or a chain's native token depending on
+    ///      'inUSD' parameter.
     /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD A boolean to determine if the price should be returned in
-    ///              USD or not.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @param getLower A boolean to determine if lower of two oracle prices
     ///                 should be retrieved.
     /// @return A structure containing the price, error status,
@@ -167,7 +168,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Helper function for pricing support for `asset`,
-    ///         an lp token for a Univ2 style volatile liquidity pool.
+    ///         an lp token for a stableSwap style volatile liquidity pool.
     /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.

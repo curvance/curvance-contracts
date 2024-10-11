@@ -17,7 +17,7 @@ import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAda
 ///      a maximum of two prices for any asset.
 ///
 ///      Finalized prices can be returned in USD or
-///      ETH (native chain's gas token). Either the higher or lower of the two
+///      a chain's native gas token. Either the higher or lower of the two
 ///      prices can returned, based on what is desired. For Curvance protocol,
 ///      the more advantageous of both prices is used. For user collateral
 ///      assets, the lower of the two prices is used. For user debt positions,
@@ -68,7 +68,8 @@ contract OracleRouter {
     /// TYPES ///
 
     struct FeedData {
-        /// @notice price of the asset in some asset, either ETH or USD.
+        /// @notice price of the asset in some asset, either the chain's
+        ///         native token or USD.
         uint240 price;
         /// @notice message return data, true if adaptor couldnt price asset.
         bool hadError;
@@ -83,8 +84,8 @@ contract OracleRouter {
 
     /// CONSTANTS ///
 
-    /// @notice The address of the ETH.
-    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    /// @notice Address identifying a chain's native token.
+    address public constant native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
     /// @notice Time to pass before accepting answers when sequencer
@@ -108,8 +109,6 @@ contract OracleRouter {
     ///         before BAD_SOURCE is flipped, in `DENOMINATOR`.
     ///         11000 = 10% deviation.
     uint256 public badSourceDivergenceFlag = 11000;
-    /// @notice The maximum delay accepted between answers from chainlink.
-    uint256 public CHAINLINK_MAX_DELAY = 1 days;
 
     // Address => Adaptor approval status
     mapping(address => bool) public isApprovedAdaptor;
@@ -320,22 +319,6 @@ contract OracleRouter {
         badSourceDivergenceFlag = maxBadSourceDivergence;
     }
 
-    /// @notice Sets a new maximum delay for Chainlink price feed.
-    /// @dev Requires that the new delay is less than 1 day and more than 1 hour.
-    ///      Only callable by the DaoManager.
-    /// @param delay The new maximum delay in seconds.
-    function setChainlinkDelay(uint256 delay) external {
-        _checkElevatedPermissions();
-
-        // Validate that the suggested heartbeat is 1 hour or more,
-        // but, less than or equal to 24 hours.
-        if (delay < 1 hours || delay > 1 days) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        CHAINLINK_MAX_DELAY = delay;
-    }
-
     /// @notice Retrieves the price feed data for a given asset.
     /// @dev Fetches the price for the provided asset from all available
     ///      price feeds and returns them in an array.
@@ -343,7 +326,8 @@ contract OracleRouter {
     ///      If less than two feeds are available, only the available feeds
     ///      are returned.
     /// @param asset The address of the asset.
-    /// @param inUSD Specifies whether the price format should be in USD or ETH.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @return An array of FeedData objects for the asset, each corresponding
     ///         to a price feed.
     function getPricesForAsset(
@@ -475,7 +459,8 @@ contract OracleRouter {
     ///      If it has two or more oracles, it fetches the price from both
     ///      feeds.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Whether the price should be returned in USD or ETH.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return price The price of the asset.
@@ -528,9 +513,9 @@ contract OracleRouter {
 
     /// @notice Retrieves the prices of multiple assets.
     /// @param assets An array of asset addresses to retrieve the prices for.
-    /// @param inUSD An array of bools indicating whether the price should be
-    ///              returned in USD or ETH.
-    /// @param getLower An array of bools indiciating whether the lower
+    /// @param inUSD An array indicating whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
+    /// @param getLower An array of bools indicating whether the lower
     ///                 or higher price should be returned if two feeds
     ///                 are available.
     /// @return Two arrays. The first one contains prices for each asset,
@@ -700,7 +685,8 @@ contract OracleRouter {
     /// @notice Retrieves the price of a specified asset from two specific
     ///         price feeds.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Whether the price should be returned in USD or ETH.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return A tuple containing the asset's price and an error flag
@@ -735,7 +721,8 @@ contract OracleRouter {
 
     /// @notice Retrieves the price of a specified asset from a single oracle.
     /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Whether the price should be returned in USD or ETH.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return A tuple containing the asset's price and an error flag
@@ -766,14 +753,14 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            bool ethUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
+            bool nativeUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getNativeUSD(nativeUsdLower);
             if (data.hadError) {
                 return (0, BAD_SOURCE);
             }
 
             data.price = uint240(
-                _convertETHUSD(data.price, newPrice, data.inUSD)
+                _convertNativeUSD(data.price, newPrice, data.inUSD)
             );
         }
 
@@ -787,7 +774,8 @@ contract OracleRouter {
     ///      Converts the price to USD if necessary.
     /// @param asset The address of the asset to retrieve the price for.
     /// @param feedNumber The index number of the feed to use.
-    /// @param inUSD Whether the price should be returned in USD or ETH.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return An instance of FeedData containing the asset's price
@@ -818,32 +806,33 @@ contract OracleRouter {
         // If the feed denomination is not in the proper form, modify it.
         if (data.inUSD != inUSD) {
             uint256 newPrice;
-            bool ethUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, data.hadError) = _getETHUSD(ethUsdLower);
+            bool nativeUsdLower = inUSD ? getLower : !getLower;
+            (newPrice, data.hadError) = _getNativeUSD(nativeUsdLower);
             if (data.hadError) {
                 return FeedData({ price: 0, hadError: true });
             }
 
             data.price = uint240(
-                _convertETHUSD(data.price, newPrice, data.inUSD)
+                _convertNativeUSD(data.price, newPrice, data.inUSD)
             );
         }
 
         return FeedData({ price: data.price, hadError: data.hadError });
     }
 
-    /// @notice Queries the current price of ETH in USD using Chainlink's
-    ///         ETH/USD feed.
-    /// @dev The price is deemed valid if the data from Chainlink is fresh
-    ///      and positive.
+    /// @notice Queries the current price of a chain's native token in USD
+    ///         using the Oracle Manager.
+    /// @dev The price is deemed valid if the data from the Oracle Manager
+    ///      is fresh and a positive value.
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return A tuple containing the price of ETH in USD and an error flag.
-    ///         If the Chainlink data is stale or negative,
+    /// @return A tuple containing the price of the chain's native token
+    ///         in USD and an error flag.
+    ///         If the Oracle Manager data is stale or negative,
     ///         it returns (answer, true).
-    ///         Where true corresponded to hasError = true.
-    function _getETHUSD(bool getLower) internal view returns (uint256, bool) {
-        uint256 numFeeds = assetPriceFeeds[ETH].length;
+    ///         Where true corresponds to hasError = true.
+    function _getNativeUSD(bool getLower) internal view returns (uint256, bool) {
+        uint256 numFeeds = assetPriceFeeds[native].length;
         // Validate we have a feed or feeds to price `asset`.
         if (numFeeds == 0) {
             _revert(_NOT_SUPPORTED_SELECTOR);
@@ -854,9 +843,9 @@ contract OracleRouter {
 
         // Route pricing to a single feed source or dual feed source.
         if (numFeeds < 2) {
-            (price, errorCode) = _getPriceSingleFeed(ETH, true, getLower);
+            (price, errorCode) = _getPriceSingleFeed(native, true, getLower);
         } else {
-            (price, errorCode) = _getPriceDualFeed(ETH, true, getLower);
+            (price, errorCode) = _getPriceDualFeed(native, true, getLower);
         }
 
         // If somehow a feed returns a price of 0,
@@ -868,8 +857,8 @@ contract OracleRouter {
         return (price, errorCode != NO_ERROR);
     }
 
-    /// @notice Check whether sequencer is valid or down.
-    /// @return True if sequencer is valid
+    /// @notice Check whether a sequencer is valid or down.
+    /// @return True if sequencer is valid.
     function _isSequencerValid() internal view returns (bool) {
         address sequencer = centralRegistry.sequencer();
 
@@ -893,26 +882,28 @@ contract OracleRouter {
         return true;
     }
 
-    /// @notice Converts a given price between ETH and USD formats.
+    /// @notice Converts a given price between a chain's native token
+    ///         and USD.
     /// @dev Depending on the currentFormatInUSD parameter,
-    ///      this function either converts the price from ETH to USD (if true)
-    /// or from USD to ETH (if false) using the provided conversion rate.
+    ///      this function either converts the price from native token
+    ///      to USD (if true) or from USD to native (if false) using the
+    ///      provided conversion rate.
     /// @param currentPrice The price to convert.
     /// @param conversionRate The rate to use for the conversion.
     /// @param currentlyInUSD Specifies whether the current format of the
     ///                       price is in USD.
     ///                       If true, it will convert the price from
-    ///                       USD to ETH.
+    ///                       USD to native token.
     ///                       If false, it will convert the price from
-    ///                       ETH to USD.
+    ///                       native token to USD.
     /// @return The converted price.
-    function _convertETHUSD(
+    function _convertNativeUSD(
         uint240 currentPrice,
         uint256 conversionRate,
         bool currentlyInUSD
     ) internal pure returns (uint256) {
         if (!currentlyInUSD) {
-            // The price denomination is in ETH and we want USD.
+            // The price denomination is in native token and we want USD.
             return (currentPrice * conversionRate) / WAD;
         }
 
