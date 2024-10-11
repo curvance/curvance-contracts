@@ -36,7 +36,7 @@ contract CVE is CVEBase {
     uint256 public daoTreasuryMinted;
     /// @notice Number of Contributor allocation tokens minted.
     uint256 public contributorAllocationMinted;
-    /// @notice Number of Call Option reserved tokens minted.
+    /// @notice Number of reserved tokens for community distribution minted.
     uint256 public initialCommunityMinted;
 
     /// EVENTS ///

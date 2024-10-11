@@ -168,6 +168,5 @@ abstract contract Multicall {
         internal
         view
         virtual
-        returns (ICentralRegistry)
-    {}
+        returns (ICentralRegistry);
 }

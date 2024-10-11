@@ -1504,11 +1504,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             }
         }
 
-        if (isShutdown == 2) {
-            _revert(_VECVE_SHUTDOWN_SELECTOR);
-        }
-
-        _canModifyState();
+        _canModifyLocks();
     }
 
     /// @dev Internal helper for checking whether a lock position
