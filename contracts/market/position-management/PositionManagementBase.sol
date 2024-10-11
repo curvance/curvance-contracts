@@ -565,11 +565,11 @@ abstract contract PositionManagementBase is
 
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData
-    ) internal virtual {}
+    ) internal virtual;
 
     function _swapCollateralToBorrowUnderyling(
         DeleverageStruct memory deleverageData
-    ) internal virtual {}
+    ) internal virtual;
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
