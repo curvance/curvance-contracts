@@ -116,7 +116,7 @@ contract PositionManagementPendle is PositionManagementBase {
                 ApproxParams memory approx,
                 LimitOrderData memory limit
             ) = abi.decode(
-                    leverageData.data,
+                    leverageData.auxData,
                     (uint256, ApproxParams, LimitOrderData)
                 );
 
@@ -137,7 +137,7 @@ contract PositionManagementPendle is PositionManagementBase {
     ) internal virtual override {
         {
             (uint256 minSyOut, LimitOrderData memory limit) = abi.decode(
-                deleverageData.data,
+                deleverageData.auxData,
                 (uint256, LimitOrderData)
             );
 

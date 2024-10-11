@@ -1388,8 +1388,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
+        // Check if the user already has an active borrow in the eToken.
         if (tokenData[eToken].accountPositions[account].activePosition != 2) {
-            // The account is not in the market yet, so make them enter.
+            // The account does not have an active borrow in the eToken,
+            // so update this so borrow position is monitored in liquidity
+            // checks.
             tokenData[eToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(eToken));
 
@@ -1451,14 +1454,15 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         // If the account does not have an active position in the token,
         // then we can bypass the liquidity check.
+        // This will result in skipping a liquidity check for eToken
+        // redemptions because active positions are not given for lent
+        // positions.
         if (tokenData[mToken].accountPositions[account].activePosition != 2) {
             bool[] memory emptyPositions;
             return (0, emptyPositions);
         }
 
-        // Check account liquidity with hypothetical redemption.
-        // We check liquidity even for eToken redemptions to prevent any
-        // potential invariant manipulation creating a scenario of insolvency.
+        // Check account liquidity with hypothetical sToken redemption.
         (
             HypotheticalData memory result,
             bool[] memory positionsToClose
