@@ -236,19 +236,20 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
         uint256 price1,
         uint256 totalSupply
     ) internal pure returns (uint256) {
-        uint256 a = (reserve0 * reserve1) / WAD;
-        uint256 b = ((reserve0 * reserve0) / WAD 
-            + (reserve1 * reserve1) / WAD);
-
-        // k >= x^3 * y + x * y^3. Where x = reserve0, y = reserve1.
-        uint256 k = (a * b) / WAD; // x3y+y3x >= k
+        // k = x^3 * y + x * y^3. Where x = reserve0, y = reserve1.
+        uint256 sqrtK = FixedPointMathLib.sqrt(
+            FixedPointMathLib.sqrt(reserve0 * reserve1) *
+                FixedPointMathLib.sqrt(
+                    reserve0 * reserve0 + reserve1 * reserve1
+                )
+        );
 
         uint256 ratio = (WAD * price0) / price1;
         uint256 sqrtPrice = _sqrt(
             _sqrt(WAD * ratio) *
             _sqrt(1e36 + ratio * ratio)
         );
-        return (2 * k * price0 * WAD) / (sqrtPrice * totalSupply);
+        return (2 * sqrtK * price0 * WAD) / (sqrtPrice * totalSupply);
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256) {

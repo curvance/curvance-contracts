@@ -232,10 +232,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         uint256 totalSupply
     ) internal pure returns (uint256) {
         // k >= x * y. Where x = reserve0, y = reserve1.
-        uint256 k = reserve0 * reserve1;
+        uint256 sqrtK = FixedPointMathLib.sqrt(reserve0 * reserve1);
 
         // price = 2 * (x * y) * sqrt(price0 * price1) / totalSupply.
-        return (2 * k * _sqrt(price0 * price1)) / totalSupply;
+        return (2 * sqrtK * _sqrt(price0 * price1)) / totalSupply;
     }
 
     function _sqrt(uint256 x) internal pure returns (uint256) {
