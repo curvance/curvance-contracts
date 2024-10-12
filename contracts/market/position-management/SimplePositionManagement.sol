@@ -3,18 +3,18 @@ pragma solidity ^0.8.19;
 
 import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
 
-import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract PositionManagementSimple is PositionManagementBase {
+contract SimplePositionManagement is BasePositionManagement {
 
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {}
+    ) BasePositionManagement(centralRegistry_, marketManager_) {}
 
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData
@@ -28,7 +28,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         if(swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -37,7 +37,7 @@ contract PositionManagementSimple is PositionManagementBase {
             swapData.outputToken != collateralUnderlying ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap borrow underlying to collateral underlying
@@ -51,7 +51,7 @@ contract PositionManagementSimple is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         if (deleverageData.swapData.length != 1) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
@@ -63,7 +63,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         if(swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -72,7 +72,7 @@ contract PositionManagementSimple is PositionManagementBase {
             swapData.outputToken != borrowUnderlying ||
             swapData.inputAmount != deleverageData.collateralAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap collateral underlying to borrow underlying

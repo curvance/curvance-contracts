@@ -321,7 +321,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         IPositionManagement.LeverageStruct memory leverageData
     ) external nonReentrant {
-        if (msg.sender != marketManager.positionManagement()) {
+        if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -533,7 +533,7 @@ contract DToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         IPositionManagement.DeleverageStruct memory params
     ) external nonReentrant {
-        if (msg.sender != marketManager.positionManagement()) {
+        if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

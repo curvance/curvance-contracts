@@ -25,7 +25,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 ///
 ///      CToken and DToken contracts facilitate these operations through
 ///      integration with Position Foldings callback functions.
-abstract contract PositionManagementBase is
+abstract contract BasePositionManagement is
     IPositionManagement,
     Delegable,
     ERC165,
@@ -41,22 +41,22 @@ abstract contract PositionManagementBase is
     /// @dev 9900 = 99% = 0.99.
     uint256 public constant MAX_LEVERAGE = 9900;
 
-    /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x1d52945b;
+    /// @dev `bytes4(keccak256(bytes("BasePositionManagement__Unauthorized()")))`
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd52ee86d;
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
     /// ERRORS ///
 
-    error PositionManagementBase__Unauthorized();
-    error PositionManagementBase__InvalidSlippage();
-    error PositionManagementBase__InvalidMarketManager();
-    error PositionManagementBase__InvalidSwapperParam();
-    error PositionManagementBase__InvalidParam();
-    error PositionManagementBase__InvalidAmount();
-    error PositionManagementBase__InvalidTokenPrice();
-    error PositionManagementBase__ExceedsMaximumBorrowAmount(
+    error BasePositionManagement__Unauthorized();
+    error BasePositionManagement__InvalidSlippage();
+    error BasePositionManagement__InvalidMarketManager();
+    error BasePositionManagement__InvalidSwapperParam();
+    error BasePositionManagement__InvalidParam();
+    error BasePositionManagement__InvalidAmount();
+    error BasePositionManagement__InvalidTokenPrice();
+    error BasePositionManagement__ExceedsMaximumBorrowAmount(
         uint256 amount,
         uint256 maximum
     );
@@ -92,7 +92,7 @@ abstract contract PositionManagementBase is
                 liquidityBefore - liquidityAfter >=
                 (liquidityBefore * slippage) / DENOMINATOR
             ) {
-                revert PositionManagementBase__InvalidSlippage();
+                revert BasePositionManagement__InvalidSlippage();
             }
         }
     }
@@ -108,7 +108,7 @@ abstract contract PositionManagementBase is
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {
-            revert PositionManagementBase__InvalidMarketManager();
+            revert BasePositionManagement__InvalidMarketManager();
         }
 
         marketManager = IMarketManager(marketManager_);
@@ -264,13 +264,13 @@ abstract contract PositionManagementBase is
             borrowToken != address(leverageData.borrowToken) ||
             borrowAmount != leverageData.borrowAmount
         ) {
-            revert PositionManagementBase__InvalidParam();
+            revert BasePositionManagement__InvalidParam();
         }
 
         address borrowUnderlying = CTokenPrimitive(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
-            revert PositionManagementBase__InvalidAmount();
+            revert BasePositionManagement__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -357,7 +357,7 @@ abstract contract PositionManagementBase is
             collateralToken != address(deleverageData.collateralToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
-            revert PositionManagementBase__InvalidParam();
+            revert BasePositionManagement__InvalidParam();
         }
 
         // Swap collateral token (cToken underlying) to
@@ -369,7 +369,7 @@ abstract contract PositionManagementBase is
             IERC20(collateralUnderlying).balanceOf(address(this)) <
             collateralAmount
         ) {
-            revert PositionManagementBase__InvalidAmount();
+            revert BasePositionManagement__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -494,7 +494,7 @@ abstract contract PositionManagementBase is
 
         // Validate we got a price for `borrowToken`.
         if (errorCode != 0) {
-            revert PositionManagementBase__InvalidTokenPrice();
+            revert BasePositionManagement__InvalidTokenPrice();
         }
 
         return
@@ -533,7 +533,7 @@ abstract contract PositionManagementBase is
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
         if (borrowAmount > maxBorrowAmount) {
-            revert PositionManagementBase__ExceedsMaximumBorrowAmount(
+            revert BasePositionManagement__ExceedsMaximumBorrowAmount(
                 borrowAmount,
                 maxBorrowAmount
             );

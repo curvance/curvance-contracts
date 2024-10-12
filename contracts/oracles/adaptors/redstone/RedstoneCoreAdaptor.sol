@@ -106,10 +106,11 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
 
     /// @notice Retrieves the price of a given asset.
     /// @dev Uses Redstone Core oracles to fetch the price data.
-    ///      Price is returned in USD or ETH depending on 'inUSD' parameter.
+    ///      Price is returned in USD or a chain's native token depending on
+    ///      'inUSD' parameter.
     /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD A boolean to determine if the price should be returned in
-    ///              USD or not.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
     /// @return PriceReturnData A structure containing the price, error status,
     ///                         and the quote format of the price.
     function getPrice(
