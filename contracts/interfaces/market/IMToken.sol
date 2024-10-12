@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { Multicall } from "contracts/libraries/Multicall.sol";
 
 struct AccountSnapshot {
     address asset;
@@ -221,4 +222,11 @@ interface IMToken {
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle router calculates mToken value from this exchange rate.
     function exchangeRateCached() external view returns (uint256);
+
+    /// @notice Executes multiple calls in a single transaction.
+    ///         This can be used to update oracle prices before
+    ///         a liquidity dependent action.
+    function multicall(
+        Multicall.MulticallData[] memory calls
+    ) external returns (bytes[] memory results);
 }
