@@ -114,8 +114,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         offchain querying.
     address[] public tokensListed;
 
-    /// @notice positionManagement contract address.
-    address public positionManagement;
+    /// @notice mapping for positionManagement contract addresses.
+    mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
     /// @notice Whether mToken transfers are paused.
@@ -164,7 +164,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
-    event NewPositionManagementContract(address oldPF, address newPF);
+    event NewPositionManagementContract(address newPF);
 
     /// ERRORS ///
 
@@ -1219,16 +1219,10 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Cache the current value for event log.
-        address oldPositionManagement = positionManagement;
-
         // Assign new position folding contract.
-        positionManagement = newPositionManagement;
+        positionManagement[newPositionManagement] = true;
 
-        emit NewPositionManagementContract(
-            oldPositionManagement,
-            newPositionManagement
-        );
+        emit NewPositionManagementContract(newPositionManagement);
     }
 
     /// PUBLIC FUNCTIONS ///
