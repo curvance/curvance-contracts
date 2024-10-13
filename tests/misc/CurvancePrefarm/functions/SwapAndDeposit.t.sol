@@ -6,7 +6,7 @@ import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
-contract ZapAndDepositTest is TestBaseCurvancePrefarm {
+contract SwapAndDepositTest is TestBaseCurvancePrefarm {
     event Deposited(address user, address token, uint256 amount);
 
     SwapperLib.Swap public swapData;
@@ -39,36 +39,36 @@ contract ZapAndDepositTest is TestBaseCurvancePrefarm {
         );
     }
 
-    function test_zapAndDeposit_fail_whenPrefarmIsEnded() public {
+    function test_swapAndDeposit_fail_whenPrefarmIsEnded() public {
         vm.warp(curvancePrefarm.prefarmEndTimestamp() + 1);
 
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__PrefarmDepositsBlocked.selector
         );
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
     }
 
-    function test_zapAndDeposit_fail_whenTokenIsNotApproved() public {
+    function test_swapAndDeposit_fail_whenTokenIsNotApproved() public {
         swapData.outputToken = _WETH_ADDRESS;
 
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
     }
 
-    function test_zapAndDeposit_fail_whenMsgValueIsInvalid() public {
+    function test_swapAndDeposit_fail_whenMsgValueIsInvalid() public {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidSwapData.selector
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
     }
 
-    function test_zapAndDeposit_fail_whenSwappedAmountIsNotEnoughToDeposit()
+    function test_swapAndDeposit_fail_whenSwappedAmountIsNotEnoughToDeposit()
         public
     {
         deal(_WETH_ADDRESS, user1, _ONE);
@@ -81,12 +81,12 @@ contract ZapAndDepositTest is TestBaseCurvancePrefarm {
             CurvancePrefarm.CurvancePrefarm__InvalidSwapOutput.selector
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 100_000e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100_000e6);
 
         vm.stopPrank();
     }
 
-    function test_zapAndDeposit_success() public {
+    function test_swapAndDeposit_success() public {
         deal(_WETH_ADDRESS, user1, _ONE);
 
         assertEq(weth.balanceOf(user1), _ONE);
@@ -99,7 +99,7 @@ contract ZapAndDepositTest is TestBaseCurvancePrefarm {
         vm.expectEmit(true, true, true, true);
         emit Deposited(user1, _USDC_ADDRESS, 100e6);
 
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
 
         vm.stopPrank();
 

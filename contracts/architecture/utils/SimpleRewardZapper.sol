@@ -11,6 +11,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
@@ -42,6 +43,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
     /// ERRORS ///
 
+    error SimpleRewardZapper__PTokenUnderlyingIsNotInputToken();
     error SimpleRewardZapper__UnknownOutputToken();
     error SimpleRewardZapper__IsAlreadyAuthorized();
     error SimpleRewardZapper__IsNotAuthorized();
@@ -84,12 +86,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Claims Reward Manager rewards, then swaps and transfers
-    ///         `swapperData.outputToken` to `recipient`.
-    /// @param swapperData Swap instruction data.
+    ///         `swapData.outputToken` to `recipient`.
+    /// @param swapData Swap instruction data.
     /// @param recipient Address that should receive swapped output.
     /// @return outAmount The output amount received from swapping.
     function claimAndSwap(
-        SwapperLib.Swap memory swapperData,
+        SwapperLib.Swap memory swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Normally in swappers we check whether the input is a network's gas
@@ -100,12 +102,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapperData.inputToken != rewardToken) {
+        if (swapData.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
         // Validate that the desired output token is approved.
-        if (authorizedOutputToken[swapperData.outputToken] != 2) {
+        if (authorizedOutputToken[swapData.outputToken] != 2) {
             revert SimpleRewardZapper__UnknownOutputToken();
         }
 
@@ -113,12 +115,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 rewards = _processRewards(msg.sender);
 
         // Validate swap input amount equals rewards received.
-        if (swapperData.inputAmount != rewards) {
+        if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
+        outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -128,20 +130,20 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Transfer output tokens to `recipient`.
-        _transferToRecipient(swapperData.outputToken, recipient, outAmount);
+        _transferToRecipient(swapData.outputToken, recipient, outAmount);
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
     ///         `zapperCall.inputToken`, a pToken underlying, and enters
     ///         into Curvance collateral position.
-    /// @param swapZap Zap instruction data to execute the Zap.
+    /// @param swapData Swap instruction data to execute the swap.
     /// @param marketManager The Curvance market manager address which has
     ///                      listed `pToken`.
     /// @param pToken The Curvance pToken address.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount of pTokens received from Zapping.
-    function claimZapAndDeposit(
-        SwapperLib.Swap memory swapZap,
+    function claimSwapAndDeposit(
+        SwapperLib.Swap memory swapData,
         address marketManager,
         address pToken,
         address recipient
@@ -154,7 +156,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapZap.inputToken != rewardToken) {
+        if (swapData.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -176,22 +178,22 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 rewards = _processRewards(msg.sender);
 
         // Validate Zap input amount equals rewards received.
-        if (swapZap.inputAmount != rewards) {
+        if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
-        // Execute Zap into pToken underlying.
-        SwapperLib.swapUnsafe(centralRegistry, swapZap);
+        // Execute Swap into pToken.underlying.
+        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         // Enter Curvance pToken position.
-        return _enterCurvance(pToken, recipient);
+        return _enterCurvance(pToken, swapData.outputToken, amount, recipient);
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
     ///         eToken debt inside Curvance.
     /// @dev Sends any excess eToken underlying to `recipient`.
     ///      Only needs to swap if `rewardToken` != eToken underlying.
-    /// @param swapperData Optional swap instruction data to execute the repayment.
+    /// @param swapData Optional swap instruction data to execute the repayment.
     /// @param marketManager The Curvance market manager address which has
     ///                      listed `eToken`.
     /// @param eToken The Curvance eToken address.
@@ -200,7 +202,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// @return The excess amount of eToken underlying that was returned
     ///         to `recipient`.
     function claimSwapAndRepay(
-        SwapperLib.Swap memory swapperData,
+        SwapperLib.Swap memory swapData,
         address marketManager,
         address eToken,
         uint256 repayAmount,
@@ -214,7 +216,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapperData.inputToken != rewardToken) {
+        if (swapData.inputToken != rewardToken) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -233,7 +235,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 rewards = _processRewards(msg.sender);
 
         // Validate swap input amount equals rewards received.
-        if (swapperData.inputAmount != rewards) {
+        if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
@@ -243,12 +245,12 @@ contract SimpleRewardZapper is ReentrancyGuard {
         if (rewardToken != eTokenUnderlying) {
             // Validate that if we are swapping that the output token
             // matches the underlying needed.
-            if (swapperData.outputToken != eTokenUnderlying) {
+            if (swapData.outputToken != eTokenUnderlying) {
                 revert SimpleRewardZapper__ExecutionError();
             }
 
             // Swap from reward token into `eTokenUnderlying`.
-            SwapperLib.swapUnsafe(centralRegistry, swapperData);
+            SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
         // Repay Curvance eToken debt.
@@ -334,27 +336,54 @@ contract SimpleRewardZapper is ReentrancyGuard {
 
     /// @notice Deposits pToken underlying into Curvance pToken contract.
     /// @param pToken The Curvance pToken address.
+    /// @param inputToken The input token address, should match
+    ///                   pToken.underlying().
+    /// @param amount The amount of `inputToken` to deposit into pToken
+    ///               position.
+    /// @param collateralize Whether the zapped position deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Curvance pTokens.
     /// @return The output amount of pTokens received.
     function _enterCurvance(
         address pToken,
+        address inputToken,
+        uint256 amount,
+        bool collateralize,
         address recipient
     ) internal returns (uint256) {
-        address pTokenUnderlying = SimplePToken(pToken).underlying();
-        uint256 balance = IERC20(pTokenUnderlying).balanceOf(address(this));
+        // Validate inputToken matches underlying token of pToken contract.
+        if (SimplePToken(pToken).underlying() != inputToken) {
+            revert SimpleRewardZapper__PTokenUnderlyingIsNotInputToken();
+        }
 
         // Approve pToken to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(pTokenUnderlying, pToken, balance);
+        SwapperLib._approveTokenIfNeeded(inputToken, pToken, amount);
 
         uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
 
-        // Enter Curvance pToken position and make sure `recipient` got
-        // pTokens.
-        if (SimplePToken(pToken).deposit(balance, recipient) == 0) {
-            revert SimpleRewardZapper__ExecutionError();
+        // The user is trusting this plugin to not use their delegation
+        // approval for nefarious reasons such as keeping them stuck in
+        // positions, so lets validate that the recipient is a delegate
+        // as well.
+        // Enter Curvance pToken position and collateralize,
+        // and make sure `recipient` got pTokens.
+        if (
+            collateralize &&
+            IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
+            ) {
+                if (SimplePToken(pToken).depositAsCollateralFor(
+                    amount,
+                    recipient
+                    ) == 0) {
+                        revert SimpleRewardZapper__ExecutionError();
+                }
+                // Enter Curvance pToken position,
+                // and make sure `recipient` got pTokens.
+            } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+                revert SimpleRewardZapper__ExecutionError();
         }
 
-        // Remove any excess approval.
+        // Remove any leftover approval.
         SwapperLib._removeApprovalIfNeeded(pTokenUnderlying, pToken);
 
         // Bubble up how many pTokens `recipient` received.

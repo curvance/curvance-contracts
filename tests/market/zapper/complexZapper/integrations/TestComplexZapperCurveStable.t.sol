@@ -44,6 +44,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
+            false,
             user1
         );
         vm.stopPrank();
@@ -74,6 +75,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
+            false,
             user1
         );
         vm.stopPrank();

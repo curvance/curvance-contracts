@@ -46,6 +46,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            false,
             user1
         );
 

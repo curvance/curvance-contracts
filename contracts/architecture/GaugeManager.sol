@@ -59,7 +59,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 ///      their market of course, potentially minimizing their net expenses
 ///      borrowing inside a particular market.
 ///
-contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
+contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager {
     /// TYPES ///
 
     /// @param totalWeights The total weight value of all tokens, inside

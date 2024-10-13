@@ -15,6 +15,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
@@ -118,24 +119,27 @@ contract ComplexZapper is ReentrancyGuard {
     ///         and enters into Curvance position.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param lpMinter The minter address of the Curve lp token.
     /// @param tokens The underlying coins of the Curve lp token.
+    /// @param collateralize Whether the zapped position deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterCurve(
         address pToken,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address lpMinter,
         address[] calldata tokens,
+        bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapData.inputToken,
             zapData.inputAmount,
-            tokenSwaps,
+            swapData,
             zapData.depositInputAsWETH
         );
 
@@ -152,6 +156,7 @@ contract ComplexZapper is ReentrancyGuard {
             pToken,
             zapData.outputToken,
             lpOutAmount,
+            collateralize,
             recipient
         );
     }
@@ -169,7 +174,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` != 0, indicates
     ///                         the coin index inside the Curve lp
     ///                         to withdraw as.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitCurve(
@@ -178,7 +183,7 @@ contract ComplexZapper is ReentrancyGuard {
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer Curve lp token to the Zapper.
@@ -196,7 +201,7 @@ contract ComplexZapper is ReentrancyGuard {
             tokens,
             singleAssetWithdraw,
             singleAssetIndex,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -221,7 +226,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` != 0, indicates
     ///                         the coin index inside the Curve lp
     ///                         to withdraw as.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitCurve(
@@ -231,7 +236,7 @@ contract ComplexZapper is ReentrancyGuard {
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -251,7 +256,7 @@ contract ComplexZapper is ReentrancyGuard {
             tokens,
             singleAssetWithdraw,
             singleAssetIndex,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -260,26 +265,29 @@ contract ComplexZapper is ReentrancyGuard {
     ///         enters into Curvance position.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
-    /// @param tokens The underlying coins of the BPT.
+    /// @param tokens The underlying tokens of the BPT.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterBalancer(
         address pToken,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address balancerVault,
         bytes32 balancerPoolId,
         address[] calldata tokens,
+        bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapData.inputToken,
             zapData.inputAmount,
-            tokenSwaps,
+            swapData,
             zapData.depositInputAsWETH
         );
 
@@ -316,14 +324,14 @@ contract ComplexZapper is ReentrancyGuard {
     ///                          BPT to withdraw as.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitBalancer(
         BPTRedemption calldata balancerData,
         ZapperData calldata zapData,
         address[] calldata tokens,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the BPT to the Zapper.
@@ -342,7 +350,7 @@ contract ComplexZapper is ReentrancyGuard {
             balancerData.singleAssetIndex,
             zapData,
             tokens,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -369,7 +377,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///                          BPT to withdraw as.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitBalancer(
@@ -377,7 +385,7 @@ contract ComplexZapper is ReentrancyGuard {
         BPTRedemption calldata balancerData,
         ZapperData calldata zapData,
         address[] calldata tokens,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -398,7 +406,7 @@ contract ComplexZapper is ReentrancyGuard {
             balancerData.singleAssetIndex,
             zapData,
             tokens,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -407,24 +415,27 @@ contract ComplexZapper is ReentrancyGuard {
     ///         sAMM/vAMM, and enters into Curvance position.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterVelodrome(
         address pToken,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address router,
         address factory,
+        bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapData.inputToken,
             zapData.inputAmount,
-            tokenSwaps,
+            swapData,
             zapData.depositInputAsWETH
         );
 
@@ -451,13 +462,13 @@ contract ComplexZapper is ReentrancyGuard {
     ///         token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitVelodrome(
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Velodrome sAMM/vAMM to the Zapper.
@@ -469,7 +480,7 @@ contract ComplexZapper is ReentrancyGuard {
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(router, zapData, tokenSwaps, recipient);
+        outAmount = _exitVelodrome(router, zapData, swapData, recipient);
     }
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
@@ -483,14 +494,14 @@ contract ComplexZapper is ReentrancyGuard {
     ///                          reduced from callers collateralPosted.
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitVelodrome(
         RedemptionData calldata redemptionData,
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -504,34 +515,37 @@ contract ComplexZapper is ReentrancyGuard {
         );
 
         // Exit Velodrome lp position.
-        outAmount = _exitVelodrome(router, zapData, tokenSwaps, recipient);
+        outAmount = _exitVelodrome(router, zapData, swapData, recipient);
     }
 
     /// @notice Swaps then deposits `zapData.inputToken` into Pendle
     ///         market, and enters into Curvance position.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterPendle(
         address pToken,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address router,
         bool isPt,
         PendleLib.PendleData calldata data,
+        bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
         // Swap input token for underlyings.
         _swapForUnderlyings(
             zapData.inputToken,
             zapData.inputAmount,
-            tokenSwaps,
+            swapData,
             zapData.depositInputAsWETH
         );
 
@@ -561,7 +575,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitPendle(
@@ -570,7 +584,7 @@ contract ComplexZapper is ReentrancyGuard {
         address token,
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Transfer the Pendle market to the Zapper.
@@ -588,7 +602,7 @@ contract ComplexZapper is ReentrancyGuard {
             token,
             data,
             zapData,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -608,7 +622,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitPendle(
@@ -618,7 +632,7 @@ contract ComplexZapper is ReentrancyGuard {
         address token,
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
@@ -638,7 +652,7 @@ contract ComplexZapper is ReentrancyGuard {
             token,
             data,
             zapData,
-            tokenSwaps,
+            swapData,
             recipient
         );
     }
@@ -651,12 +665,15 @@ contract ComplexZapper is ReentrancyGuard {
     ///                   pToken.underlying().
     /// @param amount The amount of `inputToken` to deposit into pToken
     ///               position.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Curvance pTokens.
     /// @return The output amount of pTokens received.
     function _enterCurvance(
         address pToken,
         address inputToken,
         uint256 amount,
+        bool collateralize,
         address recipient
     ) internal returns (uint256) {
         // pToken not configured so transfer their token back and return.
@@ -681,13 +698,29 @@ contract ComplexZapper is ReentrancyGuard {
 
         uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
 
-        // Enter Curvance pToken position and make sure `recipient` got
-        // pTokens.
-        if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
-            revert ComplexZapper__ExecutionError();
+        // The user is trusting this plugin to not use their delegation
+        // approval for nefarious reasons such as keeping them stuck in
+        // positions, so lets validate that the recipient is a delegate
+        // as well.
+        // Enter Curvance pToken position and collateralize,
+        // and make sure `recipient` got pTokens.
+        if (
+            collateralize &&
+            IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
+            ) {
+                if (SimplePToken(pToken).depositAsCollateralFor(
+                    amount,
+                    recipient
+                    ) == 0) {
+                        revert ComplexZapper__ExecutionError();
+                }
+                // Enter Curvance pToken position,
+                // and make sure `recipient` got pTokens.
+            } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+                revert ComplexZapper__ExecutionError();
         }
 
-        // Remove any excess approval.
+        // Remove any leftover approval.
         SwapperLib._removeApprovalIfNeeded(inputToken, pToken);
 
         // Bubble up how many pTokens `recipient` received.
@@ -755,7 +788,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` != 0, indicates
     ///                         the coin index inside the Curve lp
     ///                         to withdraw as.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitCurve(
@@ -764,7 +797,7 @@ contract ComplexZapper is ReentrancyGuard {
         address[] calldata tokens,
         uint256 singleAssetWithdraw,
         uint256 singleAssetIndex,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Curve lp position.
@@ -777,11 +810,11 @@ contract ComplexZapper is ReentrancyGuard {
             singleAssetIndex
         );
 
-        uint256 numTokenSwaps = tokenSwaps.length;
+        uint256 numTokenSwaps = swapData.length;
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -807,7 +840,7 @@ contract ComplexZapper is ReentrancyGuard {
     ///                         BPT to withdraw as.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param tokens The underlying token addresses of the BPT.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitBalancer(
@@ -817,7 +850,7 @@ contract ComplexZapper is ReentrancyGuard {
         uint256 singleAssetIndex,
         ZapperData calldata zapData,
         address[] calldata tokens,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit BPT position.
@@ -831,11 +864,11 @@ contract ComplexZapper is ReentrancyGuard {
             singleAssetIndex
         );
 
-        uint256 numTokenSwaps = tokenSwaps.length;
+        uint256 numTokenSwaps = swapData.length;
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -852,13 +885,13 @@ contract ComplexZapper is ReentrancyGuard {
     ///         into desired token (zapData.outputToken).
     /// @param router The Velodrome router address.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitVelodrome(
         address router,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Velodrome sAMM/vAMM position.
@@ -868,11 +901,11 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputAmount
         );
 
-        uint256 numTokenSwaps = tokenSwaps.length;
+        uint256 numTokenSwaps = swapData.length;
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -891,7 +924,7 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param isPt Whether lp token is PT or not.
     /// @param token The underlying token address of the SY.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokenSwaps Array of swap instruction data to execute the Zap.
+    /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function _exitPendle(
@@ -900,7 +933,7 @@ contract ComplexZapper is ReentrancyGuard {
         address token,
         PendleLib.PendleData calldata data,
         ZapperData calldata zapData,
-        SwapperLib.Swap[] calldata tokenSwaps,
+        SwapperLib.Swap[] calldata swapData,
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Pendle market position.
@@ -913,11 +946,11 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputAmount
         );
 
-        uint256 numTokenSwaps = tokenSwaps.length;
+        uint256 numTokenSwaps = swapData.length;
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
 
         outAmount = CommonLib.getTokenBalance(zapData.outputToken);
@@ -934,14 +967,14 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param inputToken The input token address.
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
-    /// @param tokenSwaps Array of swap instruction data
+    /// @param swapData Array of swap instruction data
     /// @param depositInputAsWETH Used when `inputToken` is chain gas token,
     ///                           indicates depositing gas token into wrapper
     ///                           contract.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
-        SwapperLib.Swap[] memory tokenSwaps,
+        SwapperLib.Swap[] memory swapData,
         bool depositInputAsWETH
     ) internal {
         // If the input token is chain gas token, check if it should be
@@ -964,18 +997,18 @@ contract ComplexZapper is ReentrancyGuard {
             );
         }
 
-        uint256 numTokenSwaps = tokenSwaps.length;
+        uint256 numTokenSwaps = swapData.length;
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(tokenSwaps[i].inputToken) && depositInputAsWETH
+                CommonLib.isETH(swapData[i].inputToken) && depositInputAsWETH
             ) {
                 // change input token to WETH
-                tokenSwaps[i].inputToken = address(WETH);
+                swapData[i].inputToken = address(WETH);
             }
 
             // Execute swap into underlying(s).
-            SwapperLib.swapUnsafe(centralRegistry, tokenSwaps[i++]);
+            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
     }
 

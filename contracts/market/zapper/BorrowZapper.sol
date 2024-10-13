@@ -59,7 +59,7 @@ contract BorrowZapper is ReentrancyGuard {
     ///      contract prior.
     /// @param eToken The eToken contract to borrow from.
     /// @param borrowAmount The amount of eToken underlying to borrow.
-    /// @param swapData Swap instruction data to route from eToken underlying
+    /// @param swapData Swap instruction data to route from borrowed token
     ///                 to `feeToken`.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @param dstChainId Chain ID of the target blockchain.

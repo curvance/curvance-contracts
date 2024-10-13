@@ -244,7 +244,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         assertEq(weth.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 
-    function testClaimZapAndDeposit() public {
+    function testClaimSwapAndDeposit() public {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
         simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
 
@@ -301,10 +301,11 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
 
         vm.prank(user1);
-        simpleRewardZapper.claimZapAndDeposit(
+        simpleRewardZapper.claimSwapAndDeposit(
             swapData,
             address(marketManager),
             address(cWETH),
+            false,
             user1
         );
 

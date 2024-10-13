@@ -172,7 +172,7 @@ contract TestSimpleZapper is TestBaseMarket {
         );
     }
 
-    function testZapAndDeposit() public {
+    function testSwapAndDeposit() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
@@ -202,7 +202,7 @@ contract TestSimpleZapper is TestBaseMarket {
         );
 
         vm.prank(user1);
-        simpleZapper.zapAndDeposit{ value: ethAmount }(
+        simpleZapper.swapAndDeposit{ value: ethAmount }(
             swapZap,
             address(cSTETH),
             user1
@@ -213,7 +213,7 @@ contract TestSimpleZapper is TestBaseMarket {
     }
 
     function testSwapAndRepay() external {
-        testZapAndDeposit();
+        testSwapAndDeposit();
         vm.startPrank(user1);
         marketManager.postCollateral(user1, address(cSTETH), 1 ether);
 

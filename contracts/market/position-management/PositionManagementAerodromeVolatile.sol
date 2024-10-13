@@ -12,6 +12,11 @@ contract PositionManagementAerodromeVolatile is PositionManagementVelodromeVolat
         address marketManager_,
         address router_,
         address pairFactory_
-    ) PositionManagementVelodromeVolatile(centralRegistry_, marketManager_, router_, pairFactory_) {}
+    ) PositionManagementVelodromeVolatile(
+        centralRegistry_,
+        marketManager_,
+        router_,
+        pairFactory_
+    ) {}
 
 }
