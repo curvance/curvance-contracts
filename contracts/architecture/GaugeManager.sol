@@ -755,7 +755,7 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         uint256 aux
     ) external nonReentrant {
         // If gauge emissions have not started yet,
-        // theres nothing to claimAndExtendLock.
+        // theres nothing to claim and lock.
         if (block.timestamp < startTime) {
             revert GaugeManager__NotStarted();
         }

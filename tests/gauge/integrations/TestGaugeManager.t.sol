@@ -299,14 +299,14 @@ contract TestGaugeManager is TestBaseMarket {
 
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(address(cve)));
+        gaugeManager.claim(_makeTokenArray(address(cve)), users[0]);
     }
 
     function testEmptyClaim() public {
         vm.warp(gaugeManager.startTime());
 
         vm.prank(users[0]);
-        gaugeManager.claim(new address[](0));
+        gaugeManager.claim(new address[](0), users[0]);
     }
 
     function testRewardRatioOfDifferentPools() public {
@@ -378,9 +378,9 @@ contract TestGaugeManager is TestBaseMarket {
         // user0, user3 claims
 
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 11999);
         assertEq(cve.balanceOf(users[3]), 16000);
@@ -434,13 +434,13 @@ contract TestGaugeManager is TestBaseMarket {
         // user0, user1, user2, user3 claims
 
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[1]);
         vm.prank(users[2]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[2]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24889);
@@ -533,9 +533,9 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0, user1 claim rewards
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[1]);
 
         assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200 - 1);
         assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200 - 1);
@@ -712,9 +712,9 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 11999);
         assertEq(cve.balanceOf(users[3]), 16000);
@@ -770,13 +770,13 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0, user1, user2, user3 claims
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[1]);
         vm.prank(users[2]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[2]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 15111);
         assertEq(cve.balanceOf(users[1]), 24889);
@@ -880,9 +880,9 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugeManager.claim(listedTokens);
+        gaugeManager.claim(listedTokens, users[0]);
         vm.prank(users[3]);
-        gaugeManager.claim(listedTokens);
+        gaugeManager.claim(listedTokens, users[3]);
 
         assertEq(cve.balanceOf(users[0]), 35998);
         assertEq(cve.balanceOf(users[3]), 16000);
@@ -926,19 +926,19 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0, user1, user2, user3 claims with empty array
         vm.prank(users[0]);
-        gaugeManager.claim(new address[](0));
+        gaugeManager.claim(new address[](0), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(new address[](0));
+        gaugeManager.claim(new address[](0), users[1]);
         vm.prank(users[3]);
-        gaugeManager.claim(new address[](0));
+        gaugeManager.claim(new address[](0), users[3]);
 
         // user0, user1, user2, user3 claims listedTokens(multi token)
         vm.prank(users[0]);
-        gaugeManager.claim(listedTokens);
+        gaugeManager.claim(listedTokens, users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(listedTokens);
+        gaugeManager.claim(listedTokens, users[1]);
         vm.prank(users[3]);
-        gaugeManager.claim(listedTokens);
+        gaugeManager.claim(listedTokens, users[3]);
 
         assertEq(cve.balanceOf(users[0]), 47110);
         assertEq(cve.balanceOf(users[1]), 24889);

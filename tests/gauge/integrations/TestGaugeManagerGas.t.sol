@@ -141,7 +141,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);
@@ -196,7 +196,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);
@@ -251,7 +251,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         uint256 gasUsedForClaim = gasStart - gasleft();
 
         vm.prank(users[0]);

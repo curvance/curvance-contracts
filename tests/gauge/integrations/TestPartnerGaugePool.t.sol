@@ -426,9 +426,9 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 12000);
         assertEq(cve.balanceOf(users[3]), 16000);
@@ -560,13 +560,13 @@ contract TestPartnerGaugePool is TestBaseMarket {
         // user0, user1, user2, user3 claims
         vm.prank(users[0]);
 
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[1]);
         vm.prank(users[2]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[2]);
         vm.prank(users[3]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[3]);
 
         assertEq(cve.balanceOf(users[0]), 15112);
         assertEq(cve.balanceOf(users[1]), 24889);
@@ -774,9 +774,9 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0, user1 claim rewards
         vm.prank(users[0]);
-        gaugeManager.claim(_makeTokenArray(tokens[0]));
+        gaugeManager.claim(_makeTokenArray(tokens[0]), users[0]);
         vm.prank(users[1]);
-        gaugeManager.claim(_makeTokenArray(tokens[1]));
+        gaugeManager.claim(_makeTokenArray(tokens[1]), users[1]);
 
         assertEq(cve.balanceOf(users[0]), 2 weeks * 100 + 100 * 200);
         assertEq(cve.balanceOf(users[1]), 2 weeks * 200 + 100 * 200 - 1);
