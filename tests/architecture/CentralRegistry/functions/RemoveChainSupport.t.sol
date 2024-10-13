@@ -8,7 +8,7 @@ import { stdStorage, StdStorage } from "forge-std/Test.sol";
 contract RemoveChainSupportTest is TestBaseMarket {
     using stdStorage for StdStorage;
 
-    event RemovedChain(uint256 chainId, address operatorAddress);
+    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
 
     address public relayer = makeAddr("Wormhole Relayer");
 
