@@ -8,12 +8,12 @@ import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/V
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { VelodromeStablePositionManagement } from "contracts/market/position-management/VelodromeStablePositionManagement.sol";
+import { PositionManagementVelodromeStable } from "contracts/market/position-management/PositionManagementVelodromeStable.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
-contract TestVelodromeStablePositionManagement is TestBaseMarket {
+contract TestPositionManagementVelodromeStable is TestBaseMarket {
     address internal _VELODROME_DAI_USDC =
         0x19715771E30c93915A5bbDa134d782b81A820076;
     IVeloGauge public gauge =
@@ -25,7 +25,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
 
     VelodromeStablePToken public cUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
-    VelodromeStablePositionManagement public positionManagement;
+    PositionManagementVelodromeStable public positionManagement;
 
     address public owner;
     address public user;
@@ -150,7 +150,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
-        positionManagement = new VelodromeStablePositionManagement(
+        positionManagement = new PositionManagementVelodromeStable(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
             address(veloRouter),
@@ -205,7 +205,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
             100;
 
-        VelodromeStablePositionManagement.LeverageStruct memory leverageData;
+        PositionManagementVelodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = dDAI;
         leverageData.borrowAmount = amountForLeverage;
         leverageData.collateralToken = SimplePToken(address(cUSDCDAI));
@@ -251,7 +251,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
 
         vm.startPrank(user);
 
-        VelodromeStablePositionManagement.DeleverageStruct memory deleverageData;
+        PositionManagementVelodromeStable.DeleverageStruct memory deleverageData;
 
         (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
         (uint256 cUSDCDAIBalanceBefore, , ) = cUSDCDAI.getSnapshot(user);

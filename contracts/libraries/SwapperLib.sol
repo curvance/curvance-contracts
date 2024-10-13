@@ -176,16 +176,20 @@ library SwapperLib {
                             ? 18
                             : IERC20(swapData.outputToken).decimals()
                     ));
-            uint256 diff = outputValue > inputValue
-                ? outputValue - inputValue
-                : inputValue - outputValue;
-            uint256 slippage = (diff * WAD) / inputValue;
-            if (
-                slippage > swapData.slippage ||
-                slippage > centralRegistry.slippageLimit()
-            ) {
-                revert SwapperLib__Slippage(slippage);
+
+            // Check if swap received positive slippage.
+            if (outputValue > inputValue) {
+                return;
             }
+
+            // Calculate % slippage from executed swap.
+            uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
+            if (
+                    slippage > swapData.slippage ||
+                    slippage > centralRegistry.slippageLimit()
+                ) {
+                    revert SwapperLib__Slippage(slippage);
+            } 
         }
     }
 
