@@ -245,7 +245,11 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             // We round up to make sure the user gets at least `amount` back.
-            uint256 tokensToRedeem = _mulDivUp(amount, WAD, exchangeRate);
+            uint256 tokensToRedeem = FixedPointMathLib.mulDivUp(
+                amount,
+                WAD,
+                exchangeRate
+            );
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedEToken.redeem(tokensToRedeem);
