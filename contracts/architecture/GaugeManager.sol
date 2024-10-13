@@ -86,8 +86,6 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     IVeCVE public immutable veCVE;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
-    /// @notice Curvance DAO Hub.
-    ICentralRegistry public immutable centralRegistry;
 
     /// @dev `bytes4(keccak256(bytes("GaugeManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x38b10c24;
@@ -172,17 +170,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert GaugeManager__InvalidAddress();
-        }
-        centralRegistry = centralRegistry_;
-
+    constructor(
+        ICentralRegistry centralRegistry_
+    ) PluginDelegable(centralRegistry_) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         cve = centralRegistry.cve();

@@ -384,7 +384,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Remove any leftover approval.
-        SwapperLib._removeApprovalIfNeeded(pTokenUnderlying, pToken);
+        SwapperLib._removeApprovalIfNeeded(inputToken, pToken);
 
         // Bubble up how many pTokens `recipient` received.
         return IERC20(pToken).balanceOf(recipient) - priorBalance;
