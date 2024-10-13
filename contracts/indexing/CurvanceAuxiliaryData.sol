@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { EToken } from "contracts/market/collateral/EToken.sol";
-import { PTokenBase } from "contracts/market/collateral/PTokenBase.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -262,7 +262,7 @@ contract CurvanceAuxiliaryData {
     function getBaseRewards(address token) external view returns (uint256) {}
     function getCVERewards(address token) external view returns (uint256) {}
 
-    /// ORACLE ROUTER FUNCTIONS ///
+    /// Oracle Manager FUNCTIONS ///
 
     function getPrices(
         address[] calldata assets,

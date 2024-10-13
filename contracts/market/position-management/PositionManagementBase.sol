@@ -25,7 +25,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 ///
 ///      PToken and EToken contracts facilitate these operations through
 ///      integration with Position Foldings callback functions.
-abstract contract BasePositionManagement is
+abstract contract PositionManagementBase is
     IPositionManagement,
     Delegable,
     ERC165,

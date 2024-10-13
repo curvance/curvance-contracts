@@ -6,7 +6,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 
 struct AccountSnapshot {
     address asset;
-    bool isCToken;
+    bool isPToken;
     uint8 decimals;
     uint256 debtBalance;
     uint256 exchangeRate;
@@ -29,7 +29,7 @@ interface IMToken {
     function accrueInterest() external;
 
     /// @notice Updates pending interest and returns the up-to-date exchange
-    ///         rate from the underlying to the dToken.
+    ///         rate from the underlying to the eToken.
     /// @return Calculated exchange rate, in `WAD`.
     function exchangeRateWithUpdate() external returns (uint256);
 
@@ -45,18 +45,18 @@ interface IMToken {
 
     /// @notice Returns the type of Curvance token.
     /// @dev true = Collateral token; false = Debt token.
-    /// @return Whether this token is a cToken or not.
-    function isCToken() external view returns (bool);
+    /// @return Whether this token is a pToken or not.
+    function isPToken() external view returns (bool);
 
-    /// @notice The dToken balance of an account.
+    /// @notice The eToken balance of an account.
     /// @dev Account address => account token balance.
-    /// @param user User to query dToken balance for.
+    /// @param user User to query eToken balance for.
     function balanceOf(address user) external view returns (uint256);
 
     /// @notice Caller deposits assets into the market and receives shares.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param receiver The account that should receive the cToken shares.
-    /// @return shares The amount of cToken shares received by `receiver`.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return shares The amount of pToken shares received by `receiver`.
     function deposit(
         uint256 assets,
         address receiver
@@ -72,47 +72,47 @@ interface IMToken {
     ///      If the caller is not approved to collateralize the function will
     ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param receiver The account that should receive the cToken shares.
-    /// @return shares The amount of cToken shares received by `receiver`.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return shares The amount of pToken shares received by `receiver`.
     function depositAsCollateralFor(
         uint256 assets,
         address receiver
     ) external returns (uint256 shares);
 
     /// @notice Deposits underlying assets into the market,
-    ///         and receives dTokens.
+    ///         and receives eTokens.
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
-    /// @return Returns the amount of dTokens minted.
+    /// @return Returns the amount of eTokens minted.
     function mint(uint256 amount) external returns (uint256);
 
     /// @notice Deposits underlying assets into the market,
-    ///         and `recipient` receives dTokens.
+    ///         and `recipient` receives eTokens.
     /// @dev Updates pending interest before executing the mint inside
     ///      the internal helper function.
     /// @param amount The amount of the underlying assets to deposit.
-    /// @param recipient The account that should receive the dTokens.
-    /// @return tokens Returns the amount of dTokens minted.
+    /// @param recipient The account that should receive the eTokens.
+    /// @return tokens Returns the amount of eTokens minted.
     function mintFor(
         uint256 amount,
         address recipient
     ) external returns (uint256);
 
-    /// @notice Redeems dTokens in exchange for the underlying asset.
+    /// @notice Redeems eTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
-    /// @param tokens The number of dTokens to redeem for underlying tokens.
+    /// @param tokens The number of eTokens to redeem for underlying tokens.
     /// @return Returns amount of underlying asset redeemed.
     function redeem(uint256 tokens) external returns (uint256);
 
-    /// @notice Transfers collateral tokens (this cToken) from `account`
+    /// @notice Transfers collateral tokens (this pToken) from `account`
     ///         to `liquidator`.
-    /// @dev Will fail unless called by a dToken during the process
+    /// @dev Will fail unless called by a eToken during the process
     ///      of liquidation.
     /// @param liquidator The account receiving seized collateral.
     /// @param account The account having collateral seized.
-    /// @param liquidatedTokens The total number of cTokens to seize.
-    /// @param protocolTokens The number of cTokens to seize for the protocol.
+    /// @param liquidatedTokens The total number of pTokens to seize.
+    /// @param protocolTokens The number of pTokens to seize for the protocol.
     function seize(
         address liquidator,
         address account,
@@ -145,7 +145,7 @@ interface IMToken {
     ///            as lenders already are bearing a burden.
     /// @param liquidator The account receiving seized collateral.
     /// @param account The account having collateral seized.
-    /// @param shares The total number of cTokens shares to seize.
+    /// @param shares The total number of pTokens shares to seize.
     function seizeAccountLiquidation(
         address liquidator,
         address account,
@@ -171,7 +171,7 @@ interface IMToken {
         address account
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @notice Returns a snapshot of the pToken and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
     ///       since it is unused.
@@ -184,7 +184,7 @@ interface IMToken {
     function totalSupply() external view returns (uint256);
 
     /// @notice Returns total amount of outstanding borrows of the
-    ///         underlying in this dToken market.
+    ///         underlying in this eToken market.
     function totalBorrows() external view returns (uint256);
 
     /// @notice Returns the current debt balance for `account`.
@@ -195,23 +195,23 @@ interface IMToken {
         address account
     ) external view returns (uint256);
 
-    /// @notice Calculates the current dToken utilization rate.
+    /// @notice Calculates the current eToken utilization rate.
     /// @dev Used for third party integrations, and frontends.
     /// @return The utilization rate, in `WAD`.
     function utilizationRate() external view returns (uint256);
 
-    /// @notice Returns the current dToken borrow interest rate per year.
+    /// @notice Returns the current eToken borrow interest rate per year.
     /// @dev Used for third party integrations, and frontends.
     /// @return The borrow interest rate per year, in `WAD`.
     function borrowRatePerYear() external view returns (uint256);
 
-    /// @notice Returns predicted upcoming dToken borrow interest rate
+    /// @notice Returns predicted upcoming eToken borrow interest rate
     ///         per year.
     /// @dev Used for third party integrations, and frontends.
     /// @return The predicted borrow interest rate per year, in `WAD`.
     function predictedBorrowRatePerYear() external view returns (uint256);
 
-    /// @notice Returns the current dToken supply interest rate per year.
+    /// @notice Returns the current eToken supply interest rate per year.
     /// @dev Used for third party integrations, and frontends.
     /// @return The supply interest rate per year, in `WAD`.
     function supplyRatePerYear() external view returns (uint256);
@@ -220,7 +220,7 @@ interface IMToken {
     function marketManager() external view returns (IMarketManager);
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
-    /// @dev Oracle router calculates mToken value from this exchange rate.
+    /// @dev Oracle Manager calculates mToken value from this exchange rate.
     function exchangeRateCached() external view returns (uint256);
 
     /// @notice Executes multiple calls in a single transaction.

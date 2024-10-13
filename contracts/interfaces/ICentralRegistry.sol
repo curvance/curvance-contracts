@@ -73,11 +73,11 @@ interface ICentralRegistry {
     /// @notice Returns Messaging Hub address.
     function messagingHub() external view returns (address);
 
-    /// @notice Returns Oracle Router address.
-    function oracleRouter() external view returns (address);
+    /// @notice Returns Oracle Manager address.
+    function oracleManager() external view returns (address);
 
-    /// @notice Returns feeAccumulator address.
-    function feeAccumulator() external view returns (address);
+    /// @notice Returns feeManager address.
+    function feeManager() external view returns (address);
 
     /// @notice Returns fee token address.
     function feeToken() external view returns (address);

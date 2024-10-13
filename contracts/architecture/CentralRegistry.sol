@@ -93,10 +93,10 @@ contract CentralRegistry is ERC165 {
     address public votingHub;
     /// @notice Messaging Hub contract address.
     address public messagingHub;
-    /// @notice Oracle Router contract address.
-    address public oracleRouter;
-    /// @notice Fee Accumulator contract address.
-    address public feeAccumulator;
+    /// @notice Oracle Manager contract address.
+    address public oracleManager;
+    /// @notice Fee Manager contract address.
+    address public feeManager;
 
     // CROSS-CHAIN MESSAGING DATA
 
@@ -314,28 +314,28 @@ contract CentralRegistry is ERC165 {
         );
     }
 
-    /// @notice Withdraws all protocol reserve fees from a dToken
+    /// @notice Withdraws all protocol reserve fees from a eToken
     ///         from interest generated and liquidations.
-    /// @param dTokens Array of dToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata dTokens) external {
+    /// @param eTokens Array of eToken addresses to withdraw fees from.
+    function withdrawReservesMulti(address[] calldata eTokens) external {
         // Match permissioning check to normal withdrawReserves().
         _checkDaoPermissions();
 
-        uint256 dTokenLength = dTokens.length;
-        if (dTokenLength == 0) {
+        uint256 numTokens = eTokens.length;
+        if (numTokens == 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IMToken dToken;
+        IMToken eToken;
 
-        for (uint256 i; i < dTokenLength; ) {
-            dToken = IMToken(dTokens[i++]);
+        for (uint256 i; i < numTokens; ) {
+            eToken = IMToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (dToken.isCToken()) {
+            if (eToken.isPToken()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            dToken.processWithdrawReserves();
+            eToken.processWithdrawReserves();
         }
     }
 
@@ -421,29 +421,29 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("Messaging Hub", newMessagingHub);
     }
 
-    /// @notice Sets a new Oracle Router contract address.
+    /// @notice Sets a new Oracle Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newOracleRouter The new address of oracleRouter.
-    function setOracleRouter(address newOracleRouter) external {
+    /// @param newOracleManager The new address of oracleManager.
+    function setOracleManager(address newOracleManager) external {
         _checkElevatedPermissions();
 
-        oracleRouter = newOracleRouter;
-        emit CoreContractSet("Oracle Router", newOracleRouter);
+        oracleManager = newOracleManager;
+        emit CoreContractSet("Oracle Manager", newOracleManager);
     }
 
-    /// @notice Sets a new fee accumulator contract address.
+    /// @notice Sets a new Fee Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newFeeAccumulator The new address of feeAccumulator.
-    function setFeeAccumulator(address newFeeAccumulator) external {
+    /// @param newFeeManager The new address of feeManager.
+    function setFeeManager(address newFeeManager) external {
         _checkElevatedPermissions();
 
-        feeAccumulator = newFeeAccumulator;
-        emit CoreContractSet("Fee Accumulator", newFeeAccumulator);
+        feeManager = newFeeManager;
+        emit CoreContractSet("Fee Manager", newFeeManager);
     }
 
-    /// @notice Sets a new WormholeCore contract address.
+    /// @notice Sets a new Wormhole Core contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {WormholeCoreSet} event.
     /// @param newWormholeCore The new address of WormholeCore.

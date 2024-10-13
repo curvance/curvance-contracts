@@ -23,7 +23,7 @@
   "zapper": {
     "weth": "0x6E1E9896e93F7A71ECB33d4386b49DeeD67a231A"
   },
-  "oracleRouter": {
+  "oracleManager": {
     "chainlinkEthUsd": "0x0000000000000000000000000000000000000000",
     "chainlinkUsd": "0x0000000000000000000000000000000000000000"
   },
@@ -34,7 +34,7 @@
     "marketInterestFactor": 1000
   },
   "markets": {
-    "dTokens": {
+    "eTokens": {
       "USDC": {
         "asset": "0x0000000000000000000000000000000000000000",
         "chainlinkEth": "0x0000000000000000000000000000000000000000",
@@ -64,7 +64,7 @@
         }
       }
     },
-    "cTokens": {
+    "pTokens": {
       "WBTC": {
         "asset": "0x0000000000000000000000000000000000000000",
         "chainlinkEth": "0x0000000000000000000000000000000000000000",

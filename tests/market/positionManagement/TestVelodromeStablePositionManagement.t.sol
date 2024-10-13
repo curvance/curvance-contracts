@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeStableCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/VelodromeStableCToken.sol";
+import { VelodromeStablePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStablePToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -11,7 +11,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { VelodromeStablePositionManagement } from "contracts/market/position-management/VelodromeStablePositionManagement.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
 
 contract TestVelodromeStablePositionManagement is TestBaseMarket {
     address internal _VELODROME_DAI_USDC =
@@ -23,7 +23,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
     IVeloRouter public veloRouter =
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-    VelodromeStableCToken public cUSDCDAI;
+    VelodromeStablePToken public cUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     VelodromeStablePositionManagement public positionManagement;
 
@@ -62,13 +62,13 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployOracleRouter();
+        _deployOracleManager();
         _deployDynamicInterestRateModel();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
@@ -77,7 +77,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -88,7 +88,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -97,8 +97,8 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             ICentralRegistry(address(centralRegistry))
         );
         adaptor.addAsset(_VELODROME_DAI_USDC);
-        oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addAssetPriceFeed(_VELODROME_DAI_USDC, address(adaptor));
 
         owner = address(this);
         user = user1;
@@ -107,7 +107,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
         {
             _deployDDAI();
             // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            oracleManager.addMTokenSupport(address(dDAI));
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(dDAI), 200000e18);
@@ -116,7 +116,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
 
         // setup cUSDCDAI
         {
-            cUSDCDAI = new VelodromeStableCToken(
+            cUSDCDAI = new VelodromeStablePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_VELODROME_DAI_USDC),
                 address(marketManager),
@@ -125,7 +125,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
                 veloRouter
             );
             // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(cUSDCDAI));
+            oracleManager.addMTokenSupport(address(cUSDCDAI));
 
             deal(_VELODROME_DAI_USDC, owner, 1 ether);
             IERC20(_VELODROME_DAI_USDC).approve(address(cUSDCDAI), 1 ether);
@@ -147,7 +147,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
-            marketManager.setCTokenCollateralCaps(tokens, caps);
+            marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
         positionManagement = new VelodromeStablePositionManagement(
@@ -208,7 +208,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
         VelodromeStablePositionManagement.LeverageStruct memory leverageData;
         leverageData.borrowToken = dDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(cUSDCDAI));
+        leverageData.collateralToken = SimplePToken(address(cUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -256,7 +256,7 @@ contract TestVelodromeStablePositionManagement is TestBaseMarket {
         (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
         (uint256 cUSDCDAIBalanceBefore, , ) = cUSDCDAI.getSnapshot(user);
 
-        deleverageData.collateralToken = CTokenPrimitive(address(cUSDCDAI));
+        deleverageData.collateralToken = SimplePToken(address(cUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = dDAI;
 
