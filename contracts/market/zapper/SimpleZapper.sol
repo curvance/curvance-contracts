@@ -10,6 +10,7 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -212,7 +213,7 @@ contract SimpleZapper is ReentrancyGuard {
             amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
-        return _repayDebt(eToken, outputAmount, repayAmount, recipient);
+        return _repayDebt(eToken, amount, repayAmount, recipient);
     }
 
     /// @notice Withdraws a Curvance position, and swaps it into
