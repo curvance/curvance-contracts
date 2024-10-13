@@ -237,8 +237,8 @@ contract CentralRegistry is ERC165 {
     event MessageTransmitterSet(address newAddress);
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
-    event NewChainAdded(uint256 chainId, address operatorAddress);
-    event RemovedChain(uint256 chainId, address operatorAddress);
+    event NewChainAdded(uint256 chainId, address relayer);
+    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
     event CallDataCheckerSet(
         string indexed calldataType,
         address targetAddress,
@@ -922,11 +922,14 @@ contract CentralRegistry is ERC165 {
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentMessagingHub Address for chains Messaging Hub.
+    /// @param expectedMessagingHub Expected Address for `chainId` Messaging
+    ///                             Hub.
+    /// @param expectedVotingHub Expected Address for `chainId` Voting Hub.
     /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(
-        address currentMessagingHub,
+        address expectedMessagingHub,
+        address expectedVotingHub,
         uint256 chainId
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
@@ -935,8 +938,13 @@ contract CentralRegistry is ERC165 {
 
         ChainData memory chainDataToRemove = supportedChainData[chainId];
 
-        // Validate that `currentMessagingHub` is currently supported.
-        if (chainDataToRemove.messagingHub != currentMessagingHub) {
+        // Validate that `expectedMessagingHub` is currently supported.
+        if (chainDataToRemove.messagingHub != expectedMessagingHub) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        // Validate that `expectedVotingHub` is currently supported.
+        if (chainDataToRemove.votingHub != expectedVotingHub) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -957,7 +965,7 @@ contract CentralRegistry is ERC165 {
 
         _removeForeignChainId(chainId);
 
-        emit RemovedChain(chainId, currentMessagingHub);
+        emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
     }
 
     /// CONTRACT MAPPING LOGIC

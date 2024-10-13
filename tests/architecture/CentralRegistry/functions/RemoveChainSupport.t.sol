@@ -55,23 +55,32 @@ contract RemoveChainSupportTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.removeChainSupport(user1, 42161);
+        centralRegistry.removeChainSupport(user1, user1, 42161);
     }
 
-    function test_removeChainSupport_fail_whenOperatorIsNotAuthorized()
+    function test_removeChainSupport_fail_whenMessagingHubIsInvalid()
         public
     {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.removeChainSupport(address(1), 42161);
+        centralRegistry.removeChainSupport(address(1), address(this), 42161);
+    }
+
+    function test_removeChainSupport_fail_whenVotingHubIsInvalid()
+        public
+    {
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.removeChainSupport(address(this), address(1), 42161);
     }
 
     function test_removeChainSupport_fail_whenChainIdIsNotAuthorized() public {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.removeChainSupport(address(0), 42160);
+        centralRegistry.removeChainSupport(address(this), address(this), 42160);
     }
 
     function test_removeChainSupport_success() public {
@@ -101,8 +110,8 @@ contract RemoveChainSupportTest is TestBaseMarket {
         assertEq(centralRegistry.GETHToMessagingChainId(42161), 23);
 
         vm.expectEmit(true, true, true, true);
-        emit RemovedChain(42161, messagingHub);
-        centralRegistry.removeChainSupport(messagingHub, 42161);
+        emit RemovedChain(42161, messagingHub, votingHub);
+        centralRegistry.removeChainSupport(messagingHub, votingHub, 42161);
 
         (isSupported, , , , , , , ) = centralRegistry.supportedChainData(42161);
 

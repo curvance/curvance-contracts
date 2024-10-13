@@ -97,12 +97,15 @@ contract PythAdaptor is BaseOracleAdaptor {
         if (!centralRegistry.isMulticallProvider(msg.sender)) {
             revert PythAdaptor__Unauthorized();
         }
-        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
-        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
-        // See section "How Pyth Works on EVM Chains" below for more information.
+        
+        // Update the prices to the latest available values and pay the
+        // required fee for it. The `priceUpdateData` data should be retrieved
+        // from our off-chain Price Service API using the `pyth-evm-js`
+        // package. See section "How Pyth Works on EVM Chains" below for more
+        // information.
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
 
-        // receive fee from universal balance
+        // Receive oracle update fee from universal balance contract.
         UniversalBalance(payable(universalBalance)).useBalanceForOracleUpdate(
             user,
             fee
@@ -112,7 +115,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         IWETH(weth).withdraw(fee);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
-        // refund remaining eth
+        // Refund remaining native token paid.
         uint256 remaining = address(this).balance - balanceBefore;
         if (remaining > 0) {
             SafeTransferLib.safeTransferETH(user, remaining);
@@ -128,7 +131,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
-        // refund remaining eth
+        // Refund remaining native token paid.
         uint256 remaining = msg.value - fee;
         if (remaining > 0) {
             SafeTransferLib.safeTransferETH(msg.sender, remaining);

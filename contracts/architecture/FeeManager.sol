@@ -59,7 +59,7 @@ contract FeeManager is ReentrancyGuard {
     ICentralRegistry public immutable centralRegistry;
 
     /// @notice Fee token decimal unit.
-    uint256 internal immutable _feeTokenUnit;
+    uint256 internal immutable _feeTokenDecimals;
 
     /// STORAGE ///
 
@@ -117,7 +117,7 @@ contract FeeManager is ReentrancyGuard {
 
         centralRegistry = centralRegistry_;
         feeToken = centralRegistry.feeToken();
-        _feeTokenUnit = 10 ** IERC20(feeToken).decimals();
+        _feeTokenDecimals = 10 ** IERC20(feeToken).decimals();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -205,7 +205,7 @@ contract FeeManager is ReentrancyGuard {
     ) external nonReentrant {
         _checkDaoPermissions();
 
-        // Validate that the token is earmarked for OTC
+        // Validate `tokenToOTC` is currently earmarked for OTC trades.
         if (rewardTokenInfo[tokenToOTC].forOTC < 2) {
             revert FeeManager__TokenIsNotEarmarked();
         }
@@ -221,12 +221,12 @@ contract FeeManager is ReentrancyGuard {
             centralRegistry.oracleManager()
         );
 
-        (uint256 priceSwap, uint256 errorCodeSwap) = oracleManager.getPrice(
+        (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager.getPrice(
             tokenToOTC,
             true,
             true
         );
-        (uint256 priceFeeToken, uint256 errorCodeFeeToken) = oracleManager
+        (uint256 feeTokenPrice, uint256 errorCodeFeeToken) = oracleManager
             .getPrice(feeToken, true, true);
 
         // Validate we have fresh, functional prices.
@@ -238,7 +238,7 @@ contract FeeManager is ReentrancyGuard {
         // Oracle Manager always returns in 1e18 (WAD) format,
         // so we only need to worry about token decimal differences here.
         uint256 feeTokenRequiredForOTC = (
-            ((priceSwap * amountToOTC * _feeTokenUnit) / priceFeeToken)
+            ((OTCTokenPrice * amountToOTC * _feeTokenDecimals) / feeTokenPrice)
         ) / 10 ** IERC20(tokenToOTC).decimals();
 
         // Check if Curvance DAO is paying more than anticipated.
@@ -259,7 +259,7 @@ contract FeeManager is ReentrancyGuard {
             feeTokenRequiredForOTC
         );
 
-        // Give DAO the OTC'd tokens
+        // Give DAO the OTC'd tokens.
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
 

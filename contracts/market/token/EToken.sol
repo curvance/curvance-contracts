@@ -18,7 +18,7 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 
-/// @title Curvance's Debt Token Contract.
+/// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation
 ///      to ERC4626. However, they follow their own design flow, without an
 ///      inherited base contract. This is done intentionally, to maximize
