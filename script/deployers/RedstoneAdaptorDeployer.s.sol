@@ -39,7 +39,7 @@ contract RedstoneAdaptorDeployer is DeployConfiguration {
             "multicallChecker",
             address(multicallChecker)
         );
-        cr.setmulticallChecker(
+        cr.setMulticallChecker(
             address(adaptor),
             address(multicallChecker)
         );

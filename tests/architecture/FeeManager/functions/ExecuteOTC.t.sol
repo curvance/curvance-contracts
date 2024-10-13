@@ -9,19 +9,19 @@ contract ExecuteOTCTest is TestBaseFeeManager {
         vm.prank(user1);
 
         vm.expectRevert(FeeManager.FeeManager__Unauthorized.selector);
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 0, 0, 0);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
     }
 
     function test_executeOTC_fail_whenTokenIsNotEarmarked() public {
         vm.expectRevert(FeeManager.FeeManager__TokenIsNotEarmarked.selector);
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 0, 0, 0);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
     }
 
     function test_executeOTC_fail_whenFeeTokenIsNotApproved() public {
         feeManager.setEarmarked(_WETH_ADDRESS, true);
 
         vm.expectRevert();
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 0, 0, 0);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
     }
 
     function test_executeOTC_fail_whenPriceIsInvalid() public {
@@ -30,7 +30,29 @@ contract ExecuteOTCTest is TestBaseFeeManager {
         chainlinkEthUsd.updateAnswer(0);
 
         vm.expectRevert(FeeManager.FeeManager__ConfigurationError.selector);
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 0, 0, 0);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
+    }
+
+    function test_executeOTC_fail_whenSlippageWasTooHigh() public {
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
+
+        deal(_USDC_ADDRESS, address(this), _ONE);
+        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+        usdc.approve(address(feeManager), _ONE);
+
+        vm.expectRevert(FeeManager.FeeManager__OTCExecutionTermsFailed.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE / 2, 1e16, block.timestamp + 300);
+    }
+
+    function test_executeOTC_whenDeadlineExpired() public {
+        feeManager.setEarmarked(_WETH_ADDRESS, true);
+
+        deal(_USDC_ADDRESS, address(this), _ONE);
+        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+        usdc.approve(address(feeManager), _ONE);
+
+        vm.expectRevert(FeeManager.FeeManager__OTCExecutionTermsFailed.selector);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp - 300);
     }
 
     function test_executeOTC_success() public {
@@ -44,7 +66,7 @@ contract ExecuteOTCTest is TestBaseFeeManager {
 
         usdc.approve(address(feeManager), _ONE);
 
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 0, 0, 0);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
 
         assertLt(usdc.balanceOf(address(this)), _ONE);
         assertLt(weth.balanceOf(address(feeManager)), _ONE);

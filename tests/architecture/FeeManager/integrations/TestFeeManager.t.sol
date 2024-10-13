@@ -256,7 +256,7 @@ contract TestFeeManager is TestBaseFeeManager {
         // multiswap
         deal(_USDC_ADDRESS, address(this), 2500e8);
         usdc.approve(address(feeManager), 2500e8);
-        feeManager.executeOTC(_WETH_ADDRESS, 1 ether);
+        feeManager.executeOTC(_WETH_ADDRESS, 1 ether, 2500e8, 1e16, block.timestamp + 300); // 5 min deadline.
 
         // bridge...
         PerChainData[] memory perChainData = new PerChainData[](1);

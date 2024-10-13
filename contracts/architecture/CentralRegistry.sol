@@ -969,7 +969,7 @@ contract CentralRegistry is ERC165 {
     ///               such as Pyth or Redstone.
     /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setmulticallChecker(
+    function setMulticallChecker(
         address target,
         address callDataChecker
     ) external {
