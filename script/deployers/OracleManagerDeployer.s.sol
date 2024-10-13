@@ -11,10 +11,7 @@ import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 contract OracleManagerDeployer is DeployConfiguration {
     address public oracleManager;
 
-    function _deployOracleManager(
-        address centralRegistry,
-        address /* ethUsdFeed */
-    ) internal {
+    function _deployOracleManager(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 
         oracleManager = address(

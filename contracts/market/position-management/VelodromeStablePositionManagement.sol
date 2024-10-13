@@ -82,7 +82,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(
-                address(pairFactory),
+                pairFactory,
                 _asset,
                 totalAmountA,
                 reserveA,
@@ -103,7 +103,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             totalAmountA -= swapAmount;
         }
 
-        // Add liquidity to Aerodrome lp with stable params.
+        // Add liquidity to Velodrome lp with stable params.
         VelodromeLib._addLiquidity(
             address(router),
             token0,

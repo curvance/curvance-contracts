@@ -37,7 +37,7 @@ contract PositionManagementSimple is PositionManagementBase {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
-        // Swap borrow underlying to collateral underlying
+        // Swap borrow underlying to collateral underlying.
         SwapperLib.swapSafe(centralRegistry, swapData);
     }
 
@@ -71,7 +71,7 @@ contract PositionManagementSimple is PositionManagementBase {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
-        // Swap collateral underlying to borrow underlying
+        // Swap collateral underlying to borrow underlying.
         SwapperLib.swapSafe(centralRegistry, swapData);
     }
 }

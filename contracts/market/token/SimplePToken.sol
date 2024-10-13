@@ -41,7 +41,7 @@ contract SimplePToken is BasePToken {
         IPositionManagement.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that the position folding contract is calling.
-        if (msg.sender != marketManager.positionManagement()) {
+        if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

@@ -151,7 +151,7 @@ abstract contract BasePToken is
 
         if (
             msg.sender == receiver ||
-            msg.sender == marketManager.positionManagement()
+            marketManager.positionManagement(msg.sender)
         ) {
             marketManager.postCollateral(receiver, address(this), shares);
         }

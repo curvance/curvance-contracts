@@ -305,6 +305,10 @@ contract TestVariables {
         _WETH_ADDRESSES[chainId] = 0x4200000000000000000000000000000000000006;
         _USDC_ADDRESSES[chainId] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
         _DAI_ADDRESSES[chainId] = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
+
+        _UNISWAP_V2_ROUTERS[
+            chainId
+        ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
     }
 
     function _initMainConstantVariables() internal {

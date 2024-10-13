@@ -8,13 +8,17 @@ import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.s
 import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
+import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeManagerDeployer } from "./deployers/FeeManagerDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
+import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { OracleManagerDeployer } from "./deployers/OracleManagerDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
+import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
+import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 
 contract DeployCurvance is
     DeployConfiguration,
@@ -24,11 +28,14 @@ contract DeployCurvance is
     MessagingHubDeployer,
     FeeManagerDeployer,
     VeCveDeployer,
+    VotingHubDeployer,
     GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
     OracleManagerDeployer,
-    AuxiliaryDataDeployer
+    AuxiliaryDataDeployer,
+    RedstoneAdaptorDeployer,
+    StartContractsConfig
 {
     function run() external {
         _deploy("ethereum");
@@ -48,16 +55,13 @@ contract DeployCurvance is
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy CentralRegistry
+        address feeToken = _readConfigAddress(".centralRegistry.feeToken");
+        address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
 
-        _deployCentralRegistry(
-            deployer,
-            deployer,
-            deployer,
-            _readConfigUint256(".centralRegistry.genesisEpoch"),
-            _readConfigAddress(".centralRegistry.sequencer"),
-            _readConfigAddress(".centralRegistry.feeToken")
-        );
+        centralRegistry = _getDeployedContract("centralRegistry");
+        address oracleManager = _getDeployedContract("oracleManager");
+        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
         );
@@ -82,16 +86,8 @@ contract DeployCurvance is
 
         // Deploy Reward Manager
 
-        _deployRewardManager(
-            centralRegistry,
-            _readConfigAddress(".rewardManager.rewardToken")
-        );
+        _deployRewardManager(centralRegistry, rewardToken);
         _setRewardManager(rewardManager);
-
-        // Deploy MessagingHub
-
-        _deployMessagingHub(centralRegistry);
-        _setMessagingHub(messagingHub);
 
         // Deploy FeeManager
 
@@ -99,17 +95,22 @@ contract DeployCurvance is
         _setFeeManager(feeManager);
 
         // Deploy VeCVE
-
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy GaugeManagerPool
+        // Deploy MessagingHub
+        _deployMessagingHub(centralRegistry);
+        _setMessagingHub(messagingHub);
+        _addLockingPermissions(messagingHub);
 
+        // Deploy GaugeManagerPool
         _deployGaugeManager(centralRegistry);
         _addLockingPermissions(gaugeManager);
 
-        // Deploy MarketManager
+        // Deploy VotingHub
+        _deployVotingHub(centralRegistry, 1000);
 
+        // Deploy MarketManager
         _deployMarketManager(centralRegistry);
         _addMarketManager(
             marketManager,
@@ -117,22 +118,13 @@ contract DeployCurvance is
         );
 
         // Deploy ComplexZapper
-
         _deployComplexZapper(
             centralRegistry,
             marketManager,
             _readConfigAddress(".zapper.weth")
         );
 
-        _deployOracleManager(
-            centralRegistry,
-            _readConfigAddress(".oracleManager.chainlinkEthUsd")
-        );
-
-        _setOracleManager(oracleManager);
-
         //  Deploy Auxiliary Data
-
         _deployAuxiliaryData(centralRegistry);
 
         // transfer dao, timelock, emergency council
@@ -145,6 +137,9 @@ contract DeployCurvance is
         // _transferEmergencyCouncil(
         //     _readConfigAddress(".centralRegistry.emergencyCouncil")
         // );
+
+        // Setup
+        _after_deploy_config(network);
 
         vm.stopBroadcast();
     }

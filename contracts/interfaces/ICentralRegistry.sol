@@ -31,9 +31,6 @@ struct ChainData {
 }
 
 interface ICentralRegistry {
-    /// @notice The length of one protocol epoch, in seconds.
-    function EPOCH_DURATION() external view returns (uint256);
-
     /// @notice Returns Genesis Epoch Timestamp of Curvance.
     function genesisEpoch() external view returns (uint256);
 
@@ -76,11 +73,11 @@ interface ICentralRegistry {
     /// @notice Returns Messaging Hub address.
     function messagingHub() external view returns (address);
 
-    /// @notice Returns Oracle Manager address.
-    function oracleManager() external view returns (address);
+    /// @notice Returns Oracle Router address.
+    function oracleRouter() external view returns (address);
 
-    /// @notice Returns feeManager address.
-    function feeManager() external view returns (address);
+    /// @notice Returns feeAccumulator address.
+    function feeAccumulator() external view returns (address);
 
     /// @notice Returns fee token address.
     function feeToken() external view returns (address);
@@ -183,7 +180,8 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (address);
 
-    function multicallChecker(
+    function multicallDataChecker(
         address addressToCheck
     ) external view returns (address);
+    
 }

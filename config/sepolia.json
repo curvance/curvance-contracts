@@ -1,13 +1,16 @@
 {
+  "protocolMessagingHub": {
+    "wormhole": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"
+  },
   "centralRegistry": {
-    "daoAddress": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
-    "timelock": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
-    "emergencyCouncil": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
-    "genesisEpoch": 0,
+    "daoAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "timelock": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "emergencyCouncil": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "genesisEpoch": 1711849632,
     "lockBoostMultiplier": 10000,
-    "harvester": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
+    "harvester": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "sequencer": "0x0000000000000000000000000000000000000000",
-    "feeToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A",
+    "feeToken": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
     "wormholeCore": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78",
     "wormholeRelayer": "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
     "circleTokenMessenger": "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5",
@@ -15,7 +18,7 @@
     "tokenBridge": "0xDB5492265f6038831E89f495670FF909aDe94bd9"
   },
   "cve": {
-    "teamAddress": "0x28553EadE22d3C044350b611bfE71cfb81aB7717",
+    "teamAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "daoTreasuryAllocation": 1450e18,
     "callOptionAllocation": 375e18,
     "teamAllocation": 1350e18,
@@ -25,8 +28,8 @@
     "clPointMultiplier": 11000,
     "voteBoostMultiplier": 11000
   },
-  "cveLocker": {
-    "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
+  "rewardManager": {
+    "rewardToken": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
   },
   "feeManager": {
     "gasForCalldata": 1e9,
@@ -39,12 +42,13 @@
     "weth": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9"
   },
   "oracleManager": {
+    "chainlinkUsd": "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
     "chainlinkEthUsd": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
   },
   "markets": {
     "eTokens": {
       "USDC": {
-        "asset": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A",
+        "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
         "chainlinkEth": "0x0000000000000000000000000000000000000000",
         "chainlinkUsd": "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
         "interestRateParam": {

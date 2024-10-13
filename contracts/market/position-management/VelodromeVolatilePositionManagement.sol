@@ -11,7 +11,7 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 
-contract PositionManagementAerodromeVolatile is PositionManagementBase {
+contract PositionManagementVelodromeVolatile is PositionManagementBase {
     address public pool;
 
     address public pairFactory;
@@ -20,7 +20,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
 
     /// ERRORS ///
 
-    error PositionManagementAerodromeStable__SlippageError();
+    error PositionManagementVelodromeVolatile__SlippageError();
 
     /// CONSTRUCTOR ///
 
@@ -64,9 +64,9 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
         }
 
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
-        // Make sure swap was routed into token0, or that token0 is AERO.
+        // Make sure swap was routed into token0.
         if (totalAmountA == 0) {
-            revert PositionManagementAerodromeStable__SlippageError();
+            revert PositionManagementVelodromeVolatile__SlippageError();
         }
 
         {
@@ -77,7 +77,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
             // Feed library pair factory, lpToken, and stable = true,
             // plus calculated data.
             uint256 swapAmount = VelodromeLib._optimalDeposit(
-                address(pairFactory),
+                pairFactory,
                 _asset,
                 totalAmountA,
                 reserveA,
@@ -86,7 +86,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
                 0,
                 false
             );
-            // Feed calculated data, and stable = true.
+            // Feed calculated data, and stable = false.
             VelodromeLib._swapExactTokensForTokens(
                 address(router),
                 _asset,
@@ -98,7 +98,7 @@ contract PositionManagementAerodromeVolatile is PositionManagementBase {
             totalAmountA -= swapAmount;
         }
 
-        // Add liquidity to Aerodrome lp with stable params.
+        // Add liquidity to Velodrome lp with volatile params.
         VelodromeLib._addLiquidity(
             address(router),
             token0,
