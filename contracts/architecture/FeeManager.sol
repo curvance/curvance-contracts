@@ -98,6 +98,7 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__TokenLengthIsZero();
     error FeeManager__RemovalTokenIsNotRewardToken();
     error FeeManager__RemovalTokenDoesNotExist();
+    error FeeManager__OTCExecutionTermsFailed();
 
     receive() external payable {}
 
@@ -149,16 +150,18 @@ contract FeeManager is ReentrancyGuard {
 
         for (uint256 i; i < numTokens; ++i) {
             currentToken = tokens[i];
-            // Make sure we are not earmarking this token for DAO OTC.
+            // Check that Curvance DAO has not earmarked this token for OTC.
             if (rewardTokenInfo[currentToken].forOTC == 2) {
                 continue;
             }
+
             if (rewardTokenInfo[currentToken].isRewardToken != 2) {
                 revert FeeManager__SwapDataCurrentTokenIsNotRewardToken(
                     i,
                     currentToken
                 );
             }
+
             if (swapDataArray[i].inputToken != currentToken) {
                 revert FeeManager__SwapDataInputTokenIsNotCurrentToken(
                     i,
@@ -166,6 +169,7 @@ contract FeeManager is ReentrancyGuard {
                     currentToken
                 );
             }
+
             if (swapDataArray[i].outputToken != feeToken) {
                 revert FeeManager__SwapDataOutputTokenIsNotFeeToken(
                     i,
@@ -193,7 +197,10 @@ contract FeeManager is ReentrancyGuard {
     /// @param amountToOTC Amount of the token to be OTC purchased by the DAO.
     function executeOTC(
         address tokenToOTC,
-        uint256 amountToOTC
+        uint256 amountToOTC,
+        uint256 expectedFeeTokens,
+        uint256 slippageLimit,
+        uint256 deadline
     ) external nonReentrant {
         _checkDaoPermissions();
 
@@ -202,7 +209,13 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__TokenIsNotEarmarked();
         }
 
-        // Cache router to save gas
+        // Validate that the OTC order is not stale.
+        if (deadline < block.timestamp) {
+            revert FeeManager__OTCExecutionTermsFailed();
+        }
+
+
+        // Cache router to save gas.
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
@@ -215,17 +228,28 @@ contract FeeManager is ReentrancyGuard {
         (uint256 priceFeeToken, uint256 errorCodeFeeToken) = oracleManager
             .getPrice(feeToken, true, true);
 
-        // Validate we got prices back
+        // Validate we have fresh, functional prices.
         if (errorCodeFeeToken == 2 || errorCodeSwap == 2) {
             revert FeeManager__ConfigurationError();
         }
 
         address daoAddress = centralRegistry.daoAddress();
-        // oracle manager always returns in 1e18 format based on decimals,
-        // so we only need to worry about decimal differences here.
+        // Oracle Manager always returns in 1e18 (WAD) format,
+        // so we only need to worry about token decimal differences here.
         uint256 feeTokenRequiredForOTC = (
             ((priceSwap * amountToOTC * _feeTokenUnit) / priceFeeToken)
         ) / 10 ** IERC20(tokenToOTC).decimals();
+
+        // Check if Curvance DAO is paying more than anticipated.
+        if (expectedFeeTokens > feeTokenRequiredForOTC) {
+            uint256 slippage = ((
+                expectedFeeTokens - feeTokenRequiredForOTC
+            ) * WAD) / expectedFeeTokens;
+
+            if (slippage > slippageLimit) {
+                revert FeeManager__OTCExecutionTermsFailed();
+            }
+        }
 
         SafeTransferLib.safeTransferFrom(
             feeToken,
@@ -437,7 +461,7 @@ contract FeeManager is ReentrancyGuard {
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Fetches the current oracle manager from the central registry.
+    /// @notice Fetches the current Oracle Manager from the central registry.
     /// @return Current OracleManager interface address.
     function getOracleManager() public view returns (IOracleManager) {
         return IOracleManager(centralRegistry.oracleManager());

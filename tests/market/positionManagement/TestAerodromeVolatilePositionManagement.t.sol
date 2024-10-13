@@ -5,7 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { AerodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/AerodromeVolatilePToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { PositionManagementAerodromeVolatile } from "contracts/market/position-management/PositionManagementAerodromeVolatile.sol";
@@ -184,12 +184,12 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         centralRegistry.setExternalCallDataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         centralRegistry.setExternalCallDataChecker(
             address(aeroRouter),
-            address(new MockCallDataChecker(address(aeroRouter)))
+            address(new MockCalldataChecker(address(aeroRouter)))
         );
 
         centralRegistry.setSlippageLimit(60000);
