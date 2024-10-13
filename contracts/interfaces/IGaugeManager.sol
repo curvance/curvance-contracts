@@ -5,7 +5,10 @@ interface IGaugeManager {
     /// @notice Claim all pending rewards for `token` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
-    function claim(address[] calldata tokens) external;
+    /// @param user The user address that gauge rewards should be claimed for,
+    ///             is the user is not the caller, delegation will be checked
+    ///             instead.
+    function claim(address[] calldata tokens, address user) external;
 
     /// @notice Returns current epoch number.
     function currentEpoch() external view returns (uint256);

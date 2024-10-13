@@ -118,7 +118,13 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         // Enter Curvance pToken position.
-        return _enterCurvance(pToken, swapData.outputToken, amount, recipient);
+        return _enterCurvance(
+            pToken,
+            swapData.outputToken,
+            amount,
+            collateralize,
+            recipient
+        );
     }
 
     /// @notice Swaps then repays eToken debt inside Curvance for `recipient`.

@@ -140,12 +140,15 @@ contract SimpleRewardZapper is ReentrancyGuard {
     /// @param marketManager The Curvance market manager address which has
     ///                      listed `pToken`.
     /// @param pToken The Curvance pToken address.
+    /// @param collateralize Whether the zapped deposit should be
+    ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount of pTokens received from Zapping.
     function claimSwapAndDeposit(
         SwapperLib.Swap memory swapData,
         address marketManager,
         address pToken,
+        bool collateralize,
         address recipient
     ) external nonReentrant returns (uint256) {
         // Normally in swappers we check whether the input is a network's gas
@@ -186,7 +189,13 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         // Enter Curvance pToken position.
-        return _enterCurvance(pToken, swapData.outputToken, amount, recipient);
+        return _enterCurvance(
+            pToken,
+            swapData.outputToken,
+            amount,
+            collateralize,
+            recipient
+        );
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays

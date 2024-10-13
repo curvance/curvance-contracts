@@ -305,6 +305,7 @@ contract ComplexZapper is ReentrancyGuard {
             pToken,
             zapData.outputToken,
             lpOutAmount,
+            collateralize,
             recipient
         );
     }
@@ -454,6 +455,7 @@ contract ComplexZapper is ReentrancyGuard {
             pToken,
             zapData.outputToken,
             outAmount,
+            collateralize,
             recipient
         );
     }
@@ -563,6 +565,7 @@ contract ComplexZapper is ReentrancyGuard {
             pToken,
             zapData.outputToken,
             outAmount,
+            collateralize,
             recipient
         );
     }

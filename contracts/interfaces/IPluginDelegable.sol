@@ -5,5 +5,5 @@ interface IPluginDelegable {
     function isDelegate(
         address user,
         address delegate
-    ) public view returns (bool);
+    ) external view returns (bool);
 }

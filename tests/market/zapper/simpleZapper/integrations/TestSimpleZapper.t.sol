@@ -205,6 +205,7 @@ contract TestSimpleZapper is TestBaseMarket {
         simpleZapper.swapAndDeposit{ value: ethAmount }(
             swapZap,
             address(cSTETH),
+            false,
             user1
         );
 

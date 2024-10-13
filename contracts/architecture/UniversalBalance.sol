@@ -196,7 +196,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address[] memory claimTokens = new address[](1);
         claimTokens[0] = address(linkedEToken);
 
-        gaugeManager.claim(claimTokens);
+        gaugeManager.claim(claimTokens, address(this));
         address daoAddress = centralRegistry.daoAddress();
 
         // If the contract received rewards in a reward token,
