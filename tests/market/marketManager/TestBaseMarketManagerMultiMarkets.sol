@@ -5,7 +5,7 @@ import "tests/market/TestBaseMarket.sol";
 import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";

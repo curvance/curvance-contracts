@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";

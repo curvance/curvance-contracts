@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import {ERC20} from "./ERC20.sol";
+import {FixedPointMathLib} from "../utils/FixedPointMathLib.sol";
+import {SafeTransferLib} from "../utils/SafeTransferLib.sol";
 
 /// @notice Simple ERC4626 tokenized Vault implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/tokens/ERC4626.sol)
@@ -172,7 +172,7 @@ abstract contract ERC4626 is ERC20 {
                 : FixedPointMathLib.fullMulDiv(assets, supply, totalAssets());
         }
         uint256 o = _decimalsOffset();
-        if (o == 0) {
+        if (o == uint256(0)) {
             return FixedPointMathLib.fullMulDiv(assets, totalSupply() + 1, _inc(totalAssets()));
         }
         return FixedPointMathLib.fullMulDiv(assets, totalSupply() + 10 ** o, _inc(totalAssets()));
@@ -192,12 +192,12 @@ abstract contract ERC4626 is ERC20 {
     function convertToAssets(uint256 shares) public view virtual returns (uint256 assets) {
         if (!_useVirtualShares()) {
             uint256 supply = totalSupply();
-            return supply == 0
+            return supply == uint256(0)
                 ? _initialConvertToAssets(shares)
                 : FixedPointMathLib.fullMulDiv(shares, totalAssets(), supply);
         }
         uint256 o = _decimalsOffset();
-        if (o == 0) {
+        if (o == uint256(0)) {
             return FixedPointMathLib.fullMulDiv(shares, totalAssets() + 1, _inc(totalSupply()));
         }
         return FixedPointMathLib.fullMulDiv(shares, totalAssets() + 1, totalSupply() + 10 ** o);
@@ -238,12 +238,12 @@ abstract contract ERC4626 is ERC20 {
     function previewMint(uint256 shares) public view virtual returns (uint256 assets) {
         if (!_useVirtualShares()) {
             uint256 supply = totalSupply();
-            return supply == 0
+            return supply == uint256(0)
                 ? _initialConvertToAssets(shares)
                 : FixedPointMathLib.fullMulDivUp(shares, totalAssets(), supply);
         }
         uint256 o = _decimalsOffset();
-        if (o == 0) {
+        if (o == uint256(0)) {
             return FixedPointMathLib.fullMulDivUp(shares, totalAssets() + 1, _inc(totalSupply()));
         }
         return FixedPointMathLib.fullMulDivUp(shares, totalAssets() + 1, totalSupply() + 10 ** o);
@@ -271,7 +271,7 @@ abstract contract ERC4626 is ERC20 {
                 : FixedPointMathLib.fullMulDivUp(assets, supply, totalAssets());
         }
         uint256 o = _decimalsOffset();
-        if (o == 0) {
+        if (o == uint256(0)) {
             return FixedPointMathLib.fullMulDivUp(assets, totalSupply() + 1, _inc(totalAssets()));
         }
         return FixedPointMathLib.fullMulDivUp(assets, totalSupply() + 10 ** o, _inc(totalAssets()));
@@ -304,7 +304,7 @@ abstract contract ERC4626 is ERC20 {
     }
 
     /// @dev Private helper to return `x + 1` without the overflow check.
-    /// Use to compute the denominator input to `FixedPointMathLib.fullMulDiv(a, b, x + 1)`.
+    /// Used for computing the denominator input to `FixedPointMathLib.fullMulDiv(a, b, x + 1)`.
     /// When `x == type(uint256).max`, we get `x + 1 == 0` (mod 2**256 - 1),
     /// and `FixedPointMathLib.fullMulDiv` will revert as the denominator is zero.
     function _inc(uint256 x) private pure returns (uint256) {
@@ -437,7 +437,7 @@ abstract contract ERC4626 is ERC20 {
     }
 
     /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
+    function _revert(uint256 s) private pure {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, s)

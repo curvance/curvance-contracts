@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestPTokenWithExitFeeReserves is TestBaseMarket {

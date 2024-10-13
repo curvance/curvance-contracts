@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { Delegable } from "contracts/libraries/Delegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ERC4626, SafeTransferLib } from "contracts/libraries/ERC4626.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ERC4626, SafeTransferLib } from "contracts/libraries/external/ERC4626.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
