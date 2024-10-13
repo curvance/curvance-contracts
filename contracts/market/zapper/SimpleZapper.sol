@@ -35,8 +35,8 @@ contract SimpleZapper is ReentrancyGuard {
     ICentralRegistry public immutable centralRegistry;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice The address of WETH on this chain.
-    address public immutable WETH;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
     /// ERRORS ///
 
@@ -54,7 +54,7 @@ contract SimpleZapper is ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
-        address WETH_
+        address wrappedNative_
     ) {
         if (
             !ERC165Checker.supportsInterface(
@@ -74,7 +74,7 @@ contract SimpleZapper is ReentrancyGuard {
         }
 
         marketManager = IMarketManager(marketManager_);
-        WETH = WETH_;
+        wrappedNative = wrappedNative_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -82,15 +82,20 @@ contract SimpleZapper is ReentrancyGuard {
     /// @notice Swaps then deposits `swapData.outputToken`, a pToken
     ///         underlying, and enters into Curvance position,
     ///         for `recipient`.
-    /// @param swapData Swap instruction data to execute the swap.
     /// @param pToken The Curvance pToken address.
+    /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
+    ///                               a chain's native token, dictates whether
+    ///                               native should be deposited as native or
+    ///                               wrapped native.
+    /// @param swapData Swap instruction data to execute the swap.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount received from Zapping.
     function swapAndDeposit(
-        SwapperLib.Swap memory swapData,
         address pToken,
+        bool depositAsWrappedNative,
+        SwapperLib.Swap memory swapData,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256) {
@@ -98,6 +103,10 @@ contract SimpleZapper is ReentrancyGuard {
             // Validate message has gas token attached.
             if (swapData.inputAmount != msg.value) {
                 revert SimpleZapper__ExecutionError();
+            }
+
+            if (depositAsWrappedNative) {
+                IWETH(wrappedNative).deposit{ value: swapData.inputAmount }();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
@@ -114,8 +123,23 @@ contract SimpleZapper is ReentrancyGuard {
             revert SimpleZapper__Unauthorized();
         }
 
-        // Execute Swap into pToken.underlying.
-        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        // If we are trying to deposit wrapped native, we may be able to skip
+        // a swapper call by changing the input token and checking versus
+        // output token.
+        if (
+            CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative
+        ) {
+            // Switch inputToken to wrapped native token address.
+            swapData.inputToken = address(wrappedNative);
+        }
+
+        uint256 amount;
+        if (swapData.inputToken == swapData.outputToken) {
+            amount = swapData.inputAmount;
+        } else {
+            // Execute swap into pToken underlying.
+            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
 
         // Enter Curvance pToken position.
         return _enterCurvance(
@@ -129,6 +153,10 @@ contract SimpleZapper is ReentrancyGuard {
 
     /// @notice Swaps then repays eToken debt inside Curvance for `recipient`.
     /// @dev Sends any excess eToken underlying to `recipient`.
+    /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
+    ///                               a chain's native token, dictates whether
+    ///                               native should be deposited as native or
+    ///                               wrapped native.
     /// @param swapData Swap instruction data to execute the repayment.
     /// @param eToken The Curvance eToken address.
     /// @param repayAmount The amount of eToken underlying to be repaid.
@@ -136,6 +164,7 @@ contract SimpleZapper is ReentrancyGuard {
     /// @return The excess amount of eToken underlying that was returned
     ///         to `recipient`.
     function swapAndRepay(
+        bool depositAsWrappedNative,
         SwapperLib.Swap memory swapData,
         address eToken,
         uint256 repayAmount,
@@ -145,6 +174,10 @@ contract SimpleZapper is ReentrancyGuard {
             // Validate message has gas token attached.
             if (swapData.inputAmount != msg.value) {
                 revert SimpleZapper__ExecutionError();
+            }
+
+            if (depositAsWrappedNative) {
+                IWETH(wrappedNative).deposit{ value: swapData.inputAmount }();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
@@ -161,10 +194,25 @@ contract SimpleZapper is ReentrancyGuard {
             revert SimpleZapper__Unauthorized();
         }
 
-        // Execute swap into eToken underlying.
-        SwapperLib.swapUnsafe(centralRegistry, swapData);
+        // If we are trying to repay wrapped native, we may be able to skip
+        // a swapper call by changing the input token and checking versus
+        // output token.
+        if (
+            CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative
+        ) {
+            // Switch inputToken to wrapped native token address.
+            swapData.inputToken = address(wrappedNative);
+        }
 
-        return _repayDebt(eToken, repayAmount, recipient);
+        uint256 amount;
+        if (swapData.inputToken == swapData.outputToken) {
+            amount = swapData.inputAmount;
+        } else {
+            // Execute swap into eToken underlying.
+            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
+
+        return _repayDebt(eToken, outputAmount, repayAmount, recipient);
     }
 
     /// @notice Withdraws a Curvance position, and swaps it into
@@ -313,23 +361,22 @@ contract SimpleZapper is ReentrancyGuard {
     /// @notice Repays Curvance lenders eToken underlying owed on behalf
     ///         of `recipient`.
     /// @param eToken The Curvance eToken address.
+    /// @param outputAmount The amount of eToken underlying received from
+    ///                     prior swap.
     /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have outstanding debt repaid.
     /// @return outAmount The excess amount of eToken underlying that was
     ///                   returned to `recipient`.
     function _repayDebt(
         address eToken,
+        uint256 outputAmount,
         uint256 repayAmount,
         address recipient
     ) internal returns (uint256 outAmount) {
         address eTokenUnderlying = EToken(eToken).underlying();
-        // We never need to worry about this capturing other peoples balances
-        // since the Zapper should never be holding any eToken underlying
-        // itself.
-        outAmount = IERC20(eTokenUnderlying).balanceOf(address(this));
 
         // Revert if the swap experienced too much slippage.
-        if (outAmount < repayAmount) {
+        if (outputAmount < repayAmount) {
             revert SimpleZapper__InsufficientToRepay();
         }
 

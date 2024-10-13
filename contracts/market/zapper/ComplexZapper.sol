@@ -28,14 +28,16 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param outputToken Address of token Zapped into.
     /// @param minimumOut The minimum amount of `outputToken` acceptable
     ///                   from the Zap.
-    /// @param depositInputAsWETH Used only if `inputToken` is ETH, indicates
-    ///                           whether ETH should be input at ETH or WETH.
+    /// @param depositAsWrappedNative Used only if `inputToken` is a chain's
+    ///                               native token, dictates whether native
+    ///                               should be deposited as native or wrapped
+    ///                               native.
     struct ZapperData {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
         uint256 minimumOut;
-        bool depositInputAsWETH;
+        bool depositAsWrappedNative;
     }
 
     /// @param pToken The address of the pToken corresponding to Curve lp
@@ -51,18 +53,11 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @param balancerVault The Balancer vault address.
     /// @param balancerPoolId The BPT pool ID.
-    /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
-    ///                            token or not.
-    ///                            false = all tokens.
-    ///                            true = single token.
-    /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
-    ///                         indicates the coin index inside the Balancer
-    ///                         BPT to withdraw as.
-    struct BPTRedemption {
+    /// @param underlyingTokens The underlying token addresses of the BPT.
+    struct BalancerData {
         address balancerVault;
         bytes32 balancerPoolId;
-        bool singleAssetWithdraw;
-        uint256 singleAssetIndex;
+        address[] underlyingTokens;
     }
 
     /// CONSTANTS ///
@@ -71,8 +66,8 @@ contract ComplexZapper is ReentrancyGuard {
     ICentralRegistry public immutable centralRegistry;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice The address of WETH on this chain.
-    address public immutable WETH;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
     /// ERRORS ///
 
@@ -90,7 +85,7 @@ contract ComplexZapper is ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
-        address WETH_
+        address wrappedNative_
     ) {
         if (
             !ERC165Checker.supportsInterface(
@@ -110,7 +105,7 @@ contract ComplexZapper is ReentrancyGuard {
         }
 
         marketManager = IMarketManager(marketManager_);
-        WETH = WETH_;
+        wrappedNative = wrappedNative_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -140,7 +135,7 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount,
             swapData,
-            zapData.depositInputAsWETH
+            zapData.depositAsWrappedNative
         );
 
         // Enter Curve lp position.
@@ -264,22 +259,22 @@ contract ComplexZapper is ReentrancyGuard {
     /// @notice Swaps then deposits `zapData.inputToken` into a BPT, and
     ///         enters into Curvance position.
     /// @param pToken The Curvance pToken address.
+    /// @param balancerData Struct containing information on BPT redemption
+    ///                       to execute. Containing values:
+    ///                       1. The Balancer vault address.
+    ///                       2. The BPT pool ID.
+    ///                       3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
-    /// @param balancerVault The Balancer vault address.
-    /// @param balancerPoolId The BPT pool ID.
-    /// @param tokens The underlying tokens of the BPT.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return outAmount The output amount received from Zapping.
     function enterBalancer(
         address pToken,
+        BalancerData calldata balancerData,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
-        address balancerVault,
-        bytes32 balancerPoolId,
-        address[] calldata tokens,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -288,15 +283,15 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount,
             swapData,
-            zapData.depositInputAsWETH
+            zapData.depositAsWrappedNative
         );
 
         // Enter BPT position.
         uint256 lpOutAmount = BalancerLib.enterBalancer(
-            balancerVault,
-            balancerPoolId,
+            balancerData.balancerVault,
+            balancerData.balancerPoolId,
             zapData.outputToken,
-            tokens,
+            balancerData.underlyingTokens,
             zapData.minimumOut
         );
 
@@ -316,22 +311,23 @@ contract ComplexZapper is ReentrancyGuard {
     ///                       to execute. Containing values:
     ///                       1. The Balancer vault address.
     ///                       2. The BPT pool ID.
-    ///                       3. Whether BPT should be unwrapped to a single
-    ///                          token or not.
-    ///                          false = all tokens.
-    ///                          true = single token.
-    ///                       4. Used if `singleAssetWithdraw` = true,
-    ///                          indicates the coin index inside the Balancer
-    ///                          BPT to withdraw as.
+    ///                       3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokens The underlying token addresses of the BPT.
+    /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
+    ///                            token or not.
+    ///                            false = all tokens.
+    ///                            true = single token.
+    /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
+    ///                         indicates the coin index inside the Balancer
+    ///                         BPT to withdraw as.
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function exitBalancer(
-        BPTRedemption calldata balancerData,
+        BalancerData calldata balancerData,
         ZapperData calldata zapData,
-        address[] calldata tokens,
+        bool singleAssetWithdraw,
+        uint256 singleAssetIndex,
         SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
@@ -347,10 +343,10 @@ contract ComplexZapper is ReentrancyGuard {
         outAmount = _exitBalancer(
             balancerData.balancerVault,
             balancerData.balancerPoolId,
-            balancerData.singleAssetWithdraw,
-            balancerData.singleAssetIndex,
+            singleAssetWithdraw,
+            singleAssetIndex,
             zapData,
-            tokens,
+            balancerData.underlyingTokens,
             swapData,
             recipient
         );
@@ -369,23 +365,24 @@ contract ComplexZapper is ReentrancyGuard {
     ///                       to execute. Containing values:
     ///                       1. The Balancer vault address.
     ///                       2. The BPT pool ID.
-    ///                       3. Whether BPT should be unwrapped to a single
-    ///                          token or not.
-    ///                          false = all tokens.
-    ///                          true = single token.
-    ///                       4. Used if `singleAssetWithdraw` = true,
-    ///                          indicates the coin index inside the Balancer
-    ///                          BPT to withdraw as.
+    ///                       3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
-    /// @param tokens The underlying token addresses of the BPT.
+    /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
+    ///                            token or not.
+    ///                            false = all tokens.
+    ///                            true = single token.
+    /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
+    ///                         indicates the coin index inside the Balancer
+    ///                         BPT to withdraw as.
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param recipient Address that should receive Zapped withdrawal.
     /// @return outAmount The output amount received from Zapping.
     function redeemAndExitBalancer(
         RedemptionData calldata redemptionData,
-        BPTRedemption calldata balancerData,
+        BalancerData calldata balancerData,
         ZapperData calldata zapData,
-        address[] calldata tokens,
+        bool singleAssetWithdraw,
+        uint256 singleAssetIndex,
         SwapperLib.Swap[] calldata swapData,
         address recipient
     ) external nonReentrant returns (uint256 outAmount) {
@@ -403,10 +400,10 @@ contract ComplexZapper is ReentrancyGuard {
         outAmount = _exitBalancer(
             balancerData.balancerVault,
             balancerData.balancerPoolId,
-            balancerData.singleAssetWithdraw,
-            balancerData.singleAssetIndex,
+            singleAssetWithdraw,
+            singleAssetIndex,
             zapData,
-            tokens,
+            balancerData.underlyingTokens,
             swapData,
             recipient
         );
@@ -437,7 +434,7 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount,
             swapData,
-            zapData.depositInputAsWETH
+            zapData.depositAsWrappedNative
         );
 
         // Enter Velodrome sAMM/vAMM position.
@@ -548,7 +545,7 @@ contract ComplexZapper is ReentrancyGuard {
             zapData.inputToken,
             zapData.inputAmount,
             swapData,
-            zapData.depositInputAsWETH
+            zapData.depositAsWrappedNative
         );
 
         // Enter Pendle position.
@@ -971,14 +968,14 @@ contract ComplexZapper is ReentrancyGuard {
     /// @param inputAmount The amount of `inputToken` to swap for underlying
     ///                    tokens.
     /// @param swapData Array of swap instruction data
-    /// @param depositInputAsWETH Used when `inputToken` is chain gas token,
+    /// @param depositAsWrappedNative Used when `inputToken` is chain gas token,
     ///                           indicates depositing gas token into wrapper
     ///                           contract.
     function _swapForUnderlyings(
         address inputToken,
         uint256 inputAmount,
         SwapperLib.Swap[] memory swapData,
-        bool depositInputAsWETH
+        bool depositAsWrappedNative
     ) internal {
         // If the input token is chain gas token, check if it should be
         // wrapped.
@@ -988,8 +985,8 @@ contract ComplexZapper is ReentrancyGuard {
                 revert ComplexZapper__ExecutionError();
             }
 
-            if (depositInputAsWETH) {
-                IWETH(WETH).deposit{ value: inputAmount }();
+            if (depositAsWrappedNative) {
+                IWETH(wrappedNative).deposit{ value: inputAmount }();
             }
         } else {
             SafeTransferLib.safeTransferFrom(
@@ -1004,10 +1001,10 @@ contract ComplexZapper is ReentrancyGuard {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(swapData[i].inputToken) && depositInputAsWETH
+                CommonLib.isETH(swapData[i].inputToken) && depositAsWrappedNative
             ) {
-                // change input token to WETH
-                swapData[i].inputToken = address(WETH);
+                // Switch inputToken to wrapped native token address.
+                swapData[i].inputToken = address(wrappedNative);
             }
 
             // Execute swap into underlying(s).

@@ -176,16 +176,16 @@ contract TestSimpleZapper is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        SwapperLib.Swap memory swapZap;
-        swapZap.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        swapZap.inputAmount = ethAmount;
-        swapZap.target = address(complexZapper);
-        swapZap.outputToken = _CURVE_STETH_LP;
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapData.inputAmount = ethAmount;
+        swapData.target = address(complexZapper);
+        swapData.outputToken = _CURVE_STETH_LP;
 
         address[] memory tokens = new address[](2);
         tokens[0] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         tokens[1] = _STETH_ADDRESS;
-        swapZap.call = abi.encodeWithSelector(
+        swapData.call = abi.encodeWithSelector(
             ComplexZapper.enterCurve.selector,
             address(0),
             ComplexZapper.ZapperData(
@@ -203,8 +203,9 @@ contract TestSimpleZapper is TestBaseMarket {
 
         vm.prank(user1);
         simpleZapper.swapAndDeposit{ value: ethAmount }(
-            swapZap,
             address(cSTETH),
+            false,
+            swapData,
             false,
             user1
         );
@@ -255,7 +256,7 @@ contract TestSimpleZapper is TestBaseMarket {
         deal(_USDC_ADDRESS, user1, 500e6);
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
-        simpleZapper.swapAndRepay(swapData, address(eDAI), 450e18, user1);
+        simpleZapper.swapAndRepay(false, swapData, address(eDAI), 450e18, user1);
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
