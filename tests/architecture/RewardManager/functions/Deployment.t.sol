@@ -10,7 +10,7 @@ contract RewardManagerDeploymentTest is TestBaseRewardManager {
     function test_RewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new RewardManager(ICentralRegistry(address(0)), _USDC_ADDRESS);
     }
 

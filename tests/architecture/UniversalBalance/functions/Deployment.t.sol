@@ -10,7 +10,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
     function test_universalBalanceDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new UniversalBalance(
             ICentralRegistry(address(1)),
             address(dWETH),

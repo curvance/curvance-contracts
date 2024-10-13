@@ -17,7 +17,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
     function test_CompoundingPTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new AuraPToken(
             ICentralRegistry(address(0)),
             balRETH,

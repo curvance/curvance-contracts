@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { DENOMINATOR, RAY } from "contracts/libraries/Constants.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -87,6 +88,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
+
+    /// @dev `bytes4(keccak256(bytes("GaugeManager__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x38b10c24;
 
     /// STORAGE ///
 
@@ -220,7 +224,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             msg.sender != centralRegistry.messagingHub() &&
             msg.sender != centralRegistry.votingHub()
         ) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // Validate that Gauge system is fully active and only the current
@@ -320,7 +324,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
         // Cannot remove CVE as a reward token.
         if (newReward == cve) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         approvedRewardTokens[newReward] = false;
@@ -361,7 +365,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         // CVE rewards are only updated through the gauge system by
         // the messaging hub in setEmissionRates().
         if (rewardToken == cve) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (approvedRewardTokens[rewardToken] == false) {
@@ -674,9 +678,21 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
-    function claim(address[] calldata tokens) external nonReentrant {
+    /// @param user The user address that gauge rewards should be claimed for,
+    ///             is the user is not the caller, delegation will be checked
+    ///             instead.
+    function claim(
+        address[] calldata tokens,
+        address user
+    ) external nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeManager__NotStarted();
+        }
+
+        if (user != msg.sender) {
+            if (!_checkIsDelegate(user, msg.sender)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
         }
 
         uint256 cveRewards;
@@ -940,7 +956,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
@@ -987,6 +1003,15 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 (balanceOf[token][user] *
                     poolAccRewardPerShare[token][index]) /
                 RAY;
+        }
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
         }
     }
 }

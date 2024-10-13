@@ -20,7 +20,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
     function test_CompoundingWithExitFeePTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(0)),
             balRETH,

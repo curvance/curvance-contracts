@@ -16,7 +16,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
     );
 
     function test_eTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
-        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new EToken(
             ICentralRegistry(address(0)),
             _USDC_ADDRESS,
