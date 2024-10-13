@@ -259,11 +259,17 @@ contract SimpleRewardZapper is ReentrancyGuard {
             }
 
             // Swap from reward token into `eTokenUnderlying`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData);
+            swapData.inputAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
         // Repay Curvance eToken debt.
-        return _repayDebt(eToken, eTokenUnderlying, repayAmount, recipient);
+        return _repayDebt(
+            eToken,
+            eTokenUnderlying,
+            swapData.inputAmount,
+            repayAmount,
+            recipient
+        );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -403,25 +409,20 @@ contract SimpleRewardZapper is ReentrancyGuard {
     ///         of `recipient`.
     /// @param eToken The Curvance eToken address.
     /// @param eTokenUnderlying The underlying token for `eToken`.
+    /// @param amount The amount of eToken underlying on hand.
     /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have outstanding debt repaid.
-    /// @return outAmount The excess amount of eToken underlying that was
-    ///                   returned to `recipient`.
+    /// @return The excess amount of eToken underlying that was
+    ///         returned to `recipient`.
     function _repayDebt(
         address eToken,
         address eTokenUnderlying,
+        uint256 amount,
         uint256 repayAmount,
         address recipient
-    ) internal returns (uint256 outAmount) {
-        // Manually query balance here since its possible we did not swap if
-        // rewardToken == outputToken.
-        // We also never need to worry about this capturing other peoples
-        // balances since the Zapper should never be holding any reward token,
-        // or eToken underlying itself.
-        outAmount = IERC20(eTokenUnderlying).balanceOf(address(this));
-
+    ) internal returns (uint256) {
         // Revert if the swap experienced too much slippage.
-        if (outAmount < repayAmount) {
+        if (amount < repayAmount) {
             revert SimpleRewardZapper__InsufficientToRepay();
         }
 
@@ -438,12 +439,14 @@ contract SimpleRewardZapper is ReentrancyGuard {
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);
 
-        outAmount -= repayAmount;
+        amount -= repayAmount;
 
         // Transfer any remaining `eTokenUnderlying` to `recipient`.
-        if (outAmount > 0) {
-            _transferToRecipient(eTokenUnderlying, recipient, outAmount);
+        if (amount > 0) {
+            _transferToRecipient(eTokenUnderlying, recipient, amount);
         }
+
+        return amount;
     }
 
     /// @notice Checks whether `user` has rewards, if they do, claim them

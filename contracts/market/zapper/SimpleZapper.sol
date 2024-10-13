@@ -83,6 +83,7 @@ contract SimpleZapper is ReentrancyGuard {
     /// @notice Swaps then deposits `swapData.outputToken`, a pToken
     ///         underlying, and enters into Curvance position,
     ///         for `recipient`.
+    /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
     /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
     ///                               a chain's native token, dictates whether
@@ -218,6 +219,7 @@ contract SimpleZapper is ReentrancyGuard {
 
     /// @notice Withdraws a Curvance position, and swaps it into
     ///         desired token (swapData.outputToken).
+    /// @dev Requires plugin approval for redemption.
     /// @param redemptionData Struct containing information on redemption action
     ///                       to execute. Containing values:
     ///                       1. The address of the mToken corresponding to
@@ -234,6 +236,12 @@ contract SimpleZapper is ReentrancyGuard {
         SwapperLib.Swap memory swapData,
         address recipient
     ) external nonReentrant returns (uint256) {
+        // Validate that `pToken` is listed inside the associated
+        // Market Manager.
+        if (!marketManager.isListed(redemptionData.pToken)) {
+            revert SimpleZapper__Unauthorized();
+        }
+
         // Exit Curvance position.
         _exitCurvance(
             SimplePToken(redemptionData.pToken),
@@ -334,6 +342,7 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 assets;
 
         // Transfer underlying tokens to the Zapper.
+        // Requires plugin approval to redeem on users behalf.
         if (forceRedeemCollateral && mToken.isPToken()) {
             assets = mToken.redeemCollateralFor(
                 shares,
@@ -362,22 +371,21 @@ contract SimpleZapper is ReentrancyGuard {
     /// @notice Repays Curvance lenders eToken underlying owed on behalf
     ///         of `recipient`.
     /// @param eToken The Curvance eToken address.
-    /// @param outputAmount The amount of eToken underlying received from
-    ///                     prior swap.
+    /// @param amount The amount of eToken underlying on hand.
     /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have outstanding debt repaid.
-    /// @return outAmount The excess amount of eToken underlying that was
-    ///                   returned to `recipient`.
+    /// @return The excess amount of eToken underlying that was
+    ///         returned to `recipient`.
     function _repayDebt(
         address eToken,
-        uint256 outputAmount,
+        uint256 amount,
         uint256 repayAmount,
         address recipient
-    ) internal returns (uint256 outAmount) {
+    ) internal returns (uint256) {
         address eTokenUnderlying = EToken(eToken).underlying();
 
         // Revert if the swap experienced too much slippage.
-        if (outputAmount < repayAmount) {
+        if (amount < repayAmount) {
             revert SimpleZapper__InsufficientToRepay();
         }
 
@@ -394,12 +402,14 @@ contract SimpleZapper is ReentrancyGuard {
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);
 
-        outAmount -= repayAmount;
+        amount -= repayAmount;
 
         // Transfer any remaining `eTokenUnderlying` to `recipient`.
-        if (outAmount > 0) {
-            _transferToRecipient(eTokenUnderlying, recipient, outAmount);
+        if (amount > 0) {
+            _transferToRecipient(eTokenUnderlying, recipient, amount);
         }
+
+        return amount;
     }
 
     /// @notice Helper function for efficiently transferring tokens

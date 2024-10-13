@@ -112,6 +112,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Curve lp token,
     ///         and enters into Curvance position.
+    /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
@@ -258,6 +259,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into a BPT, and
     ///         enters into Curvance position.
+    /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
     /// @param balancerData Struct containing information on BPT redemption
     ///                       to execute. Containing values:
@@ -411,6 +413,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Velodrome
     ///         sAMM/vAMM, and enters into Curvance position.
+    /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
@@ -519,6 +522,7 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Swaps then deposits `zapData.inputToken` into Pendle
     ///         market, and enters into Curvance position.
+    /// @dev Requires plugin approval for collateralization.
     /// @param pToken The Curvance pToken address.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
