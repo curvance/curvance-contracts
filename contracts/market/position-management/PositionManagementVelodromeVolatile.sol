@@ -37,7 +37,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         LeverageStruct memory leverageData
     ) internal virtual override {
         // Cache asset to minimize storage reads.
-        address pool = leverageData.collateralToken.underlying();
+        address pool = leverageData.positionToken.underlying();
         address _asset = pool;
         address token0 = IVeloPool(_asset).token0();
         address token1 = IVeloPool(_asset).token1();
@@ -121,7 +121,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
     function _swapCollateralToBorrowUnderyling(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address pool = deleverageData.collateralToken.underlying();
+        address pool = deleverageData.positionToken.underlying();
 
         VelodromeLib.exitVelodrome(
             router,
