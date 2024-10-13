@@ -53,9 +53,12 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 contract CentralRegistry is ERC165 {
     /// CONSTANTS ///
 
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public constant EPOCH_DURATION = 2 weeks;
+
     /// @notice Genesis Epoch timestamp.
     uint256 public immutable genesisEpoch;
-    /// @notice Sequencer Uptime feed address for L2.
+    /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
     /// @notice Address of fee token.
     address public immutable feeToken;
@@ -71,9 +74,9 @@ contract CentralRegistry is ERC165 {
 
     /// @notice DAO multisig.
     address public daoAddress;
-    /// @notice DAO multisig, with time delay.
+    /// @notice DAO multisig, with an execution time delay.
     address public timelock;
-    /// @notice Multi-protocol multisig, for emergencies.
+    /// @notice Multi-protocol multisig, only for emergencies.
     address public emergencyCouncil;
 
     // CURVANCE TOKEN CONTRACTS
