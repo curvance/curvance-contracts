@@ -42,7 +42,7 @@ library SwapperLib {
         ICentralRegistry centralRegistry,
         Swap memory swapData
     ) internal returns (uint256) {
-        address callDataChecker = centralRegistry.externalCallDataChecker(
+        address callDataChecker = centralRegistry.externalCalldataChecker(
             swapData.target
         );
 
@@ -93,7 +93,7 @@ library SwapperLib {
         Swap memory swapData
     ) internal returns (uint256 outAmount) {
         {
-            address callDataChecker = centralRegistry.externalCallDataChecker(
+            address callDataChecker = centralRegistry.externalCalldataChecker(
                 swapData.target
             );
 
@@ -179,7 +179,7 @@ library SwapperLib {
 
             // Check if swap received positive slippage.
             if (outputValue > inputValue) {
-                return;
+                return outAmount;
             }
 
             // Calculate % slippage from executed swap.

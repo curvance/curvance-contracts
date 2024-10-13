@@ -26,7 +26,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );

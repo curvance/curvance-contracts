@@ -88,7 +88,7 @@ contract TestStakedGMXPToken is TestBaseMarket {
     }
 
     function testGmxStakedGMX() public {
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V3_ROUTER))
         );

@@ -25,10 +25,9 @@ contract VelodromeVolatilePToken is CompoundingPToken {
 
     /// CONSTANTS ///
 
-    /// @notice VELO contract address
-    IERC20 public constant rewardToken =
-        IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
-    /// @notice Whether VELO is an underlying token of the pair
+    /// @notice Reward token contract address, should be VELO or AERO.
+    address public immutable rewardToken;
+    /// @notice Whether `rewardToken` is an underlying token of the pair
     bool public immutable rewardTokenIsUnderlying;
 
     /// STORAGE ///
@@ -45,13 +44,8 @@ contract VelodromeVolatilePToken is CompoundingPToken {
 
     /// ERRORS ///
 
-    error VelodromeVolatilePToken__ChainIsNotSupported();
-    error VelodromeVolatilePToken__StakingTokenIsNotAsset(
-        address stakingToken
-    );
-    error VelodromeVolatilePToken__AssetIsNotStable();
+    error VelodromeVolatilePToken__InvalidAssetType();
     error VelodromeVolatilePToken__SlippageError();
-    error VelodromeVolatilePToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -63,8 +57,20 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         IVeloPairFactory pairFactory,
         IVeloRouter router
     ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
-        if (block.chainid != 10) {
-            revert VelodromeVolatilePToken__ChainIsNotSupported();
+        _validateChainDeployment();
+
+        address chainRewardToken;
+
+        if (block.chainid == 10) {
+            chainRewardToken = 0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db;
+        } else if (block.chainid == 8453) {
+            chainRewardToken = 0x940181a94A35A4569E4529A3CDfB74e38FD98631;
+        }
+
+        rewardToken = chainRewardToken;
+
+        if (rewardToken == address(0)) {
+            revert BasePToken__UnsupportedChain();
         }
 
         // Cache assigned asset address.
@@ -72,14 +78,12 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         // Validate that we have the proper gauge linked with the proper LP
         // and pair factory.
         if (gauge.stakingToken() != _asset) {
-            revert VelodromeVolatilePToken__StakingTokenIsNotAsset(
-                gauge.stakingToken()
-            );
+            revert VelodromeVolatilePToken__InvalidAssetType();
         }
 
         // Validate the desired underlying lp token is a vAMM.
         if (IVeloPool(_asset).stable()) {
-            revert VelodromeVolatilePToken__AssetIsNotStable();
+            revert VelodromeVolatilePToken__InvalidAssetType();
         }
 
         // Query underlying token data from the pool.
@@ -87,9 +91,9 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         strategyData.token1 = IVeloPool(_asset).token1();
         // Make sure token0 is VELO if one of underlying tokens is VELO,
         // so that it can be used properly in harvest function.
-        if (strategyData.token1 == address(rewardToken)) {
+        if (strategyData.token1 == rewardToken) {
             strategyData.token1 = strategyData.token0;
-            strategyData.token0 = address(rewardToken);
+            strategyData.token0 = rewardToken;
         }
         strategyData.gauge = gauge;
         strategyData.router = router;
@@ -98,12 +102,11 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         isUnderlyingToken[strategyData.token0] = true;
         isUnderlyingToken[strategyData.token1] = true;
 
-        rewardTokenIsUnderlying = (address(rewardToken) ==
-            strategyData.token0 ||
-            address(rewardToken) == strategyData.token1);
+        rewardTokenIsUnderlying = (rewardToken ==
+            strategyData.token0 || rewardToken == strategyData.token1);
 
-        if (address(rewardToken) != asset()) {
-            isApprovedAsset[address(rewardToken)] = true;
+        if (rewardToken != asset()) {
+            isApprovedAsset[rewardToken] = true;
         }
     }
 
@@ -141,7 +144,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
             sd.gauge.getReward(address(this));
 
             {
-                uint256 rewardAmount = rewardToken.balanceOf(address(this));
+                uint256 rewardAmount = IERC20(rewardToken).balanceOf(address(this));
                 // If there are no pending rewards, skip swapping logic.
                 if (rewardAmount > 0) {
                     // Take protocol fee for veCVE lockers and auto
@@ -153,7 +156,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                     );
                     rewardAmount -= protocolFee;
                     SafeTransferLib.safeTransfer(
-                        address(rewardToken),
+                        rewardToken,
                         centralRegistry.feeManager(),
                         protocolFee
                     );
@@ -167,7 +170,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
 
                         if (!isApprovedAsset[swapData.inputToken]) {
                             // this will be the same check: `swapData.inputToken != rewardToken`
-                            revert VelodromeVolatilePToken__InvalidSwapData();
+                            revert CompoundingPToken__UnapprovedAssetSwap();
                         }
 
                         SwapperLib.swapSafe(centralRegistry, swapData);
@@ -253,5 +256,15 @@ contract VelodromeVolatilePToken is CompoundingPToken {
     /// @param assets The amount of assets to withdraw.
     function _beforeWithdraw(uint256 assets, uint256) internal override {
         strategyData.gauge.withdraw(assets);
+    }
+
+    /// @notice Validates whether a contract can be deployed based on
+    ///         the current chainid.
+    /// @dev This check is so incompatible deployments never occur, such as
+    ///      assuming the wrong token address on a deployment.
+    function _validateChainDeployment() internal virtual {
+        if (block.chainid != 10) {
+            revert BasePToken__UnsupportedChain();
+        }
     }
 }

@@ -47,9 +47,6 @@ contract PendleLPPToken is CompoundingPToken {
 
     event Harvest(uint256 yield);
 
-    /// ERRORS ///
-    error PendleLPPToken__InvalidSwapData();
-
     /// CONSTRUCTOR ///
 
     receive() external payable {}
@@ -198,7 +195,7 @@ contract PendleLPPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (!isApprovedAsset[swapDataArray[i].inputToken]) {
-                        revert PendleLPPToken__InvalidSwapData();
+                        revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
                     SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);

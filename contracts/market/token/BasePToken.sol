@@ -101,6 +101,7 @@ abstract contract BasePToken is
 
     error BasePToken__Unauthorized();
     error BasePToken__InvalidMarketManager();
+    error BasePToken__UnsupportedChain();
     error BasePToken__UnderlyingAssetTotalSupplyExceedsMaximum();
 
     /// CONSTRUCTOR ///

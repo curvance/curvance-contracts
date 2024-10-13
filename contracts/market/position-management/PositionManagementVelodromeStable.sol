@@ -47,7 +47,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
 
         if (borrowUnderlying != token0 && borrowUnderlying != token1) {
             if (swapData.call.length == 0) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             if (
@@ -56,7 +56,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
                 swapData.outputToken != token0 ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert PositionManagementBase__InvalidSwapperParam();
+                revert BasePositionManagement__InvalidSwapperParam();
             }
 
             // Swap borrow underlying to collateral underlying

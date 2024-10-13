@@ -83,7 +83,7 @@ abstract contract CompoundingPToken is BasePToken {
     error CompoundingPToken__WithdrawMoreThanMax();
     error CompoundingPToken__ZeroShares();
     error CompoundingPToken__ZeroAssets();
-    error CompoundingPToken__InvalidApprovedAsset();
+    error CompoundingPToken__UnapprovedAssetSwap();
 
     /// CONSTRUCTOR ///
 

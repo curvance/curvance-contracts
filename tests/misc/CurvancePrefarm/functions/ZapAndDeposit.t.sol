@@ -33,7 +33,7 @@ contract ZapAndDepositTest is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );

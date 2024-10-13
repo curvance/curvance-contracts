@@ -26,5 +26,5 @@
   "centralRegistry": "0x6598e7b4b4756bfb4a89bbf5cbc97e5b73cd5155",
   "oracleManager": "0x1dadbc2339bbe16625dd2c5e7ea3c78e6bb726d1",
   "redstoneAdaptor": "0x2eb39501e319270df5bcd05452644e239f0adf28",
-  "multicallDataChecker": "0x475175ece88b3dddf826be1e31afc6c2f1cef502"
+  "multicallChecker": "0x475175ece88b3dddf826be1e31afc6c2f1cef502"
 }

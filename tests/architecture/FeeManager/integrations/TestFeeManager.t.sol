@@ -37,7 +37,7 @@ contract TestFeeManager is TestBaseFeeManager {
         _deployBaseContracts();
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
@@ -101,7 +101,7 @@ contract TestFeeManager is TestBaseFeeManager {
     function testMultiSwap() public {
         // add harvester
         centralRegistry.addHarvester(address(this));
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );

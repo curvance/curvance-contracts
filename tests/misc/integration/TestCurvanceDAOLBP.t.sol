@@ -23,7 +23,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
 
         cve.transfer(address(lbp), cve.balanceOf(address(this)));
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );

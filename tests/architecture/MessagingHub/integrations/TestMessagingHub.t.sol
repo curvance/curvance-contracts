@@ -41,7 +41,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
@@ -67,7 +67,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         deal(address(messagingHub), _ONE);
         deal(address(cve), address(this), 100e18);
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );

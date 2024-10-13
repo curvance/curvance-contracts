@@ -58,7 +58,6 @@ contract AuraPToken is CompoundingPToken {
 
     error AuraPToken__UnsafePool();
     error AuraPToken__InvalidVaultConfig();
-    error AuraPToken__InvalidSwapData();
     error AuraPToken__NoYield();
 
     /// CONSTRUCTOR ///
@@ -219,7 +218,7 @@ contract AuraPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (!isApprovedAsset[swapDataArray[i].inputToken]) {
-                        revert AuraPToken__InvalidSwapData();
+                        revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
                     SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);

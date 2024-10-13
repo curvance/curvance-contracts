@@ -182,12 +182,12 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         _provideEnoughLiquidityForLeverage();
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(aeroRouter),
             address(new MockCalldataChecker(address(aeroRouter)))
         );

@@ -30,7 +30,6 @@ contract StakedGMXPToken is CompoundingPToken {
     error StakedGMXPToken__InvalidRewardRouter();
     error StakedGMXPToken__InvalidWETH();
     error StakedGMXPToken__ChainIsNotSupported();
-    error StakedGMXPToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -114,7 +113,7 @@ contract StakedGMXPToken is CompoundingPToken {
 
                 if (!isApprovedAsset[swapData.inputToken]) {
                     // this will be the same check: `swapData.inputToken != address(WETH)`
-                    revert StakedGMXPToken__InvalidSwapData();
+                    revert CompoundingPToken__UnapprovedAssetSwap();
                 }
 
                 yield = SwapperLib.swapSafe(centralRegistry, swapData);

@@ -64,7 +64,7 @@ contract TestPendleLPPToken is TestBaseMarket {
             _ROUTER
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );

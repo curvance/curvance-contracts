@@ -46,7 +46,7 @@ contract TestVelodromeStablePToken is TestBaseMarket {
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeManager(address(this));
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(veloRouter),
             address(new MockCalldataChecker(address(veloRouter)))
         );

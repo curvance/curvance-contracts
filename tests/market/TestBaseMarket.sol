@@ -470,7 +470,7 @@ contract TestBaseMarket is TestBase {
             address(marketManager),
             _WETH_ADDRESS
         );
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(complexZapper),
             address(
                 new ComplexZapperCalldataChecker(address(complexZapper))

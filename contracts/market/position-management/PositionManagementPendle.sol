@@ -58,7 +58,7 @@ contract PositionManagementPendle is PositionManagementBase {
         address collateralUnderlying = leverageData.positionToken.underlying();
 
         if (swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -68,7 +68,7 @@ contract PositionManagementPendle is PositionManagementBase {
             isUnderlyingToken[swapData.outputToken] == false ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap borrow underlying to collateral underlying

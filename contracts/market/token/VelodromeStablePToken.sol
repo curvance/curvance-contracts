@@ -34,10 +34,9 @@ contract VelodromeStablePToken is CompoundingPToken {
 
     /// CONSTANTS ///
 
-    /// @notice VELO contract address, only available on Optimism network.
-    IERC20 public constant rewardToken =
-        IERC20(0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db);
-    /// @notice Whether VELO is an underlying token of the pair,
+    /// @notice Reward token contract address, should be VELO or AERO.
+    address public immutable rewardToken;
+    /// @notice Whether `rewardToken` is an underlying token of the pair,
     ///         e.g. VELO/Liquid wrapped VELO LP token.
     bool public immutable rewardTokenIsUnderlying;
 
@@ -57,11 +56,8 @@ contract VelodromeStablePToken is CompoundingPToken {
 
     /// ERRORS ///
 
-    error VelodromeStablePToken__ChainIsNotSupported();
-    error VelodromeStablePToken__StakingTokenIsNotAsset(address stakingToken);
-    error VelodromeStablePToken__AssetIsNotStable();
+    error VelodromeStablePToken__InvalidAssetType();
     error VelodromeStablePToken__SlippageError();
-    error VelodromeStablePToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -73,8 +69,20 @@ contract VelodromeStablePToken is CompoundingPToken {
         IVeloPairFactory pairFactory,
         IVeloRouter router
     ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
-        if (block.chainid != 10) {
-            revert VelodromeStablePToken__ChainIsNotSupported();
+        _validateChainDeployment();
+
+        address chainRewardToken;
+
+        if (block.chainid == 10) {
+            chainRewardToken = 0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db;
+        } else if (block.chainid == 8453) {
+            chainRewardToken = 0x940181a94A35A4569E4529A3CDfB74e38FD98631;
+        }
+
+        rewardToken = chainRewardToken;
+
+        if (rewardToken == address(0)) {
+            revert BasePToken__UnsupportedChain();
         }
 
         // Cache assigned asset address.
@@ -82,14 +90,12 @@ contract VelodromeStablePToken is CompoundingPToken {
         // Validate that we have the proper gauge linked with the proper LP
         // and pair factory.
         if (gauge.stakingToken() != _asset) {
-            revert VelodromeStablePToken__StakingTokenIsNotAsset(
-                gauge.stakingToken()
-            );
+            revert VelodromeStablePToken__InvalidAssetType();
         }
 
         // Validate the desired underlying lp token is an sAMM.
         if (!IVeloPool(_asset).stable()) {
-            revert VelodromeStablePToken__AssetIsNotStable();
+            revert VelodromeStablePToken__InvalidAssetType();
         }
 
         // Query underlying token data from the pool.
@@ -97,9 +103,9 @@ contract VelodromeStablePToken is CompoundingPToken {
         strategyData.token1 = IVeloPool(_asset).token1();
         // Make sure token0 is VELO if one of underlying tokens is VELO,
         // so that it can be used properly in harvest function.
-        if (strategyData.token1 == address(rewardToken)) {
+        if (strategyData.token1 == rewardToken) {
             strategyData.token1 = strategyData.token0;
-            strategyData.token0 = address(rewardToken);
+            strategyData.token0 = rewardToken;
         }
         strategyData.decimalsA = 10 ** IERC20(strategyData.token0).decimals();
         strategyData.decimalsB = 10 ** IERC20(strategyData.token1).decimals();
@@ -111,12 +117,11 @@ contract VelodromeStablePToken is CompoundingPToken {
         isUnderlyingToken[strategyData.token0] = true;
         isUnderlyingToken[strategyData.token1] = true;
 
-        rewardTokenIsUnderlying = (address(rewardToken) ==
-            strategyData.token0 ||
-            address(rewardToken) == strategyData.token1);
+        rewardTokenIsUnderlying = (rewardToken ==
+            strategyData.token0 || rewardToken == strategyData.token1);
 
-        if (address(rewardToken) != asset()) {
-            isApprovedAsset[address(rewardToken)] = true;
+        if (rewardToken != asset()) {
+            isApprovedAsset[rewardToken] = true;
         }
     }
 
@@ -154,7 +159,9 @@ contract VelodromeStablePToken is CompoundingPToken {
             sd.gauge.getReward(address(this));
 
             {
-                uint256 rewardAmount = rewardToken.balanceOf(address(this));
+                uint256 rewardAmount = IERC20(rewardToken).balanceOf(
+                    address(this)
+                );
                 // If there are no pending rewards, skip swapping logic.
                 if (rewardAmount > 0) {
                     // Take protocol fee for veCVE lockers and auto
@@ -166,7 +173,7 @@ contract VelodromeStablePToken is CompoundingPToken {
                     );
                     rewardAmount -= protocolFee;
                     SafeTransferLib.safeTransfer(
-                        address(rewardToken),
+                        rewardToken,
                         centralRegistry.feeManager(),
                         protocolFee
                     );
@@ -180,7 +187,7 @@ contract VelodromeStablePToken is CompoundingPToken {
 
                         if (!isApprovedAsset[swapData.inputToken]) {
                             // this will be the same check: `swapData.inputToken != rewardToken`
-                            revert VelodromeStablePToken__InvalidSwapData();
+                            revert CompoundingPToken__UnapprovedAssetSwap();
                         }
 
                         SwapperLib.swapSafe(centralRegistry, swapData);
@@ -265,5 +272,15 @@ contract VelodromeStablePToken is CompoundingPToken {
     /// @param assets The amount of assets to withdraw.
     function _beforeWithdraw(uint256 assets, uint256) internal override {
         strategyData.gauge.withdraw(assets);
+    }
+
+    /// @notice Validates whether a contract can be deployed based on
+    ///         the current chainid.
+    /// @dev This check is so incompatible deployments never occur, such as
+    ///      assuming the wrong token address on a deployment.
+    function _validateChainDeployment() internal virtual {
+        if (block.chainid != 10) {
+            revert BasePToken__UnsupportedChain();
+        }
     }
 }

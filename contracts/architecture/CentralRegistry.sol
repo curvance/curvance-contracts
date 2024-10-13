@@ -198,9 +198,9 @@ contract CentralRegistry is ERC165 {
 
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
-    mapping(address => address) public externalCallDataChecker;
+    mapping(address => address) public externalCalldataChecker;
     mapping(address => bool) public isMulticallProvider;
-    mapping(address => address) public multicallDataChecker;
+    mapping(address => address) public multicallChecker;
 
     /// EVENTS ///
 
@@ -949,13 +949,13 @@ contract CentralRegistry is ERC165 {
     ///               such as 1Inch V5.
     /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setExternalCallDataChecker(
+    function setExternalCalldataChecker(
         address target,
         address callDataChecker
     ) external {
         _checkElevatedPermissions();
 
-        externalCallDataChecker[target] = callDataChecker;
+        externalCalldataChecker[target] = callDataChecker;
         emit CallDataCheckerSet("External", target, callDataChecker);
     }
 
@@ -966,13 +966,13 @@ contract CentralRegistry is ERC165 {
     ///               such as Pyth or Redstone.
     /// @param callDataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setMulticallDataChecker(
+    function setmulticallChecker(
         address target,
         address callDataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallDataChecker[target] = callDataChecker;
+        multicallChecker[target] = callDataChecker;
         emit CallDataCheckerSet("Multicall", target, callDataChecker);
     }
 

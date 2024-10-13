@@ -58,7 +58,6 @@ contract Convex3PoolPToken is CompoundingPToken {
     error Convex3PoolPToken__InvalidVaultConfig();
     error Convex3PoolPToken__InvalidCoinLength();
     error Convex3PoolPToken__NoYield();
-    error Convex3PoolPToken__InvalidSwapData();
 
     /// CONSTRUCTOR ///
 
@@ -219,7 +218,7 @@ contract Convex3PoolPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (!isApprovedAsset[swapDataArray[i].inputToken]) {
-                        revert Convex3PoolPToken__InvalidSwapData();
+                        revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
                     SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);

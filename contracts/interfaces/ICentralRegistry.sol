@@ -176,11 +176,11 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (bool);
 
-    function externalCallDataChecker(
+    function externalCalldataChecker(
         address addressToCheck
     ) external view returns (address);
 
-    function multicallDataChecker(
+    function multicallChecker(
         address addressToCheck
     ) external view returns (address);
     

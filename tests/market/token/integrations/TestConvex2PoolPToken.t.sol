@@ -62,11 +62,11 @@ contract TestConvex2PoolPToken is TestBaseMarket {
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             SUSHI_ROUTER,
             address(new MockCalldataChecker(SUSHI_ROUTER))
         );

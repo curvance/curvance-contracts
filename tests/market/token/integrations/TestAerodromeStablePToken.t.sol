@@ -49,7 +49,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeManager(address(this));
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(aeroRouter),
             address(new MockCalldataChecker(address(aeroRouter)))
         );

@@ -32,16 +32,16 @@ contract RedstoneAdaptorDeployer is DeployConfiguration {
         redstoneAdaptor = address(adaptor);
         _saveDeployedContracts("redstoneAdaptor", address(adaptor));
 
-        RedstoneAdaptorMulticallChecker multicallDataChecker = new RedstoneAdaptorMulticallChecker(
+        RedstoneAdaptorMulticallChecker multicallChecker = new RedstoneAdaptorMulticallChecker(
                 address(icr)
             );
         _saveDeployedContracts(
-            "multicallDataChecker",
-            address(multicallDataChecker)
+            "multicallChecker",
+            address(multicallChecker)
         );
-        cr.setMulticallDataChecker(
+        cr.setmulticallChecker(
             address(adaptor),
-            address(multicallDataChecker)
+            address(multicallChecker)
         );
     }
 }
