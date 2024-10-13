@@ -25,7 +25,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         if (swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -34,7 +34,7 @@ contract PositionManagementSimple is PositionManagementBase {
             swapData.outputToken != collateralUnderlying ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap borrow underlying to collateral underlying.
@@ -45,7 +45,7 @@ contract PositionManagementSimple is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         if (deleverageData.swapData.length != 1) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
@@ -59,7 +59,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         if (swapData.call.length == 0) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         if (
@@ -68,7 +68,7 @@ contract PositionManagementSimple is PositionManagementBase {
             swapData.outputToken != borrowUnderlying ||
             swapData.inputAmount != deleverageData.collateralAmount
         ) {
-            revert PositionManagementBase__InvalidSwapperParam();
+            revert BasePositionManagement__InvalidSwapperParam();
         }
 
         // Swap collateral underlying to borrow underlying.
