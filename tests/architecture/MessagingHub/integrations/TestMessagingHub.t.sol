@@ -212,9 +212,10 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         usdc.approve(address(feeManager), 10000e6);
 
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 10000e6, 1e16, block.timestamp + 300); // 5 min deadline.
+        // Eth spoofed as $1500, USDC spoofed as $1
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 1500e6, 1e16, block.timestamp + 300); // 5 min deadline.
 
-        assertLt(usdc.balanceOf(address(this)), 10000e6);
+        assertEq(usdc.balanceOf(address(this)), 1500e6);
         assertEq(weth.balanceOf(address(feeManager)), 0);
         assertEq(weth.balanceOf(address(this)), _ONE);
 

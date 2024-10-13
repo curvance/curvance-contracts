@@ -66,10 +66,11 @@ contract ExecuteOTCTest is TestBaseFeeManager {
 
         usdc.approve(address(feeManager), _ONE);
 
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE, 1e16, block.timestamp + 300);
+        // Eth spoofed as $1500, USDC spoofed as $1
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 1500e6, 1e16, block.timestamp + 300);
 
-        assertLt(usdc.balanceOf(address(this)), _ONE);
-        assertLt(weth.balanceOf(address(feeManager)), _ONE);
+        assertEq(usdc.balanceOf(address(this)), 1500e6);
+        assertEq(weth.balanceOf(address(feeManager)), 0);
         assertEq(weth.balanceOf(address(this)), _ONE);
     }
 }

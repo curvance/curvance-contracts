@@ -773,9 +773,18 @@ contract CentralRegistry is ERC165 {
         timelock = newTimelock;
 
         // Delete permission data.
-        delete hasDaoPermissions[previousTimelock];
-        delete hasElevatedPermissions[previousTimelock];
+        // If the previous Timelock also has Emergency Council permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousTimelock != emergencyCouncil) {
+            delete hasElevatedPermissions[previousTimelock];
 
+            // If the previous Timelock also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousTimelock != daoAddress) {
+                delete hasDaoPermissions[previousTimelock];
+            }
+        }
+        
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
         hasElevatedPermissions[newTimelock] = true;
@@ -794,10 +803,18 @@ contract CentralRegistry is ERC165 {
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
 
-        // Delete permission data.
-        delete hasDaoPermissions[previousEmergencyCouncil];
-        delete hasElevatedPermissions[previousEmergencyCouncil];
+        // If the previous Emergency Council also has timelock permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousEmergencyCouncil != timelock) {
+            delete hasElevatedPermissions[previousEmergencyCouncil];
 
+            // If the previous Emergency Council also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousEmergencyCouncil != daoAddress) {
+                delete hasDaoPermissions[previousEmergencyCouncil];
+            }
+        }
+        
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
         hasElevatedPermissions[newEmergencyCouncil] = true;
