@@ -216,7 +216,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         leverageData.swapData.target = address(0x0);
         leverageData.swapData.slippage = 0;
         leverageData.swapData.call = bytes("");
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         positionManagement.leverage(leverageData, 500);
 

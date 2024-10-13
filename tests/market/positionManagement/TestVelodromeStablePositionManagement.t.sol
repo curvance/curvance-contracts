@@ -227,7 +227,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         positionManagement.leverage(leverageData, 500);
 

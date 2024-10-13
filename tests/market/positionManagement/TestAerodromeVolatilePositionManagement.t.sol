@@ -253,7 +253,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             type(uint256).max
         );
         leverageData.swapData.slippage = 2e18;
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         positionManagement.leverage(leverageData, 500);
 
