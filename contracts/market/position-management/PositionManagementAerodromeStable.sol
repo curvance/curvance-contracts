@@ -12,6 +12,6 @@ contract PositionManagementAerodromeStable is PositionManagementVelodromeStable 
         address marketManager_,
         address router_,
         address pairFactory_
-    ) PositionManagementVelodromeStable(centralRegistry_, marketManager_, pool_, router_) {}
+    ) PositionManagementVelodromeStable(centralRegistry_, marketManager_, router_, pairFactory_) {}
 
 }
