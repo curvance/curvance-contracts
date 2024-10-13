@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -16,7 +16,7 @@ import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 /// @title Curvance Universal Balance.
 /// @notice A system for managing a Universal Balance within the Curvance Protocol.
-contract UniversalBalance is Delegable, ReentrancyGuard {
+contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
     struct UserBalance {
@@ -80,7 +80,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         ICentralRegistry centralRegistry_,
         address eToken,
         address WETH_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         if (IMToken(eToken).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }

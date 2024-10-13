@@ -4,13 +4,13 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
     function test_universalBalanceDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
         new UniversalBalance(
             ICentralRegistry(address(1)),
             address(dWETH),

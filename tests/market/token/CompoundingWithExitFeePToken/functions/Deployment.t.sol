@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/StdStorage.sol";
 import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
 import { CompoundingWithExitFeePToken } from "contracts/market/token/CompoundingWithExitFeePToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -20,7 +20,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
     function test_CompoundingWithExitFeePTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.Delegable__InvalidCentralRegistry.selector);
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(0)),
             balRETH,

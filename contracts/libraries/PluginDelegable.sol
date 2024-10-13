@@ -4,14 +4,14 @@ pragma solidity ^0.8.19;
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-/// @title Curvance Delegation Plugin
+/// @title Curvance Plugin Delegation Manager.
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
-/// @dev `Delegable` allows Curvance to be a modular system that plugins can
-///      be built on top of. By delegating authority to a secondary address
-///      users can utilize potential third-party features such as limit
-///      orders, crosschain actions, reward auto compounding,
-///      chained (multiple) actions, etc.
-abstract contract Delegable {
+/// @dev `PluginDelegable` allows the Curvance Protocol to be a modular system
+///      that plugins can be built on top of. By delegating action authority
+///      to a secondary address users can utilize potential third-party
+///      features such as limit orders, crosschain actions, reward auto
+///      compounding, chained (multiple sequential) actions, etc.
+abstract contract PluginDelegable {
     /// STORAGE ///
 
     /// @notice Curvance DAO Hub.
@@ -35,8 +35,8 @@ abstract contract Delegable {
 
     /// ERRORS ///
 
-    error Delegable__InvalidCentralRegistry();
-    error Delegable__DelegatingDisabled();
+    error PluginDelegable__InvalidCentralRegistry();
+    error PluginDelegable__DelegatingDisabled();
 
     /// CONSTRUCTOR ///
 
@@ -47,7 +47,7 @@ abstract contract Delegable {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert Delegable__InvalidCentralRegistry();
+            revert PluginDelegable__InvalidCentralRegistry();
         }
 
         centralRegistry = centralRegistry_;
@@ -102,7 +102,7 @@ abstract contract Delegable {
     ///                   of authority to operate on behalf of caller.
     function setDelegateApproval(address delegate, bool isApproved) external {
         if (hasDelegatingDisabled(msg.sender)) {
-            revert Delegable__DelegatingDisabled();
+            revert PluginDelegable__DelegatingDisabled();
         }
 
         uint256 approvalIndex = getUserApprovalIndex(msg.sender);

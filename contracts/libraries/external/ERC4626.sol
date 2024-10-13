@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {ERC20} from "./ERC20.sol";
-import {FixedPointMathLib} from "../utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "../utils/SafeTransferLib.sol";
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 /// @notice Simple ERC4626 tokenized Vault implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/tokens/ERC4626.sol)
@@ -437,7 +437,7 @@ abstract contract ERC4626 is ERC20 {
     }
 
     /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) private pure {
+    function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, s)

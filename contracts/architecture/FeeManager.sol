@@ -196,6 +196,14 @@ contract FeeManager is ReentrancyGuard {
     ///      current prices.
     /// @param tokenToOTC Address of the token to be OTC purchased by the DAO.
     /// @param amountToOTC Amount of the token to be OTC purchased by the DAO.
+    /// @param expectedFeeTokens The amount of `feeToken` expected to be paid
+    ///                          for the desired OTC transaction.
+    /// @param slippageLimit The % limit premium on top of `expectedFeeTokens`
+    ///                      allowed as part of the OTC transaction,
+    ///                      in exchange for `amountToOTC` of `tokenToOTC`.
+    ///                      represented in `WAD`, aka 1e18.
+    /// @param deadline The time by which the OTC transaction must be executed
+    ///                 before it is no longer valid, in unix time.
     function executeOTC(
         address tokenToOTC,
         uint256 amountToOTC,
