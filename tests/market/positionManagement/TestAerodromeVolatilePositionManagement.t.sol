@@ -11,7 +11,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { AerodromeVolatilePositionManagement } from "contracts/market/position-management/AerodromeVolatilePositionManagement.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 contract TestAerodromeVolatilePositionManagement is TestBaseMarket {
     address internal _AERODROME_WETH_USDC =

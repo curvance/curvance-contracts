@@ -47,7 +47,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        uint256 outputAmount
     );
 
     /// @dev Emitted during a withdraw call.
@@ -56,7 +56,7 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        uint256 redeemedAmount
     );
 
     /// ERRORS ///
@@ -244,7 +244,8 @@ contract UniversalBalance is Delegable, ReentrancyGuard {
             uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
-            uint256 tokensToRedeem = _mulDiv(amount, WAD, exchangeRate);
+            // We round up to make sure the user gets at least `amount` back.
+            uint256 tokensToRedeem = _mulDivUp(amount, WAD, exchangeRate);
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedEToken.redeem(tokensToRedeem);

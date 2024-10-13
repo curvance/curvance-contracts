@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { PTokenBase } from "contracts/market/token/PTokenBase.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -347,7 +347,7 @@ contract CurvanceAuxiliaryData {
             numTokens
         );
         for (uint256 i; i < numTokens; i++) {
-            PTokenBase marketToken = PTokenBase(pTokens[i]);
+            BasePToken marketToken = BasePToken(pTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
             MarketPTokenData memory pTokenData;
 

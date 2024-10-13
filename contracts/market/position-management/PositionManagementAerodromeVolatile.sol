@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PositionManagementVelodromeVolatile, ICentralRegistry, IVeloRouter } from "contracts/market/position-management/VelodromeVolatilePositionManagement.sol";
+import { PositionManagementVelodromeVolatile, ICentralRegistry, IVeloRouter } from "contracts/market/position-management/PositionManagementVelodromeVolatile.sol";
 
 contract PositionManagementAerodromeVolatile is PositionManagementVelodromeVolatile {
 

@@ -11,7 +11,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { AerodromeStablePositionManagement } from "contracts/market/position-management/AerodromeStablePositionManagement.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
 contract TestAerodromeStablePositionManagement is TestBaseMarket {
