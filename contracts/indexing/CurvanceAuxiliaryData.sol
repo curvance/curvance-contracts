@@ -88,7 +88,7 @@ contract CurvanceAuxiliaryData {
         string underlyingName;
         string underlyingSymbol;
         uint8 underlyingDecimal;
-        uint256 totalCollateralTokens;
+        uint256 totalPositionTokens;
         uint256 totalCollateralPosted;
         uint256 collateralCap;
         uint256 sharePrice;
@@ -370,7 +370,7 @@ contract CurvanceAuxiliaryData {
             pTokenData.underlyingName = token.name();
             pTokenData.underlyingSymbol = token.symbol();
             pTokenData.underlyingDecimal = token.decimals();
-            pTokenData.totalCollateralTokens =
+            pTokenData.totalPositionTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
             pTokenData.totalCollateralPosted = mm.collateralPosted(pTokens[i]);

@@ -42,9 +42,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         vm.startPrank(liquidityProvider);
 
-        // mint dDAI
-        dai.approve(address(dDAI), 20000000 ether);
-        dDAI.mint(20000000 ether);
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
 
         // mint cWETHUSDC
         IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
@@ -125,15 +125,15 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         owner = address(this);
         user = user1;
 
-        // setup dDAI
+        // setup eDAI
         {
-            _deployDDAI();
+            _deployEDAI();
             // add MToken support on price router
-            oracleManager.addMTokenSupport(address(dDAI));
+            oracleManager.addMTokenSupport(address(eDAI));
 
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
         }
 
         // setup cWETHUSDC
@@ -153,7 +153,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
             marketManager.listToken(address(cWETHUSDC));
 
-            marketManager.updateCollateralToken(
+            marketManager.updatePositionToken(
                 IMToken(address(cWETHUSDC)),
                 7000,
                 4000,
@@ -219,18 +219,18 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
-        dDAI.borrow(100 ether);
+        eDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
+        leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = SimplePToken(address(cWETHUSDC));
+        leverageData.positionToken = SimplePToken(address(cWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -257,14 +257,14 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         positionManagement.leverage(leverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
             .getSnapshot(user);
-        assertGt(cUSDCDAIBalance, 0.00013 ether);
-        assertEq(cUSDCDAIBorrowed, 0 ether);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
     }
@@ -273,18 +273,18 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         testLeverage();
         // Warp until collateral posting wait time ends
         vm.warp(block.timestamp + 20 minutes);
-        dDAI.accrueInterest();
+        eDAI.accrueInterest();
 
         vm.startPrank(user);
 
         PositionManagementAerodromeVolatile.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cUSDCDAIBalanceBefore, , ) = cWETHUSDC.getSnapshot(user);
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = cWETHUSDC.getSnapshot(user);
 
-        deleverageData.collateralToken = SimplePToken(address(cWETHUSDC));
+        deleverageData.positionToken = SimplePToken(address(cWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
-        deleverageData.borrowToken = dDAI;
+        deleverageData.borrowToken = eDAI;
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
         deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
@@ -328,20 +328,20 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         cWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 5000);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
         assertEq(
-            dDAIBorrowed,
-            dDAIBorrowedBefore - deleverageData.repayAmount
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
             .getSnapshot(user);
         assertEq(
-            cUSDCDAIBalance,
-            cUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(cUSDCDAIBorrowed, 0);
+        assertEq(pUSDCDAIBorrowed, 0);
 
         vm.stopPrank();
     }

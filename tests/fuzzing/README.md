@@ -106,13 +106,13 @@
 | MARKET-2  | A token already added to the MarketManager cannot be added again.                                                                                                   | Passed  |
 | MARKET-3  | A user can deposit into an mtoken provided that they have the underlying asset, and they have approved the mtoken contract.                                         | Passed  |
 | MARKET-4  | When depositing assets into the mtoken, the wrapped token balance for the user should increase.                                                                     | Passed  |
-| MARKET-5  | Calling updateCollateralToken with variables in the correct bounds should succeed.                                                                                  | Passed  |
-| MARKET-6  | Calling updateCollateralToken with divergence in prices too large should fail with PriceError.                                                                      | Passed  |
-| MARKET-7  | Calling updateCollateralToken where price returns PriceError should fail with PriceError.                                                                           | Failed  |
-| MARKET-8  | Calling updateCollateralToken on a token with a non-zero collateral ratio should not allow the new collateral ratio to be set to zero.                              | Passed  |
+| MARKET-5  | Calling updatePositionToken with variables in the correct bounds should succeed.                                                                                  | Passed  |
+| MARKET-6  | Calling updatePositionToken with divergence in prices too large should fail with PriceError.                                                                      | Passed  |
+| MARKET-7  | Calling updatePositionToken where price returns PriceError should fail with PriceError.                                                                           | Failed  |
+| MARKET-8  | Calling updatePositionToken on a token with a non-zero collateral ratio should not allow the new collateral ratio to be set to zero.                              | Passed  |
 | MARKET-9  | Setting the collateral caps for a token should increase the globally set value for the specific token.                                                              | Passed  |
 | MARKET-10 | Setting collateral caps for a token given permissions and collateral values being set should succeed.                                                               | Passed  |
-| MARKET-12 | With the correct bounds on input, updateCollateralToken should revert if the price feed is out of date.                                                             | Passed  |
+| MARKET-12 | With the correct bounds on input, updatePositionToken should revert if the price feed is out of date.                                                             | Passed  |
 | MARKET-13 | After collateral is posted, the user’s collateral posted position for the respective asset should increase.                                                         | Passed  |
 | MARKET-14 | After collateral is posted, calling hasPosition on the user’s mtoken should return true.                                                                            | Passed  |
 | MARKET-15 | After collateral is posted, the global collateral for the mtoken should increase by the amount posted.                                                              | Passed  |
@@ -223,7 +223,7 @@
 | LIQ-8  | If cfactor is bound between 0 and WAD, non-inclusive, the maxAmount is bound between 0, debtBalanceCached.        | Passed |
 | LIQ-9  | If the position token has less decimals than the debt token, amountAdjusted should be less than the debt balance. | Passed |
 | LIQ-10 | If the position token has more decimals than the debt token, amountAdjusted > debtBalanceCached.                  | Passed |
-| LIQ-11 | If position token decimals has less decimals than the debtTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
+| LIQ-11 | If position token decimals has less decimals than the earnTokenDecimals, amountAdjusted < debtBalanceCached.      | Passed |
 | LIQ-12 | If amountAdjusted==0, tokens to be liquidated should be equal to 0.                                               | Passed |
 | LIQ-13 | If debtToCollateralRatio==0, tokens to be liquidated should be equal to 0.                                        | Passed |
 
@@ -307,33 +307,33 @@ Tips and tricks:
     function _check_liquidate_preconditions(
         address account,
         address eToken,
-        address collateralToken
+        address positionToken
     ) internal view {
         _isSupportedEToken(eToken);
         require(account != msg.sender);
         require(marketManager.isListed(eToken));
         require(
             EToken(eToken).marketManager() ==
-                EToken(collateralToken).marketManager()
+                EToken(positionToken).marketManager()
         );
-        require(IMToken(collateralToken).isPToken());
-        require(marketManager.collateralPosted(collateralToken) > 0);
+        require(IMToken(positionToken).isPToken());
+        require(marketManager.collateralPosted(positionToken) > 0);
         require(marketManager.seizePaused() != 2);
         (
             uint256 lfactor,
-            uint256 debtTokenPrice,
-            uint256 collatTokenPrice
+            uint256 earnTokenPrice,
+            uint256 positionTokenPrice
         ) = marketManager.LiquidationStatusOf(
                 account,
                 eToken,
-                collateralToken
+                positionToken
             );
         require(lfactor > 0);
     }
 
     function _bound_liquidate_values(
         uint256 amount,
-        address collateralToken
+        address positionToken
     ) internal returns (uint256 clampedAmount) {
         (
             ,
@@ -345,7 +345,7 @@ Tips and tricks:
             ,
             ,
 
-        ) = marketManager.tokenData(address(collateralToken));
+        ) = marketManager.tokenData(address(positionToken));
         require(collRatio > 0);
         uint256 maxValue = amount * collReqSoft;
         uint256 minValue = amount * collReqHard;

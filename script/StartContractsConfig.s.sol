@@ -210,16 +210,16 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
             MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
             MarketTokenDeploy[]
-                memory thirdCollateralTokens = new MarketTokenDeploy[](1);
+                memory thirdPositionTokens = new MarketTokenDeploy[](1);
             MarketTokenDeploy[]
-                memory thirdDebtTokens = new MarketTokenDeploy[](1);
-            thirdCollateralTokens[0] = MarketTokenDeploy(
+                memory thirdEarnTokens = new MarketTokenDeploy[](1);
+            thirdPositionTokens[0] = MarketTokenDeploy(
                 "PToken-mETH",
                 m_eth,
                 address(0),
                 chainlinkEthFeedInUsd
             );
-            thirdDebtTokens[0] = MarketTokenDeploy(
+            thirdEarnTokens[0] = MarketTokenDeploy(
                 "EToken-mUSD",
                 m_usd,
                 address(0),
@@ -228,28 +228,28 @@ contract StartContractsConfig is Script, DeployConfiguration {
             _deployMarketTokens(
                 thirdMarket,
                 cr,
-                thirdCollateralTokens,
-                thirdDebtTokens
+                thirdPositionTokens,
+                thirdEarnTokens
             );
         }
 
         MarketManager fourthMarket = _createMarket("fourthTestMarket", cr);
         MarketTokenDeploy[]
-            memory fourthCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory fourthDebtTokens = new MarketTokenDeploy[](
+            memory fourthPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory fourthEarnTokens = new MarketTokenDeploy[](
             1
         );
         if (!is_berachain && !is_movement) {
-            fourthDebtTokens = new MarketTokenDeploy[](2);
+            fourthEarnTokens = new MarketTokenDeploy[](2);
         }
-        fourthCollateralTokens[0] = MarketTokenDeploy(
+        fourthPositionTokens[0] = MarketTokenDeploy(
             "PToken-LUSD",
             l_usd,
             address(0),
             chainlinkUsdcFeedInUsd
         );
 
-        fourthDebtTokens[0] = MarketTokenDeploy(
+        fourthEarnTokens[0] = MarketTokenDeploy(
             "EToken-SWETH",
             sweth,
             address(0),
@@ -259,7 +259,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
         if (!is_berachain && !is_movement) {
             address mk_usd = _getDeployedContract("mkUSD");
 
-            fourthDebtTokens[1] = MarketTokenDeploy(
+            fourthEarnTokens[1] = MarketTokenDeploy(
                 "EToken-mkUSD",
                 mk_usd,
                 address(0),
@@ -270,8 +270,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _deployMarketTokens(
             fourthMarket,
             cr,
-            fourthCollateralTokens,
-            fourthDebtTokens
+            fourthPositionTokens,
+            fourthEarnTokens
         );
     }
 
@@ -285,17 +285,17 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         MarketManager firstMarket = _createMarket("firstTestMarket", cr);
         MarketTokenDeploy[]
-            memory firstCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory firstDebtTokens = new MarketTokenDeploy[](
+            memory firstPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory firstEarnTokens = new MarketTokenDeploy[](
             1
         );
-        firstCollateralTokens[0] = MarketTokenDeploy(
+        firstPositionTokens[0] = MarketTokenDeploy(
             "PToken-WBTC",
             wbtc,
             _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
             _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
         );
-        firstDebtTokens[0] = MarketTokenDeploy(
+        firstEarnTokens[0] = MarketTokenDeploy(
             "EToken-USDC",
             usdc,
             _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
@@ -304,23 +304,23 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _deployMarketTokens(
             firstMarket,
             cr,
-            firstCollateralTokens,
-            firstDebtTokens
+            firstPositionTokens,
+            firstEarnTokens
         );
 
         MarketManager secondMarket = _createMarket("secondTestMarket", cr);
         MarketTokenDeploy[]
-            memory secondCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory secondDebtTokens = new MarketTokenDeploy[](
+            memory secondPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory secondEarnTokens = new MarketTokenDeploy[](
             1
         );
-        secondCollateralTokens[0] = MarketTokenDeploy(
+        secondPositionTokens[0] = MarketTokenDeploy(
             "PToken-USDC",
             usdc,
             _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
             _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
         );
-        secondDebtTokens[0] = MarketTokenDeploy(
+        secondEarnTokens[0] = MarketTokenDeploy(
             "EToken-WBTC",
             wbtc,
             _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
@@ -329,8 +329,8 @@ contract StartContractsConfig is Script, DeployConfiguration {
         _deployMarketTokens(
             secondMarket,
             cr,
-            secondCollateralTokens,
-            secondDebtTokens
+            secondPositionTokens,
+            secondEarnTokens
         );
     }
 
@@ -350,26 +350,26 @@ contract StartContractsConfig is Script, DeployConfiguration {
     function _deployMarketTokens(
         MarketManager market,
         ICentralRegistry cr,
-        MarketTokenDeploy[] memory collateralTokens,
-        MarketTokenDeploy[] memory debtTokens
+        MarketTokenDeploy[] memory PositionTokens,
+        MarketTokenDeploy[] memory earnTokens
     ) internal {
-        for (uint256 i = 0; i < collateralTokens.length; i++) {
+        for (uint256 i = 0; i < PositionTokens.length; i++) {
             _deployPToken(
-                collateralTokens[i].name,
-                collateralTokens[i].token,
-                collateralTokens[i].chainlinkEthAggregator,
-                collateralTokens[i].chainlinkUsdAggregator,
+                PositionTokens[i].name,
+                PositionTokens[i].token,
+                PositionTokens[i].chainlinkEthAggregator,
+                PositionTokens[i].chainlinkUsdAggregator,
                 cr,
                 market
             );
         }
 
-        for (uint256 i = 0; i < debtTokens.length; i++) {
+        for (uint256 i = 0; i < earnTokens.length; i++) {
             _deployEToken(
-                debtTokens[i].name,
-                debtTokens[i].token,
-                debtTokens[i].chainlinkEthAggregator,
-                debtTokens[i].chainlinkUsdAggregator,
+                earnTokens[i].name,
+                earnTokens[i].token,
+                earnTokens[i].chainlinkEthAggregator,
+                earnTokens[i].chainlinkUsdAggregator,
                 cr,
                 market
             );
@@ -461,7 +461,7 @@ contract StartContractsConfig is Script, DeployConfiguration {
 
         MockToken(tokenAddress).approve(pToken, 1e25);
         market.listToken(pToken);
-        market.updateCollateralToken(
+        market.updatePositionToken(
             // From FuzzMarketManager -> setup()
             IMToken(pToken),
             7000,

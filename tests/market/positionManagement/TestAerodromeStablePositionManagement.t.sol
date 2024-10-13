@@ -24,7 +24,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeStablePToken public cUSDCDAI;
+    AerodromeStablePToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     PositionManagementAerodromeStable public positionManagement;
 
@@ -43,13 +43,13 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         vm.startPrank(liquidityProvider);
 
-        // mint dDAI
-        dai.approve(address(dDAI), 20000000 ether);
-        dDAI.mint(20000000 ether);
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
 
-        // mint cUSDCDAI
-        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 1 ether);
-        cUSDCDAI.deposit(1 ether, liquidityProvider);
+        // mint pUSDCDAI
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
+        pUSDCDAI.deposit(1 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -104,20 +104,20 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         owner = address(this);
         user = user1;
 
-        // setup dDAI
+        // setup eDAI
         {
-            _deployDDAI();
+            _deployEDAI();
             // add MToken support on price router
-            oracleManager.addMTokenSupport(address(dDAI));
+            oracleManager.addMTokenSupport(address(eDAI));
 
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
         }
 
-        // setup cUSDCDAI
+        // setup pUSDCDAI
         {
-            cUSDCDAI = new AerodromeStablePToken(
+            pUSDCDAI = new AerodromeStablePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_AERODROME_DAI_USDC),
                 address(marketManager),
@@ -126,14 +126,14 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
                 aeroRouter
             );
             // add MToken support on price router
-            oracleManager.addMTokenSupport(address(cUSDCDAI));
+            oracleManager.addMTokenSupport(address(pUSDCDAI));
 
             deal(_AERODROME_DAI_USDC, owner, 1 ether);
-            IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 1 ether);
-            marketManager.listToken(address(cUSDCDAI));
+            IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
+            marketManager.listToken(address(pUSDCDAI));
 
-            marketManager.updateCollateralToken(
-                IMToken(address(cUSDCDAI)),
+            marketManager.updatePositionToken(
+                IMToken(address(pUSDCDAI)),
                 7000,
                 4000,
                 3000,
@@ -144,7 +144,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             );
             
             address[] memory tokens = new address[](1);
-            tokens[0] = address(cUSDCDAI);
+            tokens[0] = address(pUSDCDAI);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
@@ -189,27 +189,27 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         vm.startPrank(user);
 
         deal(_AERODROME_DAI_USDC, user, 0.0001 ether);
-        IERC20(_AERODROME_DAI_USDC).approve(address(cUSDCDAI), 0.0001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
 
         // mint
-        assertGt(cUSDCDAI.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(cUSDCDAI), 0.0001 ether);
-        assertEq(cUSDCDAI.balanceOf(user), 0.0001 ether);
+        assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
-        dDAI.borrow(100 ether);
+        eDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementAerodromeStable.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
+        leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = SimplePToken(address(cUSDCDAI));
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = address(0x0);
         leverageData.swapData.inputAmount = 0;
         leverageData.swapData.outputToken = address(0x0);
@@ -220,14 +220,14 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         positionManagement.leverage(leverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cUSDCDAI
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
             .getSnapshot(user);
-        assertGt(cUSDCDAIBalance, 0.00013 ether);
-        assertEq(cUSDCDAIBorrowed, 0 ether);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
     }
@@ -236,18 +236,18 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         testLeverage();
         // Warp until collateral posting wait time ends
         vm.warp(block.timestamp + 20 minutes);
-        dDAI.accrueInterest();
+        eDAI.accrueInterest();
 
         vm.startPrank(user);
 
         PositionManagementAerodromeStable.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cUSDCDAIBalanceBefore, , ) = cUSDCDAI.getSnapshot(user);
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
 
-        deleverageData.collateralToken = SimplePToken(address(cUSDCDAI));
+        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
-        deleverageData.borrowToken = dDAI;
+        deleverageData.borrowToken = eDAI;
 
         uint256 usdcAmount = 28451980;
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -271,23 +271,23 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             .getAmountsOut(usdcAmount, path);
         deleverageData.repayAmount = 30e18;
 
-        cUSDCDAI.approve(address(positionManagement), type(uint256).max);
+        pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 5000);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
         assertEq(
-            dDAIBorrowed,
-            dDAIBorrowedBefore - deleverageData.repayAmount
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cUSDCDAI
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
             .getSnapshot(user);
         assertEq(
-            cUSDCDAIBalance,
-            cUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(cUSDCDAIBorrowed, 0);
+        assertEq(pUSDCDAIBorrowed, 0);
 
         vm.stopPrank();
     }
