@@ -243,7 +243,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
                 revert GaugeManager__InvalidToken();
             }
 
-            updatePool(token);
+            if(info.tokenWeight[token] > 0) {
+                updatePool(token);
+            }
 
             info.totalWeights = info.totalWeights + weights[i];
             info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
@@ -252,6 +254,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
                 rewardTokens[token].push(cve);
                 rewardTokenToIndex[token][cve] = ++lastRewardTokenIndex[token];
             }
+
+            updatePool(token);
 
             unchecked {
                 /// Update prior to current token, then increment i.
