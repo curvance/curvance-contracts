@@ -172,7 +172,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         eDAI.setDelegateApproval(address(circleZapper), true);
 
         vm.expectRevert(BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector);
-        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
+        circleZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
@@ -193,7 +193,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         vm.expectRevert(
             BorrowCircleZapper.BorrowCircleZapper__CCTPIsNotConfigured.selector
         );
-        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
+        circleZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
