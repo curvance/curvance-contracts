@@ -37,7 +37,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// STORAGE ///
 
-    /// @notice The next epoch index to claim for a user.
+    /// @notice Manages a users sitting and lending balances inside
+    ///         their universe balance account.
     /// @dev User => User's balance sitting and lent out.
     mapping(address => UserBalance) public userBalances;
 

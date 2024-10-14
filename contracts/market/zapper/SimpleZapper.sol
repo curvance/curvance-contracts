@@ -19,13 +19,12 @@ import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 contract SimpleZapper is ReentrancyGuard {
     /// TYPES ///
 
-    /// @param pToken The address of the pToken corresponding to Curve lp
-    ///               token to be exited.
+    /// @param mToken The address of the mToken to be redeemed from.
     /// @param shares The amount of shares to be redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
     struct RedemptionData {
-        address pToken;
+        address mToken;
         uint256 shares;
         bool forceRedeemCollateral;
     }
@@ -238,13 +237,13 @@ contract SimpleZapper is ReentrancyGuard {
     ) external nonReentrant returns (uint256) {
         // Validate that `pToken` is listed inside the associated
         // Market Manager.
-        if (!marketManager.isListed(redemptionData.pToken)) {
+        if (!marketManager.isListed(redemptionData.mToken)) {
             revert SimpleZapper__Unauthorized();
         }
 
         // Exit Curvance position.
         _exitCurvance(
-            SimplePToken(redemptionData.pToken),
+            SimplePToken(redemptionData.mToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             swapData.inputToken,

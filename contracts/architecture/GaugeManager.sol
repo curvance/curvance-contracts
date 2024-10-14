@@ -233,8 +233,6 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             revert GaugeManager__InvalidLength();
         }
 
-        updatePool(cve);
-
         Epoch storage info = _epochInfo[epoch];
         address priorAddress;
         for (uint256 i; i < numTokens; ) {
@@ -244,6 +242,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             if (priorAddress >= token) {
                 revert GaugeManager__InvalidToken();
             }
+
+            updatePool(token);
 
             info.totalWeights = info.totalWeights + weights[i];
             info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
@@ -473,10 +473,12 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             return _epochInfo[epoch].tokenWeight[token];
         }
 
-        return (epochDuration *
-            _epochRewardPerSec[token][epoch][
-                rewardTokenToIndex[token][rewardToken]
-            ]);
+        uint256 index = rewardTokenToIndex[token][rewardToken];
+        if (index == 0 || approvedRewardTokens[rewardToken] == false) {
+            revert GaugeManager__InvalidRewardToken();
+        }
+
+        return (epochDuration * _epochRewardPerSec[token][epoch][index]);
     }
 
     /// @notice Returns pending reward of user.

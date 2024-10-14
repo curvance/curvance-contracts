@@ -18,10 +18,8 @@ contract BorrowZapper is ReentrancyGuard {
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
     uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
-
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-
     /// @notice Address of fee token.
     address public immutable feeToken;
 
