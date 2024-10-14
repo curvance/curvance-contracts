@@ -24,10 +24,17 @@ import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
+import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
+import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 
-contract StartContractsConfig is Script, DeployConfiguration {
-    struct ETokenInterestRateParam {
+contract StartContractsConfig is
+    Script,
+    DeployConfiguration,
+    SimpleZapperDeployer,
+    ComplexZapperDeployer
+{
+    struct DTokenInterestRateParam {
         uint256 adjustmentRate;
         uint256 adjustmentVelocity;
         uint256 baseRatePerYear;
@@ -344,6 +351,28 @@ contract StartContractsConfig is Script, DeployConfiguration {
         CentralRegistry(address(cr)).addMarketManager(
             address(market),
             marketInterestFactor
+        );
+
+        // Deploy ComplexZapper
+        address complexZapper = _deployComplexZapper(
+            address(cr),
+            address(market),
+            _readConfigAddress(".zapper.weth")
+        );
+
+        address simpleZapper = _deploySimpleZapper(
+            address(cr),
+            address(market),
+            _readConfigAddress(".zapper.weth")
+        );
+
+        _saveDeployedContracts(
+            string.concat(marketName, "-complexZapper"),
+            complexZapper
+        );
+        _saveDeployedContracts(
+            string.concat(marketName, "-simpleZapper"),
+            complexZapper
         );
     }
 

@@ -3,32 +3,32 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
+import { SimpleZapper } from "contracts/market/zapper/SimpleZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
-contract ComplexZapperDeployer is DeployConfiguration {
-    function _deployComplexZapper(
+contract SimpleZapperDeployer is DeployConfiguration {
+    function _deploySimpleZapper(
         address centralRegistry,
         address marketManager,
         address weth
     ) internal returns (address) {
-        address complexZapper;
+        address simpleZapper;
 
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(marketManager != address(0), "Set the marketManager!");
         require(weth != address(0), "Set the weth!");
 
-        complexZapper = address(
-            new ComplexZapper(
+        simpleZapper = address(
+            new SimpleZapper(
                 ICentralRegistry(centralRegistry),
                 marketManager,
                 weth
             )
         );
 
-        console.log("Created complex zapper: ", complexZapper);
-        return complexZapper;
+        console.log("Created simple zapper: ", simpleZapper);
+        return simpleZapper;
     }
 }
