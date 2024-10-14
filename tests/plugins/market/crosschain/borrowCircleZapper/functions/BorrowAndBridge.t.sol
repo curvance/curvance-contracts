@@ -5,22 +5,24 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowZapper } from "contracts/market/zapper/BorrowZapper.sol";
+import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-contract TestBorrowAndBridge is TestBaseMarket {
+contract BorrowAndBridgeTest is TestBaseMarket {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
+    BorrowCircleZapper public BorrowCircleZapper;
 
-    BorrowZapper public borrowZapper;
+    SwapperLib.Swap public swapData;
+    IUniswapV3Router.ExactInputSingleParams public params;
 
     function setUp() public override {
         _fork(19140000);
@@ -112,7 +114,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
 
         deal(user1, _ONE);
 
-        borrowZapper = new BorrowZapper(
+        BorrowCircleZapper = new BorrowCircleZapper(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -126,9 +128,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             makeAddr("Wormhole Relayer"),
             3
         );
-    }
 
-    function testETokenBorrowAndBridge() public {
         _prepareBALRETH(user1, _ONE);
 
         // try mint()
@@ -146,16 +146,14 @@ contract TestBorrowAndBridge is TestBaseMarket {
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
 
-        SwapperLib.Swap memory swapData;
         swapData.inputToken = _DAI_ADDRESS;
         swapData.inputAmount = 500e18;
         swapData.outputToken = _USDC_ADDRESS;
         swapData.target = _UNISWAP_V3_SWAP_ROUTER;
-        IUniswapV3Router.ExactInputSingleParams memory params;
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(borrowZapper);
+        params.recipient = address(BorrowCircleZapper);
         params.deadline = block.timestamp;
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
@@ -164,14 +162,77 @@ contract TestBorrowAndBridge is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
+    }
 
-        uint256 messageFee = borrowZapper.quoteMessageFee(42161, 0);
+    function test_borrowAndBridge_fail_whenSwapDataIsInvalid() public {
+        swapData.inputToken = _USDC_ADDRESS;
 
-        // try borrow()
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(borrowZapper), true);
-        borrowZapper.borrowAndBridge{ value: messageFee }(
+        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+
+        vm.expectRevert(BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector);
+        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
+            address(eDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_fail_whenCCTPIsNotConfigured() public {
+        centralRegistry.setCircleTokenMessenger(address(0));
+
+        vm.startPrank(user1);
+
+        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+
+        vm.expectRevert(
+            BorrowCircleZapper.BorrowCircleZapper__CCTPIsNotConfigured.selector
+        );
+        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
+            address(eDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_fail_whenGasTokenIsNotEnough() public {
+        uint256 messageFee = BorrowCircleZapper.quoteMessageFee(42161, 0);
+
+        vm.startPrank(user1);
+
+        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+
+        vm.expectRevert(
+            BorrowCircleZapper.BorrowCircleZapper__InsufficientGasToken.selector
+        );
+        BorrowCircleZapper.borrowAndBridge{ value: messageFee - 1 }(
+            address(eDAI),
+            500e18,
+            swapData,
+            42161,
+            0
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_borrowAndBridge_success() public {
+        uint256 messageFee = BorrowCircleZapper.quoteMessageFee(42161, 0);
+        uint256 balance = user1.balance;
+
+        vm.startPrank(user1);
+
+        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
@@ -181,6 +242,8 @@ contract TestBorrowAndBridge is TestBaseMarket {
         eDAI.borrow(500e18);
 
         vm.stopPrank();
+
+        assertEq(user1.balance, balance - messageFee);
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

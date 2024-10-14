@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
+import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";

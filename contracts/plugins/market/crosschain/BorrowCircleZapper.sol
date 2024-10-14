@@ -13,7 +13,7 @@ import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegist
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 
-contract BorrowZapper is ReentrancyGuard {
+contract BorrowCircleZapper is ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
@@ -25,10 +25,10 @@ contract BorrowZapper is ReentrancyGuard {
 
     /// ERRORS ///
 
-    error BorrowZapper__InvalidCentralRegistry();
-    error BorrowZapper__InvalidSwapData();
-    error BorrowZapper__InsufficientGasToken();
-    error BorrowZapper__CCTPIsNotConfigured();
+    error BorrowCircleZapper__InvalidCentralRegistry();
+    error BorrowCircleZapper__InvalidSwapData();
+    error BorrowCircleZapper__InsufficientGasToken();
+    error BorrowCircleZapper__CCTPIsNotConfigured();
 
     /// CONSTRUCTOR ///
 
@@ -41,7 +41,7 @@ contract BorrowZapper is ReentrancyGuard {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert BorrowZapper__InvalidCentralRegistry();
+            revert BorrowCircleZapper__InvalidCentralRegistry();
         }
 
         centralRegistry = centralRegistry_;
@@ -83,12 +83,12 @@ contract BorrowZapper is ReentrancyGuard {
                 swapData.outputToken != feeToken ||
                 swapData.inputAmount != borrowAmount
             ) {
-                revert BorrowZapper__InvalidSwapData();
+                revert BorrowCircleZapper__InvalidSwapData();
             }
 
             SwapperLib.swapUnsafe(centralRegistry, swapData);
         } else if (swapData.target != address(0)) {
-            revert BorrowZapper__InvalidSwapData();
+            revert BorrowCircleZapper__InvalidSwapData();
         }
 
         // Bridge the fee token to `dstChainId` via Wormhole.
@@ -139,7 +139,7 @@ contract BorrowZapper is ReentrancyGuard {
                 gasLimit
             );
         } else {
-            revert BorrowZapper__CCTPIsNotConfigured();
+            revert BorrowCircleZapper__CCTPIsNotConfigured();
         }
     }
 
@@ -159,7 +159,7 @@ contract BorrowZapper is ReentrancyGuard {
 
         // Validate that we have sufficient fees to send crosschain.
         if (msg.value < wormholeFee) {
-            revert BorrowZapper__InsufficientGasToken();
+            revert BorrowCircleZapper__InsufficientGasToken();
         }
 
         IWormholeRelayer wormholeRelayer = centralRegistry.wormholeRelayer();

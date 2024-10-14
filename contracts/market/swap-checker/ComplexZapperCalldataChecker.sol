@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 

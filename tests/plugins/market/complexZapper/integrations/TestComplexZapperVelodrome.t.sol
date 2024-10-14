@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 

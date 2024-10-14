@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { SimpleZapper } from "contracts/market/zapper/SimpleZapper.sol";
+import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -198,7 +198,7 @@ contract TestSimpleZapper is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
-            true,
+            false,
             address(simpleZapper)
         );
 

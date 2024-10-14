@@ -22,7 +22,7 @@ contract AerodromeStablePToken is VelodromeStablePToken {
     ///         the current chainid.
     /// @dev This check is so incompatible deployments never occur, such as
     ///      assuming the wrong token address on a deployment.
-    function _validateChainDeployment() internal override {
+    function _validateChainDeployment() internal view override {
         if (block.chainid != 8453) {
             revert BasePToken__UnsupportedChain();
         }
