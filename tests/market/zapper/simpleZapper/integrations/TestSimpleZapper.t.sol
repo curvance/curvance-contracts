@@ -198,6 +198,7 @@ contract TestSimpleZapper is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            true,
             address(simpleZapper)
         );
 
