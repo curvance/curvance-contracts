@@ -100,8 +100,6 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @notice Timestamp when the first first deposit occurred.
-    uint256 public firstDeposit;
     /// @notice Mapping for approved reward token
     /// @dev rewardToken => bool
     mapping(address => bool) public approvedRewardTokens;
@@ -235,16 +233,22 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
 
         Epoch storage info = _epochInfo[epoch];
         address priorAddress;
+        bool poolUpdated;
+
         for (uint256 i; i < numTokens; ) {
+            address token = tokens[i];
+
             // We sort the token addresses offchain from smallest to largest
             // to validate there are no duplicates.
-            address token = tokens[i];
             if (priorAddress >= token) {
                 revert GaugeManager__InvalidToken();
             }
 
-            if(info.tokenWeight[token] > 0) {
+            if (info.tokenWeight[token] > 0) {
+                poolUpdated = true;
                 updatePool(token);
+            }  else {
+                poolUpdated = false;
             }
 
             info.totalWeights = info.totalWeights + weights[i];
@@ -255,7 +259,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
                 rewardTokenToIndex[token][cve] = ++lastRewardTokenIndex[token];
             }
 
-            updatePool(token);
+            if (!poolUpdated) {
+                updatePool(token);
+            }
 
             unchecked {
                 /// Update prior to current token, then increment i.
@@ -592,36 +598,6 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
 
         balanceOf[token][user] += amount;
         totalSupply[token] += amount;
-
-        // If first deposit has not occurred we will need to send
-        // excess rewards to the DAO.
-        if (firstDeposit == 0) {
-            firstDeposit = block.timestamp;
-            // If the gauge has not started yet no need to check whether
-            // first deposit has been set.
-            if (block.timestamp > startTime) {
-                // If first deposit, the new rewards from gauge start to this
-                // point will be unallocated rewards.
-                updatePool(token);
-                address[] memory rewardTokenForMToken = rewardTokens[token];
-                uint256 rewardTokensLength = rewardTokenForMToken.length;
-                for (uint256 i; i < rewardTokensLength; ) {
-                    // Query rewardToken then increment i.
-                    address rewardToken = rewardTokenForMToken[i++];
-                    uint256 index = rewardTokenToIndex[token][rewardToken];
-                    uint256 unallocatedRewards = (poolAccRewardPerShare[token][
-                        index
-                    ] * totalSupply[token]) / RAY;
-                    if (unallocatedRewards > 0) {
-                        SafeTransferLib.safeTransfer(
-                            rewardToken,
-                            centralRegistry.daoAddress(),
-                            unallocatedRewards
-                        );
-                    }
-                }
-            }
-        }
 
         _calcDebt(user, token);
 
