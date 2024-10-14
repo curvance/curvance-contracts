@@ -20,7 +20,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
-    BorrowCircleZapper public BorrowCircleZapper;
+    BorrowCircleZapper public circleZapper;
 
     function setUp() public override {
         _fork(19140000);
@@ -112,7 +112,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
 
         deal(user1, _ONE);
 
-        BorrowCircleZapper = new BorrowCircleZapper(
+        circleZapper = new BorrowCircleZapper(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -155,7 +155,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(BorrowCircleZapper);
+        params.recipient = address(circleZapper);
         params.deadline = block.timestamp;
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
@@ -165,13 +165,13 @@ contract TestBorrowAndBridge is TestBaseMarket {
             params
         );
 
-        uint256 messageFee = BorrowCircleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
 
         // try borrow()
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
-        BorrowCircleZapper.borrowAndBridge{ value: messageFee }(
+        eDAI.setDelegateApproval(address(circleZapper), true);
+        circleZapper.borrowAndBridge{ value: messageFee }(
             address(eDAI),
             500e18,
             swapData,

@@ -19,7 +19,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
-    BorrowCircleZapper public BorrowCircleZapper;
+    BorrowCircleZapper public circleZapper;
 
     SwapperLib.Swap public swapData;
     IUniswapV3Router.ExactInputSingleParams public params;
@@ -114,7 +114,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         deal(user1, _ONE);
 
-        BorrowCircleZapper = new BorrowCircleZapper(
+        circleZapper = new BorrowCircleZapper(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -153,7 +153,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(BorrowCircleZapper);
+        params.recipient = address(circleZapper);
         params.deadline = block.timestamp;
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
@@ -169,7 +169,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+        eDAI.setDelegateApproval(address(circleZapper), true);
 
         vm.expectRevert(BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector);
         BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
@@ -188,7 +188,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+        eDAI.setDelegateApproval(address(circleZapper), true);
 
         vm.expectRevert(
             BorrowCircleZapper.BorrowCircleZapper__CCTPIsNotConfigured.selector
@@ -205,16 +205,16 @@ contract BorrowAndBridgeTest is TestBaseMarket {
     }
 
     function test_borrowAndBridge_fail_whenGasTokenIsNotEnough() public {
-        uint256 messageFee = BorrowCircleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
+        eDAI.setDelegateApproval(address(circleZapper), true);
 
         vm.expectRevert(
             BorrowCircleZapper.BorrowCircleZapper__InsufficientGasToken.selector
         );
-        BorrowCircleZapper.borrowAndBridge{ value: messageFee - 1 }(
+        circleZapper.borrowAndBridge{ value: messageFee - 1 }(
             address(eDAI),
             500e18,
             swapData,
@@ -226,13 +226,13 @@ contract BorrowAndBridgeTest is TestBaseMarket {
     }
 
     function test_borrowAndBridge_success() public {
-        uint256 messageFee = BorrowCircleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
         uint256 balance = user1.balance;
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(BorrowCircleZapper), true);
-        BorrowCircleZapper.borrowAndBridge{ value: _ONE }(
+        eDAI.setDelegateApproval(address(circleZapper), true);
+        circleZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
