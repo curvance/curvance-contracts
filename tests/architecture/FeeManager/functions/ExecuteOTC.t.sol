@@ -41,7 +41,7 @@ contract ExecuteOTCTest is TestBaseFeeManager {
         usdc.approve(address(feeManager), _ONE);
 
         vm.expectRevert(FeeManager.FeeManager__OTCExecutionTermsFailed.selector);
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, _ONE / 2, 1e16, block.timestamp + 300);
+        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 100e6, 1e16, block.timestamp + 300);
     }
 
     function test_executeOTC_whenDeadlineExpired() public {

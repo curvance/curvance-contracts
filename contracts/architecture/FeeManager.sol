@@ -250,9 +250,9 @@ contract FeeManager is ReentrancyGuard {
         ) / 10 ** IERC20(tokenToOTC).decimals();
 
         // Check if Curvance DAO is paying more than anticipated.
-        if (expectedFeeTokens > feeTokenRequiredForOTC) {
+        if (expectedFeeTokens < feeTokenRequiredForOTC) {
             uint256 slippage = ((
-                expectedFeeTokens - feeTokenRequiredForOTC
+                feeTokenRequiredForOTC - expectedFeeTokens 
             ) * WAD) / expectedFeeTokens;
 
             if (slippage > slippageLimit) {
