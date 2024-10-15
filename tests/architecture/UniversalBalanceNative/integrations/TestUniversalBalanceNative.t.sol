@@ -165,30 +165,15 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         assertEq(universalBalance.wrappedNative(), _WETH_ADDRESS);
     }
 
-    function testDepositETH() public {
-        vm.deal(user1, 100e18);
-        vm.startPrank(user1);
-        universalBalance.depositETH{ value: 100e18 }(false);
-
-        vm.deal(user1, 100e18);
-        universalBalance.depositETH{ value: 100e18 }(true);
-        vm.stopPrank();
-
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
-        assertEq(sittingBalance, 100e18);
-        assertEq(lentBalance, 100e18);
-    }
-
-    function testDepositWETH() public {
+    function testDeposit() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
-        universalBalance.depositWETH(1 ether, false);
+        universalBalance.deposit(1 ether, false);
 
         deal(_WETH_ADDRESS, user1, 1 ether);
         weth.approve(address(universalBalance), 1 ether);
-        universalBalance.depositWETH(1 ether, true);
+        universalBalance.deposit(1 ether, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -197,36 +182,28 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         assertEq(lentBalance, 1 ether);
     }
 
-    function testWithdrawAsETH() public {
-        testDepositWETH();
-
-        uint256 ethBalance = user1.balance;
-
+    function testDepositNative() public {
+        vm.deal(user1, 100e18);
         vm.startPrank(user1);
-        universalBalance.withdrawAsETH(1 ether, false);
+        universalBalance.deposit{ value: 100e18 }(false);
 
-        assertEq(user1.balance, ethBalance + 1 ether);
+        vm.deal(user1, 100e18);
+        universalBalance.deposit{ value: 100e18 }(true);
+        vm.stopPrank();
+
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 1 ether);
-
-        universalBalance.withdrawAsETH(1 ether, true);
-
-        assertEq(user1.balance, ethBalance + 2 ether);
-        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
-        assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 0 ether);
-        vm.stopPrank();
+        assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 100e18);
     }
 
-    function testWithdrawAsWETH() public {
-        testDepositETH();
+    function testWithdraw() public {
+        testDeposit();
 
         vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(100e18, false);
+        universalBalance.withdraw(100e18, false);
 
-        universalBalance.withdrawAsWETH(100e18, true);
+        universalBalance.withdraw(100e18, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -235,35 +212,32 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         assertEq(lentBalance, 0);
     }
 
-    function testClaimForDAO() public {
-        testDepositETH();
 
-        vm.warp(gaugeManager.startTime());
-        _skipEpochDuration(1);
+    function testWithdrawNative() public {
+        testDepositNative();
 
-        vm.roll(block.number + 1000);
+        uint256 ethBalance = user1.balance;
 
-        // set gauge weights
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(eWETH);
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
+        vm.startPrank(user1);
+        universalBalance.withdrawNative(1 ether, false);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        assertEq(user1.balance, ethBalance + 1 ether);
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+            .userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 1 ether);
 
-        skip(1 weeks);
+        universalBalance.withdrawNative(1 ether, true);
 
-        uint256 balanceBefore = cve.balanceOf(address(this));
-        universalBalance.claimForDAO();
-        assertEq(cve.balanceOf(address(this)), balanceBefore + 100 * 1 weeks - 1);
+        assertEq(user1.balance, ethBalance + 2 ether);
+        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 0 ether);
+        vm.stopPrank();
     }
 
     function testLentBalanceIncreased() public {
-        testDepositETH();
+        testDeposit();
 
         // mint cWBTC & borrow WETH
         deal(_WBTC_ADDRESS, user2, 100e8);
@@ -282,7 +256,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         eWETH.mint(100e18);
 
         vm.prank(user1);
-        universalBalance.withdrawAsWETH(50e18, true);
+        universalBalance.withdrawNative(50e18, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

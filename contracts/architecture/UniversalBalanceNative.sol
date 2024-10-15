@@ -16,7 +16,7 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
-/// @title Curvance Universal Balance for native gas token.
+/// @title Curvance Universal Balance for a chain's native gas token.
 /// @notice A system for managing a Universal Balance within the Curvance
 ///         Protocol.
 contract UniversalBalanceNative is UniversalBalance {
@@ -44,12 +44,26 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Deposits native gas token token into user's universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Emits { Deposit } event.
+    /// @param amount The amount of native token to be deposited.
+    /// @param isLent Whether the deposited native tokens should be lent
+    ///               out inside Curvance Protocol (as wrapped native).
     function depositNative(bool isLent) external payable {
         IWETH(underlying).deposit{ value: msg.value }();
         _deposit(msg.value, isLent);
     }
 
-    function withdrawAsNative(uint256 amount, bool isLent) external {
+    /// @notice Withdraws wrapped native token from user's universal balance
+    ///         account, either currently held or lent out and transfers it
+    ///         to the user in native form.
+    /// @dev Emits { Withdraw } event.
+    /// @param amount The amount of native token to be withdrawn.
+    /// @param isLent Whether the withdrawn wrapped native tokens should be
+    ///               pulled from a user's lent position or held position
+    ///               inside Curvance Protocol.
+    function withdrawNative(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
         IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(msg.sender, amount);

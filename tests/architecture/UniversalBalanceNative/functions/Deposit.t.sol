@@ -6,7 +6,7 @@ import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceN
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract DepositWETHTest is TestBaseUniversalBalanceNative {
+contract DepositTest is TestBaseUniversalBalanceNative {
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -14,7 +14,7 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         uint256 shares
     );
 
-    function test_depositWETH_fail_whenHasNoEnoughWETH_fuzzed(
+    function test_deposit_fail_whenHasNoEnoughWETH_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -26,12 +26,12 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount + 1);
 
         vm.expectRevert();
-        universalBalanceNative.depositWETH(amount + 1, true);
+        universalBalanceNative.deposit(amount + 1, true);
 
         vm.stopPrank();
     }
 
-    function test_depositWETH_fail_whenExceedsAllowance_fuzzed(
+    function test_deposit_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -43,12 +43,12 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectRevert();
-        universalBalanceNative.depositWETH(amount + 1, true);
+        universalBalanceNative.deposit(amount + 1, true);
 
         vm.stopPrank();
     }
 
-    function test_depositWETH_fail_whenTokenIsNotListed() public {
+    function test_deposit_fail_whenTokenIsNotListed() public {
         deal(_WETH_ADDRESS, user1, _ONE);
 
         universalBalanceNative = new UniversalBalanceNative(
@@ -62,21 +62,21 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), _ONE);
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        universalBalanceNative.depositWETH(_ONE, true);
+        universalBalanceNative.deposit(_ONE, true);
 
         vm.stopPrank();
     }
 
-    function test_depositWETH_fail_whenAmountIsZero() public {
+    function test_deposit_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
         vm.expectRevert(
-            UniversalBalance.UniversalBalance__InvalidParameter.selector
+            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
         );
-        universalBalanceNative.depositWETH(0, false);
+        universalBalanceNative.deposit(0, false);
     }
 
-    function test_depositWETH_success_withLend_fuzzed(uint256 amount) public {
+    function test_deposit_success_withLend_fuzzed(uint256 amount) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(_WETH_ADDRESS, user1, amount);
@@ -93,7 +93,7 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Deposit(user1, user1, amount, receiveAmount);
 
-        universalBalanceNative.depositWETH(amount, true);
+        universalBalanceNative.deposit(amount, true);
 
         vm.stopPrank();
 
@@ -110,7 +110,7 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 
-    function test_depositWETH_success_withoutLend_fuzzed(
+    function test_deposit_success_withoutLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -128,7 +128,7 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Deposit(user1, user1, amount, amount);
 
-        universalBalanceNative.depositWETH(amount, false);
+        universalBalanceNative.deposit(amount, false);
 
         vm.stopPrank();
 

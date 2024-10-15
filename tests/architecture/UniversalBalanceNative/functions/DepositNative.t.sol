@@ -6,7 +6,7 @@ import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceN
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract DepositETHTest is TestBaseUniversalBalanceNative {
+contract DepositNativeTest is TestBaseUniversalBalanceNative {
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -14,7 +14,7 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         uint256 shares
     );
 
-    function test_depositETH_fail_whenHasNoEnoughETH_fuzzed(
+    function test_depositNative_fail_whenHasNoEnoughETH_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -24,10 +24,10 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectRevert();
-        universalBalanceNative.depositETH{ value: amount + 1 }(true);
+        universalBalanceNative.depositNative{ value: amount + 1 }(true);
     }
 
-    function test_depositETH_fail_whenTokenIsNotListed() public {
+    function test_depositNative_fail_whenTokenIsNotListed() public {
         universalBalanceNative = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
             address(eUSDC),
@@ -37,19 +37,19 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        universalBalanceNative.depositETH{ value: _ONE }(true);
+        universalBalanceNative.depositNative{ value: _ONE }(true);
     }
 
-    function test_depositETH_fail_whenAmountIsZero() public {
+    function test_depositNative_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
         vm.expectRevert(
-            UniversalBalance.UniversalBalance__InvalidParameter.selector
+            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
         );
-        universalBalanceNative.depositETH{ value: 0 }(false);
+        universalBalanceNative.depositNative{ value: 0 }(false);
     }
 
-    function test_depositETH_success_withLend_fuzzed(uint256 amount) public {
+    function test_depositNative_success_withLend_fuzzed(uint256 amount) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(user1, amount);
@@ -65,7 +65,7 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Deposit(user1, user1, amount, receiveAmount);
 
-        universalBalanceNative.depositETH{ value: amount }(true);
+        universalBalanceNative.depositNative{ value: amount }(true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -81,7 +81,7 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         assertEq(user1.balance, userETHBalance - amount);
     }
 
-    function test_depositETH_success_withoutLend_fuzzed(
+    function test_depositNative_success_withoutLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -98,7 +98,7 @@ contract DepositETHTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Deposit(user1, user1, amount, amount);
 
-        universalBalanceNative.depositETH{ value: amount }(false);
+        universalBalanceNative.depositNative{ value: amount }(false);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
