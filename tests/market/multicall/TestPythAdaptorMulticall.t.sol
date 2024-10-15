@@ -6,7 +6,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
@@ -30,12 +30,12 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
     MockDataFeed public mockStethFeed;
 
     SimplePToken public cWBTC;
-    UniversalBalance public universalBalance;
+    UniversalBalanceNative public universalBalanceNative;
 
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
-    EToken public dWETH;
+    EToken public eWETH;
 
     receive() external payable {}
 
@@ -75,17 +75,17 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             true
         );
 
-        dWETH = _deployEToken(_WETH_ADDRESS);
+        eWETH = _deployEToken(_WETH_ADDRESS);
 
-        universalBalance = new UniversalBalance(
+        universalBalanceNative = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
-            address(dWETH),
+            address(eWETH),
             _WETH_ADDRESS
         );
 
         adapter = new MockPythAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            address(universalBalance),
+            address(universalBalanceNative),
             _PYTH_ADDRESS,
             _WETH_ADDRESS
         );
@@ -140,16 +140,16 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             // marketManager.enterMarkets(markets);
         }
 
-        // deploy dWETH
+        // deploy eWETH
         {
             // support market
             deal(_WETH_ADDRESS, owner, 200000 ether);
-            weth.approve(address(dWETH), 200000e6);
-            marketManager.listToken(address(dWETH));
+            weth.approve(address(eWETH), 200000e6);
+            marketManager.listToken(address(eWETH));
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(dWETH));
+            oracleManager.addMTokenSupport(address(eWETH));
             address[] memory markets = new address[](1);
-            markets[0] = address(dWETH);
+            markets[0] = address(eWETH);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -219,9 +219,9 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
         eUSDC.mint(200000e6);
-        // mint dWETH
-        weth.approve(address(dWETH), 200000e6);
-        dWETH.mint(200000e6);
+        // mint eWETH
+        weth.approve(address(eWETH), 200000e6);
+        eWETH.mint(200000e6);
         // mint cBALETH
         wbtc.approve(address(cWBTC), 10 ether);
         cWBTC.mint(10 ether, liquidityProvider);
@@ -237,7 +237,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalance.depositETH{ value: 1 ether }(false);
+        universalBalanceNative.depositNative{ value: 1 ether }(false);
 
         _prepareWBTC(user1, 2 ether);
 
@@ -277,7 +277,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalance.depositETH{ value: 1 ether }(false);
+        universalBalance.depositNative{ value: 1 ether }(false);
 
         _prepareUSDC(user1, 2e6);
 
