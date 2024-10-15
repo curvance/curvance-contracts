@@ -7,6 +7,7 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -64,6 +65,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// ERRORS ///
 
     error UniversalBalance__InsufficientBalance();
+    error UniversalBalance__UnderlyingTokenMismatch();
     error UniversalBalance__InvalidParameter();
     error UniversalBalance__Unauthorized();
     error UniversalBalance__SlippageError();
@@ -88,6 +90,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         linkedEToken = IMToken(eToken);
         wrappedNative = wrappedNative_;
+
+        if (IMToken(eToken).underlying() != wrappedNative_) {
+            revert UniversalBalance__UnderlyingTokenMismatch();
+        }
 
         IERC20(wrappedNative_).approve(eToken, type(uint256).max);
     }
@@ -136,9 +142,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
     /// @param user Which user is funding the oracle update from their universal
     ///             balance account.
-    /// @param isLent Whether the withdrawn underlying tokens should be pulled
-    ///               from a user's lent position or held position inside
-    ///               Curvance Protocol.
+    /// @param amount The amount of underlying token to be earmarked for
+    ///               oracle update.
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
         // Check for amount == 0 in oracle adaptor.
         if (
