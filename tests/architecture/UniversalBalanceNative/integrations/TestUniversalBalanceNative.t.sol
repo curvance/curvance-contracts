@@ -169,11 +169,11 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
         weth.approve(address(universalBalanceNative), 1 ether);
-        universalBalanceNative.depositNative(1 ether, false);
+        universalBalanceNative.depositNative{ value: 1 ether}(false);
 
         deal(_WETH_ADDRESS, user1, 1 ether);
         weth.approve(address(universalBalanceNative), 1 ether);
-        universalBalanceNative.depositNative(1 ether, true);
+        universalBalanceNative.depositNative{ value: 1 ether}(true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
