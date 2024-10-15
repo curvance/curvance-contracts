@@ -13,8 +13,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new UniversalBalance(
             ICentralRegistry(address(1)),
-            address(eWETH),
-            _WETH_ADDRESS
+            address(eWETH)
         );
     }
 
@@ -24,16 +23,14 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(pBALRETH),
-            _WETH_ADDRESS
+            address(pBALRETH)
         );
     }
 
     function test_universalBalanceDeployment_success() public {
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
-            _WETH_ADDRESS
+            address(eWETH)
         );
 
         assertEq(

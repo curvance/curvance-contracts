@@ -13,8 +13,8 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: _ONE }(true);
-        universalBalance.depositETH{ value: _ONE }(false);
+        universalBalance.deposit{ value: _ONE }(true);
+        universalBalance.deposit{ value: _ONE }(false);
 
         vm.stopPrank();
     }

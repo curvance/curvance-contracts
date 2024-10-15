@@ -91,8 +91,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
-            _WETH_ADDRESS
+            address(eWETH)
         );
 
         // start epoch
@@ -165,13 +164,13 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(universalBalance.wrappedNative(), _WETH_ADDRESS);
     }
 
-    function testDepositETH() public {
+    function testDeposit() public {
         vm.deal(user1, 100e18);
         vm.startPrank(user1);
-        universalBalance.depositETH{ value: 100e18 }(false);
+        universalBalance.deposit{ value: 100e18 }(false);
 
         vm.deal(user1, 100e18);
-        universalBalance.depositETH{ value: 100e18 }(true);
+        universalBalance.deposit{ value: 100e18 }(true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -197,13 +196,13 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(lentBalance, 1 ether);
     }
 
-    function testWithdrawAsETH() public {
+    function testWithdraw() public {
         testDeposit();
 
         uint256 ethBalance = user1.balance;
 
         vm.startPrank(user1);
-        universalBalance.withdrawAsETH(1 ether, false);
+        universalBalance.withdraw(1 ether, false);
 
         assertEq(user1.balance, ethBalance + 1 ether);
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -211,7 +210,7 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, 1 ether);
 
-        universalBalance.withdrawAsETH(1 ether, true);
+        universalBalance.withdraw(1 ether, true);
 
         assertEq(user1.balance, ethBalance + 2 ether);
         (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
@@ -221,7 +220,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testWithdraw() public {
-        testDepositETH();
+        testDeposit();
 
         vm.startPrank(user1);
         universalBalance.withdraw(100e18, false);
@@ -236,7 +235,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testClaimForDAO() public {
-        testDepositETH();
+        testDeposit();
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -263,7 +262,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testLentBalanceIncreased() public {
-        testDepositETH();
+        testDeposit();
 
         // mint cWBTC & borrow WETH
         deal(_WBTC_ADDRESS, user2, 100e8);

@@ -22,7 +22,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: amount }(true);
+        universalBalance.deposit{ value: amount }(true);
 
         vm.expectRevert();
         universalBalance.withdraw(amount + 1, true);
@@ -39,7 +39,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: amount }(false);
+        universalBalance.deposit{ value: amount }(false);
 
         vm.expectRevert();
         universalBalance.withdraw(amount + 1, false);
@@ -69,8 +69,8 @@ contract WithdrawTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: depositAmount }(true);
-        universalBalance.depositETH{ value: depositAmount }(false);
+        universalBalance.deposit{ value: depositAmount }(true);
+        universalBalance.deposit{ value: depositAmount }(false);
 
         vm.stopPrank();
 
@@ -114,8 +114,8 @@ contract WithdrawTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: depositAmount }(true);
-        universalBalance.depositETH{ value: depositAmount }(false);
+        universalBalance.deposit{ value: depositAmount }(true);
+        universalBalance.deposit{ value: depositAmount }(false);
 
         vm.stopPrank();
 

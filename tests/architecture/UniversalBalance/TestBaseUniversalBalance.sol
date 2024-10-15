@@ -17,8 +17,7 @@ contract TestBaseUniversalBalance is TestBaseMarket {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eWETH),
-            _WETH_ADDRESS
+            address(eWETH)
         );
 
         deal(_WETH_ADDRESS, address(this), 10e18);
