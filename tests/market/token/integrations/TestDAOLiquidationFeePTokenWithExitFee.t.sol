@@ -79,7 +79,7 @@ contract TestPTokenWithExitFeeReserves is TestBaseMarket {
             oracleManager.addMTokenSupport(address(eDAI));
         }
 
-        // setup CBALRETH
+        // setup pBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);

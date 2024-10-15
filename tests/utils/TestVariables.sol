@@ -140,8 +140,8 @@ contract TestVariables {
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
     mapping(uint256 => EToken) public eDAIs;
-    mapping(uint256 => AuraPToken) public cBALRETHs;
-    mapping(uint256 => MockAuraPTokenWithExitFee) public cBALRETHWithExitFees;
+    mapping(uint256 => AuraPToken) public pBALRETHs;
+    mapping(uint256 => MockAuraPTokenWithExitFee) public pBALRETHWithExitFees;
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
@@ -366,8 +366,8 @@ contract TestVariables {
         oracleManager = oracleManagers[chainId];
         eUSDC = eUSDCs[chainId];
         eDAI = eDAIs[chainId];
-        pBALRETH = cBALRETHs[chainId];
-        pBALRETHWithExitFee = cBALRETHWithExitFees[chainId];
+        pBALRETH = pBALRETHs[chainId];
+        pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];
         chainlinkUsdcEth = chainlinkUsdcEths[chainId];

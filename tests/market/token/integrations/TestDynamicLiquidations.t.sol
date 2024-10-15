@@ -77,7 +77,7 @@ contract TestDynamicLiquidations is TestBaseMarket {
             oracleManager.addMTokenSupport(address(eDAI));
         }
 
-        // deploy CBALRETH
+        // deploy PBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);

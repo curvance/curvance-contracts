@@ -10,7 +10,7 @@ contract ETokenRepayTest is TestBaseEToken {
     function setUp() public override {
         super.setUp();
 
-        _setCbalRETHCollateralCaps(100_000e18);
+        _setPBALRETHCollateralCaps(100_000e18);
 
         deal(_USDC_ADDRESS, address(eUSDC), 2000e6);
 
@@ -89,7 +89,7 @@ contract ETokenRepayTest is TestBaseEToken {
     function test_borrowers_repayAllDebts() public {
         uint256 _BASE_UNDERLYING_RESERVE = 42069;
         uint256 initialUsdcReserves = 1000e6;
-        _setCbalRETHCollateralCaps(100_000e18);
+        _setPBALRETHCollateralCaps(100_000e18);
 
         uint256 addUsdcAmount = 1500e6;
         eUSDC.mint(

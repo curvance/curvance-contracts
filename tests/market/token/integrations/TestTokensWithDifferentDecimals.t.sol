@@ -82,7 +82,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
             marketManager.listToken(address(eUSDC));
         }
 
-        // setup CBALRETH
+        // setup pBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);

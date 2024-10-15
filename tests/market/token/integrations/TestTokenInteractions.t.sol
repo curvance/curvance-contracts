@@ -79,7 +79,7 @@ contract TestTokenInteractions is TestBaseMarket {
             oracleManager.addMTokenSupport(address(eDAI));
         }
 
-        // setup CBALRETH
+        // setup pBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);
@@ -445,7 +445,7 @@ contract TestTokenInteractions is TestBaseMarket {
     }
 
     function testRevertBorrowAndLiquidateWithZeroCollRatio() public {
-        _deployCBALRETH();
+        _deployPBALRETH();
 
         balRETH.approve(address(pBALRETH), 1 ether);
         marketManager.listToken(address(pBALRETH));

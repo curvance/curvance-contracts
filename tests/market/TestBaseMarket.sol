@@ -58,8 +58,8 @@ contract TestBaseMarket is TestBase {
         _deployDynamicInterestRateModel();
         _deployEUSDC();
         _deployEDAI();
-        _deployCBALRETH();
-        _deployCBALRETHWithExitFee();
+        _deployPBALRETH();
+        _deployPBALRETHWithExitFee();
 
         _deployComplexZapper();
 
@@ -425,12 +425,12 @@ contract TestBaseMarket is TestBase {
             );
     }
 
-    function _deployCBALRETH()
+    function _deployPBALRETH()
         internal
         initMainVariables
         returns (AuraPToken)
     {
-        pBALRETH = cBALRETHs[block.chainid] = new AuraPToken(
+        pBALRETH = pBALRETHs[block.chainid] = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
             address(marketManager),
@@ -441,12 +441,12 @@ contract TestBaseMarket is TestBase {
         return pBALRETH;
     }
 
-    function _deployCBALRETHWithExitFee()
+    function _deployPBALRETHWithExitFee()
         internal
         initMainVariables
         returns (MockAuraPTokenWithExitFee)
     {
-        pBALRETHWithExitFee = cBALRETHWithExitFees[
+        pBALRETHWithExitFee = pBALRETHWithExitFees[
             block.chainid
         ] = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
@@ -525,7 +525,7 @@ contract TestBaseMarket is TestBase {
         deal(_BAL_WETH_RETH_ADDRESS, user, amount);
     }
 
-    function _setCbalRETHCollateralCaps(
+    function _setPBALRETHCollateralCaps(
         uint256 cap
     ) internal initMainVariables {
         marketManager.updatePositionToken(

@@ -80,7 +80,7 @@ contract TestETokenReserves is TestBaseMarket {
             oracleManager.addMTokenSupport(address(eDAI));
         }
 
-        // deploy CBALRETH
+        // deploy pBALRETH
         {
             // support market
             _prepareBALRETH(owner, 1 ether);

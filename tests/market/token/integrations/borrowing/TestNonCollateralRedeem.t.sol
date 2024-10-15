@@ -44,9 +44,9 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         newCollateralCaps[0] = 1_000_000e18;
         marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
 
-        // Deposit 1 CBALRETH
+        // Deposit 1 pBALRETH
         pBALRETH.deposit(1e18, address(this));
-        // Deposit & Collateralize 1 CBALRETH
+        // Deposit & Collateralize 1 pBALRETH
         pBALRETH.depositAsCollateral(1e18, address(this));
         // Lend so there is something to borrow
         eUSDC.mint(100_000e6);
@@ -54,7 +54,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         eUSDC.borrow(750e6);
         // Fast forward to get past minimum hold
         vm.warp(block.timestamp + 1 days);
-        // Withdraw 1 CBALRETH (which has not been collateralized yet)
+        // Withdraw 1 pBALRETH (which has not been collateralized yet)
         pBALRETH.redeem(1e18, address(this), address(this));
     }
 }

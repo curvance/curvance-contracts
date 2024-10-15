@@ -999,7 +999,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testZach_ZeroCollRatio() public {
-        _deployCBALRETH();
+        _deployPBALRETH();
         _prepareBALRETH(address(this), 1 ether);
 
         balRETH.approve(address(pBALRETH), 1 ether);

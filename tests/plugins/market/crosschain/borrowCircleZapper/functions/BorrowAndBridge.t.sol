@@ -85,7 +85,7 @@ contract BorrowAndBridgeTest is TestBaseMarket {
             oracleManager.addMTokenSupport(address(eDAI));
         }
 
-        // setup CBALRETH
+        // setup pBALRETH
         {
             // support market
             _prepareBALRETH(address(this), _ONE);

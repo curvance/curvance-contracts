@@ -277,7 +277,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalance.depositNative{ value: 1 ether }(false);
+        universalBalanceNative.depositNative{ value: 1 ether }(false);
 
         _prepareUSDC(user1, 2e6);
 
