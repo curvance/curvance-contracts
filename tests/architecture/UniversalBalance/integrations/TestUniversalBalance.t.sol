@@ -184,7 +184,7 @@ contract TestUniversalBalance is TestBaseMarket {
     function testWithdraw() public {
         testDeposit();
 
-        uint256 balanceBefore = IERC20(_WETH_ADDRESS).balanceOf(user1);
+        uint256 balanceBefore = IMToken(_WETH_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
         universalBalance.withdraw(100e18, false);
@@ -192,7 +192,7 @@ contract TestUniversalBalance is TestBaseMarket {
         universalBalance.withdraw(100e18, true);
         vm.stopPrank();
 
-        assertEq(IERC20(_WETH_ADDRESS).balanceOf(user1), balanceBefore + 200e18);
+        assertEq(IMToken(_WETH_ADDRESS).balanceOf(user1), balanceBefore + 200e18);
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
         assertEq(sittingBalance, 0);
