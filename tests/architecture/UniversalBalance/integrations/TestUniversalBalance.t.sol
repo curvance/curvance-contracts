@@ -162,7 +162,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
     function testInitialize() public {
         assertEq(address(universalBalance.linkedEToken()), address(dWETH));
-        assertEq(universalBalance.WETH(), _WETH_ADDRESS);
+        assertEq(universalBalance.wrappedNative(), _WETH_ADDRESS);
     }
 
     function testDepositETH() public {

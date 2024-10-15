@@ -99,6 +99,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         _deposit(msg.value, isLent);
     }
 
+    /// @notice Deposits underlying token into user's universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Emits { Deposit } event.
+    /// @param amount The amount of underlying token to be deposited.
+    /// @param isLent Whether the deposited underlying tokens should be lent
+    ///               out inside Curvance Protocol.
     function depositWETH(uint256 amount, bool isLent) external {
         SafeTransferLib.safeTransferFrom(
             wrappedNative,
@@ -115,11 +121,24 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
 
+    /// @notice Withdraws underlying token from user's universal balance
+    ///         account, either currently held or lent out.
+    /// @dev Emits { Withdraw } event.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param isLent Whether the withdrawn underlying tokens should be pulled
+    ///               from a user's lent position or held position inside
+    ///               Curvance Protocol.
     function withdrawAsWETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
         SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
     }
 
+    /// @notice Used by Oracle Manager to fund a pull-based oracle update.
+    /// @param Which user is funding the oracle update from their universal
+    ///        balance account.
+    /// @param isLent Whether the withdrawn underlying tokens should be pulled
+    ///               from a user's lent position or held position inside
+    ///               Curvance Protocol.
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
         // Check for amount == 0 in oracle adaptor.
         if (
@@ -221,6 +240,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Deposits underlying token into user's universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Emits { Deposit } event.
+    /// @param amount The amount of underlying token to be deposited.
+    /// @param isLent Whether the deposited underlying tokens should be lent
+    ///               out inside Curvance Protocol.
     function _deposit(uint256 amount, bool isLent) internal {
         if (isLent) {
             // Will natively fail if amount == 0 on gaugeManager call.
@@ -239,6 +264,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         emit Deposit(msg.sender, msg.sender, amount, amount);
     }
 
+    /// @notice Withdraws underlying token from user's universal balance
+    ///         account, either currently held or lent out.
+    /// @dev Emits { Withdraw } event.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param isLent Whether the withdrawn underlying tokens should be pulled
+    ///               from a user's lent position or held position inside
+    ///               Curvance Protocol.
     function _withdraw(
         uint256 amount,
         bool isLent
