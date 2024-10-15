@@ -14,7 +14,7 @@ contract DepositTest is TestBaseUniversalBalanceNative {
         uint256 shares
     );
 
-    function test_deposit_fail_whenHasNoEnoughWETH_fuzzed(
+    function test_deposit_fail_whenInsufficientBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -70,9 +70,8 @@ contract DepositTest is TestBaseUniversalBalanceNative {
     function test_deposit_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
-        );
+        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
+        vm.expectRevert(0xc75f2a32);
         universalBalanceNative.deposit(0, false);
     }
 

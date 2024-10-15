@@ -19,9 +19,8 @@ contract UniversalBalanceNativeDeploymentTest is TestBaseUniversalBalanceNative 
     }
 
     function test_universalBalanceNativeDeployment_fail_whenTokenIsPToken() public {
-        vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
-        );
+        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
+        vm.expectRevert(0xc75f2a32);
         new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
             address(pBALRETH),

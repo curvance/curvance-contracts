@@ -43,9 +43,8 @@ contract DepositNativeTest is TestBaseUniversalBalanceNative {
     function test_depositNative_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
-        );
+        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
+        vm.expectRevert(0xc75f2a32);
         universalBalanceNative.depositNative{ value: 0 }(false);
     }
 

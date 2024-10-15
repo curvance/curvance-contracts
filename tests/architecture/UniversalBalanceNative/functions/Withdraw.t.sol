@@ -50,9 +50,8 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
     function test_withdraw_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
-        );
+        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
+        vm.expectRevert(0xc75f2a32);
         universalBalanceNative.withdraw(0, false);
     }
 

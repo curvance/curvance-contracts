@@ -53,8 +53,7 @@ contract DepositTest is TestBaseUniversalBalance {
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC),
-            _WETH_ADDRESS
+            address(eUSDC)
         );
 
         vm.startPrank(user1);
