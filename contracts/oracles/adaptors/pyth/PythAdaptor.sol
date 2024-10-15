@@ -46,7 +46,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     address public universalBalanceNative;
     address public pyth;
-    address public weth;
+    address public wrappedNative;
 
     /// @notice Adaptor configuration data for pricing an asset in gas token.
     /// @dev Pyth Adaptor Data for pricing in gas token.
@@ -79,18 +79,18 @@ contract PythAdaptor is BaseOracleAdaptor {
         ICentralRegistry centralRegistry_,
         address universalBalanceNative_,
         address pyth_,
-        address weth_
+        address wrappedNative_
     ) BaseOracleAdaptor(centralRegistry_) {
         universalBalanceNative = universalBalanceNative_;
         pyth = pyth_;
-        weth = weth_;
+        wrappedNative = wrappedNative_;
     }
 
     receive() external payable {}
 
     /// EXTERNAL FUNCTIONS ///
 
-    function updateFeedsFromUniversalBalanceNative(
+    function updateFeedsFromUniversalBalance(
         bytes[] calldata priceUpdateData,
         address user
     ) public {
@@ -112,7 +112,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         );
 
         uint256 balanceBefore = address(this).balance;
-        IWETH(weth).withdraw(fee);
+        IWETH(wrappedNative).withdraw(fee);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
         // Refund remaining native token paid.
@@ -122,7 +122,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         }
     }
 
-    function updateFeedsWithETH(
+    function updateFeedsWithNative(
         bytes[] calldata priceUpdateData
     ) public payable {
         // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
@@ -163,7 +163,7 @@ contract PythAdaptor is BaseOracleAdaptor {
             return _getPriceInUSD(asset);
         }
 
-        return _getPriceInETH(asset);
+        return _getPriceInNative(asset);
     }
 
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
@@ -171,7 +171,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or ETH (inUSD = false).
+    ///              or native token (inUSD = false).
     /// @param data The adaptor data
     function addAsset(
         address asset,
@@ -266,11 +266,12 @@ contract PythAdaptor is BaseOracleAdaptor {
         return _parseData(adaptorDataNonUSD[asset], false);
     }
 
-    /// @notice Retrieves the price of a given asset in ETH.
+    /// @notice Retrieves the price of a given asset in the chain's native
+    ///         gas token.
     /// @param asset The address of the asset for which the price is needed.
     /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (ETH).
-    function _getPriceInETH(
+    ///         and the quote format of the price (native).
+    function _getPriceInNative(
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
