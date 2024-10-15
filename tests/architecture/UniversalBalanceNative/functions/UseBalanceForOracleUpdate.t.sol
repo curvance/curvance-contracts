@@ -21,8 +21,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
 
         vm.startPrank(user1);
 
-        universalBalanceNative.deposit{ value: _ONE }(true);
-        universalBalanceNative.deposit{ value: _ONE }(false);
+        universalBalanceNative.depositNative{ value: _ONE }(true);
+        universalBalanceNative.depositNative{ value: _ONE }(false);
 
         vm.stopPrank();
 
@@ -50,8 +50,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
 
         vm.startPrank(user1);
 
-        universalBalanceNative.deposit{ value: depositAmount1 }(true);
-        universalBalanceNative.deposit{ value: depositAmount2 }(false);
+        universalBalanceNative.depositNative{ value: depositAmount1 }(true);
+        universalBalanceNative.depositNative{ value: depositAmount2 }(false);
 
         vm.stopPrank();
 

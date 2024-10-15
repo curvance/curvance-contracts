@@ -162,7 +162,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
 
     function testInitialize() public {
         assertEq(address(universalBalance.linkedEToken()), address(eWETH));
-        assertEq(universalBalance.wrappedNative(), _WETH_ADDRESS);
+        assertEq(universalBalance.underlying(), _WETH_ADDRESS);
     }
 
     function testDeposit() public {
