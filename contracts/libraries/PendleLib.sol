@@ -30,7 +30,7 @@ library PendleLib {
     function enterPendle(
         address router,
         bool isPt,
-        PendleData calldata data,
+        PendleData memory data,
         address lpToken,
         uint256 lpMinOutAmount
     ) internal returns (uint256 lpOutAmount) {
@@ -106,7 +106,7 @@ library PendleLib {
         address router,
         bool isPt,
         address token,
-        PendleData calldata data,
+        PendleData memory data,
         address lpToken,
         uint256 lpAmount
     ) internal {
