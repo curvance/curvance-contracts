@@ -24,7 +24,7 @@ import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
+import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 
