@@ -29,8 +29,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice The address of the eToken linked to this contract.
     IMToken public immutable linkedEToken;
 
-    /// @notice The address of WETH on this chain.
-    address public immutable WETH;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
     /// @dev `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xc75f2a32;
@@ -69,8 +69,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     error UniversalBalance__SlippageError();
 
     receive() external payable {
-        if (msg.sender != WETH) {
-            IWETH(WETH).deposit{ value: msg.value };
+        if (msg.sender != wrappedNative) {
+            IWETH(wrappedNative).deposit{ value: msg.value };
             _deposit(msg.value, true);
         }
     }
@@ -80,28 +80,28 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address eToken,
-        address WETH_
+        address wrappedNative_
     ) PluginDelegable(centralRegistry_) {
         if (IMToken(eToken).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         linkedEToken = IMToken(eToken);
-        WETH = WETH_;
+        wrappedNative = wrappedNative_;
 
-        IERC20(WETH_).approve(eToken, type(uint256).max);
+        IERC20(wrappedNative_).approve(eToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
 
     function depositETH(bool isLent) external payable {
-        IWETH(WETH).deposit{ value: msg.value }();
+        IWETH(wrappedNative).deposit{ value: msg.value }();
         _deposit(msg.value, isLent);
     }
 
     function depositWETH(uint256 amount, bool isLent) external {
         SafeTransferLib.safeTransferFrom(
-            WETH,
+            wrappedNative,
             msg.sender,
             address(this),
             amount
@@ -111,13 +111,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     function withdrawAsETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
-        IWETH(WETH).withdraw(amount);
+        IWETH(wrappedNative).withdraw(amount);
         SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
 
     function withdrawAsWETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
-        SafeTransferLib.safeTransfer(WETH, msg.sender, amount);
+        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
     }
 
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
@@ -170,8 +170,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             }
         }
 
-        // Transfer the WETH to Oracle Adaptor for use in updating oracle feed.
-        SafeTransferLib.safeTransfer(WETH, msg.sender, amount);
+        // Transfer the wrapped native tokens to the Oracle Adaptor for use
+        // in updating oracle feed.
+        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
     }
 
     /// @notice Claims pending gauge rewards from lent balance to the DAO.

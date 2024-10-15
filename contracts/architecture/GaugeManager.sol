@@ -377,8 +377,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         }
 
         address[] memory rewardTokenForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokenForMToken.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        uint256 numTokens = rewardTokenForMToken.length;
+        for (uint256 i; i < numTokens; ) {
             address _rewardToken = rewardTokenForMToken[i++];
             if (_rewardToken == cve || _rewardToken == rewardToken) {
                 continue;
@@ -388,9 +388,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
                 uint256 indexToRemove = rewardTokenToIndex[token][
                     _rewardToken
                 ];
-                if (indexToRemove != (rewardTokensLength - 1)) {
+                if (indexToRemove != (numTokens - 1)) {
                     rewardTokens[token][indexToRemove] = rewardTokens[token][
-                        rewardTokensLength - 1
+                        numTokens - 1
                     ];
                 }
                 rewardTokens[token].pop();
@@ -559,11 +559,11 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         address token,
         address user
     ) external view returns (uint256[] memory results) {
-        uint256 rewardTokensLength = rewardTokens[token].length;
+        uint256 numTokens = rewardTokens[token].length;
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        results = new uint256[](rewardTokensLength);
+        results = new uint256[](numTokens);
 
-        for (uint256 i; i < rewardTokensLength; ++i) {
+        for (uint256 i; i < numTokens; ++i) {
             results[i] = pendingRewards(token, user, rewardTokensForMToken[i]);
         }
     }
@@ -869,8 +869,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
 
         // Cache rewardTokens length.
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        uint256 numTokens = rewardTokensForMToken.length;
+        for (uint256 i; i < numTokens; ) {
             uint256 lastRewardTimestamp = _lastRewardTimestamp;
 
             // Query rewardToken then increment i.
@@ -944,9 +944,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @param token Pool token address.
     function _calcPending(address user, address token) internal {
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
+        uint256 numTokens = rewardTokensForMToken.length;
 
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
@@ -964,9 +964,9 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @param token Pool token address.
     function _calcDebt(address user, address token) internal {
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
+        uint256 numTokens = rewardTokensForMToken.length;
 
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
