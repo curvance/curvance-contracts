@@ -71,7 +71,7 @@ contract DepositWETHTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
+            UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
         universalBalanceNative.depositWETH(0, false);
     }

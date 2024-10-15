@@ -9,7 +9,7 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
         public
     {
         vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__Unauthorized.selector
+            UniversalBalance.UniversalBalance__Unauthorized.selector
         );
         universalBalanceNative.useBalanceForOracleUpdate(user1, _ONE);
     }
@@ -29,7 +29,7 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
         vm.prank(address(chainlinkAdaptor));
 
         vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InsufficientBalance.selector
+            UniversalBalance.UniversalBalance__InsufficientBalance.selector
         );
         universalBalanceNative.useBalanceForOracleUpdate(user1, _ONE * 2 + 1);
     }

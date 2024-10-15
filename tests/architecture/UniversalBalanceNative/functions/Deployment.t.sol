@@ -20,7 +20,7 @@ contract UniversalBalanceNativeDeploymentTest is TestBaseUniversalBalanceNative 
 
     function test_universalBalanceNativeDeployment_fail_whenTokenIsPToken() public {
         vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
+            UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
         new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
@@ -41,7 +41,7 @@ contract UniversalBalanceNativeDeploymentTest is TestBaseUniversalBalanceNative 
             address(centralRegistry)
         );
         assertEq(address(universalBalanceNative.linkedEToken()), address(eWETH));
-        assertEq(universalBalanceNative.wrappedNative(), _WETH_ADDRESS);
+        assertEq(universalBalanceNative.underlying(), _WETH_ADDRESS);
         assertEq(
             weth.allowance(address(universalBalanceNative), address(eWETH)),
             type(uint256).max

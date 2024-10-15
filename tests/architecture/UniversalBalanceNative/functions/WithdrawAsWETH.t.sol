@@ -51,7 +51,7 @@ contract WithdrawAsWETHTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectRevert(
-            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
+            UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
         universalBalanceNative.withdrawAsWETH(0, false);
     }
