@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 
-contract ClaimForDAOTest is TestBaseUniversalBalance {
+contract ClaimForDAOTest is TestBaseUniversalBalanceNative {
     function setUp() public override {
         super.setUp();
 
@@ -13,15 +13,15 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: _ONE }(true);
-        universalBalance.depositETH{ value: _ONE }(false);
+        universalBalanceNative.depositETH{ value: _ONE }(true);
+        universalBalanceNative.depositETH{ value: _ONE }(false);
 
         vm.stopPrank();
     }
 
     function test_claimForDAO_fail_whenNotStarted() public {
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
-        universalBalance.claimForDAO();
+        universalBalanceNative.claimForDAO();
     }
 
     function test_claimForDAO_success() public {
@@ -44,7 +44,7 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
 
         uint256 cveBalance = cve.balanceOf(address(this));
 
-        universalBalance.claimForDAO();
+        universalBalanceNative.claimForDAO();
 
         assertEq(
             cve.balanceOf(address(this)),

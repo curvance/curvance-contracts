@@ -2,32 +2,32 @@
 pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract TestBaseUniversalBalance is TestBaseMarket {
-    UniversalBalance public universalBalance;
-    EToken public dWETH;
+contract TestBaseUniversalBalanceNative is TestBaseMarket {
+    UniversalBalanceNative public universalBalanceNative;
+    EToken public eWETH;
 
     function setUp() public virtual override {
         super.setUp();
 
-        dWETH = _deployEToken(_WETH_ADDRESS);
+        eWETH = _deployEToken(_WETH_ADDRESS);
 
-        universalBalance = new UniversalBalance(
+        universalBalanceNative = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
-            address(dWETH),
+            address(eWETH),
             _WETH_ADDRESS
         );
 
         deal(_WETH_ADDRESS, address(this), 10e18);
         deal(user1, _ONE);
 
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleManager.addMTokenSupport(address(dWETH));
+        weth.approve(address(eWETH), 10e18);
+        marketManager.listToken(address(eWETH));
+        oracleManager.addMTokenSupport(address(eWETH));
 
-        dWETH.depositReserves(_ONE + 1);
+        eWETH.depositReserves(_ONE + 1);
     }
 }

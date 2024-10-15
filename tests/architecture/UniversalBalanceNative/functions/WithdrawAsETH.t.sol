@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
-contract WithdrawAsETHTest is TestBaseUniversalBalance {
+contract WithdrawAsETHTest is TestBaseUniversalBalanceNative {
     event Withdraw(
         address indexed by,
         address indexed to,
@@ -22,10 +22,10 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: amount }(true);
+        universalBalanceNative.depositETH{ value: amount }(true);
 
         vm.expectRevert();
-        universalBalance.withdrawAsETH(amount + 1, true);
+        universalBalanceNative.withdrawAsETH(amount + 1, true);
 
         vm.stopPrank();
     }
@@ -39,10 +39,10 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: amount }(false);
+        universalBalanceNative.depositETH{ value: amount }(false);
 
         vm.expectRevert();
-        universalBalance.withdrawAsETH(amount + 1, false);
+        universalBalanceNative.withdrawAsETH(amount + 1, false);
 
         vm.stopPrank();
     }
@@ -51,9 +51,9 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         vm.expectRevert(
-            UniversalBalance.UniversalBalance__InvalidParameter.selector
+            UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
         );
-        universalBalance.withdrawAsETH(0, false);
+        universalBalanceNative.withdrawAsETH(0, false);
     }
 
     function test_withdrawAsETH_success_withLend_fuzzed(
@@ -69,15 +69,15 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: depositAmount }(true);
-        universalBalance.depositETH{ value: depositAmount }(false);
+        universalBalanceNative.depositETH{ value: depositAmount }(true);
+        universalBalanceNative.depositETH{ value: depositAmount }(false);
 
         vm.stopPrank();
 
-        uint256 redeemAmount = dWETH.convertToShares(withdrawAmount);
-        uint256 ethBalance = address(universalBalance).balance;
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
+        uint256 redeemAmount = eWETH.convertToShares(withdrawAmount);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
         uint256 userETHBalance = user1.balance;
 
         vm.prank(user1);
@@ -85,18 +85,18 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, redeemAmount);
 
-        universalBalance.withdrawAsETH(withdrawAmount, true);
+        universalBalanceNative.withdrawAsETH(withdrawAmount, true);
 
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
 
         assertEq(sittingBalance, depositAmount);
         assertEq(lentBalance, depositAmount - withdrawAmount);
-        assertEq(address(universalBalance).balance, ethBalance);
-        assertEq(weth.balanceOf(address(universalBalance)), wethBalance);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(weth.balanceOf(address(universalBalanceNative)), wethBalance);
         assertEq(
-            dWETH.balanceOf(address(universalBalance)),
-            dWETHBalance - redeemAmount
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance - redeemAmount
         );
         assertEq(user1.balance, userETHBalance + withdrawAmount);
     }
@@ -114,14 +114,14 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: depositAmount }(true);
-        universalBalance.depositETH{ value: depositAmount }(false);
+        universalBalanceNative.depositETH{ value: depositAmount }(true);
+        universalBalanceNative.depositETH{ value: depositAmount }(false);
 
         vm.stopPrank();
 
-        uint256 ethBalance = address(universalBalance).balance;
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
         uint256 userETHBalance = user1.balance;
 
         vm.prank(user1);
@@ -129,19 +129,19 @@ contract WithdrawAsETHTest is TestBaseUniversalBalance {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, withdrawAmount);
 
-        universalBalance.withdrawAsETH(withdrawAmount, false);
+        universalBalanceNative.withdrawAsETH(withdrawAmount, false);
 
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
 
         assertEq(sittingBalance, depositAmount - withdrawAmount);
         assertEq(lentBalance, depositAmount);
-        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
         assertEq(
-            weth.balanceOf(address(universalBalance)),
+            weth.balanceOf(address(universalBalanceNative)),
             wethBalance - withdrawAmount
         );
-        assertEq(dWETH.balanceOf(address(universalBalance)), dWETHBalance);
+        assertEq(eWETH.balanceOf(address(universalBalanceNative)), eWETHBalance);
         assertEq(user1.balance, userETHBalance + withdrawAmount);
     }
 }

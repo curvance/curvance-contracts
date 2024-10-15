@@ -14,7 +14,8 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 /// @title Curvance Universal Balance.
-/// @notice A system for managing a Universal Balance within the Curvance Protocol.
+/// @notice A system for managing a Universal Balance within the Curvance
+///         Protocol.
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 

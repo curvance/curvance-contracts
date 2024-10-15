@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -14,64 +16,14 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
-/// @title Curvance Universal Balance.
-/// @notice A system for managing a Universal Balance within the Curvance Protocol.
-contract UniversalBalance is PluginDelegable, ReentrancyGuard {
-    /// TYPES ///
-
-    struct UserBalance {
-        uint256 sittingBalance;
-        uint256 lentBalance;
-    }
-
-    /// CONSTANTS ///
-
-    /// @notice The address of the eToken linked to this contract.
-    IMToken public immutable linkedEToken;
-
-    /// @notice The address of wrapped native token on this chain.
-    address public immutable wrappedNative;
-
-    /// @dev `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xc75f2a32;
-
-    /// STORAGE ///
-
-    /// @notice Manages a users sitting and lending balances inside
-    ///         their universe balance account.
-    /// @dev User => User's balance sitting and lent out.
-    mapping(address => UserBalance) public userBalances;
-
-    /// EVENTS ///
-
-    /// @dev Emitted during a deposit call.
-    event Deposit(
-        address indexed by,
-        address indexed owner,
-        uint256 assets,
-        uint256 outputAmount
-    );
-
-    /// @dev Emitted during a withdraw call.
-    event Withdraw(
-        address indexed by,
-        address indexed to,
-        address indexed owner,
-        uint256 assets,
-        uint256 redeemedAmount
-    );
-
-    /// ERRORS ///
-
-    error UniversalBalance__InsufficientBalance();
-    error UniversalBalance__UnderlyingTokenMismatch();
-    error UniversalBalance__InvalidParameter();
-    error UniversalBalance__Unauthorized();
-    error UniversalBalance__SlippageError();
+/// @title Curvance Universal Balance for native gas token.
+/// @notice A system for managing a Universal Balance within the Curvance
+///         Protocol.
+contract UniversalBalanceNative is UniversalBalance {
 
     receive() external payable {
-        if (msg.sender != wrappedNative) {
-            IWETH(wrappedNative).deposit{ value: msg.value };
+        if (msg.sender != underlying) {
+            IWETH(underlying).deposit{ value: msg.value };
             _deposit(msg.value, true);
         }
     }
@@ -81,64 +33,26 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address eToken,
-        address wrappedNative_
-    ) PluginDelegable(centralRegistry_) {
-        // Validate inputted eToken is actually an eToken.
-        if (IMToken(eToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        linkedEToken = IMToken(eToken);
-        wrappedNative = wrappedNative_;
-
+        address underlying_
+    ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).underlying() != wrappedNative_) {
+        if (IMToken(eToken).underlying() != underlying_) {
             revert UniversalBalance__UnderlyingTokenMismatch();
         }
-
-        IERC20(wrappedNative_).approve(eToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    function depositETH(bool isLent) external payable {
-        IWETH(wrappedNative).deposit{ value: msg.value }();
+    function depositNative(bool isLent) external payable {
+        IWETH(underlying).deposit{ value: msg.value }();
         _deposit(msg.value, isLent);
     }
 
-    /// @notice Deposits underlying token into user's universal balance
-    ///         account, either to be held or lent out.
-    /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
-    /// @param isLent Whether the deposited underlying tokens should be lent
-    ///               out inside Curvance Protocol.
-    function depositWETH(uint256 amount, bool isLent) external {
-        SafeTransferLib.safeTransferFrom(
-            wrappedNative,
-            msg.sender,
-            address(this),
-            amount
-        );
-        _deposit(amount, isLent);
-    }
-
-    function withdrawAsETH(uint256 amount, bool isLent) external {
+    function withdrawAsNative(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
-        IWETH(wrappedNative).withdraw(amount);
+        IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(msg.sender, amount);
-    }
-
-    /// @notice Withdraws underlying token from user's universal balance
-    ///         account, either currently held or lent out.
-    /// @dev Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
-    /// @param isLent Whether the withdrawn underlying tokens should be pulled
-    ///               from a user's lent position or held position inside
-    ///               Curvance Protocol.
-    function withdrawAsWETH(uint256 amount, bool isLent) external {
-        amount = _withdraw(amount, isLent);
-        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
@@ -198,138 +112,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // Transfer the wrapped native tokens to the Oracle Adaptor for use
         // in updating oracle feed.
-        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
-    }
-
-    /// @notice Claims pending gauge rewards from lent balance to the DAO.
-    /// @dev This is allowed to be permissionless as there is no potential
-    ///      to steal funds.
-    function claimForDAO() external {
-        IGaugeManager gaugeManager = IGaugeManager(
-            centralRegistry.gaugeManager()
-        );
-        address[] memory rewardTokens = gaugeManager.getRewardTokens(
-            address(linkedEToken)
-        );
-
-        uint256 numRewardTokens = rewardTokens.length;
-        uint256[] memory previousBalances = new uint256[](numRewardTokens);
-
-        for (uint256 i; i < numRewardTokens; ++i) {
-            previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(
-                address(this)
-            );
-        }
-
-        address[] memory claimTokens = new address[](1);
-        claimTokens[0] = address(linkedEToken);
-
-        gaugeManager.claim(claimTokens, address(this));
-        address daoAddress = centralRegistry.daoAddress();
-
-        // If the contract received rewards in a reward token,
-        // transfer them to the DAO.
-        // We do a two step process in case a reward token matches
-        // a universal balance token.
-        for (uint256 i = 0; i < numRewardTokens; ++i) {
-            previousBalances[i] =
-                IERC20(rewardTokens[i]).balanceOf(address(this)) -
-                previousBalances[i];
-            if (previousBalances[i] > 0) {
-                SafeTransferLib.safeTransfer(
-                    rewardTokens[i],
-                    daoAddress,
-                    previousBalances[i]
-                );
-            }
-        }
-    }
-
-    /// INTERNAL FUNCTIONS ///
-
-    /// @notice Deposits underlying token into user's universal balance
-    ///         account, either to be held or lent out.
-    /// @dev Emits { Deposit } event.
-    /// @param amount The amount of underlying token to be deposited.
-    /// @param isLent Whether the deposited underlying tokens should be lent
-    ///               out inside Curvance Protocol.
-    function _deposit(uint256 amount, bool isLent) internal {
-        if (isLent) {
-            // Will natively fail if amount == 0 on gaugeManager call.
-            // Records balance in tokens (shares).
-            uint256 tokensReceived = linkedEToken.mint(amount);
-            userBalances[msg.sender].lentBalance += tokensReceived;
-            emit Deposit(msg.sender, msg.sender, amount, tokensReceived);
-            return;
-        }
-
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        userBalances[msg.sender].sittingBalance += amount;
-        emit Deposit(msg.sender, msg.sender, amount, amount);
-    }
-
-    /// @notice Withdraws underlying token from user's universal balance
-    ///         account, either currently held or lent out.
-    /// @dev Emits { Withdraw } event.
-    /// @param amount The amount of underlying token to be withdrawn.
-    /// @param isLent Whether the withdrawn underlying tokens should be pulled
-    ///               from a user's lent position or held position inside
-    ///               Curvance Protocol.
-    function _withdraw(
-        uint256 amount,
-        bool isLent
-    ) internal returns (uint256) {
-        if (isLent) {
-            uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
-            // Will natively fail if amount == 0 on gaugeManager call.
-            // Records balance in tokens (shares).
-            // We round up to make sure the user gets at least `amount` back.
-            uint256 tokensToRedeem = FixedPointMathLib.mulDivUp(
-                amount,
-                WAD,
-                exchangeRate
-            );
-            userBalances[msg.sender].lentBalance -= tokensToRedeem;
-
-            uint256 tokensReceived = linkedEToken.redeem(tokensToRedeem);
-            emit Withdraw(
-                msg.sender,
-                msg.sender,
-                msg.sender,
-                tokensReceived,
-                tokensToRedeem
-            );
-            return tokensReceived;
-        }
-
-        if (amount == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        userBalances[msg.sender].sittingBalance -= amount;
-        emit Withdraw(msg.sender, msg.sender, msg.sender, amount, amount);
-        return amount;
-    }
-
-    /// @dev Returns `floor(x * y / d)`.
-    /// Reverts if `x * y` overflows, or `d` is zero.
-    function _mulDiv(
-        uint256 x,
-        uint256 y,
-        uint256 d
-    ) internal pure returns (uint256) {
-        return FixedPointMathLib.mulDiv(x, y, d);
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
+        SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
     }
 }

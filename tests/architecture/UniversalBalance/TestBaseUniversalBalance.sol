@@ -8,26 +8,26 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TestBaseUniversalBalance is TestBaseMarket {
     UniversalBalance public universalBalance;
-    EToken public dWETH;
+    EToken public eWETH;
 
     function setUp() public virtual override {
         super.setUp();
 
-        dWETH = _deployEToken(_WETH_ADDRESS);
+        eWETH = _deployEToken(_WETH_ADDRESS);
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(dWETH),
+            address(eWETH),
             _WETH_ADDRESS
         );
 
         deal(_WETH_ADDRESS, address(this), 10e18);
         deal(user1, _ONE);
 
-        weth.approve(address(dWETH), 10e18);
-        marketManager.listToken(address(dWETH));
-        oracleManager.addMTokenSupport(address(dWETH));
+        weth.approve(address(eWETH), 10e18);
+        marketManager.listToken(address(eWETH));
+        oracleManager.addMTokenSupport(address(eWETH));
 
-        dWETH.depositReserves(_ONE + 1);
+        eWETH.depositReserves(_ONE + 1);
     }
 }

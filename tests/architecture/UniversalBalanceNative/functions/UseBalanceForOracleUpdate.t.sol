@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
-contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
+contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
     function test_useBalanceForOracleUpdate_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
+            UniversalBalanceNative.UniversalBalance__Unauthorized.selector
         );
-        universalBalance.useBalanceForOracleUpdate(user1, _ONE);
+        universalBalanceNative.useBalanceForOracleUpdate(user1, _ONE);
     }
 
     function test_useBalanceForOracleUpdate_fail_whenBalanceIsInsufficient()
@@ -21,17 +21,17 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: _ONE }(true);
-        universalBalance.depositETH{ value: _ONE }(false);
+        universalBalanceNative.depositETH{ value: _ONE }(true);
+        universalBalanceNative.depositETH{ value: _ONE }(false);
 
         vm.stopPrank();
 
         vm.prank(address(chainlinkAdaptor));
 
         vm.expectRevert(
-            UniversalBalance.UniversalBalance__InsufficientBalance.selector
+            UniversalBalanceNative.UniversalBalance__InsufficientBalance.selector
         );
-        universalBalance.useBalanceForOracleUpdate(user1, _ONE * 2 + 1);
+        universalBalanceNative.useBalanceForOracleUpdate(user1, _ONE * 2 + 1);
     }
 
     function test_useBalanceForOracleUpdate_success_fuzzed(
@@ -50,29 +50,29 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        universalBalance.depositETH{ value: depositAmount1 }(true);
-        universalBalance.depositETH{ value: depositAmount2 }(false);
+        universalBalanceNative.depositETH{ value: depositAmount1 }(true);
+        universalBalanceNative.depositETH{ value: depositAmount2 }(false);
 
         vm.stopPrank();
 
-        uint256 redeemAmount = dWETH.convertToShares(
+        uint256 redeemAmount = eWETH.convertToShares(
             withdrawAmount > depositAmount2
                 ? withdrawAmount - depositAmount2
                 : 0
         );
         uint256 adaptorWETHBalance = weth.balanceOf(address(chainlinkAdaptor));
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 dWETHBalance = dWETH.balanceOf(address(universalBalance));
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
 
         assertEq(lentBalance, depositAmount1);
         assertEq(sittingBalance, depositAmount2);
 
         vm.prank(address(chainlinkAdaptor));
-        universalBalance.useBalanceForOracleUpdate(user1, withdrawAmount);
+        universalBalanceNative.useBalanceForOracleUpdate(user1, withdrawAmount);
 
-        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(user1);
 
         assertEq(lentBalance, depositAmount1 - redeemAmount);
         assertEq(
@@ -82,7 +82,7 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
                 : 0
         );
         assertEq(
-            weth.balanceOf(address(universalBalance)),
+            weth.balanceOf(address(universalBalanceNative)),
             wethBalance -
                 (
                     withdrawAmount > depositAmount2
@@ -91,8 +91,8 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalance {
                 )
         );
         assertEq(
-            dWETH.balanceOf(address(universalBalance)),
-            dWETHBalance - redeemAmount
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance - redeemAmount
         );
         assertEq(
             weth.balanceOf(address(chainlinkAdaptor)),

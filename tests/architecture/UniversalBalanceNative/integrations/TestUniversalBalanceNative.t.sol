@@ -6,7 +6,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
@@ -15,7 +15,7 @@ import "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
-contract TestUniversalBalance is TestBaseMarket {
+contract TestUniversalBalanceNative is TestBaseMarket {
     address public owner;
 
     MockDataFeed public mockUsdcFeed;
@@ -24,7 +24,7 @@ contract TestUniversalBalance is TestBaseMarket {
     MockV3Aggregator public mockWbtcFeed;
 
     SimplePToken public cWBTC;
-    UniversalBalance public universalBalance;
+    UniversalBalanceNative public universalBalance;
     EToken public eWETH;
 
     receive() external payable {}
@@ -89,7 +89,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         eWETH = _deployEToken(_WETH_ADDRESS);
 
-        universalBalance = new UniversalBalance(
+        universalBalance = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
             address(eWETH),
             _WETH_ADDRESS
@@ -180,15 +180,15 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(lentBalance, 100e18);
     }
 
-    function testDeposit() public {
+    function testDepositWETH() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
-        universalBalance.deposit(1 ether, false);
+        universalBalance.depositWETH(1 ether, false);
 
         deal(_WETH_ADDRESS, user1, 1 ether);
         weth.approve(address(universalBalance), 1 ether);
-        universalBalance.deposit(1 ether, true);
+        universalBalance.depositWETH(1 ether, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -198,7 +198,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testWithdrawAsETH() public {
-        testDeposit();
+        testDepositWETH();
 
         uint256 ethBalance = user1.balance;
 
@@ -220,13 +220,13 @@ contract TestUniversalBalance is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testWithdraw() public {
+    function testWithdrawAsWETH() public {
         testDepositETH();
 
         vm.startPrank(user1);
-        universalBalance.withdraw(100e18, false);
+        universalBalance.withdrawAsWETH(100e18, false);
 
-        universalBalance.withdraw(100e18, true);
+        universalBalance.withdrawAsWETH(100e18, true);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
@@ -282,7 +282,7 @@ contract TestUniversalBalance is TestBaseMarket {
         eWETH.mint(100e18);
 
         vm.prank(user1);
-        universalBalance.withdraw(50e18, true);
+        universalBalance.withdrawAsWETH(50e18, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
