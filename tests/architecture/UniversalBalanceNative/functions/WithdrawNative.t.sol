@@ -25,7 +25,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         universalBalanceNative.depositNative{ value: amount }(true);
 
         vm.expectRevert();
-        universalBalanceNative.withdraw(amount + 1, true);
+        universalBalanceNative.withdrawNative(amount + 1, true);
 
         vm.stopPrank();
     }
@@ -42,7 +42,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         universalBalanceNative.depositNative{ value: amount }(false);
 
         vm.expectRevert();
-        universalBalanceNative.withdraw(amount + 1, false);
+        universalBalanceNative.withdrawNative(amount + 1, false);
 
         vm.stopPrank();
     }
@@ -53,7 +53,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         vm.expectRevert(
             UniversalBalanceNative.UniversalBalance__InvalidParameter.selector
         );
-        universalBalanceNative.withdraw(0, false);
+        universalBalanceNative.withdrawNative(0, false);
     }
 
     function test_withdraw_success_withLend_fuzzed(
@@ -85,7 +85,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, redeemAmount);
 
-        universalBalanceNative.withdraw(withdrawAmount, true);
+        universalBalanceNative.withdrawNative(withdrawAmount, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -129,7 +129,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, withdrawAmount);
 
-        universalBalanceNative.withdraw(withdrawAmount, false);
+        universalBalanceNative.withdrawNative(withdrawAmount, false);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);

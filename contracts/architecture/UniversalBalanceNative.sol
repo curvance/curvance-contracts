@@ -46,8 +46,8 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// @notice Deposits native gas token token into user's universal balance
     ///         account, either to be held or lent out.
-    /// @dev Emits { Deposit } event.
-    /// @param amount The amount of native token to be deposited.
+    /// @dev Emits { Deposit } event. The amount of native token to be
+    ///      deposited is attached to the transaction.
     /// @param isLent Whether the deposited native tokens should be lent
     ///               out inside Curvance Protocol (as wrapped native).
     function depositNative(bool isLent) external payable {
