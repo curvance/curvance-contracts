@@ -6,7 +6,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
