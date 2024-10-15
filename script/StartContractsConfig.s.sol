@@ -34,7 +34,7 @@ contract StartContractsConfig is
     SimpleZapperDeployer,
     ComplexZapperDeployer
 {
-    struct DTokenInterestRateParam {
+    struct ETokenInterestRateParam {
         uint256 adjustmentRate;
         uint256 adjustmentVelocity;
         uint256 baseRatePerYear;
