@@ -134,8 +134,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
-    /// @param Which user is funding the oracle update from their universal
-    ///        balance account.
+    /// @param user Which user is funding the oracle update from their universal
+    ///             balance account.
     /// @param isLent Whether the withdrawn underlying tokens should be pulled
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
