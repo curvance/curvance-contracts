@@ -165,21 +165,6 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testDeposit() public {
-        vm.deal(user1, 100e18);
-        vm.startPrank(user1);
-        universalBalance.deposit{ value: 100e18 }(false);
-
-        vm.deal(user1, 100e18);
-        universalBalance.deposit{ value: 100e18 }(true);
-        vm.stopPrank();
-
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
-        assertEq(sittingBalance, 100e18);
-        assertEq(lentBalance, 100e18);
-    }
-
-    function testDeposit() public {
         deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
         weth.approve(address(universalBalance), 1 ether);
@@ -199,28 +184,7 @@ contract TestUniversalBalance is TestBaseMarket {
     function testWithdraw() public {
         testDeposit();
 
-        uint256 ethBalance = user1.balance;
-
-        vm.startPrank(user1);
-        universalBalance.withdraw(1 ether, false);
-
-        assertEq(user1.balance, ethBalance + 1 ether);
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
-        assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 1 ether);
-
-        universalBalance.withdraw(1 ether, true);
-
-        assertEq(user1.balance, ethBalance + 2 ether);
-        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
-        assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 0 ether);
-        vm.stopPrank();
-    }
-
-    function testWithdraw() public {
-        testDeposit();
+        uint256 balanceBefore = IERC20(_WETH_ADDRESS).balanceOf(user1);
 
         vm.startPrank(user1);
         universalBalance.withdraw(100e18, false);
@@ -228,6 +192,7 @@ contract TestUniversalBalance is TestBaseMarket {
         universalBalance.withdraw(100e18, true);
         vm.stopPrank();
 
+        assertEq(IERC20(_WETH_ADDRESS).balanceOf(user1), balanceBefore + 200e18);
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
         assertEq(sittingBalance, 0);

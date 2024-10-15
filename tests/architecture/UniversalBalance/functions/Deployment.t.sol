@@ -38,7 +38,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
             address(centralRegistry)
         );
         assertEq(address(universalBalance.linkedEToken()), address(eWETH));
-        assertEq(universalBalance.wrappedNative(), _WETH_ADDRESS);
+        assertEq(universalBalance.underlying(), _WETH_ADDRESS);
         assertEq(
             weth.allowance(address(universalBalance), address(eWETH)),
             type(uint256).max
