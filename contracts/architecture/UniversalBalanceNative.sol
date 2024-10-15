@@ -8,6 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
@@ -28,8 +29,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice The address of the eToken linked to this contract.
     IMToken public immutable linkedEToken;
 
-    /// @notice The address of universal balance underlying token.
-    address public immutable underlying;
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
 
     /// @dev `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xc75f2a32;
@@ -68,11 +69,19 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     error UniversalBalance__Unauthorized();
     error UniversalBalance__SlippageError();
 
+    receive() external payable {
+        if (msg.sender != wrappedNative) {
+            IWETH(wrappedNative).deposit{ value: msg.value };
+            _deposit(msg.value, true);
+        }
+    }
+
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address eToken
+        address eToken,
+        address wrappedNative_
     ) PluginDelegable(centralRegistry_) {
         // Validate inputted eToken is actually an eToken.
         if (IMToken(eToken).isPToken()) {
@@ -80,13 +89,23 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         linkedEToken = IMToken(eToken);
-        address underlying_ = IMToken(eToken).underlying();
-        underlying = underlying_;
+        wrappedNative = wrappedNative_;
 
-        IERC20(underlying_).approve(eToken, type(uint256).max);
+        // Validate that eToken underlying and native wrapped token
+        // contract match addresses.
+        if (IMToken(eToken).underlying() != wrappedNative_) {
+            revert UniversalBalance__UnderlyingTokenMismatch();
+        }
+
+        IERC20(wrappedNative_).approve(eToken, type(uint256).max);
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    function depositETH(bool isLent) external payable {
+        IWETH(wrappedNative).deposit{ value: msg.value }();
+        _deposit(msg.value, isLent);
+    }
 
     /// @notice Deposits underlying token into user's universal balance
     ///         account, either to be held or lent out.
@@ -94,14 +113,20 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param amount The amount of underlying token to be deposited.
     /// @param isLent Whether the deposited underlying tokens should be lent
     ///               out inside Curvance Protocol.
-    function deposit(uint256 amount, bool isLent) external {
+    function depositWETH(uint256 amount, bool isLent) external {
         SafeTransferLib.safeTransferFrom(
-            underlying,
+            wrappedNative,
             msg.sender,
             address(this),
             amount
         );
         _deposit(amount, isLent);
+    }
+
+    function withdrawAsETH(uint256 amount, bool isLent) external {
+        amount = _withdraw(amount, isLent);
+        IWETH(wrappedNative).withdraw(amount);
+        SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
 
     /// @notice Withdraws underlying token from user's universal balance
@@ -111,9 +136,69 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param isLent Whether the withdrawn underlying tokens should be pulled
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
-    function withdraw(uint256 amount, bool isLent) external {
+    function withdrawAsWETH(uint256 amount, bool isLent) external {
         amount = _withdraw(amount, isLent);
-        SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
+        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
+    }
+
+    /// @notice Used by Oracle Manager to fund a pull-based oracle update.
+    /// @param user Which user is funding the oracle update from their universal
+    ///             balance account.
+    /// @param amount The amount of underlying token to be earmarked for
+    ///               oracle update.
+    function useBalanceForOracleUpdate(address user, uint256 amount) external {
+        // Check for amount == 0 in oracle adaptor.
+        if (
+            !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(
+                msg.sender
+            )
+        ) {
+            revert UniversalBalance__Unauthorized();
+        }
+
+        UserBalance memory userBalance = userBalances[user];
+        uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
+        uint256 pointerAmount;
+        uint256 remainingAmount = amount;
+
+        if (
+            userBalance.sittingBalance +
+                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <
+            amount
+        ) {
+            revert UniversalBalance__InsufficientBalance();
+        }
+
+        if (userBalance.sittingBalance > 0) {
+            pointerAmount = userBalance.sittingBalance < amount
+                ? userBalance.sittingBalance
+                : amount;
+            // Reduce user sitting balance.
+            userBalances[user].sittingBalance -= pointerAmount;
+            remainingAmount -= pointerAmount;
+        }
+
+        // Check if lent balance needs to be utilized.
+        // Will natively fail if utilization is at 100%.
+        if (remainingAmount > 0) {
+            pointerAmount = FixedPointMathLib.mulDivUp(
+                remainingAmount,
+                WAD,
+                exchangeRate
+            );
+            // Reduce user lent balance.
+            userBalances[user].lentBalance -= pointerAmount;
+
+            pointerAmount = linkedEToken.redeem(pointerAmount);
+            // Make sure enough was redeemed.
+            if (pointerAmount < remainingAmount) {
+                revert UniversalBalance__SlippageError();
+            }
+        }
+
+        // Transfer the wrapped native tokens to the Oracle Adaptor for use
+        // in updating oracle feed.
+        SafeTransferLib.safeTransfer(wrappedNative, msg.sender, amount);
     }
 
     /// @notice Claims pending gauge rewards from lent balance to the DAO.
