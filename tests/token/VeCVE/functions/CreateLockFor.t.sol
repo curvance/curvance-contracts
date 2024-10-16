@@ -153,7 +153,7 @@ contract CreateLockForTest is TestBaseVeCVE {
         assertEq(lockTimestamps[0], unlockTime);
         assertEq(
             unlockTime,
-            veCVE.genesisEpoch() +
+            centralRegistry.genesisEpoch() +
                 (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
                 veCVE.LOCK_DURATION()
         );

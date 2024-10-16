@@ -56,8 +56,6 @@ contract CentralRegistry is ERC165 {
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public constant EPOCH_DURATION = 2 weeks;
 
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
     /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
     /// @notice Address of fee token.
@@ -69,6 +67,9 @@ contract CentralRegistry is ERC165 {
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xe675838a;
 
     /// STORAGE ///
+
+    /// @notice Genesis Epoch timestamp.
+    uint256 public genesisEpoch;
 
     // DAO GOVERNANCE OPERATORS
 
@@ -207,6 +208,7 @@ contract CentralRegistry is ERC165 {
 
     /// EVENTS ///
 
+    event GenesisEpochSet(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
     event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
@@ -238,7 +240,11 @@ contract CentralRegistry is ERC165 {
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address relayer);
-    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
+    event RemovedChain(
+        uint256 chainId,
+        address messagingHub,
+        address votingHub
+    );
     event CallDataCheckerSet(
         string indexed calldataType,
         address targetAddress,
@@ -340,6 +346,24 @@ contract CentralRegistry is ERC165 {
 
             eToken.processWithdrawReserves();
         }
+    }
+
+    /// @notice Sets a new genesis epoch.
+    /// @dev Only callable by the Emergency Council.
+    ///      Emits a {GenesisEpochSet} event.
+    /// @param newGenesisEpoch The new genesis epoch.
+    function setGenesisEpoch(uint256 newGenesisEpoch) external {
+        if (
+            genesisEpoch <= block.timestamp || newGenesisEpoch < genesisEpoch
+        ) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        _checkElevatedPermissions();
+
+        genesisEpoch = newGenesisEpoch;
+
+        emit GenesisEpochSet(newGenesisEpoch);
     }
 
     /// @notice Sets a CVE contract address.
@@ -784,7 +808,7 @@ contract CentralRegistry is ERC165 {
                 delete hasDaoPermissions[previousTimelock];
             }
         }
-        
+
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
         hasElevatedPermissions[newTimelock] = true;
@@ -814,7 +838,7 @@ contract CentralRegistry is ERC165 {
                 delete hasDaoPermissions[previousEmergencyCouncil];
             }
         }
-        
+
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
         hasElevatedPermissions[newEmergencyCouncil] = true;
@@ -1244,5 +1268,4 @@ contract CentralRegistry is ERC165 {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
-    
 }

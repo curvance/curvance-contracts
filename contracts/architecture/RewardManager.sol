@@ -46,8 +46,6 @@ contract RewardManager is Delegable, ReentrancyGuard {
     address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
 
@@ -109,9 +107,8 @@ contract RewardManager is Delegable, ReentrancyGuard {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         cve = centralRegistry.cve();
-        genesisEpoch = centralRegistry.genesisEpoch();
         epochDuration = centralRegistry.EPOCH_DURATION();
-        
+
         rewardToken = rewardToken_;
     }
 
@@ -201,6 +198,8 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.
     function currentEpoch(uint256 time) external view returns (uint256) {
+        uint256 genesisEpoch = _genesisEpoch();
+
         if (time < genesisEpoch) {
             return 0;
         }
@@ -651,6 +650,12 @@ contract RewardManager is Delegable, ReentrancyGuard {
         );
 
         return lockAmount;
+    }
+
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
     }
 
     /// @dev Internal helper for reverting efficiently.

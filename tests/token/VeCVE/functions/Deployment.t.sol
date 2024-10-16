@@ -20,7 +20,6 @@ contract VeCVEDeploymentTest is TestBaseVeCVE {
         );
         assertEq(veCVE.symbol(), string(abi.encodePacked(bytes32("veCVE"))));
         assertEq(address(veCVE.centralRegistry()), address(centralRegistry));
-        assertEq(veCVE.genesisEpoch(), centralRegistry.genesisEpoch());
         assertEq(veCVE.cve(), centralRegistry.cve());
         assertEq(
             address(veCVE.rewardManager()),

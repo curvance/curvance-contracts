@@ -137,8 +137,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     address public immutable cve;
     /// @notice Reward Manager contract address.
     IRewardManager public immutable rewardManager;
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO hub.
@@ -226,7 +224,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // human error.
         cve = centralRegistry.cve();
         rewardManager = IRewardManager(centralRegistry.rewardManager());
-        genesisEpoch = centralRegistry.genesisEpoch();
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
@@ -1019,6 +1016,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.
     function currentEpoch(uint256 time) public view returns (uint256) {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+
         if (time < genesisEpoch) {
             return 0;
         }
@@ -1030,6 +1029,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Returns the timestamp of when the next epoch begins.
     /// @return The calculated next epoch start timestamp.
     function nextEpochStartTime() public view returns (uint256) {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+
         // If the gauge system has not started yet, the next epoch start time
         // is the Genesis Epoch itself.
         if (block.timestamp < genesisEpoch) {
@@ -1054,7 +1055,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     function freshLockTimestamp() public view returns (uint40) {
         return
             uint40(
-                genesisEpoch +
+                _genesisEpoch() +
                     (currentEpoch(block.timestamp) * epochDuration) +
                     LOCK_DURATION
             );
@@ -1458,6 +1459,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
             (amount *
                 ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
             DENOMINATOR;
+    }
+
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
     }
 
     /// @dev Internal helper for reverting efficiently.
