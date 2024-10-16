@@ -29,5 +29,8 @@ contract TestBaseUniversalBalanceNative is TestBaseMarket {
         oracleManager.addMTokenSupport(address(eWETH));
 
         eWETH.depositReserves(_ONE + 1);
+
+        vm.prank(user1);
+        weth.approve(address(universalBalanceNative), type(uint256).max);
     }
 }

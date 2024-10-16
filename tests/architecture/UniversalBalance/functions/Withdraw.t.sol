@@ -18,7 +18,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(user1, amount);
+        deal(_USDC_ADDRESS, user1, amount);
 
         vm.startPrank(user1);
 
@@ -35,7 +35,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(user1, amount);
+        deal(_USDC_ADDRESS, user1, amount);
 
         vm.startPrank(user1);
 
@@ -65,7 +65,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(user1, depositAmount * 2);
+        deal(_USDC_ADDRESS, user1, depositAmount * 2);
 
         vm.startPrank(user1);
 
@@ -74,11 +74,11 @@ contract WithdrawTest is TestBaseUniversalBalance {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(withdrawAmount);
+        uint256 redeemAmount = eUSDC.convertToShares(withdrawAmount);
         uint256 ethBalance = address(universalBalance).balance;
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalance));
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.prank(user1);
 
@@ -93,12 +93,12 @@ contract WithdrawTest is TestBaseUniversalBalance {
         assertEq(sittingBalance, depositAmount);
         assertEq(lentBalance, depositAmount - withdrawAmount);
         assertEq(address(universalBalance).balance, ethBalance);
-        assertEq(weth.balanceOf(address(universalBalance)), wethBalance);
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(
-            eWETH.balanceOf(address(universalBalance)),
-            eWETHBalance - redeemAmount
+            eUSDC.balanceOf(address(universalBalance)),
+            eUSDCBalance - redeemAmount
         );
-        assertEq(weth.balanceOf(user1), userWETHBalance + withdrawAmount);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance + withdrawAmount);
     }
 
     function test_withdraw_success_withoutLend_fuzzed(
@@ -110,7 +110,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(user1, depositAmount * 2);
+        deal(_USDC_ADDRESS, user1, depositAmount * 2);
 
         vm.startPrank(user1);
 
@@ -120,9 +120,9 @@ contract WithdrawTest is TestBaseUniversalBalance {
         vm.stopPrank();
 
         uint256 ethBalance = address(universalBalance).balance;
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalance));
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.prank(user1);
 
@@ -138,10 +138,10 @@ contract WithdrawTest is TestBaseUniversalBalance {
         assertEq(lentBalance, depositAmount);
         assertEq(address(universalBalance).balance, ethBalance);
         assertEq(
-            weth.balanceOf(address(universalBalance)),
-            wethBalance - withdrawAmount
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance - withdrawAmount
         );
-        assertEq(eWETH.balanceOf(address(universalBalance)), eWETHBalance);
-        assertEq(weth.balanceOf(user1), userWETHBalance + withdrawAmount);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance + withdrawAmount);
     }
 }

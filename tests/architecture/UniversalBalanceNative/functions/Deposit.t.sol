@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -51,9 +51,11 @@ contract DepositTest is TestBaseUniversalBalanceNative {
     function test_deposit_fail_whenTokenIsNotListed() public {
         deal(_WETH_ADDRESS, user1, _ONE);
 
+        eWETH = _deployEToken(_WETH_ADDRESS);
+
         universalBalanceNative = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),
-            address(eUSDC),
+            address(eWETH),
             _WETH_ADDRESS
         );
 
@@ -82,7 +84,9 @@ contract DepositTest is TestBaseUniversalBalanceNative {
 
         uint256 receiveAmount = eWETH.convertToShares(amount);
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.startPrank(user1);
@@ -109,15 +113,15 @@ contract DepositTest is TestBaseUniversalBalanceNative {
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 
-    function test_deposit_success_withoutLend_fuzzed(
-        uint256 amount
-    ) public {
+    function test_deposit_success_withoutLend_fuzzed(uint256 amount) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(_WETH_ADDRESS, user1, amount);
 
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.startPrank(user1);
@@ -140,7 +144,10 @@ contract DepositTest is TestBaseUniversalBalanceNative {
             weth.balanceOf(address(universalBalanceNative)),
             wethBalance + amount
         );
-        assertEq(eWETH.balanceOf(address(universalBalanceNative)), eWETHBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 }

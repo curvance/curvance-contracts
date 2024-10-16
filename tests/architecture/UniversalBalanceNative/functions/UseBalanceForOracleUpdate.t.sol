@@ -62,7 +62,9 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
         );
         uint256 adaptorWETHBalance = weth.balanceOf(address(chainlinkAdaptor));
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
 
@@ -70,9 +72,14 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
         assertEq(sittingBalance, depositAmount2);
 
         vm.prank(address(chainlinkAdaptor));
-        universalBalanceNative.useBalanceForOracleUpdate(user1, withdrawAmount);
+        universalBalanceNative.useBalanceForOracleUpdate(
+            user1,
+            withdrawAmount
+        );
 
-        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(user1);
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
+            user1
+        );
 
         assertEq(lentBalance, depositAmount1 - redeemAmount);
         assertEq(
