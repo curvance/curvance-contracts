@@ -383,7 +383,7 @@ abstract contract PositionManagementBase is
             );
         }
         deleverageData.collateralAmount = collateralAmount;
-        _swapCollateralToBorrowUnderyling(deleverageData);
+        _swapCollateralToBorrowUnderlying(deleverageData);
 
         // We do not need to check whether borrowToken is listed
         // or not as even if they found a way to input a malicious
@@ -567,7 +567,7 @@ abstract contract PositionManagementBase is
         LeverageStruct memory leverageData
     ) internal virtual;
 
-    function _swapCollateralToBorrowUnderyling(
+    function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual;
 

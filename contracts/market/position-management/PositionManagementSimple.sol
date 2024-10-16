@@ -41,7 +41,7 @@ contract PositionManagementSimple is PositionManagementBase {
         SwapperLib.swapSafe(centralRegistry, swapData);
     }
 
-    function _swapCollateralToBorrowUnderyling(
+    function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         if (deleverageData.swapData.length != 1) {

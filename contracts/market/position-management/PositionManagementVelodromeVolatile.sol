@@ -118,7 +118,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         );
     }
 
-    function _swapCollateralToBorrowUnderyling(
+    function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();

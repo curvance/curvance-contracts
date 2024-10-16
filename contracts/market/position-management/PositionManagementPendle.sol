@@ -133,7 +133,7 @@ contract PositionManagementPendle is PositionManagementBase {
         }
     }
 
-    function _swapCollateralToBorrowUnderyling(
+    function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         {

@@ -215,10 +215,13 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        // Cache Gauge System start time.
+        uint256 _startTime = startTime;
+
         // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
-            !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
+            !(epoch == 0 && (_startTime == 0 || block.timestamp < _startTime)) &&
             epoch != currentEpoch()
         ) {
             revert GaugeManager__InvalidEpoch();
@@ -845,15 +848,18 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @notice Update reward variables of the given pool to be up-to-date.
     /// @param token Pool token address.
     function updatePool(address token) public {
+
+        // Cache Gauge System start time.
+        uint256 _startTime = startTime;
         // If rewards have not started yet, there is nothing to update.
-        if (startTime == 0 || block.timestamp <= startTime) {
+        if (_startTime == 0 || block.timestamp <= _startTime) {
             return;
         }
 
         uint256 _lastRewardTimestamp = poolLastRewardTimestamp[token];
         // If nobody has updated reward timestamp, time to set it up to startTime.
         if (_lastRewardTimestamp == 0) {
-            _lastRewardTimestamp = startTime;
+            _lastRewardTimestamp = block.timestamp;
         }
 
         // Make sure time has passed since the last update.
