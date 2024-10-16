@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -180,11 +181,23 @@ contract TestTokenInteractions is TestBaseMarket {
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
         assertEq(pBALRETH.exchangeRateCached(), 1 ether);
 
+        uint256 priceDecimals = mockDaiFeed.decimals();
+        (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
+
+        uint256 minimumBorrowAmount = (marketManager.MIN_ACTIVE_LOAN_SIZE() *
+            (10 ** priceDecimals)) / uint256(daiPrice);
+
+        // try borrow() with insufficient loan size
+        vm.expectRevert(
+            LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
+        );
+        eDAI.borrow(minimumBorrowAmount - 1);
+
         // try borrow()
-        eDAI.borrow(500 ether);
+        eDAI.borrow(minimumBorrowAmount);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertEq(eDAI.debtBalanceCached(user1), 500 ether);
+        assertEq(eDAI.debtBalanceCached(user1), minimumBorrowAmount);
         assertEq(eDAI.exchangeRateCached(), 1 ether);
 
         // try borrow()
@@ -192,7 +205,10 @@ contract TestTokenInteractions is TestBaseMarket {
         eDAI.borrow(100 ether);
 
         assertEq(eDAI.balanceOf(user1), 0);
-        assertGt(eDAI.debtBalanceCached(user1), 600 ether);
+        assertGt(
+            eDAI.debtBalanceCached(user1),
+            minimumBorrowAmount + 100 ether
+        );
         assertGt(eDAI.exchangeRateCached(), 1 ether);
 
         // skip min hold period
@@ -201,14 +217,14 @@ contract TestTokenInteractions is TestBaseMarket {
         // try partial repay
         uint256 borrowBalanceBefore = eDAI.debtBalanceCached(user1);
         uint256 exchangeRateBefore = eDAI.exchangeRateCached();
-        _prepareDAI(user1, 200 ether);
-        dai.approve(address(eDAI), 200 ether);
-        eDAI.repay(200 ether);
+        _prepareDAI(user1, 20 ether);
+        dai.approve(address(eDAI), 20 ether);
+        eDAI.repay(20 ether);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(
             eDAI.debtBalanceCached(user1),
-            borrowBalanceBefore - 200 ether
+            borrowBalanceBefore - 20 ether
         );
         assertGt(eDAI.exchangeRateCached(), exchangeRateBefore);
 
