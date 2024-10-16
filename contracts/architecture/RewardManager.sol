@@ -42,8 +42,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RewardManager is Delegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice The address of the CVE contract.
-    address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
     /// @notice The length of one protocol epoch, in seconds.
@@ -106,7 +104,6 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = centralRegistry.cve();
         epochDuration = centralRegistry.EPOCH_DURATION();
 
         rewardToken = rewardToken_;
@@ -433,7 +430,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? cve : rewardToken,
+                rewardsData.asCVE ? _cve() : rewardToken,
                 rewardAmount
             );
         }
@@ -556,7 +553,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             if (
                 swapData.call.length == 0 ||
                 swapData.inputToken != rewardToken ||
-                swapData.outputToken != cve ||
+                swapData.outputToken != _cve() ||
                 swapData.inputAmount != rewards
             ) {
                 revert RewardManager__SwapDataIsInvalid();
@@ -580,7 +577,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Transfer them CVE then return.
-            SafeTransferLib.safeTransfer(cve, recipient, adjustedRewards);
+            SafeTransferLib.safeTransfer(_cve(), recipient, adjustedRewards);
             return adjustedRewards;
         }
 
@@ -604,9 +601,10 @@ contract RewardManager is Delegable, ReentrancyGuard {
         bool continuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
+        IERC20 cve = IERC20(_cve());
+        uint256 lockAmount = cve.balanceOf(address(this));
 
-        IERC20(cve).approve(address(veCVE), lockAmount);
+        cve.approve(address(veCVE), lockAmount);
 
         // Because this call is nested within call to claim all rewards
         // there will never be any rewards to process,
@@ -656,6 +654,12 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @return The genesis epoch.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
+    }
+
+    /// @notice Returns the CVE address.
+    /// @return The CVE address.
+    function _cve() internal view returns (address) {
+        return centralRegistry.cve();
     }
 
     /// @dev Internal helper for reverting efficiently.

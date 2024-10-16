@@ -37,7 +37,6 @@ contract RewardManagerDeploymentTest is TestBaseRewardManager {
             address(centralRegistry)
         );
         assertEq(rewardManager.rewardToken(), _USDC_ADDRESS);
-        assertEq(rewardManager.cve(), centralRegistry.cve());
 
         vm.warp(centralRegistry.genesisEpoch() - 1);
 

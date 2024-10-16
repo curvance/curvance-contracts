@@ -133,10 +133,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev `bytes4(keccak256(bytes("VeCVE__VeCVEShutdown()")))`
     uint256 internal constant _VECVE_SHUTDOWN_SELECTOR = 0x3ad2450b;
 
-    /// @notice CVE contract address.
-    address public immutable cve;
-    /// @notice Reward Manager contract address.
-    IRewardManager public immutable rewardManager;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO hub.
@@ -222,8 +218,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = centralRegistry.cve();
-        rewardManager = IRewardManager(centralRegistry.rewardManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
@@ -246,7 +240,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
             SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
-            if (token == address(cve)) {
+            if (token == _cve()) {
                 revert VeCVE__NonTransferrable();
             }
 
@@ -266,7 +260,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         isShutdown = 2;
-        rewardManager.notifyShutdown();
+        _rewardManager().notifyShutdown();
     }
 
     /// @notice Locks a given amount of cve tokens and claims,
@@ -286,7 +280,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _cve(),
             msg.sender,
             address(this),
             amount
@@ -323,7 +317,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _cve(),
             msg.sender,
             address(this),
             amount
@@ -419,7 +413,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _cve(),
             msg.sender,
             address(this),
             amount
@@ -462,7 +456,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _cve(),
             msg.sender,
             address(this),
             amount
@@ -693,7 +687,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             // Next claim is the current epoch + 1 so we check <= instead of
             // < for whether unlock epoch has been processed or not.
             if (
-                rewardManager.userNextClaimIndex(msg.sender) <=
+                _rewardManager().userNextClaimIndex(msg.sender) <=
                 currentEpoch(unlockTime)
             ) {
                 // Update their points to reflect the removed lock.
@@ -723,7 +717,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _removeLock(locks, lockIndex);
 
             // Transfer the user the unlocked CVE.
-            SafeTransferLib.safeTransfer(cve, msg.sender, amount);
+            SafeTransferLib.safeTransfer(_cve(), msg.sender, amount);
 
             emit Unlocked(msg.sender, amount);
 
@@ -731,7 +725,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             // index, that way if in the future they create a new lock,
             // they do not need to claim epochs they have no rewards for.
             if (locks.length == 0 && isShutdown != 2) {
-                rewardManager.resetUserClaimIndex(msg.sender);
+                _rewardManager().resetUserClaimIndex(msg.sender);
             }
         }
     }
@@ -791,7 +785,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
+        ICVE(_cve()).burnLockedTokens(
+            msg.sender,
+            bridgeData.dstChainId,
+            amount
+        );
 
         IMessagingHub(centralRegistry.messagingHub()).bridgeToken{
             value: msg.value
@@ -808,7 +806,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // index, that way if in the future they create a new lock,
         // they do not need to claim epochs they have no rewards for.
         if (locks.length == 0 && isShutdown != 2) {
-            rewardManager.resetUserClaimIndex(msg.sender);
+            _rewardManager().resetUserClaimIndex(msg.sender);
         }
     }
 
@@ -871,13 +869,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         // Transfer the CVE penalty amount to Curvance DAO.
         SafeTransferLib.safeTransfer(
-            cve,
+            _cve(),
             centralRegistry.daoAddress(),
             penaltyAmount
         );
 
         // Transfer the remainder of the CVE.
-        SafeTransferLib.safeTransfer(cve, msg.sender, amount - penaltyAmount);
+        SafeTransferLib.safeTransfer(
+            _cve(),
+            msg.sender,
+            amount - penaltyAmount
+        );
 
         emit UnlockedWithPenalty(msg.sender, amount, penaltyAmount);
 
@@ -885,7 +887,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // that way if in the future they create a new lock, they do not need
         // to claim a bunch of epochs they have no rewards for.
         if (locks.length == 0 && isShutdown != 2) {
-            rewardManager.resetUserClaimIndex(msg.sender);
+            _rewardManager().resetUserClaimIndex(msg.sender);
         }
     }
 
@@ -899,9 +901,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
     function updateUserPoints(address user, uint256 epoch) external {
         _canModifyState();
 
-        address _rewardManager = address(rewardManager);
+        address rewardManager = address(_rewardManager());
         assembly {
-            if iszero(eq(caller(), _rewardManager)) {
+            if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)
                 revert(0x1c, 0x04)
             }
@@ -917,9 +919,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
     ///      so we do not need for equal 0 here.
     function updateChainPoints(uint256 epoch) external {
-        address _rewardManager = address(rewardManager);
+        address rewardManager = address(_rewardManager());
         assembly {
-            if iszero(eq(caller(), _rewardManager)) {
+            if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)
                 revert(0x1c, 0x04)
             }
@@ -947,7 +949,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+            _rewardManager().nextEpochToDeliver() !=
+            currentEpoch(block.timestamp)
         ) {
             return false;
         }
@@ -1160,7 +1163,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes memory params,
         uint256 aux
     ) internal {
+        IRewardManager rewardManager = _rewardManager();
         uint256 epochs = rewardManager.epochsToClaim(user);
+
         if (epochs > 0) {
             rewardManager.claimRewardsFor(
                 user,
@@ -1185,7 +1190,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bool continuousLock
     ) internal {
         if (userLocks[recipient].length == 0) {
-            rewardManager.updateUserClaimIndex(
+            _rewardManager().updateUserClaimIndex(
                 recipient,
                 currentEpoch(block.timestamp)
             );
@@ -1467,6 +1472,18 @@ contract VeCVE is ERC20, ReentrancyGuard {
         return centralRegistry.genesisEpoch();
     }
 
+    /// @notice Returns the CVE address.
+    /// @return The CVE address.
+    function _cve() internal view returns (address) {
+        return centralRegistry.cve();
+    }
+
+    /// @notice Returns the Reward Manager address.
+    /// @return The Reward Manager address.
+    function _rewardManager() internal view returns (IRewardManager) {
+        return IRewardManager(centralRegistry.rewardManager());
+    }
+
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
@@ -1493,7 +1510,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+            _rewardManager().nextEpochToDeliver() !=
+            currentEpoch(block.timestamp)
         ) {
             revert VeCVE__EpochNotDelivered();
         }
