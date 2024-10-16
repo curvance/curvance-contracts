@@ -836,9 +836,9 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Returns the proper gas limit to use based on parameter input.
-    ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is 0.
+    ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is less than default.
     function _getGasLimit(uint256 gasLimit) internal pure returns (uint256) {
-        return gasLimit == 0 ? _DEFAULT_GAS_LIMIT : gasLimit;
+        return gasLimit < _DEFAULT_GAS_LIMIT ? _DEFAULT_GAS_LIMIT : gasLimit;
     }
 
     /// @dev Checks whether the Messaging Hub is paused or not.

@@ -85,7 +85,7 @@ contract SendFeesTest is TestBaseMessagingHub {
 
         assertEq(usdc.balanceOf(address(feeManager)), _ONE);
 
-        messagingHub.sendFees(42161, 10e6, 250_000);
+        messagingHub.sendFees(42161, 10e6, 100);
 
         assertEq(usdc.balanceOf(address(feeManager)), _ONE - 10e6);
     }

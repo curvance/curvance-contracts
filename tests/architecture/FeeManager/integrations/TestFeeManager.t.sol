@@ -160,7 +160,7 @@ contract TestFeeManager is TestBaseFeeManager {
 
         vm.recordLogs();
 
-        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
+        messagingHub.executeEpoch(response, signatures, 100e6, 0);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
@@ -258,7 +258,13 @@ contract TestFeeManager is TestBaseFeeManager {
         usdc.approve(address(feeManager), 2500e8);
 
         // Eth spoofed as $2500, USDC spoofed as $1
-        feeManager.executeOTC(_WETH_ADDRESS, 1 ether, 2500e6, 1e16, block.timestamp + 300); // 5 min deadline.
+        feeManager.executeOTC(
+            _WETH_ADDRESS,
+            1 ether,
+            2500e6,
+            1e16,
+            block.timestamp + 300
+        ); // 5 min deadline.
 
         // bridge...
         PerChainData[] memory perChainData = new PerChainData[](1);
@@ -286,7 +292,7 @@ contract TestFeeManager is TestBaseFeeManager {
 
         vm.recordLogs();
 
-        messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
+        messagingHub.executeEpoch(response, signatures, 100e6, 0);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(
