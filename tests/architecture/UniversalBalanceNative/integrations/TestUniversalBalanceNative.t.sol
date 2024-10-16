@@ -6,7 +6,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
@@ -161,78 +161,207 @@ contract TestUniversalBalanceNative is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(universalBalanceNative.linkedEToken()), address(eWETH));
+        assertEq(
+            address(universalBalanceNative.linkedEToken()),
+            address(eWETH)
+        );
         assertEq(universalBalanceNative.underlying(), _WETH_ADDRESS);
     }
 
     function testDeposit() public {
-        deal(_WETH_ADDRESS, user1, 1 ether);
+        deal(_WETH_ADDRESS, user1, 200e18);
+
+        uint256 receiveAmount = eWETH.convertToShares(100e18);
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
+
         vm.startPrank(user1);
-        weth.approve(address(universalBalanceNative), 1 ether);
-        universalBalanceNative.depositNative{ value: 1 ether}(false);
-
-        deal(_WETH_ADDRESS, user1, 1 ether);
-        weth.approve(address(universalBalanceNative), 1 ether);
-        universalBalanceNative.depositNative{ value: 1 ether}(true);
-        vm.stopPrank();
-
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
-            .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertEq(lentBalance, 1 ether);
-    }
-
-    function testDepositNative() public {
-        vm.deal(user1, 100e18);
-        vm.startPrank(user1);
-        universalBalanceNative.depositNative{ value: 100e18 }(false);
-
-        vm.deal(user1, 100e18);
-        universalBalanceNative.depositNative{ value: 100e18 }(true);
+        weth.approve(address(universalBalanceNative), 100e18);
+        universalBalanceNative.deposit(100e18, false);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
         assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 0);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance + 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+        assertEq(weth.balanceOf(user1), 100e18);
+
+        vm.startPrank(user1);
+        weth.approve(address(universalBalanceNative), 100e18);
+        universalBalanceNative.deposit(100e18, true);
+        vm.stopPrank();
+
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
+            user1
+        );
+        assertEq(sittingBalance, 100e18);
         assertEq(lentBalance, 100e18);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance + 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance + receiveAmount
+        );
+        assertEq(weth.balanceOf(user1), 0);
+    }
+
+    function testDepositNative() public {
+        vm.deal(user1, 200e18);
+
+        uint256 receiveAmount = eWETH.convertToShares(100e18);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
+
+        vm.prank(user1);
+        universalBalanceNative.depositNative{ value: 100e18 }(false);
+
+        (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
+            .userBalances(user1);
+        assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 0);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance + 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+        assertEq(user1.balance, 100e18);
+
+        vm.prank(user1);
+        universalBalanceNative.depositNative{ value: 100e18 }(true);
+
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
+            user1
+        );
+        assertEq(sittingBalance, 100e18);
+        assertEq(lentBalance, 100e18);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance + 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance + receiveAmount
+        );
+        assertEq(user1.balance, 0);
     }
 
     function testWithdraw() public {
         testDeposit();
 
-        vm.startPrank(user1);
-        universalBalanceNative.withdraw(100e18, false);
+        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
 
-        universalBalanceNative.withdraw(100e18, true);
-        vm.stopPrank();
+        vm.prank(user1);
+        universalBalanceNative.withdraw(100e18, false);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
+
+        assertEq(sittingBalance, 0);
+        assertEq(lentBalance, 100e18);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance - 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+        assertEq(weth.balanceOf(user1), 100e18);
+
+        vm.prank(user1);
+        universalBalanceNative.withdraw(100e18, true);
+
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
+            user1
+        );
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, 0);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance - 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance - redeemAmount
+        );
+        assertEq(weth.balanceOf(user1), 200e18);
     }
-
 
     function testWithdrawNative() public {
         testDepositNative();
 
-        uint256 ethBalance = user1.balance;
+        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
+        uint256 userETHBalance = user1.balance;
 
-        vm.startPrank(user1);
-        universalBalanceNative.withdrawNative(1 ether, false);
+        vm.prank(user1);
+        universalBalanceNative.withdrawNative(100e18, false);
 
-        assertEq(user1.balance, ethBalance + 1 ether);
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
         assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 1 ether);
+        assertEq(lentBalance, 100e18);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance - 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+        assertEq(user1.balance, userETHBalance + 100e18);
 
-        universalBalanceNative.withdrawNative(1 ether, true);
+        vm.prank(user1);
+        universalBalanceNative.withdrawNative(100e18, true);
 
-        assertEq(user1.balance, ethBalance + 2 ether);
-        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(user1);
+        (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
+            user1
+        );
         assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 0 ether);
+        assertEq(lentBalance, 0);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(
+            weth.balanceOf(address(universalBalanceNative)),
+            wethBalance - 100e18
+        );
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance - redeemAmount
+        );
+        assertEq(user1.balance, userETHBalance + 200e18);
+
         vm.stopPrank();
     }
 

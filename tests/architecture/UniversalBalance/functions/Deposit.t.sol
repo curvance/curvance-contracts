@@ -14,16 +14,16 @@ contract DepositTest is TestBaseUniversalBalance {
         uint256 shares
     );
 
-    function test_deposit_fail_whenHasNoEnoughWETH_fuzzed(
+    function test_deposit_fail_whenHasNoEnoughUSDC_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        deal(_USDC_ADDRESS, user1, amount);
 
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), amount + 1);
+        usdc.approve(address(universalBalance), amount + 1);
 
         vm.expectRevert();
         universalBalance.deposit(amount + 1, true);
@@ -36,11 +36,11 @@ contract DepositTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_WETH_ADDRESS, user1, amount + 1);
+        deal(_USDC_ADDRESS, user1, amount + 1);
 
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), amount);
+        usdc.approve(address(universalBalance), amount);
 
         vm.expectRevert();
         universalBalance.deposit(amount + 1, true);
@@ -49,7 +49,9 @@ contract DepositTest is TestBaseUniversalBalance {
     }
 
     function test_deposit_fail_whenTokenIsNotListed() public {
-        deal(_WETH_ADDRESS, user1, _ONE);
+        deal(_USDC_ADDRESS, user1, 100e6);
+
+        eUSDC = _deployEUSDC();
 
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
@@ -58,10 +60,10 @@ contract DepositTest is TestBaseUniversalBalance {
 
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), _ONE);
+        usdc.approve(address(universalBalance), 100e6);
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        universalBalance.deposit(_ONE, true);
+        universalBalance.deposit(100e6, true);
 
         vm.stopPrank();
     }
@@ -78,16 +80,16 @@ contract DepositTest is TestBaseUniversalBalance {
     function test_deposit_success_withLend_fuzzed(uint256 amount) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        deal(_USDC_ADDRESS, user1, amount);
 
-        uint256 receiveAmount = eWETH.convertToShares(amount);
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalance));
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 receiveAmount = eUSDC.convertToShares(amount);
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), amount);
+        usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
         emit Deposit(user1, user1, amount, receiveAmount);
@@ -101,28 +103,26 @@ contract DepositTest is TestBaseUniversalBalance {
 
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, receiveAmount);
-        assertEq(weth.balanceOf(address(universalBalance)), wethBalance);
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(
-            eWETH.balanceOf(address(universalBalance)),
-            eWETHBalance + receiveAmount
+            eUSDC.balanceOf(address(universalBalance)),
+            eUSDCBalance + receiveAmount
         );
-        assertEq(weth.balanceOf(user1), userWETHBalance - amount);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance - amount);
     }
 
-    function test_deposit_success_withoutLend_fuzzed(
-        uint256 amount
-    ) public {
+    function test_deposit_success_withoutLend_fuzzed(uint256 amount) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        deal(_USDC_ADDRESS, user1, amount);
 
-        uint256 wethBalance = weth.balanceOf(address(universalBalance));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalance));
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user1);
 
         vm.startPrank(user1);
 
-        weth.approve(address(universalBalance), amount);
+        usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
         emit Deposit(user1, user1, amount, amount);
@@ -137,10 +137,10 @@ contract DepositTest is TestBaseUniversalBalance {
         assertEq(sittingBalance, amount);
         assertEq(lentBalance, 0);
         assertEq(
-            weth.balanceOf(address(universalBalance)),
-            wethBalance + amount
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance + amount
         );
-        assertEq(eWETH.balanceOf(address(universalBalance)), eWETHBalance);
-        assertEq(weth.balanceOf(user1), userWETHBalance - amount);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance - amount);
     }
 }

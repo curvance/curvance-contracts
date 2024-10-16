@@ -3,24 +3,19 @@ pragma solidity ^0.8.19;
 
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 /// @title Curvance Universal Balance for a chain's native gas token.
 /// @notice A system for managing a Universal Balance within the Curvance
 ///         Protocol.
 contract UniversalBalanceNative is UniversalBalance {
-
     receive() external payable {
         if (msg.sender != underlying) {
             IWETH(underlying).deposit{ value: msg.value };

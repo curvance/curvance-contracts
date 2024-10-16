@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract WithdrawTest is TestBaseUniversalBalanceNative {
     event Withdraw(
@@ -76,7 +76,9 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         uint256 redeemAmount = eWETH.convertToShares(withdrawAmount);
         uint256 ethBalance = address(universalBalanceNative).balance;
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.prank(user1);
@@ -120,7 +122,9 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
 
         uint256 ethBalance = address(universalBalanceNative).balance;
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
-        uint256 eWETHBalance = eWETH.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.prank(user1);
@@ -140,7 +144,10 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
             weth.balanceOf(address(universalBalanceNative)),
             wethBalance - withdrawAmount
         );
-        assertEq(eWETH.balanceOf(address(universalBalanceNative)), eWETHBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
         assertEq(weth.balanceOf(user1), userWETHBalance + withdrawAmount);
     }
 }
