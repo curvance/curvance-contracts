@@ -397,11 +397,12 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (approvedRewardTokens[rewardToken] == false) {
+        if (!approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
-        if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
+        if (!(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
+           epoch != currentEpoch() + 1) {
             revert GaugeManager__InvalidEpoch();
         }
 
@@ -513,7 +514,7 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         }
 
         uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0 || approvedRewardTokens[rewardToken] == false) {
+        if (index == 0 || !approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
@@ -530,7 +531,7 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         address rewardToken
     ) public view returns (uint256) {
         uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0 || approvedRewardTokens[rewardToken] == false) {
+        if (index == 0 || !approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
