@@ -55,10 +55,6 @@ contract MessagingHub is QueryResponse {
     IGaugeManager public immutable gaugeManager;
     /// @notice Address of fee token.
     address public immutable feeToken;
-    /// @notice CVE contract address.
-    ICVE public immutable cve;
-    /// @notice veCVE contract address.
-    IVeCVE public immutable veCVE;
 
     /// STORAGE ///
 
@@ -100,8 +96,6 @@ contract MessagingHub is QueryResponse {
 
         // Query gauge and token configuration directly to minimize potential
         // human error.
-        cve = ICVE(centralRegistry.cve());
-        veCVE = IVeCVE(centralRegistry.veCVE());
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         feeToken = centralRegistry.feeToken();
     }
@@ -254,6 +248,9 @@ contract MessagingHub is QueryResponse {
         );
         address srcAddr = address(uint160(uint256(srcAddress)));
         ChainData memory chainData = _getChainData(gethChainId);
+
+        ICVE cve = _getCVE();
+        IVeCVE veCVE = _getVeCVE();
 
         // Validate message came directly from MessagingHub on the source chain.
         if (chainData.messagingHub != srcAddr) {
@@ -473,7 +470,7 @@ contract MessagingHub is QueryResponse {
         if (payloadType == 4) {
             // Bridge VeCVE Lock crosschain.
 
-            if (msg.sender != address(veCVE)) {
+            if (msg.sender != address(_getVeCVE())) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
@@ -491,7 +488,7 @@ contract MessagingHub is QueryResponse {
 
         // Bridge CVE crosschain.
 
-        if (msg.sender != address(cve)) {
+        if (msg.sender != address(_getCVE())) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -555,7 +552,9 @@ contract MessagingHub is QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
+        IVeCVE veCVE = _getVeCVE();
         uint256 epoch = _getNextEpochToDeliver(_getRewardManager());
+
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
@@ -786,6 +785,16 @@ contract MessagingHub is QueryResponse {
         return bytes32(uint256(uint160(addr)));
     }
 
+    /// @notice Returns the current CVE address to call.
+    function _getCVE() internal view returns (ICVE) {
+        return ICVE(centralRegistry.cve());
+    }
+
+    /// @notice Returns the current VeCVE address to call.
+    function _getVeCVE() internal view returns (IVeCVE) {
+        return IVeCVE(centralRegistry.veCVE());
+    }
+
     /// @dev Returns the current Reward Manager address to call.
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
@@ -796,14 +805,9 @@ contract MessagingHub is QueryResponse {
         return centralRegistry.wormholeRelayer();
     }
 
-    /// @dev Returns the current Wormhole Core address to call.
-    function _getWormholeCore() internal view returns (IWormhole) {
-        return centralRegistry.wormholeCore();
-    }
-
     /// @dev Returns the current standard wormhole message fee.
     function _getMessageFee() internal view returns (uint256) {
-        return _getWormholeCore().messageFee();
+        return centralRegistry.wormholeCore().messageFee();
     }
 
     /// @dev Returns ChainData struct for `chainId`.

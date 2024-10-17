@@ -25,14 +25,12 @@ contract SetGenesisEpochTest is TestBaseMarket {
     }
 
     function test_setGenesisEpoch_fail_whenEpochAlreadyStarted() public {
-        uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 100;
+        uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.warp(centralRegistry.genesisEpoch());
 
-        vm.prank(address(0));
-
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__EpochHasStarted.selector
         );
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
     }

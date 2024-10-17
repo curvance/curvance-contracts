@@ -430,7 +430,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? _cve() : rewardToken,
+                rewardsData.asCVE ? _getCVE() : rewardToken,
                 rewardAmount
             );
         }
@@ -553,7 +553,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             if (
                 swapData.call.length == 0 ||
                 swapData.inputToken != rewardToken ||
-                swapData.outputToken != _cve() ||
+                swapData.outputToken != _getCVE() ||
                 swapData.inputAmount != rewards
             ) {
                 revert RewardManager__SwapDataIsInvalid();
@@ -577,7 +577,11 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Transfer them CVE then return.
-            SafeTransferLib.safeTransfer(_cve(), recipient, adjustedRewards);
+            SafeTransferLib.safeTransfer(
+                _getCVE(),
+                recipient,
+                adjustedRewards
+            );
             return adjustedRewards;
         }
 
@@ -601,7 +605,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
         bool continuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        IERC20 cve = IERC20(_cve());
+        IERC20 cve = IERC20(_getCVE());
         uint256 lockAmount = cve.balanceOf(address(this));
 
         cve.approve(address(veCVE), lockAmount);
@@ -656,9 +660,8 @@ contract RewardManager is Delegable, ReentrancyGuard {
         return centralRegistry.genesisEpoch();
     }
 
-    /// @notice Returns the CVE address.
-    /// @return The CVE address.
-    function _cve() internal view returns (address) {
+    /// @notice Returns the current CVE address.
+    function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
 

@@ -46,6 +46,7 @@ contract TestConvex2PoolPToken is TestBaseMarket {
 
         // start epoch
         vm.warp(gaugeManager.startTime());
+        _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
         cSTETH = new Convex2PoolPToken(

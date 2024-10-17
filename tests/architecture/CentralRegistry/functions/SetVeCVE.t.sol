@@ -16,7 +16,7 @@ contract SetVeCVETest is TestBaseMarket {
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            block.timestamp,
+            block.timestamp + 1,
             address(0),
             _USDC_ADDRESS
         );
@@ -27,6 +27,15 @@ contract SetVeCVETest is TestBaseMarket {
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
+        );
+        centralRegistry.setVeCVE(newVeCVE);
+    }
+
+    function test_setVeCVE_fail_whenEpochAlreadyStarted() public {
+        vm.warp(centralRegistry.genesisEpoch());
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__EpochHasStarted.selector
         );
         centralRegistry.setVeCVE(newVeCVE);
     }

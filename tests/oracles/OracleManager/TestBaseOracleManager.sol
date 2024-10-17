@@ -56,6 +56,8 @@ contract TestBaseOracleManager is TestBaseMarket {
             0,
             false
         );
+
+        vm.warp(centralRegistry.genesisEpoch());
     }
 
     function _deployCentralRegistry() internal override {
@@ -68,7 +70,7 @@ contract TestBaseOracleManager is TestBaseMarket {
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            block.timestamp,
+            block.timestamp + 1,
             address(sequencer),
             _USDC_ADDRESS
         );

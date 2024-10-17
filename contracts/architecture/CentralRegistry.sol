@@ -65,6 +65,8 @@ contract CentralRegistry is ERC165 {
     uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
     /// @dev bytes4(keccak256(bytes("CentralRegistry__Unauthorized()")))
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xe675838a;
+    /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
+    uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
 
     /// STORAGE ///
 
@@ -257,6 +259,7 @@ contract CentralRegistry is ERC165 {
     error CentralRegistry__InvalidFeeToken();
     error CentralRegistry__ParametersMisconfigured();
     error CentralRegistry__Unauthorized();
+    error CentralRegistry__EpochHasStarted();
 
     /// CONSTRUCTOR ///
 
@@ -353,13 +356,12 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {GenesisEpochSet} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
-        if (
-            genesisEpoch <= block.timestamp || newGenesisEpoch < genesisEpoch
-        ) {
+        if (newGenesisEpoch < genesisEpoch) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         _checkElevatedPermissions();
+        _checkEpochHasStarted();
 
         genesisEpoch = newGenesisEpoch;
 
@@ -376,6 +378,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkEpochHasStarted();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
@@ -391,6 +394,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkEpochHasStarted();
 
         veCVE = newVeCVE;
         emit CoreContractSet("VeCVE", newVeCVE);
@@ -406,6 +410,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkEpochHasStarted();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
@@ -1266,6 +1271,12 @@ contract CentralRegistry is ERC165 {
     function _checkElevatedPermissions() internal view {
         if (!hasElevatedPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
+    function _checkEpochHasStarted() internal view {
+        if (genesisEpoch <= block.timestamp) {
+            _revert(_EPOCH_HAS_STARTED_SELECTOR);
         }
     }
 }

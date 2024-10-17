@@ -20,6 +20,8 @@ contract ClaimForDAOTest is TestBaseUniversalBalance {
     }
 
     function test_claimForDAO_fail_whenNotStarted() public {
+        vm.warp(gaugeManager.startTime() - 1);
+
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         universalBalance.claimForDAO();
     }
