@@ -287,13 +287,22 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         }
     }
 
+    /// @notice Sets the minimum incentive amount for a supported reward
+    ///         token. The minimum amount is intended to minimize incentive
+    ///         spam and cultivate meaningful participation from external
+    ///         partners.
+    /// @notice Update reward variables for all pools.
+    /// @param rewardToken The address of the new reward token to add a
+    ///                    minimum incentive value for.
+    /// @param minAmount The minimum amount of `rewardToken` that can be
+    ///                  posted as an incentive via a partner gauge.
     function setMinDistributionAmount(
         address rewardToken,
         uint256 minAmount
     ) external {
         _checkDaoPermissions();
 
-        if (approvedRewardTokens[rewardToken] == false) {
+        if (!approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
@@ -302,54 +311,71 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         emit SetMinDistributionAmount(rewardToken, minAmount);
     }
 
-    /// @notice Adds a new reward to the gauge system.
-    /// @param newReward The address of new reward token to be added.
+    /// @notice Adds a token as a potential reward token for future partner
+    ///         gauge incentives, the minimum distribution value is intended
+    ///         to minimize incentive spam and require meaningful
+    ///         participation from external partners.
+    /// @notice Update reward variables for all pools.
+    /// @param rewardToken The address of the new reward token to add a
+    ///                    minimum incentive value for.
+    /// @param minAmount The minimum amount of `rewardToken` that can be
+    ///                  posted as an incentive via a partner gauge.
     function addExtraRewardToken(
-        address newReward,
+        address rewardToken,
         uint256 minAmount
     ) external {
         _checkDaoPermissions();
 
-        if (newReward == address(0) || approvedRewardTokens[newReward]) {
+        if (rewardToken == address(0) || approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidAddress();
         }
 
-        approvedRewardTokens[newReward] = true;
-        rewardTokenToMinDistribution[newReward] = minAmount;
+        approvedRewardTokens[rewardToken] = true;
+        rewardTokenToMinDistribution[rewardToken] = minAmount;
 
-        emit AddExtraRewardToken(newReward);
+        emit AddExtraRewardToken(rewardToken);
     }
 
     /// @notice Removes an extra reward from the gauge system.
-    /// @param newReward The address of the extra reward to be removed.
-    function removeExtraRewardToken(address newReward) external {
+    /// @param rewardToken The address of the extra reward to be removed.
+    function removeExtraRewardToken(address rewardToken) external {
         _checkDaoPermissions();
 
         // Cannot remove CVE as a reward token.
-        if (newReward == cve) {
+        if (rewardToken == cve) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        approvedRewardTokens[newReward] = false;
-        rewardTokenToMinDistribution[newReward] = 0;
+        approvedRewardTokens[rewardToken] = false;
+        rewardTokenToMinDistribution[rewardToken] = 0;
 
-        emit RemoveExtraRewardToken(newReward);
+        emit RemoveExtraRewardToken(rewardToken);
     }
 
-    /// @notice Returns the active reward tokens on the Gauge Manager,
-    ///         for ease of integration by third parties.
+    /// @notice Returns the active reward tokens on the Gauge Manager
+    ///         for a particular deposit token, for ease of integration
+    ///         by third parties.
+    /// @param depositToken The depositable token to check for active
+    ///                     tokens rewards for.
+    /// @return An array containing the addresses of active reward tokens
+    ///         for depositing `depositToken`.
     function getRewardTokens(
-        address token
+        address depositToken
     ) external view returns (address[] memory) {
-        return rewardTokens[token];
+        return rewardTokens[depositToken];
     }
 
-    /// @notice Returns the number of active reward tokens on the Gauge Manager,
-    ///         for ease of integration by third parties.
+    /// @notice Returns the number of active reward tokens on the Gauge
+    ///         Manager for a particular deposit token, for ease of
+    ///         integration by third parties.
+    /// @param depositToken The depositable token to check for active
+    ///                     tokens rewards for.
+    /// @return The number of active reward tokens for depositing
+    ///         `depositToken`.
     function getRewardTokensLength(
-        address token
+        address depositToken
     ) external view returns (uint256) {
-        return rewardTokens[token].length;
+        return rewardTokens[depositToken].length;
     }
 
     /// @notice Used to update Gauge Manager rewards for `rewardToken`,
@@ -848,12 +874,13 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @notice Update reward variables of the given pool to be up-to-date.
     /// @param token Pool token address.
     function updatePool(address token) public {
-
-        // Cache Gauge System start time.
-        uint256 _startTime = startTime;
-        // If rewards have not started yet, there is nothing to update.
-        if (_startTime == 0 || block.timestamp <= _startTime) {
-            return;
+        { // Scope variable to avoid stack too deep error.
+            // Cache Gauge System start time.
+            uint256 _startTime = startTime;
+            // If rewards have not started yet, there is nothing to update.
+            if (_startTime == 0 || block.timestamp <= _startTime) {
+                return;
+            }
         }
 
         uint256 _lastRewardTimestamp = poolLastRewardTimestamp[token];
