@@ -30,7 +30,31 @@ contract PendlePTPositionManagement is BasePositionManagement {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address lpToken = leverageData.collateralToken.underlying();
+        address ptToken = leverageData.collateralToken.underlying();
+
+        // decode pendle data
+        (
+            address lpToken,
+            uint256 minPtAmount,
+            PendleLib.PendleData memory pendleData
+        ) = abi.decode(
+                leverageData.data,
+                (address, uint256, PendleLib.PendleData)
+            );
+
+        (
+            IStandardizedYield _SY,
+            IPPrincipalToken _PT,
+            IPYieldToken _YT
+        ) = IPMarket(lpToken).readTokens();
+        // check if valid ptToken of market
+        if (
+            address(_PT) != ptToken ||
+            IPPrincipalToken(ptToken).SY() != address(_SY) ||
+            IPPrincipalToken(ptToken).YT() != address(_YT)
+        ) {
+            revert BasePositionManagement__InvalidSwapperParam();
+        }
 
         if (swapData.call.length > 0) {
             // check if swapData is valid
@@ -45,30 +69,40 @@ contract PendlePTPositionManagement is BasePositionManagement {
             SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
-        // decode pendle data
-        (uint256 minLpAmount, PendleLib.PendleData memory pendleData) = abi
-            .decode(leverageData.data, (uint256, PendleLib.PendleData));
-
         // enter pendle
         PendleLib.enterPendle(
             address(router),
             true,
             pendleData,
             lpToken,
-            minLpAmount
+            minPtAmount
         );
     }
 
     function _swapCollateralToBorrowUnderyling(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address lpToken = deleverageData.collateralToken.underlying();
+        address ptToken = deleverageData.collateralToken.underlying();
 
         // decode pendle data
-        PendleLib.PendleData memory pendleData = abi.decode(
+        (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
             deleverageData.data,
-            (PendleLib.PendleData)
+            (address, PendleLib.PendleData)
         );
+
+        (
+            IStandardizedYield _SY,
+            IPPrincipalToken _PT,
+            IPYieldToken _YT
+        ) = IPMarket(lpToken).readTokens();
+        // check if valid ptToken of market
+        if (
+            address(_PT) != ptToken ||
+            IPPrincipalToken(ptToken).SY() != address(_SY) ||
+            IPPrincipalToken(ptToken).YT() != address(_YT)
+        ) {
+            revert BasePositionManagement__InvalidSwapperParam();
+        }
 
         // exit pendle
         PendleLib.exitPendle(

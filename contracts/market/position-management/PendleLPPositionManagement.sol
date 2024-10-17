@@ -8,8 +8,6 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
-import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
-import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
 contract PendleLPPositionManagement is BasePositionManagement {

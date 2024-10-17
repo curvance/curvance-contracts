@@ -24,22 +24,22 @@ library PendleLib {
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
-    /// @param lpToken The Pendle lp/pt token address.
-    /// @param lpMinOutAmount The minimum output amount acceptable.
-    /// @return lpOutAmount The output amount of Pendle lp received.
+    /// @param lpToken The Pendle lp token address.
+    /// @param minOutAmount The minimum lp/pt output amount acceptable.
+    /// @return outAmount The lp/pt output amount of Pendle lp received.
     function enterPendle(
         address router,
         bool isPt,
         PendleData memory data,
         address lpToken,
-        uint256 lpMinOutAmount
-    ) internal returns (uint256 lpOutAmount) {
+        uint256 minOutAmount
+    ) internal returns (uint256 outAmount) {
         if (isPt) {
-            // Add liquidity to Pendle lp via SY.
-            (lpOutAmount, , ) = IPendleRouter(router).swapExactTokenForPt(
+            // swap input token to pt
+            (outAmount, , ) = IPendleRouter(router).swapExactTokenForPt(
                 address(this),
                 lpToken,
-                lpMinOutAmount,
+                minOutAmount,
                 data.approx,
                 data.input,
                 data.limit
@@ -83,11 +83,11 @@ library PendleLib {
             SwapperLib._approveTokenIfNeeded(address(sy), router, balance);
 
             // Add liquidity to Pendle lp via SY.
-            (lpOutAmount, ) = IPendleRouter(router).addLiquiditySingleSy(
+            (outAmount, ) = IPendleRouter(router).addLiquiditySingleSy(
                 address(this),
                 lpToken,
                 balance,
-                lpMinOutAmount,
+                minOutAmount,
                 data.approx,
                 data.limit
             );
@@ -101,7 +101,7 @@ library PendleLib {
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
-    /// @param lpAmount The Pendle lp amount to exit.
+    /// @param lpAmount The Pendle lp/pt amount to exit.
     function exitPendle(
         address router,
         bool isPt,
