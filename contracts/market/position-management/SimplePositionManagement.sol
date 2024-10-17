@@ -8,7 +8,6 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract SimplePositionManagement is BasePositionManagement {
-
     /// CONSTRUCTOR ///
 
     constructor(
@@ -21,13 +20,15 @@ contract SimplePositionManagement is BasePositionManagement {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData.collateralToken.underlying();
+        address collateralUnderlying = leverageData
+            .collateralToken
+            .underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
         }
 
-        if(swapData.call.length == 0) {
+        if (swapData.call.length == 0) {
             revert BasePositionManagement__InvalidSwapperParam();
         }
 
@@ -41,10 +42,7 @@ contract SimplePositionManagement is BasePositionManagement {
         }
 
         // Swap borrow underlying to collateral underlying
-        SwapperLib.swapSafe(
-            centralRegistry,
-            swapData
-        );
+        SwapperLib.swapSafe(centralRegistry, swapData);
     }
 
     function _swapCollateralToBorrowUnderyling(
@@ -56,13 +54,15 @@ contract SimplePositionManagement is BasePositionManagement {
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
         address borrowUnderlying = deleverageData.borrowToken.underlying();
-        address collateralUnderlying = deleverageData.collateralToken.underlying();
+        address collateralUnderlying = deleverageData
+            .collateralToken
+            .underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
         }
 
-        if(swapData.call.length == 0) {
+        if (swapData.call.length == 0) {
             revert BasePositionManagement__InvalidSwapperParam();
         }
 
@@ -76,9 +76,6 @@ contract SimplePositionManagement is BasePositionManagement {
         }
 
         // Swap collateral underlying to borrow underlying
-        SwapperLib.swapSafe(
-            centralRegistry,
-            swapData
-        );
+        SwapperLib.swapSafe(centralRegistry, swapData);
     }
 }
