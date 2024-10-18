@@ -314,7 +314,6 @@ contract MessagingHub is QueryResponse {
                 ) {
                     _recordEpochRewards(rewardManager, 0);
                 }
-                
                 return;
             }
 
@@ -702,7 +701,7 @@ contract MessagingHub is QueryResponse {
         // Calculate rewards per veCVE point.
         uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
-        
+
         IRewardManager rewardManager = _getRewardManager();
         uint256 epochToDeliver = _getNextEpochToDeliver(rewardManager);
         uint256 currentChainId;
@@ -727,9 +726,8 @@ contract MessagingHub is QueryResponse {
             }
         }
 
-        uint256 feeTokensForChain =
-            (((feeTokensHeld * WAD) / totalPoints) * thisChainsPoints) /
-            WAD;
+        uint256 feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
+            thisChainsPoints) / WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
@@ -810,7 +808,7 @@ contract MessagingHub is QueryResponse {
     ///                      from Circle allowing redemption of a CCTP
     ///                      message.
     /// @return The amount of fee tokens received from processing
-    ///         and receiving CCTP message. 
+    ///         and receiving CCTP message.
     function _receiveFees(
         bytes memory circleMessage
     ) internal returns (uint256) {

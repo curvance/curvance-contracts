@@ -95,7 +95,8 @@ contract TestFeeManager is TestBaseFeeManager {
 
         _createLock();
 
-        _skipEpochDuration(3);
+        _skipEpochDuration(2);
+        _recordEpochRewards(1, 1e6 * _ONE);
     }
 
     function testMultiSwap() public {

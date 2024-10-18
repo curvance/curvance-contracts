@@ -96,10 +96,8 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         centralRegistry.addLockingPermissions(address(distributor));
 
-        vm.prank(centralRegistry.messagingHub());
-        rewardManager.recordEpochRewards(1e6 * _ONE);
-
-        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
+        _recordEpochRewards(1, 1e6 * _ONE);
+        _skipRestrictionDuration();
 
         for (uint256 i = 0; i < USER_LENGTH; i++) {
             bytes32[] memory proof = merkle.getProof(leafs, i);

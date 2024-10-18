@@ -90,7 +90,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
     {
         _createLock();
 
-        _skipEpochDuration(3);
+        _skipEpochDuration(2);
+        _recordEpochRewards(1, 1e6 * _ONE);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
