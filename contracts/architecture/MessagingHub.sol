@@ -745,6 +745,10 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Receives fee tokens from Circle from provided message.
+    /// @param A byte array containing a message and signature from
+    ///        Circle allowing redemption of a CCTP message.
+    /// @return The amount of fee tokens received from processing
+    ///         and receiving CCTP message. 
     function _receiveFees(
         bytes memory circleMessage
     ) internal returns (uint256) {
@@ -752,12 +756,12 @@ contract MessagingHub is QueryResponse {
             circleMessage,
             (bytes, bytes)
         );
-        uint256 beforeBalance = IERC20(feeToken).balanceOf(address(this));
+        uint256 beforeBalance = _getFeeTokenHeld();
         centralRegistry.circleMessageTransmitter().receiveMessage(
             message,
             signature
         );
-        return IERC20(feeToken).balanceOf(address(this)) - beforeBalance;
+        return _getFeeTokenHeld() - beforeBalance;
     }
 
     /// @dev Transfers `amount` `feeToken` to `recipient`.
@@ -765,11 +769,15 @@ contract MessagingHub is QueryResponse {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
     }
 
+    /// @notice Record user rewards allocated to an epoch.
+    /// @notice The address of the Reward Manager to record epoch rewards on.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
     function _recordEpochRewards(
         IRewardManager rewardManager,
-        uint256 epochRewardsPerPoint
+        uint256 rewardsPerPoint
     ) internal {
-        rewardManager.recordEpochRewards(epochRewardsPerPoint);
+        rewardManager.recordEpochRewards(rewardsPerPoint);
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.

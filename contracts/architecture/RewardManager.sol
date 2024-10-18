@@ -73,7 +73,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @dev User => Reward Next Claim Index.
     mapping(address => uint256) public userNextClaimIndex;
 
-    /// @notice The rewards alloted to 1 vote escrowed CVE for an epoch,
+    /// @notice The rewards alloted to 1 vote escrowed CVE point for an epoch,
     ///         in `WAD`.
     /// @dev Epoch # => Rewards per veCVE.
     mapping(uint256 => uint256) public epochRewardsPerPoint;
@@ -111,13 +111,13 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by the Fee Manager to record rewards allocated to
+    /// @notice Called by the Messaging Hub to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Manager.
-    /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
-    ///                      the next reward epoch delivered.
-    function recordEpochRewards(uint256 rewardsPerCVE) external {
-        // Validate the caller reporting epoch data is the fee manager,
+    /// @dev Only callable on by the Messaging Hub.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
+    function recordEpochRewards(uint256 rewardsPerPoint) external {
+        // Validate the caller reporting epoch data is the messaging hub,
         // or messaging hub.
         if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -126,14 +126,14 @@ contract RewardManager is Delegable, ReentrancyGuard {
         uint256 epoch = nextEpochToDeliver;
 
         if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
-            // If the chain has tokens unlocking this epoch we need to decrease
-            // chainPoints.
+            // If the chain has tokens unlocking this epoch we need to
+            // decrease chainPoints.
             veCVE.updateChainPoints(epoch);
         }
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerCVE;
+        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
