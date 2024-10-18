@@ -300,6 +300,24 @@ contract MessagingHub is QueryResponse {
             // payloadType = 3:  Receiving fees from a foreign chain and
             //                   finalized epoch rewards data.
 
+            IRewardManager rewardManager = _getRewardManager();
+            (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
+                .decode(payload, (uint8, uint256, uint256));
+
+            // If the reward per point ratio is 0, theres no rewards to
+            // distribute this epoch, and we'd expect there to be no CCTP
+            // message as well.
+            if (epochRewardsPerPoint == 0) {
+                if (
+                    !_checkRewardManagerStatus(rewardManager) &&
+                    _getNextEpochToDeliver(rewardManager) == epochToDeliver
+                ) {
+                    _recordEpochRewards(rewardManager, 0);
+                }
+                
+                return;
+            }
+
             // Should only have 1 CCTP transfer.
             if (additionalMessages.length != 1) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
@@ -307,17 +325,12 @@ contract MessagingHub is QueryResponse {
 
             uint256 amountReceived = _receiveFees(additionalMessages[0]);
 
-            (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
-                .decode(payload, (uint8, uint256, uint256));
-
-            IRewardManager rewardManager = _getRewardManager();
-
             // If the Reward Manager is shutdown or epoch progression is
             // incorrect, transfer fees to DAO instead of recording epoch
             // rewards.
             if (
                 _checkRewardManagerStatus(rewardManager) ||
-                rewardManager.nextEpochToDeliver() != epochToDeliver
+                _getNextEpochToDeliver(rewardManager) != epochToDeliver
             ) {
                 _transferFeeTokens(amountReceived, _getDaoAddress());
             } else {
@@ -685,38 +698,56 @@ contract MessagingHub is QueryResponse {
         gasLimit = _getGasLimit(gasLimit);
 
         // Query rewards for this epoch.
-        uint256 feeTokensOverall = _getFeeTokenHeld();
+        uint256 feeTokensHeld = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
-        uint256 epochRewardsPerPoint = (feeTokensOverall * WAD_SQUARED) /
+        uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
-
-        uint256 feeTokensForChain;
+        
+        IRewardManager rewardManager = _getRewardManager();
+        uint256 epochToDeliver = _getNextEpochToDeliver(rewardManager);
         uint256 currentChainId;
 
-        feeTokensForChain =
-            (((feeTokensOverall * WAD) / totalPoints) * thisChainsPoints) /
-            WAD;
+        if (epochRewardsPerPoint == 0) {
+            if (!_checkRewardManagerStatus(rewardManager)) {
+                _recordEpochRewards(rewardManager, 0);
 
-        IRewardManager rewardManager = _getRewardManager();
+                ChainData memory chainData;
+                // Notify the other chains of the per epoch rewards.
+                for (uint256 i; i < numChains; ++i) {
+                    currentChainId = chainIds[i];
+                    chainData = _getChainData(currentChainId);
+                    _sendPayload(
+                        chainData.messagingChainId,
+                        chainData.messagingHub,
+                        abi.encode(3, epochToDeliver, 0),
+                        _getGasLimit(gasLimit),
+                        quoteMessageFee(currentChainId, true, gasLimit)
+                    );
+                }
+            }
+        }
+
+        uint256 feeTokensForChain =
+            (((feeTokensHeld * WAD) / totalPoints) * thisChainsPoints) /
+            WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
         if (_checkRewardManagerStatus(rewardManager)) {
-            _transferFeeTokens(feeTokensForChain, _getDaoAddress());
+            _transferFeeTokens(feeTokensHeld, _getDaoAddress());
+            return;
         } else {
             // Transfer fees to Reward Manager, and record newest epoch rewards.
             _transferFeeTokens(feeTokensForChain, address(rewardManager));
             _recordEpochRewards(rewardManager, epochRewardsPerPoint);
         }
 
-        uint256 epochToDeliver = rewardManager.nextEpochToDeliver();
-
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
             currentChainId = chainIds[i];
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
-                (((feeTokensOverall * WAD) / totalPoints) * chainPoints[i]) /
+                (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
                 WAD;
 
             // Send fees and information.
