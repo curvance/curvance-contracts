@@ -422,14 +422,12 @@ contract MessagingHub is QueryResponse {
             revert MessagingHub__InsufficientGasToken();
         }
 
-        _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
+        _sendPayload(
             chainData.messagingChainId,
             chainData.messagingHub,
             abi.encode(2, epoch, emissionData), // payload
-            0, // No receiver value since we're just passing a message.
             gasLimit,
-            chainData.messagingChainId,
-            chainData.messagingHub
+            wormholeFee
         );
     }
 
@@ -465,7 +463,6 @@ contract MessagingHub is QueryResponse {
         }
 
         gasLimit = _getGasLimit(gasLimit);
-        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
 
         if (payloadType == 4) {
             // Bridge VeCVE Lock crosschain.
@@ -473,16 +470,13 @@ contract MessagingHub is QueryResponse {
             if (msg.sender != address(_getVeCVE())) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
-
             return
-                wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                _sendPayload(
                     wormholeChainId,
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
-                    0, // No receiver value since we're just passing a message.
                     gasLimit,
-                    chainData.messagingChainId,
-                    chainData.messagingHub
+                    msg.value
                 );
         }
 
@@ -493,14 +487,12 @@ contract MessagingHub is QueryResponse {
         }
 
         return
-            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+            _sendPayload(
                 wormholeChainId,
                 chainData.messagingHub,
                 abi.encode(5, recipient, amount), // payload
-                0, // No receiver value since we're just passing a message.
                 gasLimit,
-                chainData.messagingChainId,
-                chainData.messagingHub
+                msg.value
             );
     }
 
@@ -744,9 +736,48 @@ contract MessagingHub is QueryResponse {
         return IFeeManager(centralRegistry.feeManager()).pullFees(amount);
     }
 
+    /// @notice Publishes an instruction for the default delivery provider to
+    ///         relay a payload to the address `targetAddress` on chain
+    ///         `targetChain` with gas limit `gasLimit` and msg.value` equal to
+    ///         `receiverValue`.
+    ///         `targetAddress` must implement the IWormholeReceiver interface.
+    ///         This function must be called with `msg.value` equal to
+    ///         `quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit)`.
+    ///         Any refunds (from leftover gas) will be paid to
+    ///         the delivery provider. In order to receive the refunds, use
+    ///         the `sendPayloadToEvm` function with `refundChain` and
+    ///         `refundAddress` as parameters.
+    /// @param targetChaidId In Wormhole Chain ID format.
+    /// @param targetAddress Address to call on targetChain
+    ///                      (that implements IWormholeReceiver).
+    /// @param payload Arbitrary bytes to pass in as parameter in call to
+    ///                `targetAddress`.
+    /// @param gasLimit Gas limit with which to call `targetAddress`.
+    /// @param messageFee Attached native gas token to pay for relayed payload.
+    /// @return Sequence number of published VAA containing delivery instructions.
+    function _sendPayload(
+        uint16 targetChaidId,
+        address targetAddress,
+        bytes memory payload,
+        uint256 gasLimit,
+        uint256 messageFee
+    ) internal returns (uint64) {
+        return
+            _getWormholeRelayer().sendPayloadToEvm{ value: messageFee }(
+                targetChaidId,
+                targetAddress,
+                payload,
+                0, // No receiver value since we're just passing a message.
+                gasLimit,
+                targetChaidId,
+                targetAddress
+            );
+    }
+
     /// @dev Receives fee tokens from Circle from provided message.
-    /// @param A byte array containing a message and signature from
-    ///        Circle allowing redemption of a CCTP message.
+    /// @param circleMessage A byte array containing a message and signature
+    ///                      from Circle allowing redemption of a CCTP
+    ///                      message.
     /// @return The amount of fee tokens received from processing
     ///         and receiving CCTP message. 
     function _receiveFees(
