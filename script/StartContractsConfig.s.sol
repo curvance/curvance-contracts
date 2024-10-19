@@ -372,7 +372,7 @@ contract StartContractsConfig is
         );
         _saveDeployedContracts(
             string.concat(marketName, "-simpleZapper"),
-            complexZapper
+            simpleZapper
         );
     }
 
