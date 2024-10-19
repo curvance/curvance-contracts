@@ -23,14 +23,19 @@ async function main() {
       if (item.type === 'error') {
         const full_error = `${item.name}(${item.inputs.map((input) => input.type).join(',')})`;
         const signature = ethers.keccak256(ethers.toUtf8Bytes(full_error)).slice(0, 10);
+        const real_contract_name = contract_name.replace('.json', '');
 
-        errors[signature] = {
-          contract: contract_name,
-          full_error: full_error,
-          error: item.name,
-          signature: signature,
-          inputs: item.inputs,
-        };
+        if (errors[signature]) {
+          errors[signature].contract.push(real_contract_name);
+        } else {
+          errors[signature] = {
+            contract: [real_contract_name],
+            full_error: full_error,
+            error: item.name,
+            signature: signature,
+            inputs: item.inputs,
+          };
+        }
       }
     }
   }
