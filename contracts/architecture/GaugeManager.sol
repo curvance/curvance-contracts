@@ -59,7 +59,12 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 ///      their market of course, potentially minimizing their net expenses
 ///      borrowing inside a particular market.
 ///
-contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager {
+contract GaugeManager is
+    PluginDelegable,
+    ERC165,
+    ReentrancyGuard,
+    IGaugeManager
+{
     /// TYPES ///
 
     /// @param totalWeights The total weight value of all tokens, inside
@@ -221,7 +226,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
-            !(epoch == 0 && (_startTime == 0 || block.timestamp < _startTime)) &&
+            !(epoch == 0 &&
+                (_startTime == 0 || block.timestamp < _startTime)) &&
             epoch != currentEpoch()
         ) {
             revert GaugeManager__InvalidEpoch();
@@ -250,7 +256,7 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             if (info.tokenWeight[token] > 0) {
                 poolUpdated = true;
                 updatePool(token);
-            }  else {
+            } else {
                 poolUpdated = false;
             }
 
@@ -401,8 +407,10 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
             revert GaugeManager__InvalidRewardToken();
         }
 
-        if (!(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
-           epoch != currentEpoch() + 1) {
+        if (
+            !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
+            epoch != currentEpoch() + 1
+        ) {
             revert GaugeManager__InvalidEpoch();
         }
 
@@ -875,7 +883,8 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
     /// @notice Update reward variables of the given pool to be up-to-date.
     /// @param token Pool token address.
     function updatePool(address token) public {
-        { // Scope variable to avoid stack too deep error.
+        {
+            // Scope variable to avoid stack too deep error.
             // Cache Gauge System start time.
             uint256 _startTime = startTime;
             // If rewards have not started yet, there is nothing to update.
@@ -885,9 +894,10 @@ contract GaugeManager is PluginDelegable, ERC165, ReentrancyGuard, IGaugeManager
         }
 
         uint256 _lastRewardTimestamp = poolLastRewardTimestamp[token];
-        // If nobody has updated reward timestamp, time to set it up to startTime.
+        // If nobody has updated reward timestamp, set it to current timestamp.
         if (_lastRewardTimestamp == 0) {
-            _lastRewardTimestamp = block.timestamp;
+            poolLastRewardTimestamp[token] = block.timestamp;
+            return;
         }
 
         // Make sure time has passed since the last update.
