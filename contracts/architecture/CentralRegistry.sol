@@ -705,7 +705,7 @@ contract CentralRegistry is ERC165 {
         emit MultiplierSet("Lock Boost", value);
     }
 
-    /// USER DELEGATION MANAGEMENT ///
+    /// USER DELEGATION PLUGIN MANAGEMENT ///
 
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all

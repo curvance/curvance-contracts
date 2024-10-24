@@ -708,7 +708,7 @@ contract GaugeManager is
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
         for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++]);
+            cveRewards += _claim(tokens[i++], user);
         }
 
         if (cveRewards == 0) {
@@ -718,9 +718,12 @@ contract GaugeManager is
         SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
-    function _claim(address token) internal returns (uint256 cveRewards) {
+    function _claim(
+        address token,
+        address user
+    ) internal returns (uint256 cveRewards) {
         updatePool(token);
-        _calcPending(msg.sender, token);
+        _calcPending(user, token);
 
         address[] memory rewardTokensForMToken = rewardTokens[token];
         uint256 numTokens = rewardTokensForMToken.length;
@@ -729,7 +732,7 @@ contract GaugeManager is
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 rewards = userDebtInfo[token][msg.sender][index]
+            uint256 rewards = userDebtInfo[token][user][index]
                 .rewardPending;
             // If the caller has rewards, send them,
             // and prevent transaction reversion.
@@ -737,6 +740,8 @@ contract GaugeManager is
                 if (rewardToken == cve) {
                     cveRewards = rewards;
                 } else {
+                    // User rewards are always expected to go to a caller
+                    // even if its a plugin call.
                     SafeTransferLib.safeTransfer(
                         rewardToken,
                         msg.sender,
@@ -746,12 +751,12 @@ contract GaugeManager is
             }
 
             // Update pending rewards to zero.
-            userDebtInfo[token][msg.sender][index].rewardPending = 0;
+            userDebtInfo[token][user][index].rewardPending = 0;
         }
 
-        _calcDebt(msg.sender, token);
+        _calcDebt(user, token);
 
-        emit Claim(msg.sender, token);
+        emit Claim(user, token);
     }
 
     /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
