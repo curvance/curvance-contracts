@@ -58,6 +58,14 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.addHarvester: ", harvester);
     }
 
+    function _setGaugeManager(address gaugeManager) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+        require(gaugeManager != address(0), "Set the GaugeManager!");
+
+        CentralRegistry(centralRegistry).setGaugeManager(gaugeManager);
+        console.log("centralRegistry.setGaugeManager: ", gaugeManager);
+    }
+
     function _setCVE(address cve) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(cve != address(0), "Set the cve!");
