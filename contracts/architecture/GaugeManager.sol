@@ -732,8 +732,7 @@ contract GaugeManager is
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 rewards = userDebtInfo[token][user][index]
-                .rewardPending;
+            uint256 rewards = userDebtInfo[token][user][index].rewardPending;
             // If the caller has rewards, send them,
             // and prevent transaction reversion.
             if (rewards > 0) {
@@ -788,7 +787,7 @@ contract GaugeManager is
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
         for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++]);
+            cveRewards += _claim(tokens[i++], msg.sender);
         }
 
         if (cveRewards == 0) {
