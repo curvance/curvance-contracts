@@ -307,7 +307,7 @@ contract VotingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Allocate rewards for this chain
+        // Allocate emission rewards for this chain.
         for (uint256 j; j < numTokens; ++j) {
             emissionsTotal += emissions[j];
         }
@@ -318,7 +318,7 @@ contract VotingHub is QueryResponse {
 
         EmissionData memory cachedEmissionData;
 
-        // Allocate rewards for remote chains
+        // Allocate emission rewards for remote chains.
         for (uint256 i; i < numRemoteChains; ++i) {
             cachedEmissionData = remoteEmissionData[i];
             numTokens = cachedEmissionData.tokens.length;

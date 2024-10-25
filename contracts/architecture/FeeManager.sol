@@ -254,7 +254,7 @@ contract FeeManager is ReentrancyGuard {
             uint256 slippage = ((
                 feeTokenRequiredForOTC - expectedFeeTokens 
             ) * WAD) / expectedFeeTokens;
-
+            
             if (slippage > slippageLimit) {
                 revert FeeManager__OTCExecutionTermsFailed();
             }

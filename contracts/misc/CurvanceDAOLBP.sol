@@ -324,7 +324,7 @@ contract CurvanceDAOLBP {
             18
         );
         uint256 price = currentPrice();
-        uint256 soldAmount = FixedPointMathLib.mulDiv(
+        uint256 soldAmount = FixedPointMathLib.mulDivUp(
             adjustedAmount,
             WAD,
             price
