@@ -83,8 +83,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of `asset`, an lp token,
-    ///         for a Univ2 style volatile pool.
-    /// @dev Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///         for a standard AMM volatile pool.
+    /// @dev Prices volatile pairs NOT stable pairs.
+    ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///      NOTE: Uses standard volatile asset AMM formula using constant
+    ///            product k >= x * y.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.
@@ -220,7 +223,8 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     ///         the total supply of lp tokens making up the pool.
     /// @dev Prices volatile pairs NOT stable pairs.
     ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
-    ///      Uses k = x * y.
+    ///      NOTE: Uses standard volatile asset AMM formula using constant
+    ///            product k >= x * y.
     /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
     /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
     /// @param price0 The price of token0 according to the Oracle Manager.

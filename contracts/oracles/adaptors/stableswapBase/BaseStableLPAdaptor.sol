@@ -83,11 +83,12 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of `asset`, an lp token,
-    ///         for a Univ2 style stable pool.
-    /// @dev Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///         for a Stableswap stable pool.
+    /// @dev Prices stable pairs NOT volatile pairs.
+    ///      Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
     ///      NOTE: Values are different since stable pairs use constant
-    ///            product of constant product = x^3 * y + x * y^3. Instead of
-    ///            normal formula.
+    ///            product k >= x^3 * y + x * y^3. Instead of the standard
+    ///            AMM formula.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.
@@ -224,8 +225,8 @@ abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     /// @dev Prices stable pairs NOT volatile pairs.
     ///      Logic source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
     ///      NOTE: Values are different since stable pairs use constant
-    ///            product k = x^3 * y + x * y^3. Instead
-    ///            of normal formula of x*y = k.
+    ///            product k >= x^3 * y + x * y^3. Instead of the standard
+    ///            AMM formula.
     /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
     /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
     /// @param price0 The price of token0 according to the Oracle Manager.
