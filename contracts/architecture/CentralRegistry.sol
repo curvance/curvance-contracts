@@ -238,7 +238,11 @@ contract CentralRegistry is ERC165 {
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
     event NewChainAdded(uint256 chainId, address relayer);
-    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
+    event RemovedChain(
+        uint256 chainId,
+        address messagingHub,
+        address votingHub
+    );
     event CallDataCheckerSet(
         string indexed calldataType,
         address targetAddress,
@@ -784,7 +788,7 @@ contract CentralRegistry is ERC165 {
                 delete hasDaoPermissions[previousTimelock];
             }
         }
-        
+
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
         hasElevatedPermissions[newTimelock] = true;
@@ -814,7 +818,7 @@ contract CentralRegistry is ERC165 {
                 delete hasDaoPermissions[previousEmergencyCouncil];
             }
         }
-        
+
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
         hasElevatedPermissions[newEmergencyCouncil] = true;
@@ -1244,5 +1248,4 @@ contract CentralRegistry is ERC165 {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
-    
 }

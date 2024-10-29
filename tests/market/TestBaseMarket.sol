@@ -472,9 +472,7 @@ contract TestBaseMarket is TestBase {
         );
         centralRegistry.setExternalCalldataChecker(
             address(complexZapper),
-            address(
-                new ComplexZapperCalldataChecker(address(complexZapper))
-            )
+            address(new ComplexZapperCalldataChecker(address(complexZapper)))
         );
         return complexZapper;
     }
@@ -569,6 +567,8 @@ contract TestBaseMarket is TestBase {
         PerChainData[] memory perChainData,
         bytes memory callData
     ) internal {
+        delete signatures;
+
         bytes[] memory perChainQueries = new bytes[](perChainData.length);
         bytes[] memory perChainResponses = new bytes[](perChainData.length);
 

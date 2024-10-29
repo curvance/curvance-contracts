@@ -67,7 +67,7 @@ contract VotingHub is QueryResponse {
         uint256 baseEmissionsPerEpoch
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
-        
+
         // Query epoch and token configuration directly to minimize potential
         // human error.
         cve = ICVE(centralRegistry.cve());
@@ -75,7 +75,7 @@ contract VotingHub is QueryResponse {
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
-        
+
         _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
