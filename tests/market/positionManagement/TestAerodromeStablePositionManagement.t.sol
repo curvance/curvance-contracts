@@ -142,7 +142,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
                 10,
                 1000
             );
-            
+
             address[] memory tokens = new address[](1);
             tokens[0] = address(pUSDCDAI);
             uint256[] memory caps = new uint256[](1);
@@ -240,7 +240,8 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementAerodromeStable.DeleverageStruct memory deleverageData;
+        PositionManagementAerodromeStable.DeleverageStruct
+            memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
@@ -267,8 +268,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             address(positionManagement),
             block.timestamp
         );
-        IUniswapV2Router(_UNISWAP_V2_ROUTER)
-            .getAmountsOut(usdcAmount, path);
+        IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(usdcAmount, path);
         deleverageData.repayAmount = 30e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
@@ -290,5 +290,115 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         assertEq(pUSDCDAIBorrowed, 0);
 
         vm.stopPrank();
+    }
+
+    function testLeverageFor() public {
+        vm.startPrank(user);
+
+        deal(_AERODROME_DAI_USDC, user, 0.0001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
+
+        // mint
+        assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        // borrow
+        eDAI.borrow(100 ether);
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            100;
+        PositionManagementAerodromeStable.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.swapData.inputToken = address(0x0);
+        leverageData.swapData.inputAmount = 0;
+        leverageData.swapData.outputToken = address(0x0);
+        leverageData.swapData.target = address(0x0);
+        leverageData.swapData.slippage = 0;
+        leverageData.swapData.call = bytes("");
+        leverageData.auxData = bytes("");
+
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.leverageFor(leverageData, user, 500);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+    }
+
+    function testDeLeverageFor() public {
+        testLeverage();
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+
+        vm.startPrank(user);
+
+        PositionManagementAerodromeStable.DeleverageStruct
+            memory deleverageData;
+
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+
+        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.borrowToken = eDAI;
+
+        uint256 usdcAmount = 28451980;
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
+        deleverageData.swapData[0].inputAmount = usdcAmount;
+        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapData[0].target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData[0].slippage = 1e18;
+        address[] memory path = new address[](2);
+        path[0] = _USDC_ADDRESS;
+        path[1] = _DAI_ADDRESS;
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            usdcAmount,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(usdcAmount, path);
+        deleverageData.repayAmount = 30e18;
+
+        pUSDCDAI.approve(address(positionManagement), type(uint256).max);
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.deleverageFor(deleverageData, user, 5000);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
+        );
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertEq(
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+        );
+        assertEq(pUSDCDAIBorrowed, 0);
     }
 }
