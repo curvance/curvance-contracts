@@ -1047,11 +1047,12 @@ contract TestGaugeManager is TestBaseMarket {
         // user4 claims for user0, user3
         vm.prank(users[4]);
         gaugeManager.claim(listedTokens, users[0]);
+
+        assertEq(cve.balanceOf(users[4]), 35998);
         vm.prank(users[4]);
         gaugeManager.claim(listedTokens, users[3]);
 
-        assertEq(cve.balanceOf(users[0]), 35998);
-        assertEq(cve.balanceOf(users[3]), 16000);
+        assertEq(cve.balanceOf(users[4]), 35998 + 16000);
     }
 
     function testZach_RevertOnSecondDeposit() public {

@@ -715,7 +715,7 @@ contract GaugeManager is
             return;
         }
 
-        SafeTransferLib.safeTransfer(cve, user, cveRewards);
+        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
     function _claim(
