@@ -418,7 +418,7 @@ contract MessagingHub is QueryResponse {
         }
 
         ChainData memory chainData = _getChainData(dstChainId);
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -562,12 +562,10 @@ contract MessagingHub is QueryResponse {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         deposit and messaging.
     /// @param dstChainId GETH destination chain ID.
-    /// @param transferToken Whether deliver token or not.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost to send a message to `dstChainId`.
     function quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken,
         uint256 gasLimit
     ) public view returns (uint256 nativeFee) {
         (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
@@ -576,10 +574,8 @@ contract MessagingHub is QueryResponse {
             _getGasLimit(gasLimit)
         );
 
-        if (transferToken) {
-            // Add cost of publishing the 'sending token' wormhole message.
-            nativeFee += _getMessageFee();
-        }
+        // Add any potential fee premium for publishing wormhole message.
+        nativeFee += _getWormholeCore().messageFee();
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -597,7 +593,7 @@ contract MessagingHub is QueryResponse {
         bytes memory payload,
         uint256 gasLimit
     ) internal {
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -799,11 +795,6 @@ contract MessagingHub is QueryResponse {
     /// @dev Returns the current Wormhole Core address to call.
     function _getWormholeCore() internal view returns (IWormhole) {
         return centralRegistry.wormholeCore();
-    }
-
-    /// @dev Returns the current standard wormhole message fee.
-    function _getMessageFee() internal view returns (uint256) {
-        return _getWormholeCore().messageFee();
     }
 
     /// @dev Returns ChainData struct for `chainId`.

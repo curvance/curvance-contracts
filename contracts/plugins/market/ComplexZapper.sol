@@ -713,7 +713,10 @@ contract ComplexZapper is ReentrancyGuard {
                 amount,
                 msg.sender
             );
-        } else if (collateralize && msg.sender != recipient) {
+        } else if (
+            collateralize && msg.sender != recipient && 
+            IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
+            ) {
             shares = SimplePToken(pToken).depositAsCollateralFor(
                 amount,
                 recipient
