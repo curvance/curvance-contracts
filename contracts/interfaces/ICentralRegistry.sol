@@ -142,6 +142,13 @@ interface ICentralRegistry {
     /// @notice Returns an array of Curvance markets on this chain.
     function getMarketManagers() external view returns (address[] memory);
 
+    /// @notice Increments a caller's approval index.
+    /// @dev By incrementing their approval index, a user's delegates will all
+    ///      have their delegation authority revoked across all Curvance
+    ///      contracts.
+    ///      Emits an {ApprovalIndexIncremented} event.
+    function incrementApprovalIndex() external;
+
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
     function userApprovalIndex(address user) external view returns (uint256);

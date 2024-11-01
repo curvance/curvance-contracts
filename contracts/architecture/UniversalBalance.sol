@@ -11,6 +11,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Universal Balance.
 /// @notice A system for managing a Universal Balance within the Curvance
@@ -116,48 +117,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
     }
 
-    /// @notice Claims pending gauge rewards from lent balance to the DAO.
+    /// @notice Updating delegated access to gauge emissions to the current
+    ///         DAO.
     /// @dev This is allowed to be permissionless as there is no potential
     ///      to steal funds.
-    function claimForDAO() external {
-        IGaugeManager gaugeManager = IGaugeManager(
-            centralRegistry.gaugeManager()
-        );
-        address[] memory rewardTokens = gaugeManager.getRewardTokens(
-            address(linkedEToken)
-        );
-
-        uint256 numRewardTokens = rewardTokens.length;
-        uint256[] memory previousBalances = new uint256[](numRewardTokens);
-
-        for (uint256 i; i < numRewardTokens; ++i) {
-            previousBalances[i] = IERC20(rewardTokens[i]).balanceOf(
-                address(this)
-            );
-        }
-
-        address[] memory claimTokens = new address[](1);
-        claimTokens[0] = address(linkedEToken);
-
-        gaugeManager.claim(claimTokens, address(this));
-        address daoAddress = centralRegistry.daoAddress();
-
-        // If the contract received rewards in a reward token,
-        // transfer them to the DAO.
-        // We do a two step process in case a reward token matches
-        // a universal balance token.
-        for (uint256 i = 0; i < numRewardTokens; ++i) {
-            previousBalances[i] =
-                IERC20(rewardTokens[i]).balanceOf(address(this)) -
-                previousBalances[i];
-            if (previousBalances[i] > 0) {
-                SafeTransferLib.safeTransfer(
-                    rewardTokens[i],
-                    daoAddress,
-                    previousBalances[i]
-                );
-            }
-        }
+    function updateRewardDelegation() external {
+        centralRegistry.incrementApprovalIndex();
+        setDelegateApproval(centralRegistry.daoAddress(), true);
     }
 
     /// INTERNAL FUNCTIONS ///
