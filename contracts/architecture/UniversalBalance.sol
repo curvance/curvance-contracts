@@ -123,7 +123,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///      to steal funds.
     function updateRewardDelegation() external {
         centralRegistry.incrementApprovalIndex();
-        setDelegateApproval(centralRegistry.daoAddress(), true);
+        centralRegistry.gaugeManager().setDelegateApproval(
+            centralRegistry.daoAddress(),
+            true
+        );
     }
 
     /// INTERNAL FUNCTIONS ///
