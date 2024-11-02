@@ -967,6 +967,94 @@ contract TestGaugeManager is TestBaseMarket {
         );
     }
 
+    function testClaimWithDelegation() public {
+        address[] memory listedTokens = marketManager.queryTokensListed();
+        // user0 deposit 100 token0
+        vm.prank(users[0]);
+        IMToken(tokens[0]).mint(100 ether);
+
+        // user0 deposit 100 token1
+        vm.prank(users[0]);
+        IMToken(tokens[1]).mint(100 ether);
+
+        vm.warp(gaugeManager.startTime());
+        _skipEpochDuration(1);
+
+        vm.roll(block.number + 1000);
+
+        // set gauge weights
+        address[] memory tokensParam = new address[](2);
+        tokensParam[0] = tokens[0];
+        tokensParam[1] = tokens[1];
+        uint256[] memory poolWeights = new uint256[](2);
+        poolWeights[0] = 100 * 2 weeks;
+        poolWeights[1] = 200 * 2 weeks;
+
+        vm.prank(address(messagingHub));
+        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
+        vm.prank(address(messagingHub));
+        cve.mintGaugeEmissions(address(gaugeManager), 300 * 2 weeks);
+
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+
+        // check pending rewards after 100 seconds
+        vm.warp(block.timestamp + 100);
+        gaugeManager.updatePool(tokens[0]);
+        gaugeManager.updatePool(tokens[1]);
+        assertEq(
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
+            9999
+        );
+
+        // user1 deposit 400 token0
+        vm.prank(users[1]);
+        IMToken(tokens[0]).mint(400 ether);
+
+        gaugeManager.updatePool(tokens[0]);
+        gaugeManager.updatePool(tokens[1]);
+
+        // user3 deposit 400 token1
+        vm.prank(users[3]);
+        IMToken(tokens[1]).mint(400 ether);
+
+        // check pending rewards after 100 seconds
+        vm.warp(block.timestamp + 100);
+        assertEq(
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
+            11999
+        );
+        assertEq(
+            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)),
+            8000
+        );
+        assertEq(
+            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)),
+            16000
+        );
+
+        gaugeManager.updatePool(tokens[0]);
+        gaugeManager.updatePool(tokens[1]);
+
+        // try to claim without delegation and revert
+        vm.prank(users[4]);
+        vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
+        gaugeManager.claim(listedTokens, users[0]);
+
+        vm.prank(users[0]);
+        gaugeManager.setDelegateApproval(users[4], true);
+        vm.prank(users[3]);
+        gaugeManager.setDelegateApproval(users[4], true);
+        // user4 claims for user0, user3
+        vm.prank(users[4]);
+        gaugeManager.claim(listedTokens, users[0]);
+
+        assertEq(cve.balanceOf(users[4]), 35998);
+        vm.prank(users[4]);
+        gaugeManager.claim(listedTokens, users[3]);
+
+        assertEq(cve.balanceOf(users[4]), 35998 + 16000);
+    }
+
     function testZach_RevertOnSecondDeposit() public {
         // set up emission rates and fund the gauge pool with cve
         address mToken = tokens[0];

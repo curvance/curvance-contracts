@@ -240,37 +240,6 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(usdc.balanceOf(user1), 200e6);
     }
 
-    function testClaimForDAO() public {
-        testDeposit();
-
-        vm.warp(gaugeManager.startTime());
-        _skipEpochDuration(1);
-
-        vm.roll(block.number + 1000);
-
-        // set gauge weights
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(eUSDC);
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-
-        skip(1 weeks);
-
-        uint256 balanceBefore = cve.balanceOf(address(this));
-        universalBalance.claimForDAO();
-        assertApproxEqAbs(
-            cve.balanceOf(address(this)),
-            balanceBefore + 100 * 1 weeks,
-            1e6
-        );
-    }
-
     function testLentBalanceIncreased() public {
         testDeposit();
 

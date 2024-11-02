@@ -171,7 +171,6 @@ abstract contract CVEBase is ERC20 {
         return
             IMessagingHub(_getMessagingHub()).quoteMessageFee(
                 dstChainId,
-                true,
                 gasLimit
             );
     }

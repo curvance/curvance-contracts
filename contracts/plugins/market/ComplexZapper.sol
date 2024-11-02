@@ -702,26 +702,34 @@ contract ComplexZapper is ReentrancyGuard {
 
         uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
 
+        uint256 shares;
         // The user is trusting this plugin to not use their delegation
         // approval for nefarious reasons such as keeping them stuck in
         // positions, so lets validate that the recipient is a delegate
         // as well.
-        // Enter Curvance pToken position and collateralize,
-        // and make sure `recipient` got pTokens.
-        if (
-            collateralize &&
+        // Enter Curvance pToken position and collateralize
+        if (collateralize && msg.sender == recipient) {
+            shares = SimplePToken(pToken).depositAsCollateral(
+                amount,
+                msg.sender
+            );
+        } else if (
+            collateralize && msg.sender != recipient && 
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
             ) {
-                if (SimplePToken(pToken).depositAsCollateralFor(
-                    amount,
-                    recipient
-                    ) == 0) {
-                        revert ComplexZapper__ExecutionError();
-                }
-                // Enter Curvance pToken position,
-                // and make sure `recipient` got pTokens.
-            } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
-                revert ComplexZapper__ExecutionError();
+            shares = SimplePToken(pToken).depositAsCollateralFor(
+                amount,
+                recipient
+            );
+        }
+        // Enter Curvance pToken position,
+        else {
+            shares = SimplePToken(pToken).deposit(amount, recipient);
+        }
+
+        // Make sure `recipient` got pTokens.
+        if (shares == 0) {
+            revert ComplexZapper__ExecutionError();
         }
 
         // Remove any leftover approval.
@@ -1005,7 +1013,8 @@ contract ComplexZapper is ReentrancyGuard {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(swapData[i].inputToken) && depositAsWrappedNative
+                CommonLib.isETH(swapData[i].inputToken) &&
+                depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
                 swapData[i].inputToken = address(wrappedNative);
