@@ -393,8 +393,7 @@ contract TestBaseMarket is TestBase {
         address underlyingToken
     ) internal returns (address) {
         interestRateModels[
-            block.chainid,
-            underlyingToken
+            block.chainid][underlyingToken
         ] = new DynamicInterestRateModel(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
@@ -405,9 +404,9 @@ contract TestBaseMarket is TestBase {
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
+
         return address(interestRateModels[
-            block.chainid,
-            underlyingToken
+            block.chainid][underlyingToken
         ]);    
     }
 
@@ -432,10 +431,7 @@ contract TestBaseMarket is TestBase {
                 _deployDynamicInterestRateModel(token);
             );
         
-        interestRateModels[
-            block.chainid,
-            token
-        ].setLinkedEToken(EToken);
+        interestRateModels[block.chainid][token].setLinkedEToken(EToken);
     }
 
     function _deployPBALRETH()
