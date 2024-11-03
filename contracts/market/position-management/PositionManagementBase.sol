@@ -5,10 +5,10 @@ import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -27,7 +27,7 @@ import { IPositionManagement } from "contracts/interfaces/market/IPositionManage
 ///      integration with Position Foldings callback functions.
 abstract contract PositionManagementBase is
     IPositionManagement,
-    Delegable,
+    PluginDelegable,
     ERC165,
     ReentrancyGuard,
     Multicall
@@ -106,7 +106,7 @@ abstract contract PositionManagementBase is
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {

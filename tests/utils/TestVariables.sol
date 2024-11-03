@@ -7,7 +7,7 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/architecture/utils/SimpleRewardZapper.sol";
+import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
@@ -17,7 +17,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -140,8 +140,8 @@ contract TestVariables {
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
     mapping(uint256 => EToken) public eDAIs;
-    mapping(uint256 => AuraPToken) public cBALRETHs;
-    mapping(uint256 => MockAuraPTokenWithExitFee) public cBALRETHWithExitFees;
+    mapping(uint256 => AuraPToken) public pBALRETHs;
+    mapping(uint256 => MockAuraPTokenWithExitFee) public pBALRETHWithExitFees;
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
@@ -366,8 +366,8 @@ contract TestVariables {
         oracleManager = oracleManagers[chainId];
         eUSDC = eUSDCs[chainId];
         eDAI = eDAIs[chainId];
-        pBALRETH = cBALRETHs[chainId];
-        pBALRETHWithExitFee = cBALRETHWithExitFees[chainId];
+        pBALRETH = pBALRETHs[chainId];
+        pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];
         chainlinkUsdcEth = chainlinkUsdcEths[chainId];

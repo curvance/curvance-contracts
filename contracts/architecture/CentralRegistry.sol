@@ -734,7 +734,7 @@ contract CentralRegistry is ERC165 {
         emit MultiplierSet("Lock Boost", value);
     }
 
-    /// USER DELEGATION MANAGEMENT ///
+    /// USER DELEGATION PLUGIN MANAGEMENT ///
 
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all
@@ -1004,16 +1004,16 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setExternalCalldataChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        externalCalldataChecker[target] = callDataChecker;
-        emit CalldataCheckerSet("External", target, callDataChecker);
+        externalCalldataChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("External", target, calldataChecker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
@@ -1021,16 +1021,16 @@ contract CentralRegistry is ERC165 {
     ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setMulticallChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallChecker[target] = callDataChecker;
-        emit CalldataCheckerSet("Multicall", target, callDataChecker);
+        multicallChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("Multicall", target, calldataChecker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,

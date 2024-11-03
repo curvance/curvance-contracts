@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -40,7 +40,7 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
 ///
-contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
+contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// TYPES ///
 
     /// @param principal Principal total balance (with accrued interest).
@@ -162,7 +162,7 @@ contract EToken is Delegable, ERC165, ReentrancyGuard, Multicall {
         address underlying_,
         address marketManager_,
         address interestRateModel_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         // Set the marketManager after consulting Central Registry.
         // Ensure that marketManager parameter is a marketManager.
         if (!centralRegistry.isMarketManager(marketManager_)) {

@@ -81,7 +81,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         vm.expectRevert();
         veCVE.bridgeLock{ value: messageFee - 1 }(
@@ -98,7 +98,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
@@ -119,7 +119,7 @@ contract BridgeLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 

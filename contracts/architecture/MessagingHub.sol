@@ -40,7 +40,7 @@ contract MessagingHub is QueryResponse {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
@@ -427,7 +427,7 @@ contract MessagingHub is QueryResponse {
         }
 
         ChainData memory chainData = _getChainData(dstChainId);
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -565,12 +565,10 @@ contract MessagingHub is QueryResponse {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         deposit and messaging.
     /// @param dstChainId GETH destination chain ID.
-    /// @param transferToken Whether deliver token or not.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost to send a message to `dstChainId`.
     function quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken,
         uint256 gasLimit
     ) public view returns (uint256 nativeFee) {
         (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
@@ -579,10 +577,8 @@ contract MessagingHub is QueryResponse {
             _getGasLimit(gasLimit)
         );
 
-        if (transferToken) {
-            // Add cost of publishing the 'sending token' wormhole message.
-            nativeFee += _getMessageFee();
-        }
+        // Add any potential fee premium for publishing wormhole message.
+        nativeFee += _getWormholeCore().messageFee();
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -600,7 +596,7 @@ contract MessagingHub is QueryResponse {
         bytes memory payload,
         uint256 gasLimit
     ) internal {
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -705,12 +701,14 @@ contract MessagingHub is QueryResponse {
         IRewardManager rewardManager = _getRewardManager();
         uint256 epochToDeliver = _getNextEpochToDeliver(rewardManager);
         uint256 currentChainId;
+        ChainData memory chainData;
 
+        // If theres no epoch rewards per point this implies fee token amount
+        // of 0 everywhere so we can record epoch rewards of 0 everywhere
+        // and return.
         if (epochRewardsPerPoint == 0) {
             if (!_checkRewardManagerStatus(rewardManager)) {
                 _recordEpochRewards(rewardManager, 0);
-
-                ChainData memory chainData;
                 // Notify the other chains of the per epoch rewards.
                 for (uint256 i; i < numChains; ++i) {
                     currentChainId = chainIds[i];
@@ -720,9 +718,11 @@ contract MessagingHub is QueryResponse {
                         chainData.messagingHub,
                         abi.encode(3, epochToDeliver, 0),
                         _getGasLimit(gasLimit),
-                        quoteMessageFee(currentChainId, true, gasLimit)
+                        quoteMessageFee(currentChainId, gasLimit)
                     );
                 }
+
+                return;
             }
         }
 
@@ -743,19 +743,36 @@ contract MessagingHub is QueryResponse {
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
             currentChainId = chainIds[i];
+            chainData = _getChainData(currentChainId);
+            
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
                 (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
                 WAD;
 
-            // Send fees and information.
-            _sendFeeToken(
-                currentChainId,
-                _getChainData(currentChainId).cctpDomain,
-                feeTokensForChain,
-                abi.encode(3, epochToDeliver, epochRewardsPerPoint),
-                gasLimit
-            );
+            // If there are no rewards for this chain we can record epoch
+            // rewards of 0 without sending any fee tokens.
+            if (feeTokensForChain == 0) {
+                // Send epoch information of 0.
+                _sendPayload(
+                    chainData.messagingChainId,
+                    chainData.messagingHub,
+                    abi.encode(3, epochToDeliver, 0),
+                    _getGasLimit(gasLimit),
+                    quoteMessageFee(currentChainId, gasLimit)
+                );
+            } else {
+                // If theres rewards for this chain we can record epoch rewards
+                // and send expected amount of fee tokens.
+                // Send fees and epoch information.
+                _sendFeeToken(
+                    currentChainId,
+                    chainData.cctpDomain,
+                    feeTokensForChain,
+                    abi.encode(3, epochToDeliver, epochRewardsPerPoint),
+                    gasLimit
+                );
+            }
         }
     }
 
@@ -873,9 +890,9 @@ contract MessagingHub is QueryResponse {
         return centralRegistry.wormholeRelayer();
     }
 
-    /// @dev Returns the current standard wormhole message fee.
-    function _getMessageFee() internal view returns (uint256) {
-        return centralRegistry.wormholeCore().messageFee();
+    /// @dev Returns the current Wormhole Core address to call.
+    function _getWormholeCore() internal view returns (IWormhole) {
+        return centralRegistry.wormholeCore();
     }
 
     /// @dev Returns ChainData struct for `chainId`.

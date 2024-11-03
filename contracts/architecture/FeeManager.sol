@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -196,6 +196,14 @@ contract FeeManager is ReentrancyGuard {
     ///      current prices.
     /// @param tokenToOTC Address of the token to be OTC purchased by the DAO.
     /// @param amountToOTC Amount of the token to be OTC purchased by the DAO.
+    /// @param expectedFeeTokens The amount of `feeToken` expected to be paid
+    ///                          for the desired OTC transaction.
+    /// @param slippageLimit The % limit premium on top of `expectedFeeTokens`
+    ///                      allowed as part of the OTC transaction,
+    ///                      in exchange for `amountToOTC` of `tokenToOTC`.
+    ///                      represented in `WAD`, aka 1e18.
+    /// @param deadline The time by which the OTC transaction must be executed
+    ///                 before it is no longer valid, in unix time.
     function executeOTC(
         address tokenToOTC,
         uint256 amountToOTC,
@@ -242,11 +250,11 @@ contract FeeManager is ReentrancyGuard {
         ) / 10 ** IERC20(tokenToOTC).decimals();
 
         // Check if Curvance DAO is paying more than anticipated.
-        if (expectedFeeTokens > feeTokenRequiredForOTC) {
+        if (expectedFeeTokens < feeTokenRequiredForOTC) {
             uint256 slippage = ((
-                expectedFeeTokens - feeTokenRequiredForOTC
+                feeTokenRequiredForOTC - expectedFeeTokens 
             ) * WAD) / expectedFeeTokens;
-
+            
             if (slippage > slippageLimit) {
                 revert FeeManager__OTCExecutionTermsFailed();
             }

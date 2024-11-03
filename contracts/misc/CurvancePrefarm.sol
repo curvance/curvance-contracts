@@ -165,7 +165,7 @@ contract CurvancePrefarm {
         _recordDeposit(token, amount, msg.sender);
     }
 
-    function zapAndDeposit(
+    function swapAndDeposit(
         SwapperLib.Swap memory swapData,
         uint256 depositAmount
     ) external payable {

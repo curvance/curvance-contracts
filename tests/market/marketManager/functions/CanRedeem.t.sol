@@ -50,7 +50,7 @@ contract CanRedeemTest is TestBaseMarketManager {
             block.timestamp
         );
         marketManager.listToken(address(pBALRETH));
-        _setCbalRETHCollateralCaps(100_000e18);
+        _setPBALRETHCollateralCaps(100_000e18);
 
         assertTrue(pBALRETH.isPToken());
         deal(address(balRETH), user1, 10_000e18);

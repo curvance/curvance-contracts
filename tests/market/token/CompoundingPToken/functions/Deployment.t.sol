@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/StdStorage.sol";
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -17,7 +17,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
     function test_CompoundingPTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new AuraPToken(
             ICentralRegistry(address(0)),
             balRETH,

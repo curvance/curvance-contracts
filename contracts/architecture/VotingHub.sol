@@ -69,7 +69,7 @@ contract VotingHub is QueryResponse {
         uint256 baseEmissionsPerEpoch
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
-        
+
         // Query epoch and token configuration directly to minimize potential
         // human error.
         cve = ICVE(centralRegistry.cve());
@@ -77,7 +77,7 @@ contract VotingHub is QueryResponse {
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
-        
+
         _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
@@ -309,7 +309,7 @@ contract VotingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Allocate rewards for this chain
+        // Allocate emission rewards for this chain.
         for (uint256 j; j < numTokens; ++j) {
             emissionsTotal += emissions[j];
         }
@@ -320,7 +320,7 @@ contract VotingHub is QueryResponse {
 
         EmissionData memory cachedEmissionData;
 
-        // Allocate rewards for remote chains
+        // Allocate emission rewards for remote chains.
         for (uint256 i; i < numRemoteChains; ++i) {
             cachedEmissionData = remoteEmissionData[i];
             numTokens = cachedEmissionData.tokens.length;

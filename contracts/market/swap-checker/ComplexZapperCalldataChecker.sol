@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ComplexZapper } from "contracts/market/zapper/ComplexZapper.sol";
+import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
@@ -38,6 +38,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     getFuncParams(swapData.call),
@@ -47,6 +48,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                         SwapperLib.Swap[],
                         address,
                         address[],
+                        bool,
                         address
                     )
                 );
@@ -109,9 +111,8 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
         } else if (funcSigHash == ComplexZapper.enterBalancer.selector) {
             (
                 address pToken,
+                ,
                 ComplexZapper.ZapperData memory desc,
-                ,
-                ,
                 ,
                 ,
                 address _recipient
@@ -119,11 +120,10 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                     getFuncParams(swapData.call),
                     (
                         address,
+                        ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
                         SwapperLib.Swap[],
-                        address,
-                        bytes32,
-                        address[],
+                        bool,
                         address
                     )
                 );
@@ -137,13 +137,15 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     getFuncParams(swapData.call),
                     (
-                        ComplexZapper.BPTRedemption,
+                        ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
-                        address[],
+                        bool,
+                        uint256,
                         SwapperLib.Swap[],
                         address
                     )
@@ -161,14 +163,16 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     getFuncParams(swapData.call),
                     (
                         ComplexZapper.RedemptionData,
-                        ComplexZapper.BPTRedemption,
+                        ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
-                        address[],
+                        bool,
+                        uint256,
                         SwapperLib.Swap[],
                         address
                     )
@@ -184,6 +188,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     getFuncParams(swapData.call),
@@ -193,6 +198,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                         SwapperLib.Swap[],
                         address,
                         address,
+                        bool,
                         address
                     )
                 );
@@ -250,6 +256,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     getFuncParams(swapData.call),
@@ -260,6 +267,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
                         address,
                         bool,
                         PendleLib.PendleData,
+                        bool,
                         address
                     )
                 );

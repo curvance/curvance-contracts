@@ -359,7 +359,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         deal(user1, _ONE);
 
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
 
@@ -455,7 +455,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         deal(user1, _ONE);
         deal(address(cve), user1, _ONE);
 
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         vm.recordLogs();
 

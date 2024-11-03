@@ -27,7 +27,6 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
     address internal _PENDLE = 0x808507121B80c02388fAd14726482e061B8da827;
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
-
     PositionManagementPendleLP public positionManagement;
     PendleLPPToken public pSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
@@ -71,7 +70,6 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeManager(address(this));
-
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
@@ -107,7 +105,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
             dai.approve(address(eDAI), 200000e18);
             marketManager.listToken(address(eDAI));
         }
-
+        
         pSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
@@ -137,7 +135,6 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         caps[0] = 100_000e18;
 
         marketManager.setPTokenCollateralCaps(tokens, caps);
-
         positionManagement = new PositionManagementPendleLP(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
@@ -254,9 +251,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         eDAI.accrueInterest();
 
         vm.startPrank(user);
-
         PositionManagementPendleLP.DeleverageStruct memory deleverageData;
-
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
 

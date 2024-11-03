@@ -2,11 +2,11 @@
 pragma solidity ^0.8.19;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ERC4626, SafeTransferLib } from "contracts/libraries/ERC4626.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ERC4626, SafeTransferLib } from "contracts/libraries/external/ERC4626.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
@@ -50,7 +50,7 @@ import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.so
 ///
 abstract contract BasePToken is
     ERC4626,
-    Delegable,
+    PluginDelegable,
     ReentrancyGuard,
     Multicall
 {
@@ -110,7 +110,7 @@ abstract contract BasePToken is
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address MarketManager_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         _asset = asset_;
         _name = string.concat("Curvance ", asset_.name());
         _symbol = string.concat("c", asset_.symbol());

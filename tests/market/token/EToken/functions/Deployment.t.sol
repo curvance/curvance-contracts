@@ -5,7 +5,7 @@ import "forge-std/StdStorage.sol";
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract ETokenDeploymentTest is TestBaseEToken {
@@ -16,7 +16,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
     );
 
     function test_eTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new EToken(
             ICentralRegistry(address(0)),
             _USDC_ADDRESS,

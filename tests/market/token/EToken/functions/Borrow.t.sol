@@ -24,7 +24,7 @@ contract ETokenBorrowTest is TestBaseEToken {
     }
 
     function test_eTokenBorrow_success() public {
-        _setCbalRETHCollateralCaps(100_000e18);
+        _setPBALRETHCollateralCaps(100_000e18);
 
         eUSDC.mint(200e6);
 

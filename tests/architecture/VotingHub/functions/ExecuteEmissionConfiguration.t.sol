@@ -85,6 +85,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     function test_executeEmissionConfiguration_fail_whenLengthIsMismatch()
         public
     {
+        
         _skipEpochDuration(2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);

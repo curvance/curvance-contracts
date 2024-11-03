@@ -93,7 +93,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
             return _getPriceInUSD(asset);
         }
 
-        return _getPriceInETH(asset);
+        return _getPriceInNative(asset);
     }
 
     /// @notice Adds pricing support for `asset` via a new DIA feed.
@@ -102,7 +102,7 @@ contract DIAAdaptor is BaseOracleAdaptor {
     /// @param asset The address of the token to add pricing support for.
     /// @param adaptor The adaptor configuration
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or ETH (inUSD = false).
+    ///              or native token (inUSD = false).
     function addAsset(
         address asset,
         AdaptorData memory adaptor,
@@ -181,11 +181,12 @@ contract DIAAdaptor is BaseOracleAdaptor {
         return _parseData(adaptorDataNonUSD[asset], false);
     }
 
-    /// @notice Retrieves the price of a given asset in ETH.
+    /// @notice Retrieves the price of a given asset in the chain's native
+    ///         gas token.
     /// @param asset The address of the asset for which the price is needed.
     /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (ETH).
-    function _getPriceInETH(
+    ///         and the quote format of the price (native).
+    function _getPriceInNative(
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {

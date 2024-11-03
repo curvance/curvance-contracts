@@ -2,11 +2,11 @@
 pragma solidity ^0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -53,6 +53,8 @@ contract CurvanceDAOLBP {
     uint256 public saleDecimalAdjustment;
     /// @notice The number of `paymentToken` committed to the LBP.
     uint256 public saleCommitted;
+    /// @notice Whether unsold tokens have been withdrawn to the DAO.
+    bool public withdrawnExtraTokensToDAO;
 
     /// @notice User => paymentTokens committed.
     mapping(address => uint256) public userCommitted;
@@ -312,18 +314,28 @@ contract CurvanceDAOLBP {
             revert CurvanceDAOLBP__Success();
         }
 
+        if (withdrawnExtraTokensToDAO) {
+            revert CurvanceDAOLBP__Unauthorized();
+        }
+
         uint256 adjustedAmount = _adjustDecimals(
             saleCommitted,
             paymentTokenDecimals,
             18
         );
         uint256 price = currentPrice();
-        uint256 soldAmount = (adjustedAmount * WAD) / price;
+        uint256 soldAmount = FixedPointMathLib.mulDivUp(
+            adjustedAmount,
+            WAD,
+            price
+        );
 
         uint256 remaining = cveAmountForSale - soldAmount;
         if (remaining == 0) {
             revert CurvanceDAOLBP__Success();
         }
+
+        withdrawnExtraTokensToDAO = true;
 
         SafeTransferLib.safeTransfer(
             cve,

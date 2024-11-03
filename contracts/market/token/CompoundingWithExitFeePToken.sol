@@ -2,8 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+
 import { WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";

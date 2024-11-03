@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { DENOMINATOR, RAY } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -58,7 +59,12 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 ///      their market of course, potentially minimizing their net expenses
 ///      borrowing inside a particular market.
 ///
-contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
+contract GaugeManager is
+    PluginDelegable,
+    ERC165,
+    ReentrancyGuard,
+    IGaugeManager
+{
     /// TYPES ///
 
     /// @param totalWeights The total weight value of all tokens, inside
@@ -85,8 +91,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     IVeCVE public immutable veCVE;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
-    /// @notice Curvance DAO Hub.
-    ICentralRegistry public immutable centralRegistry;
+
+    /// @dev `bytes4(keccak256(bytes("GaugeManager__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x38b10c24;
 
     /// STORAGE ///
 
@@ -98,8 +105,6 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @notice Timestamp when the first first deposit occurred.
-    uint256 public firstDeposit;
     /// @notice Mapping for approved reward token
     /// @dev rewardToken => bool
     mapping(address => bool) public approvedRewardTokens;
@@ -168,17 +173,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
 
-    constructor(ICentralRegistry centralRegistry_) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert GaugeManager__InvalidAddress();
-        }
-        centralRegistry = centralRegistry_;
-
+    constructor(
+        ICentralRegistry centralRegistry_
+    ) PluginDelegable(centralRegistry_) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
         cve = centralRegistry.cve();
@@ -220,13 +217,17 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             msg.sender != centralRegistry.messagingHub() &&
             msg.sender != centralRegistry.votingHub()
         ) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        // Cache Gauge System start time.
+        uint256 _startTime = startTime;
 
         // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
-            !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
+            !(epoch == 0 &&
+                (_startTime == 0 || block.timestamp < _startTime)) &&
             epoch != currentEpoch()
         ) {
             revert GaugeManager__InvalidEpoch();
@@ -239,16 +240,24 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             revert GaugeManager__InvalidLength();
         }
 
-        updatePool(cve);
-
         Epoch storage info = _epochInfo[epoch];
         address priorAddress;
+        bool poolUpdated;
+
         for (uint256 i; i < numTokens; ) {
+            address token = tokens[i];
+
             // We sort the token addresses offchain from smallest to largest
             // to validate there are no duplicates.
-            address token = tokens[i];
             if (priorAddress >= token) {
                 revert GaugeManager__InvalidToken();
+            }
+
+            if (info.tokenWeight[token] > 0) {
+                poolUpdated = true;
+                updatePool(token);
+            } else {
+                poolUpdated = false;
             }
 
             info.totalWeights = info.totalWeights + weights[i];
@@ -257,6 +266,10 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             if (rewardTokenToIndex[token][cve] == 0) {
                 rewardTokens[token].push(cve);
                 rewardTokenToIndex[token][cve] = ++lastRewardTokenIndex[token];
+            }
+
+            if (!poolUpdated) {
+                updatePool(token);
             }
 
             unchecked {
@@ -280,13 +293,22 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         }
     }
 
+    /// @notice Sets the minimum incentive amount for a supported reward
+    ///         token. The minimum amount is intended to minimize incentive
+    ///         spam and cultivate meaningful participation from external
+    ///         partners.
+    /// @notice Update reward variables for all pools.
+    /// @param rewardToken The address of the new reward token to add a
+    ///                    minimum incentive value for.
+    /// @param minAmount The minimum amount of `rewardToken` that can be
+    ///                  posted as an incentive via a partner gauge.
     function setMinDistributionAmount(
         address rewardToken,
         uint256 minAmount
     ) external {
         _checkDaoPermissions();
 
-        if (approvedRewardTokens[rewardToken] == false) {
+        if (!approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
@@ -295,54 +317,71 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         emit SetMinDistributionAmount(rewardToken, minAmount);
     }
 
-    /// @notice Adds a new reward to the gauge system.
-    /// @param newReward The address of new reward token to be added.
+    /// @notice Adds a token as a potential reward token for future partner
+    ///         gauge incentives, the minimum distribution value is intended
+    ///         to minimize incentive spam and require meaningful
+    ///         participation from external partners.
+    /// @notice Update reward variables for all pools.
+    /// @param rewardToken The address of the new reward token to add a
+    ///                    minimum incentive value for.
+    /// @param minAmount The minimum amount of `rewardToken` that can be
+    ///                  posted as an incentive via a partner gauge.
     function addExtraRewardToken(
-        address newReward,
+        address rewardToken,
         uint256 minAmount
     ) external {
         _checkDaoPermissions();
 
-        if (newReward == address(0) || approvedRewardTokens[newReward]) {
+        if (rewardToken == address(0) || approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidAddress();
         }
 
-        approvedRewardTokens[newReward] = true;
-        rewardTokenToMinDistribution[newReward] = minAmount;
+        approvedRewardTokens[rewardToken] = true;
+        rewardTokenToMinDistribution[rewardToken] = minAmount;
 
-        emit AddExtraRewardToken(newReward);
+        emit AddExtraRewardToken(rewardToken);
     }
 
     /// @notice Removes an extra reward from the gauge system.
-    /// @param newReward The address of the extra reward to be removed.
-    function removeExtraRewardToken(address newReward) external {
+    /// @param rewardToken The address of the extra reward to be removed.
+    function removeExtraRewardToken(address rewardToken) external {
         _checkDaoPermissions();
 
         // Cannot remove CVE as a reward token.
-        if (newReward == cve) {
-            revert GaugeManager__Unauthorized();
+        if (rewardToken == cve) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        approvedRewardTokens[newReward] = false;
-        rewardTokenToMinDistribution[newReward] = 0;
+        approvedRewardTokens[rewardToken] = false;
+        rewardTokenToMinDistribution[rewardToken] = 0;
 
-        emit RemoveExtraRewardToken(newReward);
+        emit RemoveExtraRewardToken(rewardToken);
     }
 
-    /// @notice Returns the active reward tokens on the Gauge Manager,
-    ///         for ease of integration by third parties.
+    /// @notice Returns the active reward tokens on the Gauge Manager
+    ///         for a particular deposit token, for ease of integration
+    ///         by third parties.
+    /// @param depositToken The depositable token to check for active
+    ///                     tokens rewards for.
+    /// @return An array containing the addresses of active reward tokens
+    ///         for depositing `depositToken`.
     function getRewardTokens(
-        address token
+        address depositToken
     ) external view returns (address[] memory) {
-        return rewardTokens[token];
+        return rewardTokens[depositToken];
     }
 
-    /// @notice Returns the number of active reward tokens on the Gauge Manager,
-    ///         for ease of integration by third parties.
+    /// @notice Returns the number of active reward tokens on the Gauge
+    ///         Manager for a particular deposit token, for ease of
+    ///         integration by third parties.
+    /// @param depositToken The depositable token to check for active
+    ///                     tokens rewards for.
+    /// @return The number of active reward tokens for depositing
+    ///         `depositToken`.
     function getRewardTokensLength(
-        address token
+        address depositToken
     ) external view returns (uint256) {
-        return rewardTokens[token].length;
+        return rewardTokens[depositToken].length;
     }
 
     /// @notice Used to update Gauge Manager rewards for `rewardToken`,
@@ -361,20 +400,23 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         // CVE rewards are only updated through the gauge system by
         // the messaging hub in setEmissionRates().
         if (rewardToken == cve) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (approvedRewardTokens[rewardToken] == false) {
+        if (!approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
-        if (!(epoch == 0 && startTime == 0) && epoch != currentEpoch() + 1) {
+        if (
+            !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
+            epoch != currentEpoch() + 1
+        ) {
             revert GaugeManager__InvalidEpoch();
         }
 
         address[] memory rewardTokenForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokenForMToken.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        uint256 numTokens = rewardTokenForMToken.length;
+        for (uint256 i; i < numTokens; ) {
             address _rewardToken = rewardTokenForMToken[i++];
             if (_rewardToken == cve || _rewardToken == rewardToken) {
                 continue;
@@ -384,9 +426,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 uint256 indexToRemove = rewardTokenToIndex[token][
                     _rewardToken
                 ];
-                if (indexToRemove != (rewardTokensLength - 1)) {
+                if (indexToRemove != (numTokens - 1)) {
                     rewardTokens[token][indexToRemove] = rewardTokens[token][
-                        rewardTokensLength - 1
+                        numTokens - 1
                     ];
                 }
                 rewardTokens[token].pop();
@@ -479,10 +521,12 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             return _epochInfo[epoch].tokenWeight[token];
         }
 
-        return (epochDuration *
-            _epochRewardPerSec[token][epoch][
-                rewardTokenToIndex[token][rewardToken]
-            ]);
+        uint256 index = rewardTokenToIndex[token][rewardToken];
+        if (index == 0 || !approvedRewardTokens[rewardToken]) {
+            revert GaugeManager__InvalidRewardToken();
+        }
+
+        return (epochDuration * _epochRewardPerSec[token][epoch][index]);
     }
 
     /// @notice Returns pending reward of user.
@@ -495,7 +539,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         address rewardToken
     ) public view returns (uint256) {
         uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0 || approvedRewardTokens[rewardToken] == false) {
+        if (index == 0 || !approvedRewardTokens[rewardToken]) {
             revert GaugeManager__InvalidRewardToken();
         }
 
@@ -553,11 +597,11 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         address token,
         address user
     ) external view returns (uint256[] memory results) {
-        uint256 rewardTokensLength = rewardTokens[token].length;
+        uint256 numTokens = rewardTokens[token].length;
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        results = new uint256[](rewardTokensLength);
+        results = new uint256[](numTokens);
 
-        for (uint256 i; i < rewardTokensLength; ++i) {
+        for (uint256 i; i < numTokens; ++i) {
             results[i] = pendingRewards(token, user, rewardTokensForMToken[i]);
         }
     }
@@ -592,36 +636,6 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
         balanceOf[token][user] += amount;
         totalSupply[token] += amount;
-
-        // If first deposit has not occurred we will need to send
-        // excess rewards to the DAO.
-        if (firstDeposit == 0) {
-            firstDeposit = block.timestamp;
-            // If the gauge has not started yet no need to check whether
-            // first deposit has been set.
-            if (block.timestamp > startTime) {
-                // If first deposit, the new rewards from gauge start to this
-                // point will be unallocated rewards.
-                updatePool(token);
-                address[] memory rewardTokenForMToken = rewardTokens[token];
-                uint256 rewardTokensLength = rewardTokenForMToken.length;
-                for (uint256 i; i < rewardTokensLength; ) {
-                    // Query rewardToken then increment i.
-                    address rewardToken = rewardTokenForMToken[i++];
-                    uint256 index = rewardTokenToIndex[token][rewardToken];
-                    uint256 unallocatedRewards = (poolAccRewardPerShare[token][
-                        index
-                    ] * totalSupply[token]) / RAY;
-                    if (unallocatedRewards > 0) {
-                        SafeTransferLib.safeTransfer(
-                            rewardToken,
-                            centralRegistry.daoAddress(),
-                            unallocatedRewards
-                        );
-                    }
-                }
-            }
-        }
 
         _calcDebt(user, token);
 
@@ -674,15 +688,27 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.
-    function claim(address[] calldata tokens) external nonReentrant {
+    /// @param user The user address that gauge rewards should be claimed for,
+    ///             is the user is not the caller, delegation will be checked
+    ///             instead.
+    function claim(
+        address[] calldata tokens,
+        address user
+    ) external nonReentrant {
         if (block.timestamp < startTime) {
             revert GaugeManager__NotStarted();
+        }
+
+        if (user != msg.sender) {
+            if (!_checkIsDelegate(user, msg.sender)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
         }
 
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
         for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++]);
+            cveRewards += _claim(tokens[i++], user);
         }
 
         if (cveRewards == 0) {
@@ -692,9 +718,12 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
     }
 
-    function _claim(address token) internal returns (uint256 cveRewards) {
+    function _claim(
+        address token,
+        address user
+    ) internal returns (uint256 cveRewards) {
         updatePool(token);
-        _calcPending(msg.sender, token);
+        _calcPending(user, token);
 
         address[] memory rewardTokensForMToken = rewardTokens[token];
         uint256 numTokens = rewardTokensForMToken.length;
@@ -703,14 +732,15 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 rewards = userDebtInfo[token][msg.sender][index]
-                .rewardPending;
+            uint256 rewards = userDebtInfo[token][user][index].rewardPending;
             // If the caller has rewards, send them,
             // and prevent transaction reversion.
             if (rewards > 0) {
                 if (rewardToken == cve) {
                     cveRewards = rewards;
                 } else {
+                    // User rewards are always expected to go to a caller
+                    // even if its a plugin call.
                     SafeTransferLib.safeTransfer(
                         rewardToken,
                         msg.sender,
@@ -720,12 +750,12 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
             }
 
             // Update pending rewards to zero.
-            userDebtInfo[token][msg.sender][index].rewardPending = 0;
+            userDebtInfo[token][user][index].rewardPending = 0;
         }
 
-        _calcDebt(msg.sender, token);
+        _calcDebt(user, token);
 
-        emit Claim(msg.sender, token);
+        emit Claim(user, token);
     }
 
     /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
@@ -749,7 +779,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         uint256 aux
     ) external nonReentrant {
         // If gauge emissions have not started yet,
-        // theres nothing to claimAndExtendLock.
+        // theres nothing to claim and lock.
         if (block.timestamp < startTime) {
             revert GaugeManager__NotStarted();
         }
@@ -757,7 +787,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
         for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++]);
+            cveRewards += _claim(tokens[i++], msg.sender);
         }
 
         if (cveRewards == 0) {
@@ -857,15 +887,21 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @notice Update reward variables of the given pool to be up-to-date.
     /// @param token Pool token address.
     function updatePool(address token) public {
-        // If rewards have not started yet, there is nothing to update.
-        if (startTime == 0 || block.timestamp <= startTime) {
-            return;
+        {
+            // Scope variable to avoid stack too deep error.
+            // Cache Gauge System start time.
+            uint256 _startTime = startTime;
+            // If rewards have not started yet, there is nothing to update.
+            if (_startTime == 0 || block.timestamp <= _startTime) {
+                return;
+            }
         }
 
         uint256 _lastRewardTimestamp = poolLastRewardTimestamp[token];
-        // If nobody has updated reward timestamp, time to set it up to startTime.
+        // If nobody has updated reward timestamp, set it to current timestamp.
         if (_lastRewardTimestamp == 0) {
-            _lastRewardTimestamp = startTime;
+            poolLastRewardTimestamp[token] = block.timestamp;
+            return;
         }
 
         // Make sure time has passed since the last update.
@@ -881,8 +917,8 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
 
         // Cache rewardTokens length.
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        uint256 numTokens = rewardTokensForMToken.length;
+        for (uint256 i; i < numTokens; ) {
             uint256 lastRewardTimestamp = _lastRewardTimestamp;
 
             // Query rewardToken then increment i.
@@ -940,7 +976,7 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            revert GaugeManager__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
@@ -956,9 +992,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @param token Pool token address.
     function _calcPending(address user, address token) internal {
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
+        uint256 numTokens = rewardTokensForMToken.length;
 
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
@@ -976,9 +1012,9 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
     /// @param token Pool token address.
     function _calcDebt(address user, address token) internal {
         address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 rewardTokensLength = rewardTokensForMToken.length;
+        uint256 numTokens = rewardTokensForMToken.length;
 
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < numTokens; ) {
             // Query rewardToken then increment i.
             address rewardToken = rewardTokensForMToken[i++];
             uint256 index = rewardTokenToIndex[token][rewardToken];
@@ -987,6 +1023,15 @@ contract GaugeManager is ERC165, ReentrancyGuard, IGaugeManager {
                 (balanceOf[token][user] *
                     poolAccRewardPerShare[token][index]) /
                 RAY;
+        }
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
         }
     }
 }

@@ -4,18 +4,16 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
     function test_universalBalanceDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
-        new UniversalBalance(
-            ICentralRegistry(address(1)),
-            address(dWETH),
-            _WETH_ADDRESS
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
+        new UniversalBalance(ICentralRegistry(address(1)), address(eUSDC));
     }
 
     function test_universalBalanceDeployment_fail_whenTokenIsPToken() public {
@@ -24,26 +22,24 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
         );
         new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(pBALRETH),
-            _WETH_ADDRESS
+            address(pBALRETH)
         );
     }
 
     function test_universalBalanceDeployment_success() public {
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(dWETH),
-            _WETH_ADDRESS
+            address(eUSDC)
         );
 
         assertEq(
             address(universalBalance.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(universalBalance.linkedEToken()), address(dWETH));
-        assertEq(universalBalance.WETH(), _WETH_ADDRESS);
+        assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
+        assertEq(universalBalance.underlying(), _USDC_ADDRESS);
         assertEq(
-            weth.allowance(address(universalBalance), address(dWETH)),
+            usdc.allowance(address(universalBalance), address(eUSDC)),
             type(uint256).max
         );
     }

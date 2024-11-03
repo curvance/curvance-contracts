@@ -87,7 +87,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         vm.stopPrank();
     }
 
-    function test_zapAndDeposit_migrate_withPToken_withCollateralize_success()
+    function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -109,7 +109,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 0.1e18);
+        curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
         vm.stopPrank();
 
@@ -132,7 +132,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         assertEq(pBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_zapAndDeposit_migrate_withPToken_withoutCollateralize_success()
+    function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -154,7 +154,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 0.1e18);
+        curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
         vm.stopPrank();
 
@@ -177,13 +177,13 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         assertEq(pBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_zapAndDeposit_migrate_withEToken_success() public {
+    function test_swapAndDeposit_migrate_withEToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(curvancePrefarm), _ONE);
 
         swapData.outputToken = _USDC_ADDRESS;
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
 
         vm.stopPrank();
 

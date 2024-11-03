@@ -1,11 +1,11 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -39,7 +39,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      Such as routing a distributed reward token into a chain specific
 ///      stablecoin after a Wormhole message is delivered.
 ///
-contract RewardManager is Delegable, ReentrancyGuard {
+contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice Reward Manager Reward token.
@@ -97,7 +97,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address rewardToken_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         if (rewardToken_ == address(0)) {
             revert RewardManager__RewardTokenIsZeroAddress();
         }

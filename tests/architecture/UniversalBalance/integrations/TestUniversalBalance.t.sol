@@ -5,7 +5,6 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
-import { EToken } from "contracts/market/token/EToken.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -19,13 +18,11 @@ contract TestUniversalBalance is TestBaseMarket {
     address public owner;
 
     MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
     SimplePToken public cWBTC;
     UniversalBalance public universalBalance;
-    EToken public dWETH;
 
     receive() external payable {}
 
@@ -51,15 +48,14 @@ contract TestUniversalBalance is TestBaseMarket {
             true
         );
 
-        mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
+            _USDC_ADDRESS,
             address(mockUsdcFeed),
             0,
             true
         );
         dualChainlinkAdaptor.addAsset(
-            _WETH_ADDRESS,
+            _USDC_ADDRESS,
             address(mockUsdcFeed),
             0,
             true
@@ -87,12 +83,9 @@ contract TestUniversalBalance is TestBaseMarket {
             address(dualChainlinkAdaptor)
         );
 
-        dWETH = _deployEToken(_WETH_ADDRESS);
-
         universalBalance = new UniversalBalance(
             ICentralRegistry(address(centralRegistry)),
-            address(dWETH),
-            _WETH_ADDRESS
+            address(eUSDC)
         );
 
         // start epoch
@@ -102,16 +95,15 @@ contract TestUniversalBalance is TestBaseMarket {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
-        // deploy dWETH
+        // deploy eUSDC
         {
             // support market
-            deal(_WETH_ADDRESS, owner, 200000 ether);
-            weth.approve(address(dWETH), 200000e18);
-            marketManager.listToken(address(dWETH));
-            // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(dWETH));
+            deal(_USDC_ADDRESS, owner, 200_000e6);
+            usdc.approve(address(eUSDC), 200_000e6);
+            marketManager.listToken(address(eUSDC));
+
             address[] memory markets = new address[](1);
-            markets[0] = address(dWETH);
+            markets[0] = address(eUSDC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -161,132 +153,118 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(universalBalance.linkedEToken()), address(dWETH));
-        assertEq(universalBalance.WETH(), _WETH_ADDRESS);
+        assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
+        assertEq(universalBalance.underlying(), _USDC_ADDRESS);
     }
 
-    function testDepositETH() public {
-        vm.deal(user1, 100e18);
-        vm.startPrank(user1);
-        universalBalance.depositETH{ value: 100e18 }(false);
+    function testDeposit() public {
+        deal(_USDC_ADDRESS, user1, 200e6);
 
-        vm.deal(user1, 100e18);
-        universalBalance.depositETH{ value: 100e18 }(true);
+        uint256 receiveAmount = eUSDC.convertToShares(100e6);
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+
+        vm.startPrank(user1);
+        usdc.approve(address(universalBalance), 100e6);
+        universalBalance.deposit(100e6, false);
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 100e18);
-        assertEq(lentBalance, 100e18);
-    }
+        assertEq(sittingBalance, 100e6);
+        assertEq(lentBalance, 0);
+        assertEq(
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance + 100e6
+        );
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(usdc.balanceOf(user1), 100e6);
 
-    function testDepositWETH() public {
-        deal(_WETH_ADDRESS, user1, 1 ether);
         vm.startPrank(user1);
-        weth.approve(address(universalBalance), 1 ether);
-        universalBalance.depositWETH(1 ether, false);
-
-        deal(_WETH_ADDRESS, user1, 1 ether);
-        weth.approve(address(universalBalance), 1 ether);
-        universalBalance.depositWETH(1 ether, true);
+        usdc.approve(address(universalBalance), 100e6);
+        universalBalance.deposit(100e6, true);
         vm.stopPrank();
 
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
-        assertEq(sittingBalance, 1 ether);
-        assertEq(lentBalance, 1 ether);
+        (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
+        assertEq(sittingBalance, 100e6);
+        assertEq(lentBalance, receiveAmount);
+        assertEq(
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance + 100e6
+        );
+        assertEq(
+            eUSDC.balanceOf(address(universalBalance)),
+            eUSDCBalance + receiveAmount
+        );
+        assertEq(usdc.balanceOf(user1), 0);
     }
 
-    function testWithdrawAsETH() public {
-        testDepositWETH();
+    function testWithdraw() public {
+        testDeposit();
 
-        uint256 ethBalance = user1.balance;
+        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 ethBalance = address(universalBalance).balance;
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
 
-        vm.startPrank(user1);
-        universalBalance.withdrawAsETH(1 ether, false);
+        vm.prank(user1);
+        universalBalance.withdraw(100e6, false);
 
-        assertEq(user1.balance, ethBalance + 1 ether);
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
         assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 1 ether);
+        assertEq(lentBalance, 100e6);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance - 100e6
+        );
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+        assertEq(usdc.balanceOf(user1), 100e6);
 
-        universalBalance.withdrawAsETH(1 ether, true);
+        vm.prank(user1);
+        universalBalance.withdraw(100e6, true);
 
-        assertEq(user1.balance, ethBalance + 2 ether);
         (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
         assertEq(sittingBalance, 0);
-        assertEq(lentBalance, 0 ether);
-        vm.stopPrank();
-    }
-
-    function testWithdrawAsWETH() public {
-        testDepositETH();
-
-        vm.startPrank(user1);
-        universalBalance.withdrawAsWETH(100e18, false);
-
-        universalBalance.withdrawAsWETH(100e18, true);
-        vm.stopPrank();
-
-        (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
-        assertEq(sittingBalance, 0);
         assertEq(lentBalance, 0);
-    }
-
-    function testClaimForDAO() public {
-        testDepositETH();
-
-        vm.warp(gaugeManager.startTime());
-        _skipEpochDuration(1);
-
-        vm.roll(block.number + 1000);
-
-        // set gauge weights
-        address[] memory tokensParam = new address[](1);
-        tokensParam[0] = address(dWETH);
-        uint256[] memory poolWeights = new uint256[](1);
-        poolWeights[0] = 100 * 2 weeks;
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(1, tokensParam, poolWeights);
-        vm.prank(address(messagingHub));
-        cve.mintGaugeEmissions(address(gaugeManager), 100 * 2 weeks);
-
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-
-        skip(1 weeks);
-
-        uint256 balanceBefore = cve.balanceOf(address(this));
-        universalBalance.claimForDAO();
-        assertEq(cve.balanceOf(address(this)), balanceBefore + 100 * 1 weeks - 1);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(
+            usdc.balanceOf(address(universalBalance)),
+            usdcBalance - 100e6
+        );
+        assertEq(
+            eUSDC.balanceOf(address(universalBalance)),
+            eUSDCBalance - redeemAmount
+        );
+        assertEq(usdc.balanceOf(user1), 200e6);
     }
 
     function testLentBalanceIncreased() public {
-        testDepositETH();
+        testDeposit();
 
-        // mint cWBTC & borrow WETH
+        // mint cWBTC & borrow USDC
         deal(_WBTC_ADDRESS, user2, 100e8);
         vm.startPrank(user2);
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.mint(100e8, user2);
         marketManager.postCollateral(user2, address(cWBTC), 100e8);
-        dWETH.borrow(50e18);
+        eUSDC.borrow(50e6);
 
         vm.stopPrank();
 
         skip(10 weeks);
 
-        deal(_WETH_ADDRESS, owner, 100e18);
-        weth.approve(address(dWETH), 100e18);
-        dWETH.mint(100e18);
+        deal(_USDC_ADDRESS, owner, 100e6);
+        usdc.approve(address(eUSDC), 100e6);
+        eUSDC.mint(100e6);
 
         vm.prank(user1);
-        universalBalance.withdrawAsWETH(50e18, true);
+        universalBalance.withdraw(50e6, true);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
-        assertEq(sittingBalance, 100e18);
-        assertGt(lentBalance, 50e18);
+        assertEq(sittingBalance, 100e6);
+        assertGt(lentBalance, 50e6);
     }
 }

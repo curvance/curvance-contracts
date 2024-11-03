@@ -279,6 +279,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         }
 
         vm.prank(users[0]);
-        gaugeManager.claim(tokens);
+        gaugeManager.claim(tokens, users[0]);
     }
 }

@@ -262,7 +262,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
     ///         the current chainid.
     /// @dev This check is so incompatible deployments never occur, such as
     ///      assuming the wrong token address on a deployment.
-    function _validateChainDeployment() internal virtual {
+    function _validateChainDeployment() internal view virtual {
         if (block.chainid != 10) {
             revert BasePToken__UnsupportedChain();
         }
