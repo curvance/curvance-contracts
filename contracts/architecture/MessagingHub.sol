@@ -701,12 +701,14 @@ contract MessagingHub is QueryResponse {
         IRewardManager rewardManager = _getRewardManager();
         uint256 epochToDeliver = _getNextEpochToDeliver(rewardManager);
         uint256 currentChainId;
+        ChainData memory chainData;
 
+        // If theres no epoch rewards per point this implies fee token amount
+        // of 0 everywhere so we can record epoch rewards of 0 everywhere
+        // and return.
         if (epochRewardsPerPoint == 0) {
             if (!_checkRewardManagerStatus(rewardManager)) {
                 _recordEpochRewards(rewardManager, 0);
-
-                ChainData memory chainData;
                 // Notify the other chains of the per epoch rewards.
                 for (uint256 i; i < numChains; ++i) {
                     currentChainId = chainIds[i];
@@ -719,6 +721,8 @@ contract MessagingHub is QueryResponse {
                         quoteMessageFee(currentChainId, gasLimit)
                     );
                 }
+
+                return;
             }
         }
 
@@ -739,19 +743,36 @@ contract MessagingHub is QueryResponse {
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
             currentChainId = chainIds[i];
+            chainData = _getChainData(currentChainId);
+            
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
                 (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
                 WAD;
 
-            // Send fees and information.
-            _sendFeeToken(
-                currentChainId,
-                _getChainData(currentChainId).cctpDomain,
-                feeTokensForChain,
-                abi.encode(3, epochToDeliver, epochRewardsPerPoint),
-                gasLimit
-            );
+            // If there are no rewards for this chain we can record epoch
+            // rewards of 0 without sending any fee tokens.
+            if (feeTokensForChain == 0) {
+                // Send epoch information of 0.
+                _sendPayload(
+                    chainData.messagingChainId,
+                    chainData.messagingHub,
+                    abi.encode(3, epochToDeliver, 0),
+                    _getGasLimit(gasLimit),
+                    quoteMessageFee(currentChainId, gasLimit)
+                );
+            } else {
+                // If theres rewards for this chain we can record epoch rewards
+                // and send expected amount of fee tokens.
+                // Send fees and epoch information.
+                _sendFeeToken(
+                    currentChainId,
+                    chainData.cctpDomain,
+                    feeTokensForChain,
+                    abi.encode(3, epochToDeliver, epochRewardsPerPoint),
+                    gasLimit
+                );
+            }
         }
     }
 
