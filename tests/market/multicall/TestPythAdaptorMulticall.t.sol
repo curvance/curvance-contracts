@@ -374,7 +374,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2

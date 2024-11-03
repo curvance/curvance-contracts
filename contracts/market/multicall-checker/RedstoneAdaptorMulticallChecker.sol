@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { OracleManager, IOracleAdaptor } from "contracts/oracles/OracleManager.sol";
 
 import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 
@@ -32,7 +32,16 @@ contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
             ICentralRegistry(centralRegistry).oracleManager()
         );
 
+        // Validate that target contract is actually approved inside the
+        // oracle manager.
         if (!oracleManager.isApprovedAdaptor(target)) {
+            revert MulticallChecker__TargetError();
+        }
+
+        // Validate that target contract is actually a Redstone oracle
+        // adaptor. This will also fail if the target does not properly follow
+        // protocol adaptor design which includes an adaptor type function.
+        if (IOracleAdaptor(target).adaptorType() != 1) {
             revert MulticallChecker__TargetError();
         }
 
