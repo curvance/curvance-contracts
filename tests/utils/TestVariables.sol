@@ -97,7 +97,6 @@ contract TestVariables {
     BalancerStablePoolAdaptor public balRETHAdapter;
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
-    DynamicInterestRateModel public interestRateModel;
     MarketManager public marketManager;
     OracleManager public oracleManager;
     EToken public eUSDC;
@@ -135,7 +134,6 @@ contract TestVariables {
     mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
-    mapping(uint256 => DynamicInterestRateModel) public interestRateModels;
     mapping(uint256 => MarketManager) public marketManagers;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
@@ -149,6 +147,9 @@ contract TestVariables {
     mapping(uint256 => MockV3Aggregator) public chainlinkEthUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkDaiEths;
+
+    mapping(uint256 => mapping(address => DynamicInterestRateModel))
+        public interestRateModels;
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
@@ -361,7 +362,6 @@ contract TestVariables {
         balRETHAdapter = balRETHAdapters[chainId];
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
-        interestRateModel = interestRateModels[chainId];
         marketManager = marketManagers[chainId];
         oracleManager = oracleManagers[chainId];
         eUSDC = eUSDCs[chainId];

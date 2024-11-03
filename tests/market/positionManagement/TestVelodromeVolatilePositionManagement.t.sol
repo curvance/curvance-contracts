@@ -63,7 +63,6 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         _deployGaugeManager();
         _deployMarketManager();
         _deployOracleManager();
-        _deployDynamicInterestRateModel();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))

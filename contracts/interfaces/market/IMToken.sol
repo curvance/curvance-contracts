@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
@@ -19,6 +20,9 @@ interface IMToken {
     ///      better safe than sorry.
     /// @param by The account initializing the market.
     function startMarket(address by) external returns (bool);
+
+    /// @notice Address of the current Interest Rate Model.
+    function interestRateModel() external view returns (IInterestRateModel);
 
     /// @notice Applies pending interest to all holders, updating
     ///         `totalBorrows` and `totalReserves`.

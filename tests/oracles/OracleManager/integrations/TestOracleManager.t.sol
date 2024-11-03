@@ -24,7 +24,6 @@ contract TestOracleManager is TestBaseOracleManager {
         _deployOracleManager();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployDynamicInterestRateModel();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))

@@ -14,7 +14,6 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployDynamicInterestRateModel();
         // eth/usd is needed in oracle manager constructor
         chainlinkEthUsd = chainlinkEthUsds[
             block.chainid

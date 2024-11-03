@@ -5,6 +5,7 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 
@@ -67,6 +68,11 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///         applying a positive curve value to the adjustment. This adjustment
 ///         is also subjected to the decay multiplier.
 ///
+///      NOTE: If an earn token updates to another dynamic interest rate model
+///            contract then this contract theoretically can still be called by
+///            it afterwards if the smart contract was malformed, this does not
+///            really have any tangible impact but for developers who may adapt
+///            this smart contract in the future, I figure its worth mentioning.
 contract DynamicInterestRateModel is ERC165 {
     /// TYPES ///
 
@@ -148,8 +154,17 @@ contract DynamicInterestRateModel is ERC165 {
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
     uint256 internal constant _BITPOS_UPDATE_TIMESTAMP = 192;
+    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf7ff5148;
+    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__InvalidToken()")))`.
+    uint256 internal constant _INVALID_TOKEN_SELECTOR = 0x65fb74c1;
+
+
 
     /// STORAGE ///
+
+    /// @notice The earn token linked to this interest rate model contract.
+    address public linkedEToken;
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
@@ -177,9 +192,12 @@ contract DynamicInterestRateModel is ERC165 {
         bool vertexReset
     );
 
+    event EarnTokenLinked(address eTokenAddress);
+
     /// ERRORS ///
 
     error DynamicInterestRateModel__Unauthorized();
+    error DynamicInterestRateModel__InvalidToken();
     error DynamicInterestRateModel__InvalidCentralRegistry();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
     error DynamicInterestRateModel__InvalidAdjustmentVelocity();
@@ -238,6 +256,45 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Sets the dynamic interest rate model's linked earn token
+    ///         (eToken) which interest rates this contract will manage.
+    /// @param eTokenAddress The address of the earn token to be linked
+    ///                      to this interest rate model contract.
+    function setLinkedEToken(address eTokenAddress) external {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that an earn token has not already been linked to this
+        // smart contract.
+        if (linkedEToken != address(0)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that the token being linked is actually an earn token
+        // and not a position token, if the token is not an mToken at all
+        // this will also natively fail, which is fine too.
+        if (IMToken(eTokenAddress).isPToken()) {
+            _revert(_INVALID_TOKEN_SELECTOR);
+        }
+
+        // Validate that the earn token is actually expecting this interest
+        // rate model to be linked to it.
+        if (
+            address(IMToken(
+                eTokenAddress
+            ).interestRateModel()) != address(this)
+            ) {
+                _revert(_INVALID_TOKEN_SELECTOR);
+        }
+
+        linkedEToken = eTokenAddress;
+
+        emit EarnTokenLinked(eTokenAddress);
+    }
+
+    /// @notice Updates the dynamic interest rate model's configuration values
+    ///         impacting for interest rates behave for the linked eToken.
     /// @param baseRatePerYear The rate of increase in interest rate by
     ///                        utilization rate, in `basis points`.
     /// @param vertexRatePerYear The rate of increase in interest rate by
@@ -266,7 +323,7 @@ contract DynamicInterestRateModel is ERC165 {
         bool vertexReset
     ) external {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert DynamicInterestRateModel__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         _updateDynamicInterestRateModel(
@@ -293,6 +350,12 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256 borrowRate) {
+        // Validate that the linked earn token itself is calling to update
+        // its interest rates.
+        if (msg.sender != linkedEToken) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
         uint256 util = utilizationRate(underlyingHeld, borrows, reserves);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
@@ -949,6 +1012,15 @@ contract DynamicInterestRateModel is ERC165 {
             (packedRatesData & _BITMASK_VERTEX_MULTIPLIER) |
             (timestampCasted << _BITPOS_UPDATE_TIMESTAMP);
         _currentRates = packedRatesData;
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

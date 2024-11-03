@@ -55,7 +55,6 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         _deployOracleManager();
         _deployChainlinkAdaptors();
         _deployMarketManager();
-        _deployDynamicInterestRateModel();
 
         chainlinkPendleUsd = new MockV3Aggregator(18, 3.6e18, 3.6e24, 3.6e13);
         chainlinkAdaptor.addAsset(

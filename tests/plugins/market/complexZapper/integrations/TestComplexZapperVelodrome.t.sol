@@ -43,7 +43,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         _deployGaugeManager();
         _deployMarketManager();
         _deployOracleManager();
-        _deployDynamicInterestRateModel();
 
         complexZapper = new ComplexZapper(
             ICentralRegistry(address(centralRegistry)),

@@ -20,7 +20,6 @@ contract TestBaseOracleManager is TestBaseMarket {
         _deployOracleManager();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployDynamicInterestRateModel();
         _deployEUSDC();
 
         chainlinkAdaptor = chainlinkAdaptors[

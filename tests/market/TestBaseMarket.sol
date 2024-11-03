@@ -55,7 +55,6 @@ contract TestBaseMarket is TestBase {
         _deployChainlinkAdaptors();
 
         _deployMarketManager();
-        _deployDynamicInterestRateModel();
         _deployEUSDC();
         _deployEDAI();
         _deployPBALRETH();
@@ -390,9 +389,12 @@ contract TestBaseMarket is TestBase {
         );
     }
 
-    function _deployDynamicInterestRateModel() internal initMainVariables {
-        interestRateModel = interestRateModels[
-            block.chainid
+    function _deployDynamicInterestRateModel(
+        address underlyingToken
+    ) internal returns (address) {
+        interestRateModels[
+            block.chainid,
+            underlyingToken
         ] = new DynamicInterestRateModel(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
@@ -403,6 +405,10 @@ contract TestBaseMarket is TestBase {
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
         );
+        return address(interestRateModels[
+            block.chainid,
+            underlyingToken
+        ]);    
     }
 
     function _deployEUSDC() internal initMainVariables returns (EToken) {
@@ -418,13 +424,18 @@ contract TestBaseMarket is TestBase {
     function _deployEToken(
         address token
     ) internal initMainVariables returns (EToken) {
-        return
+        EToken = 
             new EToken(
                 ICentralRegistry(address(centralRegistry)),
                 token,
                 address(marketManager),
-                address(interestRateModel)
+                _deployDynamicInterestRateModel(token);
             );
+        
+        interestRateModels[
+            block.chainid,
+            token
+        ].setLinkedEToken(EToken);
     }
 
     function _deployPBALRETH()

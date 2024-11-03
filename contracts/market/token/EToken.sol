@@ -89,7 +89,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     uint256 public totalReserves;
     /// @notice Interest rate reserve factor.
     uint256 public interestFactor;
-    /// @notice Current Interest Rate Model.
+    /// @notice Address of the current Interest Rate Model.
     IInterestRateModel public interestRateModel;
     /// @notice Information corresponding to borrow exchange rate.
     MarketData public marketData;
@@ -214,6 +214,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @return Returns with true when successful.
     function startMarket(address by) external nonReentrant returns (bool) {
         if (msg.sender != address(marketManager)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that the interest rate model has been properly linked
+        // to this earn token contract.
+        if (interestRateModel.linkedEToken() != address(this)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
