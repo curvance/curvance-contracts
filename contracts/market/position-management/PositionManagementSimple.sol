@@ -5,7 +5,7 @@ import { PositionManagementBase } from "contracts/market/position-management/Pos
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract PositionManagementSimple is BasePositionManagement {
+contract PositionManagementSimple is PositionManagementBase {
     /// CONSTRUCTOR ///
 
     constructor(
@@ -44,7 +44,7 @@ contract PositionManagementSimple is BasePositionManagement {
         }
 
         if (swapData.call.length == 0) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         if (
@@ -53,7 +53,7 @@ contract PositionManagementSimple is BasePositionManagement {
             swapData.outputToken != collateralUnderlying ||
             swapData.inputAmount != leverageData.borrowAmount
         ) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         // Swap borrow underlying to collateral underlying.
@@ -84,7 +84,7 @@ contract PositionManagementSimple is BasePositionManagement {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         if (deleverageData.swapData.length != 1) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         SwapperLib.Swap memory swapData = deleverageData.swapData[0];
@@ -98,7 +98,7 @@ contract PositionManagementSimple is BasePositionManagement {
         }
 
         if (swapData.call.length == 0) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         if (
@@ -107,7 +107,7 @@ contract PositionManagementSimple is BasePositionManagement {
             swapData.outputToken != borrowUnderlying ||
             swapData.inputAmount != deleverageData.collateralAmount
         ) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         // Swap collateral underlying to borrow underlying.
