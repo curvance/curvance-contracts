@@ -216,7 +216,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         }
 
         address[] memory multicallProviders = new address[](3);
-        multicallProviders[0] = address(dUSDC);
+        multicallProviders[0] = address(eUSDC);
         multicallProviders[1] = address(pWBTC);
         multicallProviders[2] = address(positionManagement);
         centralRegistry.setMulticallProviders(multicallProviders, true);
@@ -349,11 +349,11 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user1, address(eUSDC)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dUSDC;
+        leverageData.borrowToken = eUSDC;
         leverageData.borrowAmount = amountForLeverage;
         leverageData.collateralToken = SimplePToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
