@@ -8,10 +8,10 @@ import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { PendleLPPToken, IERC20 } from "contracts/market/collateral/PendleLPPToken.sol";
+import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { PositionManagementPendleLP } from "contracts/market/position-management/PositionManagementPendleLP.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
-import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
