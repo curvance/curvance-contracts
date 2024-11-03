@@ -199,6 +199,7 @@ contract MessagingHub is QueryResponse {
         _executeCrosschainEpoch(
             chainIds,
             chainPoints,
+            epoch,
             numResponses,
             currentPoints,
             totalPoints,
@@ -682,9 +683,12 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Executes protocol-wide reporting and distribution of epoch
     ///         results, to all chains within the Curvance Protocol system.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
     function _executeCrosschainEpoch(
         uint256[] memory chainIds,
         uint256[] memory chainPoints,
+        uint256 epochToDeliver,
         uint256 numChains,
         uint256 thisChainsPoints,
         uint256 totalPoints,
@@ -699,7 +703,6 @@ contract MessagingHub is QueryResponse {
             totalPoints;
 
         IRewardManager rewardManager = _getRewardManager();
-        uint256 epochToDeliver = _getNextEpochToDeliver(rewardManager);
         uint256 currentChainId;
         ChainData memory chainData;
 

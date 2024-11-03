@@ -70,7 +70,7 @@ contract UniversalBalanceNative is UniversalBalance {
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update.
     function useBalanceForOracleUpdate(address user, uint256 amount) external {
-        // Check for amount == 0 in oracle adaptor.
+        // Validate an approved adaptor is calling the function.
         if (
             !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(
                 msg.sender

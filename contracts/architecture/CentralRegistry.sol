@@ -361,7 +361,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
-        _checkEpochHasStarted();
+        _checkGenesisEpochHasNotStarted();
 
         genesisEpoch = newGenesisEpoch;
 
@@ -378,7 +378,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
-        _checkEpochHasStarted();
+        _checkGenesisEpochHasNotStarted();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
@@ -394,7 +394,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
-        _checkEpochHasStarted();
+        _checkGenesisEpochHasNotStarted();
 
         veCVE = newVeCVE;
         emit CoreContractSet("VeCVE", newVeCVE);
@@ -410,7 +410,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
-        _checkEpochHasStarted();
+        _checkGenesisEpochHasNotStarted();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
@@ -1274,7 +1274,7 @@ contract CentralRegistry is ERC165 {
         }
     }
 
-    function _checkEpochHasStarted() internal view {
+    function _checkGenesisEpochHasNotStarted() internal view {
         if (genesisEpoch <= block.timestamp) {
             _revert(_EPOCH_HAS_STARTED_SELECTOR);
         }
