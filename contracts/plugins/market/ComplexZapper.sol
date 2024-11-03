@@ -204,8 +204,8 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Withdraws a Curvance Curve lp position, and zaps it into
     ///         desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on redemption action
-    ///                       to execute. Containing values:
+    /// @param redemptionData Struct containing information on the desired
+    ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
@@ -309,11 +309,11 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Exits a BPT, and zaps it into desired
     ///         token (zapData.outputToken).
-    /// @param balancerData Struct containing information on BPT redemption
-    ///                       to execute. Containing values:
-    ///                       1. The Balancer vault address.
-    ///                       2. The BPT pool ID.
-    ///                       3. The underlying tokens of the BPT.
+    /// @param balancerData Struct containing information on the desired
+    ///                     BPT redemption to execute. Containing values:
+    ///                     1. The Balancer vault address.
+    ///                     2. The BPT pool ID.
+    ///                     3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
     ///                            token or not.
@@ -356,18 +356,18 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Withdraws a Curvance BPT position, and zaps it into
     ///         desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on redemption action
-    ///                       to execute. Containing values:
+    /// @param redemptionData Struct containing information on the desired
+    ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.
-    /// @param balancerData Struct containing information on BPT redemption
-    ///                       to execute. Containing values:
-    ///                       1. The Balancer vault address.
-    ///                       2. The BPT pool ID.
-    ///                       3. The underlying tokens of the BPT.
+    /// @param balancerData Struct containing information on the desired
+    ///                     BPT redemption to execute. Containing values:
+    ///                     1. The Balancer vault address.
+    ///                     2. The BPT pool ID.
+    ///                     3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param singleAssetWithdraw Whether BPT should be unwrapped to a single
     ///                            token or not.
@@ -487,8 +487,8 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
     ///         into desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on redemption action
-    ///                       to execute. Containing values:
+    /// @param redemptionData Struct containing information on the desired
+    ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.
@@ -613,8 +613,8 @@ contract ComplexZapper is ReentrancyGuard {
 
     /// @notice Withdraws a Curvance Pendle market position, and zaps it
     ///         into desired token (zapData.outputToken).
-    /// @param redemptionData Struct containing information on redemption action
-    ///                       to execute. Containing values:
+    /// @param redemptionData Struct containing information on the desired
+    ///                       redemption action to execute. Containing values:
     ///                       1. The address of the pToken corresponding to Curve lp
     ///                          token to be exited.
     ///                       2. The amount of shares to redeemed.

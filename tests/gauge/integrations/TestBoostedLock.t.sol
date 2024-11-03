@@ -111,11 +111,13 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
+                1e18,
             10000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
+                1e18,
             20000 - 1
         );
 
@@ -130,26 +132,28 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
+                1e18,
             12000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)) /
+                1e18,
             8000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
+                1e18,
             24000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)) / 1e18,
+            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)) /
+                1e18,
             16000 - 1
         );
 
-        for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
-            rewardManager.recordEpochRewards(1e6 * _ONE);
-        }
+        vm.prank(centralRegistry.messagingHub());
+        rewardManager.recordEpochRewards(1e6 * _ONE);
 
         _skipRestrictionDuration();
 
@@ -194,7 +198,7 @@ contract TestBoostedLock is TestBaseMarket {
         vm.warp(block.timestamp + 6 weeks);
         assertEq(veCVE.balanceOf(users[0]) / 1e18, 896020 - 1);
         assertEq(veCVE.balanceOf(users[3]) / 1e18, 7088160 - 1);
-        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622- 1);
+        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622 - 1);
         assertApproxEqAbs(veCVE.getVotes(users[3]), 5997673e18, 1e18);
     }
 

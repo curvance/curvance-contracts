@@ -12,8 +12,6 @@ contract CVE is CVEBase {
     /// @notice Seconds in a month based on 365.2425 days.
     uint256 public constant MONTH = 2_629_746;
 
-    // Timestamp when CVE token was created.
-    uint256 public immutable tokenGenerationEventTimestamp;
     /// @notice DAO treasury allocation of CVE,
     ///         can be minted as needed by the DAO. 14.5%.
     uint256 public immutable daoTreasuryAllocation;
@@ -39,10 +37,6 @@ contract CVE is CVEBase {
     /// @notice Number of reserved tokens for community distribution minted.
     uint256 public initialCommunityMinted;
 
-    /// EVENTS ///
-
-    event tokenGenerationEventSet(uint256 timestamp);
-
     /// ERRORS ///
 
     error CVE__InsufficientCVEAllocation();
@@ -58,10 +52,6 @@ contract CVE is CVEBase {
         }
 
         contributorAddress = contributorAddress_;
-
-        uint256 tokenGenerationEventTimestamp_ = centralRegistry_.genesisEpoch();
-        tokenGenerationEventTimestamp = tokenGenerationEventTimestamp_;
-        emit tokenGenerationEventSet(tokenGenerationEventTimestamp_);
 
         // All allocations and mints are in 18 decimal form to match CVE.
 
@@ -128,7 +118,7 @@ contract CVE is CVEBase {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        uint256 timeSinceTGE = block.timestamp - tokenGenerationEventTimestamp;
+        uint256 timeSinceTGE = block.timestamp - _genesisEpoch();
         uint256 monthsSinceTGE = timeSinceTGE / MONTH;
         uint256 _contributorAllocationMinted = contributorAllocationMinted;
 
@@ -171,6 +161,12 @@ contract CVE is CVEBase {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
+    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkElevatedPermissions() internal view {

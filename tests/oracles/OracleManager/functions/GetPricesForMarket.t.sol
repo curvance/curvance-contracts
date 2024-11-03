@@ -6,7 +6,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 
-contract GetPricesForMarket is TestBaseOracleManager {
+contract GetPricesForMarketTest is TestBaseOracleManager {
     IMToken[] public assets;
 
     function setUp() public override {

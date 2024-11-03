@@ -27,16 +27,16 @@ interface IPositionManagement {
     }
 
     /// @param positionToken Address of pToken that will be routed into
-    ///                      eToken underlying to repay debt.
+    ///                      eToken underlying to repay outstanding debt.
     /// @param collateralAmount The amount of pTokens that will be
     ///                         deleveraged.
     /// @param borrowToken Address of eToken that will have its underlying
     ///                    token debt repaid.
-    /// @param swapData Optional Swapperlib swapping struct containing
-    ///                 instructions on how to handle zapping into eToken
-    ///                 underlying to facilitate deleveraging.
-    /// @param repayAmount The amount of underlying tokens from eToken that
-    ///                    will be repaid.
+    /// @param swapData Optional struct containing instructions on how to
+    ///                 handle swapping into eToken underlying to facilitate
+    ///                 deleveraging.
+    /// @param repayAmount The amount of underlying tokens that will be
+    ///                    repaid to the eToken lenders.
     /// @param auxData Optional auxiliary data for execution of a deleverage
     ///                action.
     struct DeleverageStruct {

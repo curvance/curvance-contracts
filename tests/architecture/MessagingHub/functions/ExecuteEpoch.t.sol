@@ -214,6 +214,6 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 0);
-        assertEq(usdc.balanceOf(address(this)), compoundingFee * 2);
+        assertEq(usdc.balanceOf(address(this)), 100e6 + compoundingFee);
     }
 }

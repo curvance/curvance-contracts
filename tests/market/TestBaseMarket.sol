@@ -79,6 +79,9 @@ contract TestBaseMarket is TestBase {
         _deployMessagingHub();
         _deployVotingHub();
         _deployFeeManager();
+
+        vm.warp(centralRegistry.genesisEpoch());
+        rewardManager.startRewardManager();
     }
 
     function _deployCentralRegistry() internal virtual initMainVariables {
@@ -88,7 +91,7 @@ contract TestBaseMarket is TestBase {
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            block.timestamp,
+            block.timestamp + 1,
             address(0),
             _USDC_ADDRESS
         );
@@ -143,7 +146,6 @@ contract TestBaseMarket is TestBase {
         );
         centralRegistry.setVeCVE(address(veCVE));
         centralRegistry.setVoteBoostMultiplier(voteBoostMultiplier);
-        rewardManager.startRewardManager();
     }
 
     function _deployOracleManager() internal initMainVariables {

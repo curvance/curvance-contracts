@@ -18,7 +18,7 @@ contract BasicSettersTest is TestBaseMarket {
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            block.timestamp,
+            block.timestamp + 1,
             address(0),
             _USDC_ADDRESS
         );

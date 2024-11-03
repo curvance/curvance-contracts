@@ -110,20 +110,6 @@ contract DeployCurvance is
         // Deploy VotingHub
         _deployVotingHub(centralRegistry, 1000);
 
-        // Deploy MarketManager
-        _deployMarketManager(centralRegistry);
-        _addMarketManager(
-            marketManager,
-            _readConfigUint256(".marketManager.marketInterestFactor")
-        );
-
-        // Deploy ComplexZapper
-        _deployComplexZapper(
-            centralRegistry,
-            marketManager,
-            _readConfigAddress(".zapper.weth")
-        );
-
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);
 

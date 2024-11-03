@@ -35,7 +35,7 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
@@ -62,7 +62,7 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 

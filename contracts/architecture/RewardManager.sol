@@ -42,12 +42,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice The address of the CVE contract.
-    address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
 
@@ -77,7 +73,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @dev User => Reward Next Claim Index.
     mapping(address => uint256) public userNextClaimIndex;
 
-    /// @notice The rewards alloted to 1 vote escrowed CVE for an epoch,
+    /// @notice The rewards alloted to 1 vote escrowed CVE point for an epoch,
     ///         in `WAD`.
     /// @dev Epoch # => Rewards per veCVE.
     mapping(uint256 => uint256) public epochRewardsPerPoint;
@@ -108,22 +104,20 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = centralRegistry.cve();
-        genesisEpoch = centralRegistry.genesisEpoch();
         epochDuration = centralRegistry.EPOCH_DURATION();
-        
+
         rewardToken = rewardToken_;
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by the Fee Manager to record rewards allocated to
+    /// @notice Called by the Messaging Hub to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Manager.
-    /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
-    ///                      the next reward epoch delivered.
-    function recordEpochRewards(uint256 rewardsPerCVE) external {
-        // Validate the caller reporting epoch data is the fee manager,
+    /// @dev Only callable on by the Messaging Hub.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
+    function recordEpochRewards(uint256 rewardsPerPoint) external {
+        // Validate the caller reporting epoch data is the messaging hub,
         // or messaging hub.
         if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -132,14 +126,14 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         uint256 epoch = nextEpochToDeliver;
 
         if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
-            // If the chain has tokens unlocking this epoch we need to decrease
-            // chainPoints.
+            // If the chain has tokens unlocking this epoch we need to
+            // decrease chainPoints.
             veCVE.updateChainPoints(epoch);
         }
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerCVE;
+        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -201,6 +195,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.
     function currentEpoch(uint256 time) external view returns (uint256) {
+        uint256 genesisEpoch = _genesisEpoch();
+
         if (time < genesisEpoch) {
             return 0;
         }
@@ -434,7 +430,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? cve : rewardToken,
+                rewardsData.asCVE ? _getCVE() : rewardToken,
                 rewardAmount
             );
         }
@@ -557,7 +553,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             if (
                 swapData.call.length == 0 ||
                 swapData.inputToken != rewardToken ||
-                swapData.outputToken != cve ||
+                swapData.outputToken != _getCVE() ||
                 swapData.inputAmount != rewards
             ) {
                 revert RewardManager__SwapDataIsInvalid();
@@ -581,7 +577,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             }
 
             // Transfer them CVE then return.
-            SafeTransferLib.safeTransfer(cve, recipient, adjustedRewards);
+            SafeTransferLib.safeTransfer(
+                _getCVE(),
+                recipient,
+                adjustedRewards
+            );
             return adjustedRewards;
         }
 
@@ -605,9 +605,10 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bool continuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
+        IERC20 cve = IERC20(_getCVE());
+        uint256 lockAmount = cve.balanceOf(address(this));
 
-        IERC20(cve).approve(address(veCVE), lockAmount);
+        cve.approve(address(veCVE), lockAmount);
 
         // Because this call is nested within call to claim all rewards
         // there will never be any rewards to process,
@@ -651,6 +652,17 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         );
 
         return lockAmount;
+    }
+
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
+    }
+
+    /// @notice Returns the current CVE address.
+    function _getCVE() internal view returns (address) {
+        return centralRegistry.cve();
     }
 
     /// @dev Internal helper for reverting efficiently.

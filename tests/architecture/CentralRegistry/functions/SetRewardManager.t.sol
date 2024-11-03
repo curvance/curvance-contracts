@@ -9,22 +9,56 @@ contract SetRewardManagerTest is TestBaseMarket {
 
     address public newRewardManager = makeAddr("Reward Manager");
 
+    function setUp() public override {
+        super.setUp();
+
+        centralRegistry = new CentralRegistry(
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            _ZERO_ADDRESS,
+            block.timestamp + 1,
+            address(0),
+            _USDC_ADDRESS
+        );
+    }
+
     function test_setRewardManager_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
-        /// bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
-        vm.expectRevert(0xa5bb570d);
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__Unauthorized.selector
+        );
         centralRegistry.setRewardManager(newRewardManager);
     }
 
-    // function test_setRewardManager_success() public {
-    //     assertEq(centralRegistry.rewardManager(), address(rewardManager));
+    function test_setRewardManager_fail_whenEpochAlreadyStarted() public {
+        vm.warp(centralRegistry.genesisEpoch());
 
-    //     vm.expectEmit(true, true, true, true);
-    //     emit CoreContractSet("Reward Manager", newRewardManager);
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__EpochHasStarted.selector
+        );
+        centralRegistry.setRewardManager(newRewardManager);
+    }
 
-    //     centralRegistry.setRewardManager(newRewardManager);
+    function test_setRewardManager_fail_whenRewardManagerIsAlreadySet()
+        public
+    {
+        centralRegistry.setRewardManager(newRewardManager);
 
-    //     assertEq(centralRegistry.rewardManager(), newRewardManager);
-    // }
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setRewardManager(newRewardManager);
+    }
+
+    function test_setRewardManager_success() public {
+        assertEq(centralRegistry.rewardManager(), _ZERO_ADDRESS);
+
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractSet("Reward Manager", newRewardManager);
+
+        centralRegistry.setRewardManager(newRewardManager);
+
+        assertEq(centralRegistry.rewardManager(), newRewardManager);
+    }
 }

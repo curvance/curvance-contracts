@@ -1,17 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
+import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
-contract PositionManagementSimple is BasePositionManagement {
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
+import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
+import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
+import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
+import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
+
+contract PendlePTPositionManagement is BasePositionManagement {
+    IPendleRouter public router;
+
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address marketManager_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {}
+        address marketManager_,
+        IPendleRouter router_
+    ) BasePositionManagement(centralRegistry_, marketManager_) {
+        router = router_;
+    }
 
     /// @notice Callback function on borrowing tokens from an eToken contract
     ///         providing instant liquidity in the eToken underlying which is
@@ -35,29 +47,53 @@ contract PositionManagementSimple is BasePositionManagement {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData
-            .positionToken
-            .underlying();
+        address ptToken = leverageData.collateralToken.underlying();
 
-        if (borrowUnderlying == collateralUnderlying) {
-            return;
-        }
+        // decode pendle data
+        (
+            address lpToken,
+            uint256 minPtAmount,
+            PendleLib.PendleData memory pendleData
+        ) = abi.decode(
+                leverageData.data,
+                (address, uint256, PendleLib.PendleData)
+            );
 
-        if (swapData.call.length == 0) {
-            revert BasePositionManagement__InvalidSwapperParam();
-        }
-
+        (
+            IStandardizedYield _SY,
+            IPPrincipalToken _PT,
+            IPYieldToken _YT
+        ) = IPMarket(lpToken).readTokens();
+        // check if valid ptToken of market
         if (
-            swapData.target == address(0) ||
-            swapData.inputToken != borrowUnderlying ||
-            swapData.outputToken != collateralUnderlying ||
-            swapData.inputAmount != leverageData.borrowAmount
+            address(_PT) != ptToken ||
+            IPPrincipalToken(ptToken).SY() != address(_SY) ||
+            IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
             revert BasePositionManagement__InvalidSwapperParam();
         }
 
-        // Swap borrow underlying to collateral underlying.
-        SwapperLib.swapSafe(centralRegistry, swapData);
+        if (swapData.call.length > 0) {
+            // check if swapData is valid
+            if (
+                swapData.target == address(0) ||
+                swapData.inputToken != borrowUnderlying ||
+                swapData.inputAmount != leverageData.borrowAmount
+            ) {
+                revert BasePositionManagement__InvalidSwapperParam();
+            }
+
+            SwapperLib.swapSafe(centralRegistry, swapData);
+        }
+
+        // enter pendle
+        PendleLib.enterPendle(
+            address(router),
+            true,
+            pendleData,
+            lpToken,
+            minPtAmount
+        );
     }
 
     /// @notice Callback function on redemption of tokens from a pToken vault
@@ -83,34 +119,46 @@ contract PositionManagementSimple is BasePositionManagement {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        if (deleverageData.swapData.length != 1) {
-            revert BasePositionManagement__InvalidSwapperParam();
-        }
+        address ptToken = deleverageData.collateralToken.underlying();
 
-        SwapperLib.Swap memory swapData = deleverageData.swapData[0];
-        address borrowUnderlying = deleverageData.borrowToken.underlying();
-        address collateralUnderlying = deleverageData
-            .positionToken
-            .underlying();
+        // decode pendle data
+        (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
+            deleverageData.data,
+            (address, PendleLib.PendleData)
+        );
 
-        if (borrowUnderlying == collateralUnderlying) {
-            return;
-        }
-
-        if (swapData.call.length == 0) {
-            revert BasePositionManagement__InvalidSwapperParam();
-        }
-
+        (
+            IStandardizedYield _SY,
+            IPPrincipalToken _PT,
+            IPYieldToken _YT
+        ) = IPMarket(lpToken).readTokens();
+        // check if valid ptToken of market
         if (
-            swapData.target == address(0) ||
-            swapData.inputToken != collateralUnderlying ||
-            swapData.outputToken != borrowUnderlying ||
-            swapData.inputAmount != deleverageData.collateralAmount
+            address(_PT) != ptToken ||
+            IPPrincipalToken(ptToken).SY() != address(_SY) ||
+            IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
             revert BasePositionManagement__InvalidSwapperParam();
         }
 
-        // Swap collateral underlying to borrow underlying.
-        SwapperLib.swapSafe(centralRegistry, swapData);
+        // exit pendle
+        PendleLib.exitPendle(
+            address(router),
+            true,
+            address(0),
+            pendleData,
+            lpToken,
+            deleverageData.collateralAmount
+        );
+
+        if (deleverageData.swapData.length > 0) {
+            // Swap output token for borrow underlying.
+            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+                SwapperLib.swapSafe(
+                    centralRegistry,
+                    deleverageData.swapData[i]
+                );
+            }
+        }
     }
 }
