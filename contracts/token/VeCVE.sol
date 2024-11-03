@@ -133,12 +133,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev `bytes4(keccak256(bytes("VeCVE__VeCVEShutdown()")))`
     uint256 internal constant _VECVE_SHUTDOWN_SELECTOR = 0x3ad2450b;
 
-    /// @notice CVE contract address.
-    address public immutable cve;
-    /// @notice Reward Manager contract address.
-    IRewardManager public immutable rewardManager;
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
     /// @notice Curvance DAO hub.
@@ -224,9 +218,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = centralRegistry.cve();
-        rewardManager = IRewardManager(centralRegistry.rewardManager());
-        genesisEpoch = centralRegistry.genesisEpoch();
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
@@ -249,7 +240,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
             SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
-            if (token == address(cve)) {
+            if (token == _getCVE()) {
                 revert VeCVE__NonTransferrable();
             }
 
@@ -269,7 +260,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         isShutdown = 2;
-        rewardManager.notifyShutdown();
+        _getRewardManager().notifyShutdown();
     }
 
     /// @notice Locks a given amount of cve tokens and claims,
@@ -289,7 +280,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _getCVE(),
             msg.sender,
             address(this),
             amount
@@ -326,7 +317,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _getCVE(),
             msg.sender,
             address(this),
             amount
@@ -422,7 +413,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _canLock(amount);
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _getCVE(),
             msg.sender,
             address(this),
             amount
@@ -465,7 +456,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         SafeTransferLib.safeTransferFrom(
-            cve,
+            _getCVE(),
             msg.sender,
             address(this),
             amount
@@ -696,7 +687,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             // Next claim is the current epoch + 1 so we check <= instead of
             // < for whether unlock epoch has been processed or not.
             if (
-                rewardManager.userNextClaimIndex(msg.sender) <=
+                _getRewardManager().userNextClaimIndex(msg.sender) <=
                 currentEpoch(unlockTime)
             ) {
                 // Update their points to reflect the removed lock.
@@ -726,7 +717,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _removeLock(locks, lockIndex);
 
             // Transfer the user the unlocked CVE.
-            SafeTransferLib.safeTransfer(cve, msg.sender, amount);
+            SafeTransferLib.safeTransfer(_getCVE(), msg.sender, amount);
 
             emit Unlocked(msg.sender, amount);
 
@@ -734,7 +725,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             // index, that way if in the future they create a new lock,
             // they do not need to claim epochs they have no rewards for.
             if (locks.length == 0 && isShutdown != 2) {
-                rewardManager.resetUserClaimIndex(msg.sender);
+                _getRewardManager().resetUserClaimIndex(msg.sender);
             }
         }
     }
@@ -794,7 +785,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // Remove their lock entry.
         _removeLock(locks, lockIndex);
         // Burn the CVE for bridged lock.
-        ICVE(cve).burnLockedTokens(msg.sender, bridgeData.dstChainId, amount);
+        ICVE(_getCVE()).burnLockedTokens(
+            msg.sender,
+            bridgeData.dstChainId,
+            amount
+        );
 
         IMessagingHub(centralRegistry.messagingHub()).bridgeToken{
             value: msg.value
@@ -811,7 +806,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // index, that way if in the future they create a new lock,
         // they do not need to claim epochs they have no rewards for.
         if (locks.length == 0 && isShutdown != 2) {
-            rewardManager.resetUserClaimIndex(msg.sender);
+            _getRewardManager().resetUserClaimIndex(msg.sender);
         }
     }
 
@@ -874,13 +869,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         // Transfer the CVE penalty amount to Curvance DAO.
         SafeTransferLib.safeTransfer(
-            cve,
+            _getCVE(),
             centralRegistry.daoAddress(),
             penaltyAmount
         );
 
         // Transfer the remainder of the CVE.
-        SafeTransferLib.safeTransfer(cve, msg.sender, amount - penaltyAmount);
+        SafeTransferLib.safeTransfer(
+            _getCVE(),
+            msg.sender,
+            amount - penaltyAmount
+        );
 
         emit UnlockedWithPenalty(msg.sender, amount, penaltyAmount);
 
@@ -888,7 +887,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         // that way if in the future they create a new lock, they do not need
         // to claim a bunch of epochs they have no rewards for.
         if (locks.length == 0 && isShutdown != 2) {
-            rewardManager.resetUserClaimIndex(msg.sender);
+            _getRewardManager().resetUserClaimIndex(msg.sender);
         }
     }
 
@@ -902,9 +901,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
     function updateUserPoints(address user, uint256 epoch) external {
         _canModifyState();
 
-        address _rewardManager = address(rewardManager);
+        address rewardManager = address(_getRewardManager());
         assembly {
-            if iszero(eq(caller(), _rewardManager)) {
+            if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)
                 revert(0x1c, 0x04)
             }
@@ -920,9 +919,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
     ///      so we do not need for equal 0 here.
     function updateChainPoints(uint256 epoch) external {
-        address _rewardManager = address(rewardManager);
+        address rewardManager = address(_getRewardManager());
         assembly {
-            if iszero(eq(caller(), _rewardManager)) {
+            if iszero(eq(caller(), rewardManager)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)
                 revert(0x1c, 0x04)
             }
@@ -950,7 +949,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+            _getRewardManager().nextEpochToDeliver() !=
+            currentEpoch(block.timestamp)
         ) {
             return false;
         }
@@ -1019,6 +1019,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.
     function currentEpoch(uint256 time) public view returns (uint256) {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+
         if (time < genesisEpoch) {
             return 0;
         }
@@ -1030,6 +1032,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Returns the timestamp of when the next epoch begins.
     /// @return The calculated next epoch start timestamp.
     function nextEpochStartTime() public view returns (uint256) {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+
         // If the gauge system has not started yet, the next epoch start time
         // is the Genesis Epoch itself.
         if (block.timestamp < genesisEpoch) {
@@ -1054,7 +1058,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     function freshLockTimestamp() public view returns (uint40) {
         return
             uint40(
-                genesisEpoch +
+                _genesisEpoch() +
                     (currentEpoch(block.timestamp) * epochDuration) +
                     LOCK_DURATION
             );
@@ -1159,7 +1163,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bytes memory params,
         uint256 aux
     ) internal {
+        IRewardManager rewardManager = _getRewardManager();
         uint256 epochs = rewardManager.epochsToClaim(user);
+
         if (epochs > 0) {
             rewardManager.claimRewardsFor(
                 user,
@@ -1184,7 +1190,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bool continuousLock
     ) internal {
         if (userLocks[recipient].length == 0) {
-            rewardManager.updateUserClaimIndex(
+            _getRewardManager().updateUserClaimIndex(
                 recipient,
                 currentEpoch(block.timestamp)
             );
@@ -1460,6 +1466,23 @@ contract VeCVE is ERC20, ReentrancyGuard {
             DENOMINATOR;
     }
 
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
+    }
+
+    /// @notice Returns the current CVE address.
+    function _getCVE() internal view returns (address) {
+        return centralRegistry.cve();
+    }
+
+    /// @notice Returns the Reward Manager address.
+    /// @return The Reward Manager address.
+    function _getRewardManager() internal view returns (IRewardManager) {
+        return IRewardManager(centralRegistry.rewardManager());
+    }
+
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
@@ -1486,7 +1509,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         if (
-            rewardManager.nextEpochToDeliver() != currentEpoch(block.timestamp)
+            _getRewardManager().nextEpochToDeliver() !=
+            currentEpoch(block.timestamp)
         ) {
             revert VeCVE__EpochNotDelivered();
         }

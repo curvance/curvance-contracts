@@ -199,7 +199,7 @@ contract BorrowZapper is ReentrancyGuard {
             "",
             0,
             0,
-            gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT,
+            gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT,
             chainData.messagingChainId,
             address(0),
             defaultDeliveryProvider,
@@ -230,7 +230,7 @@ contract BorrowZapper is ReentrancyGuard {
                     .supportedChainData(dstChainId)
                     .messagingChainId,
                 0,
-                gasLimit > 0 ? gasLimit : _DEFAULT_GAS_LIMIT
+                gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
             );
 
         // Add cost of publishing the 'sending token' wormhole message.

@@ -62,6 +62,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         // start epoch
         vm.warp(gaugeManager.startTime());
+        _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);

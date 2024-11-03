@@ -114,7 +114,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
     function testPartnerGaugesRewardsBeforeGaugeStart() public {
         // start epoch
 
-        assertGt(gaugeManager.startTime(), block.timestamp);
+        assertEq(gaugeManager.startTime(), block.timestamp);
 
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             vm.expectRevert(GaugeManager.GaugeManager__InvalidEpoch.selector);

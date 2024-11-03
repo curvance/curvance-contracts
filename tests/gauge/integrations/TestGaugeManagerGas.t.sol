@@ -102,7 +102,7 @@ contract TestGaugePoolGas is TestBaseMarket {
     }
 
     function testGasForDepositBeforeEpochAndWithdrawInEpoch() public {
-        assertGt(gaugeManager.startTime(), block.timestamp);
+        assertEq(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {
@@ -155,7 +155,7 @@ contract TestGaugePoolGas is TestBaseMarket {
     }
 
     function testGasForDepositInEpochAndWithdrawInSameEpoch() public {
-        assertGt(gaugeManager.startTime(), block.timestamp);
+        assertEq(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {
@@ -210,7 +210,7 @@ contract TestGaugePoolGas is TestBaseMarket {
     }
 
     function testGasForDepositInEpochAndWithdrawAfterEpoch() public {
-        assertGt(gaugeManager.startTime(), block.timestamp);
+        assertEq(gaugeManager.startTime(), block.timestamp);
 
         // add extra rewards
         for (uint256 i = 0; i < 100; i++) {

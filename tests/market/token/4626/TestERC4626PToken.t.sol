@@ -22,6 +22,9 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarket {
         _deployGaugeManager();
         _deployMarketManager();
 
+        vm.warp(centralRegistry.genesisEpoch());
+        rewardManager.startRewardManager();
+
         // start gauge to enable deposits
         vm.warp(veCVE.nextEpochStartTime() + 1000);
 

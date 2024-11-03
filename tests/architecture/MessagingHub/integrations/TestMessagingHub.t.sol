@@ -90,7 +90,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
     {
         _createLock();
 
-        _skipEpochDuration(3);
+        _skipEpochDuration(2);
+        _recordEpochRewards(1, 1e6 * _ONE);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
@@ -214,7 +215,13 @@ contract TestMessagingHub is TestBaseMessagingHub {
         usdc.approve(address(feeManager), 10000e6);
 
         // Eth spoofed as $1500, USDC spoofed as $1
-        feeManager.executeOTC(_WETH_ADDRESS, _ONE, 1500e6, 1e16, block.timestamp + 300); // 5 min deadline.
+        feeManager.executeOTC(
+            _WETH_ADDRESS,
+            _ONE,
+            1500e6,
+            1e16,
+            block.timestamp + 300
+        ); // 5 min deadline.
 
         assertEq(usdc.balanceOf(address(feeManager)), 1500e6);
         assertEq(usdc.balanceOf(address(this)), feeBalanceBefore - 1500e6);
@@ -423,7 +430,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         assertEq(lockTimestamps[0], unlockTime);
         assertEq(
             unlockTime,
-            veCVE.genesisEpoch() +
+            centralRegistry.genesisEpoch() +
                 (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
                 veCVE.LOCK_DURATION()
         );

@@ -30,7 +30,6 @@ contract MessagingHubDeploymentTest is TestBaseMessagingHub {
             address(messagingHub.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(messagingHub.cve()), address(centralRegistry.cve()));
         assertEq(messagingHub.feeToken(), _USDC_ADDRESS);
     }
 }
