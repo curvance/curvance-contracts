@@ -716,7 +716,7 @@ contract MessagingHub is QueryResponse {
                         chainData.messagingHub,
                         abi.encode(3, epochToDeliver, 0),
                         _getGasLimit(gasLimit),
-                        quoteMessageFee(currentChainId, true, gasLimit)
+                        quoteMessageFee(currentChainId, gasLimit)
                     );
                 }
             }
