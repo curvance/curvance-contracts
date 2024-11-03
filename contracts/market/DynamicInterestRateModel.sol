@@ -68,7 +68,11 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///         applying a positive curve value to the adjustment. This adjustment
 ///         is also subjected to the decay multiplier.
 ///
-///      NOTE: If an earn token updates to another dynamic interest rate model
+///      NOTE: The Dynamic Interest Rate model will not be able to update its
+///            modifier until an earn token is properly linked to it via
+///            setLinkedEToken().
+///
+///            If an earn token updates to another dynamic interest rate model
 ///            contract then this contract theoretically can still be called by
 ///            it afterwards if the smart contract was malformed, this does not
 ///            really have any tangible impact but for developers who may adapt
@@ -164,6 +168,11 @@ contract DynamicInterestRateModel is ERC165 {
     /// STORAGE ///
 
     /// @notice The earn token linked to this interest rate model contract.
+    /// @dev Once this earn token is set it can never be changed again
+    ///      replicating an immutable value, it also will be completely
+    ///      depreciated if that earn token ever switches to another
+    ///      interest rate model, automatically depreciating this
+    ///      implementation.
     address public linkedEToken;
 
     /// @notice Struct containing current configuration data for the
@@ -258,6 +267,7 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Sets the dynamic interest rate model's linked earn token
     ///         (eToken) which interest rates this contract will manage.
+    /// @dev Once this function is properly it can never be called again.
     /// @param eTokenAddress The address of the earn token to be linked
     ///                      to this interest rate model contract.
     function setLinkedEToken(address eTokenAddress) external {

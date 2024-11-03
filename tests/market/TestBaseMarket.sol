@@ -428,7 +428,7 @@ contract TestBaseMarket is TestBase {
                 ICentralRegistry(address(centralRegistry)),
                 token,
                 address(marketManager),
-                _deployDynamicInterestRateModel(token);
+                _deployDynamicInterestRateModel(token)
             );
         
         interestRateModels[block.chainid][token].setLinkedEToken(EToken);
