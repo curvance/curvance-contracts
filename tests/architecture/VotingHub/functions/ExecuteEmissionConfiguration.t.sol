@@ -161,7 +161,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
     }
 
     function test_executeEmissionConfiguration_success() public {
-        _skipEpochDuration(1);
+        _skipEpochDuration(2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
