@@ -42,6 +42,24 @@ interface IVeCVE {
         uint256 aux
     ) external;
 
+    /// @notice Processes reward manager fee re-investment into a current
+    ///         or new lock for `recipient`.
+    /// @dev Emits a {Locked} event.
+    /// @param recipient The address to lock CVE tokens for.
+    /// @param amount The amount of CVE to lock.
+    /// @param lockIndex The index of the lock to extend (if increasing
+    ///                  a lock).
+    /// @param continuousLock Whether the lock should be continuous or not.
+    /// @param isFreshLock A boolean to indicate if a new lock is being
+    ///                    created or not.
+    function compoundRewardsIntoLock(
+        address recipient,
+        uint256 amount,
+        uint256 lockIndex,
+        bool continuousLock,
+        bool isFreshLock
+    ) external;
+
     /// @notice Used for frontend, needed due to array of structs.
     /// @param user The user to query veCVE locks for.
     /// @return Unwrapped user lock information.
