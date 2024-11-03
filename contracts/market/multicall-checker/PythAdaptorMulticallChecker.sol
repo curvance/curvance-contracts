@@ -56,7 +56,7 @@ contract PythAdaptorMulticallChecker is BaseMulticallChecker {
                 (bytes[], address)
             );
             if (caller != user) {
-                revert MulticallChecker__InvalidCallData();
+                revert MulticallChecker__InvalidCalldata();
             }
         } else {
             revert MulticallChecker__InvalidFuncSig();

@@ -7,7 +7,7 @@ abstract contract BaseMulticallChecker is IMulticallChecker {
     /// ERRORS ///
     error MulticallChecker__TargetError();
     error MulticallChecker__InvalidFuncSig();
-    error MulticallChecker__InvalidCallData();
+    error MulticallChecker__InvalidCalldata();
 
     /// STORAGE ///
     address public centralRegistry;
