@@ -70,7 +70,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
 
         // decode pendle data
         (uint256 minLpAmount, PendleLib.PendleData memory pendleData) = abi
-            .decode(leverageData.data, (uint256, PendleLib.PendleData));
+            .decode(leverageData.auxData, (uint256, PendleLib.PendleData));
 
         // enter pendle
         PendleLib.enterPendle(
@@ -122,7 +122,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
 
         // decode pendle data
         PendleLib.PendleData memory pendleData = abi.decode(
-            deleverageData.data,
+            deleverageData.auxData,
             (PendleLib.PendleData)
         );
 

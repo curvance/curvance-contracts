@@ -230,7 +230,7 @@
 //         data.approx.maxIteration = 200;
 //         data.approx.eps = 1e18;
 
-//         leverageData.data = abi.encode(0, data);
+//         leverageData.auxData = abi.encode(0, data);
 
 //         positionManagement.leverage(leverageData, 500);
 
@@ -289,7 +289,7 @@
 //         data.approx.guessOffchain = 0;
 //         data.approx.maxIteration = 200;
 //         data.approx.eps = 1e18;
-//         deleverageData.data = abi.encode(data);
+//         deleverageData.auxData = abi.encode(data);
 
 //         pSTETH.approve(address(positionManagement), type(uint256).max);
 //         positionManagement.deleverage(deleverageData, 500);

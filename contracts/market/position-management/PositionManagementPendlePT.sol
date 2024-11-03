@@ -55,7 +55,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
             uint256 minPtAmount,
             PendleLib.PendleData memory pendleData
         ) = abi.decode(
-                leverageData.data,
+                leverageData.auxData,
                 (address, uint256, PendleLib.PendleData)
             );
 
@@ -123,7 +123,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
 
         // decode pendle data
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
-            deleverageData.data,
+            deleverageData.auxData,
             (address, PendleLib.PendleData)
         );
 
