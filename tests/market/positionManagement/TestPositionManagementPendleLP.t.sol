@@ -120,7 +120,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
         marketManager.listToken(address(pSTETH));
 
-        marketManager.updateCollateralToken(
+        marketManager.updatePositionToken(
             IMToken(address(pSTETH)),
             7000,
             4000,
