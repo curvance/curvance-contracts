@@ -31,7 +31,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.target = address(0);
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__TargetError.selector
+            BaseCalldataChecker.CalldataChecker__TargetError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -47,7 +47,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
             .call = hex"83bd37f90001d533a949740bb3306d119cc777fa900ba034cd5200016b3595068778dd592e39a122f4f5a5cf09c90fe20a021e19e0c9bab24000000a01010e690a4e1400000000c49b000128104d4F703EE5B5011cefe106f54eFd56F33f950000000147E2D28169738039755586743E2dfCF3bd643f860000000004010205000d010202030002030001000104001eff000000000000000000000000795065dcc9f64b5614c407a6efdc400da6221fb0919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000";
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__RecipientError.selector
+            BaseCalldataChecker.CalldataChecker__RecipientError.selector
         );
         checker.checkCalldata(swapData, address(1));
     }
@@ -65,7 +65,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__InputTokenError.selector
+            BaseCalldataChecker.CalldataChecker__InputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -83,7 +83,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.inputAmount = 0;
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__InputAmountError.selector
+            BaseCalldataChecker.CalldataChecker__InputAmountError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -101,7 +101,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.outputToken = address(0);
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__OutputTokenError.selector
+            BaseCalldataChecker.CalldataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -130,7 +130,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
             .call = hex"3b635ce4000000000000000000000000d533a949740bb3306d119cc777fa900ba034cd5200000000000000000000000000000000000000000000021e19e0c9bab240000000000000000000000000000028104d4f703ee5b5011cefe106f54efd56f33f950000000000000000000000006b3595068778dd592e39a122f4f5a5cf09c90fe2000000000000000000000000000000000000000000000105ec5fe9f564d000000000000000000000000000000000000000000000000001052337b0ae41f0000000000000000000000000000047e2d28169738039755586743e2dfcf3bd643f86000000000000000000000000000000000000000000000000000000000000014000000000000000000000000028104d4f703ee5b5011cefe106f54efd56f33f9500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070010205000d010202030002030001000104001eff000000000000000000000000795065dcc9f64b5614c407a6efdc400da6221fb0919fa96e88d67499339577fa202345436bcdaf79d533a949740bb3306d119cc777fa900ba034cd52c02aaa39b223fe8d0a0e5c4f27ead9083c756cc200000000000000000000000000000000";
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__RecipientError.selector
+            BaseCalldataChecker.CalldataChecker__RecipientError.selector
         );
         checker.checkCalldata(swapData, address(1));
     }
@@ -148,7 +148,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.inputToken = address(0);
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__InputTokenError.selector
+            BaseCalldataChecker.CalldataChecker__InputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -166,7 +166,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.inputAmount = 0;
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__InputAmountError.selector
+            BaseCalldataChecker.CalldataChecker__InputAmountError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }
@@ -184,7 +184,7 @@ contract TestOdosCalldataChecker is TestBaseMarket {
         swapData.outputToken = address(0);
 
         vm.expectRevert(
-            BaseCalldataChecker.CallDataChecker__OutputTokenError.selector
+            BaseCalldataChecker.CalldataChecker__OutputTokenError.selector
         );
         checker.checkCalldata(swapData, recipient);
     }

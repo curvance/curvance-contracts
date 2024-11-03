@@ -23,7 +23,7 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
         address expectedRecipient
     ) external view override {
         if (swapData.target != target) {
-            revert CallDataChecker__TargetError();
+            revert CalldataChecker__TargetError();
         }
 
         bytes4 funcSigHash = getFuncSigHash(swapData.call);
@@ -328,23 +328,23 @@ contract ComplexZapperCalldataChecker is BaseCalldataChecker {
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {
-            revert CallDataChecker__InvalidFuncSig();
+            revert CalldataChecker__InvalidFuncSig();
         }
 
         if (recipient != expectedRecipient) {
-            revert CallDataChecker__RecipientError();
+            revert CalldataChecker__RecipientError();
         }
 
         if (inputToken != swapData.inputToken) {
-            revert CallDataChecker__InputTokenError();
+            revert CalldataChecker__InputTokenError();
         }
 
         if (inputAmount != swapData.inputAmount) {
-            revert CallDataChecker__InputAmountError();
+            revert CalldataChecker__InputAmountError();
         }
 
         if (outputToken != swapData.outputToken) {
-            revert CallDataChecker__OutputTokenError();
+            revert CalldataChecker__OutputTokenError();
         }
     }
 }

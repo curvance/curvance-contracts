@@ -23,7 +23,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
-    AerodromeVolatilePToken public cWETHUSDC;
+    AerodromeVolatilePToken public pWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
     PositionManagementAerodromeVolatile public positionManagement;
 
@@ -46,9 +46,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         dai.approve(address(eDAI), 20000000 ether);
         eDAI.mint(20000000 ether);
 
-        // mint cWETHUSDC
-        IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
-        cWETHUSDC.deposit(1 ether, liquidityProvider);
+        // mint pWETHUSDC
+        IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
+        pWETHUSDC.deposit(1 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -139,9 +139,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             marketManager.listToken(address(eDAI));
         }
 
-        // setup cWETHUSDC
+        // setup pWETHUSDC
         {
-            cWETHUSDC = new AerodromeVolatilePToken(
+            pWETHUSDC = new AerodromeVolatilePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_AERODROME_WETH_USDC),
                 address(marketManager),
@@ -150,14 +150,14 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
                 aeroRouter
             );
             // add MToken support on price router
-            oracleManager.addMTokenSupport(address(cWETHUSDC));
+            oracleManager.addMTokenSupport(address(pWETHUSDC));
 
             deal(_AERODROME_WETH_USDC, owner, 1 ether);
-            IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
-            marketManager.listToken(address(cWETHUSDC));
+            IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
+            marketManager.listToken(address(pWETHUSDC));
 
             marketManager.updatePositionToken(
-                IMToken(address(cWETHUSDC)),
+                IMToken(address(pWETHUSDC)),
                 7000,
                 4000,
                 3000,
@@ -168,7 +168,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             );
 
             address[] memory tokens = new address[](1);
-            tokens[0] = address(cWETHUSDC);
+            tokens[0] = address(pWETHUSDC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
@@ -213,12 +213,12 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         vm.startPrank(user);
 
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
-        IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 0.0001 ether);
+        IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
 
         // mint
-        assertGt(cWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(cWETHUSDC), 0.0001 ether);
-        assertEq(cWETHUSDC.balanceOf(user), 0.0001 ether);
+        assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
@@ -233,7 +233,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(cWETHUSDC));
+        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -264,7 +264,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         assertEq(eDAIBalance, 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
         assertGt(pUSDCDAIBalance, 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
@@ -284,9 +284,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
-        (uint256 pUSDCDAIBalanceBefore, , ) = cWETHUSDC.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(cWETHUSDC));
+        deleverageData.positionToken = SimplePToken(address(pWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = eDAI;
 
@@ -329,7 +329,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         );
         deleverageData.repayAmount = 3000e18;
 
-        cWETHUSDC.approve(address(positionManagement), type(uint256).max);
+        pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 5000);
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
@@ -339,7 +339,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
         assertEq(
             pUSDCDAIBalance,
@@ -354,12 +354,12 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         vm.startPrank(user);
 
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
-        IERC20(_AERODROME_WETH_USDC).approve(address(cWETHUSDC), 0.0001 ether);
+        IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
 
         // mint
-        assertGt(cWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(cWETHUSDC), 0.0001 ether);
-        assertEq(cWETHUSDC.balanceOf(user), 0.0001 ether);
+        assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
@@ -374,7 +374,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(cWETHUSDC));
+        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -409,7 +409,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         assertEq(eDAIBalance, 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
         assertGt(pUSDCDAIBalance, 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
@@ -427,9 +427,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
-        (uint256 pUSDCDAIBalanceBefore, , ) = cWETHUSDC.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(cWETHUSDC));
+        deleverageData.positionToken = SimplePToken(address(pWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = eDAI;
 
@@ -472,7 +472,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         );
         deleverageData.repayAmount = 3000e18;
 
-        cWETHUSDC.approve(address(positionManagement), type(uint256).max);
+        pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
@@ -486,7 +486,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
         assertEq(
             pUSDCDAIBalance,

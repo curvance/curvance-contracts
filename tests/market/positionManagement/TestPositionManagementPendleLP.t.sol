@@ -11,12 +11,12 @@ import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { PendleLPCToken, IERC20 } from "contracts/market/collateral/PendleLPCToken.sol";
 import { PendleLPPositionManagement } from "contracts/market/position-management/PendleLPPositionManagement.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-contract TestPendlePTPositionManagement is TestBaseMarket {
+contract TestPositionManagementPendleLP is TestBaseMarket {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =
@@ -29,7 +29,7 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
 
     PendleLPPositionManagement public positionManagement;
-    PendleLPCToken public cSTETH;
+    PendleLPCToken public pSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
     PendleLPTokenAdaptor public adaptor;
 
@@ -53,7 +53,7 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         _deployRewardManager();
         _deployVeCVE();
         _deployGaugeManager();
-        _deployOracleRouter();
+        _deployOracleManager();
         _deployChainlinkAdaptors();
         _deployMarketManager();
         _deployDynamicInterestRateModel();
@@ -66,19 +66,19 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
             true
         );
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_ETH_USD, 0, true);
-        oracleRouter.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
-        oracleRouter.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
+        oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeAccumulator(address(this));
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         adaptor = new PendleLPTokenAdaptor(
@@ -91,37 +91,37 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         adapterData.pt = _PT_STETH;
         adapterData.quoteAssetDecimals = 18;
         adaptor.addAsset(_LP_STETH, adapterData);
-        oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(_LP_STETH, address(adaptor));
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
         owner = address(this);
         user = user1;
 
-        // setup dDAI
+        // setup eDAI
         {
-            _deployDDAI();
+            _deployeDAI();
             // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            oracleManager.addMTokenSupport(address(eDAI));
 
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
         }
 
-        cSTETH = new PendleLPCToken(
+        pSTETH = new PendleLPCToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManager),
             _ROUTER
         );
-        oracleRouter.addMTokenSupport(address(cSTETH));
+        oracleManager.addMTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, owner, 1 ether);
-        IERC20(_LP_STETH).approve(address(cSTETH), 1 ether);
-        marketManager.listToken(address(cSTETH));
+        IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+        marketManager.listToken(address(pSTETH));
 
-        marketManager.updateCollateralToken(
-            IMToken(address(cSTETH)),
+        marketManager.updatePositionToken(
+            IMToken(address(pSTETH)),
             7000,
             4000,
             3000,
@@ -132,11 +132,11 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         );
 
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cSTETH);
+        tokens[0] = address(pSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
 
-        marketManager.setCTokenCollateralCaps(tokens, caps);
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
         positionManagement = new PendleLPPositionManagement(
             ICentralRegistry(address(centralRegistry)),
@@ -157,13 +157,13 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
 
         vm.startPrank(liquidityProvider);
 
-        // mint dDAI
-        dai.approve(address(dDAI), 20000000 ether);
-        dDAI.mint(20000000 ether);
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
 
-        // mint cSTETH
-        IERC20(_LP_STETH).approve(address(cSTETH), 100 ether);
-        cSTETH.deposit(100 ether, liquidityProvider);
+        // mint pSTETH
+        IERC20(_LP_STETH).approve(address(pSTETH), 100 ether);
+        pSTETH.deposit(100 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -183,27 +183,27 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         vm.startPrank(user);
 
         deal(_LP_STETH, user, 1 ether);
-        IERC20(_LP_STETH).approve(address(cSTETH), 1 ether);
+        IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
 
         // mint
-        assertGt(cSTETH.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(cSTETH), 1 ether);
-        assertEq(cSTETH.balanceOf(user), 1 ether);
+        assertGt(pSTETH.deposit(1 ether, user), 0);
+        marketManager.postCollateral(user, address(pSTETH), 1 ether);
+        assertEq(pSTETH.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
-        dDAI.borrow(100 ether);
+        eDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
             100;
 
         PendleLPPositionManagement.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
+        leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(cSTETH));
+        leverageData.positionToken = SimplePToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -230,19 +230,19 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        leverageData.data = abi.encode(0, data);
+        leverageData.auxData = abi.encode(0, data);
 
         positionManagement.leverage(leverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 cSTETHBalance, uint256 cSTETHBorrowed, ) = cSTETH.getSnapshot(
+        (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
             user
         );
-        assertGt(cSTETHBalance, 2 ether);
-        assertEq(cSTETHBorrowed, 0 ether);
+        assertGt(pSTETHBalance, 2 ether);
+        assertEq(pSTETHBorrowed, 0 ether);
 
         vm.stopPrank();
     }
@@ -251,18 +251,18 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         testLeverage();
         // Warp until collateral posting wait time ends
         vm.warp(block.timestamp + 20 minutes);
-        dDAI.accrueInterest();
+        eDAI.accrueInterest();
 
         vm.startPrank(user);
 
         PendleLPPositionManagement.DeleverageStruct memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cSTETHBalanceBefore, , ) = cSTETH.getSnapshot(user);
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
 
-        deleverageData.collateralToken = CTokenPrimitive(address(cSTETH));
+        deleverageData.positionToken = SimplePToken(address(pSTETH));
         deleverageData.collateralAmount = 1 ether;
-        deleverageData.borrowToken = dDAI;
+        deleverageData.borrowToken = eDAI;
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = _STETH;
@@ -289,26 +289,26 @@ contract TestPendlePTPositionManagement is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.data = abi.encode(data);
+        deleverageData.auxData = abi.encode(data);
 
-        cSTETH.approve(address(positionManagement), type(uint256).max);
+        pSTETH.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
         assertEq(
-            dDAIBorrowed,
-            dDAIBorrowedBefore - deleverageData.repayAmount
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 cSTETHBalance, uint256 cSTETHBorrowed, ) = cSTETH.getSnapshot(
+        (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
             user
         );
         assertEq(
-            cSTETHBalance,
-            cSTETHBalanceBefore - deleverageData.collateralAmount
+            pSTETHBalance,
+            pSTETHBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(cSTETHBorrowed, 0);
+        assertEq(pSTETHBorrowed, 0);
 
         vm.stopPrank();
     }

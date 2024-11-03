@@ -21,7 +21,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockWethFeed;
 
-    SimplePToken public cWETH;
+    SimplePToken public pWETH;
 
     function setUp() public override {
         super.setUp();
@@ -87,10 +87,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // marketManager.enterMarkets(markets);
         }
 
-        // deploy cWETH
+        // deploy pWETH
         {
             // deploy aura position vault
-            cWETH = new SimplePToken(
+            pWETH = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
                 address(marketManager)
@@ -98,13 +98,13 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
             // support market
             deal(_WETH_ADDRESS, owner, 1 ether);
-            weth.approve(address(cWETH), 1 ether);
-            marketManager.listToken(address(cWETH));
+            weth.approve(address(pWETH), 1 ether);
+            marketManager.listToken(address(pWETH));
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(cWETH));
+            oracleManager.addMTokenSupport(address(pWETH));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(cWETH)),
+                IMToken(address(pWETH)),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -115,13 +115,13 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             );
 
             address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cWETH);
+            mTokens[0] = address(pWETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
             marketManager.setPTokenCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
-            // markets[0] = address(cWETH);
+            // markets[0] = address(pWETH);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -140,8 +140,8 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         usdc.approve(address(eUSDC), 200000e6);
         eUSDC.mint(200000e6);
         // mint cBALETH
-        weth.approve(address(cWETH), 10 ether);
-        cWETH.mint(10 ether, liquidityProvider);
+        weth.approve(address(pWETH), 10 ether);
+        pWETH.mint(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
@@ -296,7 +296,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         uint256[] memory amountsOut = IUniswapV2Router(_UNISWAP_V2_ROUTER)
             .getAmountsOut(rewards, path);
         uint256 baseRewardBalance = usdc.balanceOf(address(rewardManager));
-        uint256 desiredTokenBalance = cWETH.balanceOf(user1);
+        uint256 desiredTokenBalance = pWETH.balanceOf(user1);
 
         vm.prank(user1);
         rewardManager.setDelegateApproval(address(simpleRewardZapper), true);
@@ -305,7 +305,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         simpleRewardZapper.claimSwapAndDeposit(
             swapData,
             address(marketManager),
-            address(cWETH),
+            address(pWETH),
             false,
             user1
         );
@@ -314,16 +314,16 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             usdc.balanceOf(address(rewardManager)),
             baseRewardBalance - amountsOut[0]
         );
-        assertEq(cWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
+        assertEq(pWETH.balanceOf(user1), desiredTokenBalance + amountsOut[1]);
     }
 
     function testClaimSwapAndRepay() public {
         // mint
         vm.startPrank(user1);
         deal(_WETH_ADDRESS, user1, 1 ether);
-        weth.approve(address(cWETH), 1 ether);
-        cWETH.mint(1 ether, user1);
-        marketManager.postCollateral(user1, address(cWETH), 1 ether);
+        weth.approve(address(pWETH), 1 ether);
+        pWETH.mint(1 ether, user1);
+        marketManager.postCollateral(user1, address(pWETH), 1 ether);
         // borrow
         eUSDC.borrow(500e6);
         vm.stopPrank();

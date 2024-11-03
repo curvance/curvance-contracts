@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -52,7 +52,7 @@ library SwapperLib {
         }
 
         // Verify calldata integrity.
-        IExternalCallDataChecker(callDataChecker).checkCalldata(
+        IExternalCalldataChecker(callDataChecker).checkCalldata(
             swapData,
             address(this)
         );
@@ -103,7 +103,7 @@ library SwapperLib {
             }
 
             // Verify calldata integrity.
-            IExternalCallDataChecker(callDataChecker).checkCalldata(
+            IExternalCalldataChecker(callDataChecker).checkCalldata(
                 swapData,
                 address(this)
             );

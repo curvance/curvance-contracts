@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
+import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
@@ -10,7 +10,7 @@ import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRoute
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
-contract PendleLPPositionManagement is BasePositionManagement {
+contract PositionManagementPendleLP is PositionManagementBase {
     IPendleRouter public router;
 
     /// CONSTRUCTOR ///
@@ -19,7 +19,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
         ICentralRegistry centralRegistry_,
         address marketManager_,
         IPendleRouter router_
-    ) BasePositionManagement(centralRegistry_, marketManager_) {
+    ) PositionManagementBase(centralRegistry_, marketManager_) {
         router = router_;
     }
 
@@ -45,13 +45,13 @@ contract PendleLPPositionManagement is BasePositionManagement {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address lpToken = leverageData.collateralToken.underlying();
+        address lpToken = leverageData.positionToken.underlying();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
         if (swapData.call.length == 0) {
             // check if borrow underlying is already in the form of sy input token
             if (!sy.isValidTokenIn(borrowUnderlying)) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
         } else {
             // check if swapData is valid
@@ -61,7 +61,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
                 swapData.inputAmount != leverageData.borrowAmount ||
                 !sy.isValidTokenIn(swapData.outputToken)
             ) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
 
             // swap borrow underlying to sy input token
@@ -70,7 +70,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
 
         // decode pendle data
         (uint256 minLpAmount, PendleLib.PendleData memory pendleData) = abi
-            .decode(leverageData.data, (uint256, PendleLib.PendleData));
+            .decode(leverageData.auxData, (uint256, PendleLib.PendleData));
 
         // enter pendle
         PendleLib.enterPendle(
@@ -105,7 +105,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address lpToken = deleverageData.collateralToken.underlying();
+        address lpToken = deleverageData.positionToken.underlying();
         address borrowUnderlying = deleverageData.borrowToken.underlying();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
@@ -114,7 +114,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
             tokenOut = borrowUnderlying;
         } else {
             if (deleverageData.swapData.length == 0) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
             SwapperLib.Swap memory swapData = deleverageData.swapData[0];
             tokenOut = swapData.inputToken;
@@ -122,7 +122,7 @@ contract PendleLPPositionManagement is BasePositionManagement {
 
         // decode pendle data
         PendleLib.PendleData memory pendleData = abi.decode(
-            deleverageData.data,
+            deleverageData.auxData,
             (PendleLib.PendleData)
         );
 

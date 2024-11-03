@@ -23,7 +23,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
     IVeloGauge public gauge =
         IVeloGauge(0xE7630c9560C59CCBf5EEd8f33dd0ccA2E67a3981);
 
-    VelodromeVolatilePToken public cWETHUSDC;
+    VelodromeVolatilePToken public pWETHUSDC;
     MockV3Aggregator public chainlinkVELO;
     MockV3Aggregator public chainlinkWETH;
 
@@ -53,7 +53,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        cWETHUSDC = new VelodromeVolatilePToken(
+        pWETHUSDC = new VelodromeVolatilePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_WETH_USDC),
             address(marketManager),
@@ -103,17 +103,17 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         deal(_WETH_USDC, user1, assets);
         deal(_WETH_USDC, address(this), 42069);
 
-        IERC20(_WETH_USDC).approve(address(cWETHUSDC), 42069);
-        marketManager.listToken(address(cWETHUSDC));
+        IERC20(_WETH_USDC).approve(address(pWETHUSDC), 42069);
+        marketManager.listToken(address(pWETHUSDC));
 
         vm.prank(user1);
-        IERC20(_WETH_USDC).approve(address(cWETHUSDC), assets);
+        IERC20(_WETH_USDC).approve(address(pWETHUSDC), assets);
 
         vm.prank(user1);
-        cWETHUSDC.deposit(assets, user1);
+        pWETHUSDC.deposit(assets, user1);
 
         assertEq(
-            cWETHUSDC.totalAssets(),
+            pWETHUSDC.totalAssets(),
             assets + 42069,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -129,7 +129,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        uint256 earned = gauge.earned(address(cWETHUSDC));
+        uint256 earned = gauge.earned(address(pWETHUSDC));
         uint256 amount = (earned * 84) / 100;
         SwapperLib.Swap memory swapData;
         swapData.inputToken = _VELO_ADDRESS;
@@ -146,15 +146,15 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
             amount,
             0,
             routes,
-            address(cWETHUSDC),
+            address(pWETHUSDC),
             type(uint256).max
         );
         swapData.slippage = 50e16;
 
-        cWETHUSDC.harvest(abi.encode(swapData));
+        pWETHUSDC.harvest(abi.encode(swapData));
 
         assertEq(
-            cWETHUSDC.totalAssets(),
+            pWETHUSDC.totalAssets(),
             assets + 42069,
             "Total Assets should equal user deposit plus initial mint."
         );
@@ -164,7 +164,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         // Mint some extra rewards for Vault.
-        earned = gauge.earned(address(cWETHUSDC));
+        earned = gauge.earned(address(pWETHUSDC));
         amount = (earned * 84) / 100;
         swapData.inputAmount = amount;
         swapData.call = abi.encodeWithSelector(
@@ -172,22 +172,22 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
             amount,
             0,
             routes,
-            address(cWETHUSDC),
+            address(pWETHUSDC),
             type(uint256).max
         );
-        cWETHUSDC.harvest(abi.encode(swapData));
+        pWETHUSDC.harvest(abi.encode(swapData));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());
         chainlinkWETH.updateAnswer(chainlinkWETH.latestAnswer());
 
         assertGt(
-            cWETHUSDC.totalAssets(),
+            pWETHUSDC.totalAssets(),
             assets + 42069,
             "Total Assets should greater than original deposit plus initial mint."
         );
 
         vm.prank(user1);
-        cWETHUSDC.withdraw(assets, user1, user1);
+        pWETHUSDC.withdraw(assets, user1, user1);
     }
 }

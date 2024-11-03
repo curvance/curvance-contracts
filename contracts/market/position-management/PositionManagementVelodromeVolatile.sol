@@ -64,7 +64,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
         if (borrowUnderlying != token0) {
             if (swapData.call.length == 0) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
 
             if (
@@ -73,7 +73,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
                 swapData.outputToken != token0 ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
 
             // Swap borrow underlying to token0.

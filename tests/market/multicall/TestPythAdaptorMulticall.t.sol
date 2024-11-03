@@ -12,7 +12,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockPythAdaptor } from "contracts/mocks/MockPythAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptorMulticallChecker } from "contracts/market/multicall-checker/PythAdaptorMulticallChecker.sol";
@@ -216,14 +216,14 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         }
 
         address[] memory multicallProviders = new address[](3);
-        multicallProviders[0] = address(dUSDC);
+        multicallProviders[0] = address(eUSDC);
         multicallProviders[1] = address(pWBTC);
         multicallProviders[2] = address(positionManagement);
         centralRegistry.setMulticallProviders(multicallProviders, true);
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
     }
 
@@ -349,13 +349,13 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user1, address(eUSDC)) * 50) /
             100;
 
         SimplePositionManagement.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dUSDC;
+        leverageData.borrowToken = eUSDC;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(pWBTC));
+        leverageData.positionToken = SimplePToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;
@@ -374,7 +374,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -422,7 +422,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         );
         vm.expectRevert(
             BaseMulticallChecker
-                .MulticallChecker__InvalidCallData
+                .MulticallChecker__InvalidCalldata
                 .selector
         );
         multicallChecker.checkCalldata(

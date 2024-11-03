@@ -41,22 +41,22 @@ abstract contract PositionManagementBase is
     /// @dev 9900 = 99% = 0.99.
     uint256 public constant MAX_LEVERAGE = 9900;
 
-    /// @dev `bytes4(keccak256(bytes("BasePositionManagement__Unauthorized()")))`
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd52ee86d;
+    /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
     /// ERRORS ///
 
-    error BasePositionManagement__Unauthorized();
-    error BasePositionManagement__InvalidSlippage();
-    error BasePositionManagement__InvalidMarketManager();
-    error BasePositionManagement__InvalidSwapperParam();
-    error BasePositionManagement__InvalidParam();
-    error BasePositionManagement__InvalidAmount();
-    error BasePositionManagement__InvalidTokenPrice();
-    error BasePositionManagement__ExceedsMaximumBorrowAmount(
+    error PositionManagementBase__Unauthorized();
+    error PositionManagementBase__InvalidSlippage();
+    error PositionManagementBase__InvalidMarketManager();
+    error PositionManagementBase__InvalidSwapperParam();
+    error PositionManagementBase__InvalidParam();
+    error PositionManagementBase__InvalidAmount();
+    error PositionManagementBase__InvalidTokenPrice();
+    error PositionManagementBase__ExceedsMaximumBorrowAmount(
         uint256 amount,
         uint256 maximum
     );
@@ -94,7 +94,7 @@ abstract contract PositionManagementBase is
                 liquidityBefore - liquidityAfter >=
                 (liquidityBefore * slippage) / DENOMINATOR
             ) {
-                revert BasePositionManagement__InvalidSlippage();
+                revert PositionManagementBase__InvalidSlippage();
             }
         }
     }
@@ -110,7 +110,7 @@ abstract contract PositionManagementBase is
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
         if (!centralRegistry_.isMarketManager(marketManager_)) {
-            revert BasePositionManagement__InvalidMarketManager();
+            revert PositionManagementBase__InvalidMarketManager();
         }
 
         marketManager = IMarketManager(marketManager_);
@@ -333,13 +333,13 @@ abstract contract PositionManagementBase is
             borrowToken != address(leverageData.borrowToken) ||
             borrowAmount != leverageData.borrowAmount
         ) {
-            revert BasePositionManagement__InvalidParam();
+            revert PositionManagementBase__InvalidParam();
         }
 
         address borrowUnderlying = SimplePToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
-            revert BasePositionManagement__InvalidAmount();
+            revert PositionManagementBase__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -440,7 +440,7 @@ abstract contract PositionManagementBase is
             positionToken != address(deleverageData.positionToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
-            revert BasePositionManagement__InvalidParam();
+            revert PositionManagementBase__InvalidParam();
         }
 
         // Swap position token (pToken underlying) to
@@ -452,7 +452,7 @@ abstract contract PositionManagementBase is
             IERC20(collateralUnderlying).balanceOf(address(this)) <
             collateralAmount
         ) {
-            revert BasePositionManagement__InvalidAmount();
+            revert PositionManagementBase__InvalidAmount();
         }
 
         // Take protocol fee, if any.
@@ -577,7 +577,7 @@ abstract contract PositionManagementBase is
 
         // Validate we got a price for `borrowToken`.
         if (errorCode != 0) {
-            revert BasePositionManagement__InvalidTokenPrice();
+            revert PositionManagementBase__InvalidTokenPrice();
         }
 
         return
@@ -626,7 +626,7 @@ abstract contract PositionManagementBase is
         // Validate that the desired borrow amount is within bounds of what
         // will be allowed by the Market Manager.
         if (borrowAmount > maxBorrowAmount) {
-            revert BasePositionManagement__ExceedsMaximumBorrowAmount(
+            revert PositionManagementBase__ExceedsMaximumBorrowAmount(
                 borrowAmount,
                 maxBorrowAmount
             );

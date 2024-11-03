@@ -54,10 +54,21 @@ interface IPositionManagement {
     /// @dev Measures slippage after this callback validating that `borrower`
     ///      is still within acceptable liquidity requirements.
     /// @param borrowToken The borrow token borrowed from.
-    /// @param borrower The user borrowing that will be swapped into
+    /// @param borrower The account borrowing that will be swapped into
     ///                 collateral assets deposited into Curvance.
     /// @param borrowAmount The amount of `borrowToken`'s underlying borrowed.
-    /// @param leverageData Swap and deposit instructions.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     function onBorrow(
         address borrowToken,
         address borrower,
@@ -71,11 +82,25 @@ interface IPositionManagement {
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
     /// @param positionToken The pToken redeemed for its underlying.
-    /// @param redeemer The user redeeming collateral that will be used to
+    /// @param redeemer The account redeeming collateral that will be used to
     ///                 repay their active debt.
     /// @param collateralAmount The amount of `positionToken` underlying
     ///                         redeemed.
-    /// @param deleverageData Swap and repayment instructions.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     function onRedeem(
         address positionToken,
         address redeemer,

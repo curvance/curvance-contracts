@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
-interface IExternalCallDataChecker {
+interface IExternalCalldataChecker {
     /// @notice Inspects calldata for compliance with other swap instruction
     ///         parameters.
     /// @dev Used on Zap/swap to inspect and validate calldata safety.

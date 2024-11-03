@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BasePositionManagement } from "contracts/market/position-management/BasePositionManagement.sol";
+import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
@@ -12,7 +12,7 @@ import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincip
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
-contract PendlePTPositionManagement is BasePositionManagement {
+contract PositionManagementPendlePT is PositionManagementBase {
     IPendleRouter public router;
 
     /// CONSTRUCTOR ///
@@ -21,7 +21,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
         ICentralRegistry centralRegistry_,
         address marketManager_,
         IPendleRouter router_
-    ) BasePositionManagement(centralRegistry_, marketManager_) {
+    ) PositionManagementBase(centralRegistry_, marketManager_) {
         router = router_;
     }
 
@@ -47,7 +47,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address ptToken = leverageData.collateralToken.underlying();
+        address ptToken = leverageData.positionToken.underlying();
 
         // decode pendle data
         (
@@ -55,7 +55,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
             uint256 minPtAmount,
             PendleLib.PendleData memory pendleData
         ) = abi.decode(
-                leverageData.data,
+                leverageData.auxData,
                 (address, uint256, PendleLib.PendleData)
             );
 
@@ -70,7 +70,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         if (swapData.call.length > 0) {
@@ -80,7 +80,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
                 swapData.inputToken != borrowUnderlying ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
-                revert BasePositionManagement__InvalidSwapperParam();
+                revert PositionManagementBase__InvalidSwapperParam();
             }
 
             SwapperLib.swapSafe(centralRegistry, swapData);
@@ -119,11 +119,11 @@ contract PendlePTPositionManagement is BasePositionManagement {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address ptToken = deleverageData.collateralToken.underlying();
+        address ptToken = deleverageData.positionToken.underlying();
 
         // decode pendle data
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
-            deleverageData.data,
+            deleverageData.auxData,
             (address, PendleLib.PendleData)
         );
 
@@ -138,7 +138,7 @@ contract PendlePTPositionManagement is BasePositionManagement {
             IPPrincipalToken(ptToken).SY() != address(_SY) ||
             IPPrincipalToken(ptToken).YT() != address(_YT)
         ) {
-            revert BasePositionManagement__InvalidSwapperParam();
+            revert PositionManagementBase__InvalidSwapperParam();
         }
 
         // exit pendle

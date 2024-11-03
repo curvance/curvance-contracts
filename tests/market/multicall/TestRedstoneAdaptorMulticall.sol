@@ -8,7 +8,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
@@ -191,9 +191,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             marketManager.setPositionManagement(address(positionManagement));
         }
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
     }
 
@@ -317,13 +317,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user1, address(eUSDC)) * 50) /
             100;
 
         SimplePositionManagement.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dUSDC;
+        leverageData.borrowToken = eUSDC;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = SimplePToken(address(pWBTC));
+        leverageData.positionToken = SimplePToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;
@@ -342,7 +342,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             IUniswapV3Router.exactInputSingle.selector,
             params
         );
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2

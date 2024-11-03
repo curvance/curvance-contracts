@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IExternalCallDataChecker } from "contracts/interfaces/IExternalCallDataChecker.sol";
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
-abstract contract BaseCalldataChecker is IExternalCallDataChecker {
+abstract contract BaseCalldataChecker is IExternalCalldataChecker {
     /// ERRORS ///
-    error CallDataChecker__TargetError();
-    error CallDataChecker__RecipientError();
-    error CallDataChecker__InputTokenError();
-    error CallDataChecker__InputAmountError();
-    error CallDataChecker__OutputTokenError();
-    error CallDataChecker__InvalidFuncSig();
+    error CalldataChecker__TargetError();
+    error CalldataChecker__RecipientError();
+    error CalldataChecker__InputTokenError();
+    error CalldataChecker__InputAmountError();
+    error CalldataChecker__OutputTokenError();
+    error CalldataChecker__InvalidFuncSig();
 
     /// STORAGE ///
     address public target;
@@ -24,7 +24,7 @@ abstract contract BaseCalldataChecker is IExternalCallDataChecker {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Overridden in child CallData checker contracts,
+    /// @notice Overridden in child Calldata checker contracts,
     ///         used to inspect and validate calldata safety.
     function checkCalldata(
         SwapperLib.Swap memory _swapData,
@@ -33,21 +33,24 @@ abstract contract BaseCalldataChecker is IExternalCallDataChecker {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Queries the function signature of `_data`, this is used
+    /// @notice Queries the function signature of `sigData`, this is used
     ///         to check against an expected selector.
-    /// @param _data The bytes array to pull a function signature from.
+    /// @param sigData The bytes array to pull a function signature from.
     function getFuncSigHash(
-        bytes memory _data
+        bytes memory sigData
     ) internal pure returns (bytes4 sig) {
         assembly {
-            sig := mload(add(_data, add(32, 0)))
+            sig := mload(add(sigData, add(32, 0)))
         }
     }
 
+    /// @notice Returns the expected parameters for a function call with
+    ///         the bytes array.
+    /// @param paramsData The bytes array to pull a function parameters from.
     function getFuncParams(
-        bytes memory _data
+        bytes memory paramsData
     ) internal pure returns (bytes memory) {
-        return slice(_data, 4, _data.length - 4);
+        return slice(paramsData, 4, paramsData.length - 4);
     }
 
     /// @notice Modifies `_bytes` into desired form based on

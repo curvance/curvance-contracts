@@ -247,7 +247,7 @@ contract CentralRegistry is ERC165 {
         address messagingHub,
         address votingHub
     );
-    event CallDataCheckerSet(
+    event CalldataCheckerSet(
         string indexed calldataType,
         address targetAddress,
         address calldataChecker
@@ -1001,36 +1001,36 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Sets an external calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setExternalCalldataChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        externalCalldataChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("External", target, callDataChecker);
+        externalCalldataChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("External", target, calldataChecker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
     function setMulticallChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("Multicall", target, callDataChecker);
+        multicallChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("Multicall", target, calldataChecker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,
