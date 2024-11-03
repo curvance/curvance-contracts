@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { SimpleZapper } from "contracts/market/zapper/SimpleZapper.sol";
+import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
