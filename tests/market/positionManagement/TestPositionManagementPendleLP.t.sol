@@ -203,7 +203,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         PositionManagementPendleLP.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = SimplePToken(address(pSTETH));
+        leverageData.positionToken = SimplePToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -260,7 +260,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
 
-        deleverageData.collateralToken = SimplePToken(address(pSTETH));
+        deleverageData.positionToken = SimplePToken(address(pSTETH));
         deleverageData.collateralAmount = 1 ether;
         deleverageData.borrowToken = eDAI;
 

@@ -355,7 +355,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eUSDC;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = SimplePToken(address(pWBTC));
+        leverageData.positionToken = SimplePToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

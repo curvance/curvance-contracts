@@ -47,7 +47,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address ptToken = leverageData.collateralToken.underlying();
+        address ptToken = leverageData.positionToken.underlying();
 
         // decode pendle data
         (
@@ -119,7 +119,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address ptToken = deleverageData.collateralToken.underlying();
+        address ptToken = deleverageData.positionToken.underlying();
 
         // decode pendle data
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(

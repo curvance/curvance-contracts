@@ -45,7 +45,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address lpToken = leverageData.collateralToken.underlying();
+        address lpToken = leverageData.positionToken.underlying();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
         if (swapData.call.length == 0) {
@@ -105,7 +105,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual override {
-        address lpToken = deleverageData.collateralToken.underlying();
+        address lpToken = deleverageData.positionToken.underlying();
         address borrowUnderlying = deleverageData.borrowToken.underlying();
         (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
 
