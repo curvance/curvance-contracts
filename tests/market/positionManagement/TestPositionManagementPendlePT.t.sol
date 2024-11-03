@@ -70,7 +70,7 @@
 //         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
 //         centralRegistry.addHarvester(address(this));
-//         centralRegistry.setFeeAccumulator(address(this));
+//         centralRegistry.setFeeManager(address(this));
 
 //         centralRegistry.setExternalCalldataChecker(
 //             _UNISWAP_V3_SWAP_ROUTER,
