@@ -8,15 +8,15 @@ import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswap
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { PendleLPCToken, IERC20 } from "contracts/market/collateral/PendleLPCToken.sol";
-import { PendleLPPositionManagement } from "contracts/market/position-management/PendleLPPositionManagement.sol";
+import { PendleLPPToken, IERC20 } from "contracts/market/collateral/PendleLPPToken.sol";
+import { PositionManagementPendleLP } from "contracts/market/position-management/PositionManagementPendleLP.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/collateral/SimplePToken.sol";
 import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-contract TestPendleLPPositionManagement is TestBaseMarket {
+contract TestPositionManagementPendlePT is TestBaseMarket {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =
@@ -28,8 +28,8 @@ contract TestPendleLPPositionManagement is TestBaseMarket {
     address internal _LP_STETH = 0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2; // PT-stETH-26DEC24/SY-stETH Market
     address internal _PT_ORACLE = 0x14030836AEc15B2ad48bB097bd57032559339c92;
 
-    PendleLPPositionManagement public positionManagement;
-    PendleLPCToken public cSTETH;
+    PositionManagementPendleLP public positionManagement;
+    PendleLPPToken public cSTETH;
     MockV3Aggregator public chainlinkPendleUsd;
     PendleLPTokenAdaptor public adaptor;
 
@@ -108,7 +108,7 @@ contract TestPendleLPPositionManagement is TestBaseMarket {
             marketManager.listToken(address(dDAI));
         }
 
-        cSTETH = new PendleLPCToken(
+        cSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManager),
@@ -138,7 +138,7 @@ contract TestPendleLPPositionManagement is TestBaseMarket {
 
         marketManager.setCTokenCollateralCaps(tokens, caps);
 
-        positionManagement = new PendleLPPositionManagement(
+        positionManagement = new PositionManagementPendleLP(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
             _ROUTER
@@ -200,10 +200,10 @@ contract TestPendleLPPositionManagement is TestBaseMarket {
             .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
             100;
 
-        PendleLPPositionManagement.LeverageStruct memory leverageData;
+        PositionManagementPendleLP.LeverageStruct memory leverageData;
         leverageData.borrowToken = dDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(cSTETH));
+        leverageData.collateralToken = SimplePToken(address(cSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -255,12 +255,12 @@ contract TestPendleLPPositionManagement is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PendleLPPositionManagement.DeleverageStruct memory deleverageData;
+        PositionManagementPendleLP.DeleverageStruct memory deleverageData;
 
         (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
         (uint256 cSTETHBalanceBefore, , ) = cSTETH.getSnapshot(user);
 
-        deleverageData.collateralToken = CTokenPrimitive(address(cSTETH));
+        deleverageData.collateralToken = SimplePToken(address(cSTETH));
         deleverageData.collateralAmount = 1 ether;
         deleverageData.borrowToken = dDAI;
 

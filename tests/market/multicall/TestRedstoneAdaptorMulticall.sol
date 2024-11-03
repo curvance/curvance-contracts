@@ -14,7 +14,7 @@ import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
-import { SimplePositionManagement } from "contracts/market/position-management/SimplePositionManagement.sol";
+import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
@@ -34,7 +34,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     MockDataFeed public mockStethFeed;
 
     SimplePToken public pWBTC;
-    SimplePositionManagement public positionManagement;
+    PositionManagementSimple public positionManagement;
 
     receive() external payable {}
 
@@ -184,7 +184,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
         // setup position management
         {
-            positionManagement = new SimplePositionManagement(
+            positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
                 address(marketManager)
             );
@@ -320,7 +320,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
             100;
 
-        SimplePositionManagement.LeverageStruct memory leverageData;
+        PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = dUSDC;
         leverageData.borrowAmount = amountForLeverage;
         leverageData.collateralToken = SimplePToken(address(pWBTC));
