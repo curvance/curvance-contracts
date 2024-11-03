@@ -17,6 +17,8 @@ contract VotingHub is QueryResponse {
     uint256 public constant REWARD_HALVENING_RATE = 26;
     /// @notice Number of Protocol Eras, corresponds to how many different
     ///         periods there are with token emission incentives.
+    /// @dev As the protocol moves from one era to another, emissions natively
+    ///      halve per epoch.
     uint256 public constant PROTOCOL_REWARD_ERAS = 6;
 
     /// @notice Curvance DAO hub.

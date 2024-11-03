@@ -20,6 +20,11 @@ abstract contract BaseMulticallChecker is IMulticallChecker {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Checks attached calldata to validate that the target contract
+    ///         is an approved oracle adaptor and the proper function selector
+    ///         is being called.
+    /// @dev MUST be overridden in every calldata checkers contract's
+    ///      implementation.
     function checkCalldata(
         address caller,
         address target,
@@ -28,22 +33,26 @@ abstract contract BaseMulticallChecker is IMulticallChecker {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Queries the function signature of `_data`, this is used
+    /// @notice Queries the function signature of `sigData`, this is used
     ///         to check against an expected selector.
-    /// @param _data The bytes array to pull a function signature from.
+    /// @param sigData The bytes array to pull a function signature from.
     function getFuncSigHash(
-        bytes memory _data
+        bytes memory sigData
     ) internal pure returns (bytes4 sig) {
         assembly {
-            sig := mload(add(_data, add(32, 0)))
+            sig := mload(add(sigData, add(32, 0)))
         }
     }
 
+    /// @notice Returns the expected parameters for a function call with
+    ///         the bytes array.
+    /// @param paramsData The bytes array to pull a function parameters from.
     function getFuncParams(
-        bytes memory _data
+        bytes memory paramsData
     ) internal pure returns (bytes memory) {
-        return slice(_data, 4, _data.length - 4);
+        return slice(paramsData, 4, paramsData.length - 4);
     }
+
 
     /// @notice Modifies `_bytes` into desired form based on
     ///         `_start` starting point,and `_length` length.

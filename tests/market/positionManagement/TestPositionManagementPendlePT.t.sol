@@ -99,7 +99,7 @@
 
 //         // setup eDAI
 //         {
-//             _deployDDAI();
+//             _deployEDAI();
 //             // add MToken support on price router
 //             oracleManager.addMTokenSupport(address(eDAI));
 
