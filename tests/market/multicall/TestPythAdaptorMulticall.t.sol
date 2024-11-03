@@ -16,7 +16,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptorMulticallChecker } from "contracts/market/multicall-checker/PythAdaptorMulticallChecker.sol";
-import { SimplePositionManagement } from "contracts/market/position-management/SimplePositionManagement.sol";
+import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
@@ -41,7 +41,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
 
     EToken public eWETH;
-    SimplePositionManagement public positionManagement;
+    PositionManagementSimple public positionManagement;
 
     receive() external payable {}
 
@@ -208,7 +208,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
 
         // setup position management
         {
-            positionManagement = new SimplePositionManagement(
+            positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
                 address(marketManager)
             );
@@ -352,7 +352,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             .queryAmountToBorrowForLeverageMax(user1, address(eUSDC)) * 50) /
             100;
 
-        SimplePositionManagement.LeverageStruct memory leverageData;
+        PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eUSDC;
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = SimplePToken(address(pWBTC));

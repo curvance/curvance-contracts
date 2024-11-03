@@ -5,7 +5,7 @@ import { PositionManagementBase } from "contracts/market/position-management/Pos
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract PositionManagementSimple is BasePositionManagement {
+contract PositionManagementSimple is PositionManagementBase {
     /// CONSTRUCTOR ///
 
     constructor(
