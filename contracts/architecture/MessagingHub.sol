@@ -143,7 +143,7 @@ contract MessagingHub is QueryResponse {
 
         uint256[] memory chainPoints = new uint256[](numResponses);
         uint256 currentPoints;
-        uint256 totalPoints;
+        uint256 totalRemotePoints;
 
         for (uint256 i; i < numResponses; ++i) {
             if (
@@ -186,12 +186,8 @@ contract MessagingHub is QueryResponse {
             currentPoints = abi.decode(eqr.result[0].result, (uint256));
             // Document points on current foreign chain.
             chainPoints[i] = currentPoints;
-            totalPoints += currentPoints;
+            totalRemotePoints += currentPoints;
         }
-
-        currentPoints = queryLockPoints();
-        // Add this chains points to sum.
-        totalPoints += currentPoints;
 
         _pullFees(chainFeeAmount);
 
@@ -201,8 +197,7 @@ contract MessagingHub is QueryResponse {
             chainPoints,
             epoch,
             numResponses,
-            currentPoints,
-            totalPoints,
+            totalRemotePoints,
             gasLimit
         );
     }
@@ -690,7 +685,6 @@ contract MessagingHub is QueryResponse {
         uint256[] memory chainPoints,
         uint256 epochToDeliver,
         uint256 numChains,
-        uint256 thisChainsPoints,
         uint256 totalPoints,
         uint256 gasLimit
     ) internal {
@@ -703,9 +697,10 @@ contract MessagingHub is QueryResponse {
             totalPoints;
 
         IRewardManager rewardManager = _getRewardManager();
-        uint256 currentChainId;
         ChainData memory chainData;
-
+        uint256 currentChainId;
+        uint256 feeTokensForChain;
+        
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere
         // and return.
@@ -729,8 +724,22 @@ contract MessagingHub is QueryResponse {
             }
         }
 
-        uint256 feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
-            thisChainsPoints) / WAD;
+        // We temporary cache this chains lock points inside the currentChainId
+        // variable since it will be overridden before it is ever called again.
+        // We do this to avoid having to reserve another storage slot which will
+        // create a stack too deep error and reduces runtime gas costs.
+        currentChainId = queryLockPoints();
+
+        // Add this chain's lock points to the sum of all remote
+        // chain's points.
+        totalPoints += currentChainId;
+
+        // Calculate the fee tokens that should stay on this chain by querying
+        // this chains lock points directly and adjusting versus all remote
+        // chains.
+        feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
+            currentChainId
+        ) / WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.

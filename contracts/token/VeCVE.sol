@@ -265,6 +265,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @notice Locks a given amount of cve tokens and claims,
     ///         and processes any pending rewards.
+    /// @dev Emits a {Locked} event.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
     /// @param rewardsData Rewards data for desired Reward Manager action.
@@ -290,12 +291,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(msg.sender, rewardsData, params, aux);
 
         _lock(msg.sender, amount, continuousLock);
-
-        emit Locked(msg.sender, amount);
     }
 
     /// @notice Locks a given amount of cve tokens on behalf of another user,
     ///         and processes any pending rewards.
+    /// @dev Emits a {Locked} event.
     /// @param recipient The address to lock tokens for.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Indicator of whether the lock should be continuous.
@@ -327,8 +327,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _claimRewards(recipient, rewardsData, params, aux);
 
         _lock(recipient, amount, continuousLock);
-
-        emit Locked(recipient, amount);
     }
 
     /// @notice Extends a lock of cve tokens by a given index,
@@ -396,6 +394,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Increases the locked amount and extends the lock
     ///         for the specified lock index, and processes any pending
     ///         rewards.
+    /// @dev Emits a {Locked} event.
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
     /// @param continuousLock Whether the lock should be continuous or not.
@@ -433,6 +432,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice Increases the locked amount and extends the lock
     ///         for the specified lock index, and processes any pending
     ///         rewards.
+    /// @dev Emits a {Locked} event.
     /// @param recipient The address to lock and extend tokens for.
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.
@@ -471,6 +471,60 @@ contract VeCVE is ERC20, ReentrancyGuard {
             lockIndex,
             continuousLock
         );
+    }
+
+    /// @notice Processes reward manager fee re-investment into a current
+    ///         or new lock for `recipient`.
+    /// @dev Emits a {Locked} event.
+    /// @param recipient The address to lock CVE tokens for.
+    /// @param amount The amount of CVE to lock.
+    /// @param lockIndex The index of the lock to extend (if increasing
+    ///                  a lock).
+    /// @param continuousLock Whether the lock should be continuous or not.
+    /// @param isFreshLock A boolean to indicate if a new lock is being
+    ///                    created or not.
+    function compoundRewardsIntoLock(
+        address recipient,
+        uint256 amount,
+        uint256 lockIndex,
+        bool continuousLock,
+        bool isFreshLock
+    ) external {
+        _canLock(amount);
+
+        IRewardManager rewardManager = _getRewardManager();
+
+        // Validate that its actually a callback from the Reward Manager as
+        // any other caller opens the protocol up to reentry.
+        if (msg.sender != address(rewardManager)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        uint256 epochs = rewardManager.epochsToClaim(recipient);
+
+        // Validate that user has already claimed all outstanding rewards
+        // from the previous reward claim that triggers this callback.
+        if (epochs != 0) {
+            _revert(_INVALID_LOCK_SELECTOR);
+        }
+
+        SafeTransferLib.safeTransferFrom(
+            _getCVE(),
+            msg.sender,
+            address(this),
+            amount
+        );
+
+        if (isFreshLock) {
+            _lock(msg.sender, amount, continuousLock);
+        } else {
+            _increaseAmountAndExtendLockFor(
+                recipient,
+                amount,
+                lockIndex,
+                continuousLock
+            );
+        }
     }
 
     /// @notice Disables a continuous lock for the user at the specified
@@ -1181,6 +1235,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev Updates `recipients`'s reward claim index if they do not
     ///      currently have any locks so they do not need to claim empty
     ///      reward epochs.
+    ///      Emits a {Locked} event.
     /// @param recipient The address of the user receiving the lock.
     /// @param amount The amount of tokens to lock.
     /// @param continuousLock Whether the lock is continuous or not.
@@ -1218,10 +1273,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         _mint(recipient, amount);
+
+        emit Locked(recipient, amount);
     }
 
     /// @notice Internal function to handle whenever a user needs an increase
     ///         to a locked amount and extended lock.
+    /// @dev Emits a {Locked} event.
     /// @param recipient The address to lock and extend tokens for.
     /// @param amount The amount to increase the lock by.
     /// @param lockIndex The index of the lock to extend.

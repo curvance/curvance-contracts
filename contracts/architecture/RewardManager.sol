@@ -565,10 +565,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
                 swapData
             );
 
-            // Check if the claimer wants to lock as veCVE.
+            // Check if the claimer wants to compound their rewards
+            // into a lock.
             if (rewardsData.shouldLock) {
                 return
-                    _lockRewardsAsVeCVE(
+                    _compoundRewardsIntoLock(
                         recipient,
                         rewardsData.isFreshLock,
                         rewardsData.isFreshLockContinuous,
@@ -592,14 +593,15 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// @notice Locks claimed fees as veCVE, in an old or fresh lock.
     /// @param user The address of the user locking fees as veCVE.
-    /// @param isFreshLock A boolean to indicate if it's a new lock.
+    /// @param isFreshLock A boolean to indicate if a new lock is being
+    ///                    created or not.
     /// @param continuousLock A boolean to indicate if the lock should be
     ///                       continuous.
     /// @param lockIndex The index of the lock in the user's lock array.
     ///                  This parameter is only required if it is not a fresh
     ///                  lock.
     /// @return The amount of CVE locked for `user`.
-    function _lockRewardsAsVeCVE(
+    function _compoundRewardsIntoLock(
         address user,
         bool isFreshLock,
         bool continuousLock,
@@ -610,45 +612,12 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         cve.approve(address(veCVE), lockAmount);
 
-        // Because this call is nested within call to claim all rewards
-        // there will never be any rewards to process,
-        // and thus no potential secondary lock so we can just pass
-        // empty reward data to the veCVE calls.
-        if (isFreshLock) {
-            veCVE.createLockFor(
-                user,
-                lockAmount,
-                continuousLock,
-                RewardsData({
-                    asCVE: false,
-                    shouldLock: false,
-                    isFreshLock: false,
-                    isFreshLockContinuous: false
-                }),
-                "",
-                0
-            );
-
-            return lockAmount;
-        }
-
-        // Because this call is nested within call to claim all rewards
-        // there will never be any rewards to process,
-        // and thus no potential secondary lock so we can just pass
-        // empty reward data to the veCVE calls.
-        veCVE.increaseAmountAndExtendLockFor(
+         veCVE.compoundRewardsIntoLock(
             user,
             lockAmount,
             lockIndex,
             continuousLock,
-            RewardsData({
-                asCVE: false,
-                shouldLock: false,
-                isFreshLock: false,
-                isFreshLockContinuous: false
-            }),
-            "",
-            0
+            isFreshLock
         );
 
         return lockAmount;
