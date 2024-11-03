@@ -140,11 +140,6 @@ contract AerodromeVolatilePositionManagement is BasePositionManagement {
     ///         then swapped into the underlying of an eToken that a user is
     ///         currently borrowing from, partially or fully closing a
     ///         leveraged spot position.
-    /// @param swapData Optional Swapperlib swapping struct containing
-    ///                 instructions on how to handle zapping into dToken
-    ///                 underlying to facilitate deleveraging.
-    /// @param repayAmount The amount of underlying tokens from dToken that
-    ///                    will be repaid.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
     ///                       1. Address of pToken that will be routed into
