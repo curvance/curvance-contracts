@@ -8,7 +8,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
@@ -191,9 +191,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             marketManager.setPositionManagement(address(positionManagement));
         }
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
     }
 

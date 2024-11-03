@@ -12,7 +12,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockPythAdaptor } from "contracts/mocks/MockPythAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptorMulticallChecker } from "contracts/market/multicall-checker/PythAdaptorMulticallChecker.sol";
@@ -221,9 +221,9 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         multicallProviders[2] = address(positionManagement);
         centralRegistry.setMulticallProviders(multicallProviders, true);
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V3_SWAP_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
         );
     }
 
@@ -422,7 +422,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         );
         vm.expectRevert(
             BaseMulticallChecker
-                .MulticallChecker__InvalidCallData
+                .MulticallChecker__InvalidCalldata
                 .selector
         );
         multicallChecker.checkCalldata(

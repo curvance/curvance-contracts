@@ -12,7 +12,7 @@
 // import { PositionManagementPendleLP } from "contracts/market/position-management/PositionManagementPendleLP.sol";
 // import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 // import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-// import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+// import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 // import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
@@ -72,13 +72,13 @@
 //         centralRegistry.addHarvester(address(this));
 //         centralRegistry.setFeeAccumulator(address(this));
 
-//         centralRegistry.setExternalCallDataChecker(
+//         centralRegistry.setExternalCalldataChecker(
 //             _UNISWAP_V3_SWAP_ROUTER,
-//             address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+//             address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
 //         );
-//         centralRegistry.setExternalCallDataChecker(
+//         centralRegistry.setExternalCalldataChecker(
 //             _UNISWAP_V2_ROUTER,
-//             address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+//             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
 //         );
 
 //         adaptor = new PendleLPTokenAdaptor(

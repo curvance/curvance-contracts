@@ -247,7 +247,7 @@ contract CentralRegistry is ERC165 {
         address messagingHub,
         address votingHub
     );
-    event CallDataCheckerSet(
+    event CalldataCheckerSet(
         string indexed calldataType,
         address targetAddress,
         address calldataChecker
@@ -1001,7 +1001,7 @@ contract CentralRegistry is ERC165 {
 
     /// @notice Sets an external calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
     /// @param callDataChecker The contract that will check calldata prior
@@ -1013,12 +1013,12 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         externalCalldataChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("External", target, callDataChecker);
+        emit CalldataCheckerSet("External", target, callDataChecker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
     /// @param callDataChecker The contract that will check calldata prior
@@ -1030,7 +1030,7 @@ contract CentralRegistry is ERC165 {
         _checkElevatedPermissions();
 
         multicallChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("Multicall", target, callDataChecker);
+        emit CalldataCheckerSet("Multicall", target, callDataChecker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,
