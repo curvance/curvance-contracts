@@ -5,19 +5,25 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
+import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import { SimplePositionManagement } from "contracts/market/position-management/SimplePositionManagement.sol";
 
 import "tests/market/TestBaseMarket.sol";
 
 contract User {}
 
 contract TestRedstoneAdaptorMulticall is TestBaseMarket {
+    address internal _UNISWAP_V3_SWAP_ROUTER =
+        0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
     address public owner;
 
     MockRedstoneCoreAdaptor public adapter;
@@ -27,7 +33,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockStethFeed;
 
-    SimplePToken public cWBTC;
+    SimplePToken public pWBTC;
+    SimplePositionManagement public positionManagement;
 
     receive() external payable {}
 
@@ -131,10 +138,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             // marketManager.enterMarkets(markets);
         }
 
-        // deploy cWBTC
+        // deploy pWBTC
         {
             // deploy aura position vault
-            cWBTC = new SimplePToken(
+            pWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManager)
@@ -142,13 +149,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
             // support market
             _prepareWBTC(owner, 1e8);
-            wbtc.approve(address(cWBTC), 1e8);
-            marketManager.listToken(address(cWBTC));
+            wbtc.approve(address(pWBTC), 1e8);
+            marketManager.listToken(address(pWBTC));
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(cWBTC));
+            oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(cWBTC)),
+                IMToken(address(pWBTC)),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -159,13 +166,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             );
 
             address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cWBTC);
+            mTokens[0] = address(pWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
             marketManager.setPTokenCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
-            // markets[0] = address(cWBTC);
+            // markets[0] = address(pWBTC);
             // vm.prank(user1);
             // marketManager.enterMarkets(markets);
             // vm.prank(user2);
@@ -174,6 +181,20 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
+
+        // setup position management
+        {
+            positionManagement = new SimplePositionManagement(
+                ICentralRegistry(address(centralRegistry)),
+                address(marketManager)
+            );
+            marketManager.setPositionManagement(address(positionManagement));
+        }
+
+        centralRegistry.setExternalCallDataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCallDataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
     }
 
     function _prepareWBTC(address user, uint256 amount) internal {
@@ -189,13 +210,13 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         usdc.approve(address(eUSDC), 200000e6);
         eUSDC.mint(200000e6);
         // mint cBALETH
-        wbtc.approve(address(cWBTC), 10 ether);
-        cWBTC.mint(10 ether, liquidityProvider);
+        wbtc.approve(address(pWBTC), 10 ether);
+        pWBTC.mint(10 ether, liquidityProvider);
         vm.stopPrank();
     }
 
     function testInitialize() public {
-        assertTrue(cWBTC.isPToken());
+        assertTrue(pWBTC.isPToken());
         assertFalse(eUSDC.isPToken());
     }
 
@@ -203,7 +224,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         _prepareWBTC(user1, 2 ether);
 
         vm.prank(user1);
-        wbtc.approve(address(cWBTC), 1e8);
+        wbtc.approve(address(pWBTC), 1e8);
 
         Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
             2
@@ -222,18 +243,18 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         calls[0].data = encodedFunctionWithRedstonePayload;
         calls[0].isPriceUpdate = true;
 
-        calls[1].target = address(cWBTC);
+        calls[1].target = address(pWBTC);
         calls[1].data = abi.encodeWithSelector(
-            cWBTC.mint.selector,
+            pWBTC.mint.selector,
             1e8,
             user1
         );
 
         // try mint()
         vm.prank(user1);
-        cWBTC.multicall(calls);
+        pWBTC.multicall(calls);
 
-        assertEq(cWBTC.balanceOf(user1), 1e8);
+        assertEq(pWBTC.balanceOf(user1), 1e8);
         PriceReturnData memory priceData = adapter.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -279,6 +300,76 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             true
         );
         assertEq(priceData.price, 61000e18);
+    }
+
+    function testPositionLeverage() public {
+        centralRegistry.setSlippageLimit(60000);
+
+        // provide fee to universal balance
+        deal(_WBTC_ADDRESS, user1, 0.1e8);
+        vm.prank(user1);
+        wbtc.approve(address(pWBTC), 0.1e8);
+
+        vm.prank(user1);
+        assertGt(pWBTC.deposit(0.1e8, user1), 0);
+        vm.prank(user1);
+        marketManager.postCollateral(user1, address(pWBTC), 0.1e8);
+        assertEq(pWBTC.balanceOf(user1), 0.1e8);
+
+        uint256 amountForLeverage = (positionManagement
+            .queryAmountToBorrowForLeverageMax(user1, address(dUSDC)) * 50) /
+            100;
+
+        SimplePositionManagement.LeverageStruct memory leverageData;
+        leverageData.borrowToken = dUSDC;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.collateralToken = SimplePToken(address(pWBTC));
+        leverageData.swapData.inputToken = _USDC_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = _WBTC_ADDRESS;
+        leverageData.swapData.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        leverageData.swapData.slippage = 2e18;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _USDC_ADDRESS;
+        params.tokenOut = _WBTC_ADDRESS;
+        params.fee = 3000;
+        params.recipient = address(positionManagement);
+        params.deadline = block.timestamp;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+        leverageData.data = bytes("");
+
+        Multicall.MulticallData[] memory calls = new Multicall.MulticallData[](
+            2
+        );
+        calls[0].target = address(adapter);
+        bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool)",
+            _WBTC_ADDRESS,
+            true
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+        calls[0].data = encodedFunctionWithRedstonePayload;
+        calls[0].isPriceUpdate = true;
+
+        calls[1].target = address(positionManagement);
+        calls[1].data = abi.encodeWithSelector(
+            positionManagement.leverage.selector,
+            leverageData
+        );
+
+        // try leverage()
+        vm.prank(user1);
+        positionManagement.multicall(calls);
     }
 
     function testCheckCalldata() public {

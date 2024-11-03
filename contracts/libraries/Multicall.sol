@@ -162,8 +162,10 @@ abstract contract Multicall {
         return tempBytes;
     }
 
-    /// @dev Returns the central registry interface,
-    ///      overridden in child contract.
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
+    /// @dev MUST be overridden in every multicallable contract's
+    ///      implementation.
     function _getCentralRegistry()
         internal
         view

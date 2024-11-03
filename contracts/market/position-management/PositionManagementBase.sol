@@ -66,6 +66,8 @@ abstract contract PositionManagementBase is
     /// @dev Checks slippage on position folding prior and after
     ///      leverage/deleverage action, works similar to reentryguard
     ///      with pre and post checks.
+    /// @param slippage Slippage accepted by the user for execution of
+    ///                 `leverageData` leverage action, in basis points.
     modifier checkSlippage(address account, uint256 slippage) {
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
@@ -126,8 +128,18 @@ abstract contract PositionManagementBase is
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
     /// @param assets The amount of the underlying assets to deposit.
-    /// @param leverageData Struct containing instructions on desired
-    ///                     leverage action.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in basis points.
     function depositAndleverage(
@@ -156,8 +168,18 @@ abstract contract PositionManagementBase is
     ///         both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    /// @param leverageData Struct containing instructions on desired
-    ///                     leverage action.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in basis points.
     function leverage(
@@ -174,8 +196,18 @@ abstract contract PositionManagementBase is
     ///      NOTE: Be careful who you approve here!
     ///      The caller can select slippage, potentially causing loss of funds
     ///      if delegation is provided to a malicious party.
-    /// @param leverageData Struct containing instructions on desired
-    ///                     leverage action.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
@@ -199,8 +231,21 @@ abstract contract PositionManagementBase is
     ///      NOTE: Be careful who you approve here!
     ///      The caller can select slippage, potentially causing loss of funds
     ///      if delegation is provided to a malicious party.
-    /// @param deleverageData Struct containing instructions on desired
-    ///                       deleverage action.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `deleverageData` deleverage action, in basis points.
     function deleverage(
@@ -214,8 +259,21 @@ abstract contract PositionManagementBase is
     ///         both collateral and debt inside the system, via delegation.
     /// @dev Measures slippage through pre/post conditional slippage check
     ///      in `checkSlippage` modifier.
-    /// @param deleverageData Struct containing instructions on desired
-    ///                       deleverage action.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
@@ -241,7 +299,18 @@ abstract contract PositionManagementBase is
     /// @param borrower The account borrowing that will be swapped into
     ///                 collateral assets deposited into Curvance.
     /// @param borrowAmount The amount of `borrowToken`'s underlying borrowed.
-    /// @param leverageData Swap and deposit instructions.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     function onBorrow(
         address borrowToken,
         address borrower,
@@ -334,7 +403,21 @@ abstract contract PositionManagementBase is
     ///                 repay their active debt.
     /// @param collateralAmount The amount of `positionToken` underlying
     ///                         redeemed.
-    /// @param deleverageData Swap and repayment instructions.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     function onRedeem(
         address positionToken,
         address redeemer,
@@ -383,7 +466,7 @@ abstract contract PositionManagementBase is
             );
         }
         deleverageData.collateralAmount = collateralAmount;
-        _swapCollateralToBorrowUnderyling(deleverageData);
+        _swapCollateralToBorrowUnderlying(deleverageData);
 
         // We do not need to check whether borrowToken is listed
         // or not as even if they found a way to input a malicious
@@ -427,9 +510,9 @@ abstract contract PositionManagementBase is
             );
         }
 
-        // Transfer remaining swap dust back to the user
+        // Transfer remaining swap dust back to the user.
         if (deleverageData.swapData.length > 0) {
-            for (uint256 i = 0; i < deleverageData.swapData.length; ++i) {
+            for (uint256 i; i < deleverageData.swapData.length; ++i) {
                 remaining = IERC20(deleverageData.swapData[i].outputToken)
                     .balanceOf(address(this));
                 if (remaining > 0) {
@@ -515,8 +598,18 @@ abstract contract PositionManagementBase is
 
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.
-    /// @param leverageData Struct containing instructions on desired
-    ///                     leverage action.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     /// @param account The account to leverage an active Curvance position
     ///                for.
     function _leverage(
@@ -548,8 +641,21 @@ abstract contract PositionManagementBase is
 
     /// @notice Deleverages an active Curvance position in favor of decreasing
     ///         both collateral and debt inside the system.
-    /// @param deleverageData Struct containing instructions on desired
-    ///                       deleverage action.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     function _deleverage(
@@ -563,11 +669,25 @@ abstract contract PositionManagementBase is
         );
     }
 
+    /// @notice Callback function on borrowing tokens from an eToken contract
+    ///         providing instant liquidity in the eToken underlying which is
+    ///         then swapped into the underlying of a pToken that a user is
+    ///         currently putting up as collateral against the eToken debt
+    ///         position, creating a leveraged spot position.
+    /// @dev MUST be overridden in every position management contract's
+    ///      implementation.
     function _swapBorrowUnderlyingToCollateral(
         LeverageStruct memory leverageData
     ) internal virtual;
 
-    function _swapCollateralToBorrowUnderyling(
+    /// @notice Callback function on redemption of tokens from a pToken vault
+    ///         providing instant liquidity in the pToken underlying which is
+    ///         then swapped into the underlying of an eToken that a user is
+    ///         currently borrowing from, partially or fully closing a
+    ///         leveraged spot position.
+    /// @dev MUST be overridden in every position management contract's
+    ///      implementation.
+    function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual;
 
@@ -580,7 +700,8 @@ abstract contract PositionManagementBase is
         }
     }
 
-    /// @dev from Multicall
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
     function _getCentralRegistry()
         internal
         view
