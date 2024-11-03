@@ -24,17 +24,17 @@ interface IPositionManagement {
         bytes data;
     }
 
-    /// @param collateralToken Address of cToken that will be routed into
-    ///                        dToken underlying to repay debt.
-    /// @param collateralAmount The amount of cTokens that will be
+    /// @param collateralToken Address of pToken that will be routed into
+    ///                        eToken underlying to repay outstanding debt.
+    /// @param collateralAmount The amount of pTokens that will be
     ///                         deleveraged.
-    /// @param borrowToken Address of dToken that will have its underlying
+    /// @param borrowToken Address of eToken that will have its underlying
     ///                    token debt repaid.
-    /// @param swapData Optional Swapperlib swapping struct containing
-    ///                 instructions on how to handle zapping into dToken
-    ///                 underlying to facilitate deleveraging.
-    /// @param repayAmount The amount of underlying tokens from dToken that
-    ///                    will be repaid.
+    /// @param swapData Optional struct containing instructions on how to
+    ///                 handle swapping into eToken underlying to facilitate
+    ///                 deleveraging.
+    /// @param repayAmount The amount of underlying tokens that will be
+    ///                    repaid to the eToken lenders.
     struct DeleverageStruct {
         CTokenPrimitive collateralToken;
         uint256 collateralAmount;
