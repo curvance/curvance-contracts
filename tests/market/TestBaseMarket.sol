@@ -431,6 +431,8 @@ contract TestBaseMarket is TestBase {
         interestRateModels[block.chainid][token].setLinkedEToken(
             address(eToken)
         );
+
+        return eToken;
     }
 
     function _deployPBALRETH()
