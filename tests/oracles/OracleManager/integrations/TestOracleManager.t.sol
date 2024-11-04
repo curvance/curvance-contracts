@@ -109,7 +109,7 @@ contract TestOracleManager is TestBaseOracleManager {
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
             address(marketManager),
-            address(interestRateModel)
+            address(interestRateModels[block.chainid][_USDC_ADDRESS])
         );
         // support market
         deal(_USDC_ADDRESS, address(this), 200000e6);

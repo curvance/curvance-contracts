@@ -43,7 +43,7 @@ contract ETokenSetInterestRateModelTest is TestBaseEToken {
     function test_eTokenSetDynamicInterestRateModel_success() public {
         assertEq(
             address(eUSDC.interestRateModel()),
-            address(interestRateModel)
+            address(interestRateModels[block.chainid][_USDC_ADDRESS])
         );
 
         eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));

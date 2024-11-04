@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/StdStorage.sol";
 import { TestBaseEToken } from "../TestBaseEToken.sol";
+import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
@@ -10,13 +11,23 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract ETokenDeploymentTest is TestBaseEToken {
     using stdStorage for StdStorage;
+
     event NewInterestFactor(
         uint256 oldInterestFactor,
         uint256 newInterestFactor
     );
 
+    DynamicInterestRateModel public interestRateModel;
+
+    function setUp() public virtual override {
+        super.setUp();
+        interestRateModel = interestRateModels[block.chainid][_USDC_ADDRESS];
+    }
+
     function test_eTokenDeployment_fail_whenCentralRegistryIsInvalid() public {
-        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+        );
         new EToken(
             ICentralRegistry(address(0)),
             _USDC_ADDRESS,

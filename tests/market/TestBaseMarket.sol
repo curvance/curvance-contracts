@@ -392,8 +392,8 @@ contract TestBaseMarket is TestBase {
     function _deployDynamicInterestRateModel(
         address underlyingToken
     ) internal returns (address) {
-        interestRateModels[
-            block.chainid][underlyingToken
+        interestRateModels[block.chainid][
+            underlyingToken
         ] = new DynamicInterestRateModel(
             ICentralRegistry(address(centralRegistry)),
             1000, // baseRatePerYear
@@ -405,9 +405,7 @@ contract TestBaseMarket is TestBase {
             100 // decayRate
         );
 
-        return address(interestRateModels[
-            block.chainid][underlyingToken
-        ]);    
+        return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
     function _deployEUSDC() internal initMainVariables returns (EToken) {
@@ -423,15 +421,16 @@ contract TestBaseMarket is TestBase {
     function _deployEToken(
         address token
     ) internal initMainVariables returns (EToken) {
-        EToken = 
-            new EToken(
-                ICentralRegistry(address(centralRegistry)),
-                token,
-                address(marketManager),
-                _deployDynamicInterestRateModel(token)
-            );
-        
-        interestRateModels[block.chainid][token].setLinkedEToken(EToken);
+        EToken eToken = new EToken(
+            ICentralRegistry(address(centralRegistry)),
+            token,
+            address(marketManager),
+            _deployDynamicInterestRateModel(token)
+        );
+
+        interestRateModels[block.chainid][token].setLinkedEToken(
+            address(eToken)
+        );
     }
 
     function _deployPBALRETH()
