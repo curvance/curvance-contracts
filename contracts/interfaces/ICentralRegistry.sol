@@ -31,6 +31,9 @@ struct ChainData {
 }
 
 interface ICentralRegistry {
+    /// @notice The length of one protocol epoch, in seconds.
+    function EPOCH_DURATION() external view returns (uint256);
+
     /// @notice Returns Genesis Epoch Timestamp of Curvance.
     function genesisEpoch() external view returns (uint256);
 
@@ -73,11 +76,11 @@ interface ICentralRegistry {
     /// @notice Returns Messaging Hub address.
     function messagingHub() external view returns (address);
 
-    /// @notice Returns Oracle Router address.
-    function oracleRouter() external view returns (address);
+    /// @notice Returns Oracle Manager address.
+    function oracleManager() external view returns (address);
 
-    /// @notice Returns feeAccumulator address.
-    function feeAccumulator() external view returns (address);
+    /// @notice Returns feeManager address.
+    function feeManager() external view returns (address);
 
     /// @notice Returns fee token address.
     function feeToken() external view returns (address);
@@ -139,6 +142,13 @@ interface ICentralRegistry {
     /// @notice Returns an array of Curvance markets on this chain.
     function getMarketManagers() external view returns (address[] memory);
 
+    /// @notice Increments a caller's approval index.
+    /// @dev By incrementing their approval index, a user's delegates will all
+    ///      have their delegation authority revoked across all Curvance
+    ///      contracts.
+    ///      Emits an {ApprovalIndexIncremented} event.
+    function incrementApprovalIndex() external;
+
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
     function userApprovalIndex(address user) external view returns (uint256);
@@ -176,11 +186,12 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (bool);
 
-    function externalCallDataChecker(
+    function externalCalldataChecker(
         address addressToCheck
     ) external view returns (address);
 
-    function multicallDataChecker(
+    function multicallChecker(
         address addressToCheck
     ) external view returns (address);
+    
 }

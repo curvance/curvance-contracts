@@ -3,17 +3,17 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeVolatileCToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/collateral/VelodromeVolatileCToken.sol";
+import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { VelodromeVolatilePositionManagement } from "contracts/market/position-management/VelodromeVolatilePositionManagement.sol";
+import { PositionManagementVelodromeVolatile } from "contracts/market/position-management/PositionManagementVelodromeVolatile.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
-contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
+contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
     address internal _VELODROME_WETH_USDC =
         0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;
     IVeloGauge public gauge =
@@ -23,9 +23,9 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
     IVeloRouter public veloRouter =
         IVeloRouter(0xa062aE8A9c5e11aaA026fc2670B0D65cCc8B2858);
 
-    VelodromeVolatileCToken public cWETHUSDC;
+    VelodromeVolatilePToken public pWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
-    VelodromeVolatilePositionManagement public positionManagement;
+    PositionManagementVelodromeVolatile public positionManagement;
 
     address public owner;
     address public user;
@@ -42,13 +42,13 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
 
         vm.startPrank(liquidityProvider);
 
-        // mint dDAI
-        dai.approve(address(dDAI), 20000000 ether);
-        dDAI.mint(20000000 ether);
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
 
-        // mint cWETHUSDC
-        IERC20(_VELODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
-        cWETHUSDC.deposit(1 ether, liquidityProvider);
+        // mint pWETHUSDC
+        IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
+        pWETHUSDC.deposit(1 ether, liquidityProvider);
 
         vm.stopPrank();
     }
@@ -62,13 +62,12 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
         _deployVeCVE();
         _deployGaugeManager();
         _deployMarketManager();
-        _deployOracleRouter();
-        _deployDynamicInterestRateModel();
+        _deployOracleManager();
 
         chainlinkAdaptor = new ChainlinkAdaptor(
             ICentralRegistry(address(centralRegistry))
         );
-        oracleRouter.addApprovedAdaptor(address(chainlinkAdaptor));
+        oracleManager.addApprovedAdaptor(address(chainlinkAdaptor));
 
         chainlinkDaiUsd = new MockV3Aggregator(8, 1e8, 1e50, 1e6);
         chainlinkAdaptor.addAsset(
@@ -77,7 +76,7 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _DAI_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -88,7 +87,7 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -106,11 +105,11 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
             0,
             true
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _ETH_ADDRESS,
             address(chainlinkAdaptor)
         );
-        oracleRouter.addAssetPriceFeed(
+        oracleManager.addAssetPriceFeed(
             _WETH_ADDRESS,
             address(chainlinkAdaptor)
         );
@@ -119,26 +118,29 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
             ICentralRegistry(address(centralRegistry))
         );
         adaptor.addAsset(_VELODROME_WETH_USDC);
-        oracleRouter.addApprovedAdaptor(address(adaptor));
-        oracleRouter.addAssetPriceFeed(_VELODROME_WETH_USDC, address(adaptor));
+        oracleManager.addApprovedAdaptor(address(adaptor));
+        oracleManager.addAssetPriceFeed(
+            _VELODROME_WETH_USDC,
+            address(adaptor)
+        );
 
         owner = address(this);
         user = user1;
 
-        // setup dDAI
+        // setup eDAI
         {
-            _deployDDAI();
+            _deployEDAI();
             // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(dDAI));
+            oracleManager.addMTokenSupport(address(eDAI));
 
             _prepareDAI(owner, 200000e18);
-            dai.approve(address(dDAI), 200000e18);
-            marketManager.listToken(address(dDAI));
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
         }
 
-        // setup cWETHUSDC
+        // setup pWETHUSDC
         {
-            cWETHUSDC = new VelodromeVolatileCToken(
+            pWETHUSDC = new VelodromeVolatilePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_VELODROME_WETH_USDC),
                 address(marketManager),
@@ -147,14 +149,14 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
                 veloRouter
             );
             // add MToken support on price router
-            oracleRouter.addMTokenSupport(address(cWETHUSDC));
+            oracleManager.addMTokenSupport(address(pWETHUSDC));
 
             deal(_VELODROME_WETH_USDC, owner, 1 ether);
-            IERC20(_VELODROME_WETH_USDC).approve(address(cWETHUSDC), 1 ether);
-            marketManager.listToken(address(cWETHUSDC));
+            IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
+            marketManager.listToken(address(pWETHUSDC));
 
-            marketManager.updateCollateralToken(
-                IMToken(address(cWETHUSDC)),
+            marketManager.updatePositionToken(
+                IMToken(address(pWETHUSDC)),
                 7000,
                 4000,
                 3000,
@@ -163,16 +165,16 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
                 10,
                 1000
             );
-            
+
             address[] memory tokens = new address[](1);
-            tokens[0] = address(cWETHUSDC);
+            tokens[0] = address(pWETHUSDC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
-            marketManager.setCTokenCollateralCaps(tokens, caps);
+            marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
-        positionManagement = new VelodromeVolatilePositionManagement(
+        positionManagement = new PositionManagementVelodromeVolatile(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
             address(veloRouter),
@@ -182,14 +184,14 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
 
         _provideEnoughLiquidityForLeverage();
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(veloRouter),
-            address(new MockCallDataChecker(address(veloRouter)))
+            address(new MockCalldataChecker(address(veloRouter)))
         );
 
         centralRegistry.setSlippageLimit(60000);
@@ -210,27 +212,27 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
         vm.startPrank(user);
 
         deal(_VELODROME_WETH_USDC, user, 0.0001 ether);
-        IERC20(_VELODROME_WETH_USDC).approve(address(cWETHUSDC), 0.0001 ether);
+        IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
 
         // mint
-        assertGt(cWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(cWETHUSDC), 0.0001 ether);
-        assertEq(cWETHUSDC.balanceOf(user), 0.0001 ether);
+        assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         // borrow
-        dDAI.borrow(100 ether);
+        eDAI.borrow(100 ether);
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(dDAI)) * 50) /
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
             100;
 
-        VelodromeVolatilePositionManagement.LeverageStruct memory leverageData;
-        leverageData.borrowToken = dDAI;
+        PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.collateralToken = CTokenPrimitive(address(cWETHUSDC));
+        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -253,18 +255,18 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
             type(uint256).max
         );
         leverageData.swapData.slippage = 2e18;
-        leverageData.data = bytes("");
+        leverageData.auxData = bytes("");
 
         positionManagement.leverage(leverageData, 500);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
-        assertEq(dDAIBorrowed, 100 ether + amountForLeverage);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
-        assertGt(cUSDCDAIBalance, 0.00013 ether);
-        assertEq(cUSDCDAIBorrowed, 0 ether);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
     }
@@ -273,18 +275,19 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
         testLeverage();
         // Warp until collateral posting wait time ends
         vm.warp(block.timestamp + 20 minutes);
-        dDAI.accrueInterest();
+        eDAI.accrueInterest();
 
         vm.startPrank(user);
 
-        VelodromeVolatilePositionManagement.DeleverageStruct memory deleverageData;
+        PositionManagementVelodromeVolatile.DeleverageStruct
+            memory deleverageData;
 
-        (, uint256 dDAIBorrowedBefore, ) = dDAI.getSnapshot(user);
-        (uint256 cUSDCDAIBalanceBefore, , ) = cWETHUSDC.getSnapshot(user);
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
 
-        deleverageData.collateralToken = CTokenPrimitive(address(cWETHUSDC));
+        deleverageData.positionToken = SimplePToken(address(pWETHUSDC));
         deleverageData.collateralAmount = 0.00003 ether;
-        deleverageData.borrowToken = dDAI;
+        deleverageData.borrowToken = eDAI;
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
         deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
@@ -325,24 +328,169 @@ contract TestVelodromeVolatilePositionManagement is TestBaseMarket {
         );
         deleverageData.repayAmount = 2300e18;
 
-        cWETHUSDC.approve(address(positionManagement), type(uint256).max);
+        pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 5000);
 
-        (uint256 dDAIBalance, uint256 dDAIBorrowed, ) = dDAI.getSnapshot(user);
-        assertEq(dDAIBalance, 0);
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
         assertEq(
-            dDAIBorrowed,
-            dDAIBorrowedBefore - deleverageData.repayAmount
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 cUSDCDAIBalance, uint256 cUSDCDAIBorrowed, ) = cWETHUSDC
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
         assertEq(
-            cUSDCDAIBalance,
-            cUSDCDAIBalanceBefore - deleverageData.collateralAmount
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(cUSDCDAIBorrowed, 0);
+        assertEq(pUSDCDAIBorrowed, 0);
 
         vm.stopPrank();
+    }
+
+    function testLeverageFor() public {
+        vm.startPrank(user);
+
+        deal(_VELODROME_WETH_USDC, user, 0.0001 ether);
+        IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
+
+        // mint
+        assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        // borrow
+        eDAI.borrow(100 ether);
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            100;
+
+        PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
+        leverageData.swapData.inputToken = _DAI_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = _WETH_ADDRESS;
+        leverageData.swapData.target = address(veloRouter);
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](2);
+        routes[0].from = _DAI_ADDRESS;
+        routes[0].to = _USDC_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(veloPairFactory);
+        routes[1].from = _USDC_ADDRESS;
+        routes[1].to = _WETH_ADDRESS;
+        routes[1].stable = false;
+        routes[1].factory = address(veloPairFactory);
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            amountForLeverage,
+            0,
+            routes,
+            address(positionManagement),
+            type(uint256).max
+        );
+        leverageData.swapData.slippage = 2e18;
+        leverageData.auxData = bytes("");
+
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.leverageFor(leverageData, user, 500);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+    }
+
+    function testDeLeverageFor() public {
+        testLeverage();
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+
+        vm.startPrank(user);
+
+        PositionManagementVelodromeVolatile.DeleverageStruct
+            memory deleverageData;
+
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
+
+        deleverageData.positionToken = SimplePToken(address(pWETHUSDC));
+        deleverageData.collateralAmount = 0.00003 ether;
+        deleverageData.borrowToken = eDAI;
+
+        deleverageData.swapData = new SwapperLib.Swap[](2);
+        deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
+        deleverageData.swapData[0].inputAmount = 0.7 ether;
+        deleverageData.swapData[0].outputToken = _USDC_ADDRESS;
+        deleverageData.swapData[0].target = address(veloRouter);
+        deleverageData.swapData[0].slippage = 1e18;
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _WETH_ADDRESS;
+        routes[0].to = _USDC_ADDRESS;
+        routes[0].stable = false;
+        routes[0].factory = address(veloPairFactory);
+        deleverageData.swapData[0].call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            0.7 ether,
+            0,
+            routes,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[1].inputToken = _USDC_ADDRESS;
+        deleverageData.swapData[1].inputAmount = 2300e6;
+        deleverageData.swapData[1].outputToken = _DAI_ADDRESS;
+        deleverageData.swapData[1].target = address(veloRouter);
+        deleverageData.swapData[1].slippage = 1e18;
+        routes = new IVeloRouter.Route[](1);
+        routes[0].from = _USDC_ADDRESS;
+        routes[0].to = _DAI_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(veloPairFactory);
+        deleverageData.swapData[1].call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            2300e6,
+            0,
+            routes,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.repayAmount = 2300e18;
+
+        pWETHUSDC.approve(address(positionManagement), type(uint256).max);
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.deleverageFor(deleverageData, user, 5000);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
+        );
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
+            .getSnapshot(user);
+        assertEq(
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+        );
+        assertEq(pUSDCDAIBorrowed, 0);
     }
 }

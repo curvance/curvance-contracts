@@ -21,7 +21,7 @@
 //     {
 //         skip(1000);
 
-//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (uint256 paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _USDC_ADDRESS,
 //             true,
 //             true
@@ -38,7 +38,7 @@
 //     function test_withdrawRemainingAirdropTokens_success() public {
 //         skip(1000);
 
-//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (uint256 paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _USDC_ADDRESS,
 //             true,
 //             true

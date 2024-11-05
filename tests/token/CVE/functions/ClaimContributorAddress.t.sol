@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.19;
+
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { CVEBase } from "contracts/token/CVEBase.sol";
+
+contract ClaimContributorAddressTest is TestBaseMarket {
+    function test_claimContributorAddress_fail_whenUnauthorized() public {
+        vm.prank(address(1));
+
+        vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
+        cve.claimContributorAddress();
+    }
+
+    function test_claimContributorAddress_success() public {
+        address contributorAddress = cve.contributorAddress();
+
+        assertNotEq(contributorAddress, address(1));
+
+        vm.prank(contributorAddress);
+        cve.setPendingContributorAddress(address(1));
+
+        vm.prank(address(1));
+        cve.claimContributorAddress();
+
+        assertEq(cve.contributorAddress(), address(1));
+    }
+}

@@ -16,7 +16,7 @@
 
 //         skip(1000);
 
-//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (uint256 paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _USDC_ADDRESS,
 //             true,
 //             true
@@ -59,7 +59,7 @@
 
 //         skip(1000);
 
-//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (uint256 paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _ETH_ADDRESS,
 //             true,
 //             true
@@ -87,7 +87,7 @@
 
 //         skip(1000);
 
-//         (uint256 paymentTokenCurrentPrice, ) = oracleRouter.getPrice(
+//         (uint256 paymentTokenCurrentPrice, ) = oracleManager.getPrice(
 //             _ETH_ADDRESS,
 //             true,
 //             true

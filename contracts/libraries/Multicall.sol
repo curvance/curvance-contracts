@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMulticallDataChecker } from "contracts/interfaces/IMulticallDataChecker.sol";
+import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 
 /// @title Curvance Multicall Plugin
 abstract contract Multicall {
@@ -34,7 +34,7 @@ abstract contract Multicall {
         results = new bytes[](numCalls);
         for (uint256 i; i < numCalls; ++i) {
             if (calls[i].isPriceUpdate) {
-                address callDataChecker = centralRegistry.multicallDataChecker(
+                address callDataChecker = centralRegistry.multicallChecker(
                     calls[i].target
                 );
 
@@ -43,7 +43,7 @@ abstract contract Multicall {
                     revert Multicall__UnknownCalldata();
                 }
 
-                IMulticallDataChecker(callDataChecker).checkCallData(
+                IMulticallChecker(callDataChecker).checkCalldata(
                     msg.sender,
                     calls[i].target,
                     calls[i].data
@@ -170,6 +170,5 @@ abstract contract Multicall {
         internal
         view
         virtual
-        returns (ICentralRegistry)
-    {}
+        returns (ICentralRegistry);
 }

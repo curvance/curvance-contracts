@@ -14,7 +14,7 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { IFeeAccumulator } from "contracts/interfaces/IFeeAccumulator.sol";
+import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -40,7 +40,7 @@ contract MessagingHub is QueryResponse {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _DEFAULT_GAS_LIMIT = 250_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
@@ -55,10 +55,6 @@ contract MessagingHub is QueryResponse {
     IGaugeManager public immutable gaugeManager;
     /// @notice Address of fee token.
     address public immutable feeToken;
-    /// @notice CVE contract address.
-    ICVE public immutable cve;
-    /// @notice veCVE contract address.
-    IVeCVE public immutable veCVE;
 
     /// STORAGE ///
 
@@ -98,10 +94,10 @@ contract MessagingHub is QueryResponse {
 
         centralRegistry = centralRegistry_;
 
+        // Query gauge and token configuration directly to minimize potential
+        // human error.
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         feeToken = centralRegistry.feeToken();
-        cve = ICVE(centralRegistry.cve());
-        veCVE = IVeCVE(centralRegistry.veCVE());
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -147,7 +143,7 @@ contract MessagingHub is QueryResponse {
 
         uint256[] memory chainPoints = new uint256[](numResponses);
         uint256 currentPoints;
-        uint256 totalPoints;
+        uint256 totalRemotePoints;
 
         for (uint256 i; i < numResponses; ++i) {
             if (
@@ -190,12 +186,8 @@ contract MessagingHub is QueryResponse {
             currentPoints = abi.decode(eqr.result[0].result, (uint256));
             // Document points on current foreign chain.
             chainPoints[i] = currentPoints;
-            totalPoints += currentPoints;
+            totalRemotePoints += currentPoints;
         }
-
-        currentPoints = queryLockPoints();
-        // Add this chains points to sum.
-        totalPoints += currentPoints;
 
         _pullFees(chainFeeAmount);
 
@@ -203,9 +195,9 @@ contract MessagingHub is QueryResponse {
         _executeCrosschainEpoch(
             chainIds,
             chainPoints,
+            epoch,
             numResponses,
-            currentPoints,
-            totalPoints,
+            totalRemotePoints,
             gasLimit
         );
     }
@@ -252,6 +244,9 @@ contract MessagingHub is QueryResponse {
         );
         address srcAddr = address(uint160(uint256(srcAddress)));
         ChainData memory chainData = _getChainData(gethChainId);
+
+        ICVE cve = _getCVE();
+        IVeCVE veCVE = _getVeCVE();
 
         // Validate message came directly from MessagingHub on the source chain.
         if (chainData.messagingHub != srcAddr) {
@@ -301,6 +296,23 @@ contract MessagingHub is QueryResponse {
             // payloadType = 3:  Receiving fees from a foreign chain and
             //                   finalized epoch rewards data.
 
+            IRewardManager rewardManager = _getRewardManager();
+            (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
+                .decode(payload, (uint8, uint256, uint256));
+
+            // If the reward per point ratio is 0, theres no rewards to
+            // distribute this epoch, and we'd expect there to be no CCTP
+            // message as well.
+            if (epochRewardsPerPoint == 0) {
+                if (
+                    !_checkRewardManagerStatus(rewardManager) &&
+                    _getNextEpochToDeliver(rewardManager) == epochToDeliver
+                ) {
+                    _recordEpochRewards(rewardManager, 0);
+                }
+                return;
+            }
+
             // Should only have 1 CCTP transfer.
             if (additionalMessages.length != 1) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
@@ -308,17 +320,12 @@ contract MessagingHub is QueryResponse {
 
             uint256 amountReceived = _receiveFees(additionalMessages[0]);
 
-            (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
-                .decode(payload, (uint8, uint256, uint256));
-
-            IRewardManager rewardManager = _getRewardManager();
-
             // If the Reward Manager is shutdown or epoch progression is
             // incorrect, transfer fees to DAO instead of recording epoch
             // rewards.
             if (
                 _checkRewardManagerStatus(rewardManager) ||
-                rewardManager.nextEpochToDeliver() != epochToDeliver
+                _getNextEpochToDeliver(rewardManager) != epochToDeliver
             ) {
                 _transferFeeTokens(amountReceived, _getDaoAddress());
             } else {
@@ -416,21 +423,19 @@ contract MessagingHub is QueryResponse {
         }
 
         ChainData memory chainData = _getChainData(dstChainId);
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
             revert MessagingHub__InsufficientGasToken();
         }
 
-        _getWormholeRelayer().sendPayloadToEvm{ value: wormholeFee }(
+        _sendPayload(
             chainData.messagingChainId,
             chainData.messagingHub,
             abi.encode(2, epoch, emissionData), // payload
-            0, // No receiver value since we're just passing a message.
             gasLimit,
-            chainData.messagingChainId,
-            chainData.messagingHub
+            wormholeFee
         );
     }
 
@@ -465,43 +470,35 @@ contract MessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        gasLimit = _getGasLimit(gasLimit);
-        IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
-
         if (payloadType == 4) {
             // Bridge VeCVE Lock crosschain.
 
-            if (msg.sender != address(veCVE)) {
+            if (msg.sender != address(_getVeCVE())) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
-
             return
-                wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+                _sendPayload(
                     wormholeChainId,
                     chainData.messagingHub,
                     abi.encode(4, recipient, amount, aux), // payload
-                    0, // No receiver value since we're just passing a message.
                     gasLimit,
-                    chainData.messagingChainId,
-                    chainData.messagingHub
+                    msg.value
                 );
         }
 
         // Bridge CVE crosschain.
 
-        if (msg.sender != address(cve)) {
+        if (msg.sender != address(_getCVE())) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         return
-            wormholeRelayer.sendPayloadToEvm{ value: msg.value }(
+            _sendPayload(
                 wormholeChainId,
                 chainData.messagingHub,
                 abi.encode(5, recipient, amount), // payload
-                0, // No receiver value since we're just passing a message.
                 gasLimit,
-                chainData.messagingChainId,
-                chainData.messagingHub
+                msg.value
             );
     }
 
@@ -514,7 +511,9 @@ contract MessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (newMessagingStatus > 2) {
+        // It is more dangerous to unpause the protocol than to pause it,
+        // so turning message creation back on requires elevated permissions.
+        if (newMessagingStatus == 1) {
             if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
@@ -540,10 +539,7 @@ contract MessagingHub is QueryResponse {
         uint256 feeTokenBalance = _getFeeTokenHeld();
 
         if (gasTokenBalance > 0) {
-            SafeTransferLib.forceSafeTransferETH(
-                _getDaoAddress(),
-                gasTokenBalance
-            );
+            SafeTransferLib.safeTransferETH(_getDaoAddress(), gasTokenBalance);
         }
 
         if (feeTokenBalance > 0) {
@@ -554,19 +550,19 @@ contract MessagingHub is QueryResponse {
     /// PUBLIC FUNCTIONS ///
 
     function queryLockPoints() public view returns (uint256) {
+        IVeCVE veCVE = _getVeCVE();
         uint256 epoch = _getNextEpochToDeliver(_getRewardManager());
+
         return veCVE.chainPoints() - veCVE.chainUnlocksByEpoch(epoch);
     }
 
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         deposit and messaging.
     /// @param dstChainId GETH destination chain ID.
-    /// @param transferToken Whether deliver token or not.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return nativeFee Total gas cost to send a message to `dstChainId`.
     function quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken,
         uint256 gasLimit
     ) public view returns (uint256 nativeFee) {
         (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
@@ -575,10 +571,8 @@ contract MessagingHub is QueryResponse {
             _getGasLimit(gasLimit)
         );
 
-        if (transferToken) {
-            // Add cost of publishing the 'sending token' wormhole message.
-            nativeFee += _getMessageFee();
-        }
+        // Add any potential fee premium for publishing wormhole message.
+        nativeFee += _getWormholeCore().messageFee();
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -596,7 +590,7 @@ contract MessagingHub is QueryResponse {
         bytes memory payload,
         uint256 gasLimit
     ) internal {
-        uint256 wormholeFee = quoteMessageFee(dstChainId, true, gasLimit);
+        uint256 wormholeFee = quoteMessageFee(dstChainId, gasLimit);
 
         // Validate that we have sufficient fees to send crosschain.
         if (address(this).balance < wormholeFee) {
@@ -625,6 +619,10 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @notice Sends fee tokens to the receiver on `dstChainId`.
+    /// @dev WARNING: Our CCTP message implementation requires finality
+    ///               on a chain, meaning if finality takes longer than
+    ///               CCTP's attestation, message and value delivery can
+    ///               be longer than expected.
     /// @param circleTokenMessenger Token Messenger contract to submit
     ///                             transfer message to.
     /// @param dstChainId GETH destination chain ID.
@@ -678,70 +676,164 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Executes protocol-wide reporting and distribution of epoch
     ///         results, to all chains within the Curvance Protocol system.
+    /// @param gasLimit Gas limit value for each remote chain message,
+    ///                 0 = default value inside messaging hub.
     function _executeCrosschainEpoch(
         uint256[] memory chainIds,
         uint256[] memory chainPoints,
+        uint256 epochToDeliver,
         uint256 numChains,
-        uint256 thisChainsPoints,
         uint256 totalPoints,
         uint256 gasLimit
     ) internal {
-        gasLimit = _getGasLimit(gasLimit);
-
         // Query rewards for this epoch.
-        uint256 feeTokensOverall = _getFeeTokenHeld();
+        uint256 feeTokensHeld = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
-        uint256 epochRewardsPerPoint = (feeTokensOverall * WAD_SQUARED) /
+        uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
 
-        uint256 feeTokensForChain;
-        uint256 currentChainId;
-
-        feeTokensForChain =
-            (((feeTokensOverall * WAD) / totalPoints) * thisChainsPoints) /
-            WAD;
-
         IRewardManager rewardManager = _getRewardManager();
+        ChainData memory chainData;
+        uint256 currentChainId;
+        uint256 feeTokensForChain;
+
+        // If theres no epoch rewards per point this implies fee token amount
+        // of 0 everywhere so we can record epoch rewards of 0 everywhere
+        // and return.
+        if (epochRewardsPerPoint == 0) {
+            if (!_checkRewardManagerStatus(rewardManager)) {
+                _recordEpochRewards(rewardManager, 0);
+                // Notify the other chains of the per epoch rewards.
+                for (uint256 i; i < numChains; ++i) {
+                    currentChainId = chainIds[i];
+                    chainData = _getChainData(currentChainId);
+                    _sendPayload(
+                        chainData.messagingChainId,
+                        chainData.messagingHub,
+                        abi.encode(3, epochToDeliver, 0),
+                        gasLimit,
+                        quoteMessageFee(currentChainId, gasLimit)
+                    );
+                }
+
+                return;
+            }
+        }
+
+        // We temporary cache this chains lock points inside the currentChainId
+        // variable since it will be overridden before it is ever called again.
+        // We do this to avoid having to reserve another storage slot which will
+        // create a stack too deep error and reduces runtime gas costs.
+        currentChainId = queryLockPoints();
+
+        // Add this chain's lock points to the sum of all remote
+        // chain's points.
+        totalPoints += currentChainId;
+
+        // Calculate the fee tokens that should stay on this chain by querying
+        // this chains lock points directly and adjusting versus all remote
+        // chains.
+        feeTokensForChain =
+            (((feeTokensHeld * WAD) / totalPoints) * currentChainId) /
+            WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
         if (_checkRewardManagerStatus(rewardManager)) {
-            _transferFeeTokens(feeTokensForChain, _getDaoAddress());
+            _transferFeeTokens(feeTokensHeld, _getDaoAddress());
+            return;
         } else {
             // Transfer fees to Reward Manager, and record newest epoch rewards.
             _transferFeeTokens(feeTokensForChain, address(rewardManager));
             _recordEpochRewards(rewardManager, epochRewardsPerPoint);
         }
 
-        uint256 epochToDeliver = rewardManager.nextEpochToDeliver();
-
         // Notify the other chains of the per epoch rewards.
         for (uint256 i; i < numChains; ++i) {
             currentChainId = chainIds[i];
+            chainData = _getChainData(currentChainId);
+
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
-                (((feeTokensOverall * WAD) / totalPoints) * chainPoints[i]) /
+                (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
                 WAD;
 
-            // Send fees and information.
-            _sendFeeToken(
-                currentChainId,
-                _getChainData(currentChainId).cctpDomain,
-                feeTokensForChain,
-                abi.encode(3, epochToDeliver, epochRewardsPerPoint),
-                gasLimit
-            );
+            // If there are no rewards for this chain we can record epoch
+            // rewards of 0 without sending any fee tokens.
+            if (feeTokensForChain == 0) {
+                // Send epoch information of 0.
+                _sendPayload(
+                    chainData.messagingChainId,
+                    chainData.messagingHub,
+                    abi.encode(3, epochToDeliver, 0),
+                    gasLimit,
+                    quoteMessageFee(currentChainId, gasLimit)
+                );
+            } else {
+                // If theres rewards for this chain we can record epoch rewards
+                // and send expected amount of fee tokens.
+                // Send fees and epoch information.
+                _sendFeeToken(
+                    currentChainId,
+                    chainData.cctpDomain,
+                    feeTokensForChain,
+                    abi.encode(3, epochToDeliver, epochRewardsPerPoint),
+                    gasLimit
+                );
+            }
         }
     }
 
-    /// @dev Pulls `amount` fee tokens from the fee accumulator to
+    /// @dev Pulls `amount` fee tokens from the fee manager to
     ///      aggregate fees.
     function _pullFees(uint256 amount) internal returns (uint256) {
+        return IFeeManager(centralRegistry.feeManager()).pullFees(amount);
+    }
+
+    /// @notice Publishes an instruction for the default delivery provider to
+    ///         relay a payload to the address `targetAddress` on chain
+    ///         `targetChain` with gas limit `gasLimit` and msg.value` equal to
+    ///         `receiverValue`.
+    ///         `targetAddress` must implement the IWormholeReceiver interface.
+    ///         This function must be called with `msg.value` equal to
+    ///         `quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit)`.
+    ///         Any refunds (from leftover gas) will be paid to
+    ///         the delivery provider. In order to receive the refunds, use
+    ///         the `sendPayloadToEvm` function with `refundChain` and
+    ///         `refundAddress` as parameters.
+    /// @param targetChaidId In Wormhole Chain ID format.
+    /// @param targetAddress Address to call on targetChain
+    ///                      (that implements IWormholeReceiver).
+    /// @param payload Arbitrary bytes to pass in as parameter in call to
+    ///                `targetAddress`.
+    /// @param gasLimit Gas limit with which to call `targetAddress`.
+    /// @param messageFee Attached native gas token to pay for relayed payload.
+    /// @return Sequence number of published VAA containing delivery instructions.
+    function _sendPayload(
+        uint16 targetChaidId,
+        address targetAddress,
+        bytes memory payload,
+        uint256 gasLimit,
+        uint256 messageFee
+    ) internal returns (uint64) {
         return
-            IFeeAccumulator(centralRegistry.feeAccumulator()).pullFees(amount);
+            _getWormholeRelayer().sendPayloadToEvm{ value: messageFee }(
+                targetChaidId,
+                targetAddress,
+                payload,
+                0, // No receiver value since we're just passing a message.
+                _getGasLimit(gasLimit),
+                targetChaidId,
+                targetAddress
+            );
     }
 
     /// @dev Receives fee tokens from Circle from provided message.
+    /// @param circleMessage A byte array containing a message and signature
+    ///                      from Circle allowing redemption of a CCTP
+    ///                      message.
+    /// @return The amount of fee tokens received from processing
+    ///         and receiving CCTP message.
     function _receiveFees(
         bytes memory circleMessage
     ) internal returns (uint256) {
@@ -749,12 +841,12 @@ contract MessagingHub is QueryResponse {
             circleMessage,
             (bytes, bytes)
         );
-        uint256 beforeBalance = IERC20(feeToken).balanceOf(address(this));
+        uint256 beforeBalance = _getFeeTokenHeld();
         centralRegistry.circleMessageTransmitter().receiveMessage(
             message,
             signature
         );
-        return IERC20(feeToken).balanceOf(address(this)) - beforeBalance;
+        return _getFeeTokenHeld() - beforeBalance;
     }
 
     /// @dev Transfers `amount` `feeToken` to `recipient`.
@@ -762,11 +854,15 @@ contract MessagingHub is QueryResponse {
         SafeTransferLib.safeTransfer(feeToken, recipient, amount);
     }
 
+    /// @notice Record user rewards allocated to an epoch.
+    /// @notice The address of the Reward Manager to record epoch rewards on.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
     function _recordEpochRewards(
         IRewardManager rewardManager,
-        uint256 epochRewardsPerPoint
+        uint256 rewardsPerPoint
     ) internal {
-        rewardManager.recordEpochRewards(epochRewardsPerPoint);
+        rewardManager.recordEpochRewards(rewardsPerPoint);
     }
 
     /// @dev Approves `token` `amount` to be spent by `spender`, if necessary.
@@ -782,6 +878,16 @@ contract MessagingHub is QueryResponse {
         return bytes32(uint256(uint160(addr)));
     }
 
+    /// @notice Returns the current CVE address to call.
+    function _getCVE() internal view returns (ICVE) {
+        return ICVE(centralRegistry.cve());
+    }
+
+    /// @notice Returns the current VeCVE address to call.
+    function _getVeCVE() internal view returns (IVeCVE) {
+        return IVeCVE(centralRegistry.veCVE());
+    }
+
     /// @dev Returns the current Reward Manager address to call.
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
@@ -795,11 +901,6 @@ contract MessagingHub is QueryResponse {
     /// @dev Returns the current Wormhole Core address to call.
     function _getWormholeCore() internal view returns (IWormhole) {
         return centralRegistry.wormholeCore();
-    }
-
-    /// @dev Returns the current standard wormhole message fee.
-    function _getMessageFee() internal view returns (uint256) {
-        return _getWormholeCore().messageFee();
     }
 
     /// @dev Returns ChainData struct for `chainId`.
@@ -832,9 +933,9 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Returns the proper gas limit to use based on parameter input.
-    ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is 0.
+    ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is less than default.
     function _getGasLimit(uint256 gasLimit) internal pure returns (uint256) {
-        return gasLimit == 0 ? _DEFAULT_GAS_LIMIT : gasLimit;
+        return gasLimit < _DEFAULT_GAS_LIMIT ? _DEFAULT_GAS_LIMIT : gasLimit;
     }
 
     /// @dev Checks whether the Messaging Hub is paused or not.

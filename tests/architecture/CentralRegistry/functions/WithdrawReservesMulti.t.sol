@@ -5,26 +5,25 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract WithdrawReservesMultiTest is TestBaseMarket {
-    address[] public dTokens;
+    address[] public eTokens;
 
     function setUp() public override {
         super.setUp();
 
-        
-        dTokens.push(address(dUSDC));
-        dTokens.push(address(dDAI));
+        eTokens.push(address(eUSDC));
+        eTokens.push(address(eDAI));
 
         deal(_USDC_ADDRESS, address(this), 1000e6);
         deal(_DAI_ADDRESS, address(this), 1000e18);
 
-        usdc.approve(address(dUSDC), 1000e6);
-        dai.approve(address(dDAI), 1000e18);
+        usdc.approve(address(eUSDC), 1000e6);
+        dai.approve(address(eDAI), 1000e18);
 
-        marketManager.listToken(address(dUSDC));
-        marketManager.listToken(address(dDAI));
+        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(eDAI));
 
-        dUSDC.depositReserves(100e6);
-        dDAI.depositReserves(100e18);
+        eUSDC.depositReserves(100e6);
+        eDAI.depositReserves(100e18);
     }
 
     function test_withdrawReservesMulti_fail_whenUnauthorized() public {
@@ -33,36 +32,36 @@ contract WithdrawReservesMultiTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.withdrawReservesMulti(dTokens);
+        centralRegistry.withdrawReservesMulti(eTokens);
     }
 
-    function test_withdrawReservesMulti_fail_whenDTokensLengthIsZero() public {
-        dTokens.pop();
-        dTokens.pop();
+    function test_withdrawReservesMulti_fail_whenETokensLengthIsZero() public {
+        eTokens.pop();
+        eTokens.pop();
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.withdrawReservesMulti(dTokens);
+        centralRegistry.withdrawReservesMulti(eTokens);
     }
 
-    function test_withdrawReservesMulti_fail_whenDTokenIsCToken() public {
-        dTokens.pop();
-        dTokens.push(address(cBALRETH));
+    function test_withdrawReservesMulti_fail_whenETokenIsPToken() public {
+        eTokens.pop();
+        eTokens.push(address(pBALRETH));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.withdrawReservesMulti(dTokens);
+        centralRegistry.withdrawReservesMulti(eTokens);
     }
 
     function test_withdrawReservesMulti_success() public {
-        assertEq(usdc.balanceOf(address(dUSDC)), 100e6 + 42069);
-        assertEq(dai.balanceOf(address(dDAI)), 100e18 + 42069);
+        assertEq(usdc.balanceOf(address(eUSDC)), 100e6 + 42069);
+        assertEq(dai.balanceOf(address(eDAI)), 100e18 + 42069);
 
-        centralRegistry.withdrawReservesMulti(dTokens);
+        centralRegistry.withdrawReservesMulti(eTokens);
 
-        assertEq(usdc.balanceOf(address(dUSDC)), 42069);
-        assertEq(dai.balanceOf(address(dDAI)), 42069);
+        assertEq(usdc.balanceOf(address(eUSDC)), 42069);
+        assertEq(dai.balanceOf(address(eDAI)), 42069);
     }
 }

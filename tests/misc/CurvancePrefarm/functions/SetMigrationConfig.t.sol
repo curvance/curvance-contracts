@@ -10,7 +10,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__Unauthorized.selector
         );
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
     }
 
     function test_setMigrationConfig_fail_whenTokenIsNotApproved() public {
@@ -25,7 +25,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
     }
 
     function test_setMigrationConfig_fail_whenUnderlyingIsNotPrefarmToken()
@@ -36,7 +36,7 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dDAI));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eDAI));
     }
 
     function test_setMigrationConfig_fail_whenProtocolTokenIsNotListed()
@@ -47,39 +47,39 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.expectRevert(
             CurvancePrefarm.CurvancePrefarm__InvalidParameters.selector
         );
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
     }
 
     function test_setMigrationConfig_success() public {
         deal(_USDC_ADDRESS, address(this), 1000e6);
         deal(_BAL_WETH_RETH_ADDRESS, address(this), 1000e18);
 
-        usdc.approve(address(dUSDC), 1000e6);
-        balRETH.approve(address(cBALRETH), 1000e18);
+        usdc.approve(address(eUSDC), 1000e6);
+        balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManager.listToken(address(dUSDC));
-        marketManager.listToken(address(cBALRETH));
+        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(pBALRETH));
 
-        (, address mTokenAddress, bool isCToken) = curvancePrefarm.tokenData(
+        (, address mTokenAddress, bool isPToken) = curvancePrefarm.tokenData(
             _USDC_ADDRESS
         );
 
-        assertFalse(isCToken);
+        assertFalse(isPToken);
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
         vm.prank(manager);
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
 
-        (, mTokenAddress, isCToken) = curvancePrefarm.tokenData(_USDC_ADDRESS);
+        (, mTokenAddress, isPToken) = curvancePrefarm.tokenData(_USDC_ADDRESS);
 
-        assertFalse(isCToken);
-        assertEq(mTokenAddress, address(dUSDC));
+        assertFalse(isPToken);
+        assertEq(mTokenAddress, address(eUSDC));
 
-        (, mTokenAddress, isCToken) = curvancePrefarm.tokenData(
+        (, mTokenAddress, isPToken) = curvancePrefarm.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
-        assertFalse(isCToken);
+        assertFalse(isPToken);
         assertEq(mTokenAddress, _ZERO_ADDRESS);
 
         address[] memory newPrefarmTokens = new address[](1);
@@ -91,14 +91,14 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         vm.prank(manager);
         curvancePrefarm.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(cBALRETH)
+            address(pBALRETH)
         );
 
-        (, mTokenAddress, isCToken) = curvancePrefarm.tokenData(
+        (, mTokenAddress, isPToken) = curvancePrefarm.tokenData(
             _BAL_WETH_RETH_ADDRESS
         );
 
-        assertTrue(isCToken);
-        assertEq(mTokenAddress, address(cBALRETH));
+        assertTrue(isPToken);
+        assertEq(mTokenAddress, address(pBALRETH));
     }
 }

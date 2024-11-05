@@ -40,7 +40,7 @@ abstract contract BaseOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by OracleRouter to price an asset.
+    /// @notice Called by OracleManager to price an asset.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.
@@ -86,7 +86,7 @@ abstract contract BaseOracleAdaptor {
     function adaptorType() external virtual returns (uint256);
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into oracle router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.

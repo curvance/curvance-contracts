@@ -2,13 +2,14 @@
 pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+
 import { WAD } from "contracts/libraries/Constants.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
@@ -67,13 +68,13 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Adds pricing support for `asset`, an lp token for
     ///         a Univ2 style volatile liquidity pool.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to support pricing for.
     function addAsset(address asset) external virtual {}
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -82,8 +83,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of `asset`, an lp token,
-    ///         for a Univ2 style volatile pool.
-    /// @dev Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///         for a standard AMM volatile pool.
+    /// @dev Prices volatile pairs NOT stable pairs.
+    ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
+    ///      NOTE: Uses standard volatile asset AMM formula using constant
+    ///            product k >= x * y.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.
@@ -122,10 +126,10 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         uint256 price1;
         uint256 errorCode;
 
-        IOracleRouter oracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
-        (price0, errorCode) = oracleRouter.getPrice(
+        (price0, errorCode) = oracleManager.getPrice(
             data.token0,
             inUSD,
             getLower
@@ -137,7 +141,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        (price1, errorCode) = oracleRouter.getPrice(
+        (price1, errorCode) = oracleManager.getPrice(
             data.token1,
             inUSD,
             getLower
@@ -169,7 +173,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
 
     /// @notice Helper function for pricing support for `asset`,
     ///         an lp token for a stableSwap style volatile liquidity pool.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
     function _addAsset(
@@ -192,7 +196,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Helper function to remove a supported asset from the adaptor.
-    /// @dev Calls back into oracle router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -207,9 +211,11 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
         delete adaptorData[asset];
 
-        // Notify the oracle router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
     }
 
     /// @notice Helper function in calculating the price of an lp token.
@@ -217,11 +223,12 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     ///         the total supply of lp tokens making up the pool.
     /// @dev Prices volatile pairs NOT stable pairs.
     ///      Math source: https://blog.alphaventuredao.io/fair-lp-token-pricing/
-    ///      Uses k = x * y.
+    ///      NOTE: Uses standard volatile asset AMM formula using constant
+    ///            product k >= x * y.
     /// @param reserve0 The amount of underlying token0 inside the liquidity pool.
     /// @param reserve1 The amount of underlying token1 inside the liquidity pool.
-    /// @param price0 The price of token0 according to the Oracle Router.
-    /// @param price0 The price of token1 according to the Oracle Router.
+    /// @param price0 The price of token0 according to the Oracle Manager.
+    /// @param price0 The price of token1 according to the Oracle Manager.
     /// @param totalSupply The total supply of lp tokens inside the lp.
     /// @return Fair value pricing for the lp token.
     function _getFairPrice(

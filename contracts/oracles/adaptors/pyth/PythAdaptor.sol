@@ -2,13 +2,13 @@
 pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IPyth } from "contracts/interfaces/external/pyth/IPyth.sol";
 import { PythStructs } from "contracts/interfaces/external/pyth/PythStructs.sol";
@@ -44,9 +44,9 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    address public universalBalance;
+    address public universalBalanceNative;
     address public pyth;
-    address public weth;
+    address public wrappedNative;
 
     /// @notice Adaptor configuration data for pricing an asset in gas token.
     /// @dev Pyth Adaptor Data for pricing in gas token.
@@ -77,13 +77,13 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
-        address universalBalance_,
+        address universalBalanceNative_,
         address pyth_,
-        address weth_
+        address wrappedNative_
     ) BaseOracleAdaptor(centralRegistry_) {
-        universalBalance = universalBalance_;
+        universalBalanceNative = universalBalanceNative_;
         pyth = pyth_;
-        weth = weth_;
+        wrappedNative = wrappedNative_;
     }
 
     receive() external payable {}
@@ -97,29 +97,32 @@ contract PythAdaptor is BaseOracleAdaptor {
         if (!centralRegistry.isMulticallProvider(msg.sender)) {
             revert PythAdaptor__Unauthorized();
         }
-        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
-        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
-        // See section "How Pyth Works on EVM Chains" below for more information.
+        
+        // Update the prices to the latest available values and pay the
+        // required fee for it. The `priceUpdateData` data should be retrieved
+        // from our off-chain Price Service API using the `pyth-evm-js`
+        // package. See section "How Pyth Works on EVM Chains" below for more
+        // information.
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
 
-        // receive fee from universal balance
-        UniversalBalance(payable(universalBalance)).useBalanceForOracleUpdate(
+        // Receive oracle update fee from universal balance contract.
+        UniversalBalanceNative(payable(universalBalanceNative)).useBalanceForOracleUpdate(
             user,
             fee
         );
 
         uint256 balanceBefore = address(this).balance;
-        IWETH(weth).withdraw(fee);
+        IWETH(wrappedNative).withdraw(fee);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
-        // refund remaining eth
+        // Refund remaining native token paid.
         uint256 remaining = address(this).balance - balanceBefore;
         if (remaining > 0) {
             SafeTransferLib.safeTransferETH(user, remaining);
         }
     }
 
-    function updateFeedsWithETH(
+    function updateFeedsWithNative(
         bytes[] calldata priceUpdateData
     ) public payable {
         // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
@@ -128,7 +131,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
         IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
 
-        // refund remaining eth
+        // Refund remaining native token paid.
         uint256 remaining = msg.value - fee;
         if (remaining > 0) {
             SafeTransferLib.safeTransferETH(msg.sender, remaining);
@@ -160,15 +163,15 @@ contract PythAdaptor is BaseOracleAdaptor {
             return _getPriceInUSD(asset);
         }
 
-        return _getPriceInETH(asset);
+        return _getPriceInNative(asset);
     }
 
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or ETH (inUSD = false).
+    ///              or native token (inUSD = false).
     /// @param data The adaptor data
     function addAsset(
         address asset,
@@ -213,7 +216,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -232,9 +235,11 @@ contract PythAdaptor is BaseOracleAdaptor {
         delete adaptorDataUSD[asset];
         delete adaptorDataNonUSD[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit PythAssetRemoved(asset);
     }
 
@@ -261,11 +266,12 @@ contract PythAdaptor is BaseOracleAdaptor {
         return _parseData(adaptorDataNonUSD[asset], false);
     }
 
-    /// @notice Retrieves the price of a given asset in ETH.
+    /// @notice Retrieves the price of a given asset in the chain's native
+    ///         gas token.
     /// @param asset The address of the asset for which the price is needed.
     /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (ETH).
-    function _getPriceInETH(
+    ///         and the quote format of the price (native).
+    function _getPriceInNative(
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
@@ -288,7 +294,7 @@ contract PythAdaptor is BaseOracleAdaptor {
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         if (
-            !IOracleRouter(centralRegistry.oracleRouter()).isSequencerValid()
+            !IOracleManager(centralRegistry.oracleManager()).isSequencerValid()
         ) {
             pData.hadError = true;
             return pData;

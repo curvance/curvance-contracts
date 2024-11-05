@@ -96,7 +96,7 @@ contract IncreaseAmountAndExtendLockForTest is TestBaseVeCVE {
 
         for (
             uint256 i = 0;
-            i <= (unlockTime - block.timestamp) / veCVE.EPOCH_DURATION();
+            i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
             i++
         ) {
             vm.prank(centralRegistry.messagingHub());

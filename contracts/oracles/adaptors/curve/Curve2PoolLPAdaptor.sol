@@ -2,12 +2,13 @@
 pragma solidity ^0.8.19;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
+
 import { WAD } from "contracts/libraries/Constants.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICurvePool } from "contracts/interfaces/external/curve/ICurvePool.sol";
 
 contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
@@ -125,13 +126,13 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         _enforceBounds(virtualPrice, data.lowerBound, data.upperBound);
 
         // Get underlying token prices.
-        IOracleRouter oracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
         uint256 price0;
         uint256 price1;
         uint256 errorCode;
-        (price0, errorCode) = oracleRouter.getPrice(
+        (price0, errorCode) = oracleManager.getPrice(
             data.underlying0,
             inUSD,
             getLower
@@ -140,7 +141,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             pData.hadError = true;
             return pData;
         }
-        (price1, errorCode) = oracleRouter.getPrice(
+        (price1, errorCode) = oracleManager.getPrice(
             data.underlying1,
             inUSD,
             getLower
@@ -190,7 +191,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a Curve V2 lp token.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
@@ -203,17 +204,21 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
             revert Curve2PoolLPAdaptor__UnsupportedPool();
         }
 
-        address oracleRouter = centralRegistry.oracleRouter();
+        address oracleManager = centralRegistry.oracleManager();
 
         // Make sure that the underlying asset is supported
-        // by the Oracle Router.
-        if (!IOracleRouter(oracleRouter).isSupportedAsset(data.underlying0)) {
+        // by the Oracle Manager.
+        if (
+            !IOracleManager(oracleManager).isSupportedAsset(data.underlying0)
+        ) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 
         // Make sure that the underlying asset is supported
-        // by the Oracle Router.
-        if (!IOracleRouter(oracleRouter).isSupportedAsset(data.underlying1)) {
+        // by the Oracle Manager.
+        if (
+            !IOracleManager(oracleManager).isSupportedAsset(data.underlying1)
+        ) {
             revert Curve2PoolLPAdaptor__QuoteAssetIsNotSupported();
         }
 
@@ -299,7 +304,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -316,9 +321,11 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
         delete isSupportedAsset[asset];
         delete adaptorData[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit CurvePoolAssetRemoved(asset);
     }
 

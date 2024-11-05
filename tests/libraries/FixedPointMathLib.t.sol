@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "./utils/SoladyTest.sol";
-import {FixedPointMathLib} from "../../contracts/libraries/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "../../contracts/libraries/external/FixedPointMathLib.sol";
 
 contract FixedPointMathLibTest is SoladyTest {
     function testFullMulDiv() public {

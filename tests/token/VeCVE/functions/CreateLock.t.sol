@@ -53,7 +53,7 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        vm.warp(veCVE.nextEpochStartTime() + veCVE.EPOCH_DURATION());
+        vm.warp(veCVE.nextEpochStartTime() + veCVE.epochDuration());
         _skipRestrictionDuration();
 
         vm.expectRevert(VeCVE.VeCVE__EpochNotDelivered.selector);
@@ -178,8 +178,8 @@ contract CreateLockTest is TestBaseVeCVE {
         assertEq(lockTimestamps[0], unlockTime);
         assertEq(
             unlockTime,
-            veCVE.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+            centralRegistry.genesisEpoch() +
+                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
                 veCVE.LOCK_DURATION()
         );
 

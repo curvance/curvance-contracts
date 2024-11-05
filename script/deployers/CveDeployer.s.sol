@@ -13,7 +13,7 @@ contract CveDeployer is DeployConfiguration {
 
     function _deployCVE(address centralRegistry, address team) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(team != address(0), "Set the builder!");
+        require(team != address(0), "Set the contributor address!");
 
         cve = address(new CVE(ICentralRegistry(centralRegistry), team));
 

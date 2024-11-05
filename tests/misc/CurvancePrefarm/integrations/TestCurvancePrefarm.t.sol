@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseCurvancePrefarm } from "../TestBaseCurvancePrefarm.sol";
 import { CurvancePrefarm } from "contracts/misc/CurvancePrefarm.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
     SwapperLib.Swap public swapData;
@@ -25,18 +25,18 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         curvancePrefarm.addPrefarmTokens(newPrefarmTokens);
         vm.stopPrank();
 
-        usdc.approve(address(dUSDC), 1000e6);
-        balRETH.approve(address(cBALRETH), 1000e18);
+        usdc.approve(address(eUSDC), 1000e6);
+        balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManager.listToken(address(dUSDC));
-        marketManager.listToken(address(cBALRETH));
+        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(pBALRETH));
 
         vm.startPrank(manager);
 
-        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(dUSDC));
+        curvancePrefarm.setMigrationConfig(_USDC_ADDRESS, address(eUSDC));
         curvancePrefarm.setMigrationConfig(
             _BAL_WETH_RETH_ADDRESS,
-            address(cBALRETH)
+            address(pBALRETH)
         );
 
         vm.stopPrank();
@@ -60,9 +60,9 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         vm.startPrank(user2);
@@ -87,7 +87,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         vm.stopPrank();
     }
 
-    function test_zapAndDeposit_migrate_withCToken_withCollateralize_success()
+    function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -109,13 +109,13 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 0.1e18);
+        curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
         vm.stopPrank();
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(cBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
 
         assertEq(
             curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -128,11 +128,11 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(balRETH.balanceOf(address(cBALRETH)), underlyingBalance);
-        assertEq(cBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
+        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_zapAndDeposit_migrate_withCToken_withoutCollateralize_success()
+    function test_swapAndDeposit_migrate_withPToken_withoutCollateralize_success()
         public
     {
         vm.startPrank(user1);
@@ -154,13 +154,13 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
-        curvancePrefarm.zapAndDeposit(swapData, 0.1e18);
+        curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
         vm.stopPrank();
 
         skip(1 weeks);
 
-        uint256 underlyingBalance = balRETH.balanceOf(address(cBALRETH));
+        uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
 
         assertEq(
             curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS),
@@ -173,23 +173,23 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(balRETH.balanceOf(address(cBALRETH)), underlyingBalance);
-        assertEq(cBALRETH.balanceOf(user1), 0.1e18);
+        assertEq(balRETH.balanceOf(address(pBALRETH)), underlyingBalance);
+        assertEq(pBALRETH.balanceOf(user1), 0.1e18);
     }
 
-    function test_zapAndDeposit_migrate_withDToken_success() public {
+    function test_swapAndDeposit_migrate_withEToken_success() public {
         vm.startPrank(user1);
 
         weth.approve(address(curvancePrefarm), _ONE);
 
         swapData.outputToken = _USDC_ADDRESS;
-        curvancePrefarm.zapAndDeposit(swapData, 100e6);
+        curvancePrefarm.swapAndDeposit(swapData, 100e6);
 
         vm.stopPrank();
 
         skip(1 weeks);
 
-        uint256 marketUnderlyingHeld = dUSDC.marketUnderlyingHeld();
+        uint256 marketUnderlyingHeld = eUSDC.marketUnderlyingHeld();
 
         assertEq(curvancePrefarm.balanceOf(user1, _USDC_ADDRESS), 100e6);
         assertEq(usdc.balanceOf(address(curvancePrefarm)), 100e6);
@@ -200,7 +200,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
 
         assertEq(curvancePrefarm.balanceOf(user1, _USDC_ADDRESS), 0);
         assertEq(usdc.balanceOf(address(curvancePrefarm)), 0);
-        assertEq(dUSDC.marketUnderlyingHeld(), marketUnderlyingHeld + 100e6);
-        assertEq(dUSDC.balanceOf(user1), 100e6);
+        assertEq(eUSDC.marketUnderlyingHeld(), marketUnderlyingHeld + 100e6);
+        assertEq(eUSDC.balanceOf(user1), 100e6);
     }
 }

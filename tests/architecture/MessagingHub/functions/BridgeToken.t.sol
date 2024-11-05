@@ -43,7 +43,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     function test_bridgeToken_fail_whenDestinationChainIsNotSupported()
         public
     {
-        centralRegistry.removeChainSupport(address(messagingHub), 42161);
+        centralRegistry.removeChainSupport(address(messagingHub), address(votingHub), 42161);
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);
@@ -88,7 +88,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     function test_bridgeToken_fail_whenPayloadIs4_whenNativeTokenIsNotEnoughToCoverFee()
         public
     {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         vm.prank(address(veCVE));
 
@@ -104,7 +104,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     }
 
     function test_bridgeToken_success_whenBridgeCVE() public {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, true, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         assertEq(cve.bridgeFee(42161, 0), messageFee);
 
@@ -121,7 +121,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     }
 
     function test_bridgeToken_success_whenBridgeVeCVELock() public {
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, false, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         vm.prank(address(veCVE));
 

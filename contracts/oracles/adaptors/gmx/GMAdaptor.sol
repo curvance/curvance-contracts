@@ -7,7 +7,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 
 contract GMAdaptor is BaseOracleAdaptor {
@@ -106,9 +106,9 @@ contract GMAdaptor is BaseOracleAdaptor {
             revert GMAdaptor__AssetIsNotSupported();
         }
 
-        // Cache the Oracle Router.
-        IOracleRouter oracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        // Cache the Oracle Manager.
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
 
         uint256[] memory prices = new uint256[](3);
@@ -121,7 +121,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            (prices[i], errorCode) = oracleRouter.getPrice(
+            (prices[i], errorCode) = oracleManager.getPrice(
                 token,
                 true,
                 getLower
@@ -166,7 +166,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a GMX GM token.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the GMX GM token to add pricing
     ///              support for.
@@ -200,8 +200,8 @@ contract GMAdaptor is BaseOracleAdaptor {
             revert GMAdaptor__AlteredTokenIsInvalid();
         }
 
-        IOracleRouter oracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
 
         address[] memory tokens = new address[](4);
@@ -216,7 +216,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         for (uint256 i; i < 3; ++i) {
             token = tokens[i];
 
-            if (!oracleRouter.isSupportedAsset(token)) {
+            if (!oracleManager.isSupportedAsset(token)) {
                 revert GMAdaptor__MarketTokenIsNotSupported(token);
             }
 
@@ -245,7 +245,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -262,9 +262,11 @@ contract GMAdaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
         delete marketData[asset];
 
-        // Notify the Oracle Router that we are going to
+        // Notify the Oracle Manager that we are going to
         // stop supporting the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit GMXGMAssetRemoved(asset);
     }
 
@@ -275,7 +277,7 @@ contract GMAdaptor is BaseOracleAdaptor {
         return 16;
     }
 
-    /// PERMISSIONED FUNCTIONS /// 
+    /// PERMISSIONED FUNCTIONS ///
 
     /// @notice Permissioned function to set a new GMX Reader address.
     /// @param newReader The address to set as the new GMX Reader.

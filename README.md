@@ -3,6 +3,7 @@
 <h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
 
 Main dependencies:
+
 - [Rust](https://www.rust-lang.org/): foundry compiler
   - Confirm you have rust with `rustc --version`
 - [Foundry](https://book.getfoundry.sh/getting-started/installation): compile and run the smart contracts on a local development network
@@ -19,6 +20,7 @@ Main dependencies:
 3. Happy building, all dependencies are gitmodule linked & remapping can be found in `remappings.txt` which should be picked up automatically
 
 ## Internal code guidelines
+
 ### Smart contract order
 
 1. Types at the top of the contract
@@ -47,9 +49,11 @@ Rather than modifiers we utilize internal functions with direct action control c
 For adding new risk to the system (e.g. adding a new asset), elevated permissioning is required, while removing risk from the system (pausing a market function) has standard dao permissioning.
 
 ### Linting
+
 - Prettier is set to have `printWidth` of 79 however comments sometimes do not take this, but are enforced in code review. Please ensure your commented lines do not exceed 79 characters.
 
 ## Foundry tips
+
 ### Build & compile
 
 Compile all contracts
@@ -61,8 +65,10 @@ forge build
 ### Run tests
 
 Compile all smart contracts & run all tests in /tests
+
 - To run a specific test use `--match-contract`
-- For more details like  console logs add `-vv`
+- For more details like console logs add `-vv`
+
 ```sh
 forge test
 ```

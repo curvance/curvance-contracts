@@ -4,35 +4,35 @@ pragma solidity 0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetExternalCallDataCheckerTest is TestBaseMarket {
-    address public externalCallDataChecker = makeAddr("CallData Checker");
+contract SetExternalCalldataCheckerTest is TestBaseMarket {
+    address public externalCalldataChecker = makeAddr("Calldata Checker");
 
-    function test_setExternalCallDataChecker_fail_whenUnauthorized() public {
+    function test_setExternalCalldataChecker_fail_whenUnauthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(1),
-            externalCallDataChecker
+            externalCalldataChecker
         );
     }
 
-    function test_setExternalCallDataChecker_success() public {
+    function test_setExternalCalldataChecker_success() public {
         assertEq(
-            centralRegistry.externalCallDataChecker(address(1)),
+            centralRegistry.externalCalldataChecker(address(1)),
             address(0)
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             address(1),
-            externalCallDataChecker
+            externalCalldataChecker
         );
 
         assertEq(
-            centralRegistry.externalCallDataChecker(address(1)),
-            externalCallDataChecker
+            centralRegistry.externalCalldataChecker(address(1)),
+            externalCalldataChecker
         );
     }
 }

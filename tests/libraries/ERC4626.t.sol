@@ -6,7 +6,7 @@ import "./utils/SoladyTest.sol";
 import {ERC20, MockERC20} from "./utils/mocks/MockERC20.sol";
 import {ERC4626, MockERC4626} from "./utils/mocks/MockERC4626.sol";
 import {SafeTransferLib} from "../../contracts/libraries/external/SafeTransferLib.sol";
-import {FixedPointMathLib} from "../../contracts/libraries/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "../../contracts/libraries/external/FixedPointMathLib.sol";
 
 contract ERC4626Test is SoladyTest {
     MockERC20 underlying;

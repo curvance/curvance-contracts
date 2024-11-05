@@ -28,7 +28,7 @@
   "cveLocker": {
     "rewardToken": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
   },
-  "feeAccumulator": {
+  "feeManager": {
     "gasForCalldata": 1e9,
     "gasForCrosschain": 1e9
   },
@@ -38,11 +38,11 @@
   "zapper": {
     "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
   },
-  "oracleRouter": {
+  "oracleManager": {
     "chainlinkEthUsd": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
   },
   "markets": {
-    "dTokens": {
+    "eTokens": {
       "USDC": {
         "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
         "chainlinkEth": "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4",
@@ -86,7 +86,7 @@
         }
       }
     },
-    "cTokens": {
+    "pTokens": {
       "PendlePT-stETH-26DEC24": {
         "asset": "0x7758896b6AC966BbABcf143eFA963030f17D3EdF",
         "market": "0xD0354D4e7bCf345fB117cabe41aCaDb724eccCa2",

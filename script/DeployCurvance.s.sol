@@ -9,13 +9,13 @@ import { CveDeployer } from "./deployers/CveDeployer.s.sol";
 import { RewardManagerDeployer } from "./deployers/RewardManagerDeployer.s.sol";
 import { MessagingHubDeployer } from "./deployers/MessagingHubDeployer.s.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { FeeAccumulatorDeployer } from "./deployers/FeeAccumulatorDeployer.s.sol";
+import { FeeManagerDeployer } from "./deployers/FeeManagerDeployer.s.sol";
 import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
-import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
+import { OracleManagerDeployer } from "./deployers/OracleManagerDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
 import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
 import { StartContractsConfig } from "./StartContractsConfig.s.sol";
@@ -26,13 +26,13 @@ contract DeployCurvance is
     CveDeployer,
     RewardManagerDeployer,
     MessagingHubDeployer,
-    FeeAccumulatorDeployer,
+    FeeManagerDeployer,
     VeCveDeployer,
     VotingHubDeployer,
     GaugeManagerDeployer,
     MarketManagerDeployer,
     ComplexZapperDeployer,
-    OracleRouterDeployer,
+    OracleManagerDeployer,
     AuxiliaryDataDeployer,
     RedstoneAdaptorDeployer,
     StartContractsConfig
@@ -59,7 +59,7 @@ contract DeployCurvance is
         address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
 
         centralRegistry = _getDeployedContract("centralRegistry");
-        address oracleRouter = _getDeployedContract("oracleRouter");
+        address oracleManager = _getDeployedContract("oracleManager");
         address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
 
         _setLockBoostMultiplier(
@@ -89,10 +89,10 @@ contract DeployCurvance is
         _deployRewardManager(centralRegistry, rewardToken);
         _setRewardManager(rewardManager);
 
-        // Deploy FeeAccumulator
+        // Deploy FeeManager
 
-        _deployFeeAccumulator(centralRegistry);
-        _setFeeAccumulator(feeAccumulator);
+        _deployFeeManager(centralRegistry);
+        _setFeeManager(feeManager);
 
         // Deploy VeCVE
         _deployVeCve(centralRegistry);

@@ -10,17 +10,17 @@ contract NotifyBorrowTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
     }
 
     function test_notifyBorrow_fail_whenCallerIsNotMToken() public {
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.notifyBorrow(address(dUSDC), user1);
+        marketManager.notifyBorrow(address(eUSDC), user1);
     }
 
     function test_notifyBorrow_success() public {
-        vm.prank(address(dUSDC));
-        marketManager.notifyBorrow(address(dUSDC), user1);
+        vm.prank(address(eUSDC));
+        marketManager.notifyBorrow(address(eUSDC), user1);
 
         assertEq(marketManager.accountAssets(user1), block.timestamp);
     }

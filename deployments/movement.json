@@ -1,7 +1,7 @@
 {
   "cve": "0x9893fa32af03d94ce38f5e6e8aff4e57d79f96b8",
   "rewardManager": "0xb98807505d37a7d47a728696d886bfcf3e3b2dd7",
-  "feeAccumulator": "0xeaaef64952adddaf917c4564b115a8a117376fe9",
+  "feeManager": "0xeaaef64952adddaf917c4564b115a8a117376fe9",
   "veCve": "0xe84152b153687e20ba1241f046f9e8e6c5a65db8",
   "messagingHub": "0xc493b384f8e4e0c79b9d36047607e8147d84b8d2",
   "gaugePool": "0xdb8aaa80d65467e5e040df4e5318cf932ce56ca6",
@@ -11,8 +11,8 @@
   "positionFolding": "0xe956b91583abc0174df484fed4cacaa0bed1cea1",
   "auxiliaryData": "0x1bfb1389c3091cc451c03871fd23e623711b46a1",
   "firstTestMarket": "0xb5c1da0e34ed4990b765a82aa05b77a4da28fee2",
-  "CToken-WBTC": "0xae9dedadc58e85e9c35fa1ded19c782bf724d3b1",
-  "DToken-USDC": "0xc2a87e7ce16d1ca8896dec077765a6212153edc4",
+  "PToken-WBTC": "0xae9dedadc58e85e9c35fa1ded19c782bf724d3b1",
+  "EToken-USDC": "0xc2a87e7ce16d1ca8896dec077765a6212153edc4",
   "chainlinkAdaptor": "0xbfd339211ec06d41dc56f73a92d08b4663b8acec",
   "mETH": "0x80e736b84800d5f5eec27e8affb5841dcf8a6c1c",
   "mUSD": "0x4bf78bf64b07ceed22b0720138ebf445a568fc2b",
@@ -24,7 +24,7 @@
   "WBTC": "0xa4df3173ea520528f8de348d020392d4be39c14d",
   "faucet": "0x97a370b1e07097ddb99068ee5f4f79d5a10abfa3",
   "centralRegistry": "0x6598e7b4b4756bfb4a89bbf5cbc97e5b73cd5155",
-  "oracleRouter": "0x1dadbc2339bbe16625dd2c5e7ea3c78e6bb726d1",
+  "oracleManager": "0x1dadbc2339bbe16625dd2c5e7ea3c78e6bb726d1",
   "redstoneAdaptor": "0x2eb39501e319270df5bcd05452644e239f0adf28",
-  "multicallDataChecker": "0x475175ece88b3dddf826be1e31afc6c2f1cef502"
+  "multicallChecker": "0x475175ece88b3dddf826be1e31afc6c2f1cef502"
 }

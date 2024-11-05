@@ -53,9 +53,10 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 contract CentralRegistry is ERC165 {
     /// CONSTANTS ///
 
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
-    /// @notice Sequencer Uptime feed address for L2.
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public constant EPOCH_DURATION = 2 weeks;
+
+    /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
     /// @notice Address of fee token.
     address public immutable feeToken;
@@ -64,16 +65,21 @@ contract CentralRegistry is ERC165 {
     uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
     /// @dev bytes4(keccak256(bytes("CentralRegistry__Unauthorized()")))
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xe675838a;
+    /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
+    uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
 
     /// STORAGE ///
+
+    /// @notice Genesis Epoch timestamp.
+    uint256 public genesisEpoch;
 
     // DAO GOVERNANCE OPERATORS
 
     /// @notice DAO multisig.
     address public daoAddress;
-    /// @notice DAO multisig, with time delay.
+    /// @notice DAO multisig, with an execution time delay.
     address public timelock;
-    /// @notice Multi-protocol multisig, for emergencies.
+    /// @notice Multi-protocol multisig, only for emergencies.
     address public emergencyCouncil;
 
     // CURVANCE TOKEN CONTRACTS
@@ -93,10 +99,10 @@ contract CentralRegistry is ERC165 {
     address public votingHub;
     /// @notice Messaging Hub contract address.
     address public messagingHub;
-    /// @notice Oracle Router contract address.
-    address public oracleRouter;
-    /// @notice Fee Accumulator contract address.
-    address public feeAccumulator;
+    /// @notice Oracle Manager contract address.
+    address public oracleManager;
+    /// @notice Fee Manager contract address.
+    address public feeManager;
 
     // CROSS-CHAIN MESSAGING DATA
 
@@ -198,12 +204,13 @@ contract CentralRegistry is ERC165 {
 
     mapping(address => bool) public isHarvester;
     mapping(address => bool) public isMarketManager;
-    mapping(address => address) public externalCallDataChecker;
+    mapping(address => address) public externalCalldataChecker;
     mapping(address => bool) public isMulticallProvider;
-    mapping(address => address) public multicallDataChecker;
+    mapping(address => address) public multicallChecker;
 
     /// EVENTS ///
 
+    event GenesisEpochSet(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
     event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
@@ -234,9 +241,13 @@ contract CentralRegistry is ERC165 {
     event MessageTransmitterSet(address newAddress);
     event TokenBridgeSet(address newAddress);
     event CCTPDomainSet(uint32 newDomain);
-    event NewChainAdded(uint256 chainId, address operatorAddress);
-    event RemovedChain(uint256 chainId, address operatorAddress);
-    event CallDataCheckerSet(
+    event NewChainAdded(uint256 chainId, address relayer);
+    event RemovedChain(
+        uint256 chainId,
+        address messagingHub,
+        address votingHub
+    );
+    event CalldataCheckerSet(
         string indexed calldataType,
         address targetAddress,
         address calldataChecker
@@ -248,6 +259,7 @@ contract CentralRegistry is ERC165 {
     error CentralRegistry__InvalidFeeToken();
     error CentralRegistry__ParametersMisconfigured();
     error CentralRegistry__Unauthorized();
+    error CentralRegistry__EpochHasStarted();
 
     /// CONSTRUCTOR ///
 
@@ -314,29 +326,46 @@ contract CentralRegistry is ERC165 {
         );
     }
 
-    /// @notice Withdraws all protocol reserve fees from a dToken
+    /// @notice Withdraws all protocol reserve fees from a eToken
     ///         from interest generated and liquidations.
-    /// @param dTokens Array of dToken addresses to withdraw fees from.
-    function withdrawReservesMulti(address[] calldata dTokens) external {
+    /// @param eTokens Array of eToken addresses to withdraw fees from.
+    function withdrawReservesMulti(address[] calldata eTokens) external {
         // Match permissioning check to normal withdrawReserves().
         _checkDaoPermissions();
 
-        uint256 dTokenLength = dTokens.length;
-        if (dTokenLength == 0) {
+        uint256 numTokens = eTokens.length;
+        if (numTokens == 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
-        IMToken dToken;
+        IMToken eToken;
 
-        for (uint256 i; i < dTokenLength; ) {
-            dToken = IMToken(dTokens[i++]);
+        for (uint256 i; i < numTokens; ) {
+            eToken = IMToken(eTokens[i++]);
             // Revert if somehow a misconfigured token made it in here.
-            if (dToken.isCToken()) {
+            if (eToken.isPToken()) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            dToken.processWithdrawReserves();
+            eToken.processWithdrawReserves();
         }
+    }
+
+    /// @notice Sets a new genesis epoch.
+    /// @dev Only callable by the Emergency Council.
+    ///      Emits a {GenesisEpochSet} event.
+    /// @param newGenesisEpoch The new genesis epoch.
+    function setGenesisEpoch(uint256 newGenesisEpoch) external {
+        if (newGenesisEpoch < genesisEpoch) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        _checkElevatedPermissions();
+        _checkGenesisEpochHasNotStarted();
+
+        genesisEpoch = newGenesisEpoch;
+
+        emit GenesisEpochSet(newGenesisEpoch);
     }
 
     /// @notice Sets a CVE contract address.
@@ -349,6 +378,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkGenesisEpochHasNotStarted();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
@@ -364,6 +394,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkGenesisEpochHasNotStarted();
 
         veCVE = newVeCVE;
         emit CoreContractSet("VeCVE", newVeCVE);
@@ -379,6 +410,7 @@ contract CentralRegistry is ERC165 {
         }
 
         _checkElevatedPermissions();
+        _checkGenesisEpochHasNotStarted();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
@@ -421,29 +453,29 @@ contract CentralRegistry is ERC165 {
         emit CoreContractSet("Messaging Hub", newMessagingHub);
     }
 
-    /// @notice Sets a new Oracle Router contract address.
+    /// @notice Sets a new Oracle Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newOracleRouter The new address of oracleRouter.
-    function setOracleRouter(address newOracleRouter) external {
+    /// @param newOracleManager The new address of oracleManager.
+    function setOracleManager(address newOracleManager) external {
         _checkElevatedPermissions();
 
-        oracleRouter = newOracleRouter;
-        emit CoreContractSet("Oracle Router", newOracleRouter);
+        oracleManager = newOracleManager;
+        emit CoreContractSet("Oracle Manager", newOracleManager);
     }
 
-    /// @notice Sets a new fee accumulator contract address.
+    /// @notice Sets a new Fee Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
-    /// @param newFeeAccumulator The new address of feeAccumulator.
-    function setFeeAccumulator(address newFeeAccumulator) external {
+    /// @param newFeeManager The new address of feeManager.
+    function setFeeManager(address newFeeManager) external {
         _checkElevatedPermissions();
 
-        feeAccumulator = newFeeAccumulator;
-        emit CoreContractSet("Fee Accumulator", newFeeAccumulator);
+        feeManager = newFeeManager;
+        emit CoreContractSet("Fee Manager", newFeeManager);
     }
 
-    /// @notice Sets a new WormholeCore contract address.
+    /// @notice Sets a new Wormhole Core contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {WormholeCoreSet} event.
     /// @param newWormholeCore The new address of WormholeCore.
@@ -702,7 +734,7 @@ contract CentralRegistry is ERC165 {
         emit MultiplierSet("Lock Boost", value);
     }
 
-    /// USER DELEGATION MANAGEMENT ///
+    /// USER DELEGATION PLUGIN MANAGEMENT ///
 
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all
@@ -770,8 +802,17 @@ contract CentralRegistry is ERC165 {
         timelock = newTimelock;
 
         // Delete permission data.
-        delete hasDaoPermissions[previousTimelock];
-        delete hasElevatedPermissions[previousTimelock];
+        // If the previous Timelock also has Emergency Council permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousTimelock != emergencyCouncil) {
+            delete hasElevatedPermissions[previousTimelock];
+
+            // If the previous Timelock also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousTimelock != daoAddress) {
+                delete hasDaoPermissions[previousTimelock];
+            }
+        }
 
         // Add new permission data.
         hasDaoPermissions[newTimelock] = true;
@@ -791,9 +832,17 @@ contract CentralRegistry is ERC165 {
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
 
-        // Delete permission data.
-        delete hasDaoPermissions[previousEmergencyCouncil];
-        delete hasElevatedPermissions[previousEmergencyCouncil];
+        // If the previous Emergency Council also has timelock permissions
+        // for some reason, do not remove their elevated permissioning.
+        if (previousEmergencyCouncil != timelock) {
+            delete hasElevatedPermissions[previousEmergencyCouncil];
+
+            // If the previous Emergency Council also has DAO permissions
+            // for some reason, do not remove their permissioning.
+            if (previousEmergencyCouncil != daoAddress) {
+                delete hasDaoPermissions[previousEmergencyCouncil];
+            }
+        }
 
         // Add new permission data.
         hasDaoPermissions[newEmergencyCouncil] = true;
@@ -902,11 +951,14 @@ contract CentralRegistry is ERC165 {
     /// @notice Removes support for a chain.
     /// @dev Callable by an address with DAO Authority or higher.
     ///      Emits a {RemovedChain} event.
-    /// @param currentMessagingHub Address for chains Messaging Hub.
+    /// @param expectedMessagingHub Expected Address for `chainId` Messaging
+    ///                             Hub.
+    /// @param expectedVotingHub Expected Address for `chainId` Voting Hub.
     /// @param chainId GETH Chain ID where `currentMessagingHub` is
     ///                authorized.
     function removeChainSupport(
-        address currentMessagingHub,
+        address expectedMessagingHub,
+        address expectedVotingHub,
         uint256 chainId
     ) external {
         // Lower permissioning on removing chains as it will reduce risk to
@@ -915,8 +967,13 @@ contract CentralRegistry is ERC165 {
 
         ChainData memory chainDataToRemove = supportedChainData[chainId];
 
-        // Validate that `currentMessagingHub` is currently supported.
-        if (chainDataToRemove.messagingHub != currentMessagingHub) {
+        // Validate that `expectedMessagingHub` is currently supported.
+        if (chainDataToRemove.messagingHub != expectedMessagingHub) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        // Validate that `expectedVotingHub` is currently supported.
+        if (chainDataToRemove.votingHub != expectedVotingHub) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -937,43 +994,43 @@ contract CentralRegistry is ERC165 {
 
         _removeForeignChainId(chainId);
 
-        emit RemovedChain(chainId, currentMessagingHub);
+        emit RemovedChain(chainId, expectedMessagingHub, expectedVotingHub);
     }
 
     /// CONTRACT MAPPING LOGIC
 
     /// @notice Sets an external calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as 1Inch V5.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setExternalCallDataChecker(
+    function setExternalCalldataChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        externalCallDataChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("External", target, callDataChecker);
+        externalCalldataChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("External", target, calldataChecker);
     }
 
     /// @notice Sets a multicall calldata checker contract.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Emits a {CallDataCheckerSet} event.
+    ///      Emits a {CalldataCheckerSet} event.
     /// @param target The target contract for external calldata
     ///               such as Pyth or Redstone.
-    /// @param callDataChecker The contract that will check calldata prior
+    /// @param calldataChecker The contract that will check calldata prior
     ///                        to execution in `target`.
-    function setMulticallDataChecker(
+    function setMulticallChecker(
         address target,
-        address callDataChecker
+        address calldataChecker
     ) external {
         _checkElevatedPermissions();
 
-        multicallDataChecker[target] = callDataChecker;
-        emit CallDataCheckerSet("Multicall", target, callDataChecker);
+        multicallChecker[target] = calldataChecker;
+        emit CalldataCheckerSet("Multicall", target, calldataChecker);
     }
 
     /// @notice Sets multicall provider contracts, either enabling,
@@ -1214,6 +1271,12 @@ contract CentralRegistry is ERC165 {
     function _checkElevatedPermissions() internal view {
         if (!hasElevatedPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
+    function _checkGenesisEpochHasNotStarted() internal view {
+        if (genesisEpoch <= block.timestamp) {
+            _revert(_EPOCH_HAS_STARTED_SELECTOR);
         }
     }
 }

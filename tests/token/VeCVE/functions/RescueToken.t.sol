@@ -6,6 +6,8 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { TestBaseVeCVE } from "../TestBaseVeCVE.sol";
 
 contract RescueTokenTest is TestBaseVeCVE {
+    receive() external payable {}
+
     function setUp() public override {
         super.setUp();
 

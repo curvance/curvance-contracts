@@ -47,7 +47,7 @@ contract BridgeTest is TestBaseRemoteCVE {
             3
         );
 
-        uint256 messageFee = messagingHub.quoteMessageFee(42161, true, 0);
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
         uint256 totalSupply = remoteCVE.totalSupply();
 

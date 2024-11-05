@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 interface IInterestRateModel {
+    /// @notice The earn token linked to this interest rate model contract.
+    function linkedEToken() external view returns (address);
     /// @notice Calculates the current borrow rate, per compound.
     /// @param cash The amount of cash in the market.
     /// @param borrows The amount of borrows in the market.

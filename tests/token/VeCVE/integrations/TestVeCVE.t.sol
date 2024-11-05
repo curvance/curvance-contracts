@@ -42,7 +42,7 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.expectEmit(true, true, true, true, address(veCVE));
         emit Locked(address(this), amount);
 
-        vm.warp(veCVE.genesisEpoch() - 13 hours);
+        vm.warp(centralRegistry.genesisEpoch() - 13 hours);
         veCVE.createLock(amount, true, rewardsData, "", 0);
 
         assertEq(cve.balanceOf(address(this)), 100e18 - amount);
@@ -168,8 +168,8 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(lockTimestamps[0], unlockTime);
         assertEq(
             unlockTime,
-            veCVE.genesisEpoch() +
-                (veCVE.currentEpoch(timestamp) * veCVE.EPOCH_DURATION()) +
+            centralRegistry.genesisEpoch() +
+                (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
                 veCVE.LOCK_DURATION()
         );
 
@@ -221,8 +221,7 @@ contract TestVeCVE is TestBaseVeCVE {
     {
         // 1. config poc env
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
-        uint256 genesisEpochTimestamp = veCVE.genesisEpoch();
-        vm.warp(genesisEpochTimestamp);
+        vm.warp(centralRegistry.genesisEpoch());
 
         _skipRestrictionDuration();
         _recordEpochRewards(1, 1e6 * _ONE);

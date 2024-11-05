@@ -75,16 +75,16 @@ contract TestStatefulDeployments is StatefulBaseMarket {
             "CURV-12: CVE.centralRegistry == centralRegistry failed"
         );
         assertWithMsg(
-            cve.builderAddress() == address(this),
-            "CURV-13: cve.builderAddress() == address(this) failed"
+            cve.contributorAddress() == address(this),
+            "CURV-13: cve.contributorAddress() == address(this) failed"
         );
         assertWithMsg(
             cve.daoTreasuryAllocation() == 60900010 ether,
             "CURV-14: CVE.daoTreasuryAllocation == 60900010 ether failed"
         );
         assertWithMsg(
-            cve.builderAllocationPerMonth() > 0,
-            "CURV-15: CVE.builderAllocationPerMonth() > 0 failed"
+            cve.contributorAllocationPerMonth() > 0,
+            "CURV-15: CVE.contributorAllocationPerMonth() > 0 failed"
         );
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ComplexZapper, ICentralRegistry } from "contracts/market/zapper/ComplexZapper.sol";
+import { ComplexZapper, ICentralRegistry } from "contracts/plugins/market/ComplexZapper.sol";
 import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
 
 contract BlastComplexZapper is ComplexZapper, BlastYieldDelegable {
