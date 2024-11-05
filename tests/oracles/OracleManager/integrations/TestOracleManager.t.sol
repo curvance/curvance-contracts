@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
@@ -105,12 +106,8 @@ contract TestOracleManager is TestBaseOracleManager {
     }
 
     function testReturnsCorrectPriceForMTokens() public {
-        EToken eUSDC = new EToken(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS,
-            address(marketManager),
-            address(interestRateModels[block.chainid][_USDC_ADDRESS])
-        );
+        _deployEUSDC();
+
         // support market
         deal(_USDC_ADDRESS, address(this), 200000e6);
         usdc.approve(address(eUSDC), 200000e6);
