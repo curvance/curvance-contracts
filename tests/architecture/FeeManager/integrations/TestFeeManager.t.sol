@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -154,7 +154,8 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+            WAD_SQUARED) / _ONE;
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), 0);
@@ -286,7 +287,8 @@ contract TestFeeManager is TestBaseFeeManager {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+            WAD_SQUARED) / _ONE;
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         uint256 balanceBefore = usdc.balanceOf(address(this));
