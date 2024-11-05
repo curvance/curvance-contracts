@@ -470,8 +470,6 @@ contract MessagingHub is QueryResponse {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        gasLimit = _getGasLimit(gasLimit);
-
         if (payloadType == 4) {
             // Bridge VeCVE Lock crosschain.
 
@@ -688,8 +686,6 @@ contract MessagingHub is QueryResponse {
         uint256 totalPoints,
         uint256 gasLimit
     ) internal {
-        gasLimit = _getGasLimit(gasLimit);
-
         // Query rewards for this epoch.
         uint256 feeTokensHeld = _getFeeTokenHeld();
         // Calculate rewards per veCVE point.
@@ -700,7 +696,7 @@ contract MessagingHub is QueryResponse {
         ChainData memory chainData;
         uint256 currentChainId;
         uint256 feeTokensForChain;
-        
+
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere
         // and return.
@@ -715,7 +711,7 @@ contract MessagingHub is QueryResponse {
                         chainData.messagingChainId,
                         chainData.messagingHub,
                         abi.encode(3, epochToDeliver, 0),
-                        _getGasLimit(gasLimit),
+                        gasLimit,
                         quoteMessageFee(currentChainId, gasLimit)
                     );
                 }
@@ -737,9 +733,9 @@ contract MessagingHub is QueryResponse {
         // Calculate the fee tokens that should stay on this chain by querying
         // this chains lock points directly and adjusting versus all remote
         // chains.
-        feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
-            currentChainId
-        ) / WAD;
+        feeTokensForChain =
+            (((feeTokensHeld * WAD) / totalPoints) * currentChainId) /
+            WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
@@ -756,7 +752,7 @@ contract MessagingHub is QueryResponse {
         for (uint256 i; i < numChains; ++i) {
             currentChainId = chainIds[i];
             chainData = _getChainData(currentChainId);
-            
+
             // Calculate fees for current foreign Chain ID.
             feeTokensForChain =
                 (((feeTokensHeld * WAD) / totalPoints) * chainPoints[i]) /
@@ -770,7 +766,7 @@ contract MessagingHub is QueryResponse {
                     chainData.messagingChainId,
                     chainData.messagingHub,
                     abi.encode(3, epochToDeliver, 0),
-                    _getGasLimit(gasLimit),
+                    gasLimit,
                     quoteMessageFee(currentChainId, gasLimit)
                 );
             } else {
@@ -826,7 +822,7 @@ contract MessagingHub is QueryResponse {
                 targetAddress,
                 payload,
                 0, // No receiver value since we're just passing a message.
-                gasLimit,
+                _getGasLimit(gasLimit),
                 targetChaidId,
                 targetAddress
             );

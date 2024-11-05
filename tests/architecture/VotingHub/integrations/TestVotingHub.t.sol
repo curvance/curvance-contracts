@@ -172,7 +172,7 @@ contract TestVotingHub is TestBaseVotingHub {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
-            1,
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
@@ -301,7 +301,7 @@ contract TestVotingHub is TestBaseVotingHub {
         );
 
         (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
-            1,
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
@@ -326,7 +326,7 @@ contract TestVotingHub is TestBaseVotingHub {
         );
 
         (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
-            1,
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 

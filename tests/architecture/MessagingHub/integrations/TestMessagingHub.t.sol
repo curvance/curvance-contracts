@@ -8,7 +8,7 @@ import { VeCVE } from "contracts/token/VeCVE.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
+import { WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
@@ -111,7 +111,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
-        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) * WAD) / 2;
+        uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
+            WAD_SQUARED) / _ONE;
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 100e6);
