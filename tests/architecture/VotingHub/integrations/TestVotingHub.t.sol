@@ -35,7 +35,7 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
@@ -62,7 +62,7 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
@@ -132,7 +132,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _emissionData.tokens[0] = _USDC_ADDRESS;
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         votingHub.setEraTargetEmissions(_ONE * 5);
 
@@ -272,7 +272,7 @@ contract TestVotingHub is TestBaseVotingHub {
         _emissionData.emissions[0] = _ONE / 2;
         _emissionData.tokens[0] = _USDC_ADDRESS;
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         votingHub.setEraTargetEmissions(_ONE);
 

@@ -88,7 +88,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         swapData.inputToken = _DAI_ADDRESS;
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 

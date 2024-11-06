@@ -184,7 +184,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
@@ -250,11 +250,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
+        _skipEpochDuration(1);
+        _skipRestrictionDuration();
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
@@ -332,11 +333,12 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
-        skip(veCVE.epochDuration() + veCVE.RESTRICTION_DURATION() + 1);
+        _skipEpochDuration(1);
+        _skipRestrictionDuration();
 
         uint256 amount = 100e18;
         vm.startPrank(user1);

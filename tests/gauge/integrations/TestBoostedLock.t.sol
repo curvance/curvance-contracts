@@ -152,7 +152,7 @@ contract TestBoostedLock is TestBaseMarket {
             16000 - 1
         );
 
-        vm.prank(centralRegistry.messagingHub());
+        vm.prank(address(messagingHub));
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         _skipRestrictionDuration();
