@@ -190,6 +190,38 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         assertEq(borrowed, 0);
     }
 
+    function testEnterCurveWithPTokenWithCollateralize() public {
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = _ETH_ADDRESS;
+        tokens[1] = _STETH_ADDRESS;
+
+        vm.prank(user1);
+        complexZapper.enterCurve{ value: ethAmount }(
+            address(pToken),
+            ComplexZapper.ZapperData(
+                _ETH_ADDRESS,
+                ethAmount,
+                _CURVE_STETH_LP,
+                1,
+                false
+            ),
+            new SwapperLib.Swap[](0),
+            _CURVE_STETH_MINTER,
+            tokens,
+            true,
+            user1
+        );
+
+        assertEq(user1.balance, 0);
+
+        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(balance, 3 ether, 0.01 ether);
+        assertEq(borrowed, 0);
+    }
+
     function testEnterCurveWithDelegation() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);

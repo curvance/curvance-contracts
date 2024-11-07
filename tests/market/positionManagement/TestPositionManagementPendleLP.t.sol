@@ -104,7 +104,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
             dai.approve(address(eDAI), 200000e18);
             marketManager.listToken(address(eDAI));
         }
-        
+
         pSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
@@ -305,5 +305,141 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         assertEq(pSTETHBorrowed, 0);
 
         vm.stopPrank();
+    }
+
+    function testLeverageFor() public {
+        vm.startPrank(user);
+
+        deal(_LP_STETH, user, 1 ether);
+        IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+
+        // mint
+        assertGt(pSTETH.deposit(1 ether, user), 0);
+        marketManager.postCollateral(user, address(pSTETH), 1 ether);
+        assertEq(pSTETH.balanceOf(user), 1 ether);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        // borrow
+        eDAI.borrow(100 ether);
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement
+            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            100;
+
+        PositionManagementPendleLP.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.swapData.inputToken = _DAI_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = _WETH_ADDRESS;
+        leverageData.swapData.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _WETH_ADDRESS;
+        params.fee = 3000;
+        params.recipient = address(positionManagement);
+        params.deadline = block.timestamp;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+        leverageData.swapData.slippage = 0.6e18;
+
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 1e10;
+        data.approx.guessMax = 1e18;
+        data.approx.guessOffchain = 0;
+        data.approx.maxIteration = 200;
+        data.approx.eps = 1e18;
+
+        leverageData.auxData = abi.encode(0, data);
+
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.leverageFor(leverageData, user, 500);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+            user
+        );
+        assertGt(pSTETHBalance, 2 ether);
+        assertEq(pSTETHBorrowed, 0 ether);
+    }
+
+    function testDeLeverageFor() public {
+        testLeverage();
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+
+        vm.startPrank(user);
+        PositionManagementPendleLP.DeleverageStruct memory deleverageData;
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
+
+        deleverageData.positionToken = SimplePToken(address(pSTETH));
+        deleverageData.collateralAmount = 1 ether;
+        deleverageData.borrowToken = eDAI;
+
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = _STETH;
+        deleverageData.swapData[0].inputAmount = 2.149 ether;
+        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](3);
+        path[0] = _STETH;
+        path[1] = _WETH_ADDRESS;
+        path[2] = _DAI_ADDRESS;
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
+            2.149 ether,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[0].slippage = 0.6e18;
+        deleverageData.repayAmount = 6500e18;
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 1e10;
+        data.approx.guessMax = 1e18;
+        data.approx.guessOffchain = 0;
+        data.approx.maxIteration = 200;
+        data.approx.eps = 1e18;
+        deleverageData.auxData = abi.encode(data);
+
+        pSTETH.approve(address(positionManagement), type(uint256).max);
+        positionManagement.setDelegateApproval(address(user2), true);
+        vm.stopPrank();
+
+        vm.prank(user2);
+        positionManagement.deleverageFor(deleverageData, user, 500);
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
+        );
+
+        (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+            user
+        );
+        assertEq(
+            pSTETHBalance,
+            pSTETHBalanceBefore - deleverageData.collateralAmount
+        );
+        assertEq(pSTETHBorrowed, 0);
     }
 }

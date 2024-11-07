@@ -202,6 +202,43 @@ contract TestComplexZapperPendle is TestBaseMarket {
         assertEq(borrowed, 0);
     }
 
+    function testEnterPendleWithPTokenWithCollateralize() public {
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        PendleLib.PendleData memory data;
+
+        data.approx.guessMin = 1e10;
+        data.approx.guessMax = 1e18;
+        data.approx.guessOffchain = 0;
+        data.approx.maxIteration = 200;
+        data.approx.eps = 1e18;
+
+        vm.prank(user1);
+        complexZapper.enterPendle{ value: ethAmount }(
+            address(cSTETH),
+            ComplexZapper.ZapperData(
+                address(0),
+                ethAmount,
+                _PENDLE_LP_STETH,
+                1,
+                true
+            ),
+            new SwapperLib.Swap[](0),
+            _PENDLE_ROUTER,
+            _IS_PT,
+            data,
+            true,
+            user1
+        );
+
+        assertEq(user1.balance, 0);
+
+        (uint256 balance, uint256 borrowed, ) = cSTETH.getSnapshot(user1);
+        assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
+        assertEq(borrowed, 0);
+    }
+
     function testEnterPendleWithDelegation() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);
@@ -231,7 +268,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
-            false,
+            true,
             user1
         );
 
@@ -243,7 +280,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
     }
 
     function testRedeemAndExitPendle() public {
-        testEnterPendleWithPToken();
+        testEnterPendleWithPTokenWithCollateralize();
 
         vm.prank(user1);
         cSTETH.setDelegateApproval(address(complexZapper), true);

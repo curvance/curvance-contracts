@@ -219,6 +219,33 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         assertEq(borrowed, 0);
     }
 
+    function testEnterVelodromeWithPTokenWithCollateralize() public {
+        uint256 ethAmount = 3 ether;
+        vm.deal(user1, ethAmount);
+
+        vm.prank(user1);
+        complexZapper.enterVelodrome{ value: ethAmount }(
+            address(pToken),
+            ComplexZapper.ZapperData(
+                address(0),
+                ethAmount,
+                _VELODROME_WETH_USDC,
+                1,
+                true
+            ),
+            new SwapperLib.Swap[](0),
+            _VELODROME_ROUTER,
+            _VELODROME_FACTORY,
+            true,
+            user1
+        );
+
+        assertEq(user1.balance, 0);
+        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
+        assertEq(borrowed, 0);
+    }
+
     function testEnterVelodromeWithDelegation() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user2, ethAmount);
@@ -239,7 +266,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
-            false,
+            true,
             user1
         );
 
