@@ -612,7 +612,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         cve.approve(address(veCVE), lockAmount);
 
-         veCVE.compoundRewardsIntoLock(
+        veCVE.compoundRewardsIntoLock(
             user,
             lockAmount,
             lockIndex,

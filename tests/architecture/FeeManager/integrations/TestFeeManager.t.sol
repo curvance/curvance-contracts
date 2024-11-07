@@ -95,8 +95,8 @@ contract TestFeeManager is TestBaseFeeManager {
 
         _createLock();
 
-        _skipEpochDuration(2);
         _recordEpochRewards(1, 1e6 * _ONE);
+        _skipEpochDuration(1);
     }
 
     function testMultiSwap() public {
@@ -313,7 +313,7 @@ contract TestFeeManager is TestBaseFeeManager {
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 0);
 
-        vm.prank(centralRegistry.messagingHub());
+        vm.prank(address(messagingHub));
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         uint256 nextEpoch = rewardManager.nextEpochToDeliver();
