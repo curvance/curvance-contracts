@@ -72,6 +72,7 @@ contract MessagingHub is QueryResponse {
 
     error MessagingHub__Unauthorized();
     error MessagingHub__InvalidParameter();
+    error MessagingHub__InvalidEpoch();
     error MessagingHub__MessagingHubPaused();
     error MessagingHub__MessageHashIsAlreadyDelivered(bytes32 messageHash);
     error MessagingHub__InsufficientGasToken();
@@ -128,7 +129,7 @@ contract MessagingHub is QueryResponse {
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
 
         if (rewardManager.currentEpoch(block.timestamp) <= epoch) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            revert MessagingHub__InvalidEpoch();
         }
 
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(

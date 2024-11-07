@@ -566,7 +566,7 @@ contract TestBaseMarket is TestBase {
         uint256 epochRewards
     ) internal {
         for (uint256 i = 0; i < numEpochs; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(epochRewards);
         }
 

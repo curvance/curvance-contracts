@@ -57,7 +57,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
             i <= (unlockTime - block.timestamp) / veCVE.epochDuration();
             i++
         ) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 
