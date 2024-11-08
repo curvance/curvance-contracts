@@ -277,6 +277,19 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         ) = _liquidationValuesOf(account, address(0), address(0));
     }
 
+
+    /// @notice Determine whether `account` can be liquidated,
+    ///         by calculating their lFactor, based on their
+    ///         collateral versus outstanding debt.
+    /// @param account The account to check liquidation status for.
+    /// @param earnToken The eToken to be repaid during potential liquidation.
+    /// @param positionToken The pToken to be seized during potential
+    ///                        liquidation.
+    /// @return Current `account` lFactor, an lFactor at or above 1 indicates
+    ///         a soft liquidation, with a value of 1e18 indicating a hard
+    ///         liquidation.
+    /// @return Current price for `earnToken`.
+    /// @return Current price for `positionToken`.
     function LiquidationStatusOf(
         address account,
         address earnToken,
@@ -927,23 +940,25 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         emit TokenListed(mToken);
     }
 
-    /// @notice Sets the collRatio for a market token.
+    /// @notice Sets market liquidity configuration values for a position
+    ///         token inside this market.
     /// @dev Emits a {PositionTokenUpdated} event.
-    /// @param mToken The market to set the collateralization ratio on.
+    /// @param pToken The address of the position token to set the
+    ///               collateralization ratio for.
     /// @param collRatio The ratio at which $1 of collateral can be borrowed
-    ///                  against, for `mToken`, in basis points.
+    ///                  against, for `pToken`, in basis points.
     /// @param collReqSoft The premium of excess collateral required to
     ///                    avoid soft liquidation, in basis points.
     /// @param collReqHard The premium of excess collateral required to
     ///                    avoid hard liquidation, in basis points.
-    /// @param liqIncSoft The soft liquidation incentive for `mToken`,
+    /// @param liqIncSoft The soft liquidation incentive for `pToken`,
     ///                   in basis points.
-    /// @param liqIncHard The hard liquidation incentive for `mToken`,
+    /// @param liqIncHard The hard liquidation incentive for `pToken`,
     ///                   in basis points.
-    /// @param liqFee The protocol liquidation fee for `mToken`,
+    /// @param liqFee The protocol liquidation fee for `pToken`,
     ///               in basis points.
     function updatePositionToken(
-        IMToken mToken,
+        IMToken pToken,
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
@@ -954,12 +969,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ) external {
         _checkElevatedPermissions();
 
-        if (!IMToken(mToken).isPToken()) {
+        if (!IMToken(pToken).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Verify mToken is listed.
-        MarketToken storage marketToken = tokenData[address(mToken)];
+        // Verify pToken is listed.
+        MarketToken storage marketToken = tokenData[address(pToken)];
         if (!marketToken.isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
@@ -1045,7 +1060,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         }
 
         (, uint256 errorCode) = IOracleManager(centralRegistry.oracleManager())
-            .getPrice(address(mToken), true, true);
+            .getPrice(address(pToken), true, true);
 
         // Validate that we get a usable price.
         if (errorCode == 2) {
@@ -1054,7 +1069,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         // Assign new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
-        // no collateralization of the mToken.
+        // no collateralization of the pToken.
         marketToken.collRatio = collRatio;
 
         // Store the collateral requirement as a premium above `WAD`,
@@ -1084,7 +1099,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         marketToken.liqFee = (WAD * liqFee) / (WAD + liqIncSoft);
 
         emit PositionTokenUpdated(
-            mToken,
+            pToken,
             collRatio,
             collReqSoft,
             collReqHard,
@@ -1095,21 +1110,21 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         );
     }
 
-    /// @notice Set `newCollateralizationCaps` for the given `mTokens`.
+    /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
     /// @dev Can emit {NewCollateralCap} events.
-    /// @param mTokens The addresses of the markets (tokens) to
+    /// @param pTokens The addresses of the markets (tokens) to
     ///                change the borrow caps for.
     /// @param newCollateralCaps The new collateral cap values in underlying
     ///                          to be set, in  shares.
     function setPTokenCollateralCaps(
-        address[] calldata mTokens,
+        address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        uint256 numTokens = mTokens.length;
+        uint256 numTokens = pTokens.length;
 
         assembly {
             if iszero(numTokens) {
@@ -1125,19 +1140,19 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         }
 
         for (uint256 i; i < numTokens; ++i) {
-            // Make sure the mToken is a pToken.
-            if (!IMToken(mTokens[i]).isPToken()) {
+            // Make sure the pToken is a pToken.
+            if (!IMToken(pTokens[i]).isPToken()) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             // Do not let people collateralize assets
             // with collateralization ratio of 0.
-            if (tokenData[mTokens[i]].collRatio == 0) {
+            if (tokenData[pTokens[i]].collRatio == 0) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
-            collateralCaps[mTokens[i]] = newCollateralCaps[i];
-            emit NewCollateralCap(mTokens[i], newCollateralCaps[i]);
+            collateralCaps[pTokens[i]] = newCollateralCaps[i];
+            emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
         }
     }
 
@@ -1466,7 +1481,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                     mTokenModified: mToken,
                     redeemTokens: amount,
                     borrowAmount: 0,
-                    errorCodeBreakpoint: 2
+                    errorCodeBreakpoint: 1
                 })
             );
 
@@ -1688,7 +1703,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         AccountPosition storage accountPositions = tokenData[pToken]
             .accountPositions[account];
 
-        // If amount is 0 for a post conditional check
+        // If collateral removal amount is 0, we can skip balance checks.
         if (amount == 0) {
             return (0, accountPositions);
         }
@@ -1701,16 +1716,14 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         uint256 reductionAmount;
 
-        // If they want to redeem more shares than they have in excess,
-        // calculate the delta.
+        // If they want to redeem more pTokens than they have used,
+        // calculate the delta between the two values.
         if (accountPositions.collateralPosted + amount >= balance) {
             reductionAmount =
                 (accountPositions.collateralPosted + amount) -
                 balance;
         }
 
-        // Calculate how much `pToken` `account` needs to have in order
-        // to avoid reducing collateral.
         return (reductionAmount, accountPositions);
     }
 
