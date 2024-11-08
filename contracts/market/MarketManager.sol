@@ -285,11 +285,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @param earnToken The eToken to be repaid during potential liquidation.
     /// @param positionToken The pToken to be seized during potential
     ///                        liquidation.
-    /// @return Current `account` lFactor, an lFactor at or above 1 indicates
-    ///         a soft liquidation, with a value of 1e18 indicating a hard
-    ///         liquidation.
-    /// @return Current price for `earnToken`.
-    /// @return Current price for `positionToken`.
+    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
+    ///                 indicates a soft liquidation, with a value of
+    ///                 1e18 (WAD) indicating a hard liquidation.
+    /// @return earnTokenPrice Current price for `earnToken`.
+    /// @return positionTokenPrice Current price for `positionToken`.
     function LiquidationStatusOf(
         address account,
         address earnToken,
