@@ -106,6 +106,7 @@ contract DeployCurvance is
         // Deploy GaugeManagerPool
         _deployGaugeManager(centralRegistry);
         _addLockingPermissions(gaugeManager);
+        _setGaugeManager(gaugeManager);
 
         // Deploy VotingHub
         _deployVotingHub(centralRegistry, 1000);
