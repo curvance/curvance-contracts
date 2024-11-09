@@ -15,12 +15,10 @@ interface IMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
     ///         wormhole deposit and messaging.
     /// @param dstChainId Destination chain ID.
-    /// @param transferToken Whether deliver token or not.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Total gas cost.
     function quoteMessageFee(
         uint256 dstChainId,
-        bool transferToken,
         uint256 gasLimit
     ) external view returns (uint256);
 

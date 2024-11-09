@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import { CompoundingPToken, ICentralRegistry, IERC20 } from "contracts/market/token/CompoundingPToken.sol";
+
+import { IBlastNativeYieldManager } from "contracts/interfaces/blast/IBlastNativeYieldManager.sol";
+import { IBlastCentralRegistry } from "contracts/interfaces/blast/IBlastCentralRegistry.sol";
+import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
+import { IERC20Rebasing } from "contracts/interfaces/external/blast/IERC20Rebasing.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
+
+abstract contract BlastCompoundingPToken is CompoundingPToken {
+    /// CONSTANTS ///
+
+    /// @notice The address managing ETH/Gas yield.
+    IBlast public constant CHAIN_YIELD_MANAGER =
+        IBlast(0x4300000000000000000000000000000000000002);
+    /// @notice The address managing WETH yield, also the token itself.
+    IERC20Rebasing public constant WETH_YIELD_MANAGER =
+        IERC20Rebasing(0x4300000000000000000000000000000000000004);
+
+    /// @notice The address of Curvance's native Yield Manager.
+    address public immutable nativeYieldManager;
+
+    receive() external payable {}
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        ICentralRegistry centralRegistry_,
+        IERC20 asset_,
+        address marketManager_
+    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        nativeYieldManager = IBlastCentralRegistry(address(centralRegistry_))
+            .nativeYieldManager();
+
+        // Set gas fees yield to claimable and then pass Governor
+        // permissioning to native yield manager.
+        CHAIN_YIELD_MANAGER.configureClaimableGas();
+    }
+
+    /// @notice Harvests and compounds outstanding vault rewards
+    ///         and vests pending rewards.
+    /// @dev NOTE: Needs to be overridden in each BlastCompoundingPToken
+    ///      composable asset, this needs to be asset to asset so Gelato
+    ///      can swap into proper underlyings.
+    /// @return yield The amount of new assets acquired from compounding
+    ///               vault yield.
+    function harvest(
+        bytes calldata
+    ) external virtual override returns (uint256 yield) {
+        yield = CHAIN_YIELD_MANAGER.claimMaxGas(address(this), address(this));
+
+        if (yield > 0) {
+            IWETH(address(WETH_YIELD_MANAGER)).deposit{ value: yield }();
+        }
+
+        IBlastNativeYieldManager(nativeYieldManager)
+            .claimYieldForAutoCompounding(address(marketManager), true, true);
+    }
+}

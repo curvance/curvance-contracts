@@ -31,7 +31,7 @@
   "rewardManager": {
     "rewardToken": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A"
   },
-  "feeAccumulator": {
+  "feeManager": {
     "gasForCalldata": 1e9,
     "gasForCrosschain": 1e9
   },
@@ -41,12 +41,12 @@
   "zapper": {
     "weth": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9"
   },
-  "oracleRouter": {
+  "oracleManager": {
     "chainlinkUsd": "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
     "chainlinkEthUsd": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
   },
   "markets": {
-    "dTokens": {
+    "eTokens": {
       "USDC": {
         "asset": "0x5f02510c29bEa0EF858Ad802b6205a26B66Bf26A",
         "chainlinkEth": "0x0000000000000000000000000000000000000000",
@@ -76,7 +76,7 @@
         }
       }
     },
-    "cTokens": {
+    "pTokens": {
       "WBTC": {
         "asset": "0xa12735b98bc2035ac779389142f35fdee9ab3e42",
         "chainlinkEth": "0x5fb1616F78dA7aFC9FF79e0371741a747D2a7F22",

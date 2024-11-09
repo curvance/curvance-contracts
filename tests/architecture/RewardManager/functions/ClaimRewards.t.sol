@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -32,9 +32,9 @@ contract ClaimRewardsTest is TestBaseRewardManager {
             block.timestamp
         );
 
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
         deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
@@ -88,7 +88,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         swapData.inputToken = _DAI_ADDRESS;
 
         for (uint256 i = 0; i < 2; i++) {
-            vm.prank(centralRegistry.messagingHub());
+            vm.prank(address(messagingHub));
             rewardManager.recordEpochRewards(1e6 * _ONE);
         }
 

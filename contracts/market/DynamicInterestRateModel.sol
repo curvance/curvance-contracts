@@ -5,6 +5,7 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
+import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
 
@@ -23,7 +24,7 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///      This model then builds on top of the previous systems by introducing
 ///      a dynamic "Vertex Multiplier" which increases the skew of
 ///      `vertexInterestRate`. The Vertex Multiplier is adjusted upward or
-///      downward based on the utilization of liquidity inside the dToken
+///      downward based on the utilization of liquidity inside the eToken
 ///      market.
 ///
 ///      This means that if utilization remains elevated during update
@@ -44,7 +45,7 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///      velocity is applied to it, regardless of positive or negative
 ///      acceleration applied due to liquidity utilization. By having a
 ///      naturally decreasing interest rate model users are incentivized to
-///      continually borrow from the dToken market over other solutions. Then,
+///      continually borrow from the eToken market over other solutions. Then,
 ///      when liquidity dries up, the interest rate model attracts new lenders.
 ///      The combination of these two forces should, in theory, create an
 ///      efficient system that naturally stimulates market growth while also
@@ -67,6 +68,15 @@ import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateMod
 ///         applying a positive curve value to the adjustment. This adjustment
 ///         is also subjected to the decay multiplier.
 ///
+///      NOTE: The Dynamic Interest Rate model will not be able to update its
+///            modifier until an earn token is properly linked to it via
+///            setLinkedEToken().
+///
+///            If an earn token updates to another dynamic interest rate model
+///            contract then this contract theoretically can still be called by
+///            it afterwards if the smart contract was malformed, this does not
+///            really have any tangible impact but for developers who may adapt
+///            this smart contract in the future, I figure its worth mentioning.
 contract DynamicInterestRateModel is ERC165 {
     /// TYPES ///
 
@@ -148,8 +158,22 @@ contract DynamicInterestRateModel is ERC165 {
     uint256 internal constant _BITMASK_VERTEX_MULTIPLIER = (1 << 192) - 1;
     /// @notice The bit position of `nextUpdateTimestamp` in `_currentRates`.
     uint256 internal constant _BITPOS_UPDATE_TIMESTAMP = 192;
+    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf7ff5148;
+    /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__InvalidToken()")))`.
+    uint256 internal constant _INVALID_TOKEN_SELECTOR = 0x65fb74c1;
+
+
 
     /// STORAGE ///
+
+    /// @notice The earn token linked to this interest rate model contract.
+    /// @dev Once this earn token is set it can never be changed again
+    ///      replicating an immutable value, it also will be completely
+    ///      depreciated if that earn token ever switches to another
+    ///      interest rate model, automatically depreciating this
+    ///      implementation.
+    address public linkedEToken;
 
     /// @notice Struct containing current configuration data for the
     ///         dynamic interest rate model.
@@ -177,9 +201,12 @@ contract DynamicInterestRateModel is ERC165 {
         bool vertexReset
     );
 
+    event EarnTokenLinked(address eTokenAddress);
+
     /// ERRORS ///
 
     error DynamicInterestRateModel__Unauthorized();
+    error DynamicInterestRateModel__InvalidToken();
     error DynamicInterestRateModel__InvalidCentralRegistry();
     error DynamicInterestRateModel__InvalidAdjustmentRate();
     error DynamicInterestRateModel__InvalidAdjustmentVelocity();
@@ -238,6 +265,46 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Sets the dynamic interest rate model's linked earn token
+    ///         (eToken) which interest rates this contract will manage.
+    /// @dev Once this function is properly it can never be called again.
+    /// @param eTokenAddress The address of the earn token to be linked
+    ///                      to this interest rate model contract.
+    function setLinkedEToken(address eTokenAddress) external {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that an earn token has not already been linked to this
+        // smart contract.
+        if (linkedEToken != address(0)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate that the token being linked is actually an earn token
+        // and not a position token, if the token is not an mToken at all
+        // this will also natively fail, which is fine too.
+        if (IMToken(eTokenAddress).isPToken()) {
+            _revert(_INVALID_TOKEN_SELECTOR);
+        }
+
+        // Validate that the earn token is actually expecting this interest
+        // rate model to be linked to it.
+        if (
+            address(IMToken(
+                eTokenAddress
+            ).interestRateModel()) != address(this)
+            ) {
+                _revert(_INVALID_TOKEN_SELECTOR);
+        }
+
+        linkedEToken = eTokenAddress;
+
+        emit EarnTokenLinked(eTokenAddress);
+    }
+
+    /// @notice Updates the dynamic interest rate model's configuration values
+    ///         impacting for interest rates behave for the linked eToken.
     /// @param baseRatePerYear The rate of increase in interest rate by
     ///                        utilization rate, in `basis points`.
     /// @param vertexRatePerYear The rate of increase in interest rate by
@@ -266,7 +333,7 @@ contract DynamicInterestRateModel is ERC165 {
         bool vertexReset
     ) external {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            revert DynamicInterestRateModel__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         _updateDynamicInterestRateModel(
@@ -293,6 +360,12 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 borrows,
         uint256 reserves
     ) external returns (uint256 borrowRate) {
+        // Validate that the linked earn token itself is calling to update
+        // its interest rates.
+        if (msg.sender != linkedEToken) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
         uint256 util = utilizationRate(underlyingHeld, borrows, reserves);
         RatesConfiguration memory config = ratesConfig;
         uint256 vertexPoint = config.vertexStartingPoint;
@@ -370,7 +443,8 @@ contract DynamicInterestRateModel is ERC165 {
     ) external view returns (uint256) {
         return
             _SECONDS_PER_YEAR *
-            (getBorrowRate(underlyingHeld, borrows, reserves) / INTEREST_COMPOUND_RATE);
+            (getBorrowRate(underlyingHeld, borrows, reserves) /
+                INTEREST_COMPOUND_RATE);
     }
 
     /// @notice Calculates the current supply rate per year.
@@ -429,7 +503,8 @@ contract DynamicInterestRateModel is ERC165 {
             return 0;
         }
 
-        uint256 utilRate = (borrows * WAD) / (underlyingHeld + borrows - reserves);
+        uint256 utilRate = (borrows * WAD) /
+            (underlyingHeld + borrows - reserves);
         // If reserves end up growing too much and cause util > 100%,
         // cap it to 100%.
         return utilRate > WAD ? WAD : utilRate;
@@ -464,8 +539,10 @@ contract DynamicInterestRateModel is ERC165 {
 
         uint256 vertexInterestRate = ratesConfig.vertexInterestRate;
         uint256 newMultiplier = _updateForAboveVertex(config, util);
-        return _getBaseInterestRate(vertexPoint) +
-         ((util - vertexPoint) * vertexInterestRate * newMultiplier) / WAD_SQUARED;
+        return
+            _getBaseInterestRate(vertexPoint) +
+            ((util - vertexPoint) * vertexInterestRate * newMultiplier) /
+            WAD_SQUARED;
     }
 
     /// @notice Calculates the current borrow rate, per compound.
@@ -511,11 +588,16 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 interestFee
     ) public view returns (uint256) {
         // RateToPool = (borrowRate * oneMinusReserveFactor) / WAD.
-        uint256 rateToPool = (getBorrowRate(underlyingHeld, borrows, reserves) *
-            (WAD - interestFee)) / WAD;
+        uint256 rateToPool = (getBorrowRate(
+            underlyingHeld,
+            borrows,
+            reserves
+        ) * (WAD - interestFee)) / WAD;
 
         // Supply Rate = (utilizationRate * rateToPool) / WAD.
-        return (utilizationRate(underlyingHeld, borrows, reserves) * rateToPool) / WAD;
+        return
+            (utilizationRate(underlyingHeld, borrows, reserves) * rateToPool) /
+            WAD;
     }
 
     /// @notice Returns the multiplier applied to the vertex interest rate,
@@ -561,8 +643,7 @@ contract DynamicInterestRateModel is ERC165 {
     ) internal view returns (uint256) {
         // We divide by WAD to maintain precision.
         return
-            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
-            WAD;
+            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) / WAD;
     }
 
     /// @notice Updates the parameters of the dynamic interest rate model
@@ -627,7 +708,7 @@ contract DynamicInterestRateModel is ERC165 {
         }
 
         // Our theoretical limit for the vertex multiplier is:
-        // (2^256 - 1) / 3e36 = 3.8597e40. 
+        // (2^256 - 1) / 3e36 = 3.8597e40.
         // Where 3e36 is the theoretical maximum value of cFactor and
         // 2^256 - 1 is type(uint256).max.
         // As a result, we cap the vertex maximum before this number to
@@ -693,7 +774,7 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates and returns the updated multiplier for scenarios
     ///         where the utilization rate is above the vertex.
     /// @dev This function is used to adjust the vertex multiplier based on
-    ///      the dToken's current borrow utilization.
+    ///      the eToken's current borrow utilization.
     ///      A decay mechanism is incorporated to gradually decrease the
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.
@@ -754,7 +835,7 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates and returns the updated multiplier for scenarios
     ///         where the utilization rate is below the vertex.
     /// @dev This function is used to adjust the vertex multiplier based on
-    ///      the dToken's current borrow utilization.
+    ///      the eToken's current borrow utilization.
     ///      A decay mechanism is incorporated to gradually decrease the
     ///      multiplier, and ensures the multiplier does not fall below 1,
     ///      in WAD.
@@ -941,6 +1022,15 @@ contract DynamicInterestRateModel is ERC165 {
             (packedRatesData & _BITMASK_VERTEX_MULTIPLIER) |
             (timestampCasted << _BITPOS_UPDATE_TIMESTAMP);
         _currentRates = packedRatesData;
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

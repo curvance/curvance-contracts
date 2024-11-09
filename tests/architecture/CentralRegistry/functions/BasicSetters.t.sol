@@ -18,7 +18,7 @@ contract BasicSettersTest is TestBaseMarket {
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
             _ZERO_ADDRESS,
-            block.timestamp,
+            block.timestamp + 1,
             address(0),
             _USDC_ADDRESS
         );
@@ -28,24 +28,24 @@ contract BasicSettersTest is TestBaseMarket {
             "setVeCVE(address)",
             "setRewardManager(address)",
             "setMessagingHub(address)",
-            "setOracleRouter(address)",
-            "setFeeAccumulator(address)"
+            "setOracleManager(address)",
+            "setFeeManager(address)"
         ];
         getters = [
             "cve()",
             "veCVE()",
             "rewardManager()",
             "messagingHub()",
-            "oracleRouter()",
-            "feeAccumulator()"
+            "oracleManager()",
+            "feeManager()"
         ];
         expectedLogs = [
             "CVE",
             "VeCVE",
             "Reward Manager",
             "Messaging Hub",
-            "Oracle Router",
-            "Fee Accumulator"
+            "Oracle Manager",
+            "Fee Manager"
         ];
     }
 

@@ -22,10 +22,10 @@ contract DeployAuraMarkets is Script, DeployConfiguration, AuraMarketDeployer {
         vm.startBroadcast(deployerPrivateKey);
 
         _deployAuraMarket(
-            "C-AURA-RETH-WETH-109",
+            "P-AURA-RETH-WETH-109",
             abi.decode(
                 configurationJson.parseRaw(
-                    ".markets.cTokens.AURA-RETH-WETH-109"
+                    ".markets.pTokens.AURA-RETH-WETH-109"
                 ),
                 (AuraMarketDeployer.AuraMarketParam)
             )

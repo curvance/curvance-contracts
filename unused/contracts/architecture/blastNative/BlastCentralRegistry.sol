@@ -86,9 +86,9 @@ contract BlastCentralRegistry is CentralRegistry {
         for (uint256 i; i < nonMTokensLength; ) {
             nonMToken = nonMTokens[i++];
 
-            // Try to call isCToken as if the address was an mToken.
+            // Try to call isPToken as if the address was an mToken.
             (bool success, ) = nonMToken.staticcall(
-                abi.encodePacked(IMToken(nonMToken).isCToken.selector)
+                abi.encodePacked(IMToken(nonMToken).isPToken.selector)
             );
             // If the call was successful we called a Curvance mToken which
             // DAO should not be able to claim rewards for.
@@ -104,9 +104,9 @@ contract BlastCentralRegistry is CentralRegistry {
 
     function transferDaoOwnership(address newDaoAddress) public override {
         super.transferDaoOwnership(newDaoAddress);
-        IBlast(
-            0x4300000000000000000000000000000000000002
-        ).configureGovernor(newDaoAddress);
+        IBlast(0x4300000000000000000000000000000000000002).configureGovernor(
+            newDaoAddress
+        );
     }
 
     /// @notice Adds a new Market Manager and associated fee configurations.

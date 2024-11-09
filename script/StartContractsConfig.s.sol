@@ -12,19 +12,19 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { MulticallDataCheckerForRedstoneAdaptor } from "contracts/market/multicall-checker/MulticallDataCheckerForRedstoneAdaptor.sol";
+import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 
@@ -34,7 +34,7 @@ contract StartContractsConfig is
     SimpleZapperDeployer,
     ComplexZapperDeployer
 {
-    struct DTokenInterestRateParam {
+    struct ETokenInterestRateParam {
         uint256 adjustmentRate;
         uint256 adjustmentVelocity;
         uint256 baseRatePerYear;
@@ -44,14 +44,14 @@ contract StartContractsConfig is
         uint256 vertexUtilizationStart;
     }
 
-    struct DTokenParam {
+    struct ETokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
-        DTokenInterestRateParam interestRateParam;
+        ETokenInterestRateParam interestRateParam;
     }
 
-    struct CTokenParam {
+    struct PTokenParam {
         address asset;
         address chainlinkEth;
         address chainlinkUsd;
@@ -205,10 +205,10 @@ contract StartContractsConfig is
         address sweth = _getDeployedContract("SWETH");
 
         address chainlinkUsdcFeedInUsd = _readConfigAddress(
-            ".oracleRouter.chainlinkUsd"
+            ".oracleManager.chainlinkUsd"
         );
         address chainlinkEthFeedInUsd = _readConfigAddress(
-            ".oracleRouter.chainlinkEthUsd"
+            ".oracleManager.chainlinkEthUsd"
         );
 
         if (!is_berachain && !is_movement) {
@@ -217,17 +217,17 @@ contract StartContractsConfig is
 
             MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
             MarketTokenDeploy[]
-                memory thirdCollateralTokens = new MarketTokenDeploy[](1);
+                memory thirdPositionTokens = new MarketTokenDeploy[](1);
             MarketTokenDeploy[]
-                memory thirdDebtTokens = new MarketTokenDeploy[](1);
-            thirdCollateralTokens[0] = MarketTokenDeploy(
-                "CToken-mETH",
+                memory thirdEarnTokens = new MarketTokenDeploy[](1);
+            thirdPositionTokens[0] = MarketTokenDeploy(
+                "PToken-mETH",
                 m_eth,
                 address(0),
                 chainlinkEthFeedInUsd
             );
-            thirdDebtTokens[0] = MarketTokenDeploy(
-                "DToken-mUSD",
+            thirdEarnTokens[0] = MarketTokenDeploy(
+                "EToken-mUSD",
                 m_usd,
                 address(0),
                 chainlinkUsdcFeedInUsd
@@ -235,29 +235,29 @@ contract StartContractsConfig is
             _deployMarketTokens(
                 thirdMarket,
                 cr,
-                thirdCollateralTokens,
-                thirdDebtTokens
+                thirdPositionTokens,
+                thirdEarnTokens
             );
         }
 
         MarketManager fourthMarket = _createMarket("fourthTestMarket", cr);
         MarketTokenDeploy[]
-            memory fourthCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory fourthDebtTokens = new MarketTokenDeploy[](
+            memory fourthPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory fourthEarnTokens = new MarketTokenDeploy[](
             1
         );
         if (!is_berachain && !is_movement) {
-            fourthDebtTokens = new MarketTokenDeploy[](2);
+            fourthEarnTokens = new MarketTokenDeploy[](2);
         }
-        fourthCollateralTokens[0] = MarketTokenDeploy(
-            "CToken-LUSD",
+        fourthPositionTokens[0] = MarketTokenDeploy(
+            "PToken-LUSD",
             l_usd,
             address(0),
             chainlinkUsdcFeedInUsd
         );
 
-        fourthDebtTokens[0] = MarketTokenDeploy(
-            "DToken-SWETH",
+        fourthEarnTokens[0] = MarketTokenDeploy(
+            "EToken-SWETH",
             sweth,
             address(0),
             chainlinkUsdcFeedInUsd
@@ -266,8 +266,8 @@ contract StartContractsConfig is
         if (!is_berachain && !is_movement) {
             address mk_usd = _getDeployedContract("mkUSD");
 
-            fourthDebtTokens[1] = MarketTokenDeploy(
-                "DToken-mkUSD",
+            fourthEarnTokens[1] = MarketTokenDeploy(
+                "EToken-mkUSD",
                 mk_usd,
                 address(0),
                 chainlinkUsdcFeedInUsd
@@ -277,8 +277,8 @@ contract StartContractsConfig is
         _deployMarketTokens(
             fourthMarket,
             cr,
-            fourthCollateralTokens,
-            fourthDebtTokens
+            fourthPositionTokens,
+            fourthEarnTokens
         );
     }
 
@@ -292,52 +292,52 @@ contract StartContractsConfig is
 
         MarketManager firstMarket = _createMarket("firstTestMarket", cr);
         MarketTokenDeploy[]
-            memory firstCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory firstDebtTokens = new MarketTokenDeploy[](
+            memory firstPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory firstEarnTokens = new MarketTokenDeploy[](
             1
         );
-        firstCollateralTokens[0] = MarketTokenDeploy(
-            "CToken-WBTC",
+        firstPositionTokens[0] = MarketTokenDeploy(
+            "PToken-WBTC",
             wbtc,
-            _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
-            _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
+            _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
+            _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
         );
-        firstDebtTokens[0] = MarketTokenDeploy(
-            "DToken-USDC",
+        firstEarnTokens[0] = MarketTokenDeploy(
+            "EToken-USDC",
             usdc,
-            _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
-            _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
+            _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
+            _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
         );
         _deployMarketTokens(
             firstMarket,
             cr,
-            firstCollateralTokens,
-            firstDebtTokens
+            firstPositionTokens,
+            firstEarnTokens
         );
 
         MarketManager secondMarket = _createMarket("secondTestMarket", cr);
         MarketTokenDeploy[]
-            memory secondCollateralTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory secondDebtTokens = new MarketTokenDeploy[](
+            memory secondPositionTokens = new MarketTokenDeploy[](1);
+        MarketTokenDeploy[] memory secondEarnTokens = new MarketTokenDeploy[](
             1
         );
-        secondCollateralTokens[0] = MarketTokenDeploy(
-            "CToken-USDC",
+        secondPositionTokens[0] = MarketTokenDeploy(
+            "PToken-USDC",
             usdc,
-            _readConfigAddress(".markets.dTokens.USDC.chainlinkEth"),
-            _readConfigAddress(".markets.dTokens.USDC.chainlinkUsd")
+            _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
+            _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
         );
-        secondDebtTokens[0] = MarketTokenDeploy(
-            "DToken-WBTC",
+        secondEarnTokens[0] = MarketTokenDeploy(
+            "EToken-WBTC",
             wbtc,
-            _readConfigAddress(".markets.cTokens.WBTC.chainlinkEth"),
-            _readConfigAddress(".markets.cTokens.WBTC.chainlinkUsd")
+            _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
+            _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
         );
         _deployMarketTokens(
             secondMarket,
             cr,
-            secondCollateralTokens,
-            secondDebtTokens
+            secondPositionTokens,
+            secondEarnTokens
         );
     }
 
@@ -379,33 +379,33 @@ contract StartContractsConfig is
     function _deployMarketTokens(
         MarketManager market,
         ICentralRegistry cr,
-        MarketTokenDeploy[] memory collateralTokens,
-        MarketTokenDeploy[] memory debtTokens
+        MarketTokenDeploy[] memory PositionTokens,
+        MarketTokenDeploy[] memory earnTokens
     ) internal {
-        for (uint256 i = 0; i < collateralTokens.length; i++) {
-            _deployCToken(
-                collateralTokens[i].name,
-                collateralTokens[i].token,
-                collateralTokens[i].chainlinkEthAggregator,
-                collateralTokens[i].chainlinkUsdAggregator,
+        for (uint256 i = 0; i < PositionTokens.length; i++) {
+            _deployPToken(
+                PositionTokens[i].name,
+                PositionTokens[i].token,
+                PositionTokens[i].chainlinkEthAggregator,
+                PositionTokens[i].chainlinkUsdAggregator,
                 cr,
                 market
             );
         }
 
-        for (uint256 i = 0; i < debtTokens.length; i++) {
-            _deployDToken(
-                debtTokens[i].name,
-                debtTokens[i].token,
-                debtTokens[i].chainlinkEthAggregator,
-                debtTokens[i].chainlinkUsdAggregator,
+        for (uint256 i = 0; i < earnTokens.length; i++) {
+            _deployEToken(
+                earnTokens[i].name,
+                earnTokens[i].token,
+                earnTokens[i].chainlinkEthAggregator,
+                earnTokens[i].chainlinkUsdAggregator,
                 cr,
                 market
             );
         }
     }
 
-    function _deployDToken(
+    function _deployEToken(
         string memory name,
         address tokenAddress,
         address chainlinkEthAggregator,
@@ -414,7 +414,7 @@ contract StartContractsConfig is
         MarketManager market
     ) internal returns (address) {
         address interestRateModel = address(
-            // .markets.dTokens.USDC.interestRateParam
+            // .markets.eTokens.USDC.interestRateParam
             new DynamicInterestRateModel(
                 cr,
                 1000,
@@ -427,16 +427,16 @@ contract StartContractsConfig is
             )
         );
 
-        address dToken = address(
-            new DToken(cr, tokenAddress, address(market), interestRateModel)
+        address eToken = address(
+            new EToken(cr, tokenAddress, address(market), interestRateModel)
         );
-        _saveDeployedContracts(name, dToken);
+        _saveDeployedContracts(name, eToken);
 
         if (tokenAddress != _getDeployedContract("SWETH")) {
             _addChainlinkOracleSupport(
                 chainlinkEthAggregator,
                 chainlinkUsdAggregator,
-                dToken
+                eToken
             );
         }
 
@@ -446,18 +446,18 @@ contract StartContractsConfig is
             tokenAddress != _getDeployedContract("mkUSD")
         ) {
             console.log("[REDSTONE] - Adding", name);
-            _addRedstoneOracleSupport(dToken);
+            _addRedstoneOracleSupport(eToken);
         } else {
             console.log("Avoiding Redstone Oracle for testnet token: ", name);
         }
 
-        MockToken(tokenAddress).approve(dToken, 1e25);
-        market.listToken(dToken);
+        MockToken(tokenAddress).approve(eToken, 1e25);
+        market.listToken(eToken);
 
-        return dToken;
+        return eToken;
     }
 
-    function _deployCToken(
+    function _deployPToken(
         string memory name,
         address tokenAddress,
         address chainlinkEthAggregator,
@@ -466,15 +466,15 @@ contract StartContractsConfig is
         MarketManager market
     ) internal returns (address) {
         IERC20 underlying = IERC20(tokenAddress);
-        address cToken = address(
-            new CTokenPrimitive(cr, underlying, address(market))
+        address pToken = address(
+            new SimplePToken(cr, underlying, address(market))
         );
-        _saveDeployedContracts(name, cToken);
+        _saveDeployedContracts(name, pToken);
 
         _addChainlinkOracleSupport(
             chainlinkEthAggregator,
             chainlinkUsdAggregator,
-            cToken
+            pToken
         );
 
         if (
@@ -483,16 +483,16 @@ contract StartContractsConfig is
             tokenAddress != _getDeployedContract("mkUSD")
         ) {
             console.log("[REDSTONE] - Adding", name);
-            _addRedstoneOracleSupport(cToken);
+            _addRedstoneOracleSupport(pToken);
         } else {
             console.log("Avoiding Redstone Oracle for testnet token: ", name);
         }
 
-        MockToken(tokenAddress).approve(cToken, 1e25);
-        market.listToken(cToken);
-        market.updateCollateralToken(
+        MockToken(tokenAddress).approve(pToken, 1e25);
+        market.listToken(pToken);
+        market.updatePositionToken(
             // From FuzzMarketManager -> setup()
-            IMToken(cToken),
+            IMToken(pToken),
             7000,
             4000,
             3000,
@@ -502,22 +502,22 @@ contract StartContractsConfig is
             1000
         );
         address[] memory mTokens = new address[](1);
-        mTokens[0] = cToken;
+        mTokens[0] = pToken;
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** underlying.decimals(); //1m tokens
-        market.setCTokenCollateralCaps(mTokens, newCollateralCaps);
+        market.setPTokenCollateralCaps(mTokens, newCollateralCaps);
 
-        return cToken;
+        return pToken;
     }
 
     function _addRedstoneOracleSupport(address mToken) internal {
-        address oracleRouter = _getDeployedContract("oracleRouter");
+        address oracleManager = _getDeployedContract("oracleManager");
         address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
         address underlying = IMToken(mToken).underlying();
 
         IERC20 underlyingToken = IERC20(underlying);
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
-        OracleRouter router = OracleRouter(oracleRouter);
+        OracleManager router = OracleManager(oracleManager);
 
         if (!router.isSupportedAsset(mToken)) {
             router.addMTokenSupport(mToken);
@@ -529,7 +529,7 @@ contract StartContractsConfig is
         address chainlinkUsd,
         address mToken
     ) internal {
-        address oracleRouter = _getDeployedContract("oracleRouter");
+        address oracleManager = _getDeployedContract("oracleManager");
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         address underlying = IMToken(mToken).underlying();
 
@@ -557,22 +557,22 @@ contract StartContractsConfig is
             }
         }
 
-        if (!OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)) {
-            OracleRouter(oracleRouter).addApprovedAdaptor(chainlinkAdaptor);
+        if (!OracleManager(oracleManager).isApprovedAdaptor(chainlinkAdaptor)) {
+            OracleManager(oracleManager).addApprovedAdaptor(chainlinkAdaptor);
         }
 
-        try OracleRouter(oracleRouter).assetPriceFeeds(underlying, 0) returns (
+        try OracleManager(oracleManager).assetPriceFeeds(underlying, 0) returns (
             address feed
         ) {} catch {
-            OracleRouter(oracleRouter).addAssetPriceFeed(
+            OracleManager(oracleManager).addAssetPriceFeed(
                 underlying,
                 chainlinkAdaptor
             );
         }
 
         // Link mToken
-        if (!OracleRouter(oracleRouter).isSupportedAsset(mToken)) {
-            OracleRouter(oracleRouter).addMTokenSupport(mToken);
+        if (!OracleManager(oracleManager).isSupportedAsset(mToken)) {
+            OracleManager(oracleManager).addMTokenSupport(mToken);
         }
     }
 
@@ -591,10 +591,10 @@ contract StartContractsConfig is
         mockTokens[2] = _getDeployedContract("WBTC");
         mockTokens[3] = _getDeployedContract("SWETH");
 
-        address oracleRouter = _getDeployedContract("oracleRouter");
+        address oracleManager = _getDeployedContract("oracleManager");
         address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
         RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
-        OracleRouter router = OracleRouter(oracleRouter);
+        OracleManager router = OracleManager(oracleManager);
 
         address[] memory priceFeedAdds = new address[](mockTokens.length);
         for (uint256 i = 0; i < mockTokens.length; i++) {
@@ -629,7 +629,7 @@ contract StartContractsConfig is
     function _addRedstonePriceFeed(
         IERC20 underlyingToken,
         RedstoneCoreAdaptor adaptor,
-        OracleRouter router
+        OracleManager router
     ) internal {
         console.log(
             "[REDSTONE] - Fetching & applying price for ",

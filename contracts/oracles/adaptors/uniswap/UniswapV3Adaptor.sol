@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IStaticOracle } from "contracts/interfaces/external/uniswap/IStaticOracle.sol";
@@ -37,8 +37,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     /// @notice Chain WETH address.
     address public immutable WETH;
 
-    /// @notice Static uniswap Oracle Router address.
-    IStaticOracle public immutable uniswapOracleRouter;
+    /// @notice Static uniswap Oracle Manager address.
+    IStaticOracle public immutable uniswapOracleManager;
 
     /// STORAGE ///
 
@@ -71,7 +71,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         if (block.chainid != 1) {
             revert UniswapV3Adaptor__ChainIsNotSupported();
         }
-        uniswapOracleRouter = oracleAddress_;
+        uniswapOracleManager = oracleAddress_;
         WETH = WETH_;
     }
 
@@ -104,10 +104,10 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         uint256 twapPrice;
 
         // Pull twap price via a staticcall.
-        (bool success, bytes memory returnData) = address(uniswapOracleRouter)
+        (bool success, bytes memory returnData) = address(uniswapOracleManager)
             .staticcall(
                 abi.encodePacked(
-                    uniswapOracleRouter
+                    uniswapOracleManager
                         .quoteSpecificPoolsWithTimePeriod
                         .selector,
                     abi.encode(
@@ -129,8 +129,8 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        IOracleRouter OracleRouter = IOracleRouter(
-            centralRegistry.oracleRouter()
+        IOracleManager OracleManager = IOracleManager(
+            centralRegistry.oracleManager()
         );
         pData.inUSD = inUSD;
 
@@ -138,14 +138,14 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         // so find out the price of the quote token in USD then divide
         // so its in USD.
         if (inUSD) {
-            if (!OracleRouter.isSupportedAsset(data.quoteToken)) {
-                // Our Oracle Router does not know how to value this quote
+            if (!OracleManager.isSupportedAsset(data.quoteToken)) {
+                // Our Oracle Manager does not know how to value this quote
                 // token, so, we cant use the twap data, bubble up an error.
                 pData.hadError = true;
                 return pData;
             }
 
-            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleRouter
+            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
                 .getPrice(data.quoteToken, true, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
@@ -170,14 +170,14 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         }
 
         if (data.quoteToken != WETH) {
-            if (!OracleRouter.isSupportedAsset(data.quoteToken)) {
-                // Our Oracle Router does not know how to value this quote
+            if (!OracleManager.isSupportedAsset(data.quoteToken)) {
+                // Our Oracle Manager does not know how to value this quote
                 // token so we cant use the twap data.
                 pData.hadError = true;
                 return pData;
             }
 
-            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleRouter
+            (uint256 quoteTokenDenominator, uint256 errorCode) = OracleManager
                 .getPrice(data.quoteToken, false, getLower);
 
             // Validate we did not run into any errors pricing the quote asset.
@@ -212,7 +212,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     }
 
     /// @notice Adds pricing support for `asset`, a token inside a Univ3 lp.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param data The adaptor data needed to add `asset`.
@@ -253,7 +253,7 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -270,9 +270,11 @@ contract UniswapV3Adaptor is BaseOracleAdaptor {
         delete isSupportedAsset[asset];
         delete adaptorData[asset];
 
-        // Notify the Oracle Router that we are going
+        // Notify the Oracle Manager that we are going
         // to stop supporting the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit UniswapV3AssetRemoved(asset);
     }
 

@@ -87,6 +87,7 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
                     (predictedBorrowRate / interestRateModel.compoundRate())
             );
 
+            vm.prank(address(eUSDC));
             assertEq(
                 interestRateModel.getBorrowRateWithUpdate(
                     cash,

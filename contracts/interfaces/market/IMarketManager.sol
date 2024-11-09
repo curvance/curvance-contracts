@@ -38,7 +38,7 @@ interface IMarketManager {
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market, and then redeems.
     /// @dev This can only be called by the mToken itself
-    ///      (specifically cTokens, because dTokens are never collateral).
+    ///      (specifically pTokens, because eTokens are never collateral).
     /// @param mToken The market to verify the redeem against.
     /// @param account The account which would redeem the tokens.
     /// @param balance The current mTokens balance of `account`.
@@ -57,11 +57,11 @@ interface IMarketManager {
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev May emit a {TokenPositionCreated} event.
-    /// @param dToken The debt token to verify the borrow of.
+    /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrowWithPrune(
-        address dToken,
+        address eToken,
         address account,
         uint256 amount
     ) external;
@@ -86,38 +86,38 @@ interface IMarketManager {
     function canRepay(address mToken, address account) external;
 
     /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many collateral tokens should be seized
+    ///         and returns how many position tokens should be seized
     ///         on liquidation.
-    /// @param dToken Debt token to repay which is borrowed by `account`.
-    /// @param cToken Collateral token which was used as collateral and will
+    /// @param eToken Debt token to repay which is borrowed by `account`.
+    /// @param pToken Position token which was used as collateral and will
     ///        be seized.
     /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `debtToken` underlying being repaid.
+    /// @param amount The amount of `earnToken` underlying being repaid.
     /// @param liquidateExact Whether the liquidator desires a specific
     ///                       liquidation amount.
-    /// @return The amount of `debtToken` underlying to be repaid on liquidation.
-    /// @return The number of `collateralToken` tokens to be seized in a liquidation.
-    /// @return The number of `collateralToken` tokens to be seized for the protocol.
+    /// @return The amount of `earnToken` underlying to be repaid on liquidation.
+    /// @return The number of `positionToken` tokens to be seized in a liquidation.
+    /// @return The number of `positionToken` tokens to be seized for the protocol.
     function canLiquidateWithExecution(
-        address dToken,
-        address cToken,
+        address eToken,
+        address pToken,
         address account,
         uint256 amount,
         bool liquidateExact
     ) external returns (uint256, uint256, uint256);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
-    /// @param collateralToken Asset which was used as collateral
+    /// @param positionToken Asset which was used as collateral
     ///                        and will be seized.
-    /// @param debtToken Asset which was borrowed by the account.
-    function canSeize(address collateralToken, address debtToken) external;
+    /// @param earnToken Asset which was borrowed by the account.
+    function canSeize(address positionToken, address earnToken) external;
 
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
     /// @param mToken The market to verify the transfer against.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransferDToken(
+    function canTransferEToken(
         address mToken,
         address from,
         uint256 amount
@@ -128,7 +128,7 @@ interface IMarketManager {
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which sources the tokens.
     /// @param amount The number of mTokens to transfer.
-    function canTransferCToken(
+    function canTransferPToken(
         address mToken,
         address from,
         uint256 amount
@@ -136,7 +136,7 @@ interface IMarketManager {
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
     /// @dev The caller must be a listed MToken in the `markets` mapping.
-    /// @param mToken The address of the dToken that the account is borrowing.
+    /// @param mToken The address of the eToken that the account is borrowing.
     /// @param account The address of the account that has just borrowed.
     function notifyBorrow(address mToken, address account) external;
 

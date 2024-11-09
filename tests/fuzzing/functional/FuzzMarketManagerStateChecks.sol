@@ -282,15 +282,15 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         );
         require(liquidityDeficit == 0);
 
-        (uint256 accountCollateral,, uint256 accountDebt) = marketManager
+        (uint256 accountCollateral, , uint256 accountDebt) = marketManager
             .statusOf(address(this));
         require(accountDebt != 0);
         amount = clampBetween(amount, 1, accountCollateral);
-        bool cToken = IMToken(mtoken).isCToken();
+        bool pToken = IMToken(mtoken).isPToken();
 
-        if (cToken) {
+        if (pToken) {
             try
-                marketManager.canTransferCToken(mtoken, address(this), amount)
+                marketManager.canTransferPToken(mtoken, address(this), amount)
             {} catch {
                 assertWithMsg(
                     false,
@@ -299,7 +299,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             }
         } else {
             try
-                marketManager.canTransferDToken(mtoken, address(this), amount)
+                marketManager.canTransferEToken(mtoken, address(this), amount)
             {} catch {
                 assertWithMsg(
                     false,
@@ -321,11 +321,11 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.redeemPaused() != 2);
         require(marketManager.isListed(mtoken));
 
-        bool cToken = IMToken(mtoken).isCToken();
+        bool pToken = IMToken(mtoken).isPToken();
 
-        if (cToken) {
+        if (pToken) {
             try
-                marketManager.canTransferCToken(mtoken, address(this), amount)
+                marketManager.canTransferPToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -337,7 +337,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             }
         } else {
             try
-                marketManager.canTransferDToken(mtoken, address(this), amount)
+                marketManager.canTransferEToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -362,11 +362,11 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.redeemPaused() != 2);
         require(!marketManager.isListed(mtoken));
 
-        bool cToken = IMToken(mtoken).isCToken();
+        bool pToken = IMToken(mtoken).isPToken();
 
-        if (cToken) {
+        if (pToken) {
             try
-                marketManager.canTransferCToken(mtoken, address(this), amount)
+                marketManager.canTransferPToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -378,7 +378,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             }
         } else {
             try
-                marketManager.canTransferDToken(mtoken, address(this), amount)
+                marketManager.canTransferEToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -403,11 +403,11 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         require(marketManager.redeemPaused() == 2);
         require(marketManager.isListed(mtoken));
 
-        bool cToken = IMToken(mtoken).isCToken();
+        bool pToken = IMToken(mtoken).isPToken();
 
-        if (cToken) {
+        if (pToken) {
             try
-                marketManager.canTransferCToken(mtoken, address(this), amount)
+                marketManager.canTransferPToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -419,7 +419,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
             }
         } else {
             try
-                marketManager.canTransferDToken(mtoken, address(this), amount)
+                marketManager.canTransferEToken(mtoken, address(this), amount)
             {} catch (bytes memory revertData) {
                 uint256 errorSelector = extractErrorSelector(revertData);
 
@@ -441,7 +441,7 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
         address mtoken,
         uint256 amount
     ) public {
-        _isSupportedDToken(mtoken);
+        _isSupportedEToken(mtoken);
         require(marketManager.borrowPaused(mtoken) != 2);
         require(marketManager.isListed(mtoken));
         require(_hasPosition(mtoken));
@@ -639,17 +639,17 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
     /// @custom:precondition collateral and debt token are listed
     /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_succeed(
-        address collateralToken,
-        address debtToken
+        address positionToken,
+        address earnToken
     ) public {
         require(marketManager.seizePaused() != 2);
-        require(marketManager.isListed(collateralToken));
-        require(marketManager.isListed(debtToken));
+        require(marketManager.isListed(positionToken));
+        require(marketManager.isListed(earnToken));
         require(
-            IMToken(collateralToken).marketManager() ==
-                IMToken(debtToken).marketManager()
+            IMToken(positionToken).marketManager() ==
+                IMToken(earnToken).marketManager()
         );
-        try marketManager.canSeize(collateralToken, debtToken) {} catch {
+        try marketManager.canSeize(positionToken, earnToken) {} catch {
             assertWithMsg(
                 false,
                 "SC-MARKET-22 canSeize() should be successful with correct @precondition"
@@ -664,17 +664,17 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
     /// @custom:precondition collateral and debt token are listed
     /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_revert_when_seize_paused(
-        address collateralToken,
-        address debtToken
+        address positionToken,
+        address earnToken
     ) public {
         require(marketManager.seizePaused() == 2);
-        require(marketManager.isListed(collateralToken));
-        require(marketManager.isListed(debtToken));
+        require(marketManager.isListed(positionToken));
+        require(marketManager.isListed(earnToken));
         require(
-            IMToken(collateralToken).marketManager() ==
-                IMToken(debtToken).marketManager()
+            IMToken(positionToken).marketManager() ==
+                IMToken(earnToken).marketManager()
         );
-        try marketManager.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(positionToken, earnToken) {
             assertWithMsg(
                 false,
                 "SC-MARKET-23 canSeize() should have reverted with seizePaused = 2"
@@ -696,19 +696,19 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
     /// @custom:precondition collateral or debt token are not listed
     /// @custom:precondition marketManager for collateral and debt token are identical
     function canSeize_should_revert_when_token_is_unlisted(
-        address collateralToken,
-        address debtToken
+        address positionToken,
+        address earnToken
     ) public {
         require(marketManager.seizePaused() != 2);
         require(
-            !marketManager.isListed(collateralToken) ||
-                !marketManager.isListed(debtToken)
+            !marketManager.isListed(positionToken) ||
+                !marketManager.isListed(earnToken)
         );
         require(
-            IMToken(collateralToken).marketManager() ==
-                IMToken(debtToken).marketManager()
+            IMToken(positionToken).marketManager() ==
+                IMToken(earnToken).marketManager()
         );
-        try marketManager.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(positionToken, earnToken) {
             assertWithMsg(
                 false,
                 "SC-MARKET-24 seizePaused() should have reverted when token is unlisted"
@@ -730,17 +730,17 @@ contract FuzzMarketManagerStateChecks is StatefulBaseMarket {
     /// @custom:precondition collateral and debt token are listed
     /// @custom:precondition marketManager for collateral and debt token are not identical
     function canSeize_should_revert_when_marketManager_not_equal(
-        address collateralToken,
-        address debtToken
+        address positionToken,
+        address earnToken
     ) public {
         require(marketManager.seizePaused() != 2);
-        require(marketManager.isListed(collateralToken));
-        require(marketManager.isListed(debtToken));
+        require(marketManager.isListed(positionToken));
+        require(marketManager.isListed(earnToken));
         require(
-            IMToken(collateralToken).marketManager() !=
-                IMToken(debtToken).marketManager()
+            IMToken(positionToken).marketManager() !=
+                IMToken(earnToken).marketManager()
         );
-        try marketManager.canSeize(collateralToken, debtToken) {
+        try marketManager.canSeize(positionToken, earnToken) {
             assertWithMsg(
                 false,
                 "SC-MARKET-25 seizePaused() should have reverted when marketManager is not equal"

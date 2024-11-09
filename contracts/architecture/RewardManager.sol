@@ -1,11 +1,11 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
-import { FixedPointMathLib } from "contracts/libraries/FixedPointMathLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -39,18 +39,13 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      Such as routing a distributed reward token into a chain specific
 ///      stablecoin after a Wormhole message is delivered.
 ///
-contract RewardManager is Delegable, ReentrancyGuard {
+contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice Protocol epoch length.
-    uint256 public constant EPOCH_DURATION = 2 weeks;
-
-    /// @notice The address of the CVE contract.
-    address public immutable cve;
     /// @notice Reward Manager Reward token.
     address public immutable rewardToken;
-    /// @notice Genesis Epoch timestamp.
-    uint256 public immutable genesisEpoch;
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable epochDuration;
 
     /// @dev `bytes4(keccak256(bytes("RewardManager__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
@@ -78,7 +73,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @dev User => Reward Next Claim Index.
     mapping(address => uint256) public userNextClaimIndex;
 
-    /// @notice The rewards alloted to 1 vote escrowed CVE for an epoch,
+    /// @notice The rewards alloted to 1 vote escrowed CVE point for an epoch,
     ///         in `WAD`.
     /// @dev Epoch # => Rewards per veCVE.
     mapping(uint256 => uint256) public epochRewardsPerPoint;
@@ -102,25 +97,27 @@ contract RewardManager is Delegable, ReentrancyGuard {
     constructor(
         ICentralRegistry centralRegistry_,
         address rewardToken_
-    ) Delegable(centralRegistry_) {
+    ) PluginDelegable(centralRegistry_) {
         if (rewardToken_ == address(0)) {
             revert RewardManager__RewardTokenIsZeroAddress();
         }
 
-        genesisEpoch = centralRegistry.genesisEpoch();
+        // Query epoch and token configuration directly to minimize potential
+        // human error.
+        epochDuration = centralRegistry.EPOCH_DURATION();
+
         rewardToken = rewardToken_;
-        cve = centralRegistry.cve();
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Called by the fee accumulator to record rewards allocated to
+    /// @notice Called by the Messaging Hub to record rewards allocated to
     ///         an epoch.
-    /// @dev Only callable on by the Fee Accumulator.
-    /// @param rewardsPerCVE The rewards alloted to 1 vote escrowed CVE for
-    ///                      the next reward epoch delivered.
-    function recordEpochRewards(uint256 rewardsPerCVE) external {
-        // Validate the caller reporting epoch data is the fee accumulator,
+    /// @dev Only callable on by the Messaging Hub.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
+    function recordEpochRewards(uint256 rewardsPerPoint) external {
+        // Validate the caller reporting epoch data is the messaging hub,
         // or messaging hub.
         if (msg.sender != centralRegistry.messagingHub()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -129,14 +126,14 @@ contract RewardManager is Delegable, ReentrancyGuard {
         uint256 epoch = nextEpochToDeliver;
 
         if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
-            // If the chain has tokens unlocking this epoch we need to decrease
-            // chainPoints.
+            // If the chain has tokens unlocking this epoch we need to
+            // decrease chainPoints.
             veCVE.updateChainPoints(epoch);
         }
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerCVE;
+        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -166,7 +163,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == rewardToken) {
                 _revert(_UNAUTHORIZED_SELECTOR);
@@ -198,11 +195,13 @@ contract RewardManager is Delegable, ReentrancyGuard {
     /// @param time The timestamp for which to calculate the epoch.
     /// @return The current epoch.
     function currentEpoch(uint256 time) external view returns (uint256) {
+        uint256 genesisEpoch = _genesisEpoch();
+
         if (time < genesisEpoch) {
             return 0;
         }
 
-        return ((time - genesisEpoch) / EPOCH_DURATION);
+        return ((time - genesisEpoch) / epochDuration);
     }
 
     /// @notice Checks if a user has any rewards to claim.
@@ -431,7 +430,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? cve : rewardToken,
+                rewardsData.asCVE ? _getCVE() : rewardToken,
                 rewardAmount
             );
         }
@@ -554,7 +553,7 @@ contract RewardManager is Delegable, ReentrancyGuard {
             if (
                 swapData.call.length == 0 ||
                 swapData.inputToken != rewardToken ||
-                swapData.outputToken != cve ||
+                swapData.outputToken != _getCVE() ||
                 swapData.inputAmount != rewards
             ) {
                 revert RewardManager__SwapDataIsInvalid();
@@ -566,10 +565,11 @@ contract RewardManager is Delegable, ReentrancyGuard {
                 swapData
             );
 
-            // Check if the claimer wants to lock as veCVE.
+            // Check if the claimer wants to compound their rewards
+            // into a lock.
             if (rewardsData.shouldLock) {
                 return
-                    _lockRewardsAsVeCVE(
+                    _compoundRewardsIntoLock(
                         recipient,
                         rewardsData.isFreshLock,
                         rewardsData.isFreshLockContinuous,
@@ -578,7 +578,11 @@ contract RewardManager is Delegable, ReentrancyGuard {
             }
 
             // Transfer them CVE then return.
-            SafeTransferLib.safeTransfer(cve, recipient, adjustedRewards);
+            SafeTransferLib.safeTransfer(
+                _getCVE(),
+                recipient,
+                adjustedRewards
+            );
             return adjustedRewards;
         }
 
@@ -589,65 +593,45 @@ contract RewardManager is Delegable, ReentrancyGuard {
 
     /// @notice Locks claimed fees as veCVE, in an old or fresh lock.
     /// @param user The address of the user locking fees as veCVE.
-    /// @param isFreshLock A boolean to indicate if it's a new lock.
+    /// @param isFreshLock A boolean to indicate if a new lock is being
+    ///                    created or not.
     /// @param continuousLock A boolean to indicate if the lock should be
     ///                       continuous.
     /// @param lockIndex The index of the lock in the user's lock array.
     ///                  This parameter is only required if it is not a fresh
     ///                  lock.
     /// @return The amount of CVE locked for `user`.
-    function _lockRewardsAsVeCVE(
+    function _compoundRewardsIntoLock(
         address user,
         bool isFreshLock,
         bool continuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
+        IERC20 cve = IERC20(_getCVE());
+        uint256 lockAmount = cve.balanceOf(address(this));
 
-        IERC20(cve).approve(address(veCVE), lockAmount);
+        cve.approve(address(veCVE), lockAmount);
 
-        // Because this call is nested within call to claim all rewards
-        // there will never be any rewards to process,
-        // and thus no potential secondary lock so we can just pass
-        // empty reward data to the veCVE calls.
-        if (isFreshLock) {
-            veCVE.createLockFor(
-                user,
-                lockAmount,
-                continuousLock,
-                RewardsData({
-                    asCVE: false,
-                    shouldLock: false,
-                    isFreshLock: false,
-                    isFreshLockContinuous: false
-                }),
-                "",
-                0
-            );
-
-            return lockAmount;
-        }
-
-        // Because this call is nested within call to claim all rewards
-        // there will never be any rewards to process,
-        // and thus no potential secondary lock so we can just pass
-        // empty reward data to the veCVE calls.
-        veCVE.increaseAmountAndExtendLockFor(
+        veCVE.compoundRewardsIntoLock(
             user,
             lockAmount,
             lockIndex,
             continuousLock,
-            RewardsData({
-                asCVE: false,
-                shouldLock: false,
-                isFreshLock: false,
-                isFreshLockContinuous: false
-            }),
-            "",
-            0
+            isFreshLock
         );
 
         return lockAmount;
+    }
+
+    /// @notice Returns the genesis epoch.
+    /// @return The genesis epoch.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
+    }
+
+    /// @notice Returns the current CVE address.
+    function _getCVE() internal view returns (address) {
+        return centralRegistry.cve();
     }
 
     /// @dev Internal helper for reverting efficiently.

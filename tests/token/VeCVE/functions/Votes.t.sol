@@ -62,7 +62,7 @@ contract VotesTest is TestBaseVeCVE {
             return;
         }
         uint256 epoch = (unlockTime - block.timestamp) /
-            veCVE.EPOCH_DURATION();
+            veCVE.epochDuration();
         uint256 votes = (amount * epoch) / veCVE.LOCK_DURATION_EPOCHS();
 
         assertEq(veCVE.getVotes(address(this)), votes);

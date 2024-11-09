@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseVotingHub } from "../TestBaseVotingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
-import { MockCallDataChecker } from "contracts/mocks/MockCallDataChecker.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { WormholeMock } from "tests/utils/WormholeMock.sol";
 import { WormholeHelper } from "@pigeon/src/wormhole/automatic-relayer/WormholeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -35,14 +35,14 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -62,14 +62,14 @@ contract TestVotingHub is TestBaseVotingHub {
         _deployBaseContracts();
         _deployMarketManager();
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
-        centralRegistry.setExternalCallDataChecker(
+        centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
-            address(new MockCallDataChecker(_UNISWAP_V2_ROUTER))
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
         centralRegistry.addChainSupport(
             address(messagingHubs[1]),
@@ -97,6 +97,13 @@ contract TestVotingHub is TestBaseVotingHub {
             _WORMHOLE_RELAYERS[42161],
             3
         );
+
+        deal(address(messagingHub), _ONE);
+    }
+
+    function test_executeEmissionConfiguration_multipleChains_success()
+        public
+    {
         centralRegistry.addChainSupport(
             address(messagingHubs[10]),
             address(votingHubs[10]),
@@ -107,8 +114,6 @@ contract TestVotingHub is TestBaseVotingHub {
             _WORMHOLE_RELAYERS[10],
             2
         );
-
-        deal(address(messagingHub), _ONE);
 
         gasLimit.push(250_000);
         gasLimit.push(250_000);
@@ -126,10 +131,8 @@ contract TestVotingHub is TestBaseVotingHub {
         _remoteEmissionData.push(_emissionData);
 
         _emissionData.tokens[0] = _USDC_ADDRESS;
-    }
 
-    function test_executeEmissionConfiguration_multiple_success() public {
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
 
         votingHub.setEraTargetEmissions(_ONE * 5);
 
@@ -169,7 +172,7 @@ contract TestVotingHub is TestBaseVotingHub {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
-            1,
+            gaugeManager.currentEpoch(),
             _USDC_ADDRESS
         );
 
@@ -252,6 +255,85 @@ contract TestVotingHub is TestBaseVotingHub {
         );
 
         assertEq(cve.balanceOf(address(gaugeManager)), _ONE);
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+    }
+
+    function test_executeEmissionConfiguration_multipleTimes_success() public {
+        gasLimit.push(250_000);
+
+        _emissionData.tokens = new address[](1);
+        _emissionData.emissions = new uint256[](1);
+
+        _emissionData.tokens[0] = _USDC_ADDRESSES[42161];
+        _remoteEmissionData.push(_emissionData);
+
+        _emissionData.emissionTotal = _ONE / 2;
+        _emissionData.emissions[0] = _ONE / 2;
+        _emissionData.tokens[0] = _USDC_ADDRESS;
+
+        _skipEpochDuration(1);
+
+        votingHub.setEraTargetEmissions(_ONE);
+
+        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
+
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(votingHubs[42161]),
+            abi.encode(0)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugeManager)),
+            gaugePoolCVEBalance + _ONE / 2
+        );
+        assertEq(totalWeights, _ONE / 2);
+        assertEq(poolWeight, _ONE / 2);
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugeManager)),
+            gaugePoolCVEBalance + _ONE
+        );
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
     }

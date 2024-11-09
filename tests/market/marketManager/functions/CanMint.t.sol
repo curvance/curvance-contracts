@@ -6,20 +6,20 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CanMintTest is TestBaseMarketManager {
     function test_canMint_fail_whenMintPaused() public {
-        marketManager.listToken(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
 
-        marketManager.setMintPaused(address(dUSDC), true);
+        marketManager.setMintPaused(address(eUSDC), true);
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canMint(address(dUSDC));
+        marketManager.canMint(address(eUSDC));
     }
 
     function test_canMint_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canMint(address(dUSDC));
+        marketManager.canMint(address(eUSDC));
     }
 
     function test_canMint_success() public {
-        marketManager.listToken(address(dUSDC));
-        marketManager.canMint(address(dUSDC));
+        marketManager.listToken(address(eUSDC));
+        marketManager.canMint(address(eUSDC));
     }
 }

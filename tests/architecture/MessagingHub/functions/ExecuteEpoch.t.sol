@@ -29,13 +29,13 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
             3
         );
 
-        _skipEpochDuration(2);
+        _skipEpochDuration(1);
     }
 
     function test_executeEpoch_fail_whenCurrentEpochIsEarlierThanNextEpochToDeliver()
         public
     {
-        vm.warp(block.timestamp - rewardManager.EPOCH_DURATION() * 2);
+        vm.warp(block.timestamp - rewardManager.epochDuration() * 2);
 
         PerChainData[] memory perChainData = new PerChainData[](1);
         perChainData[0] = PerChainData(
@@ -188,32 +188,46 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         );
 
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+        deal(_USDC_ADDRESS, address(feeManager), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+        assertEq(usdc.balanceOf(address(feeManager)), 100e6);
         assertEq(usdc.balanceOf(address(this)), 0);
 
         messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
-        deal(_USDC_ADDRESS, address(feeAccumulator), 100e6);
+        deal(_USDC_ADDRESS, address(feeManager), 100e6);
 
         rewardManager.notifyShutdown();
 
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 100e6);
+        assertEq(usdc.balanceOf(address(feeManager)), 100e6);
+
+        _skipEpochDuration(1);
+
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            srcMessagingHub,
+            abi.encode(_ONE)
+        );
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryLockPoints()")
+        );
 
         messagingHub.executeEpoch(response, signatures, 100e6, 250_000);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
-        assertEq(usdc.balanceOf(address(feeAccumulator)), 0);
-        assertEq(usdc.balanceOf(address(this)), compoundingFee * 2);
+        assertEq(usdc.balanceOf(address(feeManager)), 0);
+        assertEq(usdc.balanceOf(address(this)), 100e6 + compoundingFee);
     }
 }

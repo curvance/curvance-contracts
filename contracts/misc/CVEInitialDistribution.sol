@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ReentrancyGuard } from "contracts/libraries/ReentrancyGuard.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
@@ -203,7 +203,7 @@ contract CVEInitialDistribution is ReentrancyGuard {
                 amount = address(this).balance;
             }
 
-            SafeTransferLib.forceSafeTransferETH(daoOperator, amount);
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == cve) {
                 revert CVEInitialDistribution__TransferError();

@@ -7,10 +7,13 @@ import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
 import { PrimaryProdDataServiceConsumerBase } from "contracts/libraries/external/redstone/PrimaryProdDataServiceConsumerBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
-contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsumerBase {
+contract RedstoneCoreAdaptor is
+    BaseOracleAdaptor,
+    PrimaryProdDataServiceConsumerBase
+{
     /// TYPES ///
 
     /// @notice Stores configuration data for Redstone price sources.
@@ -85,9 +88,10 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
         ICentralRegistry centralRegistry_,
         address[] memory signers,
         uint256 uniqueSignersThreshold_
-    ) BaseOracleAdaptor(
-        centralRegistry_
-    ) PrimaryProdDataServiceConsumerBase(signers) {
+    )
+        BaseOracleAdaptor(centralRegistry_)
+        PrimaryProdDataServiceConsumerBase(signers)
+    {
         // Validate that unique signer threshold is within acceptable limits.
         if (MINIMUM_SIGNER_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
@@ -127,15 +131,15 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
             return _getPriceInUSD(asset);
         }
 
-        return _getPriceInETH(asset);
+        return _getPriceInNative(asset);
     }
 
     /// @notice Add a Redstone Core Price Feed as an asset.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or ETH (inUSD = false).
+    ///              or native token (inUSD = false).
     /// @param decimals The number of decimals the redstone core feed
     ///                 prices in.
     function addAsset(
@@ -203,7 +207,7 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -221,9 +225,11 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
         delete adaptorDataUSD[asset];
         delete adaptorDataNonUSD[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
 
         emit RedstoneCoreAssetRemoved(asset);
     }
@@ -283,7 +289,7 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
 
         if (incrementSignerThreshold) {
             _uniqueSignersThreshold++;
-        } 
+        }
 
         emit RedstoneCoreSignerAdded(newSigner);
     }
@@ -368,11 +374,12 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
         return _parseData(asset, adaptorDataNonUSD[asset], false);
     }
 
-    /// @notice Retrieves the price of a given asset in ETH.
+    /// @notice Retrieves the price of a given asset in the chain's native
+    ///         gas token.
     /// @param asset The address of the asset for which the price is needed.
     /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (ETH).
-    function _getPriceInETH(
+    ///         and the quote format of the price (native).
+    function _getPriceInNative(
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
@@ -484,9 +491,8 @@ contract RedstoneCoreAdaptor is BaseOracleAdaptor, PrimaryProdDataServiceConsume
 
             _isAuthorisedSigner[signer] = i + 1;
             authorisedSigners.push(signer);
-            
+
             emit RedstoneCoreSignerAdded(signer);
         }
     }
-    
 }

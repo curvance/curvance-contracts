@@ -5,10 +5,10 @@ import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 contract FuzzLiquidations is StatefulBaseMarket {
-    /// @notice the collateral token to be used in liquidations
-    address collateralToken;
+    /// @notice the position token to be used in liquidations
+    address positionToken;
     /// @notice the debt token to be used in liquidations
-    address debtToken;
+    address earnToken;
     /// @notice the state of the entire system at the time of liquidation
     struct LiquidationData {
         bool isListed;
@@ -21,8 +21,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
         uint256 baseCFactor;
         uint256 cFactorCurve;
         uint256 lFactor;
-        uint256 debtTokenPrice;
-        uint256 collateralTokenPrice;
+        uint256 earnTokenPrice;
+        uint256 positionTokenPrice;
         uint256 debtBalanceCached;
         uint256 exchangeRateCached;
     }
@@ -43,8 +43,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
     IntermediateValues calculated;
 
     constructor() {
-        collateralToken = address(cUSDC);
-        debtToken = address(dDAI);
+        positionToken = address(pUSDC);
+        earnToken = address(eDAI);
     }
 
     /// @notice stores failed steps and error codes
@@ -76,8 +76,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 _canLiq_liquidatedTokens,
             uint256 _canLiqProtocol
         ) = marketManager.canLiquidate(
-                debtToken,
-                collateralToken,
+                earnToken,
+                positionToken,
                 address(this),
                 amount,
                 liquidateExact
@@ -126,20 +126,20 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 liqFee,
             uint256 baseCFactor,
             uint256 cfactorCurve
-        ) = marketManager.tokenData(collateralToken);
+        ) = marketManager.tokenData(positionToken);
         (
             uint256 lFactor,
-            uint256 debtTokenPrice,
-            uint256 collateralTokenPrice
+            uint256 earnTokenPrice,
+            uint256 positionTokenPrice
         ) = marketManager.LiquidationStatusOf(
                 address(this),
-                debtToken,
-                collateralToken
+                earnToken,
+                positionToken
             );
-        uint256 debtBalanceCached = IMToken(debtToken).debtBalanceCached(
+        uint256 debtBalanceCached = IMToken(earnToken).debtBalanceCached(
             address(this)
         );
-        uint256 exchangeRateCached = IMToken(debtToken).exchangeRateCached();
+        uint256 exchangeRateCached = IMToken(earnToken).exchangeRateCached();
 
         data = LiquidationData(
             isListed,
@@ -152,8 +152,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
             baseCFactor,
             cfactorCurve,
             lFactor,
-            debtTokenPrice,
-            collateralTokenPrice,
+            earnTokenPrice,
+            positionTokenPrice,
             debtBalanceCached,
             exchangeRateCached
         );
@@ -273,44 +273,44 @@ contract FuzzLiquidations is StatefulBaseMarket {
         // No Preconditions
 
         uint256 debtToCollateralRatio = (calculated.incentive *
-            data.debtTokenPrice *
-            WAD) / (data.collateralTokenPrice * data.exchangeRateCached);
+            data.earnTokenPrice *
+            WAD) / (data.positionTokenPrice * data.exchangeRateCached);
 
         // No Postconditions
         calculated.debtToCollateralRatio = debtToCollateralRatio;
     }
 
-    /// @custom:property liq-9 if collateral token and debt token have the same number of decimals, amountAdjusted = debtBalanceCached
-    /// @custom:property liq-10 if collateral token decimals > debtTokenDecimals, amountAdjusted > debtBalanceCached
-    /// @custom:property liq-11 if collateral token decimals < debtTokenDecimals, amountAdjusted < debtBalanceCached
+    /// @custom:property liq-9 if position token and debt token have the same number of decimals, amountAdjusted = debtBalanceCached
+    /// @custom:property liq-10 if position token decimals > earnTokenDecimals, amountAdjusted > debtBalanceCached
+    /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
     function _calculateAmountAdjusted() private {
         // Saves state
-        uint256 collateralTokenDecimals = IMToken(collateralToken).decimals();
-        uint256 debtTokenDecimals = IMToken(debtToken).decimals();
+        uint256 positionTokenDecimals = IMToken(positionToken).decimals();
+        uint256 earnTokenDecimals = IMToken(earnToken).decimals();
 
         uint256 amountAdjusted = (data.debtBalanceCached *
-            10 ** collateralTokenDecimals) / (10 ** debtTokenDecimals);
+            10 ** positionTokenDecimals) / (10 ** earnTokenDecimals);
 
         // Postconditions
-        if (collateralTokenDecimals == debtTokenDecimals) {
+        if (positionTokenDecimals == earnTokenDecimals) {
             if (amountAdjusted != data.debtBalanceCached) {
                 errors[9] = HasError(
                     true,
                     "LIQ-9 - when collat token dec == debt token dec, amountAdjusted = debtAmount"
                 );
             }
-        } else if (collateralTokenDecimals > debtTokenDecimals) {
+        } else if (positionTokenDecimals > earnTokenDecimals) {
             if (amountAdjusted <= data.debtBalanceCached) {
                 errors[10] = HasError(
                     true,
-                    "LIQ-10 - amountAdjusted > debtBalanceCached when collateral token < debt token decimals"
+                    "LIQ-10 - amountAdjusted > debtBalanceCached when position token < debt token decimals"
                 );
             }
-        } else if (collateralTokenDecimals < debtTokenDecimals) {
+        } else if (positionTokenDecimals < earnTokenDecimals) {
             if (amountAdjusted >= data.debtBalanceCached) {
                 errors[11] = HasError(
                     true,
-                    "LIQ-11 - amountAdjusted < debtBalanceCached when collateral token < debt token decimals"
+                    "LIQ-11 - amountAdjusted < debtBalanceCached when position token < debt token decimals"
                 );
             }
         }

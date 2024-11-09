@@ -4,13 +4,13 @@ pragma solidity 0.8.19;
 import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { Delegable } from "contracts/libraries/Delegable.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract RewardManagerDeploymentTest is TestBaseRewardManager {
     function test_RewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(Delegable.Delegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
         new RewardManager(ICentralRegistry(address(0)), _USDC_ADDRESS);
     }
 
@@ -36,11 +36,9 @@ contract RewardManagerDeploymentTest is TestBaseRewardManager {
             address(rewardManager.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(rewardManager.genesisEpoch(), centralRegistry.genesisEpoch());
         assertEq(rewardManager.rewardToken(), _USDC_ADDRESS);
-        assertEq(rewardManager.cve(), centralRegistry.cve());
 
-        vm.warp(rewardManager.genesisEpoch() - 1);
+        vm.warp(centralRegistry.genesisEpoch() - 1);
 
         assertEq(rewardManager.currentEpoch(block.timestamp), 0);
     }

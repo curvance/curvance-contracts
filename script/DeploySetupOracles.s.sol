@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { CentralRegistryDeployer } from "./deployers/CentralRegistryDeployer.s.sol";
-import { OracleRouterDeployer } from "./deployers/OracleRouterDeployer.s.sol";
+import { OracleManagerDeployer } from "./deployers/OracleManagerDeployer.s.sol";
 import { StartContractsConfig } from "./StartContractsConfig.s.sol";
 import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
 
@@ -15,7 +15,7 @@ contract DeploySetupOracles is
     DeployConfiguration,
     StartContractsConfig,
     CentralRegistryDeployer,
-    OracleRouterDeployer,
+    OracleManagerDeployer,
     RedstoneAdaptorDeployer
 {
     function run() external {
@@ -54,11 +54,11 @@ contract DeploySetupOracles is
             feeToken
         );
 
-        // Deploy OracleRouter
-        _deployOracleRouter(centralRegistry);
-        _setOracleRouter(oracleRouter);
+        // Deploy Oracle Manager.
+        _deployOracleManager(centralRegistry);
+        _setOracleManager(oracleManager);
 
-        // Deploy RedstoneAdaptor
+        // Deploy Redstone Adaptor.
         _deployRedstoneAdaptor(centralRegistry);
         _deploy_redstone_price_feeds(true, false);
 

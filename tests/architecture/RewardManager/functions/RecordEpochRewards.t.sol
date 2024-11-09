@@ -13,9 +13,7 @@ contract RecordEpochRewardsTest is TestBaseRewardManager {
         nextEpochToDeliver = rewardManager.nextEpochToDeliver();
     }
 
-    function test_recordEpochRewards_fail_whenCallerIsNotFeeAccumulator()
-        public
-    {
+    function test_recordEpochRewards_fail_whenCallerIsNotFeeManager() public {
         vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
         rewardManager.recordEpochRewards(1e6 * _ONE);
     }
@@ -23,7 +21,7 @@ contract RecordEpochRewardsTest is TestBaseRewardManager {
     function test_recordEpochRewards_success() public {
         assertEq(rewardManager.epochRewardsPerPoint(nextEpochToDeliver), 0);
 
-        vm.prank(centralRegistry.messagingHub());
+        vm.prank(address(messagingHub));
         rewardManager.recordEpochRewards(1e6 * _ONE);
 
         assertEq(

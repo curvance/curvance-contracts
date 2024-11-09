@@ -1,47 +1,51 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CTokenPrimitive } from "contracts/market/collateral/CTokenPrimitive.sol";
-import { DToken } from "contracts/market/collateral/DToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 interface IPositionManagement {
     /// TYPES ///
 
-    /// @param borrowToken Address of dToken that will be borrowed from.
-    /// @param borrowAmount The amount of underlying tokens from dToken
+    /// @param borrowToken Address of eToken that will be borrowed from.
+    /// @param borrowAmount The amount of underlying tokens from eToken
     ///                     that will be borrowed.
-    /// @param collateralToken Address of cToken that borrowed funds
-    ///                        will be routed into.
+    /// @param positionToken Address of pToken that borrowed funds
+    ///                      will be routed into.
     /// @param swapData Swapperlib swapping struct containing instructions
-    ///                 on how to handle the necessary dToken swap
+    ///                 on how to handle the necessary eToken swap
     ///                 to facilitate leveraging.
+    /// @param auxData Optional auxiliary data for execution of a leverage
+    ///                action.
     struct LeverageStruct {
-        DToken borrowToken;
+        EToken borrowToken;
         uint256 borrowAmount;
-        CTokenPrimitive collateralToken;
+        SimplePToken positionToken;
         SwapperLib.Swap swapData;
-        bytes data;
+        bytes auxData;
     }
 
-    /// @param collateralToken Address of cToken that will be routed into
-    ///                        dToken underlying to repay debt.
-    /// @param collateralAmount The amount of cTokens that will be
+    /// @param positionToken Address of pToken that will be routed into
+    ///                      eToken underlying to repay outstanding debt.
+    /// @param collateralAmount The amount of pTokens that will be
     ///                         deleveraged.
-    /// @param borrowToken Address of dToken that will have its underlying
+    /// @param borrowToken Address of eToken that will have its underlying
     ///                    token debt repaid.
-    /// @param swapData Optional Swapperlib swapping struct containing
-    ///                 instructions on how to handle zapping into dToken
-    ///                 underlying to facilitate deleveraging.
-    /// @param repayAmount The amount of underlying tokens from dToken that
-    ///                    will be repaid.
+    /// @param swapData Optional struct containing instructions on how to
+    ///                 handle swapping into eToken underlying to facilitate
+    ///                 deleveraging.
+    /// @param repayAmount The amount of underlying tokens that will be
+    ///                    repaid to the eToken lenders.
+    /// @param auxData Optional auxiliary data for execution of a deleverage
+    ///                action.
     struct DeleverageStruct {
-        CTokenPrimitive collateralToken;
+        SimplePToken positionToken;
         uint256 collateralAmount;
-        DToken borrowToken;
+        EToken borrowToken;
         SwapperLib.Swap[] swapData;
         uint256 repayAmount;
-        bytes data;
+        bytes auxData;
     }
 
     /// @notice Callback function to execute post borrow of
@@ -50,10 +54,21 @@ interface IPositionManagement {
     /// @dev Measures slippage after this callback validating that `borrower`
     ///      is still within acceptable liquidity requirements.
     /// @param borrowToken The borrow token borrowed from.
-    /// @param borrower The user borrowing that will be swapped into
+    /// @param borrower The account borrowing that will be swapped into
     ///                 collateral assets deposited into Curvance.
     /// @param borrowAmount The amount of `borrowToken`'s underlying borrowed.
-    /// @param leverageData Swap and deposit instructions.
+    /// @param leverageData Struct containing information on the desired
+    ///                     leverage action to execute. Containing values:
+    ///                     1. Address of eToken that will be borrowed from.
+    ///                     2. The amount of underlying tokens from eToken
+    ///                        that will be borrowed.
+    ///                     3. Address of pToken that borrowed funds
+    ///                        will be swapped into.
+    ///                     4. Struct containing instructions
+    ///                        on how to handle the necessary eToken swap
+    ///                        to facilitate leveraging.
+    ///                     5. Optional auxiliary data for execution of a
+    ///                        leverage action.
     function onBorrow(
         address borrowToken,
         address borrower,
@@ -62,18 +77,32 @@ interface IPositionManagement {
     ) external;
 
     /// @notice Callback function to execute post redemption of
-    ///         `collateralToken`'s underlying and swap it to repay
+    ///         `positionToken`'s underlying and swap it to repay
     ///         active debt for `redeemer`.
     /// @dev Measures slippage after this callback validating that `redeemer`
     ///      is still within acceptable liquidity requirements.
-    /// @param collateralToken The cToken redeemed for its underlying.
-    /// @param redeemer The user redeeming collateral that will be used to
+    /// @param positionToken The pToken redeemed for its underlying.
+    /// @param redeemer The account redeeming collateral that will be used to
     ///                 repay their active debt.
-    /// @param collateralAmount The amount of `collateralToken` underlying
+    /// @param collateralAmount The amount of `positionToken` underlying
     ///                         redeemed.
-    /// @param deleverageData Swap and repayment instructions.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     function onRedeem(
-        address collateralToken,
+        address positionToken,
         address redeemer,
         uint256 collateralAmount,
         DeleverageStruct memory deleverageData

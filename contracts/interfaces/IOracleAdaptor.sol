@@ -14,7 +14,7 @@ struct PriceReturnData {
 }
 
 interface IOracleAdaptor {
-    /// @notice Called by OracleRouter to price an asset.
+    /// @notice Called by OracleManager to price an asset.
     /// @param asset The address of the asset for which the price is needed.
     /// @param inUSD A boolean to determine if the price should be returned in
     ///              USD or not.

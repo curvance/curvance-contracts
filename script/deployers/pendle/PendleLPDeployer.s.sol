@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import "forge-std/console.sol";
 
-import { OracleRouter } from "contracts/oracles/OracleRouter.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { PendleLPCToken } from "contracts/market/collateral/PendleLPCToken.sol";
+import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
@@ -41,9 +41,9 @@ contract PendleLPDeployer is DeployConfiguration {
         address marketManager = _getDeployedContract("marketManager");
         console.log("marketManager =", marketManager);
         require(marketManager != address(0), "Set the marketManager!");
-        address oracleRouter = _getDeployedContract("oracleRouter");
-        console.log("oracleRouter =", oracleRouter);
-        require(oracleRouter != address(0), "Set the oracleRouter!");
+        address oracleManager = _getDeployedContract("oracleManager");
+        console.log("oracleManager =", oracleManager);
+        require(oracleManager != address(0), "Set the oracleManager!");
 
         address chainlinkAdaptor = _getDeployedContract("chainlinkAdaptor");
         if (chainlinkAdaptor == address(0)) {
@@ -85,29 +85,31 @@ contract PendleLPDeployer is DeployConfiguration {
             }
 
             if (
-                !OracleRouter(oracleRouter).isApprovedAdaptor(chainlinkAdaptor)
+                !OracleManager(oracleManager).isApprovedAdaptor(
+                    chainlinkAdaptor
+                )
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(
+                OracleManager(oracleManager).addApprovedAdaptor(
                     chainlinkAdaptor
                 );
                 console.log(
-                    "oracleRouter.addApprovedAdaptor: ",
+                    "oracleManager.addApprovedAdaptor: ",
                     chainlinkAdaptor
                 );
             }
 
             try
-                OracleRouter(oracleRouter).assetPriceFeeds(
+                OracleManager(oracleManager).assetPriceFeeds(
                     underlyingParam.asset,
                     0
                 )
             returns (address /* feed */) {} catch {
-                OracleRouter(oracleRouter).addAssetPriceFeed(
+                OracleManager(oracleManager).addAssetPriceFeed(
                     underlyingParam.asset,
                     chainlinkAdaptor
                 );
                 console.log(
-                    "oracleRouter.addAssetPriceFeed: ",
+                    "oracleManager.addAssetPriceFeed: ",
                     underlyingParam.asset
                 );
             }
@@ -145,31 +147,35 @@ contract PendleLPDeployer is DeployConfiguration {
             }
 
             if (
-                !OracleRouter(oracleRouter).isApprovedAdaptor(pendleLpAdapter)
+                !OracleManager(oracleManager).isApprovedAdaptor(
+                    pendleLpAdapter
+                )
             ) {
-                OracleRouter(oracleRouter).addApprovedAdaptor(pendleLpAdapter);
+                OracleManager(oracleManager).addApprovedAdaptor(
+                    pendleLpAdapter
+                );
                 console.log(
-                    "oracleRouter.addApprovedAdaptor: ",
+                    "oracleManager.addApprovedAdaptor: ",
                     pendleLpAdapter
                 );
             }
 
             try
-                OracleRouter(oracleRouter).assetPriceFeeds(param.asset, 0)
+                OracleManager(oracleManager).assetPriceFeeds(param.asset, 0)
             returns (address /* feed */) {} catch {
-                OracleRouter(oracleRouter).addAssetPriceFeed(
+                OracleManager(oracleManager).addAssetPriceFeed(
                     param.asset,
                     pendleLpAdapter
                 );
-                console.log("oracleRouter.addAssetPriceFeed: ", param.asset);
+                console.log("oracleManager.addAssetPriceFeed: ", param.asset);
             }
         }
 
-        // Deploy CToken
-        address cToken = _getDeployedContract(name);
-        if (cToken == address(0)) {
-            cToken = address(
-                new PendleLPCToken(
+        // Deploy PToken
+        address pToken = _getDeployedContract(name);
+        if (pToken == address(0)) {
+            pToken = address(
+                new PendleLPPToken(
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
                     marketManager,
@@ -177,17 +183,17 @@ contract PendleLPDeployer is DeployConfiguration {
                 )
             );
 
-            console.log("cToken: ", cToken);
-            _saveDeployedContracts(name, cToken);
+            console.log("pToken: ", pToken);
+            _saveDeployedContracts(name, pToken);
 
-            if (!OracleRouter(oracleRouter).isSupportedAsset(cToken)) {
-                OracleRouter(oracleRouter).addMTokenSupport(cToken);
+            if (!OracleManager(oracleManager).isSupportedAsset(pToken)) {
+                OracleManager(oracleManager).addMTokenSupport(pToken);
             }
         }
 
         // followings should be done separate because it requires dust amount deposits
         // marketManager.listToken;
-        // marketManager.updateCollateralToken
-        // marketManager.setCTokenCollateralCaps
+        // marketManager.updatePositionToken
+        // marketManager.setPTokenCollateralCaps
     }
 }

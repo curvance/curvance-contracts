@@ -5,7 +5,7 @@ import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.
 import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IOracleRouter } from "contracts/interfaces/IOracleRouter.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 
@@ -99,18 +99,18 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
             return _getPriceInUSD(asset);
         }
 
-        return _getPriceInETH(asset);
+        return _getPriceInNative(asset);
     }
 
     /// @notice Adds pricing support for `asset` via a new Chainlink feed.
-    /// @dev Should be called before `OracleRouter:addAssetPriceFeed`
+    /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
     /// @param aggregator Chainlink aggregator to use for pricing `asset`.
     /// @param heartbeat Chainlink heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
-    ///              or ETH (inUSD = false).
+    ///              or native token (inUSD = false).
     function addAsset(
         address asset,
         address aggregator,
@@ -183,7 +183,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     }
 
     /// @notice Removes a supported asset from the adaptor.
-    /// @dev Calls back into Oracle Router to notify it of its removal.
+    /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
     /// @param asset The address of the supported asset to remove from
     ///              the adaptor.
@@ -202,9 +202,11 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         delete adaptorDataUSD[asset];
         delete adaptorDataNonUSD[asset];
 
-        // Notify the Oracle Router that we are going to stop supporting
+        // Notify the Oracle Manager that we are going to stop supporting
         // the asset.
-        IOracleRouter(centralRegistry.oracleRouter()).notifyFeedRemoval(asset);
+        IOracleManager(centralRegistry.oracleManager()).notifyFeedRemoval(
+            asset
+        );
         emit ChainlinkAssetRemoved(asset);
     }
 
@@ -231,11 +233,12 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         return _parseData(adaptorDataNonUSD[asset], false);
     }
 
-    /// @notice Retrieves the price of a given asset in ETH.
+    /// @notice Retrieves the price of a given asset in the chain's native
+    ///         gas token.
     /// @param asset The address of the asset for which the price is needed.
     /// @return A structure containing the price, error status,
-    ///         and the quote format of the price (ETH).
-    function _getPriceInETH(
+    ///         and the quote format of the price (native).
+    function _getPriceInNative(
         address asset
     ) internal view returns (PriceReturnData memory) {
         if (adaptorDataNonUSD[asset].isConfigured) {
@@ -258,7 +261,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
         if (
-            !IOracleRouter(centralRegistry.oracleRouter()).isSequencerValid()
+            !IOracleManager(centralRegistry.oracleManager()).isSequencerValid()
         ) {
             pData.hadError = true;
             return pData;
