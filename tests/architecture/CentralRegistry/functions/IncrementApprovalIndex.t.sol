@@ -8,7 +8,7 @@ contract IncrementApprovalIndexTest is TestBaseMarket {
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
 
     function test_incrementApprovalIndex_success() public {
-        assertEq(centralRegistry.userApprovalIndex(user1), 0);
+        assertEq(centralRegistry.getUserApprovalIndex(user1), 0);
 
         vm.prank(user1);
 
@@ -17,6 +17,6 @@ contract IncrementApprovalIndexTest is TestBaseMarket {
 
         centralRegistry.incrementApprovalIndex();
 
-        assertEq(centralRegistry.userApprovalIndex(user1), 1);
+        assertEq(centralRegistry.getUserApprovalIndex(user1), 1);
     }
 }

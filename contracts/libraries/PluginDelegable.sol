@@ -69,29 +69,6 @@ abstract contract PluginDelegable {
         return _isDelegate[user][getUserApprovalIndex(user)][delegate];
     }
 
-    /// PUBLIC FUNCTIONS ///
-
-    /// @notice Returns `user`'s approval index.
-    /// @dev The approval index is a way to revoke approval on all tokens,
-    ///      and features at once if a malicious delegation was allowed by
-    ///      `user`.
-    /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) public view returns (uint256) {
-        return centralRegistry.userApprovalIndex(user);
-    }
-
-    /// @notice Returns whether a user has delegation disabled.
-    /// @dev This is not a silver bullet for phishing attacks, but, adds
-    ///      an additional wall of defense.
-    /// @param user The user to check delegation status for.
-    /// @return Whether the user has new delegation disabled or not.
-    function checkDelegationDisabled(address user) public view returns (bool) {
-        return centralRegistry.checkDelegationDisabled(user);
-    }
-
     /// @notice Approves or restricts `delegate`'s authority to operate
     ///         on the caller's behalf.
     /// @dev NOTE: Be careful who you approve here!
@@ -116,5 +93,28 @@ abstract contract PluginDelegable {
             approvalIndex,
             isApproved
         );
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns `user`'s approval index.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return `User`'s approval index.
+    function getUserApprovalIndex(
+        address user
+    ) public view returns (uint256) {
+        return centralRegistry.getUserApprovalIndex(user);
+    }
+
+    /// @notice Returns whether a user has delegation disabled.
+    /// @dev This is not a silver bullet for phishing attacks, but, adds
+    ///      an additional wall of defense.
+    /// @param user The user to check delegation status for.
+    /// @return Whether the user has new delegation disabled or not.
+    function checkDelegationDisabled(address user) public view returns (bool) {
+        return centralRegistry.checkDelegationDisabled(user);
     }
 }

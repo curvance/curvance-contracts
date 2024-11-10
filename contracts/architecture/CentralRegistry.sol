@@ -744,6 +744,31 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// USER DELEGATION PLUGIN MANAGEMENT ///
 
+    /// @notice Checks whether `user` has delegation enabled or disabled
+    ///         for user actions inside Curvance.
+    /// @return Returns true if the user has delegation disabled.
+    function checkDelegationDisabled(
+        address user
+    ) external view returns (bool) {
+        DelegationConfig memory userConfig = delegationConfig[user];
+        return (
+            userConfig.delegationDisabled ||
+            userConfig.delegationEnabledTimestamp > block.timestamp
+        );
+    }
+
+    /// @notice Returns `user`'s approval index.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return `User`'s approval index.
+    function getUserApprovalIndex(
+        address user
+    ) external view returns (uint256) {
+        return delegationConfig[user].approvalIndex;
+    }
+
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all
     ///      have their delegation authority revoked across all Curvance
@@ -755,17 +780,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
         userConfig.approvalIndex = uint208(newIndex);
 
         emit ApprovalIndexIncremented(msg.sender, newIndex);
-    }
-
-    /// @notice Checks whether `user` has delegation enabled or disabled
-    ///         for user actions inside Curvance.
-    /// @return Returns true if the user has delegation disabled.
-    function checkDelegationDisabled(address user) external view returns (bool) {
-        DelegationConfig memory userConfig = delegationConfig[user];
-        return (
-            userConfig.delegationDisabled ||
-            userConfig.delegationEnabledTimestamp > block.timestamp
-        );
     }
 
     /// @notice Sets a callers status for whether to allow new delegation
