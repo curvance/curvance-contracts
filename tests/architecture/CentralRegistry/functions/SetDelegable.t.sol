@@ -5,7 +5,11 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetDelegableTest is TestBaseMarket {
-    event DelegableStatusSet(address indexed user, bool delegable);
+    event DelegableStatusSet(
+        address indexed user,
+        bool delegable,
+        uint256 delegationEnabledTimestamp
+    );
 
     function test_setDelegable_success() public {
         vm.startPrank(user1);
