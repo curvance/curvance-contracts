@@ -11,14 +11,14 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert();
-        eUSDC.redeem(100e6, address(1), address(this));
+        eUSDC.redeem(100e6, address(this));
     }
 
     function test_eTokenRedeem_fail_whenAmountIsZero() public {
         eUSDC.mint(100e6);
 
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
-        eUSDC.redeem(0, address(0), address(this));
+        eUSDC.redeem(0, address(this));
     }
 
     function test_eTokenRedeem_success() public {
