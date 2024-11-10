@@ -88,8 +88,8 @@ abstract contract PluginDelegable {
     ///      an additional wall of defense.
     /// @param user The user to check delegation status for.
     /// @return Whether the user has new delegation disabled or not.
-    function hasDelegatingDisabled(address user) public view returns (bool) {
-        return centralRegistry.delegatingDisabled(user);
+    function checkDelegationDisabled(address user) public view returns (bool) {
+        return centralRegistry.checkDelegationDisabled(user);
     }
 
     /// @notice Approves or restricts `delegate`'s authority to operate
@@ -103,7 +103,7 @@ abstract contract PluginDelegable {
     /// @param isApproved Whether `delegate` is being approved or restricted
     ///                   of authority to operate on behalf of caller.
     function setDelegateApproval(address delegate, bool isApproved) external {
-        if (hasDelegatingDisabled(msg.sender)) {
+        if (checkDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }
 

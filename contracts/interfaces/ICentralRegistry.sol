@@ -155,7 +155,7 @@ interface ICentralRegistry {
 
     /// @notice Returns whether a user has delegation disabled.
     /// @param user The user to check delegation status for.
-    function delegatingDisabled(address user) external view returns (bool);
+    function checkDelegationDisabled(address user) external view returns (bool);
 
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.

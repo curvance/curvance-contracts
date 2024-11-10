@@ -31,7 +31,11 @@ abstract contract LockableRegistry {
     /// EVENTS ///
 
     event CooldownSet(address indexed user, uint256 userLockCooldown);
-    event LockStatusChanged(address indexed user, bool isLocked);
+    event LockStatusChanged(
+        address indexed user,
+        bool isLocked,
+        uint256 transferEnabledTimestamp
+    );
 
     /// ERRORS ///
 
@@ -80,13 +84,15 @@ abstract contract LockableRegistry {
         emit CooldownSet(msg.sender, cooldown);
     }
 
-    /// @notice Sets token transferability for the caller, if enabling transferability,
-    ///         the caller's opt in transfer cooldown will be applied.
+    /// @notice Sets token transferability for the caller, if enabling
+    ///         transferability, the caller's opt in transfer cooldown will
+    ///         be applied.
     /// @dev Emits a {LockStatusChanged} event.
-    /// @param transferDisabled Whether the user intends on enabling or disabling
-    ///                         transferability, while flipping their transferability
-    ///                         status can be assumed, its best to make sure the caller
-    ///                         intends on flipping their status for onchain integrators.
+    /// @param transferDisabled Whether the user intends on enabling or
+    ///                         disabling transferability, while flipping
+    ///                         their transferability status can be assumed,
+    ///                         its best to make sure the caller intends on
+    ///                         flipping their status for onchain integrators.
     function setTransferLockStatus(bool transferDisabled) external {
         TransferConfig memory userConfig = userTransferConfig[msg.sender];
 
@@ -97,6 +103,8 @@ abstract contract LockableRegistry {
             revert LockableRegistry__InvalidParams();
         }
 
+        uint256 enableTimestamp;
+
         // If the user is trying to enable transferability again,
         // add their cooldown period, an added layer against phishing
         // attempts.
@@ -106,14 +114,14 @@ abstract contract LockableRegistry {
             if (userConfig.transferEnabledTimestamp > block.timestamp) {
                 revert LockableRegistry__InvalidParams();
             }
-
-            userConfig.transferEnabledTimestamp =
-                uint40(userConfig.transferCooldown + block.timestamp);
+            enableTimestamp = userConfig.transferCooldown + block.timestamp;
+            userConfig.transferEnabledTimestamp = uint40(enableTimestamp);
         }
 
         userConfig.transferDisabled = transferDisabled;
 
-        emit LockStatusChanged(msg.sender, transferDisabled);
+        // Timestamp emitted is 0 if locking transferability.
+        emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
     }
 
     /// @notice Checks whether `user` has transferability enabled or disabled
@@ -121,6 +129,9 @@ abstract contract LockableRegistry {
     /// @return Returns true if the user has transferability disabled.
     function checkTransfersDisabled(address user) external view returns (bool) {
         TransferConfig memory userConfig = userTransferConfig[user];
-        return (userConfig.transferDisabled || userConfig.transferEnabledTimestamp > block.timestamp);
+        return (
+            userConfig.transferDisabled ||
+            userConfig.transferEnabledTimestamp > block.timestamp
+        );
     }
 }
