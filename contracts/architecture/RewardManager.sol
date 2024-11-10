@@ -356,7 +356,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     function manageRewardsFor(
         address user
     ) external nonReentrant returns (uint256) {
-        if (!_checkIsDelegate(user, msg.sender)) {
+        if (!isDelegate(user, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

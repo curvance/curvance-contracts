@@ -66,7 +66,7 @@ abstract contract PluginDelegable {
         address user,
         address delegate
     ) public view returns (bool) {
-        return _checkIsDelegate(user, delegate);
+        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -116,21 +116,5 @@ abstract contract PluginDelegable {
             approvalIndex,
             isApproved
         );
-    }
-
-    /// INTERNAL FUNCTIONS ///
-
-    /// @notice Status of whether a user or contract has the ability to act
-    ///         on behalf of an account.
-    /// @param user The address to check whether `delegate` has delegation
-    ///             permissions.
-    /// @param delegate The address that will be approved or restricted
-    ///                 from delegated actions on behalf of the caller.
-    /// @return Returns whether `delegate` is an approved delegate of `user`.
-    function _checkIsDelegate(
-        address user,
-        address delegate
-    ) public view returns (bool) {
-        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
     }
 }

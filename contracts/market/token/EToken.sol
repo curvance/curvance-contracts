@@ -304,7 +304,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 amount
     ) external nonReentrant {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -513,7 +513,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 tokens
     ) external nonReentrant returns (uint256 amount) {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
