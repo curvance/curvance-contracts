@@ -101,7 +101,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         // user0 withdraw half
         vm.prank(users[0]);
         vm.expectRevert();
-        IMToken(tokens[0]).redeem(101 ether);
+        IMToken(tokens[0]).redeem(101 ether, address(this));
     }
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
@@ -117,7 +117,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether);
+        IMToken(tokens[0]).redeem(50 ether, address(this));
     }
 
     function testCanDepositWithdrawAfterGaugeStartTime() public {
@@ -136,7 +136,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether);
+        IMToken(tokens[0]).redeem(50 ether, address(this));
     }
 
     function testSetPartnerGaugesWithoutCVE() public {

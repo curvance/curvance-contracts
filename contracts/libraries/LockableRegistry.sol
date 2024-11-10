@@ -37,7 +37,6 @@ abstract contract LockableRegistry {
 
     error LockableRegistry__InvalidParams();
     error LockableRegistry__UnsafeCooldown();
-    error LockableRegistry__TransferDisabled();
 
     /// CONSTRUCTOR ///
 
@@ -117,16 +116,11 @@ abstract contract LockableRegistry {
         emit LockStatusChanged(msg.sender, transferDisabled);
     }
 
-    /// @notice Checks whether `user` has transferability enabled for
-    ///         their tokens.
-    /// @dev Reverts if the user does not have transferability enabled.
-    function checkTransferability(address user) external view {
+    /// @notice Checks whether `user` has transferability enabled or disabled
+    ///         for their tokens.
+    /// @return Returns true if the user has transferability disabled.
+    function checkTransfersDisabled(address user) external view returns (bool) {
         TransferConfig memory userConfig = userTransferConfig[user];
-        if (
-            userConfig.transferDisabled ||
-            userConfig.transferEnabledTimestamp > block.timestamp
-            ) {
-                revert LockableRegistry__TransferDisabled();
-        }
+        return (userConfig.transferDisabled || userConfig.transferEnabledTimestamp > block.timestamp);
     }
 }

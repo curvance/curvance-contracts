@@ -225,7 +225,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         assertEq(eUSDC.balanceOf(user2), 1e6);
 
         // try redeem()
-        eUSDC.redeem(1e6);
+        eUSDC.redeem(1e6, address(this));
         vm.stopPrank();
         assertEq(eUSDC.balanceOf(user1), 0);
     }
@@ -337,13 +337,13 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         vm.expectRevert(
             MarketManager.MarketManager__MinimumHoldPeriod.selector
         );
-        eUSDC.redeem(1000e6);
+        eUSDC.redeem(1000e6, address(this));
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        eUSDC.redeem(1000e6);
+        eUSDC.redeem(1000e6, address(this));
         vm.stopPrank();
 
         assertEq(cPendlePT.balanceOf(user1), 1 ether);

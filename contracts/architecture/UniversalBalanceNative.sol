@@ -62,11 +62,11 @@ contract UniversalBalanceNative is UniversalBalance {
     function withdrawNative(
         uint256 amount,
         bool isLent,
-        address receiver
+        address recipient
     ) external {
         amount = _withdraw(amount, isLent, address(this), msg.sender);
         IWETH(underlying).withdraw(amount);
-        SafeTransferLib.safeTransferETH(receiver, amount);
+        SafeTransferLib.safeTransferETH(recipient, amount);
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.

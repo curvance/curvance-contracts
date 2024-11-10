@@ -1449,8 +1449,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         }
 
         if (ILockableRegistry(
-            address(centralRegistry)
-        ).checkTransferability(account)) {
+                address(centralRegistry)).checkTransfersDisabled(account)
+            ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1550,8 +1550,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             }
         } else {
             if (ILockableRegistry(
-                address(centralRegistry)
-            ).checkTransferability(account)) {
+                address(centralRegistry)).checkTransfersDisabled(account)
+            ) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 

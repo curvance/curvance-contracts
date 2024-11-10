@@ -117,9 +117,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     function withdraw(
         uint256 amount,
         bool isLent,
-        address receiver
+        address recipient
     ) external {
-        _withdraw(amount, isLent, receiver, msg.sender);
+        _withdraw(amount, isLent, recipient, msg.sender);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -175,11 +175,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) internal returns (uint256) {
-        if (
-            ILockableRegistry(
-                address(centralRegistry)
-            ).checkTransferability(owner)) {
-                revert UniversalBalance__Unauthorized();
+        if (ILockableRegistry(
+                address(centralRegistry)).checkTransfersDisabled(account)
+            ) {
+            revert UniversalBalance__Unauthorized();
         }
 
         if (isLent) {

@@ -164,7 +164,7 @@ contract TestTokenInteractions is TestBaseMarket {
         assertEq(eDAI.balanceOf(user2), 1 ether);
 
         // try redeem()
-        eDAI.redeem(1 ether);
+        eDAI.redeem(1 ether, address(this));
         vm.stopPrank();
         assertEq(eDAI.balanceOf(user1), 0);
     }
@@ -293,13 +293,13 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.expectRevert(
             MarketManager.MarketManager__MinimumHoldPeriod.selector
         );
-        eDAI.redeem(1000 ether);
+        eDAI.redeem(1000 ether, address(this));
 
         // skip min hold period
         skip(20 minutes);
 
         // can redeem fully
-        eDAI.redeem(1000 ether);
+        eDAI.redeem(1000 ether, address(this));
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
