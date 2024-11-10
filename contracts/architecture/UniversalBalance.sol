@@ -167,7 +167,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param isLent Whether the withdrawn underlying tokens should be pulled
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
-    /// @param recipient The account who will receive the underlying assets.
+    /// @param recipient The address who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal balance.
     function _withdraw(
         uint256 amount,
@@ -176,10 +176,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address owner
     ) internal returns (uint256) {
         if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(account)
+                address(centralRegistry)).checkTransfersDisabled(owner)
             ) {
             revert UniversalBalance__Unauthorized();
         }
+
+        UserBalance storage balances = userBalances[owner];
 
         if (isLent) {
             uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
@@ -191,7 +193,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
                 WAD,
                 exchangeRate
             );
-            userBalances[owner].lentBalance -= tokensToRedeem;
+            balances.lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedEToken.redeem(
                 tokensToRedeem,
@@ -214,7 +216,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        userBalances[owner].sittingBalance -= amount;
+        // Validate user has sufficient balance to withdraw so we do not need
+        // to rely on native panic revert.
+        if (amount > balances.sittingBalance) {
+            revert UniversalBalance__InsufficientBalance();
+        }
+
+        balances.sittingBalance -= amount;
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
         emit Withdraw(msg.sender, recipient, owner, amount, amount);
