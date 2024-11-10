@@ -112,9 +112,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param isLent Whether the withdrawn underlying tokens should be pulled
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
-    function withdraw(uint256 amount, bool isLent) external {
-        amount = _withdraw(amount, isLent);
-        SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
+    /// @param recipient The account who will receive the underlying assets.
+    function withdraw(
+        uint256 amount,
+        bool isLent,
+        address receiver
+    ) external {
+        _withdraw(amount, isLent, receiver);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -162,9 +166,11 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param isLent Whether the withdrawn underlying tokens should be pulled
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
     function _withdraw(
         uint256 amount,
-        bool isLent
+        bool isLent,
+        address recipient
     ) internal returns (uint256) {
         if (isLent) {
             uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
@@ -178,10 +184,14 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             );
             userBalances[msg.sender].lentBalance -= tokensToRedeem;
 
-            uint256 tokensReceived = linkedEToken.redeem(tokensToRedeem);
+            uint256 tokensReceived = linkedEToken.redeem(
+                tokensToRedeem,
+                recipient
+            );
+
             emit Withdraw(
                 msg.sender,
-                msg.sender,
+                recipient,
                 msg.sender,
                 tokensReceived,
                 tokensToRedeem
@@ -189,23 +199,17 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             return tokensReceived;
         }
 
+        // We don't need the amount == 0 check for lent redemption as gauge
+        // withdrawal blocks amount == 0 redemptions.
         if (amount == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         userBalances[msg.sender].sittingBalance -= amount;
-        emit Withdraw(msg.sender, msg.sender, msg.sender, amount, amount);
-        return amount;
-    }
+        SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
-    /// @dev Returns `floor(x * y / d)`.
-    /// Reverts if `x * y` overflows, or `d` is zero.
-    function _mulDiv(
-        uint256 x,
-        uint256 y,
-        uint256 d
-    ) internal pure returns (uint256) {
-        return FixedPointMathLib.mulDiv(x, y, d);
+        emit Withdraw(msg.sender, recipient, msg.sender, amount, amount);
+        return amount;
     }
 
     /// @dev Internal helper for reverting efficiently.

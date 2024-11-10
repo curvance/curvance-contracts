@@ -58,8 +58,13 @@ contract UniversalBalanceNative is UniversalBalance {
     /// @param isLent Whether the withdrawn wrapped native tokens should be
     ///               pulled from a user's lent position or held position
     ///               inside Curvance Protocol.
-    function withdrawNative(uint256 amount, bool isLent) external {
-        amount = _withdraw(amount, isLent);
+    /// @param recipient The account who will receive the underlying assets.
+    function withdrawNative(
+        uint256 amount,
+        bool isLent,
+        address receiver
+    ) external {
+        amount = _withdraw(amount, isLent, address(this));
         IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(msg.sender, amount);
     }
@@ -86,8 +91,11 @@ contract UniversalBalanceNative is UniversalBalance {
 
         if (
             userBalance.sittingBalance +
-                _mulDiv(userBalance.lentBalance, exchangeRate, WAD) <
-            amount
+                FixedPointMathLib.mulDiv(
+                    userBalance.lentBalance,
+                    exchangeRate,
+                    WAD
+            ) < amount
         ) {
             revert UniversalBalance__InsufficientBalance();
         }
@@ -109,10 +117,14 @@ contract UniversalBalanceNative is UniversalBalance {
                 WAD,
                 exchangeRate
             );
-            // Reduce user lent balance.
+            // Decrement user lent balance.
             userBalances[user].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedEToken.redeem(pointerAmount);
+            pointerAmount = linkedEToken.redeem(
+                pointerAmount,
+                address(this)
+            );
+
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {
                 revert UniversalBalance__SlippageError();

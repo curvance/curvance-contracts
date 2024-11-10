@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 interface ILockableRegistry {
-    /// @notice Checks whether `user` has transferrability enabled for
+    /// @notice Checks whether `user` has transferability enabled for
     ///         their tokens.
-    function checkTransferrability(address user) external view;
+    function checkTransferability(address user) external view;
 }

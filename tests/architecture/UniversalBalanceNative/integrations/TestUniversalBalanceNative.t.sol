@@ -276,7 +276,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         );
 
         vm.prank(user1);
-        universalBalanceNative.withdraw(100e18, false);
+        universalBalanceNative.withdraw(100e18, false, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -295,7 +295,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         assertEq(weth.balanceOf(user1), 100e18);
 
         vm.prank(user1);
-        universalBalanceNative.withdraw(100e18, true);
+        universalBalanceNative.withdraw(100e18, true, address(this));
 
         (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
             user1
@@ -326,7 +326,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         uint256 userETHBalance = user1.balance;
 
         vm.prank(user1);
-        universalBalanceNative.withdrawNative(100e18, false);
+        universalBalanceNative.withdrawNative(100e18, false, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -344,7 +344,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         assertEq(user1.balance, userETHBalance + 100e18);
 
         vm.prank(user1);
-        universalBalanceNative.withdrawNative(100e18, true);
+        universalBalanceNative.withdrawNative(100e18, true, address(this));
 
         (sittingBalance, lentBalance) = universalBalanceNative.userBalances(
             user1
@@ -385,7 +385,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         eWETH.mint(100e18);
 
         vm.prank(user1);
-        universalBalanceNative.withdrawNative(50e18, true);
+        universalBalanceNative.withdrawNative(50e18, true, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);

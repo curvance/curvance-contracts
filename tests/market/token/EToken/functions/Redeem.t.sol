@@ -11,14 +11,14 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.prank(address(1));
 
         vm.expectRevert();
-        eUSDC.redeem(100e6);
+        eUSDC.redeem(100e6, address(1));
     }
 
     function test_eTokenRedeem_fail_whenAmountIsZero() public {
         eUSDC.mint(100e6);
 
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
-        eUSDC.redeem(0);
+        eUSDC.redeem(0, address(0));
     }
 
     function test_eTokenRedeem_success() public {
@@ -31,7 +31,7 @@ contract ETokenRedeemTest is TestBaseEToken {
         vm.expectEmit(true, true, true, true, address(eUSDC));
         emit Transfer(address(this), address(0), 100e6);
 
-        eUSDC.redeem(100e6);
+        eUSDC.redeem(100e6, address(this));
 
         assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
         assertEq(eUSDC.balanceOf(address(this)), balance - 100e6);

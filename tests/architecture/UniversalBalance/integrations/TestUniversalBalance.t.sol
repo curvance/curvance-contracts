@@ -208,7 +208,7 @@ contract TestUniversalBalance is TestBaseMarket {
         uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
 
         vm.prank(user1);
-        universalBalance.withdraw(100e6, false);
+        universalBalance.withdraw(100e6, false, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -223,7 +223,7 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(usdc.balanceOf(user1), 100e6);
 
         vm.prank(user1);
-        universalBalance.withdraw(100e6, true);
+        universalBalance.withdraw(100e6, true, address(this));
 
         (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
         assertEq(sittingBalance, 0);
@@ -260,7 +260,7 @@ contract TestUniversalBalance is TestBaseMarket {
         eUSDC.mint(100e6);
 
         vm.prank(user1);
-        universalBalance.withdraw(50e6, true);
+        universalBalance.withdraw(50e6, true, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

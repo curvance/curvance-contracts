@@ -25,7 +25,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         universalBalance.deposit(amount, true);
 
         vm.expectRevert();
-        universalBalance.withdraw(amount + 1, true);
+        universalBalance.withdraw(amount + 1, true, address(this));
 
         vm.stopPrank();
     }
@@ -42,7 +42,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         universalBalance.deposit(amount, false);
 
         vm.expectRevert();
-        universalBalance.withdraw(amount + 1, false);
+        universalBalance.withdraw(amount + 1, false, address(this));
 
         vm.stopPrank();
     }
@@ -53,7 +53,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         vm.expectRevert(
             UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
-        universalBalance.withdraw(0, false);
+        universalBalance.withdraw(0, false, address(this));
     }
 
     function test_withdraw_success_withLend_fuzzed(
@@ -85,7 +85,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, redeemAmount);
 
-        universalBalance.withdraw(withdrawAmount, true);
+        universalBalance.withdraw(withdrawAmount, true, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -129,7 +129,7 @@ contract WithdrawTest is TestBaseUniversalBalance {
         vm.expectEmit();
         emit Withdraw(user1, user1, user1, withdrawAmount, withdrawAmount);
 
-        universalBalance.withdraw(withdrawAmount, false);
+        universalBalance.withdraw(withdrawAmount, false, address(this));
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

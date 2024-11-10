@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 /// @title Curvance Lockable Registry.
-/// @notice Facilitates locking a users token transferrability as a secondary
+/// @notice Facilitates locking a users token transferability as a secondary
 ///         protective layer against phishing attempts.
 /// @dev `LockableRegistry` allows the Curvance Protocol, and any external
 ///      integrator to add an additional protective layer against phishing
@@ -45,20 +45,20 @@ abstract contract LockableRegistry {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Checks whether `user` has their tokens transferrability locked.
-    /// @param user The address to check whether transferrability is disabled.
-    /// @return Returns whether `user` has their token transferrability locked.
+    /// @notice Checks whether `user` has their tokens transferability locked.
+    /// @param user The address to check whether transferability is disabled.
+    /// @return Returns whether `user` has their token transferability locked.
     function lockEnabled(address user) public view returns (bool) {
         return !userTransferConfig[user].transferDisabled;
     }
 
-    /// @notice Sets token transferrability unlock cooldown.
+    /// @notice Sets token transferability unlock cooldown.
     /// @dev Emits a {CooldownSet} event. If a user is decreasing their cooldown,
-    ///      transferrability cooldown will automatically apply, delaying when
-    ///      transferrability can be re-enabled, preventing a malicious party
+    ///      transferability cooldown will automatically apply, delaying when
+    ///      transferability can be re-enabled, preventing a malicious party
     ///      from tracking a user to decrease their cooldown to 0 and then enabling
-    ///      transferrability.
-    /// @param cooldown The length of time transferrability should remain
+    ///      transferability.
+    /// @param cooldown The length of time transferability should remain
     ///                 restricted after their transfer lock has been disabled,
     ///                 in seconds.
     function setCooldown(uint256 cooldown) external {
@@ -68,10 +68,10 @@ abstract contract LockableRegistry {
 
         TransferConfig storage userConfig = userTransferConfig[msg.sender];
 
-        // If a user is decreasing their cooldown, transferrability cooldown
-        // will automatically apply, delaying when transferrability can be
+        // If a user is decreasing their cooldown, transferability cooldown
+        // will automatically apply, delaying when transferability can be
         // re-enabled, preventing a malicious party from tracking a user to
-        // decrease their cooldown to 0 and then enabling transferrability.
+        // decrease their cooldown to 0 and then enabling transferability.
         if (userConfig.transferCooldown > cooldown) {
             userConfig.transferEnabledTimestamp =
                 uint40(userConfig.transferCooldown + block.timestamp);
@@ -81,11 +81,11 @@ abstract contract LockableRegistry {
         emit CooldownSet(msg.sender, cooldown);
     }
 
-    /// @notice Sets token transferrability for the caller, if enabling transferrability,
+    /// @notice Sets token transferability for the caller, if enabling transferability,
     ///         the caller's opt in transfer cooldown will be applied.
     /// @dev Emits a {LockStatusChanged} event.
     /// @param transferDisabled Whether the user intends on enabling or disabling
-    ///                         transferrability, while flipping their transferrability
+    ///                         transferability, while flipping their transferability
     ///                         status can be assumed, its best to make sure the caller
     ///                         intends on flipping their status for onchain integrators.
     function setTransferLockStatus(bool transferDisabled) external {
@@ -98,7 +98,7 @@ abstract contract LockableRegistry {
             revert LockableRegistry__InvalidParams();
         }
 
-        // If the user is trying to enable transferrability again,
+        // If the user is trying to enable transferability again,
         // add their cooldown period, an added layer against phishing
         // attempts.
         if (!transferDisabled) {
@@ -117,10 +117,10 @@ abstract contract LockableRegistry {
         emit LockStatusChanged(msg.sender, transferDisabled);
     }
 
-    /// @notice Checks whether `user` has transferrability enabled for
+    /// @notice Checks whether `user` has transferability enabled for
     ///         their tokens.
-    /// @dev Reverts if the user does not have transferrability enabled.
-    function checkTransferrability(address user) external view {
+    /// @dev Reverts if the user does not have transferability enabled.
+    function checkTransferability(address user) external view {
         TransferConfig memory userConfig = userTransferConfig[user];
         if (
             userConfig.transferDisabled ||

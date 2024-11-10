@@ -779,7 +779,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         IMToken mToken;
 
         // Update pending interest in markets.
-        for (uint256 i = 0; i < numAssetsPrior; ) {
+        for (uint256 i; i < numAssetsPrior; ) {
             // Cache `account` mToken then increment i.
             mToken = accountAssetsPrior[i++];
             if (!mToken.isPToken()) {
@@ -1447,6 +1447,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_PAUSED_SELECTOR);
         }
 
+        if (ILockableRegistry(
+            address(centralRegistry)
+        ).checkTransferability(account)) {
+            _revert(_UNAUTHORIZED_SELECTOR)
+        }
+
         if (!tokenData[mToken].isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
@@ -1542,6 +1548,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 _closePositions(account, positionsToClose);
             }
         } else {
+            if (ILockableRegistry(
+                address(centralRegistry)
+            ).checkTransferability(account)) {
+                _revert(_UNAUTHORIZED_SELECTOR)
+            }
+
             if (!tokenData[pToken].isListed) {
                 _revert(_TOKEN_NOT_LISTED_SELECTOR);
             }
