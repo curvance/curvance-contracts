@@ -9,6 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
@@ -118,7 +119,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool isLent,
         address receiver
     ) external {
-        _withdraw(amount, isLent, receiver);
+        _withdraw(amount, isLent, receiver, msg.sender);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -167,11 +168,20 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///               from a user's lent position or held position inside
     ///               Curvance Protocol.
     /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
     function _withdraw(
         uint256 amount,
         bool isLent,
-        address recipient
+        address recipient,
+        address owner
     ) internal returns (uint256) {
+        if (
+            ILockableRegistry(
+                address(centralRegistry)
+            ).checkTransferability(owner)) {
+                revert UniversalBalance__Unauthorized();
+        }
+
         if (isLent) {
             uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
             // Will natively fail if amount == 0 on gaugeManager call.
@@ -182,7 +192,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
                 WAD,
                 exchangeRate
             );
-            userBalances[msg.sender].lentBalance -= tokensToRedeem;
+            userBalances[owner].lentBalance -= tokensToRedeem;
 
             uint256 tokensReceived = linkedEToken.redeem(
                 tokensToRedeem,
@@ -192,7 +202,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             emit Withdraw(
                 msg.sender,
                 recipient,
-                msg.sender,
+                owner,
                 tokensReceived,
                 tokensToRedeem
             );
@@ -205,10 +215,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        userBalances[msg.sender].sittingBalance -= amount;
+        userBalances[owner].sittingBalance -= amount;
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
-        emit Withdraw(msg.sender, recipient, msg.sender, amount, amount);
+        emit Withdraw(msg.sender, recipient, owner, amount, amount);
         return amount;
     }
 

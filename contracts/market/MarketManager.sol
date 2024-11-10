@@ -9,6 +9,7 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
