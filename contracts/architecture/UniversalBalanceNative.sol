@@ -19,7 +19,9 @@ contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {
             IWETH(underlying).deposit{ value: msg.value };
-            _deposit(msg.value, true);
+            // We false a sitting balance due to small gas allowance
+            // on .transfer calls.
+            _deposit(msg.value, false, msg.sender);
         }
     }
 
@@ -39,7 +41,8 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Deposits native gas token token into user's universal balance
+    
+    /// @notice Deposits native gas token into user's universal balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event. The amount of native token to be
     ///      deposited is attached to the transaction.
@@ -47,7 +50,26 @@ contract UniversalBalanceNative is UniversalBalance {
     ///               out inside Curvance Protocol (as wrapped native).
     function depositNative(bool isLent) external payable {
         IWETH(underlying).deposit{ value: msg.value }();
-        _deposit(msg.value, isLent);
+        _deposit(msg.value, isLent, msg.sender);
+    }
+
+    /// @notice Deposits native gas token into `recipient`'s universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Requires that `recipient` has approved the caller previously to
+    ///      access their universal balance. The amount of native token to be
+    ///      deposited is attached to the transaction.
+    ///      Emits { Deposit } event.
+    /// @param isLent Whether the deposited native tokens should be lent
+    ///               out inside Curvance Protocol (as wrapped native).
+    /// @param recipient The account who will receive the deposit.
+    function depositNativeFor(
+        bool isLent,
+        address recipient
+    ) external payable {
+        _checkDelegation(recipient);
+
+        IWETH(underlying).deposit{ value: msg.value }();
+        _deposit(msg.value, isLent, recipient);
     }
 
     /// @notice Withdraws wrapped native token from user's universal balance
@@ -65,6 +87,31 @@ contract UniversalBalanceNative is UniversalBalance {
         address recipient
     ) external {
         amount = _withdraw(amount, isLent, address(this), msg.sender);
+        IWETH(underlying).withdraw(amount);
+        SafeTransferLib.safeTransferETH(recipient, amount);
+    }
+
+    /// @notice Withdraws wrapped native token from `owner`'s universal
+    ///         balance account, either currently held or lent out and
+    ///         transfers it to the user in native form.
+    /// @dev Requires that `owner` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Withdraw } event.
+    /// @param amount The amount of native token to be withdrawn.
+    /// @param isLent Whether the withdrawn wrapped native tokens should be
+    ///               pulled from a user's lent position or held position
+    ///               inside Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
+    function withdrawNativeFor(
+        uint256 amount,
+        bool isLent,
+        address recipient,
+        address owner
+    ) external {
+        _checkDelegation(owner);
+
+        amount = _withdraw(amount, isLent, address(this), owner);
         IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(recipient, amount);
     }

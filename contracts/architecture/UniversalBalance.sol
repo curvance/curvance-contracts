@@ -33,6 +33,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @notice The address of universal balance underlying token.
     address public immutable underlying;
 
+    /// @dev `bytes4(keccak256(bytes("UniversalBalance__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x439f5eb2;
     /// @dev `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xc75f2a32;
 
@@ -103,7 +105,32 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             address(this),
             amount
         );
-        _deposit(amount, isLent);
+        _deposit(amount, isLent, msg.sender);
+    }
+
+    /// @notice Deposits underlying token into `recipient`'s universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Requires that `recipient` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Deposit } event.
+    /// @param amount The amount of underlying token to be deposited.
+    /// @param isLent Whether the deposited underlying tokens should be lent
+    ///               out inside Curvance Protocol.
+    /// @param recipient The account who will receive the deposit.
+    function depositFor(
+        uint256 amount,
+        bool isLent,
+        address recipient
+    ) external {
+        _checkDelegation(recipient);
+
+        SafeTransferLib.safeTransferFrom(
+            underlying,
+            msg.sender,
+            address(this),
+            amount
+        );
+        _deposit(amount, isLent, recipient);
     }
 
     /// @notice Withdraws underlying token from user's universal balance
@@ -120,6 +147,56 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient
     ) external {
         _withdraw(amount, isLent, recipient, msg.sender);
+    }
+
+    /// @notice Withdraws underlying token from `owner`'s universal balance
+    ///         account, either currently held or lent out.
+    /// @dev Requires that `owner` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Withdraw } event.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param isLent Whether the withdrawn underlying tokens should be pulled
+    ///               from a user's lent position or held position inside
+    ///               Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
+    function withdrawFor(
+        uint256 amount,
+        bool isLent,
+        address recipient,
+        address owner
+    ) external {
+        _checkDelegation(owner);
+
+        _withdraw(amount, isLent, recipient, owner);
+    }
+
+    /// @notice Rescue any token sent by mistake.
+    /// @dev Restricts the ability to rescue underlying tokens inside the
+    ///      market since Curvance is non-custodial.
+    /// @param token The token to rescue.
+    /// @param amount The amount of `token` to rescue, 0 indicates to
+    ///               rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        address daoOperator = centralRegistry.daoAddress();
+
+        if (token == address(0)) {
+            if (amount == 0) {
+                amount = address(this).balance;
+            }
+
+            SafeTransferLib.safeTransferETH(daoOperator, amount);
+        } else {
+            if (token == underlying) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            if (amount == 0) {
+                amount = IERC20(token).balanceOf(address(this));
+            }
+
+            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        }
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -142,13 +219,19 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param amount The amount of underlying token to be deposited.
     /// @param isLent Whether the deposited underlying tokens should be lent
     ///               out inside Curvance Protocol.
-    function _deposit(uint256 amount, bool isLent) internal {
+    /// @param recipient The account that should receive the deposit.
+    function _deposit(
+        uint256 amount,
+        bool isLent,
+        address recipient
+    ) internal {
         if (isLent) {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             uint256 tokensReceived = linkedEToken.mint(amount);
-            userBalances[msg.sender].lentBalance += tokensReceived;
-            emit Deposit(msg.sender, msg.sender, amount, tokensReceived);
+            userBalances[recipient].lentBalance += tokensReceived;
+            
+            emit Deposit(msg.sender, recipient, amount, tokensReceived);
             return;
         }
 
@@ -156,8 +239,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        userBalances[msg.sender].sittingBalance += amount;
-        emit Deposit(msg.sender, msg.sender, amount, amount);
+        userBalances[recipient].sittingBalance += amount;
+        emit Deposit(msg.sender, recipient, amount, amount);
     }
 
     /// @notice Withdraws underlying token from user's universal balance
@@ -178,7 +261,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         if (ILockableRegistry(
                 address(centralRegistry)).checkTransfersDisabled(owner)
             ) {
-            revert UniversalBalance__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         UserBalance storage balances = userBalances[owner];
@@ -227,6 +310,16 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         emit Withdraw(msg.sender, recipient, owner, amount, amount);
         return amount;
+    }
+
+    /// @notice Validates whether a user or contract has the ability to act
+    ///         on behalf of an account.
+    /// @param user The address to check whether caller has delegation
+    ///             permissions.
+    function _checkDelegation(address user) internal view {
+        if (!isDelegate(user, msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     /// @dev Internal helper for reverting efficiently.
