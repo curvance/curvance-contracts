@@ -36,6 +36,11 @@ library PendleLib {
     ) internal returns (uint256 outAmount) {
         if (isPt) {
             // swap input token to pt
+            SwapperLib._approveTokenIfNeeded(
+                data.input.tokenIn,
+                address(router),
+                data.input.netTokenIn
+            );
             (outAmount, , ) = IPendleRouter(router).swapExactTokenForPt(
                 address(this),
                 lpToken,
@@ -97,35 +102,37 @@ library PendleLib {
     /// @notice Exit a Pendle position.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
-    /// @param token The underlying token address of the SY.
+    /// @param token If isPt= false then the underlying token address of the SY, if not then the PT address.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
-    /// @param lpAmount The Pendle lp/pt amount to exit.
+    /// @param amount The Pendle lp/pt amount to exit.
     function exitPendle(
         address router,
         bool isPt,
         address token,
         PendleData memory data,
         address lpToken,
-        uint256 lpAmount
+        uint256 amount
     ) internal {
-        SwapperLib._approveTokenIfNeeded(lpToken, router, lpAmount);
-
         if (isPt) {
+            SwapperLib._approveTokenIfNeeded(token, router, amount);
+
             IPendleRouter(router).swapExactPtForToken(
                 address(this),
                 lpToken,
-                lpAmount,
+                amount,
                 data.output,
                 data.limit
             );
         } else {
+            SwapperLib._approveTokenIfNeeded(lpToken, router, amount);
+
             (uint256 balance, ) = IPendleRouter(router)
                 .removeLiquiditySingleSy(
                     address(this),
                     lpToken,
-                    lpAmount,
+                    amount,
                     0,
                     data.limit
                 );
