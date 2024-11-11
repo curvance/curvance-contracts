@@ -16,7 +16,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 
@@ -714,9 +714,10 @@ contract ComplexZapper is ReentrancyGuard {
                 msg.sender
             );
         } else if (
-            collateralize && msg.sender != recipient && 
+            collateralize &&
+            msg.sender != recipient &&
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-            ) {
+        ) {
             shares = SimplePToken(pToken).depositAsCollateralFor(
                 amount,
                 recipient

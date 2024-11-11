@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Script.sol";
 
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     event MarketEntered(address mToken, address account);

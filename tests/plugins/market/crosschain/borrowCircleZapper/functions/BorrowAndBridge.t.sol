@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -171,7 +171,9 @@ contract BorrowAndBridgeTest is TestBaseMarket {
 
         eDAI.setDelegateApproval(address(circleZapper), true);
 
-        vm.expectRevert(BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector);
+        vm.expectRevert(
+            BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector
+        );
         circleZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
@@ -212,7 +214,9 @@ contract BorrowAndBridgeTest is TestBaseMarket {
         eDAI.setDelegateApproval(address(circleZapper), true);
 
         vm.expectRevert(
-            BorrowCircleZapper.BorrowCircleZapper__InsufficientGasToken.selector
+            BorrowCircleZapper
+                .BorrowCircleZapper__InsufficientGasToken
+                .selector
         );
         circleZapper.borrowAndBridge{ value: messageFee - 1 }(
             address(eDAI),

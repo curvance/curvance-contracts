@@ -11,7 +11,7 @@ import { IBlast } from "contracts/interfaces/external/blast/IBlast.sol";
 import { IERC20Rebasing } from "contracts/interfaces/external/blast/IERC20Rebasing.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IMarketManager, IMToken } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMarketManager, IMToken } from "contracts/interfaces/IMarketManager.sol";
 
 /// @dev The Curvance Blast Native Yield Manager manages all delegated yield
 ///      inside the Curvance protocol. By design Curvance does not support

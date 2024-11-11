@@ -13,10 +13,10 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
-import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 /// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation

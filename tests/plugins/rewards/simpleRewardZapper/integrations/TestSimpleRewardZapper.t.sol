@@ -9,7 +9,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";

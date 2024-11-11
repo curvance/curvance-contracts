@@ -9,7 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 

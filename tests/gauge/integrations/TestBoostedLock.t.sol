@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";

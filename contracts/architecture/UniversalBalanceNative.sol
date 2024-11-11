@@ -10,7 +10,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 /// @title Curvance Universal Balance for a chain's native gas token.
 /// @notice A system for managing a Universal Balance within the Curvance

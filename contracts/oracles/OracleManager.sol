@@ -5,7 +5,7 @@ import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libra
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
@@ -85,7 +85,8 @@ contract OracleManager {
     /// CONSTANTS ///
 
     /// @notice Address identifying a chain's native token.
-    address public constant native = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public constant native =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
     /// @notice Time to pass before accepting answers when sequencer
@@ -830,7 +831,9 @@ contract OracleManager {
     ///         If the Oracle Manager data is stale or negative,
     ///         it returns (answer, true).
     ///         Where true corresponds to hasError = true.
-    function _getNativeUSD(bool getLower) internal view returns (uint256, bool) {
+    function _getNativeUSD(
+        bool getLower
+    ) internal view returns (uint256, bool) {
         uint256 numFeeds = assetPriceFeeds[native].length;
         // Validate we have a feed or feeds to price `asset`.
         if (numFeeds == 0) {

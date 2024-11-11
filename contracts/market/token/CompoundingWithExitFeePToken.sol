@@ -8,7 +8,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
+import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.

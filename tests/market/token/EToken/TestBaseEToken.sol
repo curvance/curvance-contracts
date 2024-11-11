@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract TestBaseEToken is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;

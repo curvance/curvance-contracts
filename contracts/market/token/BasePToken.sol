@@ -10,9 +10,9 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
