@@ -41,7 +41,6 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// EXTERNAL FUNCTIONS ///
 
-    
     /// @notice Deposits native gas token into user's universal balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event. The amount of native token to be
@@ -86,9 +85,11 @@ contract UniversalBalanceNative is UniversalBalance {
         bool isLent,
         address recipient
     ) external {
-        amount = _withdraw(amount, isLent, address(this), msg.sender);
+        (amount, ) = _withdraw(amount, isLent, address(this), msg.sender);
         IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(recipient, amount);
+
+        emit Withdraw(msg.sender, recipient, msg.sender, amount, amount);
     }
 
     /// @notice Withdraws wrapped native token from `owner`'s universal
@@ -111,9 +112,11 @@ contract UniversalBalanceNative is UniversalBalance {
     ) external {
         _checkDelegation(owner);
 
-        amount = _withdraw(amount, isLent, address(this), owner);
+        (amount, ) = _withdraw(amount, isLent, address(this), owner);
         IWETH(underlying).withdraw(amount);
         SafeTransferLib.safeTransferETH(recipient, amount);
+
+        emit Withdraw(msg.sender, recipient, owner, amount, amount);
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
@@ -142,7 +145,8 @@ contract UniversalBalanceNative is UniversalBalance {
                     userBalance.lentBalance,
                     exchangeRate,
                     WAD
-            ) < amount
+                ) <
+            amount
         ) {
             revert UniversalBalance__InsufficientBalance();
         }
@@ -167,10 +171,7 @@ contract UniversalBalanceNative is UniversalBalance {
             // Decrement user lent balance.
             userBalances[user].lentBalance -= pointerAmount;
 
-            pointerAmount = linkedEToken.redeem(
-                pointerAmount,
-                address(this)
-            );
+            pointerAmount = linkedEToken.redeem(pointerAmount, address(this));
 
             // Make sure enough was redeemed.
             if (pointerAmount < remainingAmount) {

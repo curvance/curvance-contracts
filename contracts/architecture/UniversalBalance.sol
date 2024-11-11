@@ -146,7 +146,20 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool isLent,
         address recipient
     ) external {
-        _withdraw(amount, isLent, recipient, msg.sender);
+        (uint256 tokensReceived, uint256 tokensToRedeem) = _withdraw(
+            amount,
+            isLent,
+            recipient,
+            msg.sender
+        );
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            msg.sender,
+            tokensReceived,
+            tokensToRedeem
+        );
     }
 
     /// @notice Withdraws underlying token from `owner`'s universal balance
@@ -168,7 +181,20 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ) external {
         _checkDelegation(owner);
 
-        _withdraw(amount, isLent, recipient, owner);
+        (uint256 tokensReceived, uint256 tokensToRedeem) = _withdraw(
+            amount,
+            isLent,
+            recipient,
+            owner
+        );
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            owner,
+            tokensReceived,
+            tokensToRedeem
+        );
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -230,7 +256,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             // Records balance in tokens (shares).
             uint256 tokensReceived = linkedEToken.mint(amount);
             userBalances[recipient].lentBalance += tokensReceived;
-            
+
             emit Deposit(msg.sender, recipient, amount, tokensReceived);
             return;
         }
@@ -257,10 +283,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool isLent,
         address recipient,
         address owner
-    ) internal returns (uint256) {
-        if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(owner)
-            ) {
+    ) internal returns (uint256, uint256) {
+        if (
+            ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
+                owner
+            )
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -283,14 +311,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
                 recipient
             );
 
-            emit Withdraw(
-                msg.sender,
-                recipient,
-                owner,
-                tokensReceived,
-                tokensToRedeem
-            );
-            return tokensReceived;
+            return (tokensReceived, tokensToRedeem);
         }
 
         // We don't need the amount == 0 check for lent redemption as gauge
@@ -308,8 +329,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         balances.sittingBalance -= amount;
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
-        emit Withdraw(msg.sender, recipient, owner, amount, amount);
-        return amount;
+        return (amount, amount);
     }
 
     /// @notice Validates whether a user or contract has the ability to act
