@@ -6,7 +6,7 @@ import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceN
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract DepositTest is TestBaseUniversalBalanceNative {
+contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     event Deposit(
         address indexed by,
         address indexed owner,

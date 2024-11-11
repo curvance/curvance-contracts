@@ -208,7 +208,7 @@ contract TestUniversalBalance is TestBaseMarket {
         uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
 
         vm.prank(user1);
-        universalBalance.withdraw(100e6, false, address(this));
+        universalBalance.withdraw(100e6, false, user2);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -220,10 +220,10 @@ contract TestUniversalBalance is TestBaseMarket {
             usdcBalance - 100e6
         );
         assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
-        assertEq(usdc.balanceOf(user1), 100e6);
+        assertEq(usdc.balanceOf(user2), 100e6);
 
         vm.prank(user1);
-        universalBalance.withdraw(100e6, true, address(this));
+        universalBalance.withdraw(100e6, true, user2);
 
         (sittingBalance, lentBalance) = universalBalance.userBalances(user1);
         assertEq(sittingBalance, 0);
@@ -237,7 +237,7 @@ contract TestUniversalBalance is TestBaseMarket {
             eUSDC.balanceOf(address(universalBalance)),
             eUSDCBalance - redeemAmount
         );
-        assertEq(usdc.balanceOf(user1), 200e6);
+        assertEq(usdc.balanceOf(user2), 200e6);
     }
 
     function testLentBalanceIncreased() public {

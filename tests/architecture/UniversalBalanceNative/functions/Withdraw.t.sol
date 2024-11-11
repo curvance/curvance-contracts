@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
-contract WithdrawTest is TestBaseUniversalBalanceNative {
+contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
     event Withdraw(
         address indexed by,
         address indexed to,
@@ -79,14 +79,14 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         uint256 eWETHBalance = eWETH.balanceOf(
             address(universalBalanceNative)
         );
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 userWETHBalance = weth.balanceOf(user2);
 
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user1, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
 
-        universalBalanceNative.withdraw(withdrawAmount, true, address(this));
+        universalBalanceNative.withdraw(withdrawAmount, true, user2);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -99,7 +99,7 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
             eWETH.balanceOf(address(universalBalanceNative)),
             eWETHBalance - redeemAmount
         );
-        assertEq(weth.balanceOf(user1), userWETHBalance + withdrawAmount);
+        assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
     }
 
     function test_withdraw_success_withoutLend_fuzzed(
@@ -130,9 +130,9 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user1, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
 
-        universalBalanceNative.withdraw(withdrawAmount, false, address(this));
+        universalBalanceNative.withdraw(withdrawAmount, false, user2);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -148,6 +148,6 @@ contract WithdrawTest is TestBaseUniversalBalanceNative {
             eWETH.balanceOf(address(universalBalanceNative)),
             eWETHBalance
         );
-        assertEq(weth.balanceOf(user1), userWETHBalance + withdrawAmount);
+        assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
     }
 }
