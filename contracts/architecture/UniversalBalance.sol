@@ -11,7 +11,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Universal Balance.
@@ -204,6 +203,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param amount The amount of `token` to rescue, 0 indicates to
     ///               rescue all.
     function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions();
         address daoOperator = centralRegistry.daoAddress();
 
         if (token == address(0)) {
@@ -214,7 +214,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
             if (token == underlying) {
-                _revert(_UNAUTHORIZED_SELECTOR);
+                _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             if (amount == 0) {
@@ -330,6 +330,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
         return (amount, amount);
+    }
+
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     /// @notice Validates whether a user or contract has the ability to act
