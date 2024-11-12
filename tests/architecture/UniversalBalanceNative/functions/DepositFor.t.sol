@@ -2,11 +2,14 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
+contract UniversalBalanceNativeDepositForTest is
+    TestBaseUniversalBalanceNative
+{
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -14,7 +17,31 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         uint256 shares
     );
 
-    function test_universalBalanceNativeDeposit_fail_whenInsufficientBalance_fuzzed(
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(user2);
+        universalBalanceNative.setDelegateApproval(user1, true);
+    }
+
+    function test_universalBalanceNativeDepositFor_fail_whenRecipientIsNotApproved()
+        public
+    {
+        deal(_WETH_ADDRESS, user1, _ONE);
+
+        vm.startPrank(user1);
+
+        weth.approve(address(universalBalanceNative), _ONE);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalanceNative.depositFor(_ONE, true, address(1));
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceNativeDepositFor_fail_whenInsufficientBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -26,12 +53,12 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount + 1);
 
         vm.expectRevert();
-        universalBalanceNative.deposit(amount + 1, true);
+        universalBalanceNative.depositFor(amount + 1, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeDeposit_fail_whenExceedsAllowance_fuzzed(
+    function test_universalBalanceNativeDepositFor_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -43,12 +70,12 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectRevert();
-        universalBalanceNative.deposit(amount + 1, true);
+        universalBalanceNative.depositFor(amount + 1, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeDeposit_fail_whenTokenIsNotListed()
+    function test_universalBalanceNativeDepositFor_fail_whenTokenIsNotListed()
         public
     {
         deal(_WETH_ADDRESS, user1, _ONE);
@@ -61,27 +88,31 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
             _WETH_ADDRESS
         );
 
+        vm.prank(user2);
+        universalBalanceNative.setDelegateApproval(user1, true);
+
         vm.startPrank(user1);
 
         weth.approve(address(universalBalanceNative), _ONE);
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        universalBalanceNative.deposit(_ONE, true);
+        universalBalanceNative.depositFor(_ONE, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeDeposit_fail_whenAmountIsZero()
+    function test_universalBalanceNativeDepositFor_fail_whenAmountIsZero()
         public
     {
         vm.prank(user1);
 
-        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
-        universalBalanceNative.deposit(0, false);
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__InvalidParameter.selector
+        );
+        universalBalanceNative.depositFor(0, false, user2);
     }
 
-    function test_universalBalanceNativeDeposit_success_withLend_fuzzed(
+    function test_universalBalanceNativeDepositFor_success_withLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -100,14 +131,14 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, receiveAmount);
+        emit Deposit(user1, user2, amount, receiveAmount);
 
-        universalBalanceNative.deposit(amount, true);
+        universalBalanceNative.depositFor(amount, true, user2);
 
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
-            .userBalances(user1);
+            .userBalances(user2);
 
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, receiveAmount);
@@ -119,7 +150,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         assertEq(weth.balanceOf(user1), userWETHBalance - amount);
     }
 
-    function test_universalBalanceNativeDeposit_success_withoutLend_fuzzed(
+    function test_universalBalanceNativeDepositFor_success_withoutLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -137,14 +168,14 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, amount);
+        emit Deposit(user1, user2, amount, amount);
 
-        universalBalanceNative.deposit(amount, false);
+        universalBalanceNative.depositFor(amount, false, user2);
 
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
-            .userBalances(user1);
+            .userBalances(user2);
 
         assertEq(sittingBalance, amount);
         assertEq(lentBalance, 0);

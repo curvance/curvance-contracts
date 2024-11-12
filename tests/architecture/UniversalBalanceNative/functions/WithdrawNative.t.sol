@@ -25,7 +25,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
         universalBalanceNative.depositNative{ value: amount }(true);
 
         vm.expectRevert();
-        universalBalanceNative.withdrawNative(amount + 1, true, address(this));
+        universalBalanceNative.withdrawNative(amount + 1, true, user2);
 
         vm.stopPrank();
     }
@@ -42,11 +42,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
         universalBalanceNative.depositNative{ value: amount }(false);
 
         vm.expectRevert();
-        universalBalanceNative.withdrawNative(
-            amount + 1,
-            false,
-            address(this)
-        );
+        universalBalanceNative.withdrawNative(amount + 1, false, user2);
 
         vm.stopPrank();
     }
@@ -56,7 +52,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
         vm.expectRevert(0xc75f2a32);
-        universalBalanceNative.withdrawNative(0, false, address(this));
+        universalBalanceNative.withdrawNative(0, false, user2);
     }
 
     function test_withdrawNative_success_withLend_fuzzed(
