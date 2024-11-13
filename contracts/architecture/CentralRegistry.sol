@@ -6,6 +6,7 @@ import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
@@ -50,7 +51,14 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///      system. By incrementing one's approval index, a user can revoke all
 ///      approved address' delegation privileges at the same time.
 ///
-contract CentralRegistry is ERC165 {
+contract CentralRegistry is ERC165, LockableRegistry {
+    /// TYPES ///
+    struct DelegationConfig {
+        uint208 approvalIndex;
+        uint40 delegationEnabledTimestamp;
+        bool delegationDisabled;
+    }
+
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
@@ -157,17 +165,13 @@ contract CentralRegistry is ERC165 {
 
     /// USER DELEGATION ///
 
-    /// @notice A User's approval index acts as a way for users to manage
-    ///         their delegatee's status across Curvance.
+    /// @notice Contains a user's configuration values for delegated actions
+    ///         inside Curvance.
     /// @dev By incrementing their approval index, a user's delegates will all
     ///      have their delegation authority revoked across all Curvance
     ///      contracts.
-    ///      User => Approval Index.
-    mapping(address => uint256) public userApprovalIndex;
-
-    /// @notice Whether a user wants to allow new delegating to be disabled.
-    /// @dev User => Has new delegation disabled.
-    mapping(address => bool) public delegatingDisabled;
+    ///      User => User delegation configuration values.
+    mapping(address => DelegationConfig) public delegationConfig;
 
     // DAO PERMISSION DATA
 
@@ -216,7 +220,11 @@ contract CentralRegistry is ERC165 {
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
-    event DelegableStatusSet(address indexed user, bool delegable);
+    event DelegableStatusSet(
+        address indexed user,
+        bool delegable,
+        uint256 delegationEnabledTimestamp
+    );
     event OwnershipTransferred(
         address indexed previousOwner,
         address indexed newOwner
@@ -736,14 +744,40 @@ contract CentralRegistry is ERC165 {
 
     /// USER DELEGATION PLUGIN MANAGEMENT ///
 
+    /// @notice Checks whether `user` has delegation enabled or disabled
+    ///         for user actions inside Curvance.
+    /// @return Returns true if the user has delegation disabled.
+    function checkDelegationDisabled(
+        address user
+    ) external view returns (bool) {
+        DelegationConfig memory userConfig = delegationConfig[user];
+        return (
+            userConfig.delegationDisabled ||
+            userConfig.delegationEnabledTimestamp > block.timestamp
+        );
+    }
+
+    /// @notice Returns `user`'s approval index.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return `User`'s approval index.
+    function getUserApprovalIndex(
+        address user
+    ) external view returns (uint256) {
+        return delegationConfig[user].approvalIndex;
+    }
+
     /// @notice Increments a caller's approval index.
     /// @dev By incrementing their approval index, a user's delegates will all
     ///      have their delegation authority revoked across all Curvance
     ///      contracts.
     ///      Emits an {ApprovalIndexIncremented} event.
     function incrementApprovalIndex() external {
-        uint256 newIndex = userApprovalIndex[msg.sender] + 1;
-        userApprovalIndex[msg.sender] = newIndex;
+        DelegationConfig storage userConfig = delegationConfig[msg.sender];
+        uint256 newIndex = userConfig.approvalIndex + 1;
+        userConfig.approvalIndex = uint208(newIndex);
 
         emit ApprovalIndexIncremented(msg.sender, newIndex);
     }
@@ -752,10 +786,37 @@ contract CentralRegistry is ERC165 {
     ///         or not.
     /// @param delegable Whether caller wants to allow new delegation or not.
     ///      Emits a {DelegableStatusSet} event.
-    function disableDelegable(bool delegable) external {
-        delegatingDisabled[msg.sender] = delegable;
+    function setDelegable(bool delegable) external {
+        DelegationConfig storage userConfig = delegationConfig[msg.sender];
 
-        emit DelegableStatusSet(msg.sender, delegable);
+        // Validates that user is intending on flipping their delegation
+        // status, even though we could assume they want to flip
+        // by calling this function, it helps to validate for human error.
+        if (delegable == userConfig.delegationDisabled) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        uint256 enableTimestamp;
+
+        // If the user is trying to enable delegation again,
+        // add their cooldown period, an added layer against phishing
+        // attempts.
+        if (!delegable) {
+            // Validate the user did not recently reduce their cooldown,
+            // triggering their transfer cooldown.
+            if (userConfig.delegationEnabledTimestamp > block.timestamp) {
+                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            }
+
+            enableTimestamp = userTransferConfig[
+                msg.sender
+            ].transferCooldown + block.timestamp;
+            userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
+        }
+
+        userConfig.delegationDisabled = delegable;
+
+        emit DelegableStatusSet(msg.sender, delegable, enableTimestamp);
     }
 
     /// OWNERSHIP LOGIC

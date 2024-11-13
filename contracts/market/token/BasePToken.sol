@@ -176,7 +176,7 @@ abstract contract BasePToken is
     ) external nonReentrant returns (uint256 shares) {
         shares = _deposit(assets, receiver);
 
-        if (_checkIsDelegate(receiver, msg.sender)) {
+        if (isDelegate(receiver, msg.sender)) {
             marketManager.postCollateral(receiver, address(this), shares);
         }
     }

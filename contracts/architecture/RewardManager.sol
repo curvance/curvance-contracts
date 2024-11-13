@@ -356,7 +356,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     function manageRewardsFor(
         address user
     ) external nonReentrant returns (uint256) {
-        if (!_checkIsDelegate(user, msg.sender)) {
+        if (!isDelegate(user, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -595,7 +595,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param user The address of the user locking fees as veCVE.
     /// @param isFreshLock A boolean to indicate if a new lock is being
     ///                    created or not.
-    /// @param continuousLock A boolean to indicate if the lock should be
+    /// @param isContinuousLock A boolean to indicate if the lock should be
     ///                       continuous.
     /// @param lockIndex The index of the lock in the user's lock array.
     ///                  This parameter is only required if it is not a fresh
@@ -604,7 +604,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     function _compoundRewardsIntoLock(
         address user,
         bool isFreshLock,
-        bool continuousLock,
+        bool isContinuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
         IERC20 cve = IERC20(_getCVE());
@@ -616,8 +616,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             user,
             lockAmount,
             lockIndex,
-            continuousLock,
-            isFreshLock
+            isFreshLock,
+            isContinuousLock
         );
 
         return lockAmount;

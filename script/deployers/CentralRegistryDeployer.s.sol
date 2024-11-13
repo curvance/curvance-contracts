@@ -66,6 +66,14 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setGaugeManager: ", gaugeManager);
     }
 
+    function _setVotingHub(address votingHub) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+        require(votingHub != address(0), "Set the votingHub!");
+
+        CentralRegistry(centralRegistry).setVotingHub(votingHub);
+        console.log("centralRegistry.setVotingHub: ", votingHub);
+    }
+
     function _setCVE(address cve) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(cve != address(0), "Set the cve!");

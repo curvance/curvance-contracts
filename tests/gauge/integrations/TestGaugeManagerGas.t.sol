@@ -146,7 +146,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether);
+        IMToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);
@@ -201,7 +201,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether);
+        IMToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);
@@ -256,7 +256,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether);
+        IMToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);

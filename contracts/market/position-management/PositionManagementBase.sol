@@ -217,7 +217,7 @@ abstract contract PositionManagementBase is
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -283,7 +283,7 @@ abstract contract PositionManagementBase is
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

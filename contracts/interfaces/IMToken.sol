@@ -106,8 +106,12 @@ interface IMToken {
     /// @notice Redeems eTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of eTokens to redeem for underlying tokens.
+    /// @param recipient The account who will receive the underlying assets.
     /// @return Returns amount of underlying asset redeemed.
-    function redeem(uint256 tokens) external returns (uint256);
+    function redeem(
+        uint256 tokens,
+        address recipient
+    ) external returns (uint256);
 
     /// @notice Transfers collateral tokens (this pToken) from `account`
     ///         to `liquidator`.

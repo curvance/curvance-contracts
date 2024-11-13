@@ -237,7 +237,7 @@ contract SimplePToken is BasePToken {
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`. Or whether the caller has delegated approval or not.
         if (delegatedAction) {
-            if (!_checkIsDelegate(owner, msg.sender)) {
+            if (!isDelegate(owner, msg.sender)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
         } else {

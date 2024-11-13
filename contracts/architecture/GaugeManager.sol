@@ -700,7 +700,7 @@ contract GaugeManager is
         }
 
         if (user != msg.sender) {
-            if (!_checkIsDelegate(user, msg.sender)) {
+            if (!isDelegate(user, msg.sender)) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
         }

@@ -110,6 +110,7 @@ contract DeployCurvance is
 
         // Deploy VotingHub
         _deployVotingHub(centralRegistry, 1000);
+        _setVotingHub(votingHub);
 
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);

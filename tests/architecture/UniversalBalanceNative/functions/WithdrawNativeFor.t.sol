@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
-contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
+contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
     event Withdraw(
         address indexed by,
         address indexed to,
@@ -13,51 +13,82 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 shares
     );
 
-    function test_universalBalanceNativeWithdraw_fail_whenExceedsLentBalance_fuzzed(
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(user1);
+        universalBalanceNative.setDelegateApproval(user2, true);
+    }
+
+    function test_withdrawNativeFor_fail_whenRecipientIsNotApproved() public {
+        deal(user1, _ONE);
+
+        vm.startPrank(user1);
+
+        universalBalanceNative.depositNative{ value: _ONE }(true);
+
+        vm.expectRevert();
+        universalBalanceNative.withdrawNativeFor(
+            _ONE,
+            true,
+            user2,
+            address(1)
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_withdrawNativeFor_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(user1, amount);
 
-        vm.startPrank(user1);
-
+        vm.prank(user1);
         universalBalanceNative.depositNative{ value: amount }(true);
 
-        vm.expectRevert();
-        universalBalanceNative.withdraw(amount + 1, true, user2);
+        vm.prank(user2);
 
-        vm.stopPrank();
+        vm.expectRevert();
+        universalBalanceNative.withdrawNativeFor(
+            amount + 1,
+            true,
+            user2,
+            user1
+        );
     }
 
-    function test_universalBalanceNativeWithdraw_fail_whenExceedsSittingBalance_fuzzed(
+    function test_withdrawNativeFor_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(user1, amount);
 
-        vm.startPrank(user1);
-
+        vm.prank(user1);
         universalBalanceNative.depositNative{ value: amount }(false);
 
-        vm.expectRevert();
-        universalBalanceNative.withdraw(amount + 1, false, user2);
+        vm.prank(user2);
 
-        vm.stopPrank();
+        vm.expectRevert();
+        universalBalanceNative.withdrawNativeFor(
+            amount + 1,
+            false,
+            user2,
+            user1
+        );
     }
 
-    function test_universalBalanceNativeWithdraw_fail_whenAmountIsZero()
-        public
-    {
-        vm.prank(user1);
+    function test_withdrawNativeFor_fail_whenAmountIsZero() public {
+        vm.prank(user2);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
         vm.expectRevert(0xc75f2a32);
-        universalBalanceNative.withdraw(0, false, user2);
+        universalBalanceNative.withdrawNativeFor(0, false, user2, user1);
     }
 
-    function test_universalBalanceNativeWithdraw_success_withLend_fuzzed(
+    function test_withdrawNativeFor_success_withLend_fuzzed(
         uint256 depositAmount,
         uint256 withdrawAmount
     ) public {
@@ -81,13 +112,18 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 eWETHBalance = eWETH.balanceOf(
             address(universalBalanceNative)
         );
-        uint256 userWETHBalance = weth.balanceOf(user2);
+        uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
 
-        vm.prank(user1);
-        universalBalanceNative.withdraw(withdrawAmount, true, user2);
+        vm.prank(user2);
+        universalBalanceNative.withdrawNativeFor(
+            withdrawAmount,
+            true,
+            user2,
+            user1
+        );
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -100,10 +136,10 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
             eWETH.balanceOf(address(universalBalanceNative)),
             eWETHBalance - redeemAmount
         );
-        assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
+        assertEq(user2.balance, userETHBalance + withdrawAmount);
     }
 
-    function test_universalBalanceNativeWithdraw_success_withoutLend_fuzzed(
+    function test_withdrawNativeFor_success_withoutLend_fuzzed(
         uint256 depositAmount,
         uint256 withdrawAmount
     ) public {
@@ -126,13 +162,18 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 eWETHBalance = eWETH.balanceOf(
             address(universalBalanceNative)
         );
-        uint256 userWETHBalance = weth.balanceOf(user1);
+        uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
 
-        vm.prank(user1);
-        universalBalanceNative.withdraw(withdrawAmount, false, user2);
+        vm.prank(user2);
+        universalBalanceNative.withdrawNativeFor(
+            withdrawAmount,
+            false,
+            user2,
+            user1
+        );
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalanceNative
             .userBalances(user1);
@@ -148,6 +189,6 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
             eWETH.balanceOf(address(universalBalanceNative)),
             eWETHBalance
         );
-        assertEq(weth.balanceOf(user2), userWETHBalance + withdrawAmount);
+        assertEq(user2.balance, userETHBalance + withdrawAmount);
     }
 }

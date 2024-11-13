@@ -121,7 +121,8 @@ interface ICentralRegistry {
     /// @notice Returns slippage limit, in `WAD`.
     function slippageLimit() external view returns (uint256);
 
-    /// @notice Lending Market => Protocol Reserve Factor on interest generated.
+    /// @notice Lending Market => Protocol Reserve Factor on interest
+    ///         generated.
     function protocolInterestFactor(
         address market
     ) external view returns (uint256);
@@ -151,11 +152,15 @@ interface ICentralRegistry {
 
     /// @notice Returns `user`'s approval index.
     /// @param user The user to check approval index for.
-    function userApprovalIndex(address user) external view returns (uint256);
+    function getUserApprovalIndex(
+        address user
+    ) external view returns (uint256);
 
     /// @notice Returns whether a user has delegation disabled.
     /// @param user The user to check delegation status for.
-    function delegatingDisabled(address user) external view returns (bool);
+    function checkDelegationDisabled(
+        address user
+    ) external view returns (bool);
 
     /// @notice Returns whether a particular GETH chainId is supported.
     /// ChainId => messagingHub address, 2 = supported; 1 = unsupported.
