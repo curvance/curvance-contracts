@@ -413,9 +413,7 @@ contract StartContractsConfig is
         ICentralRegistry cr,
         MarketManager market
     ) internal returns (address) {
-        address interestRateModel = address(
-            // .markets.eTokens.USDC.interestRateParam
-            new DynamicInterestRateModel(
+        DynamicInterestRateModel interestRateModel = new DynamicInterestRateModel(
                 cr,
                 1000,
                 1000,
@@ -424,13 +422,18 @@ contract StartContractsConfig is
                 5000,
                 100000000,
                 100
-            )
-        );
+            );
 
         address eToken = address(
-            new EToken(cr, tokenAddress, address(market), interestRateModel)
+            new EToken(
+                cr,
+                tokenAddress,
+                address(market),
+                address(interestRateModel)
+            )
         );
         _saveDeployedContracts(name, eToken);
+        interestRateModel.setLinkedEToken(eToken);
 
         if (tokenAddress != _getDeployedContract("SWETH")) {
             _addChainlinkOracleSupport(
@@ -557,13 +560,15 @@ contract StartContractsConfig is
             }
         }
 
-        if (!OracleManager(oracleManager).isApprovedAdaptor(chainlinkAdaptor)) {
+        if (
+            !OracleManager(oracleManager).isApprovedAdaptor(chainlinkAdaptor)
+        ) {
             OracleManager(oracleManager).addApprovedAdaptor(chainlinkAdaptor);
         }
 
-        try OracleManager(oracleManager).assetPriceFeeds(underlying, 0) returns (
-            address feed
-        ) {} catch {
+        try
+            OracleManager(oracleManager).assetPriceFeeds(underlying, 0)
+        returns (address feed) {} catch {
             OracleManager(oracleManager).addAssetPriceFeed(
                 underlying,
                 chainlinkAdaptor
