@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalance } from "../TestBaseUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
-contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
+contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     event Withdraw(
         address indexed by,
         address indexed to,
@@ -13,50 +13,71 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         uint256 shares
     );
 
-    function test_universalBalanceWithdraw_fail_whenExceedsLentBalance_fuzzed(
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(user1);
+        universalBalance.setDelegateApproval(user2, true);
+    }
+
+    function test_universalBalanceWithdrawFor_fail_whenRecipientIsNotApproved()
+        public
+    {
+        deal(_USDC_ADDRESS, user1, 1e6);
+
+        vm.prank(user1);
+        universalBalance.deposit(1e6, true);
+
+        vm.prank(user2);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdrawFor(1e6, true, user2, address(1));
+    }
+
+    function test_universalBalanceWithdrawFor_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(_USDC_ADDRESS, user1, amount);
 
-        vm.startPrank(user1);
-
+        vm.prank(user1);
         universalBalance.deposit(amount, true);
 
-        vm.expectRevert();
-        universalBalance.withdraw(amount + 1, true, user2);
+        vm.prank(user2);
 
-        vm.stopPrank();
+        vm.expectRevert();
+        universalBalance.withdrawFor(amount + 1, true, user2, user1);
     }
 
-    function test_universalBalanceWithdraw_fail_whenExceedsSittingBalance_fuzzed(
+    function test_universalBalanceWithdrawFor_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
         deal(_USDC_ADDRESS, user1, amount);
 
-        vm.startPrank(user1);
-
+        vm.prank(user1);
         universalBalance.deposit(amount, false);
 
-        vm.expectRevert();
-        universalBalance.withdraw(amount + 1, false, user2);
+        vm.prank(user2);
 
-        vm.stopPrank();
+        vm.expectRevert();
+        universalBalance.withdrawFor(amount + 1, false, user2, user1);
     }
 
-    function test_universalBalanceWithdraw_fail_whenAmountIsZero() public {
-        vm.prank(user1);
+    function test_universalBalanceWithdrawFor_fail_whenAmountIsZero() public {
+        vm.prank(user2);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
-        universalBalance.withdraw(0, false, address(this));
+        universalBalance.withdrawFor(0, false, user2, user1);
     }
 
-    function test_universalBalanceWithdraw_success_withLend_fuzzed(
+    function test_universalBalanceWithdrawFor_success_withLend_fuzzed(
         uint256 depositAmount,
         uint256 withdrawAmount
     ) public {
@@ -80,12 +101,11 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
-        vm.prank(user1);
-
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
 
-        universalBalance.withdraw(withdrawAmount, true, user2);
+        vm.prank(user2);
+        universalBalance.withdrawFor(withdrawAmount, true, user2, user1);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);
@@ -101,7 +121,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         assertEq(usdc.balanceOf(user2), userUSDCBalance + withdrawAmount);
     }
 
-    function test_universalBalanceWithdraw_success_withoutLend_fuzzed(
+    function test_universalBalanceWithdrawFor_success_withoutLend_fuzzed(
         uint256 depositAmount,
         uint256 withdrawAmount
     ) public {
@@ -125,10 +145,10 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
 
-        vm.prank(user1);
-        universalBalance.withdraw(withdrawAmount, false, user2);
+        vm.prank(user2);
+        universalBalance.withdrawFor(withdrawAmount, false, user2, user1);
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
             .userBalances(user1);

@@ -304,7 +304,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 amount
     ) external nonReentrant {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -480,9 +480,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice Redeems eTokens in exchange for the underlying asset.
     /// @dev Updates pending interest before executing the redemption.
     /// @param tokens The number of eTokens to redeem for underlying tokens.
+    /// @param recipient The account who will receive the underlying assets.
     /// @return amount Returns amount of underlying asset redeemed.
     function redeem(
-        uint256 tokens
+        uint256 tokens,
+        address recipient
     ) external nonReentrant returns (uint256 amount) {
         // Update pending interest.
         accrueInterest();
@@ -492,7 +494,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         amount = _redeem(
             msg.sender,
-            msg.sender,
+            recipient,
             tokens,
             convertToAssets(tokens)
         );
@@ -504,16 +506,16 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      NOTE: Be careful who you approve here!
     ///      Not only can they take borrowed funds, but, they can delay
     ///      repayment through repeated borrows preventing withdrawal.
-    /// @param account The account who will have their eTokens redeemed.
-    /// @param recipient The account who will receive the underlying assets.
     /// @param tokens The number of eTokens to redeem for underlying tokens.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param account The account who will have their eTokens redeemed.
     /// @return amount Returns amount of underlying asset redeemed.
     function redeemFor(
-        address account,
+        uint256 tokens,
         address recipient,
-        uint256 tokens
+        address account
     ) external nonReentrant returns (uint256 amount) {
-        if (!_checkIsDelegate(account, msg.sender)) {
+        if (!isDelegate(account, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

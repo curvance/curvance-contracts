@@ -6,7 +6,7 @@ import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
+contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -14,7 +14,31 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         uint256 shares
     );
 
-    function test_universalBalanceDeposit_fail_whenHasNoEnoughUSDC_fuzzed(
+    function setUp() public override {
+        super.setUp();
+
+        vm.prank(user2);
+        universalBalance.setDelegateApproval(user1, true);
+    }
+
+    function test_universalBalanceDepositFor_fail_whenRecipientIsNotApproved()
+        public
+    {
+        deal(_USDC_ADDRESS, user1, 1e6);
+
+        vm.startPrank(user1);
+
+        usdc.approve(address(universalBalance), 1e6);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.depositFor(1e6, true, address(1));
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceDepositFor_fail_whenHasNoEnoughUSDC_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -26,12 +50,12 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount + 1);
 
         vm.expectRevert();
-        universalBalance.deposit(amount + 1, true);
+        universalBalance.depositFor(amount + 1, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceDeposit_fail_whenExceedsAllowance_fuzzed(
+    function test_universalBalanceDepositFor_fail_whenExceedsAllowance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(amount < type(uint256).max);
@@ -43,12 +67,14 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectRevert();
-        universalBalance.deposit(amount + 1, true);
+        universalBalance.depositFor(amount + 1, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceDeposit_fail_whenTokenIsNotListed() public {
+    function test_universalBalanceDepositFor_fail_whenTokenIsNotListed()
+        public
+    {
         deal(_USDC_ADDRESS, user1, 100e6);
 
         eUSDC = _deployEUSDC();
@@ -58,26 +84,28 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
             address(eUSDC)
         );
 
+        vm.prank(user2);
+        universalBalance.setDelegateApproval(user1, true);
+
         vm.startPrank(user1);
 
         usdc.approve(address(universalBalance), 100e6);
 
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        universalBalance.deposit(100e6, true);
+        universalBalance.depositFor(100e6, true, user2);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceDeposit_fail_whenAmountIsZero() public {
+    function test_universalBalanceDepositFor_fail_whenAmountIsZero() public {
         vm.prank(user1);
 
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__InvalidParameter.selector
-        );
-        universalBalance.deposit(0, false);
+        // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
+        vm.expectRevert(0xc75f2a32);
+        universalBalance.depositFor(0, false, user2);
     }
 
-    function test_universalBalanceDeposit_success_withLend_fuzzed(
+    function test_universalBalanceDepositFor_success_withLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -94,14 +122,14 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, receiveAmount);
+        emit Deposit(user1, user2, amount, receiveAmount);
 
-        universalBalance.deposit(amount, true);
+        universalBalance.depositFor(amount, true, user2);
 
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
+            .userBalances(user2);
 
         assertEq(sittingBalance, 0);
         assertEq(lentBalance, receiveAmount);
@@ -113,7 +141,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         assertEq(usdc.balanceOf(user1), userUSDCBalance - amount);
     }
 
-    function test_universalBalanceDeposit_success_withoutLend_fuzzed(
+    function test_universalBalanceDepositFor_success_withoutLend_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -129,14 +157,14 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, amount);
+        emit Deposit(user1, user2, amount, amount);
 
-        universalBalance.deposit(amount, false);
+        universalBalance.depositFor(amount, false, user2);
 
         vm.stopPrank();
 
         (uint256 sittingBalance, uint256 lentBalance) = universalBalance
-            .userBalances(user1);
+            .userBalances(user2);
 
         assertEq(sittingBalance, amount);
         assertEq(lentBalance, 0);

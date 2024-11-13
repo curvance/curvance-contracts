@@ -496,7 +496,7 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether);
+        IMToken(tokens[0]).redeem(50 ether, address(this));
 
         // user2 deposit 2x
         vm.prank(users[2]);

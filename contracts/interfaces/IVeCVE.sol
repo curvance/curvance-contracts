@@ -49,15 +49,15 @@ interface IVeCVE {
     /// @param amount The amount of CVE to lock.
     /// @param lockIndex The index of the lock to extend (if increasing
     ///                  a lock).
-    /// @param continuousLock Whether the lock should be continuous or not.
     /// @param isFreshLock A boolean to indicate if a new lock is being
     ///                    created or not.
+    /// @param isContinuousLock Whether the lock should be continuous or not.
     function compoundRewardsIntoLock(
         address recipient,
         uint256 amount,
         uint256 lockIndex,
-        bool continuousLock,
-        bool isFreshLock
+        bool isFreshLock,
+        bool isContinuousLock
     ) external;
 
     /// @notice Used for frontend, needed due to array of structs.

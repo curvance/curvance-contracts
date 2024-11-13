@@ -9,6 +9,7 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
 import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -779,7 +780,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         IMToken mToken;
 
         // Update pending interest in markets.
-        for (uint256 i = 0; i < numAssetsPrior; ) {
+        for (uint256 i; i < numAssetsPrior; ) {
             // Cache `account` mToken then increment i.
             mToken = accountAssetsPrior[i++];
             if (!mToken.isPToken()) {
@@ -1447,6 +1448,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_PAUSED_SELECTOR);
         }
 
+        if (ILockableRegistry(
+                address(centralRegistry)).checkTransfersDisabled(account)
+            ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
         if (!tokenData[mToken].isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
@@ -1542,6 +1549,12 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 _closePositions(account, positionsToClose);
             }
         } else {
+            if (ILockableRegistry(
+                address(centralRegistry)).checkTransfersDisabled(account)
+            ) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
             if (!tokenData[pToken].isListed) {
                 _revert(_TOKEN_NOT_LISTED_SELECTOR);
             }
