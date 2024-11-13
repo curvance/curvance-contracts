@@ -5,9 +5,9 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
+import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 
 /// @title Curvance Dynamic Interest Rate Model.
 /// @notice Manages borrow and supply interest rates for Curvance debt tokens.
@@ -163,8 +163,6 @@ contract DynamicInterestRateModel is ERC165 {
     /// @dev `bytes4(keccak256(bytes("DynamicInterestRateModel__InvalidToken()")))`.
     uint256 internal constant _INVALID_TOKEN_SELECTOR = 0x65fb74c1;
 
-
-
     /// STORAGE ///
 
     /// @notice The earn token linked to this interest rate model contract.
@@ -291,11 +289,10 @@ contract DynamicInterestRateModel is ERC165 {
         // Validate that the earn token is actually expecting this interest
         // rate model to be linked to it.
         if (
-            address(IMToken(
-                eTokenAddress
-            ).interestRateModel()) != address(this)
-            ) {
-                _revert(_INVALID_TOKEN_SELECTOR);
+            address(IMToken(eTokenAddress).interestRateModel()) !=
+            address(this)
+        ) {
+            _revert(_INVALID_TOKEN_SELECTOR);
         }
 
         linkedEToken = eTokenAddress;

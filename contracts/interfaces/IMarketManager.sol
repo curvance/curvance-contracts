@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 interface IMarketManager {
     /// @notice Whether mToken minting is paused.
@@ -174,5 +174,7 @@ interface IMarketManager {
     ) external view returns (uint256, uint256, uint256);
 
     /// @notice The address of the linked Position Folding Contract.
-    function positionManagement(address positionContract) external view returns (bool);
+    function positionManagement(
+        address positionContract
+    ) external view returns (bool);
 }

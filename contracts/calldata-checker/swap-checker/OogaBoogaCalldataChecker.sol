@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
-import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
+import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 /// @notice WARNING: Currently built for Router V1.
-contract OogaBoogaCalldataChecker is BaseCalldataChecker {
+contract OogaBoogaCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =
@@ -13,7 +13,7 @@ contract OogaBoogaCalldataChecker is BaseCalldataChecker {
 
     /// CONSTRUCTOR ///
 
-    constructor(address _target) BaseCalldataChecker(_target) {}
+    constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -37,58 +37,41 @@ contract OogaBoogaCalldataChecker is BaseCalldataChecker {
         uint256 inputAmount;
         address outputToken;
         if (funcSigHash == IOBRouter.swap.selector) {
-            (IOBRouter.swapTokenInfo memory tokenInfo, , ,) = abi
-                .decode(
-                    getFuncParams(swapData.call),
-                    (
-                        IOBRouter.swapTokenInfo,
-                        bytes,
-                        address,
-                        uint32
-                    )
-                );
+            (IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+                getFuncParams(swapData.call),
+                (IOBRouter.swapTokenInfo, bytes, address, uint32)
+            );
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
-        } else if (
-            funcSigHash ==
-            IOBRouter.swapERC20Permit.selector
-        ) {
-            (
-                , IOBRouter.swapTokenInfo memory tokenInfo, , ,
-            ) = abi.decode(
-                    getFuncParams(swapData.call),
-                    (
-                        IOBRouter.erc20PermitInfo,
-                        IOBRouter.swapTokenInfo,
-                        bytes,
-                        address,
-                        uint32
-                    )
-                );
+        } else if (funcSigHash == IOBRouter.swapERC20Permit.selector) {
+            (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+                getFuncParams(swapData.call),
+                (
+                    IOBRouter.erc20PermitInfo,
+                    IOBRouter.swapTokenInfo,
+                    bytes,
+                    address,
+                    uint32
+                )
+            );
 
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
-        } else if (
-            funcSigHash ==
-            IOBRouter.swapPermit2.selector
-        ) {
-            (
-                ,
-                IOBRouter.swapTokenInfo memory tokenInfo, , ,
-            ) = abi.decode(
-                    getFuncParams(swapData.call),
-                    (
-                        IOBRouter.permit2Info,
-                        IOBRouter.swapTokenInfo,
-                        bytes,
-                        address,
-                        uint32
-                    )
-                );
+        } else if (funcSigHash == IOBRouter.swapPermit2.selector) {
+            (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+                getFuncParams(swapData.call),
+                (
+                    IOBRouter.permit2Info,
+                    IOBRouter.swapTokenInfo,
+                    bytes,
+                    address,
+                    uint32
+                )
+            );
 
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;

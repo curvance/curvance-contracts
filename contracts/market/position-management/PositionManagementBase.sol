@@ -15,9 +15,9 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
-import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
 ///      usually would require multiple looped actions to facilitate,

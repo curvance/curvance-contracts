@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IInterestRateModel } from "contracts/interfaces/market/IInterestRateModel.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 struct AccountSnapshot {
@@ -237,5 +237,4 @@ interface IMToken {
     function multicall(
         Multicall.MulticallData[] memory calls
     ) external returns (bytes[] memory results);
-    
 }

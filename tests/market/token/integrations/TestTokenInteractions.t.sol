@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 

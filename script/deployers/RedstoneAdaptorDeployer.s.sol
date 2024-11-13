@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/console.sol";
 
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -35,13 +35,7 @@ contract RedstoneAdaptorDeployer is DeployConfiguration {
         RedstoneAdaptorMulticallChecker multicallChecker = new RedstoneAdaptorMulticallChecker(
                 address(icr)
             );
-        _saveDeployedContracts(
-            "multicallChecker",
-            address(multicallChecker)
-        );
-        cr.setMulticallChecker(
-            address(adaptor),
-            address(multicallChecker)
-        );
+        _saveDeployedContracts("multicallChecker", address(multicallChecker));
+        cr.setMulticallChecker(address(adaptor), address(multicallChecker));
     }
 }

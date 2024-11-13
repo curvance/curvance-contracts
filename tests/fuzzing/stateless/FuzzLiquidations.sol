@@ -1,7 +1,7 @@
 pragma solidity 0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 contract FuzzLiquidations is StatefulBaseMarket {

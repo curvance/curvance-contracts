@@ -14,7 +14,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 contract SimpleZapper is ReentrancyGuard {
     /// TYPES ///
@@ -127,9 +127,7 @@ contract SimpleZapper is ReentrancyGuard {
         // If we are trying to deposit wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (
-            CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative
-        ) {
+        if (CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapData.inputToken = address(wrappedNative);
         }
@@ -143,13 +141,14 @@ contract SimpleZapper is ReentrancyGuard {
         }
 
         // Enter Curvance pToken position.
-        return _enterCurvance(
-            pToken,
-            swapData.outputToken,
-            amount,
-            collateralize,
-            recipient
-        );
+        return
+            _enterCurvance(
+                pToken,
+                swapData.outputToken,
+                amount,
+                collateralize,
+                recipient
+            );
     }
 
     /// @notice Swaps then repays eToken debt inside Curvance for `recipient`.
@@ -198,9 +197,7 @@ contract SimpleZapper is ReentrancyGuard {
         // If we are trying to repay wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (
-            CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative
-        ) {
+        if (CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapData.inputToken = address(wrappedNative);
         }
@@ -252,10 +249,7 @@ contract SimpleZapper is ReentrancyGuard {
         );
 
         // Execute swap into `swapData.outputToken`.
-        uint256 outAmount = SwapperLib.swapUnsafe(
-            centralRegistry,
-            swapData
-        );
+        uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         _transferToRecipient(swapData.outputToken, recipient, outAmount);
 
@@ -298,17 +292,19 @@ contract SimpleZapper is ReentrancyGuard {
         if (
             collateralize &&
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-            ) {
-                if (SimplePToken(pToken).depositAsCollateralFor(
+        ) {
+            if (
+                SimplePToken(pToken).depositAsCollateralFor(
                     amount,
                     recipient
-                    ) == 0) {
-                        revert SimpleZapper__ExecutionError();
-                }
-                // Enter Curvance pToken position,
-                // and make sure `recipient` got pTokens.
-            } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+                ) == 0
+            ) {
                 revert SimpleZapper__ExecutionError();
+            }
+            // Enter Curvance pToken position,
+            // and make sure `recipient` got pTokens.
+        } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+            revert SimpleZapper__ExecutionError();
         }
 
         // Remove any leftover approval.

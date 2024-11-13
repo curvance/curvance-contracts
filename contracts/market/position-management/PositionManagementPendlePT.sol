@@ -145,7 +145,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
         PendleLib.exitPendle(
             address(router),
             true,
-            address(0),
+            ptToken,
             pendleData,
             lpToken,
             deleverageData.collateralAmount

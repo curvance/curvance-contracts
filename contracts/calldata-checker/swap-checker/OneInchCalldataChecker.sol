@@ -3,10 +3,10 @@ pragma solidity ^0.8.19;
 
 import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggregationRouterV5.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
-import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
+import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 /// @notice WARNING: Currently built for Aggregation Router V5.
-contract OneInchCalldataChecker is BaseCalldataChecker {
+contract OneInchCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =
@@ -14,7 +14,7 @@ contract OneInchCalldataChecker is BaseCalldataChecker {
 
     /// CONSTRUCTOR ///
 
-    constructor(address _target) BaseCalldataChecker(_target) {}
+    constructor(address _target) BaseSwapChecker(_target) {}
 
     /// EXTERNAL FUNCTIONS ///
 

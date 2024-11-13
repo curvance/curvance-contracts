@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";

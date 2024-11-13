@@ -8,8 +8,8 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";

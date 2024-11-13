@@ -9,9 +9,9 @@ import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
-import { IPositionManagement } from "contracts/interfaces/market/IPositionManagement.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance DAO Market Manager.
@@ -277,7 +277,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         ) = _liquidationValuesOf(account, address(0), address(0));
     }
-
 
     /// @notice Determine whether `account` can be liquidated,
     ///         by calculating their lFactor, based on their

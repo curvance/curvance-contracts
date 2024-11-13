@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -12,8 +12,8 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
-import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/market/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
+import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
+import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 
 import "tests/market/TestBaseMarket.sol";
@@ -386,9 +386,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             );
 
             vm.expectRevert(
-                BaseMulticallChecker
-                    .MulticallChecker__TargetError
-                    .selector
+                BaseMulticallChecker.MulticallChecker__TargetError.selector
             );
             multicallChecker.checkCalldata(
                 address(this),
@@ -409,9 +407,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
                 redstonePayload
             );
             vm.expectRevert(
-                BaseMulticallChecker
-                    .MulticallChecker__InvalidFuncSig
-                    .selector
+                BaseMulticallChecker.MulticallChecker__InvalidFuncSig.selector
             );
             multicallChecker.checkCalldata(
                 address(this),

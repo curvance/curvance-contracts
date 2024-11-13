@@ -6,7 +6,7 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract CanLiquidateTest is TestBaseMarketManager {
     function test_canLiquidate_fail_whenETokenNotListed() public {

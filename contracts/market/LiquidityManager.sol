@@ -6,7 +6,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/market/IMToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Liquidity Manager.

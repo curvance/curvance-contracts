@@ -9,8 +9,8 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
-import { IMToken } from "contracts/interfaces/market/IMToken.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Universal Balance.

@@ -14,7 +14,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
-import { IMarketManager } from "contracts/interfaces/market/IMarketManager.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 contract SimpleRewardZapper is ReentrancyGuard {
     /// CONSTANTS ///
@@ -189,13 +189,14 @@ contract SimpleRewardZapper is ReentrancyGuard {
         uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
         // Enter Curvance pToken position.
-        return _enterCurvance(
-            pToken,
-            swapData.outputToken,
-            amount,
-            collateralize,
-            recipient
-        );
+        return
+            _enterCurvance(
+                pToken,
+                swapData.outputToken,
+                amount,
+                collateralize,
+                recipient
+            );
     }
 
     /// @notice Claims Reward Manager rewards, then may swap, then repays
@@ -259,17 +260,21 @@ contract SimpleRewardZapper is ReentrancyGuard {
             }
 
             // Swap from reward token into `eTokenUnderlying`.
-            swapData.inputAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+            swapData.inputAmount = SwapperLib.swapUnsafe(
+                centralRegistry,
+                swapData
+            );
         }
 
         // Repay Curvance eToken debt.
-        return _repayDebt(
-            eToken,
-            eTokenUnderlying,
-            swapData.inputAmount,
-            repayAmount,
-            recipient
-        );
+        return
+            _repayDebt(
+                eToken,
+                eTokenUnderlying,
+                swapData.inputAmount,
+                repayAmount,
+                recipient
+            );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -385,17 +390,19 @@ contract SimpleRewardZapper is ReentrancyGuard {
         if (
             collateralize &&
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-            ) {
-                if (SimplePToken(pToken).depositAsCollateralFor(
+        ) {
+            if (
+                SimplePToken(pToken).depositAsCollateralFor(
                     amount,
                     recipient
-                    ) == 0) {
-                        revert SimpleRewardZapper__ExecutionError();
-                }
-                // Enter Curvance pToken position,
-                // and make sure `recipient` got pTokens.
-            } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+                ) == 0
+            ) {
                 revert SimpleRewardZapper__ExecutionError();
+            }
+            // Enter Curvance pToken position,
+            // and make sure `recipient` got pTokens.
+        } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+            revert SimpleRewardZapper__ExecutionError();
         }
 
         // Remove any leftover approval.
