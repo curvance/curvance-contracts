@@ -40,9 +40,6 @@ contract DeploySetupOracles is
         uint256 genesisEpoch = _readConfigUint256(
             ".centralRegistry.genesisEpoch"
         );
-        if (_is_testnet(network)) {
-            genesisEpoch = block.timestamp + 4 hours;
-        }
 
         // Deploy CentralRegistry
         _deployCentralRegistry(
