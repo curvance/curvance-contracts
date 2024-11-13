@@ -18,7 +18,7 @@ import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
-import { ComplexZapperCalldataChecker } from "contracts/market/swap-checker/ComplexZapperCalldataChecker.sol";
+import { ComplexZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/ComplexZapperCalldataChecker.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";

@@ -14,8 +14,8 @@ import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockPythAdaptor } from "contracts/mocks/MockPythAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
-import { BaseMulticallChecker } from "contracts/market/multicall-checker/BaseMulticallChecker.sol";
-import { PythAdaptorMulticallChecker } from "contracts/market/multicall-checker/PythAdaptorMulticallChecker.sol";
+import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
+import { PythAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/PythAdaptorMulticallChecker.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 import "tests/market/TestBaseMarket.sol";
 

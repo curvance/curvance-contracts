@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.sol";
-import { BaseCalldataChecker, SwapperLib } from "./BaseCalldataChecker.sol";
+import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 /// @notice WARNING: Currently built for Router V2.
-contract OdosCalldataChecker is BaseCalldataChecker {
+contract OdosCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     uint256 private constant _REVERSE_MASK =
@@ -13,15 +13,18 @@ contract OdosCalldataChecker is BaseCalldataChecker {
 
     /// @dev Address list where addresses can be cached for use when reading from storage is cheaper
     // than reading from calldata. addressListStart is the storage slot of the first dynamic array element
-    uint256 private constant addressListStart = 
+    uint256 private constant addressListStart =
         80084422859880547211683076133703299733277748156566366325829078699459944778998;
     address[] public addressList;
 
     /// CONSTRUCTOR ///
 
-    constructor(address _target, address[] memory addresses) BaseCalldataChecker(_target) {
+    constructor(
+        address _target,
+        address[] memory addresses
+    ) BaseSwapChecker(_target) {
         for (uint256 i = 0; i < addresses.length; i++) {
-           addressList.push(addresses[i]);
+            addressList.push(addresses[i]);
         }
     }
 
@@ -58,14 +61,17 @@ contract OdosCalldataChecker is BaseCalldataChecker {
                     case 0x0000 {
                         newPos := add(currPos, 2)
                     }
-
                     case 0x0001 {
-                        result := and(shr(80, calldataload(currPos)), 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+                        result := and(
+                            shr(80, calldataload(currPos)),
+                            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                        )
                         newPos := add(currPos, 22)
                     }
-
                     default {
-                        result := sload(add(addressListStart, sub(inputPos, 2)))
+                        result := sload(
+                            add(addressListStart, sub(inputPos, 2))
+                        )
                         newPos := add(currPos, 2)
                     }
                 }
@@ -82,31 +88,50 @@ contract OdosCalldataChecker is BaseCalldataChecker {
                 pos := add(pos, 1)
 
                 if inputAmountLength {
-                    mstore(add(tokenInfo, 0x20), shr(mul(sub(32, inputAmountLength), 8), calldataload(pos)))
+                    mstore(
+                        add(tokenInfo, 0x20),
+                        shr(
+                            mul(sub(32, inputAmountLength), 8),
+                            calldataload(pos)
+                        )
+                    )
                     pos := add(pos, inputAmountLength)
                 }
 
                 let quoteAmountLength := shr(248, calldataload(pos))
                 pos := add(pos, 1)
 
-                let outputQuote := shr(mul(sub(32, quoteAmountLength), 8), calldataload(pos))
+                let outputQuote := shr(
+                    mul(sub(32, quoteAmountLength), 8),
+                    calldataload(pos)
+                )
                 mstore(add(tokenInfo, 0x80), outputQuote)
                 pos := add(pos, quoteAmountLength)
 
                 {
                     let slippageTolerance := shr(232, calldataload(pos))
-                    mstore(add(tokenInfo, 0xA0), div(mul(outputQuote, sub(0xFFFFFF, slippageTolerance)), 0xFFFFFF))
+                    mstore(
+                        add(tokenInfo, 0xA0),
+                        div(
+                            mul(outputQuote, sub(0xFFFFFF, slippageTolerance)),
+                            0xFFFFFF
+                        )
+                    )
                 }
                 pos := add(pos, 3)
 
                 executor, pos := getAddress(pos)
 
                 result, pos := getAddress(pos)
-                if eq(result, 0) { result := executor }
+                if eq(result, 0) {
+                    result := executor
+                }
                 mstore(add(tokenInfo, 0x40), result)
 
                 result, pos := getAddress(pos)
-                if eq(result, 0) { revert(0, 0) }
+                if eq(result, 0) {
+                    revert(0, 0)
+                }
                 mstore(add(tokenInfo, 0xC0), result)
             }
 
@@ -115,28 +140,17 @@ contract OdosCalldataChecker is BaseCalldataChecker {
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOdosRouterV2.swap.selector) {
-            (IOdosRouterV2.swapTokenInfo memory tokenInfo, , ,) = abi
-                .decode(
-                    getFuncParams(swapData.call),
-                    (
-                        IOdosRouterV2.swapTokenInfo,
-                        bytes,
-                        address,
-                        uint32
-                    )
-                );
+            (IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
+                getFuncParams(swapData.call),
+                (IOdosRouterV2.swapTokenInfo, bytes, address, uint32)
+            );
             recipient = tokenInfo.outputReceiver;
             inputToken = tokenInfo.inputToken;
             inputAmount = tokenInfo.inputAmount;
             outputToken = tokenInfo.outputToken;
-        } else if (
-            funcSigHash ==
-            IOdosRouterV2.swapPermit2.selector
-        ) {
-            (
-                ,
-                IOdosRouterV2.swapTokenInfo memory tokenInfo, , ,
-            ) = abi.decode(
+        } else if (funcSigHash == IOdosRouterV2.swapPermit2.selector) {
+            (, IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi
+                .decode(
                     getFuncParams(swapData.call),
                     (
                         IOdosRouterV2.permit2Info,
