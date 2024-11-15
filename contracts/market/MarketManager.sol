@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { LiquidityManager, IOracleManager, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
+import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
@@ -60,7 +61,12 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
 ///
-contract MarketManager is LiquidityManager, ERC165, Multicall {
+contract MarketManager is
+    LiquidityManager,
+    LiquidationManager,
+    ERC165,
+    Multicall
+{
     /// CONSTANTS ///
 
     /// @notice Maximum number of listed assets allowed inside a market.
@@ -642,6 +648,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
+        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact
@@ -653,6 +660,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             uint256 pTokenLiquidated,
             uint256 protocolTokens
         ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+
+        // Validate that the OEV queue is disabled or the liquidator is valid
+        _validateLiquidation(liquidator, account, true);
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
@@ -755,6 +765,58 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         );
     }
 
+    function queueBadDebtLiquidation(
+        address eToken,
+        address pToken,
+        address liquidator,
+        address account
+    ) external {
+        // Verify caller is the eToken
+        _checkIsToken(eToken);
+
+        // Verify the liquidation is valid
+        _canLiquidate(eToken, pToken, account, 0, false);
+
+        // Queue the liquidation
+        _queueLiquidation(account, liquidator, true);
+    }
+
+    function queueAccountLiquidation(address account) external {
+        // Make sure `account` is not trying to liquidate themselves.
+        if (msg.sender == account) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Make sure liquidations are not paused.
+        if (seizePaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
+        uint256 numAssetsPrior = accountAssetsPrior.length;
+        IMToken mToken;
+
+        // Update pending interest in markets.
+        for (uint256 i; i < numAssetsPrior; ) {
+            // Cache `account` mToken then increment i.
+            mToken = accountAssetsPrior[i++];
+            if (!mToken.isPToken()) {
+                // Update EToken interest if necessary.
+                mToken.accrueInterest();
+            }
+        }
+
+        (BadDebtData memory data, ) = _BadDebtTermsOf(account);
+
+        // If an account has no collateral or debt this will revert.
+        if (data.collateral >= data.debt) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        // Queue the liquidation
+        _queueLiquidation(account, msg.sender, false);
+    }
+
     /// @notice Liquidates an entire account by partially paying down debts,
     ///         distributing all `account` collateral and recognize remaining
     ///         debt as bad debt.
@@ -773,6 +835,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
+
+        // Validate that the OEV queue is disabled or the liquidator is valid
+        _validateLiquidation(msg.sender, account, false);
 
         IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
         uint256 numAssetsPrior = accountAssetsPrior.length;
@@ -1447,9 +1512,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(account)
-            ) {
+        if (
+            ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
+                account
+            )
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1548,8 +1615,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 _closePositions(account, positionsToClose);
             }
         } else {
-            if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(account)
+            if (
+                ILockableRegistry(address(centralRegistry))
+                    .checkTransfersDisabled(account)
             ) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }

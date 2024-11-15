@@ -101,6 +101,7 @@ interface IMarketManager {
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
+        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact

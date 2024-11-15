@@ -444,6 +444,32 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
     }
 
+    function queueLiquidation(
+        address account,
+        IMToken positionToken
+    ) external {
+        // Fail if account = liquidator.
+        assembly {
+            if eq(account, caller()) {
+                // revert with EToken__Unauthorized().
+                mstore(0x00, 0xefeae624)
+                revert(0x1c, 0x04)
+            }
+        }
+
+        // The MToken must be a position token.
+        if (!positionToken.isPToken()) {
+            revert EToken__ValidationFailed();
+        }
+
+        marketManager.queueBadDebtLiquidation(
+            address(this),
+            address(positionToken),
+            msg.sender,
+            account
+        );
+    }
+
     /// @notice Liquidates `account`'s collateral by repaying `amount` debt
     ///         and transferring the liquidated collateral to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
@@ -1458,6 +1484,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             .canLiquidateWithExecution(
                 address(this),
                 address(positionToken),
+                liquidator,
                 account,
                 amount,
                 exactAmount
