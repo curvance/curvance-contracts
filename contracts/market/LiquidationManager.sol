@@ -2,8 +2,30 @@
 pragma solidity ^0.8.19;
 
 abstract contract LiquidationManager {
-    error InvalidLiquidator();
-    error OEVDisabled();
+    /// TYPES ///
+    struct LiqQueue {
+        uint64 priorityStartline;
+        uint64 regularStartline;
+        uint64 endLine;
+        uint64 nonce;
+    }
+
+    /// CONSTANTS ///
+
+    uint256 public constant REGULAR_HOLD_DURATION = 2_000_000; // 2 secs
+    uint256 public constant PRIORITY_HOLD_DURATION = 1_000_000; // 1 sec
+    uint256 public constant END_DURATION = 60_000_000; // 60 secs
+
+    /// STORAGE ///
+
+    // Allows owner to turn on/off OEV functionality
+    bool public activeOEV = false;
+
+    mapping(bytes32 => LiqQueue) public regularQueue;
+    mapping(bytes32 => uint256) public priorityAccess;
+    mapping(address => bool) public liquidationBundlers;
+
+    /// EVENTS ///
 
     event AccountLiquidationQueued(
         address indexed account,
@@ -15,43 +37,37 @@ abstract contract LiquidationManager {
         address indexed eToken
     );
 
-    struct LiqQueue {
-        uint64 priorityStartline;
-        uint64 regularStartline;
-        uint64 endLine;
-        uint64 nonce;
-    }
+    /// ERRORS ///
 
-    uint256 public constant REGULAR_HOLD_DURATION = 2_000_000; // 2 secs
-    uint256 public constant PRIORITY_HOLD_DURATION = 1_000_000; // 1 sec
-    uint256 public constant END_DURATION = 60_000_000; // 60 secs
 
-    // Allows owner to turn on/off OEV functionality
-    bool public activeOEV = false;
+    error LiquidationManager__InvalidLiquidator();
+    error LiquidationManager__OEVDisabled();
 
-    mapping(bytes32 => LiqQueue) public regularQueue;
-    mapping(bytes32 => uint256) public priorityAccess;
-    mapping(address => bool) public liquidationBundlers;
-
+    /// CONSTRUCTOR ///
+  
     constructor() {
         liquidationBundlers[tx.origin] = true;
     }
+
+    /// EXTERNAL FUNCTIONS ///
 
     // On/Off switch for OEV auctions
     // TODO: Add a secure external function to add and remove liquidationBundler EOAs to the map
     function setOEV(bool changeOEV) external {
         if (!_isValidOEV()) {
-            revert InvalidLiquidator();
+            revert LiquidationManager__InvalidLiquidator();
         }
         activeOEV = changeOEV;
     }
 
     function addBundler(address newBundler) external {
         if (!_isValidOEV()) {
-            revert InvalidLiquidator();
+            revert LiquidationManager__InvalidLiquidator();
         }
         liquidationBundlers[newBundler] = true;
     }
+
+    /// INTERNAL FUNCTIONS ///
 
     // This function queues up an account for future liquidation and puts the liquidator in the priority queue.
     // NOTE: We assume this is inside funcs that also handle the liquidation validation
@@ -119,9 +135,11 @@ abstract contract LiquidationManager {
                 abi.encodePacked(account, liquidationTarget)
             );
             LiqQueue memory liqQueue = regularQueue[queueKey];
+            
             // CASE: Not eligible for liquidation yet or previous liquidation window has passed
             if (liqQueue.nonce == 0 || liqQueue.endLine < block.timestamp) {
-                revert InvalidLiquidator(); // NOTE: If we haven't reached the priorityStartline then there's no way we're at regularStartline
+                // NOTE: If we haven't reached the priorityStartline then there's no way we're at regularStartline
+                revert LiquidationManager__InvalidLiquidator();
             }
             // CASE: Liquidation is neither available to anyone, nor does the liquidator have priority access
             if (
@@ -138,7 +156,7 @@ abstract contract LiquidationManager {
                 ] >
                 block.timestamp
             ) {
-                revert InvalidLiquidator();
+                revert LiquidationManager__InvalidLiquidator();
             }
         }
     }
