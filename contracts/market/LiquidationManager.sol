@@ -146,44 +146,43 @@ abstract contract LiquidationManager {
         if (!specificSequencingActive) {
             return;
         }
-        // CASE: Being called from SolverOp within Atlas tx so allow any
-        //       liquidations without queue validation.
-        if (_checkLiquidationBundler()) {
+        // CASE: Called from SolverOp within Atlas tx so allow liquidations
+        //       without queue validation.
+        if (liquidationBundlers[tx.origin]) {
             return;
         }
-        // CASE: OEV is turned on but not an Atlas tx so validate the queue.
-        else {
-            address liquidationTarget = tokenLiquidation ? msg.sender : address(0);
-            bytes32 queueKey = keccak256(
-                abi.encodePacked(account, liquidationTarget)
-            );
-            LiqQueue memory liqQueue = regularQueue[queueKey];
 
-            // CASE: Not eligible for liquidation yet or previous liquidation
-            //       window has passed.
-            if (liqQueue.nonce == 0 || liqQueue.endLine < block.timestamp) {
-                // NOTE: If we haven't reached the priorityStartline then
-                //       there is no way we're at regularStartline.
-                revert LiquidationManager__InvalidLiquidator();
-            }
-            // CASE: Liquidation is neither available to anyone, nor does the
-            //       liquidator have priority access.
-            if (
-                uint256(liqQueue.regularStartline) > block.timestamp &&
-                priorityAccess[
-                    keccak256(
-                        abi.encodePacked(
-                            account,
-                            liquidator,
-                            liqQueue.nonce,
-                            liquidationTarget
-                        )
+        // CASE: OEV is turned on but not an Atlas tx so validate the queue.
+        address liquidationTarget = tokenLiquidation ? msg.sender : address(0);
+        bytes32 queueKey = keccak256(
+            abi.encodePacked(account, liquidationTarget)
+        );
+        LiqQueue memory liqQueue = regularQueue[queueKey];
+
+        // CASE: Not eligible for liquidation yet or previous liquidation
+        //       window has passed.
+        if (liqQueue.nonce == 0 || liqQueue.endLine < block.timestamp) {
+            // NOTE: If we haven't reached the priorityStartline then
+            //       there is no way we're at regularStartline.
+            revert LiquidationManager__InvalidLiquidator();
+        }
+        // CASE: Liquidation is neither available to anyone, nor does the
+        //       liquidator have priority access.
+        if (
+            uint256(liqQueue.regularStartline) > block.timestamp &&
+            priorityAccess[
+                keccak256(
+                    abi.encodePacked(
+                        account,
+                        liquidator,
+                        liqQueue.nonce,
+                        liquidationTarget
                     )
-                ] >
-                block.timestamp
-            ) {
-                revert LiquidationManager__InvalidLiquidator();
-            }
+                )
+            ] >
+            block.timestamp
+        ) {
+            revert LiquidationManager__InvalidLiquidator();
         }
     }
 
@@ -212,11 +211,5 @@ abstract contract LiquidationManager {
             liquidationBundler,
             isApproved
         );
-    }
-
-    /// @dev Checks whether the transaction origin address has liquidation
-    ///      bundler permissions.
-    function _checkLiquidationBundler() internal view returns (bool) {
-        return liquidationBundlers[tx.origin];
     }
 }

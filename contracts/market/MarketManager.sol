@@ -130,7 +130,9 @@ contract MarketManager is
     ///         offchain querying.
     address[] public tokensListed;
 
-    /// @notice mapping for positionManagement contract addresses.
+    /// @notice Whether an address is an authorized position management
+    ///         operator or not.
+    /// @dev Address => Is an approved position management operator.
     mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
@@ -462,16 +464,17 @@ contract MarketManager is
 
         // Fail if the sender is not permitted to redeem `tokens`.
         // Note: `tokens` is in shares.
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            pToken,
-            msg.sender,
-            tokens
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canRedeem(pToken, msg.sender, tokens);
         _removeCollateral(msg.sender, accountPositions, pToken, tokens);
 
-        if (updateNeeded == 2) {
-            _closePositions(msg.sender, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            msg.sender,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -543,15 +546,16 @@ contract MarketManager is
     ) external {
         _checkIsToken(eToken);
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
-            eToken,
-            account,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canBorrow(eToken, account, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(account, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -569,15 +573,16 @@ contract MarketManager is
         _checkIsToken(eToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
-            eToken,
-            account,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canBorrow(eToken, account, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(account, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -727,7 +732,7 @@ contract MarketManager is
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
+    /// @param from The account which will transfer the tokens.
     /// @param amount The number of mTokens to transfer.
     function canTransferEToken(
         address mToken,
@@ -735,25 +740,27 @@ contract MarketManager is
         uint256 amount
     ) external {
         _checkIsToken(mToken);
+
         if (transferPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            mToken,
-            from,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canRedeem(mToken, from, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(from, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            from,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
+    /// @param from The account which will transfer the tokens.
     /// @param amount The number of mTokens to transfer.
     function canTransferPToken(
         address mToken,
@@ -1409,65 +1416,6 @@ contract MarketManager is
         emit CollateralRemoved(account, pToken, tokens);
     }
 
-    /// @notice Helper function for closing user positions after liquidity
-    ///         checks have been passed.
-    /// @dev Used as sort of a garbage collection system for any user positions
-    ///      that should be closed to optimize future liquidity checks.
-    ///      May emit {TokenPositionClosed} events.
-    /// @param account The address of the account to close a
-    ///                `mToken` position for.
-    /// @param positionsToClose Array containing all The address of the asset to be removed.
-    function _closePositions(
-        address account,
-        bool[] memory positionsToClose
-    ) internal {
-        // Cache asset list.
-        IMToken[] memory userAssets = accountAssets[account].assets;
-
-        // Cache asset array characteristics.
-        uint256 numAssets = userAssets.length;
-        uint256 lastAssetIndex = userAssets.length - 1;
-        address cachedToken;
-
-        // Copy last item in list to location of item to be removed.
-        IMToken[] storage storedAssets = accountAssets[account].assets;
-
-        // Go backwards through position list so swap and pop maintains
-        // continuity.
-        for (uint256 i = numAssets; i > 0; ) {
-            // Subtract 1 from i prior since length starts at 1 but array
-            // indices start at 0.
-            if (positionsToClose[--i]) {
-                // If the asset is not at the end of the array swap and pop
-                // entries.
-                if (i != lastAssetIndex) {
-                    // Switch assets in user asset array, then decrease
-                    // lastAssetIndex to account for pop.
-                    storedAssets[i] = storedAssets[lastAssetIndex--];
-                    // Remove the last element to remove `mToken` from
-                    // account asset list.
-                    storedAssets.pop();
-                } else {
-                    // If we are on the last index we don't need to decrement
-                    // lastAssetIndex again.
-                    if (lastAssetIndex != 0) {
-                        --lastAssetIndex;
-                    }
-
-                    storedAssets.pop();
-                }
-
-                cachedToken = address(userAssets[i]);
-
-                // Remove `mToken` account position flag.
-                tokenData[cachedToken]
-                    .accountPositions[account]
-                    .activePosition = 1;
-                emit TokenPositionClosed(cachedToken, account);
-            }
-        }
-    }
-
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical borrow will result in a
@@ -1521,7 +1469,7 @@ contract MarketManager is
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.updateNeeded, positionsToClose);
+        return (result.positionClosureNeeded, positionsToClose);
     }
 
     /// @notice Helper function for checking if the account should be allowed
@@ -1591,7 +1539,7 @@ contract MarketManager is
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.updateNeeded, positionsToClose);
+        return (result.positionClosureNeeded, positionsToClose);
     }
 
     /// @notice Checks if the account should be allowed to redeem tokens
@@ -1627,7 +1575,7 @@ contract MarketManager is
         // Execute removal of collateral posted, if needed.
         if (collateralToRemove > 0) {
             (
-                uint256 updateNeeded,
+                uint256 positionClosureNeeded,
                 bool[] memory positionsToClose
             ) = _canRedeem(pToken, account, collateralToRemove);
 
@@ -1638,9 +1586,11 @@ contract MarketManager is
                 collateralToRemove
             );
 
-            if (updateNeeded == 2) {
-                _closePositions(account, positionsToClose);
-            }
+            _closePositionsIfNeeded(
+                positionClosureNeeded,
+                account,
+                positionsToClose
+            );
         } else {
             if (
                 ILockableRegistry(address(centralRegistry))
@@ -1789,6 +1739,74 @@ contract MarketManager is
             liquidatedTokens,
             (liquidatedTokens * pToken.liqFee) / WAD
         );
+    }
+
+    
+    /// @notice Helper function for closing user positions after liquidity
+    ///         checks have been passed.
+    /// @dev Used as sort of a garbage collection system for any user positions
+    ///      that should be closed to optimize future liquidity checks.
+    ///      May emit {TokenPositionClosed} events.
+    /// @param positionsClosureNeeded Whether closing positions is needed
+    ///                               for `account`.
+    /// @param account The address of the account to close a
+    ///                `mToken` position for.
+    /// @param positionsToClose Array containing all The address of the asset
+    ///                         to be removed.
+    function _closePositionsIfNeeded(
+        uint256 positionsClosureNeeded,
+        address account,
+        bool[] memory positionsToClose
+    ) internal {
+        if (positionsClosureNeeded != 2) {
+            return;
+        }
+
+        // Cache asset list.
+        IMToken[] memory userAssets = accountAssets[account].assets;
+
+        // Cache asset array characteristics.
+        uint256 numAssets = userAssets.length;
+        uint256 lastAssetIndex = userAssets.length - 1;
+        address cachedToken;
+
+        // Copy last item in list to location of item to be removed.
+        IMToken[] storage storedAssets = accountAssets[account].assets;
+
+        // Go backwards through position list so swap and pop maintains
+        // continuity.
+        for (uint256 i = numAssets; i > 0; ) {
+            // Subtract 1 from i prior since length starts at 1 but array
+            // indices start at 0.
+            if (positionsToClose[--i]) {
+                // If the asset is not at the end of the array swap and pop
+                // entries.
+                if (i != lastAssetIndex) {
+                    // Switch assets in user asset array, then decrease
+                    // lastAssetIndex to account for pop.
+                    storedAssets[i] = storedAssets[lastAssetIndex--];
+                    // Remove the last element to remove `mToken` from
+                    // account asset list.
+                    storedAssets.pop();
+                } else {
+                    // If we are on the last index we don't need to decrement
+                    // lastAssetIndex again.
+                    if (lastAssetIndex != 0) {
+                        --lastAssetIndex;
+                    }
+
+                    storedAssets.pop();
+                }
+
+                cachedToken = address(userAssets[i]);
+
+                // Remove `mToken` account position flag.
+                tokenData[cachedToken]
+                    .accountPositions[account]
+                    .activePosition = 1;
+                emit TokenPositionClosed(cachedToken, account);
+            }
+        }
     }
 
     /// @notice Helper function to calculate how much collateral should

@@ -191,7 +191,10 @@ interface IMarketManager {
         address account
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice The address of the linked Position Folding Contract.
+    /// @notice Returns whether `positionContract` is an approved position
+    ///         management operator or not.
+    /// @param positionContract Address to check for position management
+    ///                         authority.
     function positionManagement(
         address positionContract
     ) external view returns (bool);

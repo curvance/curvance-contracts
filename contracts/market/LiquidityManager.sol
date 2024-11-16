@@ -114,11 +114,12 @@ abstract contract LiquidityManager {
     ///                          obligations.
     /// @param liquidityDeficit Liquidity deficit when adjusted for debt
     ///                         obligations.
-    /// @param updateNeeded Whether account positions need to be updated.
+    /// @param positionClosureNeeded Whether account positions need to be
+    ///                              updated.
     struct HypotheticalData {
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
-        uint256 updateNeeded;
+        uint256 positionClosureNeeded;
     }
 
     /// @notice Data structure returned on liquidation calculation containing
@@ -317,8 +318,8 @@ abstract contract LiquidityManager {
                             // was liquidated.
                             if (action.mTokenModified != snapshot.asset) {
                                 positionsToClose[i] = true;
-                                if (result.updateNeeded == 0) {
-                                    result.updateNeeded = 2;
+                                if (result.positionClosureNeeded == 0) {
+                                    result.positionClosureNeeded = 2;
                                 }
                             }
                         } else {
@@ -349,8 +350,8 @@ abstract contract LiquidityManager {
                         // was liquidated (bad debt insolvency).
                         if (action.mTokenModified != snapshot.asset) {
                             positionsToClose[i] = true;
-                            if (result.updateNeeded == 0) {
-                                result.updateNeeded = 2;
+                            if (result.positionClosureNeeded == 0) {
+                                result.positionClosureNeeded = 2;
                             }
                         }
                     }
@@ -372,8 +373,8 @@ abstract contract LiquidityManager {
                             // so no special case needed.
                             if (posted == action.redeemTokens) {
                                 positionsToClose[i] = true;
-                                if (result.updateNeeded == 0) {
-                                    result.updateNeeded = 2;
+                                if (result.positionClosureNeeded == 0) {
+                                    result.positionClosureNeeded = 2;
                                 }
                             }
 
@@ -573,13 +574,16 @@ abstract contract LiquidityManager {
     }
 
     /// @notice Determine `account`'s current status between collateral,
-    ///         debt, and additional liquidity and whether theres associated bad debt available.
+    ///         debt, and additional liquidity and whether theres associated
+    ///         bad debt available.
     /// @param account The account to determine bad debt status.
     /// @return result Containing values:
-    ///                Total value of `account` collateral.
-    ///                The amount of debt to repay to receive `accountCollateral`.
-    ///                Total value of `account` debt.
-    /// @return Array of the amount of collateral posted for each user asset.
+    ///                - Total value of `account` collateral.
+    ///                - The amount of debt to repay to receive
+    ///                  `accountCollateral`.
+    ///                - Total value of `account` debt.
+    /// @return Array of the amount of collateral posted and debt balances for
+    ///         each user position.
     function _BadDebtTermsOf(
         address account
     ) internal view returns (BadDebtData memory result, uint256[] memory) {
