@@ -444,9 +444,17 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
     }
 
+    /// @notice Queues a token specific liquidation for `account` liquidating
+    ///         `pToken` by repaying active debt in this eToken.
+    /// @dev Only market manager contract can call this function.
+    ///      Updates pending interest prior to execution of the repay,
+    ///      inside the market manager contract.
+    /// @param account The account being liquidated and repaid on behalf of.
+    /// @param pToken The position token to be liquidated from
+    ///               `account`.
     function queueLiquidation(
         address account,
-        IMToken positionToken
+        IMToken pToken
     ) external {
         // Fail if account = liquidator.
         assembly {
@@ -458,13 +466,16 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // The MToken must be a position token.
-        if (!positionToken.isPToken()) {
+        if (!pToken.isPToken()) {
             revert EToken__ValidationFailed();
         }
 
-        marketManager.queueBadDebtLiquidation(
+        // Update pending interest.
+        accrueInterest();
+
+        marketManager.queueLiquidation(
             address(this),
-            address(positionToken),
+            address(pToken),
             msg.sender,
             account
         );
@@ -475,13 +486,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the liquidation.
     /// @param account The address of the account to be liquidated.
     /// @param amount The amount of underlying asset the liquidator wishes to repay.
-    /// @param positionToken The market in which to seize collateral from `account`.
+    /// @param pToken The market in which to seize collateral from `account`.
     function liquidateExact(
         address account,
         uint256 amount,
-        IMToken positionToken
+        IMToken pToken
     ) external nonReentrant {
-        _liquidate(msg.sender, account, amount, positionToken, true);
+        _liquidate(msg.sender, account, amount, pToken, true);
     }
 
     /// @notice Liquidates `account`'s as much collateral as possible by
@@ -489,16 +500,16 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///         to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
     /// @param account The address of the account to be liquidated.
-    /// @param positionToken The market in which to seize collateral from `account`.
+    /// @param pToken The market in which to seize collateral from `account`.
     function liquidate(
         address account,
-        IMToken positionToken
+        IMToken pToken
     ) external nonReentrant {
         _liquidate(
             msg.sender,
             account,
             0, // Amount = 0 is passed since the max amount possible will be liquidated.
-            positionToken,
+            pToken,
             false
         );
     }
@@ -1446,8 +1457,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param liquidator The address repaying the borrow and seizing collateral.
     /// @param account The account of this eToken to be liquidated.
     /// @param amount The amount of the underlying borrowed asset to repay.
-    /// @param positionToken The market in which to seize collateral from
-    ///                        the account.
+    /// @param pToken The market in which to seize collateral from
+    ///               the account.
     /// @param exactAmount Whether a specific amount of debt token assets
     ///                    should be liquidated inputting false will attempt
     ///                    to liquidate the maximum amount possible.
@@ -1455,7 +1466,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address liquidator,
         address account,
         uint256 amount,
-        IMToken positionToken,
+        IMToken pToken,
         bool exactAmount
     ) internal {
         // Update pending interest.
@@ -1471,7 +1482,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // The MToken must be a position token.
-        if (!positionToken.isPToken()) {
+        if (!pToken.isPToken()) {
             revert EToken__ValidationFailed();
         }
 
@@ -1483,7 +1494,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         (amount, liquidatedTokens, protocolTokens) = marketManager
             .canLiquidateWithExecution(
                 address(this),
-                address(positionToken),
+                address(pToken),
                 liquidator,
                 account,
                 amount,
@@ -1525,7 +1536,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        positionToken.seize(
+        pToken.seize(
             liquidator,
             account,
             liquidatedTokens,
@@ -1536,7 +1547,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             liquidator,
             account,
             amount,
-            address(positionToken),
+            address(pToken),
             liquidatedTokens
         );
     }

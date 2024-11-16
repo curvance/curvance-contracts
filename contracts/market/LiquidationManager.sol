@@ -12,14 +12,15 @@ abstract contract LiquidationManager {
 
     /// CONSTANTS ///
 
-    uint256 public constant REGULAR_HOLD_DURATION = 2_000_000; // 2 secs
-    uint256 public constant PRIORITY_HOLD_DURATION = 1_000_000; // 1 sec
-    uint256 public constant END_DURATION = 60_000_000; // 60 secs
+    uint256 public constant REGULAR_HOLD_DURATION = 2; // 2 secs
+    uint256 public constant PRIORITY_HOLD_DURATION = 1; // 1 sec
+    uint256 public constant END_DURATION = 30; // 60 secs
 
     /// STORAGE ///
 
-    // Allows owner to turn on/off OEV functionality
-    bool public activeOEV = false;
+    // Indicates whether specific sequencing is active in the
+    // liquidation system.
+    bool public specificSequencingActive;
 
     mapping(bytes32 => LiqQueue) public regularQueue;
     mapping(bytes32 => uint256) public priorityAccess;
@@ -31,7 +32,7 @@ abstract contract LiquidationManager {
         address indexed account,
         address indexed liquidator
     );
-    event BadDebtLiquidationQueued(
+    event LiquidationQueued(
         address indexed account,
         address indexed liquidator,
         address indexed eToken
@@ -54,14 +55,14 @@ abstract contract LiquidationManager {
     // On/Off switch for OEV auctions
     // TODO: Add a secure external function to add and remove liquidationBundler EOAs to the map
     function setOEV(bool changeOEV) external {
-        if (!_isValidOEV()) {
+        if (!_checkLiquidationBundler()) {
             revert LiquidationManager__InvalidLiquidator();
         }
-        activeOEV = changeOEV;
+        specificSequencingActive = changeOEV;
     }
 
     function addBundler(address newBundler) external {
-        if (!_isValidOEV()) {
+        if (!_checkLiquidationBundler()) {
             revert LiquidationManager__InvalidLiquidator();
         }
         liquidationBundlers[newBundler] = true;
@@ -74,10 +75,10 @@ abstract contract LiquidationManager {
     function _queueLiquidation(
         address account,
         address liquidator,
-        bool badDebtBool
+        bool tokenLiquidation
     ) internal {
-        //                                          eToken    Full Account
-        address liquidationTarget = badDebtBool ? msg.sender : address();
+        //                                          eToken    Full Account.
+        address liquidationTarget = tokenLiquidation ? msg.sender : address();
         LiqQueue memory liqQueue = regularQueue[
             keccak256(abi.encodePacked(account, liquidationTarget))
         ];
@@ -109,8 +110,8 @@ abstract contract LiquidationManager {
             )
         ] = block.timestamp + PRIORITY_HOLD_DURATION;
 
-        emit badDebtBool
-            ? BadDebtLiquidationQueued(account, liquidator, msg.sender)
+        emit tokenLiquidation
+            ? LiquidationQueued(account, liquidator, msg.sender)
             : AccountLiquidationQueued(account, liquidator);
     }
 
@@ -118,24 +119,24 @@ abstract contract LiquidationManager {
     function _validateLiquidation(
         address liquidator,
         address account,
-        bool badDebtBool
+        bool tokenLiquidation
     ) internal {
         // Case: OEV is turned off by owner so allow liquidation without queue validation
-        if (!activeOEV) {
+        if (!specificSequencingActive) {
             return;
         }
         // Case: Being called from SolverOp within Atlas tx so allow any liquidations without queue validation
-        if (_isValidOEV()) {
+        if (_checkLiquidationBundler()) {
             return;
         }
         // Case: OEV is turned on but not an Atlas tx so validate the queue
         else {
-            address liquidationTarget = badDebtBool ? msg.sender : address();
+            address liquidationTarget = tokenLiquidation ? msg.sender : address();
             bytes32 queueKey = keccak256(
                 abi.encodePacked(account, liquidationTarget)
             );
             LiqQueue memory liqQueue = regularQueue[queueKey];
-            
+
             // CASE: Not eligible for liquidation yet or previous liquidation window has passed
             if (liqQueue.nonce == 0 || liqQueue.endLine < block.timestamp) {
                 // NOTE: If we haven't reached the priorityStartline then there's no way we're at regularStartline
@@ -161,7 +162,7 @@ abstract contract LiquidationManager {
         }
     }
 
-    function _isValidOEV() internal view returns (bool isValidOEV) {
-        isValidOEV = liquidationBundlers[tx.origin];
+    function _checkLiquidationBundler() internal view returns (bool) {
+        return liquidationBundlers[tx.origin];
     }
 }

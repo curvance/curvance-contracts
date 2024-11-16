@@ -765,22 +765,40 @@ contract MarketManager is
         );
     }
 
-    function queueBadDebtLiquidation(
+    /// @notice Queues a token specific liquidation for `account` liquidating
+    ///         `pToken` by repaying active debt in `eToken`.
+    /// @dev Called by the eToken itself to validate that liquidation is
+    ///      allowed based on `account`'s current liquidity.
+    /// @param epToken The earning token debt position to be from
+    ///                `account`.
+    /// @param pToken The position token to be liquidated from
+    ///               `account`.
+    /// @param liquidator The account to execute the liquidation once queued.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
+    function queueLiquidation(
         address eToken,
         address pToken,
         address liquidator,
         address account
     ) external {
-        // Verify caller is the eToken
+        // Verify caller is actually the eToken.
         _checkIsToken(eToken);
 
-        // Verify the liquidation is valid
+        // Verify the liquidation is valid.
         _canLiquidate(eToken, pToken, account, 0, false);
 
-        // Queue the liquidation
+        // Queue the liquidation for execution.
         _queueLiquidation(account, liquidator, true);
     }
 
+
+    /// @notice Queues an account liquidation for `account` liquidating
+    ///         `pToken` by repaying a portion of `account`'s active debt.
+    /// @dev Called by the liquidator themselves to queue up a different
+    ///      account's liquidation.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
     function queueAccountLiquidation(address account) external {
         // Make sure `account` is not trying to liquidate themselves.
         if (msg.sender == account) {
@@ -813,7 +831,7 @@ contract MarketManager is
             revert MarketManager__NoLiquidationAvailable();
         }
 
-        // Queue the liquidation
+        // Queue the liquidation for execution.
         _queueLiquidation(account, msg.sender, false);
     }
 
