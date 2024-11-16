@@ -111,7 +111,7 @@ abstract contract Multicall is BaseCallDataChecker {
     ///      - calling `target` with `data` must not revert.
     ///
     ///      Workflow validated against industry standard OpenZeppelin's
-    ///      Address.sol for safe low level call usage.
+    ///      Address.sol for safe low level delegatecall usage.
     /// @param targetContract The target contract address to execute
     ///                       .delegatecall() at.
     /// @param data The bytecode data to attach to the .call() execution

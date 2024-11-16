@@ -134,6 +134,24 @@ interface IMarketManager {
         uint256 amount
     ) external;
 
+    /// @notice Queues a token specific liquidation for `account` liquidating
+    ///         `pToken` by repaying active debt in `eToken`.
+    /// @dev Called by the eToken itself to validate that liquidation is
+    ///      allowed based on `account`'s current liquidity.
+    /// @param eToken The earning token debt position to be from
+    ///               `account`.
+    /// @param pToken The position token to be liquidated from
+    ///               `account`.
+    /// @param liquidator The account to execute the liquidation once queued.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
+    function queueLiquidation(
+        address eToken,
+        address pToken,
+        address liquidator,
+        address account
+    ) external;
+
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
     /// @dev The caller must be a listed MToken in the `markets` mapping.
     /// @param mToken The address of the eToken that the account is borrowing.
