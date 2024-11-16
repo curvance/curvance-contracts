@@ -44,7 +44,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -141,7 +141,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOdosRouterV2.swap.selector) {
             (IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                getFuncParams(swapData.call),
+                _getFuncParams(swapData.call),
                 (IOdosRouterV2.swapTokenInfo, bytes, address, uint32)
             );
             recipient = tokenInfo.outputReceiver;
@@ -151,7 +151,7 @@ contract OdosCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == IOdosRouterV2.swapPermit2.selector) {
             (, IOdosRouterV2.swapTokenInfo memory tokenInfo, , , ) = abi
                 .decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         IOdosRouterV2.permit2Info,
                         IOdosRouterV2.swapTokenInfo,

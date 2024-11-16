@@ -45,7 +45,7 @@ contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
             revert MulticallChecker__TargetError();
         }
 
-        bytes4 functionSig = getFuncSigHash(data);
+        bytes4 functionSig = _getFuncSigHash(data);
         if (functionSig != RedstoneCoreAdaptor.writePrice.selector) {
             revert MulticallChecker__InvalidFuncSig();
         }

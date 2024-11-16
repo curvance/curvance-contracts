@@ -77,7 +77,7 @@ library SwapperLib {
             value: value
         }(swapData.call);
 
-        propagateError(success, auxData);
+        _propagateError(success, auxData);
 
         // Remove any excess approval.
         _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
@@ -127,7 +127,7 @@ library SwapperLib {
                 value: value
             }(swapData.call);
 
-            propagateError(success, auxData);
+            _propagateError(success, auxData);
 
             // Revert if the swap failed.
             if (!success) {
@@ -218,14 +218,19 @@ library SwapperLib {
         }
     }
 
-    /// @dev Propagates an error message.
+    /// @dev Propagates an error message, if necessary.
     /// @param success If transaction was successful.
     /// @param data The transaction result data.
-    function propagateError(bool success, bytes memory data) internal pure {
+    function _propagateError(
+        bool success,
+        bytes memory data
+    ) internal pure {
         if (!success) {
             if (data.length == 0) {
                 revert SwapperLib__SwapError();
             }
+
+            // Bubble up error if there was one given.
             assembly {
                 revert(add(32, data), mload(data))
             }

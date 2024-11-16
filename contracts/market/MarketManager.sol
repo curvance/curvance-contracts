@@ -17,7 +17,14 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
-/// @dev There are two types of tokens inside Curvance:
+/// @dev Curvance Market Managers are built as "thesis driven" micro
+///      ecosystems. This means that a market may be focused specifically
+///      on interest-bearing stablecoins, or bluechip long market exposure,
+///      volatile LP tokens for a particular dex or perpetual platform. This
+///      minimizes systemic risk by having many market managers with unique
+///      opportunities and risk profiles.
+///
+///      There are two types of tokens inside Curvance:
 ///      Position tokens, aka pTokens that can be posted as collateral.
 ///      Debt tokens, aka eTokens that can be lent out to pToken depositors.
 ///      Unique to Curvance, rehypothecation of position token deposits
@@ -28,7 +35,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      All management of both pTokens and eTokens actions are managed by
 ///      the Market Manager. These tokens are collectively referred to as
 ///      Market Tokens, or mTokens. All pTokens and eTokens are mTokens but,
-///      not all pTokens are eTokens, and vice versa.
+///      not all pTokens are eTokens, and vice versa. Listing of pTokens and
+///      eTokens also restrict token collision, meaning a pToken and eToken
+///      cannot have the same underlying token in the same market.
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      pToken contracts while restricting the scale of exogenous risk.
@@ -661,7 +670,7 @@ contract MarketManager is
             uint256 protocolTokens
         ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
 
-        // Validate that the OEV queue is disabled or the liquidator is valid
+        // Validate that the OEV queue is disabled or the liquidator is valid.
         _validateLiquidation(liquidator, account, true);
 
         // We can pass balance = 0 here since we are forcing collateral closure
@@ -769,8 +778,8 @@ contract MarketManager is
     ///         `pToken` by repaying active debt in `eToken`.
     /// @dev Called by the eToken itself to validate that liquidation is
     ///      allowed based on `account`'s current liquidity.
-    /// @param epToken The earning token debt position to be from
-    ///                `account`.
+    /// @param eToken The earning token debt position to be from
+    ///               `account`.
     /// @param pToken The position token to be liquidated from
     ///               `account`.
     /// @param liquidator The account to execute the liquidation once queued.
@@ -789,7 +798,7 @@ contract MarketManager is
         _canLiquidate(eToken, pToken, account, 0, false);
 
         // Queue the liquidation for execution.
-        _queueLiquidation(account, liquidator, true);
+        _queueLiquidation(liquidator, account, true);
     }
 
 
@@ -832,7 +841,7 @@ contract MarketManager is
         }
 
         // Queue the liquidation for execution.
-        _queueLiquidation(account, msg.sender, false);
+        _queueLiquidation(msg.sender, account, false);
     }
 
     /// @notice Liquidates an entire account by partially paying down debts,
@@ -1867,7 +1876,8 @@ contract MarketManager is
         }
     }
 
-    /// @dev from Multicall
+    /// @dev Returns the Protocol Central Registry contract in interface
+    ///      form.
     function _getCentralRegistry()
         internal
         view

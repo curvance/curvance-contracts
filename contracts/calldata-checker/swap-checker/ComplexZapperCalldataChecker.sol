@@ -26,7 +26,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -41,7 +41,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -66,7 +66,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -92,7 +92,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         ComplexZapper.RedemptionData,
                         address,
@@ -117,7 +117,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.BalancerData,
@@ -140,7 +140,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
@@ -166,7 +166,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         ComplexZapper.RedemptionData,
                         ComplexZapper.BalancerData,
@@ -191,7 +191,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -213,7 +213,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -235,7 +235,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         ComplexZapper.RedemptionData,
                         address,
@@ -259,7 +259,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         ComplexZapper.ZapperData,
@@ -285,7 +285,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         bool,
@@ -311,7 +311,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 address _recipient
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         ComplexZapper.RedemptionData,
                         address,
