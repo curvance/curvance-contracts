@@ -840,7 +840,7 @@ contract MarketManager is
             }
         }
 
-        (BadDebtData memory data, ) = _BadDebtTermsOf(account);
+        (BadDebtData memory data, ) = _AccountLiquidationStatusOf(account);
 
         // If an account has no collateral or debt this will revert.
         if (data.collateral >= data.debt) {
@@ -890,7 +890,7 @@ contract MarketManager is
         (
             BadDebtData memory data,
             uint256[] memory assetBalances
-        ) = _BadDebtTermsOf(account);
+        ) = _AccountLiquidationStatusOf(account);
 
         // If an account has no collateral or debt this will revert.
         if (data.collateral >= data.debt) {

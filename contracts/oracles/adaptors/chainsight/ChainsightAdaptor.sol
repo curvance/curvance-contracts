@@ -2,80 +2,100 @@
 pragma solidity ^0.8.19;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
+import { IManagementOracle } from "contracts/interfaces/external/chainsight/IManagementOracle.sol";
 
-contract Api3Adaptor is BaseOracleAdaptor {
+contract ChainsightAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
-    /// @notice Stores configuration data for API3 price sources.
-    /// @param proxyFeed The current proxy's feed address.
-    /// @param dapiNameHash The bytes32 encoded name hash of the price feed.
+    /// @notice Stores configuration data for Chainsight price sources.
+    /// @param sender The sender address corresponding to `asset`'s feed
+    ///               inside Management Oracle.
+    /// @param feedKey The ICP VRF randomized key for the asset feed.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.
+    /// @param decimals Returns the number of decimals the Feed Key
+    ///                 responds with.
     /// @param heartbeat The max amount of time between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param max The max valid price of the asset.
-    ///            0 defaults to use proxy max price reduced by ~10%.
+    ///            0 defaults to use uint224 max price reduced by ~10%.
     struct AdaptorData {
-        IProxy proxyFeed;
-        bytes32 dapiNameHash;
+        address sender;
+        bytes32 feedKey;
         bool isConfigured;
+        uint256 decimals;
         uint256 heartbeat;
         uint256 max;
     }
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for an Api3 asset heartbeat,
+    /// @notice If zero is specified for a Chainsight asset heartbeat,
     ///         this value is used instead.
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
+
+    IManagementOracle public immutable MANAGEMENT_ORACLE;
 
     /// STORAGE ///
 
     /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Api3 Adaptor Data for pricing in gas token.
+    /// @dev Chainsight Adaptor Data for pricing in gas token.
     mapping(address => AdaptorData) public adaptorDataNonUSD;
 
     /// @notice Adaptor configuration data for pricing an asset.
-    /// @dev Api3 Adaptor Data for pricing in USD.
+    /// @dev Chainsight Adaptor Data for pricing in USD.
     mapping(address => AdaptorData) public adaptorDataUSD;
 
     /// EVENTS ///
 
-    event Api3AssetAdded(
+    event ChainsightAssetAdded(
         address asset,
         AdaptorData assetConfig,
         bool isUpdate
     );
-    event Api3AssetRemoved(address asset);
+    event ChainsightAssetRemoved(address asset);
 
     /// ERRORS ///
 
-    error Api3Adaptor__AssetIsNotSupported();
-    error Api3Adaptor__DAPINameHashError();
-    error Api3Adaptor__InvalidHeartbeat();
+    error ChainsightAdaptor__AssetIsNotSupported();
+    error ChainsightAdaptor__InvalidPriceConfiguration();
+    error ChainsightAdaptor__InvalidHeartbeat();
 
     /// CONSTRUCTOR ///
 
     /// @param centralRegistry_ The address of central registry.
+    /// @param managementOracle_ The proxy address location for
+    ///                          Chainsight oracles on this chain.
     constructor(
-        ICentralRegistry centralRegistry_
-    ) BaseOracleAdaptor(centralRegistry_) {}
+        ICentralRegistry centralRegistry_,
+        address managementOracle_
+    ) BaseOracleAdaptor(centralRegistry_) {
+        IManagementOracle(managementOracle_).readAsUint256WithTimestamp(
+            address(0),
+            bytes32(0)
+        );
+        IManagementOracle(managementOracle_).readAsInt256WithTimestamp(
+            address(0),
+            bytes32(0)
+        );
+
+        MANAGEMENT_ORACLE = IManagementOracle(managementOracle_);
+    }
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Api3 oracles to fetch the price data.
+    /// @dev Uses Chainsight oracles to fetch the price data.
     ///      Price is returned in USD or a chain's native token depending on
     ///      'inUSD' parameter.
     /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
     /// @return A structure containing the price, error status,
     ///         and the quote format of the price.
     function getPrice(
@@ -85,7 +105,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
     ) external view override returns (PriceReturnData memory) {
         // Validate we support pricing `asset`.
         if (!isSupportedAsset[asset]) {
-            revert Api3Adaptor__AssetIsNotSupported();
+            revert ChainsightAdaptor__AssetIsNotSupported();
         }
 
         if (inUSD) {
@@ -95,20 +115,24 @@ contract Api3Adaptor is BaseOracleAdaptor {
         return _getPriceInNative(asset);
     }
 
-    /// @notice Adds an Api3 Price Feed as an asset inside this adaptor.
+    /// @notice Adds a Chainsight Price Feed as an asset inside this adaptor.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the token to add pricing support for.
-    /// @param ticker The ticker of the token to add pricing for.
-    /// @param proxyFeed Api3 proxy feed to use for pricing `asset`.
-    /// @param heartbeat Api3 heartbeat to use when validating prices
+    /// @param sender The sender address corresponding to `asset`'s feed
+    ///               inside Management Oracle.
+    /// @param feedKey The ICP VRF randomized key for the asset feed.
+    /// @param decimals Returns the number of decimals the Feed Key
+    ///                 responds with.
+    /// @param heartbeat Chainsight heartbeat to use when validating prices
     ///                  for `asset`. 0 = `DEFAULT_HEART_BEAT`.
     /// @param inUSD Whether the price feed is in USD (inUSD = true)
     ///              or native token (inUSD = false).
     function addAsset(
         address asset,
-        string memory ticker,
-        address proxyFeed,
+        address sender,
+        bytes32 feedKey,
+        uint256 decimals,
         uint256 heartbeat,
         bool inUSD
     ) external {
@@ -116,21 +140,30 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         if (heartbeat != 0) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert Api3Adaptor__InvalidHeartbeat();
+                revert ChainsightAdaptor__InvalidHeartbeat();
             }
         }
 
-        bytes32 dapiName = Bytes32Helper.stringToBytes32(ticker);
-        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
+        // Validate that the Chainsight sender and feedKey from frontend
+        // properly return data as expected.
+        (
+            uint256 readPriceUnsigned,
+        ) = MANAGEMENT_ORACLE.readAsUint256WithTimestamp(sender, feedKey);
 
-        // Validate that the dAPI name and corresponding hash generated off
-        // the symbol and denomation match the proxyFeed documented form.
-        if (dapiNameHash != IProxy(proxyFeed).dapiNameHash()) {
-            revert Api3Adaptor__DAPINameHashError();
+        (
+            int256 readPriceSigned,
+            uint256 readTimestampSigned
+        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(sender, feedKey);
+
+        if (uint256(readPriceSigned) != readPriceUnsigned) {
+            revert ChainsightAdaptor__InvalidPriceConfiguration();
+        }
+
+        if (readPriceSigned <= 0) {
+            revert ChainsightAdaptor__InvalidPriceConfiguration();
         }
 
         AdaptorData storage data;
-
         if (inUSD) {
             data = adaptorDataUSD[asset];
         } else {
@@ -139,15 +172,20 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
 
+        if (block.timestamp - readTimestampSigned > heartbeat) {
+            revert ChainsightAdaptor__InvalidPriceConfiguration();
+        }
+
         // Save adaptor data and update mapping that we support `asset` now.
 
-        // Add a ~10% buffer to maximum price allowed from Api3 can stop
+        // Add a ~10% buffer to maximum price allowed from Chainsight can stop
         // updating its price before/above the min/max price. We use a maximum
-        // buffered price of 2^224 - 1, which could overflow when trying to
+        // buffered price of 2^240 - 1, which could overflow when trying to
         // save the final value into an uint240.
-        data.max = (uint256(int256(type(int224).max)) * 9) / 10;
-        data.dapiNameHash = dapiNameHash;
-        data.proxyFeed = IProxy(proxyFeed);
+        data.max = (uint256(int256(type(int240).max)) * 9) / 10;
+        data.sender = sender;
+        data.feedKey = feedKey;
+        data.decimals = decimals;
         data.isConfigured = true;
 
         // Check whether this is new or updated support for `asset`.
@@ -157,7 +195,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
         }
 
         isSupportedAsset[asset] = true;
-        emit Api3AssetAdded(asset, data, isUpdate);
+        emit ChainsightAssetAdded(asset, data, isUpdate);
     }
 
     /// @notice Removes a supported asset from the adaptor.
@@ -170,7 +208,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
 
         // Validate that `asset` is currently supported.
         if (!isSupportedAsset[asset]) {
-            revert Api3Adaptor__AssetIsNotSupported();
+            revert ChainsightAdaptor__AssetIsNotSupported();
         }
 
         // Notify the adaptor to stop supporting the asset.
@@ -186,14 +224,14 @@ contract Api3Adaptor is BaseOracleAdaptor {
             asset
         );
 
-        emit Api3AssetRemoved(asset);
+        emit ChainsightAssetRemoved(asset);
     }
 
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
     function adaptorType() external pure override returns (uint256) {
-        return 4;
+        return 16;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -227,10 +265,10 @@ contract Api3Adaptor is BaseOracleAdaptor {
         return _parseData(adaptorDataUSD[asset], true);
     }
 
-    /// @notice Parses the Api3 feed data for pricing of an asset.
-    /// @dev Calls read() from Api3 to get the latest data
+    /// @notice Parses the Chainsight feed data for pricing of an asset.
+    /// @dev Calls read() from Chainsight to get the latest data
     ///      for pricing and staleness.
-    /// @param data Api3 feed details.
+    /// @param data Chainsight feed details.
     /// @param inUSD A boolean to denote if the price is in USD.
     /// @return pData A structure containing the price, error status,
     ///               and the currency of the price.
@@ -238,7 +276,13 @@ contract Api3Adaptor is BaseOracleAdaptor {
         AdaptorData memory data,
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
-        (int256 price, uint256 updatedAt) = data.proxyFeed.read();
+        (
+            int256 price,
+            uint256 updatedAt
+        ) = MANAGEMENT_ORACLE.readAsInt256WithTimestamp(
+            data.sender,
+            data.feedKey
+        );
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
@@ -246,7 +290,9 @@ contract Api3Adaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        pData.price = uint240(uint256(price));
+        uint256 newPrice = (uint256(price) * WAD) / (10 ** data.decimals);
+
+        pData.price = uint240(newPrice);
         pData.hadError = _verifyData(
             uint256(price),
             updatedAt,

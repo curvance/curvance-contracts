@@ -575,7 +575,7 @@ abstract contract LiquidityManager {
 
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity and whether theres associated
-    ///         bad debt available.
+    ///         bad debt available warranting an account liquidation.
     /// @param account The account to determine bad debt status.
     /// @return result Containing values:
     ///                - Total value of `account` collateral.
@@ -584,7 +584,7 @@ abstract contract LiquidityManager {
     ///                - Total value of `account` debt.
     /// @return Array of the amount of collateral posted and debt balances for
     ///         each user position.
-    function _BadDebtTermsOf(
+    function _AccountLiquidationStatusOf(
         address account
     ) internal view returns (BadDebtData memory result, uint256[] memory) {
         (
