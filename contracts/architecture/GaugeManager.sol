@@ -759,19 +759,20 @@ contract GaugeManager is
     }
 
     /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
-    ///         into `lockIndex`.
+    ///         into a new or existing veCVE lock.
     /// @dev Users who choose to lock emissions may potentially receive an
     ///      emission boost based on `lockBoostMultiplier` stored inside the
     ///      DAO Central Registry.
-    /// @param tokens Array containing pool token addresses to claim
-    ///               rewards for.
-    /// @param lockIndex The index of the lock to extend.
+    /// @param tokens Array containing pool token addresses to claim rewards for.
+    /// @param isNewLock True if creating a new lock, false if extending existing.
+    /// @param lockIndex The index of the lock to extend (ignored if isNewLock is true).
     /// @param continuousLock Whether the lock should be continuous or not.
     /// @param rewardsData Rewards data for desired Reward Manager action.
     /// @param params Parameters for rewards claim function.
     /// @param aux Auxiliary data.
-    function claimAndExtendLock(
+    function claimAndLock(
         address[] calldata tokens,
+        bool isNewLock,
         uint256 lockIndex,
         bool continuousLock,
         RewardsData memory rewardsData,
@@ -806,80 +807,29 @@ contract GaugeManager is
             cveRewards = boostedRewards;
         }
 
-        // Approve veCVE to take necessary cve to extend the lock.
+        // Approve veCVE to take necessary cve to extend/create the lock
         SafeTransferLib.safeApprove(cve, address(veCVE), cveRewards);
-        veCVE.increaseAmountAndExtendLockFor(
-            msg.sender,
-            cveRewards,
-            lockIndex,
-            continuousLock,
-            rewardsData,
-            params,
-            aux
-        );
-    }
 
-    /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
-    ///         into a new veCVE lock.
-    /// @dev Users who choose to lock emissions may potentially receive an
-    ///      emission boost based on `lockBoostMultiplier` stored inside the
-    ///      DAO Central Registry.
-    /// @param token Pool token address.
-    /// @param continuousLock Indicator of whether the lock should be continuous.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
-    /// @param params Parameters for rewards claim function.
-    /// @param aux Auxiliary data.
-    function claimAndLock(
-        address token,
-        bool continuousLock,
-        RewardsData memory rewardsData,
-        bytes memory params,
-        uint256 aux
-    ) external nonReentrant {
-        // If gauge emissions have not started yet,
-        // theres nothing to claimAndLock.
-        if (block.timestamp < startTime) {
-            revert GaugeManager__NotStarted();
+        if (isNewLock) {
+            veCVE.createLockFor(
+                msg.sender,
+                cveRewards,
+                continuousLock,
+                rewardsData,
+                params,
+                aux
+            );
+        } else {
+            veCVE.increaseAmountAndExtendLockFor(
+                msg.sender,
+                cveRewards,
+                lockIndex,
+                continuousLock,
+                rewardsData,
+                params,
+                aux
+            );
         }
-
-        updatePool(token);
-        _calcPending(msg.sender, token);
-
-        // Check user pending rewards.
-        uint256 index = rewardTokenToIndex[token][cve];
-        uint256 rewards = userDebtInfo[token][msg.sender][index].rewardPending;
-        if (rewards == 0) {
-            revert GaugeManager__NoReward();
-        }
-
-        // Update pending rewards to zero.
-        userDebtInfo[token][msg.sender][index].rewardPending = 0;
-
-        uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
-        // If theres a current lock boost, recognize their bonus rewards.
-        if (currentLockBoost > 0) {
-            uint256 boostedRewards = (rewards * currentLockBoost) /
-                DENOMINATOR;
-            // We know this will never underflow due to `currentLockBoost`
-            // needing to be greater than 1.
-            ICVE(cve).mintLockBoost(boostedRewards - rewards);
-            rewards = boostedRewards;
-        }
-
-        // Approve veCVE to take necessary cve to create the new lock.
-        SafeTransferLib.safeApprove(cve, address(veCVE), rewards);
-        veCVE.createLockFor(
-            msg.sender,
-            rewards,
-            continuousLock,
-            rewardsData,
-            params,
-            aux
-        );
-
-        _calcDebt(msg.sender, token);
-
-        emit Claim(msg.sender, token);
     }
 
     /// PUBLIC FUNCTIONS ///

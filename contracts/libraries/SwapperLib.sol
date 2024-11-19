@@ -129,11 +129,6 @@ library SwapperLib {
 
             propagateError(success, auxData);
 
-            // Revert if the swap failed.
-            if (!success) {
-                revert SwapperLib__SwapError();
-            }
-
             // Remove any excess approval.
             _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
 
@@ -185,11 +180,11 @@ library SwapperLib {
             // Calculate % slippage from executed swap.
             uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
             if (
-                    slippage > swapData.slippage ||
-                    slippage > centralRegistry.slippageLimit()
-                ) {
-                    revert SwapperLib__Slippage(slippage);
-            } 
+                slippage > swapData.slippage ||
+                slippage > centralRegistry.slippageLimit()
+            ) {
+                revert SwapperLib__Slippage(slippage);
+            }
         }
     }
 
