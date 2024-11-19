@@ -250,4 +250,19 @@ contract TestBoostedLock is TestBaseMarket {
             0
         );
     }
+
+    function testRevertClaimAndLock() public {
+        vm.warp(gaugeManager.startTime() - 1);
+
+        RewardsData memory rewardData;
+
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
+        vm.prank(users[0]);
+        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+
+        vm.warp(gaugeManager.startTime());
+        vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
+        vm.prank(users[0]);
+        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+    }
 }
