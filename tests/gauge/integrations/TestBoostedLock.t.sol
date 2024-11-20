@@ -163,8 +163,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(tokens[0]),
             true, // isNewLock
-            0, // lockIndex
             false, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -173,8 +173,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(tokens[1]),
             true, // isNewLock
-            0, // lockIndex
             false, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -191,8 +191,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(tokens[0]),
             false, // isNewLock
-            0, // lockIndex
             true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -201,8 +201,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(tokens[1]),
             false, // isNewLock
-            0, // lockIndex
             false, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -230,8 +230,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(address(cve)),
             false, // isNewLock
-            0, // lockIndex
             true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -243,8 +243,8 @@ contract TestBoostedLock is TestBaseMarket {
         gaugeManager.claimAndLock(
             _makeTokenArray(address(cve)),
             false, // isNewLock
-            0, // lockIndex
             true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -258,11 +258,27 @@ contract TestBoostedLock is TestBaseMarket {
 
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(address(cve)),
+            true,
+            true,
+            0,
+            rewardData,
+            "0x",
+            0
+        );
 
         vm.warp(gaugeManager.startTime());
         vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(address(cve)),
+            true,
+            true,
+            0,
+            rewardData,
+            "0x",
+            0
+        );
     }
 }

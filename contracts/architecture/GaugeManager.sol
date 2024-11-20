@@ -773,8 +773,8 @@ contract GaugeManager is
     function claimAndLock(
         address[] calldata tokens,
         bool isNewLock,
-        uint256 lockIndex,
         bool continuousLock,
+        uint256 lockIndex,
         RewardsData memory rewardsData,
         bytes calldata params,
         uint256 aux
