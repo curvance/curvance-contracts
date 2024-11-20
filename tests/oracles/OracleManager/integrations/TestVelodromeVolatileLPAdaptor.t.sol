@@ -131,6 +131,42 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         assertApproxEqRel(priceBefore, priceAfter, 100000);
     }
 
+    function testPriceDoesNotChangeAfterTenTimesLargeSwap() public {
+        uint256 errorCode;
+        uint256 priceBefore;
+        (priceBefore, errorCode) = oracleManager.getPrice(
+            _VELODROME_WETH_USDC,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertGt(priceBefore, 0);
+
+        // try large swap (5M _USDC_ADDRESS)
+        uint256 amount = 5000000e6;
+        deal(_USDC_ADDRESS, address(this), amount);
+        VelodromeLib._swapExactTokensForTokens(
+            _VELO_ROUTER,
+            _VELODROME_WETH_USDC,
+            _USDC_ADDRESS,
+            _WETH_ADDRESS,
+            amount,
+            false
+        );
+
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertGt(weth.balanceOf(address(this)), 0);
+
+        uint256 priceAfter;
+        (priceAfter, errorCode) = oracleManager.getPrice(
+            _VELODROME_WETH_USDC,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertApproxEqRel(priceBefore, priceAfter, 100000);
+    }
+
     function testRevertGetPrice__AssetIsNotSupported() public {
         vm.expectRevert(
             BaseVolatileLPAdaptor
