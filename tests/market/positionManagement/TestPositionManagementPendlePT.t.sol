@@ -156,7 +156,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(positionManagement.centralRegistry()),
             address(centralRegistry)

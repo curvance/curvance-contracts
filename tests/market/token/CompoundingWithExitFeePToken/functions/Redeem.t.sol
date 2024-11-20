@@ -9,7 +9,7 @@ contract CompoundingWithExitFeePTokenRedeemTest is
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_CompoundingWithExitFeePTokenRedeem_fail_whenNoEnoughToRedeem()
+    function test_compoundingWithExitFeePTokenRedeem_fail_whenNoEnoughToRedeem()
         public
     {
         vm.prank(address(1));
@@ -18,7 +18,7 @@ contract CompoundingWithExitFeePTokenRedeemTest is
         pBALRETHWithExitFee.redeem(100, address(this), address(this));
     }
 
-    function test_CompoundingWithExitFeePTokenRedeem_fail_whenAmountIsZero()
+    function test_compoundingWithExitFeePTokenRedeem_fail_whenAmountIsZero()
         public
     {
         pBALRETHWithExitFee.mint(100, address(this));
@@ -29,7 +29,7 @@ contract CompoundingWithExitFeePTokenRedeemTest is
         pBALRETHWithExitFee.redeem(0, address(this), address(this));
     }
 
-    function test_CompoundingWithExitFeePTokenRedeem_success() public {
+    function test_compoundingWithExitFeePTokenRedeem_success() public {
         pBALRETHWithExitFee.mint(100, address(this));
 
         uint256 underlyingBalance = balRETH.balanceOf(address(this));

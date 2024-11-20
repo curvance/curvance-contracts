@@ -71,7 +71,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assertEq(errorCode, 2);
     }
 
-    function testReturnsCorrectPriceInUSD() public {
+    function testReturnsCorrectPriceInUSD() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             true,
@@ -81,7 +81,7 @@ contract TestUniswapV3Adaptor is TestBaseOracleManager {
         assertGt(price, 0);
     }
 
-    function testReturnsCorrectPriceInETH() public {
+    function testReturnsCorrectPriceInETH() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             false,

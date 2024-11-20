@@ -16,7 +16,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
 
     fallback() external payable {}
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(complexZapper.marketManager()),
             address(marketManager)

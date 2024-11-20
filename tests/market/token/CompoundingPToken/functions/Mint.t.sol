@@ -8,21 +8,21 @@ import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol"
 contract CompoundingPTokenMintTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_CompoundingPTokenMint_fail_whenTransferZeroAmount() public {
+    function test_compoundingPTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
             CompoundingPToken.CompoundingPToken__ZeroShares.selector
         );
         pBALRETH.mint(0, address(this));
     }
 
-    function test_CompoundingPTokenMint_fail_whenMintIsNotAllowed() public {
+    function test_compoundingPTokenMint_fail_whenMintIsNotAllowed() public {
         marketManager.setMintPaused(address(pBALRETH), true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
         pBALRETH.mint(100, address(this));
     }
 
-    function test_CompoundingPTokenMint_success() public {
+    function test_compoundingPTokenMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
         uint256 balance = pBALRETH.balanceOf(address(this));
         uint256 totalSupply = pBALRETH.totalSupply();

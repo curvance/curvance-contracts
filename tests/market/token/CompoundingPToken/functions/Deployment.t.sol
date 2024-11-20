@@ -14,10 +14,12 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
 
     event NewMarketManager(address oldMarketManager, address newMarketManager);
 
-    function test_CompoundingPTokenDeployment_fail_whenCentralRegistryIsInvalid()
+    function test_compoundingPTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+        );
         new AuraPToken(
             ICentralRegistry(address(0)),
             balRETH,
@@ -28,7 +30,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         );
     }
 
-    function test_CompoundingPTokenDeployment_fail_whenMarketManagerIsNotSet()
+    function test_compoundingPTokenDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
         vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
@@ -42,7 +44,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         );
     }
 
-    function test_CompoundingPTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
+    function test_compoundingPTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
         public
     {
         stdstore
@@ -65,7 +67,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         );
     }
 
-    function test_CompoundingPTokenDeployment_success() public {
+    function test_compoundingPTokenDeployment_success() public {
         pBALRETH = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
@@ -81,9 +83,6 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         );
         assertEq(pBALRETH.underlying(), _BAL_WETH_RETH_ADDRESS);
         assertEq(address(pBALRETH.marketManager()), address(marketManager));
-        assertEq(
-            pBALRETH.name(),
-            "Curvance Balancer rETH Stable Pool"
-        );
+        assertEq(pBALRETH.name(), "Curvance Balancer rETH Stable Pool");
     }
 }

@@ -84,7 +84,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
         marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(
             address(complexZapper.marketManager()),
             address(marketManager)

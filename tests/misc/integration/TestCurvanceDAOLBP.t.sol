@@ -29,7 +29,7 @@ contract TestCurvanceDAOLBP is TestBaseMarket {
         );
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(lbp.cve(), address(cve));
     }
 

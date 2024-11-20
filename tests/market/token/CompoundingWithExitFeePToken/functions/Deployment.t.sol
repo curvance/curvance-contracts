@@ -17,10 +17,12 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
 
     event NewMarketManager(address oldMarketManager, address newMarketManager);
 
-    function test_CompoundingWithExitFeePTokenDeployment_fail_whenCentralRegistryIsInvalid()
+    function test_compoundingWithExitFeePTokenDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+        );
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(0)),
             balRETH,
@@ -32,7 +34,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         );
     }
 
-    function test_CompoundingWithExitFeePTokenDeployment_fail_whenMarketManagerIsNotSet()
+    function test_compoundingWithExitFeePTokenDeployment_fail_whenMarketManagerIsNotSet()
         public
     {
         vm.expectRevert(BasePToken.BasePToken__InvalidMarketManager.selector);
@@ -47,7 +49,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         );
     }
 
-    function test_CompoundingWithExitFeePTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
+    function test_compoundingWithExitFeePTokenDeployment_fail_whenUnderlyingTotalSupplyExceedsMaximum()
         public
     {
         stdstore
@@ -71,7 +73,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         );
     }
 
-    function test_CompoundingWithExitFeePTokenDeployment_fail_whenExitFeeExceedsMaximum()
+    function test_compoundingWithExitFeePTokenDeployment_fail_whenExitFeeExceedsMaximum()
         public
     {
         vm.expectRevert(
@@ -90,7 +92,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         );
     }
 
-    function test_CompoundingWithExitFeePTokenDeployment_success() public {
+    function test_compoundingWithExitFeePTokenDeployment_success() public {
         pBALRETHWithExitFee = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,

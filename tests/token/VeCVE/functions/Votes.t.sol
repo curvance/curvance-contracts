@@ -11,7 +11,7 @@ contract VotesTest is TestBaseVeCVE {
         _skipRestrictionDuration();
     }
 
-    function test_getVotes_zero() public {
+    function test_getVotes_zero() public view {
         assertEq(veCVE.getVotes(address(this)), 0);
     }
 
@@ -61,8 +61,7 @@ contract VotesTest is TestBaseVeCVE {
             assertEq(veCVE.getVotes(address(this)), 0);
             return;
         }
-        uint256 epoch = (unlockTime - block.timestamp) /
-            veCVE.epochDuration();
+        uint256 epoch = (unlockTime - block.timestamp) / veCVE.epochDuration();
         uint256 votes = (amount * epoch) / veCVE.LOCK_DURATION_EPOCHS();
 
         assertEq(veCVE.getVotes(address(this)), votes);

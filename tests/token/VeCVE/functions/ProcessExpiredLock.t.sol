@@ -155,7 +155,7 @@ contract ProcessExpiredLockTest is TestBaseVeCVE {
     }
 
     // cover L1117
-    function test_processExpiredLock_sucess_withoutRelock_notLastIndex()
+    function test_processExpiredLock_success_withoutRelock_notLastIndex()
         public
     {
         _recordEpochs();

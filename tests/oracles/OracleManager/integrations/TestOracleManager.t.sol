@@ -4,8 +4,6 @@ pragma solidity ^0.8.19;
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
-import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseOracleManager } from "../TestBaseOracleManager.sol";
 
@@ -59,7 +57,7 @@ contract TestOracleManager is TestBaseOracleManager {
         );
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         uint256 higherPrice;
         uint256 lowerPrice;
         uint256 errorCode;

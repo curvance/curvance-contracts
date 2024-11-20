@@ -55,12 +55,12 @@ contract DeployCurvance is
 
         vm.startBroadcast(deployerPrivateKey);
 
-        address feeToken = _readConfigAddress(".centralRegistry.feeToken");
+        // address feeToken = _readConfigAddress(".centralRegistry.feeToken");
         address rewardToken = _readConfigAddress(".rewardManager.rewardToken");
 
         centralRegistry = _getDeployedContract("centralRegistry");
-        address oracleManager = _getDeployedContract("oracleManager");
-        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+        // address oracleManager = _getDeployedContract("oracleManager");
+        // address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
 
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")

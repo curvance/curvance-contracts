@@ -12,7 +12,7 @@ contract CompoundingWithExitFeePTokenApproveTest is
         uint256 amount
     );
 
-    function test_CompoundingWithExitFeePTokenApprove_success() public {
+    function test_compoundingWithExitFeePTokenApprove_success() public {
         uint256 allowance = pBALRETHWithExitFee.allowance(
             address(this),
             user1

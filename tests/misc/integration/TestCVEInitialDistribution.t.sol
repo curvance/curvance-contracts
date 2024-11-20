@@ -40,7 +40,7 @@ contract TestCVEInitialDistribution is TestBaseMarket {
         root = merkle.getRoot(leafs);
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertEq(distributor.cve(), address(cve));
     }
 

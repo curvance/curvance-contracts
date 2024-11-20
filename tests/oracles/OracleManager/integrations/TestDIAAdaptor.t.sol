@@ -35,7 +35,7 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
     }
 
-    function testReturnsCorrectPrice() public {
+    function testReturnsCorrectPrice() public view {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _WBTC_ADDRESS,
             true,

@@ -24,13 +24,13 @@ contract TestSavingsDaiAggregator is TestBase {
         );
     }
 
-    function testMinMaxAnswer() public {
+    function testMinMaxAnswer() public view {
         int192 maxAnswer = aggregator.maxAnswer();
         int192 minAnswer = aggregator.minAnswer();
         assertGt(maxAnswer, minAnswer);
     }
 
-    function testLatestRoundData() public {
+    function testLatestRoundData() public view {
         (, int256 sdaiPrice, , , ) = aggregator.latestRoundData();
         (, int256 daiPrice, , , ) = IChainlink(_CHAINLINK_DAI_USD)
             .latestRoundData();

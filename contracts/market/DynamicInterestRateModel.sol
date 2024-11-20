@@ -375,8 +375,8 @@ contract DynamicInterestRateModel is ERC165 {
                 borrowRate = _getBaseInterestRate(util);
             }
         } else {
-            /// We know this will not underflow or overflow,
-            /// because of Interest Rate Model configurations.
+            // We know this will not underflow or overflow,
+            // because of Interest Rate Model configurations.
             unchecked {
                 borrowRate = (_getVertexInterestRate(util - vertexPoint) +
                     _getBaseInterestRate(vertexPoint));
@@ -562,8 +562,8 @@ contract DynamicInterestRateModel is ERC165 {
             }
         }
 
-        /// We know this will not underflow or overflow,
-        /// because of Interest Rate Model configurations.
+        // We know this will not underflow or overflow,
+        // because of Interest Rate Model configurations.
         unchecked {
             return (_getVertexInterestRate(util - vertexPoint) +
                 _getBaseInterestRate(vertexPoint));
