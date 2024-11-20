@@ -152,7 +152,7 @@ contract TestUniversalBalance is TestBaseMarket {
         }
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
     }

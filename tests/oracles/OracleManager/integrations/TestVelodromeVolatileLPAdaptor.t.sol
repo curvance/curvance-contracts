@@ -63,7 +63,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
         oracleManager.getPrice(_VELODROME_WETH_USDC, true, false);
     }
 
-    function testReturnsCorrectPrice() public view {
+    function testReturnsCorrectPrice() public {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _VELODROME_WETH_USDC,
             true,

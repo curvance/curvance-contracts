@@ -197,7 +197,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         centralRegistry.setSlippageLimit(60000);
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(positionManagement.centralRegistry()),
             address(centralRegistry)

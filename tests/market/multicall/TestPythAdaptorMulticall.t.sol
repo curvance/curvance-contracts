@@ -249,7 +249,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertTrue(pWBTC.isPToken());
         assertFalse(eUSDC.isPToken());
     }

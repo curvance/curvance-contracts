@@ -179,7 +179,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertTrue(cPendlePT.isPToken());
         assertFalse(eUSDC.isPToken());
     }

@@ -44,7 +44,7 @@ contract ERC20Test is SoladyTest {
         token = new MockERC20("Token", "TKN", 18);
     }
 
-    function testMetadata() public view {
+    function testMetadata() public {
         assertEq(token.name(), "Token");
         assertEq(token.symbol(), "TKN");
         assertEq(token.decimals(), 18);
@@ -306,7 +306,7 @@ contract ERC20Test is SoladyTest {
         _checkAllowanceAndNonce(t);
     }
 
-    function _checkAllowanceAndNonce(_TestTemps memory t) internal view {
+    function _checkAllowanceAndNonce(_TestTemps memory t) internal {
         assertEq(token.allowance(t.owner, t.to), t.amount);
         assertEq(token.nonces(t.owner), t.nonce + 1);
     }

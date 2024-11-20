@@ -160,7 +160,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         }
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(universalBalanceNative.linkedEToken()),
             address(eWETH)

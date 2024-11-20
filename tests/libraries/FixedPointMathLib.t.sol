@@ -5,7 +5,7 @@ import "./utils/SoladyTest.sol";
 import { FixedPointMathLib } from "../../contracts/libraries/external/FixedPointMathLib.sol";
 
 contract FixedPointMathLibTest is SoladyTest {
-    function testFullMulDiv() public pure {
+    function testFullMulDiv() public {
         assertEq(FixedPointMathLib.fullMulDiv(0, 0, 1), 0);
         assertEq(FixedPointMathLib.fullMulDiv(4, 4, 2), 8);
         assertEq(
@@ -100,11 +100,7 @@ contract FixedPointMathLibTest is SoladyTest {
         }
     }
 
-    function testMulDiv(
-        uint256 x,
-        uint256 y,
-        uint256 denominator
-    ) public pure {
+    function testMulDiv(uint256 x, uint256 y, uint256 denominator) public {
         // Ignore cases where x * y overflows or denominator is 0.
         unchecked {
             if (denominator == 0 || (x != 0 && (x * y) / x != y)) return;
@@ -133,11 +129,7 @@ contract FixedPointMathLibTest is SoladyTest {
         FixedPointMathLib.mulDiv(x, y, 0);
     }
 
-    function testMulDivUp(
-        uint256 x,
-        uint256 y,
-        uint256 denominator
-    ) public pure {
+    function testMulDivUp(uint256 x, uint256 y, uint256 denominator) public {
         // Ignore cases where x * y overflows or denominator is 0.
         unchecked {
             if (denominator == 0 || (x != 0 && (x * y) / x != y)) return;
@@ -166,7 +158,7 @@ contract FixedPointMathLibTest is SoladyTest {
         FixedPointMathLib.mulDivUp(x, y, 0);
     }
 
-    function testSqrt(uint256 x) public pure {
+    function testSqrt(uint256 x) public {
         uint256 root = FixedPointMathLib.sqrt(x);
         uint256 next = root + 1;
 
@@ -178,7 +170,7 @@ contract FixedPointMathLibTest is SoladyTest {
         assertTrue(root * root <= x && next * next > x);
     }
 
-    function testSqrtBack(uint256 x) public pure {
+    function testSqrtBack(uint256 x) public {
         unchecked {
             x >>= 128;
             while (x != 0) {

@@ -57,7 +57,7 @@ contract TestOracleManager is TestBaseOracleManager {
         );
     }
 
-    function testReturnsCorrectPrice() public view {
+    function testReturnsCorrectPrice() public {
         uint256 higherPrice;
         uint256 lowerPrice;
         uint256 errorCode;

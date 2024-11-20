@@ -105,7 +105,7 @@ contract TestETokenReserves is TestBaseMarket {
         }
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(centralRegistry.daoAddress(), dao);
         assertEq(eDAI.interestFactor(), (marketInterestFactor * 1e18) / 10000);
         assertEq(

@@ -121,7 +121,7 @@ contract TestPTokenWithExitFeeReserves is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(centralRegistry.daoAddress(), dao);
     }
 

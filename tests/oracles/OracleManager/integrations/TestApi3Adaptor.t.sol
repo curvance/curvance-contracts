@@ -39,7 +39,7 @@ contract TestApi3Adaptor is TestBaseOracleManager {
         oracleManager.addAssetPriceFeed(_ARB_ADDRESS, address(adaptor));
     }
 
-    function testReturnsCorrectPrice() public view {
+    function testReturnsCorrectPrice() public {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _ARB_ADDRESS,
             true,

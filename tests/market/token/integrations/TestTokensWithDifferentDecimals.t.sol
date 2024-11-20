@@ -124,7 +124,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertTrue(pBALRETH.isPToken());
         assertFalse(eUSDC.isPToken());
     }

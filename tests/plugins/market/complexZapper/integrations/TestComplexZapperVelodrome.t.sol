@@ -131,7 +131,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(complexZapper.marketManager()),
             address(marketManager)

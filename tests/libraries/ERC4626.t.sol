@@ -91,7 +91,7 @@ contract ERC4626Test is SoladyTest {
         }
     }
 
-    function testMetadata() public view {
+    function testMetadata() public {
         assertEq(vault.name(), "Mock Token Vault");
         assertEq(vault.symbol(), "vwTKN");
         assertEq(vault.decimals(), 18);

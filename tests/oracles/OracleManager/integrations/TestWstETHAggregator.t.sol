@@ -27,13 +27,13 @@ contract TestWstETHAggregator is TestBase {
         );
     }
 
-    function testMinMaxAnswer() public view {
+    function testMinMaxAnswer() public {
         int192 maxAnswer = aggregator.maxAnswer();
         int192 minAnswer = aggregator.minAnswer();
         assertGt(maxAnswer, minAnswer);
     }
 
-    function testLatestRoundData() public view {
+    function testLatestRoundData() public {
         (, int256 wstethPrice, , , ) = aggregator.latestRoundData();
         (, int256 stethPrice, , , ) = IChainlink(_CHAINLINK_STETH_USD)
             .latestRoundData();

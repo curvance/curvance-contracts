@@ -137,7 +137,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
         adaptor.removeAsset(_GM_BTC_USDC);
     }
 
-    function testReturnsCorrectPriceInUSD() public view {
+    function testReturnsCorrectPriceInUSD() public {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _GM_BTC_USDC,
             true,
@@ -148,7 +148,7 @@ contract TestGMAdaptor is TestBaseOracleManager {
         assertApproxEqAbs(price, 1.1215e18, 0.0001e18);
     }
 
-    function testReturnsCorrectPriceInETH() public view {
+    function testReturnsCorrectPriceInETH() public {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _GM_BTC_USDC,
             false,

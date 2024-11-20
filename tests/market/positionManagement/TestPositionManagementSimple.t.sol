@@ -106,7 +106,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(positionManagement.centralRegistry()),
             address(centralRegistry)

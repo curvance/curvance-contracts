@@ -28,7 +28,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
     fallback() external payable {}
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(complexZapper.marketManager()),
             address(marketManager)

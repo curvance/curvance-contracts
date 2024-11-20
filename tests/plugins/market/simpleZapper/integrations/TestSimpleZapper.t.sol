@@ -165,7 +165,7 @@ contract TestSimpleZapper is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testInitialize() public view {
+    function testInitialize() public {
         assertEq(
             address(complexZapper.marketManager()),
             address(marketManager)

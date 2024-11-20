@@ -83,7 +83,7 @@ contract CanRedeemTest is TestBaseMarketManager {
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_success_whenRedeemerNotInMarket() public view {
+    function test_canRedeem_success_whenRedeemerNotInMarket() public {
         bool hasPosition;
         (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
 
@@ -91,7 +91,7 @@ contract CanRedeemTest is TestBaseMarketManager {
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
-    function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public view {
+    function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public {
         assertFalse(eUSDC.isPToken());
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
