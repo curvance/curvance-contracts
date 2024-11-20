@@ -10,16 +10,28 @@ contract ETokenStartMarketTest is TestBaseEToken {
         public
     {
         vm.expectRevert(EToken.EToken__Unauthorized.selector);
-
         eUSDC.startMarket(address(0));
+    }
+
+    function test_eTokenStartMarket_fail_whenInterestRateModelLinkedToWrongToken()
+        public
+    {
+        eUSDC.setInterestRateModel(
+            address(interestRateModels[block.chainid][_DAI_ADDRESS])
+        );
+
+        vm.prank(address(marketManager));
+
+        vm.expectRevert(EToken.EToken__Unauthorized.selector);
+        eUSDC.startMarket(user1);
     }
 
     function test_eTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
-        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
-
         vm.prank(address(marketManager));
+
+        vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         eUSDC.startMarket(address(0));
     }
 

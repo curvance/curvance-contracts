@@ -1,6 +1,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseDynamicInterestRateModel } from "../TestBaseDynamicInterestRateModel.sol";
+import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 
 contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
@@ -10,6 +11,17 @@ contract GetBorrowRateWithUpdateTest is TestBaseDynamicInterestRateModel {
     uint256 public increaseThreshold;
     uint256 public util;
     uint256 public vertexMultiplier;
+
+    function test_getBorrowRateWithUpdate_fail_whenCallerIsNotLinkedEToken()
+        public
+    {
+        vm.expectRevert(
+            DynamicInterestRateModel
+                .DynamicInterestRateModel__Unauthorized
+                .selector
+        );
+        interestRateModel.getBorrowRateWithUpdate(0, 0, 0);
+    }
 
     function test_getBorrowRateWithUpdate_success_fuzzed(
         uint256 cash,
