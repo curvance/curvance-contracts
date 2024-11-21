@@ -125,7 +125,7 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             false
         );
         assertEq(errorCode, 0);
-        assertApproxEqRel(priceBefore, priceAfter, 100000);
+        assertApproxEqRel(priceBefore, priceAfter, 100);
     }
 
     function testPriceDoesNotChangeAfterTenTimesLargeSwap() public {
@@ -161,7 +161,8 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             false
         );
         assertEq(errorCode, 0);
-        assertApproxEqRel(priceBefore, priceAfter, 100000);
+        // 1e-14% change is allowed, almost equal
+        assertApproxEqRel(priceBefore, priceAfter, 100);
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {
