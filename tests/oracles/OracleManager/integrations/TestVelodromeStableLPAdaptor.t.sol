@@ -125,7 +125,44 @@ contract TestVelodromeStableLPAdaptor is TestBaseOracleManager {
             false
         );
         assertEq(errorCode, 0);
-        assertApproxEqRel(priceBefore, priceAfter, 100000);
+        assertApproxEqRel(priceBefore, priceAfter, 100);
+    }
+
+    function testPriceDoesNotChangeAfterTenTimesLargeSwap() public {
+        uint256 errorCode;
+        uint256 priceBefore;
+        (priceBefore, errorCode) = oracleManager.getPrice(
+            _VELODROME_DAI_USDC,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertGt(priceBefore, 0);
+
+        // try large swap (5M _USDC_ADDRESS)
+        uint256 amount = 5000000e6;
+        deal(_USDC_ADDRESS, address(this), amount);
+        VelodromeLib._swapExactTokensForTokens(
+            _VELO_ROUTER,
+            _VELODROME_DAI_USDC,
+            _USDC_ADDRESS,
+            _DAI_ADDRESS,
+            amount,
+            true
+        );
+
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertGt(dai.balanceOf(address(this)), 0);
+
+        uint256 priceAfter;
+        (priceAfter, errorCode) = oracleManager.getPrice(
+            _VELODROME_DAI_USDC,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        // 1e-14% change is allowed, almost equal
+        assertApproxEqRel(priceBefore, priceAfter, 100);
     }
 
     function testRevertGetPrice__AssetIsNotSupported() public {

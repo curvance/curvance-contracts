@@ -160,9 +160,25 @@ contract TestBoostedLock is TestBaseMarket {
         // user0, user3 claims
         RewardsData memory rewardData;
         vm.prank(users[0]);
-        gaugeManager.claimAndLock(tokens[0], false, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(tokens[0]),
+            true, // isNewLock
+            false, // continuousLock
+            0, // lockIndex
+            rewardData,
+            "0x",
+            0
+        );
         vm.prank(users[3]);
-        gaugeManager.claimAndLock(tokens[1], false, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(tokens[1]),
+            true, // isNewLock
+            false, // continuousLock
+            0, // lockIndex
+            rewardData,
+            "0x",
+            0
+        );
         assertEq(veCVE.balanceOf(users[0]) / 1e18, 876020 - 1);
         assertEq(veCVE.balanceOf(users[3]) / 1e18, 6928160 - 1);
         assertApproxEqAbs(veCVE.getVotes(users[0]), 842326e18, 1e18);
@@ -172,19 +188,21 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user0, user3 claims
         vm.prank(users[0]);
-        gaugeManager.claimAndExtendLock(
+        gaugeManager.claimAndLock(
             _makeTokenArray(tokens[0]),
-            0,
-            true,
+            false, // isNewLock
+            true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
         );
         vm.prank(users[3]);
-        gaugeManager.claimAndExtendLock(
+        gaugeManager.claimAndLock(
             _makeTokenArray(tokens[1]),
-            0,
-            false,
+            false, // isNewLock
+            false, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -209,10 +227,11 @@ contract TestBoostedLock is TestBaseMarket {
 
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndExtendLock(
+        gaugeManager.claimAndLock(
             _makeTokenArray(address(cve)),
-            0,
-            true,
+            false, // isNewLock
+            true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -221,10 +240,11 @@ contract TestBoostedLock is TestBaseMarket {
         vm.warp(gaugeManager.startTime());
         vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndExtendLock(
+        gaugeManager.claimAndLock(
             _makeTokenArray(address(cve)),
-            0,
-            true,
+            false, // isNewLock
+            true, // continuousLock
+            0, // lockIndex
             rewardData,
             "0x",
             0
@@ -238,11 +258,27 @@ contract TestBoostedLock is TestBaseMarket {
 
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(address(cve)),
+            true,
+            true,
+            0,
+            rewardData,
+            "0x",
+            0
+        );
 
         vm.warp(gaugeManager.startTime());
         vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
-        gaugeManager.claimAndLock(address(cve), true, rewardData, "0x", 0);
+        gaugeManager.claimAndLock(
+            _makeTokenArray(address(cve)),
+            true,
+            true,
+            0,
+            rewardData,
+            "0x",
+            0
+        );
     }
 }

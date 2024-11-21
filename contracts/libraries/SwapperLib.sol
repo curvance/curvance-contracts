@@ -122,7 +122,6 @@ library SwapperLib {
                 ? swapData.inputAmount
                 : 0;
 
-            // Execute the swap.
             LowLevelCallsHelper._callWithNative(
                 swapData.target,
                 swapData.call,
