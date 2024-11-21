@@ -31,14 +31,14 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
         address outputToken;
         if (funcSigHash == IOBRouter.swap.selector) {
             (IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                getFuncParams(swapData.call),
+                _getFuncParams(swapData.call),
                 (IOBRouter.swapTokenInfo, bytes, address, uint32)
             );
             recipient = tokenInfo.outputReceiver;
@@ -47,7 +47,7 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOBRouter.swapERC20Permit.selector) {
             (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                getFuncParams(swapData.call),
+                _getFuncParams(swapData.call),
                 (
                     IOBRouter.erc20PermitInfo,
                     IOBRouter.swapTokenInfo,
@@ -63,7 +63,7 @@ contract OogaBoogaCalldataChecker is BaseSwapChecker {
             outputToken = tokenInfo.outputToken;
         } else if (funcSigHash == IOBRouter.swapPermit2.selector) {
             (, IOBRouter.swapTokenInfo memory tokenInfo, , , ) = abi.decode(
-                getFuncParams(swapData.call),
+                _getFuncParams(swapData.call),
                 (
                     IOBRouter.permit2Info,
                     IOBRouter.swapTokenInfo,

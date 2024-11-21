@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { LiquidityManager, IOracleManager, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
+import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
@@ -16,7 +17,14 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
-/// @dev There are two types of tokens inside Curvance:
+/// @dev Curvance Market Managers are built as "thesis driven" micro
+///      ecosystems. This means that a market may be focused specifically
+///      on interest-bearing stablecoins, or bluechip long market exposure,
+///      volatile LP tokens for a particular dex or perpetual platform. This
+///      minimizes systemic risk by having many market managers with unique
+///      opportunities and risk profiles.
+///
+///      There are two types of tokens inside Curvance:
 ///      Position tokens, aka pTokens that can be posted as collateral.
 ///      Debt tokens, aka eTokens that can be lent out to pToken depositors.
 ///      Unique to Curvance, rehypothecation of position token deposits
@@ -27,7 +35,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      All management of both pTokens and eTokens actions are managed by
 ///      the Market Manager. These tokens are collectively referred to as
 ///      Market Tokens, or mTokens. All pTokens and eTokens are mTokens but,
-///      not all pTokens are eTokens, and vice versa.
+///      not all pTokens are eTokens, and vice versa. Listing of pTokens and
+///      eTokens also restrict token collision, meaning a pToken and eToken
+///      cannot have the same underlying token in the same market.
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      pToken contracts while restricting the scale of exogenous risk.
@@ -60,7 +70,12 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
 ///
-contract MarketManager is LiquidityManager, ERC165, Multicall {
+contract MarketManager is
+    LiquidityManager,
+    LiquidationManager,
+    ERC165,
+    Multicall
+{
     /// CONSTANTS ///
 
     /// @notice Maximum number of listed assets allowed inside a market.
@@ -115,7 +130,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ///         offchain querying.
     address[] public tokensListed;
 
-    /// @notice mapping for positionManagement contract addresses.
+    /// @notice Whether an address is an authorized position management
+    ///         operator or not.
+    /// @dev Address => Is an approved position management operator.
     mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
@@ -447,16 +464,17 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
 
         // Fail if the sender is not permitted to redeem `tokens`.
         // Note: `tokens` is in shares.
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            pToken,
-            msg.sender,
-            tokens
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canRedeem(pToken, msg.sender, tokens);
         _removeCollateral(msg.sender, accountPositions, pToken, tokens);
 
-        if (updateNeeded == 2) {
-            _closePositions(msg.sender, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            msg.sender,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to mint tokens
@@ -528,15 +546,16 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     ) external {
         _checkIsToken(eToken);
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
-            eToken,
-            account,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canBorrow(eToken, account, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(account, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -554,15 +573,16 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         _checkIsToken(eToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canBorrow(
-            eToken,
-            account,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canBorrow(eToken, account, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(account, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -642,6 +662,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
+        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact
@@ -653,6 +674,9 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             uint256 pTokenLiquidated,
             uint256 protocolTokens
         ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+
+        // Validate that the OEV queue is disabled or the liquidator is valid.
+        _validateLiquidation(liquidator, account, true);
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
@@ -708,7 +732,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
+    /// @param from The account which will transfer the tokens.
     /// @param amount The number of mTokens to transfer.
     function canTransferEToken(
         address mToken,
@@ -716,25 +740,27 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         uint256 amount
     ) external {
         _checkIsToken(mToken);
+
         if (transferPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        (uint256 updateNeeded, bool[] memory positionsToClose) = _canRedeem(
-            mToken,
-            from,
-            amount
-        );
+        (
+            uint256 positionClosureNeeded,
+            bool[] memory positionsToClose
+        ) = _canRedeem(mToken, from, amount);
 
-        if (updateNeeded == 2) {
-            _closePositions(from, positionsToClose);
-        }
+        _closePositionsIfNeeded(
+            positionClosureNeeded,
+            from,
+            positionsToClose
+        );
     }
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
+    /// @param from The account which will transfer the tokens.
     /// @param amount The number of mTokens to transfer.
     function canTransferPToken(
         address mToken,
@@ -755,15 +781,41 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         );
     }
 
-    /// @notice Liquidates an entire account by partially paying down debts,
-    ///         distributing all `account` collateral and recognize remaining
-    ///         debt as bad debt.
-    /// @dev Updates `account` EToken interest before solvency is checked.
-    ///      Extensive run invariant checks are made to prevent potential
-    ///      asset callback exploits.
-    ///      Emits a {CollateralRemoved} event.
-    /// @param account The address to liquidate completely.
-    function liquidateAccount(address account) external {
+    /// @notice Queues a token specific liquidation for `account` liquidating
+    ///         `pToken` by repaying active debt in `eToken`.
+    /// @dev Called by the eToken itself to validate that liquidation is
+    ///      allowed based on `account`'s current liquidity.
+    /// @param eToken The earning token debt position to be from
+    ///               `account`.
+    /// @param pToken The position token to be liquidated from
+    ///               `account`.
+    /// @param liquidator The account to execute the liquidation once queued.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
+    function queueLiquidation(
+        address eToken,
+        address pToken,
+        address liquidator,
+        address account
+    ) external {
+        // Verify caller is actually the eToken.
+        _checkIsToken(eToken);
+
+        // Verify the liquidation is valid.
+        _canLiquidate(eToken, pToken, account, 0, false);
+
+        // Queue the liquidation for execution.
+        _queueLiquidation(liquidator, account, true);
+    }
+
+
+    /// @notice Queues an account liquidation for `account` liquidating
+    ///         `pToken` by repaying a portion of `account`'s active debt.
+    /// @dev Called by the liquidator themselves to queue up a different
+    ///      account's liquidation.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
+    function queueAccountLiquidation(address account) external {
         // Make sure `account` is not trying to liquidate themselves.
         if (msg.sender == account) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -788,10 +840,57 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             }
         }
 
+        (BadDebtData memory data, ) = _AccountLiquidationStatusOf(account);
+
+        // If an account has no collateral or debt this will revert.
+        if (data.collateral >= data.debt) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        // Queue the liquidation for execution.
+        _queueLiquidation(msg.sender, account, false);
+    }
+
+    /// @notice Liquidates an entire account by partially paying down debts,
+    ///         distributing all `account` collateral and recognize remaining
+    ///         debt as bad debt.
+    /// @dev Updates `account` EToken interest before solvency is checked.
+    ///      Extensive run invariant checks are made to prevent potential
+    ///      asset callback exploits.
+    ///      Emits a {CollateralRemoved} event.
+    /// @param account The address to liquidate completely.
+    function liquidateAccount(address account) external {
+        // Make sure `account` is not trying to liquidate themselves.
+        if (msg.sender == account) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Make sure liquidations are not paused.
+        if (seizePaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        // Validate that the OEV queue is disabled or the liquidator is valid
+        _validateLiquidation(msg.sender, account, false);
+
+        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
+        uint256 numAssetsPrior = accountAssetsPrior.length;
+        IMToken mToken;
+
+        // Update pending interest in markets.
+        for (uint256 i; i < numAssetsPrior; ) {
+            // Cache `account` mToken then increment i.
+            mToken = accountAssetsPrior[i++];
+            if (!mToken.isPToken()) {
+                // Update EToken interest if necessary.
+                mToken.accrueInterest();
+            }
+        }
+
         (
             BadDebtData memory data,
             uint256[] memory assetBalances
-        ) = _BadDebtTermsOf(account);
+        ) = _AccountLiquidationStatusOf(account);
 
         // If an account has no collateral or debt this will revert.
         if (data.collateral >= data.debt) {
@@ -1317,65 +1416,6 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         emit CollateralRemoved(account, pToken, tokens);
     }
 
-    /// @notice Helper function for closing user positions after liquidity
-    ///         checks have been passed.
-    /// @dev Used as sort of a garbage collection system for any user positions
-    ///      that should be closed to optimize future liquidity checks.
-    ///      May emit {TokenPositionClosed} events.
-    /// @param account The address of the account to close a
-    ///                `mToken` position for.
-    /// @param positionsToClose Array containing all The address of the asset to be removed.
-    function _closePositions(
-        address account,
-        bool[] memory positionsToClose
-    ) internal {
-        // Cache asset list.
-        IMToken[] memory userAssets = accountAssets[account].assets;
-
-        // Cache asset array characteristics.
-        uint256 numAssets = userAssets.length;
-        uint256 lastAssetIndex = userAssets.length - 1;
-        address cachedToken;
-
-        // Copy last item in list to location of item to be removed.
-        IMToken[] storage storedAssets = accountAssets[account].assets;
-
-        // Go backwards through position list so swap and pop maintains
-        // continuity.
-        for (uint256 i = numAssets; i > 0; ) {
-            // Subtract 1 from i prior since length starts at 1 but array
-            // indices start at 0.
-            if (positionsToClose[--i]) {
-                // If the asset is not at the end of the array swap and pop
-                // entries.
-                if (i != lastAssetIndex) {
-                    // Switch assets in user asset array, then decrease
-                    // lastAssetIndex to account for pop.
-                    storedAssets[i] = storedAssets[lastAssetIndex--];
-                    // Remove the last element to remove `mToken` from
-                    // account asset list.
-                    storedAssets.pop();
-                } else {
-                    // If we are on the last index we don't need to decrement
-                    // lastAssetIndex again.
-                    if (lastAssetIndex != 0) {
-                        --lastAssetIndex;
-                    }
-
-                    storedAssets.pop();
-                }
-
-                cachedToken = address(userAssets[i]);
-
-                // Remove `mToken` account position flag.
-                tokenData[cachedToken]
-                    .accountPositions[account]
-                    .activePosition = 1;
-                emit TokenPositionClosed(cachedToken, account);
-            }
-        }
-    }
-
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical borrow will result in a
@@ -1429,7 +1469,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.updateNeeded, positionsToClose);
+        return (result.positionClosureNeeded, positionsToClose);
     }
 
     /// @notice Helper function for checking if the account should be allowed
@@ -1447,9 +1487,11 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(account)
-            ) {
+        if (
+            ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
+                account
+            )
+        ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1497,7 +1539,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.updateNeeded, positionsToClose);
+        return (result.positionClosureNeeded, positionsToClose);
     }
 
     /// @notice Checks if the account should be allowed to redeem tokens
@@ -1533,7 +1575,7 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         // Execute removal of collateral posted, if needed.
         if (collateralToRemove > 0) {
             (
-                uint256 updateNeeded,
+                uint256 positionClosureNeeded,
                 bool[] memory positionsToClose
             ) = _canRedeem(pToken, account, collateralToRemove);
 
@@ -1544,12 +1586,15 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
                 collateralToRemove
             );
 
-            if (updateNeeded == 2) {
-                _closePositions(account, positionsToClose);
-            }
+            _closePositionsIfNeeded(
+                positionClosureNeeded,
+                account,
+                positionsToClose
+            );
         } else {
-            if (ILockableRegistry(
-                address(centralRegistry)).checkTransfersDisabled(account)
+            if (
+                ILockableRegistry(address(centralRegistry))
+                    .checkTransfersDisabled(account)
             ) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
@@ -1696,6 +1741,74 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         );
     }
 
+    
+    /// @notice Helper function for closing user positions after liquidity
+    ///         checks have been passed.
+    /// @dev Used as sort of a garbage collection system for any user positions
+    ///      that should be closed to optimize future liquidity checks.
+    ///      May emit {TokenPositionClosed} events.
+    /// @param positionsClosureNeeded Whether closing positions is needed
+    ///                               for `account`.
+    /// @param account The address of the account to close a
+    ///                `mToken` position for.
+    /// @param positionsToClose Array containing all The address of the asset
+    ///                         to be removed.
+    function _closePositionsIfNeeded(
+        uint256 positionsClosureNeeded,
+        address account,
+        bool[] memory positionsToClose
+    ) internal {
+        if (positionsClosureNeeded != 2) {
+            return;
+        }
+
+        // Cache asset list.
+        IMToken[] memory userAssets = accountAssets[account].assets;
+
+        // Cache asset array characteristics.
+        uint256 numAssets = userAssets.length;
+        uint256 lastAssetIndex = userAssets.length - 1;
+        address cachedToken;
+
+        // Copy last item in list to location of item to be removed.
+        IMToken[] storage storedAssets = accountAssets[account].assets;
+
+        // Go backwards through position list so swap and pop maintains
+        // continuity.
+        for (uint256 i = numAssets; i > 0; ) {
+            // Subtract 1 from i prior since length starts at 1 but array
+            // indices start at 0.
+            if (positionsToClose[--i]) {
+                // If the asset is not at the end of the array swap and pop
+                // entries.
+                if (i != lastAssetIndex) {
+                    // Switch assets in user asset array, then decrease
+                    // lastAssetIndex to account for pop.
+                    storedAssets[i] = storedAssets[lastAssetIndex--];
+                    // Remove the last element to remove `mToken` from
+                    // account asset list.
+                    storedAssets.pop();
+                } else {
+                    // If we are on the last index we don't need to decrement
+                    // lastAssetIndex again.
+                    if (lastAssetIndex != 0) {
+                        --lastAssetIndex;
+                    }
+
+                    storedAssets.pop();
+                }
+
+                cachedToken = address(userAssets[i]);
+
+                // Remove `mToken` account position flag.
+                tokenData[cachedToken]
+                    .accountPositions[account]
+                    .activePosition = 1;
+                emit TokenPositionClosed(cachedToken, account);
+            }
+        }
+    }
+
     /// @notice Helper function to calculate how much collateral should
     ///         be removed for their desired action.
     /// @param account The account to potential reduce posted collateral for.
@@ -1781,7 +1894,8 @@ contract MarketManager is LiquidityManager, ERC165, Multicall {
         }
     }
 
-    /// @dev from Multicall
+    /// @dev Returns the Protocol Central Registry contract in interface
+    ///      form.
     function _getCentralRegistry()
         internal
         view

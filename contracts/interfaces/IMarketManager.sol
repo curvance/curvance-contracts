@@ -96,21 +96,21 @@ interface IMarketManager {
     /// @param liquidateExact Whether the liquidator desires a specific
     ///                       liquidation amount.
     /// @return The amount of `earnToken` underlying to be repaid on liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a liquidation.
-    /// @return The number of `positionToken` tokens to be seized for the protocol.
+    /// @return The number of `pToken` tokens to be seized in a liquidation.
+    /// @return The number of `pToken` tokens to be seized for the protocol.
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
+        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact
     ) external returns (uint256, uint256, uint256);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
-    /// @param positionToken Asset which was used as collateral
-    ///                        and will be seized.
+    /// @param pToken Asset which was used as collateral and will be seized.
     /// @param earnToken Asset which was borrowed by the account.
-    function canSeize(address positionToken, address earnToken) external;
+    function canSeize(address pToken, address earnToken) external;
 
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
@@ -132,6 +132,24 @@ interface IMarketManager {
         address mToken,
         address from,
         uint256 amount
+    ) external;
+
+    /// @notice Queues a token specific liquidation for `account` liquidating
+    ///         `pToken` by repaying active debt in `eToken`.
+    /// @dev Called by the eToken itself to validate that liquidation is
+    ///      allowed based on `account`'s current liquidity.
+    /// @param eToken The earning token debt position to be from
+    ///               `account`.
+    /// @param pToken The position token to be liquidated from
+    ///               `account`.
+    /// @param liquidator The account to execute the liquidation once queued.
+    /// @param account The account being liquidated and debt repaid on behalf
+    ///                of.
+    function queueLiquidation(
+        address eToken,
+        address pToken,
+        address liquidator,
+        address account
     ) external;
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -173,7 +191,10 @@ interface IMarketManager {
         address account
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice The address of the linked Position Folding Contract.
+    /// @notice Returns whether `positionContract` is an approved position
+    ///         management operator or not.
+    /// @param positionContract Address to check for position management
+    ///                         authority.
     function positionManagement(
         address positionContract
     ) external view returns (bool);

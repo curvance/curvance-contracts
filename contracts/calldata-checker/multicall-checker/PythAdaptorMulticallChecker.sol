@@ -47,12 +47,12 @@ contract PythAdaptorMulticallChecker is BaseMulticallChecker {
             revert MulticallChecker__TargetError();
         }
 
-        bytes4 functionSig = getFuncSigHash(data);
+        bytes4 functionSig = _getFuncSigHash(data);
         if (
             functionSig == PythAdaptor.updateFeedsFromUniversalBalance.selector
         ) {
             (, address user) = abi.decode(
-                getFuncParams(data),
+                _getFuncParams(data),
                 (bytes[], address)
             );
             if (caller != user) {

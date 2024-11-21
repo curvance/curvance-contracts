@@ -6,6 +6,7 @@ import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldata
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
@@ -28,7 +29,6 @@ library SwapperLib {
 
     /// ERRORS ///
 
-    error SwapperLib__SwapError();
     error SwapperLib__UnknownCalldata();
     error SwapperLib__TokenPrice(address inputToken);
     error SwapperLib__Slippage(uint256 slippage);
@@ -73,11 +73,11 @@ library SwapperLib {
             : 0;
 
         // Execute the swap.
-        (bool success, bytes memory auxData) = swapData.target.call{
-            value: value
-        }(swapData.call);
-
-        propagateError(success, auxData);
+        LowLevelCallsHelper._callWithNative(
+            swapData.target,
+            swapData.call,
+            value
+        );
 
         // Remove any excess approval.
         _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
@@ -122,17 +122,11 @@ library SwapperLib {
                 ? swapData.inputAmount
                 : 0;
 
-            // Execute the swap.
-            (bool success, bytes memory auxData) = swapData.target.call{
-                value: value
-            }(swapData.call);
-
-            propagateError(success, auxData);
-
-            // Revert if the swap failed.
-            if (!success) {
-                revert SwapperLib__SwapError();
-            }
+            LowLevelCallsHelper._callWithNative(
+                swapData.target,
+                swapData.call,
+                value
+            );
 
             // Remove any excess approval.
             _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
@@ -185,11 +179,11 @@ library SwapperLib {
             // Calculate % slippage from executed swap.
             uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
             if (
-                    slippage > swapData.slippage ||
-                    slippage > centralRegistry.slippageLimit()
-                ) {
-                    revert SwapperLib__Slippage(slippage);
-            } 
+                slippage > swapData.slippage ||
+                slippage > centralRegistry.slippageLimit()
+            ) {
+                revert SwapperLib__Slippage(slippage);
+            }
         }
     }
 
@@ -214,20 +208,6 @@ library SwapperLib {
         if (!CommonLib.isETH(token)) {
             if (IERC20(token).allowance(address(this), spender) > 0) {
                 SafeTransferLib.safeApprove(token, spender, 0);
-            }
-        }
-    }
-
-    /// @dev Propagates an error message.
-    /// @param success If transaction was successful.
-    /// @param data The transaction result data.
-    function propagateError(bool success, bytes memory data) internal pure {
-        if (!success) {
-            if (data.length == 0) {
-                revert SwapperLib__SwapError();
-            }
-            assembly {
-                revert(add(32, data), mload(data))
             }
         }
     }
