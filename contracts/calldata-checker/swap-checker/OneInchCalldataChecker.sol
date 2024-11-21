@@ -32,7 +32,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
             revert CalldataChecker__TargetError();
         }
 
-        bytes4 funcSigHash = getFuncSigHash(swapData.call);
+        bytes4 funcSigHash = _getFuncSigHash(swapData.call);
         address recipient;
         address inputToken;
         uint256 inputAmount;
@@ -40,7 +40,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
         if (funcSigHash == IAggregationRouterV5.swap.selector) {
             (, IAggregationRouterV5.SwapDescription memory desc, , ) = abi
                 .decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (
                         address,
                         IAggregationRouterV5.SwapDescription,
@@ -64,7 +64,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 uint256[] memory pools,
 
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (address, address, uint256, uint256, uint256[], bytes)
                 );
 
@@ -85,7 +85,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 ,
                 uint256[] memory pools
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (address, uint256, uint256, uint256[])
                 );
 
@@ -105,7 +105,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
             funcSigHash == IAggregationRouterV5.uniswapV3Swap.selector
         ) {
             (uint256 amount, , uint256[] memory pools) = abi.decode(
-                getFuncParams(swapData.call),
+                _getFuncParams(swapData.call),
                 (uint256, uint256, uint256[])
             );
 
@@ -132,7 +132,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 uint256[] memory pools,
 
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (address, address, uint256, uint256, uint256[], bytes)
                 );
 
@@ -152,7 +152,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
                 ,
                 uint256[] memory pools
             ) = abi.decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (address, address, uint256, uint256, uint256[])
                 );
 
@@ -167,7 +167,7 @@ contract OneInchCalldataChecker is BaseSwapChecker {
         } else if (funcSigHash == IAggregationRouterV5.unoswap.selector) {
             (address srcToken, uint256 amount, , uint256[] memory pools) = abi
                 .decode(
-                    getFuncParams(swapData.call),
+                    _getFuncParams(swapData.call),
                     (address, uint256, uint256, uint256[])
                 );
 

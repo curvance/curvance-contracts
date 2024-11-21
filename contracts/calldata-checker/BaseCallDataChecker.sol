@@ -7,7 +7,7 @@ abstract contract BaseCallDataChecker {
     /// @notice Queries the function signature of `sigData`, this is used
     ///         to check against an expected selector.
     /// @param sigData The bytes array to pull a function signature from.
-    function getFuncSigHash(
+    function _getFuncSigHash(
         bytes memory sigData
     ) internal pure returns (bytes4 sig) {
         assembly {
@@ -18,15 +18,15 @@ abstract contract BaseCallDataChecker {
     /// @notice Returns the expected parameters for a function call with
     ///         the bytes array.
     /// @param paramsData The bytes array to pull a function parameters from.
-    function getFuncParams(
+    function _getFuncParams(
         bytes memory paramsData
     ) internal pure returns (bytes memory) {
-        return slice(paramsData, 4, paramsData.length - 4);
+        return _slice(paramsData, 4, paramsData.length - 4);
     }
 
     /// @notice Modifies `_bytes` into desired form based on
     ///         `_start` starting point,and `_length` length.
-    function slice(
+    function _slice(
         bytes memory _bytes,
         uint256 _start,
         uint256 _length
