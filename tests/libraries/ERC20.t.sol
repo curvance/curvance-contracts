@@ -3,18 +3,23 @@ pragma solidity ^0.8.4;
 
 import "./utils/SoladyTest.sol";
 
-import {ERC20, MockERC20} from "./utils/mocks/MockERC20.sol";
+import { ERC20, MockERC20 } from "./utils/mocks/MockERC20.sol";
 
 contract ERC20Test is SoladyTest {
     MockERC20 token;
 
-    bytes32 constant PERMIT_TYPEHASH = keccak256(
-        "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-    );
+    bytes32 constant PERMIT_TYPEHASH =
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 amount
+    );
 
     struct _TestTemps {
         address owner;
@@ -178,7 +183,11 @@ contract ERC20Test is SoladyTest {
         assertEq(token.balanceOf(to), amount);
     }
 
-    function testBurn(address from, uint256 mintAmount, uint256 burnAmount) public {
+    function testBurn(
+        address from,
+        uint256 mintAmount,
+        uint256 burnAmount
+    ) public {
         burnAmount = _bound(burnAmount, 0, mintAmount);
 
         token.mint(from, mintAmount);
@@ -249,7 +258,7 @@ contract ERC20Test is SoladyTest {
 
     function testDirectTransfer(uint256) public {
         _TestTemps memory t = _testTemps();
-        while (t.owner == t.to) (t.to,) = _randomSigner();
+        while (t.owner == t.to) (t.to, ) = _randomSigner();
 
         uint256 totalSupply = _random();
         token.mint(t.owner, totalSupply);
@@ -302,9 +311,11 @@ contract ERC20Test is SoladyTest {
         assertEq(token.nonces(t.owner), t.nonce + 1);
     }
 
-    function testBurnInsufficientBalanceReverts(address to, uint256 mintAmount, uint256 burnAmount)
-        public
-    {
+    function testBurnInsufficientBalanceReverts(
+        address to,
+        uint256 mintAmount,
+        uint256 burnAmount
+    ) public {
         if (mintAmount == type(uint256).max) mintAmount--;
         burnAmount = _bound(burnAmount, mintAmount + 1, type(uint256).max);
 
@@ -410,10 +421,20 @@ contract ERC20Test is SoladyTest {
     }
 
     function _signPermit(_TestTemps memory t) internal view {
-        bytes32 innerHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, t.owner, t.to, t.amount, t.nonce, t.deadline));
+        bytes32 innerHash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                t.owner,
+                t.to,
+                t.amount,
+                t.nonce,
+                t.deadline
+            )
+        );
         bytes32 domainSeparator = token.DOMAIN_SEPARATOR();
-        bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, innerHash));
+        bytes32 outerHash = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, innerHash)
+        );
         (t.v, t.r, t.s) = vm.sign(t.privateKey, outerHash);
     }
 

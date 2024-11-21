@@ -3,16 +3,21 @@ pragma solidity ^0.8.4;
 
 import "./utils/SoladyTest.sol";
 
-import {ERC20, MockERC20} from "./utils/mocks/MockERC20.sol";
-import {ERC4626, MockERC4626} from "./utils/mocks/MockERC4626.sol";
-import {SafeTransferLib} from "../../contracts/libraries/external/SafeTransferLib.sol";
-import {FixedPointMathLib} from "../../contracts/libraries/external/FixedPointMathLib.sol";
+import { MockERC20 } from "./utils/mocks/MockERC20.sol";
+import { ERC4626, MockERC4626 } from "./utils/mocks/MockERC4626.sol";
+import { SafeTransferLib } from "../../contracts/libraries/external/SafeTransferLib.sol";
+import { FixedPointMathLib } from "../../contracts/libraries/external/FixedPointMathLib.sol";
 
 contract ERC4626Test is SoladyTest {
     MockERC20 underlying;
     MockERC4626 vault;
 
-    event Deposit(address indexed by, address indexed owner, uint256 assets, uint256 shares);
+    event Deposit(
+        address indexed by,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
 
     event Withdraw(
         address indexed by,
@@ -24,24 +29,50 @@ contract ERC4626Test is SoladyTest {
 
     function setUp() public {
         underlying = new MockERC20("Mock Token", "TKN", 18);
-        vault = new MockERC4626(address(underlying), "Mock Token Vault", "vwTKN", false, 0);
+        vault = new MockERC4626(
+            address(underlying),
+            "Mock Token Vault",
+            "vwTKN",
+            false,
+            0
+        );
     }
 
     function _replaceWithVirtualSharesVault(uint8 decimalsOffset) internal {
-        vault = new MockERC4626(address(underlying), "VSV", "VSVTKN", true, decimalsOffset);
+        vault = new MockERC4626(
+            address(underlying),
+            "VSV",
+            "VSVTKN",
+            true,
+            decimalsOffset
+        );
     }
 
     function _replaceWithVirtualSharesVault() internal {
         _replaceWithVirtualSharesVault(0);
     }
 
-    function testDifferentialFullMulDiv(uint256 x, uint256 y, uint256 d) public {
-        d = type(uint256).max - d % 4;
-        (bool success0,) = address(this).call(
-            abi.encodeWithSignature("fullMulDivChecked(uint256,uint256,uint256)", x, y, d)
+    function testDifferentialFullMulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 d
+    ) public {
+        d = type(uint256).max - (d % 4);
+        (bool success0, ) = address(this).call(
+            abi.encodeWithSignature(
+                "fullMulDivChecked(uint256,uint256,uint256)",
+                x,
+                y,
+                d
+            )
         );
-        (bool success1,) = address(this).call(
-            abi.encodeWithSignature("fullMulDivUnchecked(uint256,uint256,uint256)", x, y, d)
+        (bool success1, ) = address(this).call(
+            abi.encodeWithSignature(
+                "fullMulDivUnchecked(uint256,uint256,uint256)",
+                x,
+                y,
+                d
+            )
         );
         if (d == type(uint256).max) {
             assertFalse(success0);
@@ -109,7 +140,10 @@ contract ERC4626Test is SoladyTest {
 
         vm.prank(alice);
         underlying.approve(address(vault), aliceUnderlyingAmount);
-        assertEq(underlying.allowance(alice, address(vault)), aliceUnderlyingAmount);
+        assertEq(
+            underlying.allowance(alice, address(vault)),
+            aliceUnderlyingAmount
+        );
 
         uint256 alicePreDepositBal = underlying.balanceOf(alice);
 
@@ -120,13 +154,25 @@ contract ERC4626Test is SoladyTest {
 
         // Expect exchange rate to be 1:1 on initial deposit.
         assertEq(aliceUnderlyingAmount, aliceShareAmount);
-        assertEq(vault.previewWithdraw(aliceShareAmount), aliceUnderlyingAmount);
-        assertEq(vault.previewDeposit(aliceUnderlyingAmount), aliceShareAmount);
+        assertEq(
+            vault.previewWithdraw(aliceShareAmount),
+            aliceUnderlyingAmount
+        );
+        assertEq(
+            vault.previewDeposit(aliceUnderlyingAmount),
+            aliceShareAmount
+        );
         assertEq(vault.totalSupply(), aliceShareAmount);
         assertEq(vault.totalAssets(), aliceUnderlyingAmount);
         assertEq(vault.balanceOf(alice), aliceShareAmount);
-        assertEq(vault.convertToAssets(vault.balanceOf(alice)), aliceUnderlyingAmount);
-        assertEq(underlying.balanceOf(alice), alicePreDepositBal - aliceUnderlyingAmount);
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(alice)),
+            aliceUnderlyingAmount
+        );
+        assertEq(
+            underlying.balanceOf(alice),
+            alicePreDepositBal - aliceUnderlyingAmount
+        );
 
         vm.prank(alice);
         vault.withdraw(aliceUnderlyingAmount, alice, alice);
@@ -150,7 +196,10 @@ contract ERC4626Test is SoladyTest {
 
         vm.prank(alice);
         underlying.approve(address(vault), aliceShareAmount);
-        assertEq(underlying.allowance(alice, address(vault)), aliceShareAmount);
+        assertEq(
+            underlying.allowance(alice, address(vault)),
+            aliceShareAmount
+        );
 
         uint256 alicePreDepositBal = underlying.balanceOf(alice);
 
@@ -161,13 +210,25 @@ contract ERC4626Test is SoladyTest {
 
         // Expect exchange rate to be 1:1 on initial mint.
         assertEq(aliceShareAmount, aliceUnderlyingAmount);
-        assertEq(vault.previewWithdraw(aliceShareAmount), aliceUnderlyingAmount);
-        assertEq(vault.previewDeposit(aliceUnderlyingAmount), aliceShareAmount);
+        assertEq(
+            vault.previewWithdraw(aliceShareAmount),
+            aliceUnderlyingAmount
+        );
+        assertEq(
+            vault.previewDeposit(aliceUnderlyingAmount),
+            aliceShareAmount
+        );
         assertEq(vault.totalSupply(), aliceShareAmount);
         assertEq(vault.totalAssets(), aliceUnderlyingAmount);
         assertEq(vault.balanceOf(alice), aliceUnderlyingAmount);
-        assertEq(vault.convertToAssets(vault.balanceOf(alice)), aliceUnderlyingAmount);
-        assertEq(underlying.balanceOf(alice), alicePreDepositBal - aliceUnderlyingAmount);
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(alice)),
+            aliceUnderlyingAmount
+        );
+        assertEq(
+            underlying.balanceOf(alice),
+            alicePreDepositBal - aliceUnderlyingAmount
+        );
 
         vm.prank(alice);
         vault.redeem(aliceShareAmount, alice, alice);
@@ -287,8 +348,14 @@ contract ERC4626Test is SoladyTest {
         // Expect to have received the requested mint amount.
         assertEq(t.aliceShareAmount, 2000);
         assertEq(vault.balanceOf(t.alice), t.aliceShareAmount);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.alice)), t.aliceUnderlyingAmount);
-        assertEq(vault.convertToShares(t.aliceUnderlyingAmount), vault.balanceOf(t.alice));
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.alice)),
+            t.aliceUnderlyingAmount
+        );
+        assertEq(
+            vault.convertToShares(t.aliceUnderlyingAmount),
+            vault.balanceOf(t.alice)
+        );
 
         // Expect a 1:1 ratio before mutation.
         assertEq(t.aliceUnderlyingAmount, 2000);
@@ -308,8 +375,14 @@ contract ERC4626Test is SoladyTest {
         // Expect to have received the requested underlying amount.
         assertEq(t.bobUnderlyingAmount, 4000);
         assertEq(vault.balanceOf(t.bob), t.bobShareAmount);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.bob)), t.bobUnderlyingAmount);
-        assertEq(vault.convertToShares(t.bobUnderlyingAmount), vault.balanceOf(t.bob));
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.bob)),
+            t.bobUnderlyingAmount
+        );
+        assertEq(
+            vault.convertToShares(t.bobUnderlyingAmount),
+            vault.balanceOf(t.bob)
+        );
 
         // Expect a 1:1 ratio before mutation.
         assertEq(t.bobShareAmount, t.bobUnderlyingAmount);
@@ -330,16 +403,25 @@ contract ERC4626Test is SoladyTest {
         // Bob's share count stays the same but the underlying amount changes from 4000 to 6000.
         underlying.mint(address(vault), t.mutationUnderlyingAmount);
         assertEq(vault.totalSupply(), t.preMutationShareBal);
-        assertEq(vault.totalAssets(), t.preMutationBal + t.mutationUnderlyingAmount);
+        assertEq(
+            vault.totalAssets(),
+            t.preMutationBal + t.mutationUnderlyingAmount
+        );
         assertEq(vault.balanceOf(t.alice), t.aliceShareAmount);
         assertEq(
             vault.convertToAssets(vault.balanceOf(t.alice)),
-            t.aliceUnderlyingAmount + (t.mutationUnderlyingAmount / 3) * 1 - slippage
+            t.aliceUnderlyingAmount +
+                (t.mutationUnderlyingAmount / 3) *
+                1 -
+                slippage
         );
         assertEq(vault.balanceOf(t.bob), t.bobShareAmount);
         assertEq(
             vault.convertToAssets(vault.balanceOf(t.bob)),
-            t.bobUnderlyingAmount + (t.mutationUnderlyingAmount / 3) * 2 - slippage
+            t.bobUnderlyingAmount +
+                (t.mutationUnderlyingAmount / 3) *
+                2 -
+                slippage
         );
 
         // 4. Alice deposits 2000 tokens (mints 1333 shares)
@@ -360,7 +442,10 @@ contract ERC4626Test is SoladyTest {
 
         assertEq(vault.totalSupply(), 9333);
         assertEq(vault.balanceOf(t.alice), 3333);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.alice)), 5000 - slippage);
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.alice)),
+            5000 - slippage
+        );
         assertEq(vault.balanceOf(t.bob), 6000);
         assertEq(vault.convertToAssets(vault.balanceOf(t.bob)), 9000);
 
@@ -374,8 +459,14 @@ contract ERC4626Test is SoladyTest {
         // 6. Vault mutates by +3000 tokens
         // NOTE: Vault holds 17001 tokens, but sum of assetsOf() is 17000.
         underlying.mint(address(vault), t.mutationUnderlyingAmount);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.alice)), 6071 - slippage);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.bob)), 10929 - slippage);
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.alice)),
+            6071 - slippage
+        );
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.bob)),
+            10929 - slippage
+        );
         assertEq(vault.totalSupply(), 9333);
         assertEq(vault.totalAssets(), 17001 - slippage);
 
@@ -415,7 +506,10 @@ contract ERC4626Test is SoladyTest {
         assertEq(vault.balanceOf(t.alice), 0);
         assertEq(vault.convertToAssets(vault.balanceOf(t.alice)), 0);
         assertEq(vault.balanceOf(t.bob), 4392);
-        assertEq(vault.convertToAssets(vault.balanceOf(t.bob)), 8001 - slippage);
+        assertEq(
+            vault.convertToAssets(vault.balanceOf(t.bob)),
+            8001 - slippage
+        );
 
         // 10. Bob redeem 4392 shares (8001 tokens)
         vm.prank(t.bob);

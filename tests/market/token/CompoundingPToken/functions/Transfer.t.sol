@@ -14,14 +14,14 @@ contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
         pBALRETH.mint(100, address(this));
     }
 
-    function test_CompoundingPTokenTransfer_fail_whenTransferZeroAmount()
+    function test_compoundingPTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         pBALRETH.transfer(user1, 0);
     }
 
-    function test_CompoundingPTokenTransfer_fail_whenTransferIsNotAllowed()
+    function test_compoundingPTokenTransfer_fail_whenTransferIsNotAllowed()
         public
     {
         marketManager.setTransferPaused(true);
@@ -30,7 +30,7 @@ contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
         pBALRETH.transfer(user1, 0);
     }
 
-    function test_CompoundingPTokenTransfer_success() public {
+    function test_compoundingPTokenTransfer_success() public {
         uint256 balance = pBALRETH.balanceOf(address(this));
         uint256 user1Balance = pBALRETH.balanceOf(user1);
 

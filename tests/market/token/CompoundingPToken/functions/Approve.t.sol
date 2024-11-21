@@ -10,7 +10,7 @@ contract CompoundingPTokenApproveTest is TestBaseCompoundingPToken {
         uint256 amount
     );
 
-    function test_CompoundingPTokenApprove_success() public {
+    function test_compoundingPTokenApprove_success() public {
         uint256 allowance = pBALRETH.allowance(address(this), user1);
 
         vm.expectEmit(true, true, true, true, address(pBALRETH));

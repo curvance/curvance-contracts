@@ -10,7 +10,7 @@ contract CompoundingWithExitFeePTokenSetExitFeeTest is
 {
     event ExitFeeSet(uint256 oldExitFee, uint256 newExitFee);
 
-    function test_CompoundingWithExitFeePTokenSetExitFee_fail_whenCallerIsNotAuthorized()
+    function test_compoundingWithExitFeePTokenSetExitFee_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(user1);
@@ -19,7 +19,7 @@ contract CompoundingWithExitFeePTokenSetExitFeeTest is
         pBALRETHWithExitFee.setExitFee(100);
     }
 
-    function test_CompoundingWithExitFeePTokenSetExitFee_fail_whenExitFeeExceedsMaximum()
+    function test_compoundingWithExitFeePTokenSetExitFee_fail_whenExitFeeExceedsMaximum()
         public
     {
         vm.expectRevert(
@@ -30,7 +30,7 @@ contract CompoundingWithExitFeePTokenSetExitFeeTest is
         pBALRETHWithExitFee.setExitFee(201);
     }
 
-    function test_CompoundingWithExitFeePTokenSetExitFee_success() public {
+    function test_compoundingWithExitFeePTokenSetExitFee_success() public {
         uint256 exitFee = pBALRETHWithExitFee.exitFee();
 
         vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));

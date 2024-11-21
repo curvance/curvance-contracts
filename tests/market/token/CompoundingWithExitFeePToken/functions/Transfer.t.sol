@@ -16,14 +16,14 @@ contract CompoundingWithExitFeePTokenTransferTest is
         pBALRETHWithExitFee.mint(100, address(this));
     }
 
-    function test_CompoundingWithExitFeePTokenTransfer_fail_whenTransferZeroAmount()
+    function test_compoundingWithExitFeePTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
         pBALRETHWithExitFee.transfer(user1, 0);
     }
 
-    function test_CompoundingWithExitFeePTokenTransfer_fail_whenTransferIsNotAllowed()
+    function test_compoundingWithExitFeePTokenTransfer_fail_whenTransferIsNotAllowed()
         public
     {
         marketManager.setTransferPaused(true);
@@ -32,7 +32,7 @@ contract CompoundingWithExitFeePTokenTransferTest is
         pBALRETHWithExitFee.transfer(user1, 0);
     }
 
-    function test_CompoundingWithExitFeePTokenTransfer_success() public {
+    function test_compoundingWithExitFeePTokenTransfer_success() public {
         uint256 balance = pBALRETHWithExitFee.balanceOf(address(this));
         uint256 user1Balance = pBALRETHWithExitFee.balanceOf(user1);
 

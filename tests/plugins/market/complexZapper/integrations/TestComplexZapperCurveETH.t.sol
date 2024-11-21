@@ -21,7 +21,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
 
-    SimplePToken pToken;
+    SimplePToken public pToken;
     Curve2PoolLPAdaptor public adaptor;
 
     receive() external payable {}

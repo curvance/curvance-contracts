@@ -8,7 +8,7 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 contract CompoundingWithExitFeePTokenStartMarketTest is
     TestBaseCompoundingWithExitFeePToken
 {
-    function test_CompoundingWithExitFeePTokenStartMarket_fail_whenCallerIsNotMarketManager()
+    function test_compoundingWithExitFeePTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
         vm.expectRevert(BasePToken.BasePToken__Unauthorized.selector);
@@ -16,7 +16,7 @@ contract CompoundingWithExitFeePTokenStartMarketTest is
         pBALRETHWithExitFee.startMarket(address(0));
     }
 
-    function test_CompoundingWithExitFeePTokenStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_compoundingWithExitFeePTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
@@ -25,7 +25,7 @@ contract CompoundingWithExitFeePTokenStartMarketTest is
         pBALRETHWithExitFee.startMarket(address(0));
     }
 
-    function test_CompoundingWithExitFeePTokenStartMarket_success() public {
+    function test_compoundingWithExitFeePTokenStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,

@@ -6,7 +6,7 @@ import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
-    function test_CompoundingPTokenStartMarket_fail_whenCallerIsNotMarketManager()
+    function test_compoundingPTokenStartMarket_fail_whenCallerIsNotMarketManager()
         public
     {
         vm.expectRevert(BasePToken.BasePToken__Unauthorized.selector);
@@ -14,7 +14,7 @@ contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
         pBALRETH.startMarket(address(0));
     }
 
-    function test_CompoundingPTokenStartMarket_fail_whenInitializerIsZeroAddress()
+    function test_compoundingPTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
@@ -23,7 +23,7 @@ contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
         pBALRETH.startMarket(address(0));
     }
 
-    function test_CompoundingPTokenStartMarket_success() public {
+    function test_compoundingPTokenStartMarket_success() public {
         vm.prank(user1);
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,

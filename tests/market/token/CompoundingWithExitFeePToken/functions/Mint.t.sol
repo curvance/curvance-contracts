@@ -10,7 +10,7 @@ contract CompoundingWithExitFeePTokenMintTest is
 {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
-    function test_CompoundingWithExitFeePTokenMint_fail_whenTransferZeroAmount()
+    function test_compoundingWithExitFeePTokenMint_fail_whenTransferZeroAmount()
         public
     {
         vm.expectRevert(
@@ -19,7 +19,7 @@ contract CompoundingWithExitFeePTokenMintTest is
         pBALRETHWithExitFee.mint(0, address(this));
     }
 
-    function test_CompoundingWithExitFeePTokenMint_fail_whenMintIsNotAllowed()
+    function test_compoundingWithExitFeePTokenMint_fail_whenMintIsNotAllowed()
         public
     {
         marketManager.setMintPaused(address(pBALRETHWithExitFee), true);
@@ -28,7 +28,7 @@ contract CompoundingWithExitFeePTokenMintTest is
         pBALRETHWithExitFee.mint(100, address(this));
     }
 
-    function test_CompoundingWithExitFeePTokenMint_success() public {
+    function test_compoundingWithExitFeePTokenMint_success() public {
         uint256 underlyingBalance = balRETH.balanceOf(address(this));
         uint256 balance = pBALRETHWithExitFee.balanceOf(address(this));
         uint256 totalSupply = pBALRETHWithExitFee.totalSupply();

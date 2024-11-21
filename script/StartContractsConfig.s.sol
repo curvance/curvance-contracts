@@ -23,8 +23,6 @@ import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
-import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 
@@ -515,11 +513,11 @@ contract StartContractsConfig is
 
     function _addRedstoneOracleSupport(address mToken) internal {
         address oracleManager = _getDeployedContract("oracleManager");
-        address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
-        address underlying = IMToken(mToken).underlying();
+        // address redstoneAdaptor = _getDeployedContract("redstoneAdaptor");
+        // address underlying = IMToken(mToken).underlying();
 
-        IERC20 underlyingToken = IERC20(underlying);
-        RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
+        // IERC20 underlyingToken = IERC20(underlying);
+        // RedstoneCoreAdaptor adaptor = RedstoneCoreAdaptor(redstoneAdaptor);
         OracleManager router = OracleManager(oracleManager);
 
         if (!router.isSupportedAsset(mToken)) {
@@ -568,7 +566,7 @@ contract StartContractsConfig is
 
         try
             OracleManager(oracleManager).assetPriceFeeds(underlying, 0)
-        returns (address feed) {} catch {
+        returns (address /* feed */) {} catch {
             OracleManager(oracleManager).addAssetPriceFeed(
                 underlying,
                 chainlinkAdaptor
@@ -585,10 +583,10 @@ contract StartContractsConfig is
         bool setup,
         bool executeFeeds
     ) internal {
-        CentralRegistry centralRegistry = CentralRegistry(
-            _getDeployedContract("centralRegistry")
-        );
-        ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
+        // CentralRegistry centralRegistry = CentralRegistry(
+        //     _getDeployedContract("centralRegistry")
+        // );
+        // ICentralRegistry icr = ICentralRegistry(address(centralRegistry));
 
         address[] memory mockTokens = new address[](4);
         mockTokens[0] = _getDeployedContract("LUSD");
@@ -634,7 +632,7 @@ contract StartContractsConfig is
     function _addRedstonePriceFeed(
         IERC20 underlyingToken,
         RedstoneCoreAdaptor adaptor,
-        OracleManager router
+        OracleManager /* router */
     ) internal {
         console.log(
             "[REDSTONE] - Fetching & applying price for ",

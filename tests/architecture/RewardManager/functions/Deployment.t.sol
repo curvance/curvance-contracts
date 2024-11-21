@@ -7,14 +7,16 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract RewardManagerDeploymentTest is TestBaseRewardManager {
-    function test_RewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
+    function test_rewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
         public
     {
-        vm.expectRevert(PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector);
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+        );
         new RewardManager(ICentralRegistry(address(0)), _USDC_ADDRESS);
     }
 
-    function test_RewardManagerDeployment_fail_whenRewardTokenIsZeroAddress()
+    function test_rewardManagerDeployment_fail_whenRewardTokenIsZeroAddress()
         public
     {
         vm.expectRevert(
@@ -26,7 +28,7 @@ contract RewardManagerDeploymentTest is TestBaseRewardManager {
         );
     }
 
-    function test_RewardManagerDeployment_success() public {
+    function test_rewardManagerDeployment_success() public {
         rewardManager = new RewardManager(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS

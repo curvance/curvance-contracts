@@ -215,7 +215,7 @@ contract TestVeCVE is TestBaseVeCVE {
         );
     }
 
-    function test_LockAndUnlockInSameEpoch()
+    function test_lockAndUnlockInSameEpoch()
         public
         setRewardsData(false, false, false)
     {

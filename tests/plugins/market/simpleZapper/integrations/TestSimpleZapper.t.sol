@@ -257,7 +257,13 @@ contract TestSimpleZapper is TestBaseMarket {
         deal(_USDC_ADDRESS, user1, 500e6);
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
-        simpleZapper.swapAndRepay(false, swapData, address(eDAI), 450e18, user1);
+        simpleZapper.swapAndRepay(
+            false,
+            swapData,
+            address(eDAI),
+            450e18,
+            user1
+        );
         vm.stopPrank();
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
