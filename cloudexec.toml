@@ -1,0 +1,49 @@
+
+# Set the directory to upload to the droplet .
+# Release Echidna Link: # https://github.com/crytic/echidna/actions/runs/7571678101/artifacts/1178391144
+[input]
+directory = "."
+timeout = "96h"
+jobName = "echidna"
+
+[commands]
+setup = '''
+if ! command -v slither >/dev/null 2>&1; then
+  echo "Installing solc and slither..."
+  python3 -m venv ~/venv
+  source ~/venv/bin/activate
+  pip3 install solc-select slither-analyzer crytic-compile
+  solc-select install 0.8.17
+  solc-select use 0.8.17
+fi
+
+echo "Downloading echidna..."
+curl -Lo echidna.zip \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer API_READ_TOKEN" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/crytic/echidna/actions/artifacts/1286578535/zip
+echo "Extracting echidna..."
+unzip echidna.zip -d /tmp
+tar -xzf /tmp/echidna.tar.gz -C /tmp
+echo "Installing echidna..."
+mv -f /tmp/echidna /usr/local/bin
+rm /tmp/echidna.tar.gz
+echo "Installed echidna!"
+
+
+if ! command -v forge >/dev/null 2>&1; then
+  echo "Installing foundry..." 
+  curl -L https://foundry.paradigm.xyz | bash
+  source /.bashrc
+  foundryup
+fi
+
+echo "Prerequisites installed successfully!"
+echo "Forge version:"
+forge --version
+'''
+
+# This command is run from the input directory
+# after the setup script completes.
+run = "source /.bashrc && forge --version && make ec"

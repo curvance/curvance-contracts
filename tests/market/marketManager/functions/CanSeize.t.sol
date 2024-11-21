@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.19;
+
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
+contract CanSeizeTest is TestBaseMarketManager {
+    function test_canSeize_fail_whenPaused() public {
+        marketManager.setSeizePaused(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    }
+
+    function test_canSeize_fail_whenPTokenNotListed() public {
+        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    }
+
+    function test_canSeize_fail_whenETokenNotListed() public {
+        marketManager.listToken(address(pBALRETH));
+
+        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    }
+
+    function test_canSeize_success() public {
+        marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(eUSDC));
+
+        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    }
+
+    // function test_canSeize_fail_whenMarketManagersMismatch() public {
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.listToken(address(eUSDC));
+
+    //     MarketManager newMarketManager = new MarketManager(
+    //         ICentralRegistry(address(centralRegistry)),
+    //         address(gaugeManager)
+    //     );
+    //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
+    //     eUSDC.setMarketManager(address(newMarketManager));
+
+    //     vm.expectRevert(MarketManager.MarketManager__MarketManagerMismatch.selector);
+    //     marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    // }
+}

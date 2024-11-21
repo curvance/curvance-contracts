@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
+import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
+
+/// @title Curvance Multicall helper.
+/// @notice Multicall implementation to support pull based oracles and
+///         other combined actions.
+abstract contract Multicall is BaseCallDataChecker {
+    /// TYPES ///
+    struct MulticallData {
+        address target;
+        bool isPriceUpdate;
+        bytes data;
+    }
+
+    /// ERRORS ///
+
+    error Multicall__InvalidTarget();
+    error Multicall__UnknownCalldata();
+
+    /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Executes multiple calls in a single transaction.
+    ///         This can be used to update oracle prices before
+    ///         a liquidity dependent action.
+    function multicall(
+        MulticallData[] calldata calls
+    ) external returns (bytes[] memory results) {
+        ICentralRegistry centralRegistry = _getCentralRegistry();
+        uint256 numCalls = calls.length;
+        results = new bytes[](numCalls);
+
+        for (uint256 i; i < numCalls; ++i) {
+            if (calls[i].isPriceUpdate) {
+                // CASE: We need to update a pull based price oracle and we
+                //       need a direct call to the target address.
+                address callDataChecker = centralRegistry.multicallChecker(
+                    calls[i].target
+                );
+
+                // Validate we know how to verify this calldata.
+                if (callDataChecker == address(0)) {
+                    revert Multicall__UnknownCalldata();
+                }
+
+                IMulticallChecker(callDataChecker).checkCalldata(
+                    msg.sender,
+                    calls[i].target,
+                    calls[i].data
+                );
+
+                results[i] = LowLevelCallsHelper._call(
+                    calls[i].target,
+                    calls[i].data
+                );
+
+                continue;
+            }
+
+            // CASE: Not a price update and we need delegate the call to the
+            //       current address.
+
+            if (address(this) != calls[i].target) {
+                revert Multicall__InvalidTarget();
+            }
+
+            results[i] = LowLevelCallsHelper._delegateCall(
+                address(this),
+                calls[i].data
+            );
+        }
+    }
+
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
+    /// @dev MUST be overridden in every multicallable contract's
+    ///      implementation.
+    function _getCentralRegistry()
+        internal
+        view
+        virtual
+        returns (ICentralRegistry);
+}

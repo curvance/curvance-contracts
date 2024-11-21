@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import { CVE, ICentralRegistry } from "contracts/token/RemoteCVE.sol";
+import { BlastYieldDelegable } from "contracts/libraries/BlastYieldDelegable.sol";
+
+contract BlastCVE is CVE, BlastYieldDelegable {
+    /// CONSTRUCTOR ///
+
+    constructor(
+        ICentralRegistry centralRegistry_
+    ) CVE(centralRegistry_) BlastYieldDelegable(centralRegistry_) {}
+}

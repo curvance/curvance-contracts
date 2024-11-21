@@ -1,0 +1,91 @@
+pragma solidity 0.8.19;
+import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
+import { MockToken } from "contracts/mocks/MockToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+
+contract FuzzMarketManagerSystem is StatefulBaseMarket {
+    // Stateful Functions
+
+    // if closing position with a eToken, ensure position cannot be created
+    // invariant: for any eToken, collateralPostedFor(eToken, addr(this)) = 0
+
+    // system invariant:
+    // should not have an active position in a eToken if one does not have debt
+
+    /// @custom:property s-market-1 A user’s pToken balance must always be greater than the total collateral posted for a pToken.
+    function pToken_balance_gte_collateral_posted(address pToken) public {
+        uint256 pTokenBalance = MockToken(pToken).balanceOf(address(this));
+
+        uint256 collateralPostedForAddress = marketManager.collateralPosted(
+            address(this)
+        );
+
+        assertGte(
+            pTokenBalance,
+            collateralPostedForAddress,
+            "S-MARKET-1 - pTokenBalance must exceed collateral posted"
+        );
+    }
+
+    /// @custom:property s-market-2 Market collateral posted should always equal to collateralCaps for a token if maxCollateralCap = 0.
+    /// @custom:property s-market-3 Market collateral posted should always be less than max collateralCap for a non-zero collateral cap.
+    function collateralPosted_lte_collateralCaps(address token) public {
+        uint256 collateralPosted = marketManager.collateralPosted(token);
+
+        if (maxCollateralCap[token] == 0) {
+            assertEq(
+                collateralPosted,
+                maxCollateralCap[token],
+                "S-MARKET-2 - collateralPosted must be equal to 0 when max collateral is posted"
+            );
+        } else {
+            assertLte(
+                collateralPosted,
+                maxCollateralCap[token],
+                "S-MARKET-3 - collateralPosted must be strictly less than the max collateral posted"
+            );
+        }
+    }
+
+    /// @custom:property s-market-4 totalSupply should never be zero for any mtoken once added to marketManager
+    function totalSupply_of_listed_token_is_never_zero(address mtoken) public {
+        require(marketManager.isListed(mtoken));
+        assertNeq(
+            MockToken(mtoken).totalSupply(),
+            0,
+            "S-MARKET-4 - totalSupply should never go down to zero once listed"
+        );
+    }
+
+    /// @custom:property s-market-5 If no positions need to be pruned, collateral posted for the asset must be zero
+    /// @custom:property s-market-6 If no positions are to be pruned, a user must not have a position in the asset
+    function pruned_positions_should_never_have_collateral_posted(
+        uint256 redeemTokens,
+        uint256 amount
+    ) public {
+        IMToken[] memory assets = marketManager.assetsOf(address(this));
+
+        for (uint256 i = 0; i < assets.length; i++) {
+            address assetAddr = address(assets[i]);
+            (, , bool[] memory positionsToClose) = _getHypotheticalLiquidityOf(
+                address(this),
+                assetAddr,
+                redeemTokens,
+                amount
+            );
+            if (positionsToClose.length == 0) {
+                assertEq(
+                    _collateralPostedFor(assetAddr),
+                    0,
+                    "S-MARKET-5 - if no positions to be pruned, collateral posted for asset must be 0"
+                );
+                assertWithMsg(
+                    !_hasPosition(assetAddr),
+                    "S-MARKET-6 - if no positions to be pruned, user must not have a position"
+                );
+            }
+        }
+    }
+
+    // current debt > max allowed debt after folding
+}

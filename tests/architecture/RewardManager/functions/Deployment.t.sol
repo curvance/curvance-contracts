@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.19;
+
+import { TestBaseRewardManager } from "../TestBaseRewardManager.sol";
+import { RewardManager } from "contracts/architecture/RewardManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
+
+contract RewardManagerDeploymentTest is TestBaseRewardManager {
+    function test_rewardManagerDeployment_fail_whenCentralRegistryIsInvalid()
+        public
+    {
+        vm.expectRevert(
+            PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
+        );
+        new RewardManager(ICentralRegistry(address(0)), _USDC_ADDRESS);
+    }
+
+    function test_rewardManagerDeployment_fail_whenRewardTokenIsZeroAddress()
+        public
+    {
+        vm.expectRevert(
+            RewardManager.RewardManager__RewardTokenIsZeroAddress.selector
+        );
+        new RewardManager(
+            ICentralRegistry(address(centralRegistry)),
+            address(0)
+        );
+    }
+
+    function test_rewardManagerDeployment_success() public {
+        rewardManager = new RewardManager(
+            ICentralRegistry(address(centralRegistry)),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            address(rewardManager.centralRegistry()),
+            address(centralRegistry)
+        );
+        assertEq(rewardManager.rewardToken(), _USDC_ADDRESS);
+
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+
+        assertEq(rewardManager.currentEpoch(block.timestamp), 0);
+    }
+}

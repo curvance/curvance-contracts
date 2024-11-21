@@ -1,0 +1,85 @@
+{
+  "centralRegistry": {
+    "daoAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "harvester": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "timelock": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "emergencyCouncil": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
+    "wormholeCore": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd",
+    "tokenBridge": "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a",
+    "wormholeRelayer": "0x0000000000000000000000000000000000000000",
+    "messageTransmitter": "0x0000000000000000000000000000000000000000",
+    "sequencer": "0x0000000000000000000000000000000000000000",
+    "circleTokenMessenger": "0x0000000000000000000000000000000000000000",
+    "genesisEpoch": 1711849632,
+    "lockBoostMultiplier": 10000,
+    "feeToken": "0x5012B5b2a7f761a2297127fde03022934A2E86e3"
+  },
+  "rewardManager": {
+    "rewardToken": "0x5012B5b2a7f761a2297127fde03022934A2E86e3"
+  },
+  "cve": {
+    "teamAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB"
+  },
+  "zapper": {
+    "weth": "0x6E1E9896e93F7A71ECB33d4386b49DeeD67a231A"
+  },
+  "oracleManager": {
+    "chainlinkEthUsd": "0x0000000000000000000000000000000000000000",
+    "chainlinkUsd": "0x0000000000000000000000000000000000000000"
+  },
+  "veCve": {
+    "voteBoostMultiplier": 11000
+  },
+  "marketManager": {
+    "marketInterestFactor": 1000
+  },
+  "markets": {
+    "eTokens": {
+      "USDC": {
+        "asset": "0x0000000000000000000000000000000000000000",
+        "chainlinkEth": "0x0000000000000000000000000000000000000000",
+        "chainlinkUsd": "0x0000000000000000000000000000000000000000",
+        "interestRateParam": {
+          "baseRatePerYear": 1000,
+          "vertexRatePerYear": 1000,
+          "vertexUtilizationStart": 5000,
+          "adjustmentRate": 43200,
+          "adjustmentVelocity": 5000,
+          "vertexMultiplierMax": 100000000,
+          "decayRate": 100
+        }
+      },
+      "DAI": {
+        "asset": "0x0000000000000000000000000000000000000000",
+        "chainlinkEth": "0x0000000000000000000000000000000000000000",
+        "chainlinkUsd": "0x0000000000000000000000000000000000000000",
+        "interestRateParam": {
+          "baseRatePerYear": 1000,
+          "vertexRatePerYear": 1000,
+          "vertexUtilizationStart": 5000,
+          "adjustmentRate": 43200,
+          "adjustmentVelocity": 5000,
+          "vertexMultiplierMax": 100000000,
+          "decayRate": 100
+        }
+      }
+    },
+    "pTokens": {
+      "WBTC": {
+        "asset": "0x0000000000000000000000000000000000000000",
+        "chainlinkEth": "0x0000000000000000000000000000000000000000",
+        "chainlinkUsd": "0x0000000000000000000000000000000000000000",
+        "collateralConfig": {
+          "collRatio": 1000,
+          "collReqA": 1000,
+          "collReqB": 1000,
+          "liqIncA": 1000,
+          "liqIncB": 1000,
+          "liqFee": 1000,
+          "baseCFactor": 1000,
+          "collateralCaps": 100000000000000000000
+        }
+      }
+    }
+  }
+}

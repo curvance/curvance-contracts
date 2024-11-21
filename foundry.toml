@@ -1,0 +1,25 @@
+[profile.default]
+
+# The source directory
+src = 'contracts'
+
+# The test directory
+test = 'tests'
+
+# The artifact directory
+out = 'artifacts'
+
+# The fs permission
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+# ignore_warnings
+# 9302 - Unused low level call return data
+# 1878 - Did not set license type for contract
+# 5574 - Getting close to contract limit
+ignored_error_codes = [9302, 1878, 5574]
+
+# Sets the concrete solc version to use
+# This overrides the `auto_detect_solc` value
+solc_version = '0.8.19'
+evm_version = 'shanghai'
+auto_detect_solc = false

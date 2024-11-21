@@ -1,142 +1,106 @@
-<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1633536472/1500x500"/></p>
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1663645591/1500x500"/></p>
 
 <h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
+
 Main dependencies:
 
-- [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
-- [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
-- [Ethers](https://github.com/ethers-io/ethers.js/): renowned Ethereum library and wallet implementation
-- [Waffle](https://github.com/EthWorks/Waffle): tooling for writing comprehensive smart contract tests
+- [Rust](https://www.rust-lang.org/): foundry compiler
+  - Confirm you have rust with `rustc --version`
+- [Foundry](https://book.getfoundry.sh/getting-started/installation): compile and run the smart contracts on a local development network
+  - Confirm you have Foundry with `forge -V`
 - [Solhint](https://github.com/protofire/solhint): linter
-- [Solcover](https://github.com/sc-forks/solidity-coverage): code coverage
+  - Confirm you have the `solidity` plugin by Juan Blanco in VSCode -- Search settings in VSCode for `Solidity: Linter`, should be set to `solhint`
 - [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
+  - Confirm you have the `solidity` plugin by Juan Blanco in VSCode -- Search settings in VSCode for `Solidity: Formatter`, should be set to `prettier`
 
-## Yarn scripts
+## Setup
 
-### Pre Requisites
+1. Copy `.env.sample` and fill it out with your own information
+2. Ensure you have `forge` installed, A guide can be found [here](https://book.getfoundry.sh/getting-started/installation)
+3. Happy building, all dependencies are gitmodule linked & remapping can be found in `remappings.txt` which should be picked up automatically
 
-Before running any command, you need to create a `.env` file and set a BIP-39 compatible mnemonic as an environment
-variable. Follow the example in `.env.example`. If you don't already have a mnemonic, use this [website](https://iancoleman.io/bip39/) to generate one.
+## Internal code guidelines
 
-Then, proceed with installing dependencies:
+### Smart contract order
 
-```sh
-yarn install
-```
+1. Types at the top of the contract
+2. Constants
+3. Storage
+4. Events
+5. Errors
+6. Constructor
+7. External
+8. Public
+9. Internal
+10. Private as the end of the contract
 
-### Compile
+### A/B state variables
 
-Compile the smart contracts with Hardhat:
+Instead of booleans, we use 0, 1, 2 (0 for false, 1/2 for true) in hotpath areas to minimize runtime gas costs such as our Reentryguard implementation.
 
-```sh
-$ yarn compile
-```
+### Precompiled selectors
 
-### TypeChain
+In instances of 3 or more calls to a specific custom error, uint256 selectors are pre calculated and stored as documented constants with direct reversion to minimize runtime gas costs, while also decreasing smart contract size.
 
-Compile the smart contracts and generate TypeChain artifacts:
+### Permissioned function validation
 
-```sh
-$ yarn typechain
-```
+Rather than modifiers we utilize internal functions with direct action control checks as we'd prefer an extra JUMP call than having to inline many instances of permissioning checks, this is to decrease smart contract size.
 
-### Lint Solidity
-
-Lint the Solidity code:
-
-```sh
-$ yarn lint:sol
-```
-
-### Lint TypeScript
-
-Lint the TypeScript code:
-
-```sh
-$ yarn lint:ts
-```
-
-### Test
-
-Run the Mocha tests:
-
-```sh
-$ yarn test
-```
-
-### Coverage
-
-Generate the code coverage report:
-
-```sh
-$ yarn coverage
-```
-
-### Report Gas
-
-See the gas usage per unit test and average gas per method call:
-
-```sh
-$ REPORT_GAS=true yarn test
-```
-
-### Clean
-
-Delete the smart contract artifacts, the coverage reports and the Hardhat cache:
-
-```sh
-$ yarn clean
-```
-
-### Deploy
-
-Deploy the contracts to Hardhat Network:
-
-```sh
-$ yarn deploy --greeting "Bonjour, le monde!"
-```
-
-## Syntax Highlighting
-
-If you use VSCode, you can enjoy syntax highlighting for your Solidity code via the
-[vscode-solidity](https://github.com/juanfranblanco/vscode-solidity) extension. The recommended approach to set the
-compiler version is to add the following fields to your VSCode user settings:
-
-```json
-{
-  "solidity.compileUsingRemoteVersion": "v0.8.4+commit.c7e474f2",
-  "solidity.defaultCompiler": "remote"
-}
-```
-
-## Git Commits
+For adding new risk to the system (e.g. adding a new asset), elevated permissioning is required, while removing risk from the system (pausing a market function) has standard dao permissioning.
 
 ### Linting
 
-See: https://github.com/conventional-changelog/commitlint#what-is-commitlint
+- Prettier is set to have `printWidth` of 79 however comments sometimes do not take this, but are enforced in code review. Please ensure your commented lines do not exceed 79 characters.
 
-### Troubleshoot
+## Foundry tips
 
-Error:
+### Build & compile
 
-`Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only file and data URLs are supported by the default ESM loader`
+Compile all contracts
 
-Suggestion:
+```sh
+forge build
+```
 
-Bump your `node` version to `16.0.0`.
+### Run tests
+
+Compile all smart contracts & run all tests in /tests
+
+- To run a specific test use `--match-contract`
+- For more details like console logs add `-vv`
+
+```sh
+forge test
+```
+
+### Check coverage
+
+Compile all smart contracts and check test coverage
+
+```sh
+forge coverage
+```
+
+### Execute script
+
+Execute a specific script using forge
+
+```sh
+forge script script/<something>.s.sol
+```
 
 ## Code Reviews
 
-Reviews are a very imporant part of our development process. 2 approvals are required to merge a pull request.
+Reviews are a very important part of our development process. Two approvals are required to merge a pull request.
 
-For certain topics that come up again and again during review discussions, this document is the source of truth if it covers the topic (e.g. best practices in Solidity).
+For certain topics, that come up several times during review discussions, this document is the source of truth if it covers the topic (e.g. best practices in Solidity).
 
-If you think something needs to be changed in the code please require changes. Often times reviewers just mention something they feel should maybe look different, but they approve anyways. Your input is important and it is not a negative thing to discuss it with the pull request author before merging.
+If you think something needs to be changed in the code, please require changes. Often times reviewers just mention something they feel should maybe look different, but they approve anyways. Your input is important, and it is not a bad thing to discuss it with the pull request author before merging.
 
 ### Assignment
 
 Github will automatically assign 2 developers in round robin manner, counted against to how many pull request reviews
-they are allready assigned to.
+they are already assigned to.
 
 ## Branching strategy
 
@@ -145,7 +109,7 @@ For now we are using a simple `feature` -> `develop` -> `main` branching model.
 ### Steps for working on a new feature
 
 - Branch feature branch off of `develop`
-  - Branch name should be `clickupIssueId-branch-name-based-on-task-title`
+- Branch name should be `clickupIssueId-branch-name-based-on-task-title`
 - Once your branch is ready, open a pull request and set `develop` as target branch
 
 ### Release
