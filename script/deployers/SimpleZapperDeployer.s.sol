@@ -9,13 +9,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 
 contract SimpleZapperDeployer is DeployConfiguration {
+    address public simpleZapper;
+
     function _deploySimpleZapper(
         address centralRegistry,
         address marketManager,
-        address weth
+        address weth,
+        string memory marketName
     ) internal returns (address) {
-        address simpleZapper;
-
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(marketManager != address(0), "Set the marketManager!");
         require(weth != address(0), "Set the weth!");
@@ -28,7 +29,13 @@ contract SimpleZapperDeployer is DeployConfiguration {
             )
         );
 
-        console.log("Created simple zapper: ", simpleZapper);
-        return simpleZapper;
+        console.log(
+            string.concat(marketName, "-simpleZapper: "),
+            simpleZapper
+        );
+        _saveDeployedContracts(
+            string.concat(marketName, "-simpleZapper"),
+            simpleZapper
+        );
     }
 }

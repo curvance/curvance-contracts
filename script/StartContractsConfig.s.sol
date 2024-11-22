@@ -25,12 +25,16 @@ import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
 import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
+import { OogaBoogaDeployer } from "./deployers/OogaBoogaDeployer.s.sol";
+import { PositionManagementSimpleDeployer } from "./deployers/PositionManagementSimpleDeployer.s.sol";
 
 contract StartContractsConfig is
     Script,
     DeployConfiguration,
     SimpleZapperDeployer,
-    ComplexZapperDeployer
+    ComplexZapperDeployer,
+    OogaBoogaDeployer,
+    PositionManagementSimpleDeployer
 {
     struct ETokenInterestRateParam {
         uint256 adjustmentRate;
@@ -80,6 +84,7 @@ contract StartContractsConfig is
         bytes32 network_hash = keccak256(abi.encodePacked(network));
         if (network_hash == keccak256(abi.encodePacked("bartio"))) {
             is_berachain = true;
+            _deployOogaBoogaCallDataChecker();
         }
 
         if (network_hash == keccak256(abi.encodePacked("movement"))) {
@@ -351,26 +356,19 @@ contract StartContractsConfig is
             marketInterestFactor
         );
 
-        // Deploy ComplexZapper
-        address complexZapper = _deployComplexZapper(
+        // Deploy Addons
+        _deployPositionManagementSimple(address(market), marketName);
+        _deployComplexZapper(
             address(cr),
             address(market),
-            _readConfigAddress(".zapper.weth")
+            _readConfigAddress(".zapper.weth"),
+            marketName
         );
-
-        address simpleZapper = _deploySimpleZapper(
+        _deploySimpleZapper(
             address(cr),
             address(market),
-            _readConfigAddress(".zapper.weth")
-        );
-
-        _saveDeployedContracts(
-            string.concat(marketName, "-complexZapper"),
-            complexZapper
-        );
-        _saveDeployedContracts(
-            string.concat(marketName, "-simpleZapper"),
-            simpleZapper
+            _readConfigAddress(".zapper.weth"),
+            marketName
         );
     }
 
