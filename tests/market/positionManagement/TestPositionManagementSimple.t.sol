@@ -135,7 +135,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
@@ -245,7 +245,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;

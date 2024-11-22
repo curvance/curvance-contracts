@@ -8,6 +8,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -532,6 +533,66 @@ abstract contract PositionManagementBase is
         );
     }
 
+    /// @notice Calculates the hypothetical maximum amount of `borrowToken`
+    ///         `account` can borrow for maximum leverage based on a new
+    ///         position token deposit and collateralized.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`.
+    /// @param account The account to query maximum borrow amount for.
+    /// @param borrowToken The eToken that `account` will borrow from
+    ///                    to achieve leverage.
+    /// @param positionToken The pToken that `account` will deposit to
+    ///                      leverage against.
+    /// @param collateralAmount The amount of underlying pToken that `account`
+    ///                         will deposit to leverage against.
+    /// @return Returns the maximum remaining borrow amount allowed from
+    ///         `borrowToken`, measured in underlying token amount, after
+    ///         the new hypothetical deposit.
+    function hypotheticalMaxRemainingLeverageOf(
+        address account,
+        address borrowToken,
+        address positionToken,
+        uint256 collateralAmount
+    ) public view returns (uint256) {
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(positionToken), true, true);
+
+        // Validate we got a price for `positionToken`.
+        if (errorCode != 0) {
+            revert PositionManagementBase__InvalidTokenPrice();
+        }
+
+        (
+            uint256 sumCollateral,
+            uint256 maxDebt,
+            uint256 sumDebt
+        ) = marketManager.statusOf(account);
+
+        uint256 newCollateral = IMToken(positionToken).previewDeposit(
+            collateralAmount
+        ) * price;
+
+        (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
+
+        // If the position token cannot be borrowed against the hypothetical
+        // leverage check will result in 0 meaning no increased borrow amount.
+        if (collRatio == 0) {
+            revert PositionManagementBase__ExceedsMaximumBorrowAmount();
+        }
+
+        sumCollateral += newCollateral;
+        maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
+
+        return _maxRemainingLeverageOf(
+            sumCollateral,
+            maxDebt,
+            sumDebt,
+            borrowToken
+        );
+
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Calculates the maximum amount of `borrowToken` `account` can
@@ -541,9 +602,9 @@ abstract contract PositionManagementBase is
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
-    /// @return The maximum borrow amount allowed from eToken, measured in
-    ///         underlying token amount.
-    function queryAmountToBorrowForLeverageMax(
+    /// @return Returns the maximum remaining borrow amount allowed from
+    ///         `borrowToken`, measured in underlying token amount.
+    function maxRemainingLeverageOf(
         address account,
         address borrowToken
     ) public view returns (uint256) {
@@ -553,36 +614,12 @@ abstract contract PositionManagementBase is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        // We can calculate terminal leverage by calculating the infinite
-        // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV).
-        //
-        // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
-        // The equation below is equal to this equation,
-        // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
-        uint256 maxLeverage = ((maxDebt - sumDebt) *
-            MAX_LEVERAGE *
-            sumCollateral) /
-            (sumCollateral - maxDebt) /
-            DENOMINATOR;
-
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowToken), true, false);
-
-        // Validate we got a price for `borrowToken`.
-        if (errorCode != 0) {
-            revert PositionManagementBase__InvalidTokenPrice();
-        }
-
-        return
-            (((maxLeverage * WAD) / price) *
-                (10 ** IERC20(borrowToken).decimals())) / WAD;
+        return _maxRemainingLeverageOf(
+            sumCollateral,
+            maxDebt,
+            sumDebt,
+            borrowToken
+        );
     }
 
     /// @inheritdoc ERC165
@@ -618,7 +655,7 @@ abstract contract PositionManagementBase is
     ) internal {
         EToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
-        uint256 maxBorrowAmount = queryAmountToBorrowForLeverageMax(
+        uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,
             address(borrowToken)
         );
@@ -667,6 +704,55 @@ abstract contract PositionManagementBase is
             deleverageData.collateralAmount,
             deleverageData
         );
+    }
+
+    /// @notice Calculates the maximum amount of `borrowToken` `account` can
+    ///         borrow for maximum leverage.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`.
+    /// @param sumCollateral total collateral amount of account.
+    /// @param maxDebt max borrow amount of account.
+    /// @param sumDebt total borrow amount of account.
+    /// @param borrowToken The eToken that `account` will borrow from
+    ///                    to achieve leverage.
+    /// @return Returns the maximum remaining borrow amount allowed from
+    ///         `borrowToken`, measured in underlying token amount.
+    function _maxRemainingLeverageOf(
+        uint256 sumCollateral,
+        uint256 maxDebt,
+        uint256 sumDebt,
+        address borrowToken
+    ) internal view returns(uint256) {
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        //
+        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
+        // transaction failure from imperfect execution due to things
+        // such as price fluctuations, and AMM fees.
+        uint256 maxLeverage = ((maxDebt - sumDebt) *
+            MAX_LEVERAGE *
+            sumCollateral) /
+            (sumCollateral - maxDebt) /
+            DENOMINATOR;
+
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(borrowToken), true, false);
+
+        // Validate we got a price for `borrowToken`.
+        if (errorCode != 0) {
+            revert PositionManagementBase__InvalidTokenPrice();
+        }
+
+        return
+            (((maxLeverage * WAD) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
     /// @notice Callback function on borrowing tokens from an eToken contract

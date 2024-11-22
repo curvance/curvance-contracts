@@ -57,6 +57,10 @@ contract VotingHub is QueryResponse {
     /// @dev Epoch # => CVE rewards allocated.
     mapping(uint256 => uint256) public targetEmissionAllocationByEra;
 
+    /// EVENTS ///
+
+    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
+
     /// ERRORS ///
 
     error VotingHub__Unauthorized();
@@ -360,6 +364,8 @@ contract VotingHub is QueryResponse {
             targetEmissionAllocationByEra[i] = epochEmissions;
             epochEmissions = epochEmissions / 2;
         }
+
+        emit EraEmissionsAllotmentSet(epochEmissions);
     }
 
     /// @dev Sets new token emissions values to Gauge Managers on this chain,

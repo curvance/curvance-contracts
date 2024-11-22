@@ -185,7 +185,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
@@ -301,7 +301,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;

@@ -231,6 +231,14 @@ interface IMToken {
     /// @dev Oracle Manager calculates mToken value from this exchange rate.
     function exchangeRateCached() external view returns (uint256);
 
+    /// @notice Allows users to simulate the effects of their deposit at
+    ///         the current block.
+    /// @param assets The number of assets to preview a deposit call.
+    /// @return The shares received for depositing `assets`.
+    function previewDeposit(
+        uint256 assets
+    ) external view returns (uint256);
+
     /// @notice Executes multiple calls in a single transaction.
     ///         This can be used to update oracle prices before
     ///         a liquidity dependent action.
