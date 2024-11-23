@@ -6,7 +6,7 @@ import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -39,8 +39,8 @@ abstract contract PositionManagementBase is
     ///         possible to minimize reversion from things like price
     ///         fluctuations, swap fees, and oracle vs pool price divergence,
     ///         in basis points.
-    /// @dev 9900 = 99% = 0.99.
-    uint256 public constant MAX_LEVERAGE = 9900;
+    /// @dev 0.99e18 = 99% = 0.99.
+    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
@@ -93,7 +93,7 @@ abstract contract PositionManagementBase is
         if (liquidityBefore > liquidityAfter) {
             if (
                 liquidityBefore - liquidityAfter >=
-                (liquidityBefore * slippage) / DENOMINATOR
+                (liquidityBefore * slippage) / WAD
             ) {
                 revert PositionManagementBase__InvalidSlippage();
             }
@@ -752,7 +752,7 @@ abstract contract PositionManagementBase is
             MAX_LEVERAGE *
             sumCollateral) /
             (sumCollateral - maxDebt) /
-            DENOMINATOR;
+            WAD;
 
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
