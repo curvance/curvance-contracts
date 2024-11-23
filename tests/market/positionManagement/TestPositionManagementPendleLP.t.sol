@@ -227,7 +227,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
 
         leverageData.auxData = abi.encode(0, data);
 
-        positionManagement.leverage(leverageData, 500);
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -285,7 +285,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         deleverageData.auxData = abi.encode(data);
 
         pSTETH.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 500);
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -363,7 +363,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.leverageFor(leverageData, user, 500);
+        positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -423,7 +423,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 500);
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);

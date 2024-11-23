@@ -38,7 +38,7 @@ abstract contract PositionManagementBase is
     /// @notice Maximum desired leverage output, we choose 99% of what is
     ///         possible to minimize reversion from things like price
     ///         fluctuations, swap fees, and oracle vs pool price divergence,
-    ///         in basis points.
+    ///         in WAD (1e18).
     /// @dev 0.99e18 = 99% = 0.99.
     uint256 public constant MAX_LEVERAGE = 0.99e18;
 
@@ -68,7 +68,7 @@ abstract contract PositionManagementBase is
     ///      leverage/deleverage action, works similar to reentryguard
     ///      with pre and post checks.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     modifier checkSlippage(address account, uint256 slippage) {
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
@@ -146,7 +146,7 @@ abstract contract PositionManagementBase is
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     function depositAndLeverage(
         uint256 assets,
         LeverageStruct calldata leverageData,
@@ -194,7 +194,7 @@ abstract contract PositionManagementBase is
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     function leverage(
         LeverageStruct calldata leverageData,
         uint256 slippage
@@ -224,7 +224,7 @@ abstract contract PositionManagementBase is
     /// @param account The account to leverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     function leverageFor(
         LeverageStruct calldata leverageData,
         address account,
@@ -260,7 +260,7 @@ abstract contract PositionManagementBase is
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageData` deleverage action, in basis points.
+    ///                 `deleverageData` deleverage action, in WAD (1e18).
     function deleverage(
         DeleverageStruct calldata deleverageData,
         uint256 slippage
@@ -290,7 +290,7 @@ abstract contract PositionManagementBase is
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageData` deleverage action, in basis points.
+    ///                 `deleverageData` deleverage action, in WAD (1e18).
     function deleverageFor(
         DeleverageStruct calldata deleverageData,
         address account,

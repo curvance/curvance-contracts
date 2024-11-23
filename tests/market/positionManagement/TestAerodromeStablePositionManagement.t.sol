@@ -217,7 +217,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         leverageData.swapData.call = bytes("");
         leverageData.auxData = bytes("");
 
-        positionManagement.leverage(leverageData, 500);
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -271,7 +271,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deleverageData.repayAmount = 30e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 5000);
+        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -327,7 +327,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.leverageFor(leverageData, user, 500);
+        positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -383,7 +383,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 5000);
+        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
