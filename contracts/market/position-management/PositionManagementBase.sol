@@ -127,7 +127,11 @@ abstract contract PositionManagementBase is
     /// @notice Deposits into a Curvance position and then leverages in favor
     ///         of increasing both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
-    ///      in `checkSlippage` modifier.
+    ///      in `checkSlippage` modifier. 
+    ///      NOTE: The caller MUST have approved this smart contract to have
+    ///      delegated actions inside `leverageData.positionToken` or
+    ///      depositAsCollateralFor will only deposit and the leverage
+    ///      operation will fail.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
@@ -143,25 +147,33 @@ abstract contract PositionManagementBase is
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
     ///                 `leverageData` leverage action, in basis points.
-    function depositAndleverage(
+    function depositAndLeverage(
         uint256 assets,
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         SimplePToken pToken = leverageData.positionToken;
         address pTokenUnderlying = pToken.asset();
+        // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
+
+        // Approve pToken to process a deposit.
         SwapperLib._approveTokenIfNeeded(
             pTokenUnderlying,
             address(pToken),
             assets
         );
+
+        // Deposit and Collateralize the underlying tokens in pToken
+        // contract.
         pToken.depositAsCollateralFor(assets, msg.sender);
+
+        // Execute leverage operation.
         _leverage(leverageData, msg.sender);
     }
 
@@ -576,9 +588,10 @@ abstract contract PositionManagementBase is
         (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
 
         // If the position token cannot be borrowed against the hypothetical
-        // leverage check will result in 0 meaning no increased borrow amount.
+        // leverage check will result in 0 meaning nothing new to leverage
+        // against.
         if (collRatio == 0) {
-            revert PositionManagementBase__ExceedsMaximumBorrowAmount();
+            revert PositionManagementBase__InvalidParam();
         }
 
         sumCollateral += newCollateral;
