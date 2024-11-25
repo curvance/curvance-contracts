@@ -763,7 +763,7 @@ contract GaugeManager is
     ///         across all reward tokens.
     /// @param token Protocol supported mToken address to check rewards for.
     /// @param user User address to query pending rewards for.
-    /// @param user Reward token address to check pending rewards for.
+    /// @param rewardToken Reward token address to check pending rewards for.
     function pendingRewards(
         address token,
         address user,
