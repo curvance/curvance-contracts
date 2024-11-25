@@ -76,20 +76,27 @@ contract UniversalBalanceNative is UniversalBalance {
     ///         to the user in native form.
     /// @dev Emits { Withdraw } event.
     /// @param amount The amount of native token to be withdrawn.
-    /// @param isLent Whether the withdrawn wrapped native tokens should be
-    ///               pulled from a user's lent position or held position
-    ///               inside Curvance Protocol.
+    /// @param forceLentRedemption Whether the withdrawn underlying tokens
+    ///                            should be pulledonly from `owner`'s lent
+    ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     function withdrawNative(
         uint256 amount,
-        bool isLent,
+        bool forceLentRedemption,
         address recipient
-    ) external {
-        (amount, ) = _withdraw(amount, isLent, address(this), msg.sender);
-        IWETH(underlying).withdraw(amount);
-        SafeTransferLib.safeTransferETH(recipient, amount);
+    ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            address(this),
+            msg.sender
+        );
 
-        emit Withdraw(msg.sender, recipient, msg.sender, amount, amount);
+        // No need to transfer wrapped native tokens out as we need to
+        // withdraw them from wrapper contract and then transfer native
+        // tokens to `recipient`.
+        IWETH(underlying).withdraw(amountWithdrawn);
+        SafeTransferLib.safeTransferETH(recipient, amountWithdrawn);
     }
 
     /// @notice Withdraws wrapped native token from `owner`'s universal
@@ -99,32 +106,38 @@ contract UniversalBalanceNative is UniversalBalance {
     ///      access their universal balance.
     ///      Emits { Withdraw } event.
     /// @param amount The amount of native token to be withdrawn.
-    /// @param isLent Whether the withdrawn wrapped native tokens should be
-    ///               pulled from a user's lent position or held position
-    ///               inside Curvance Protocol.
+    /// @param forceLentRedemption Whether the withdrawn underlying tokens
+    ///                            should be pulledonly from `owner`'s lent
+    ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal balance.
     function withdrawNativeFor(
         uint256 amount,
-        bool isLent,
+        bool forceLentRedemption,
         address recipient,
         address owner
-    ) external {
+    ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
         _checkDelegation(owner);
+        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            address(this),
+            owner
+        );
 
-        (amount, ) = _withdraw(amount, isLent, address(this), owner);
-        IWETH(underlying).withdraw(amount);
-        SafeTransferLib.safeTransferETH(recipient, amount);
-
-        emit Withdraw(msg.sender, recipient, owner, amount, amount);
+        // No need to transfer wrapped native tokens out as we need to
+        // withdraw them from wrapper contract and then transfer native
+        // tokens to `recipient`.
+        IWETH(underlying).withdraw(amountWithdrawn);
+        SafeTransferLib.safeTransferETH(recipient, amountWithdrawn);
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
-    /// @param user Which user is funding the oracle update from their universal
-    ///             balance account.
+    /// @param owner Which user is funding the oracle update from their universal
+    ///              balance account.
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update.
-    function useBalanceForOracleUpdate(address user, uint256 amount) external {
+    function useBalanceForOracleUpdate(address owner, uint256 amount) external {
         // Validate an approved adaptor is calling the function.
         if (
             !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(
@@ -134,53 +147,11 @@ contract UniversalBalanceNative is UniversalBalance {
             revert UniversalBalance__Unauthorized();
         }
 
-        UserBalance memory userBalance = userBalances[user];
-        uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
-        uint256 pointerAmount;
-        uint256 remainingAmount = amount;
+        // Withdraw from `owner`'s universal balance and transfer the wrapped
+        // native tokens to the Oracle Adaptor for use in updating oracle feed.
+        (amount, ) = _withdraw(amount, false, msg.sender, owner);
 
-        if (
-            userBalance.sittingBalance +
-                FixedPointMathLib.mulDiv(
-                    userBalance.lentBalance,
-                    exchangeRate,
-                    WAD
-                ) <
-            amount
-        ) {
-            revert UniversalBalance__InsufficientBalance();
-        }
-
-        if (userBalance.sittingBalance > 0) {
-            pointerAmount = userBalance.sittingBalance < amount
-                ? userBalance.sittingBalance
-                : amount;
-            // Reduce user sitting balance.
-            userBalances[user].sittingBalance -= pointerAmount;
-            remainingAmount -= pointerAmount;
-        }
-
-        // Check if lent balance needs to be utilized.
-        // Will natively fail if utilization is at 100%.
-        if (remainingAmount > 0) {
-            pointerAmount = FixedPointMathLib.mulDivUp(
-                remainingAmount,
-                WAD,
-                exchangeRate
-            );
-            // Decrement user lent balance.
-            userBalances[user].lentBalance -= pointerAmount;
-
-            pointerAmount = linkedEToken.redeem(pointerAmount, address(this));
-
-            // Make sure enough was redeemed.
-            if (pointerAmount < remainingAmount) {
-                revert UniversalBalance__SlippageError();
-            }
-        }
-
-        // Transfer the wrapped native tokens to the Oracle Adaptor for use
-        // in updating oracle feed.
+        // Transfer the withdrawn tokens to the oracle adaptor.
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
     }
 }
