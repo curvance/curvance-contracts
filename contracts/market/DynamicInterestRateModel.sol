@@ -73,10 +73,19 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///            setLinkedEToken().
 ///
 ///            If an earn token updates to another dynamic interest rate model
-///            contract then this contract theoretically can still be called by
-///            it afterwards if the smart contract was malformed, this does not
-///            really have any tangible impact but for developers who may adapt
-///            this smart contract in the future, I figure its worth mentioning.
+///            contract then this contract theoretically can still be called
+///            by it afterwards if the smart contract was malformed, this does
+///            not really have any tangible impact but for developers who may
+///            adapt this smart contract in the future, I figure its worth
+///            mentioning.
+///
+///            If implementing this dynamic interest rate model, its suggested
+///            to not play too much with `MAX_VERTEX_ADJUSTMENT_RATE` because 
+///            a user can try to "game" the multiplier updates by borrowing
+///            large amounts to increase borrow rates, and repaying 20 minutes
+///            later. Or lending a bunch to "suppress" interest rates, with
+///            shorter adjustment rates this risk becomes virtually zero. 
+///            
 contract DynamicInterestRateModel is ERC165 {
     /// TYPES ///
 
@@ -131,22 +140,22 @@ contract DynamicInterestRateModel is ERC165 {
     ///         between adjustments. It is important that this value is not
     ///         too high as users could in theory borrow a ton of assets
     ///         right before adjustment shifts, artificially increasing rates.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 12 hours;
+    uint256 public constant MAX_VERTEX_ADJUSTMENT_RATE = 4 hours;
     /// @notice The minimum frequency in which the vertex can have
     ///         between adjustments.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 30 minutes;
+    uint256 public constant MIN_VERTEX_ADJUSTMENT_RATE = 20 minutes;
     /// @notice The maximum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
-    ///         E.g. 2 * WAD = 300% increase to vertex interest rate per
+    ///         E.g. 1 * WAD = 200% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MAX_VERTEX_ADJUSTMENT_VELOCITY = 2e18;
+    uint256 public constant MAX_VERTEX_ADJUSTMENT_VELOCITY = 1e18;
     /// @notice The minimum rate at with the vertex multiplier is adjusted,
     ///         in WAD on top of base rate (1 `WAD`).
-    ///         E.g. 0.5 * WAD = 150% increase to vertex interest rate per
+    ///         E.g. 0.1 * WAD = 110% multiplied to vertex interest rate per
     ///         adjustment at 100% utilization,
     ///         due to 100% (in WAD) applied on top.
-    uint256 public constant MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.5e18;
+    uint256 public constant MIN_VERTEX_ADJUSTMENT_VELOCITY = 0.1e18;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;

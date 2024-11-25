@@ -95,9 +95,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
     /// @param amount The amount of underlying token to be deposited.
-    /// @param isLent Whether the deposited underlying tokens should be lent
-    ///               out inside Curvance Protocol.
-    function deposit(uint256 amount, bool isLent) external {
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
+    function deposit(uint256 amount, bool willLend) external {
         SafeTransferLib.safeTransferFrom(
             underlying,
             msg.sender,
@@ -105,7 +105,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             amount
         );
         
-        _deposit(amount, isLent, msg.sender);
+        _deposit(amount, willLend, msg.sender);
     }
 
     /// @notice Deposits underlying token into `recipient`'s universal balance
@@ -114,12 +114,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///      access their universal balance.
     ///      Emits { Deposit } event.
     /// @param amount The amount of underlying token to be deposited.
-    /// @param isLent Whether the deposited underlying tokens should be lent
-    ///               out inside Curvance Protocol.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the deposit.
     function depositFor(
         uint256 amount,
-        bool isLent,
+        bool willLend,
         address recipient
     ) external {
         _checkDelegation(recipient);
@@ -130,15 +130,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             address(this),
             amount
         );
-        _deposit(amount, isLent, recipient);
+        _deposit(amount, willLend, recipient);
     }
 
     /// @notice Withdraws underlying token from user's universal balance
-    ///         account, either currently held or lent out.
+    ///         account, currently held or lent out.
     /// @dev Emits { Withdraw } event.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
-    ///                            should be pulledonly from `owner`'s lent
+    ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     function withdraw(
@@ -158,13 +158,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Withdraws underlying token from `owner`'s universal balance
-    ///         account, either currently held or lent out.
+    ///         account, currently held or lent out.
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their universal balance.
     ///      Emits { Withdraw } event.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
-    ///                            should be pulledonly from `owner`'s lent
+    ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal balance.
@@ -185,6 +185,65 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // Transfer the withdrawn tokens.
         SafeTransferLib.safeTransfer(underlying, recipient, amountWithdrawn);
+    }
+
+    
+    /// @notice Transfers `amount` from caller's universal balance, currently
+    ///         held or lent out to `recipient`.
+    /// @dev Emits { Deposit } and { Withdraw } events.
+    /// @param amount The amount of underlying token to be transferred.
+    /// @param forceLentRedemption Whether the transferred underlying tokens
+    ///                            should be pulled only from the caller's
+    ///                            lent position or the full account.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
+    /// @param recipient The account who will receive the transferred balance.
+    function transfer(
+        uint256 amount,
+        bool forceLentRedemption,
+        bool willLend,
+        address recipient
+    ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        (amountTransferred, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            recipient,
+            msg.sender
+        );
+
+        _deposit(amount, willLend, recipient);
+    }
+
+    /// @notice Withdraws underlying token from `owner`'s universal balance
+    ///         account, currently held or lent out.
+    /// @dev Requires that `owner` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Withdraw } event.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param forceLentRedemption Whether the withdrawn underlying tokens
+    ///                            should be pulled only from `owner`'s lent
+    ///                            position or the full account.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
+    function transferFor(
+        uint256 amount,
+        bool forceLentRedemption,
+        bool willLend,
+        address recipient,
+        address owner
+    ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        _checkDelegation(owner);
+
+        (amountTransferred, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            recipient,
+            owner
+        );
+
+        _deposit(amount, willLend, recipient);
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -234,21 +293,21 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event.
     /// @param amount The amount of underlying token to be deposited.
-    /// @param isLent Whether the deposited underlying tokens should be lent
-    ///               out inside Curvance Protocol.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
     /// @param recipient The account that should receive the deposit.
     function _deposit(
         uint256 amount,
-        bool isLent,
+        bool willLend,
         address recipient
     ) internal {
-        if (isLent) {
+        if (willLend) {
             // Will natively fail if amount == 0 on gaugeManager call.
             // Records balance in tokens (shares).
             uint256 tokensReceived = linkedEToken.mint(amount);
             userBalances[recipient].lentBalance += tokensReceived;
 
-            emit Deposit(msg.sender, recipient, amount, isLent);
+            emit Deposit(msg.sender, recipient, amount, willLend);
             return;
         }
 
@@ -257,7 +316,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         userBalances[recipient].sittingBalance += amount;
-        emit Deposit(msg.sender, recipient, amount, isLent);
+        emit Deposit(msg.sender, recipient, amount, willLend);
     }
 
     /// @notice Withdraws underlying token from user's universal balance
