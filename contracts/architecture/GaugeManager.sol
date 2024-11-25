@@ -465,10 +465,11 @@ contract GaugeManager is
         }
     }
 
-    /// @notice Returns pending rewards of user.
-    /// @param tokens Array of Gauge Manager supported token addresses
-    ///               to check rewards for.
-    /// @param user User address.
+    /// @notice Returns pending reward of user for their deposited `tokens`
+    ///         across all reward tokens.
+    /// @param tokens Array of Protocol supported mToken addresses to check
+    ///               rewards for.
+    /// @param user User address to query pending rewards for.
     function pendingRewards(
         address[] calldata tokens,
         address user
@@ -493,15 +494,24 @@ contract GaugeManager is
             for (uint256 j = 0; j < numRewardTokens; ++j) {
                 cachedRewardToken = rewardTokensForMToken[j];
                 pendingRewardTokens[i][j] = cachedRewardToken;
-                rewardAmounts[i][j] = pendingRewards(cachedToken, user, cachedRewardToken);
+                rewardAmounts[i][j] = pendingRewards(
+                    cachedToken,
+                    user,
+                    cachedRewardToken
+                );
             }
         }
     }
 
-    /// @notice Deposit into Gauge Manager.
-    /// @param token Pool token address.
-    /// @param user User address.
-    /// @param amount Amounts to deposit.
+    /// @notice Registers an `amount` deposit of `token` for `user` inside
+    ///         the Gauge System.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to deposit for
+    ///              `user`.
+    /// @param user User address to deposit `amount` of `token` for.
+    /// @param amount The amount of `token` to deposit.
     function deposit(
         address token,
         address user,
@@ -534,14 +544,15 @@ contract GaugeManager is
         emit Deposit(user, token, amount);
     }
 
-    /// @notice Registers a withdrawal of `token` deposits by `user`
-    ///         from the Gauge Manager.
+    /// @notice Registers an `amount` withdrawal of `token` for `user` from
+    ///         the Gauge System.
     /// @dev This does not actually include any token transfers as tokens
-    ///      are permissionlessly escrowed by PToken/EToken contracts and
-    ///      we simply record deposits/withdraws here.
-    /// @param token Pool token address.
-    /// @param user The user address.
-    /// @param amount Amounts to withdraw.
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to withdraw from
+    ///              `user`'s virtual balance.
+    /// @param user User address to withdraw `amount` of `token` from.
+    /// @param amount The amount of `token` to withdraw.
     function withdraw(
         address token,
         address user,
@@ -748,10 +759,11 @@ contract GaugeManager is
         return (epochDuration * _epochRewardPerSec[token][epoch][index]);
     }
 
-    /// @notice Returns pending reward of user.
-    /// @param token Pool token address.
-    /// @param user User address.
-    /// @param rewardToken Reward token address.
+    /// @notice Returns pending reward of user for their deposited `token`
+    ///         across all reward tokens.
+    /// @param token Protocol supported mToken address to check rewards for.
+    /// @param user User address to query pending rewards for.
+    /// @param user Reward token address to check pending rewards for.
     function pendingRewards(
         address token,
         address user,
