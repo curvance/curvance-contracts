@@ -10,7 +10,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function setUp() public override {
@@ -102,7 +102,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, true);
 
         vm.prank(user2);
         universalBalance.withdrawFor(withdrawAmount, true, user2, user1);
@@ -145,7 +145,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, false);
 
         vm.prank(user2);
         universalBalance.withdrawFor(withdrawAmount, false, user2, user1);

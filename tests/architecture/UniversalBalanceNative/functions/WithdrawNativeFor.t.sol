@@ -10,7 +10,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function setUp() public override {
@@ -115,7 +115,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, true);
 
         vm.prank(user2);
         universalBalanceNative.withdrawNativeFor(
@@ -165,7 +165,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, true);
 
         vm.prank(user2);
         universalBalanceNative.withdrawNativeFor(

@@ -13,7 +13,7 @@ contract UniversalBalanceNativeWithdrawForTest is
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function setUp() public override {
@@ -109,7 +109,7 @@ contract UniversalBalanceNativeWithdrawForTest is
         uint256 userWETHBalance = weth.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, true);
 
         vm.prank(user2);
         universalBalanceNative.withdrawFor(withdrawAmount, true, user2, user1);
@@ -154,7 +154,7 @@ contract UniversalBalanceNativeWithdrawForTest is
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, false);
 
         vm.prank(user2);
         universalBalanceNative.withdrawFor(

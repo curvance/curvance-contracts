@@ -11,7 +11,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function test_universalBalanceNativeDeposit_fail_whenInsufficientBalance_fuzzed(
@@ -100,7 +100,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, receiveAmount);
+        emit Deposit(user1, user1, amount, true);
 
         universalBalanceNative.deposit(amount, true);
 
@@ -137,7 +137,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, amount);
+        emit Deposit(user1, user1, amount, false);
 
         universalBalanceNative.deposit(amount, false);
 

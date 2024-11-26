@@ -134,7 +134,7 @@ contract UpdateDynamicInterestRateModelTest is
             1000,
             1000,
             5000,
-            12 hours,
+            4 hours,
             5000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1,
