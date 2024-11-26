@@ -581,9 +581,11 @@ abstract contract PositionManagementBase is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        uint256 newCollateral = IMToken(positionToken).previewDeposit(
-            collateralAmount
-        ) * price;
+        uint256 newCollateral = FixedPointMathLib.mulDiv(
+            IMToken(positionToken).previewDeposit(collateralAmount),
+            price,
+            IMToken(positionToken).decimals() * WAD
+        );
 
         (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
 
@@ -603,7 +605,6 @@ abstract contract PositionManagementBase is
             sumDebt,
             borrowToken
         );
-
     }
 
     /// PUBLIC FUNCTIONS ///
