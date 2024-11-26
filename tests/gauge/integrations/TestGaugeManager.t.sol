@@ -621,11 +621,11 @@ contract TestGaugeManager is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         gaugeManager.massUpdatePools(tokensParam);
-        uint256[] memory rewards = gaugeManager.pendingRewards(
-            tokens[0],
-            users[0]
-        );
-        assertEq(rewards[0], 9999);
+        (
+            address[][] memory pendingRewardTokens,
+            uint256[][] memory rewards
+        ) = gaugeManager.pendingRewards(_makeTokenArray(tokens[0]), users[0]);
+        assertEq(rewards[0][0], 9999);
         assertEq(
             gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
             9999
