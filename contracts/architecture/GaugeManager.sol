@@ -473,11 +473,18 @@ contract GaugeManager is
     function pendingRewards(
         address[] calldata tokens,
         address user
-    ) external view returns (
-        address[][] memory pendingRewardTokens,
-        uint256[][] memory rewardAmounts
-    ) {
+    )
+        external
+        view
+        returns (
+            address[][] memory pendingRewardTokens,
+            uint256[][] memory rewardAmounts
+        )
+    {
         uint256 numMTokens = tokens.length;
+        pendingRewardTokens = new address[][](numMTokens);
+        rewardAmounts = new uint256[][](numMTokens);
+
         address[] memory rewardTokensForMToken;
         uint256 numRewardTokens;
         address cachedToken;
