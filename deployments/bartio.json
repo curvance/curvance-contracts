@@ -18,6 +18,7 @@
   "feeManager": "0x65B4453fEE7Fc010E35Fb3a7D8533B9FE465B133",
   "firstTestMarket": "0xd906ccF9a44143ca2400e5af902E79Cb1325E716",
   "firstTestMarket-complexZapper": "0xaeFd8792DCFBa618d7acd6c394D8e9E8e2006e03",
+  "firstTestMarket-positionManagementSimple": "0xC09cf126acD2fE47AD1557cd619E934ba19BA37B",
   "firstTestMarket-simpleZapper": "0x639603FFD0182939dF985d0c91A62c1D421238c2",
   "fourthTestMarket": "0x05718A9B729aEa18bA7Ca4f6c4eb07A4A5bD8565",
   "fourthTestMarket-complexZapper": "0xB908290A20036dc09F48769eB1B2ff6f0933c203",
@@ -28,13 +29,13 @@
   "messagingHub": "0x9547eBc80586fcE0249D44504e106089BDdE70b0",
   "mkUSD": "0x32e253F415E7f682E26bcebab2Ee0a2b0d405168",
   "multicallChecker": "0xbCB9B8a8DB82D7bdcc4E6d96927Ef3570a643B7F",
+  "oogaBoogaCalldataChecker": "0xFbA21b2C45116E1BEbe328059eBe1c72a77fd08B",
   "oracleManager": "0x26b8363d00B49c5Db367fc7ab2f665dE29E74422",
   "redstoneAdaptor": "0xa0809285b241FA8214CC6c18FA2E4FA124d28b83",
   "rewardManager": "0xF723C290170E50cea79072dD543a061a826085D4",
   "secondTestMarket": "0x555E8d84F2BA6fcA5234053048F15edBc235667E",
   "secondTestMarket-complexZapper": "0x01eEe360d9ddD613D29a2Bb5370d216f32334647",
   "secondTestMarket-simpleZapper": "0x3c212d8Da22246659512bF3516ACB896DB77e0d9",
-  "oogaBoogaCalldataChecker": "0xFbA21b2C45116E1BEbe328059eBe1c72a77fd08B",
   "veCve": "0x1F9B0af9D8798F7be7ba844638c4C0f3A3d923b8",
   "votingHub": "0xdf95361F97535e6310267fFEa4655F1B345735A0"
 }
