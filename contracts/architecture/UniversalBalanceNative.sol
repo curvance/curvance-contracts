@@ -97,6 +97,14 @@ contract UniversalBalanceNative is UniversalBalance {
         // tokens to `recipient`.
         IWETH(underlying).withdraw(amountWithdrawn);
         SafeTransferLib.safeTransferETH(recipient, amountWithdrawn);
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            msg.sender,
+            amount,
+            lendingBalanceUsed
+        );
     }
 
     /// @notice Withdraws wrapped native token from `owner`'s universal
@@ -130,6 +138,14 @@ contract UniversalBalanceNative is UniversalBalance {
         // tokens to `recipient`.
         IWETH(underlying).withdraw(amountWithdrawn);
         SafeTransferLib.safeTransferETH(recipient, amountWithdrawn);
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            owner,
+            amount,
+            lendingBalanceUsed
+        );
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
@@ -137,7 +153,10 @@ contract UniversalBalanceNative is UniversalBalance {
     ///              balance account.
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update.
-    function useBalanceForOracleUpdate(address owner, uint256 amount) external {
+    function useBalanceForOracleUpdate(
+        address owner,
+        uint256 amount
+    ) external {
         // Validate an approved adaptor is calling the function.
         if (
             !IOracleManager(centralRegistry.oracleManager()).isApprovedAdaptor(

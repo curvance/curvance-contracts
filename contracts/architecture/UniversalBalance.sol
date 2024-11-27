@@ -104,7 +104,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             address(this),
             amount
         );
-        
+
         _deposit(amount, willLend, msg.sender);
     }
 
@@ -155,6 +155,14 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // Transfer the withdrawn tokens.
         SafeTransferLib.safeTransfer(underlying, recipient, amountWithdrawn);
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            msg.sender,
+            amount,
+            lendingBalanceUsed
+        );
     }
 
     /// @notice Withdraws underlying token from `owner`'s universal balance
@@ -185,9 +193,16 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // Transfer the withdrawn tokens.
         SafeTransferLib.safeTransfer(underlying, recipient, amountWithdrawn);
+
+        emit Withdraw(
+            msg.sender,
+            recipient,
+            owner,
+            amount,
+            lendingBalanceUsed
+        );
     }
 
-    
     /// @notice Transfers `amount` from caller's universal balance, currently
     ///         held or lent out to `recipient`.
     /// @dev Emits { Deposit } and { Withdraw } events.
@@ -354,11 +369,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // If its a forced lending redemption only check their lent balance,
         // otherwise look at both sitting and lent balances.
-        uint256 pointerAmount = forceLentRedemption ? FixedPointMathLib.mulDiv(
-                    ownerBalance.lentBalance,
-                    exchangeRate,
-                    WAD
-                ) : ownerBalance.sittingBalance +
+        uint256 pointerAmount = forceLentRedemption
+            ? FixedPointMathLib.mulDiv(
+                ownerBalance.lentBalance,
+                exchangeRate,
+                WAD
+            )
+            : ownerBalance.sittingBalance +
                 FixedPointMathLib.mulDiv(
                     ownerBalance.lentBalance,
                     exchangeRate,
@@ -406,7 +423,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         // If lent balance was used at all, remainingAmount will be greater than 0.
-        emit Withdraw(msg.sender, recipient, owner, amount, remainingAmount > 0);
         return (amount, remainingAmount > 0);
     }
 

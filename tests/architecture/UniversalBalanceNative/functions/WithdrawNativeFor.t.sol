@@ -165,7 +165,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, true);
+        emit Withdraw(user2, user2, user1, withdrawAmount, false);
 
         vm.prank(user2);
         universalBalanceNative.withdrawNativeFor(
