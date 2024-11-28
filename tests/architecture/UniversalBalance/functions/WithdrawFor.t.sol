@@ -36,6 +36,37 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         universalBalance.withdrawFor(1e6, true, user2, address(1));
     }
 
+    function test_universalBalanceWithdrawFor_fail_whenTransferIsDisabled()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdrawFor(1e6, true, user2, user1);
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceWithdrawFor_fail_whenCooldownIsNotEnded()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdrawFor(1e6, true, user2, user1);
+
+        vm.stopPrank();
+    }
+
     function test_universalBalanceWithdrawFor_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {

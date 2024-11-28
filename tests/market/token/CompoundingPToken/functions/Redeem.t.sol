@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -12,6 +13,29 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
 
         vm.expectRevert();
         pBALRETH.redeem(100, address(this), address(this));
+    }
+
+    function test_compoundingPTokenRedeem_fail_whenTransferIsDisabled()
+        public
+    {
+        pBALRETH.mint(100, address(this));
+
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        pBALRETH.redeem(0, address(this), address(this));
+    }
+
+    function test_compoundingPTokenRedeem_fail_whenCooldownIsNotEnded()
+        public
+    {
+        pBALRETH.mint(100, address(this));
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        pBALRETH.redeem(0, address(this), address(this));
     }
 
     function test_compoundingPTokenRedeem_fail_whenAmountIsZero() public {

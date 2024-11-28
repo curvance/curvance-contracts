@@ -40,6 +40,37 @@ contract UniversalBalanceNativeWithdrawForTest is
         vm.stopPrank();
     }
 
+    function test_universalBalanceNativeWithdrawFor_fail_whenTransferIsDisabled()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalanceNative.withdrawFor(_ONE, true, user2, user1);
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceNativeWithdrawFor_fail_whenCooldownIsNotEnded()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalanceNative.withdrawFor(_ONE, true, user2, user1);
+
+        vm.stopPrank();
+    }
+
     function test_universalBalanceNativeWithdrawFor_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {

@@ -87,12 +87,7 @@ abstract contract PluginDelegable {
         uint256 approvalIndex = getUserApprovalIndex(msg.sender);
         _isDelegate[msg.sender][approvalIndex][delegate] = isApproved;
 
-        emit DelegateApproval(
-            msg.sender,
-            delegate,
-            approvalIndex,
-            isApproved
-        );
+        emit DelegateApproval(msg.sender, delegate, approvalIndex, isApproved);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -103,9 +98,7 @@ abstract contract PluginDelegable {
     ///      `user`.
     /// @param user The user to check delegated approval index for.
     /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) public view returns (uint256) {
+    function getUserApprovalIndex(address user) public view returns (uint256) {
         return centralRegistry.getUserApprovalIndex(user);
     }
 

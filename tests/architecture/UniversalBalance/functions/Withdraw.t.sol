@@ -13,6 +13,37 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         bool lendingRedemption
     );
 
+    function test_universalBalanceWithdraw_fail_whenTransferIsDisabled()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdraw(1e6, false, address(this));
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceWithdraw_fail_whenCooldownIsNotEnded()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalance.withdraw(1e6, false, address(this));
+
+        vm.stopPrank();
+    }
+
     function test_universalBalanceWithdraw_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {

@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
@@ -12,6 +13,37 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 assets,
         bool lendingRedemption
     );
+
+    function test_universalBalanceNativeWithdraw_fail_whenTransferIsDisabled()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalanceNative.withdraw(_ONE, false, address(this));
+
+        vm.stopPrank();
+    }
+
+    function test_universalBalanceNativeWithdraw_fail_whenCooldownIsNotEnded()
+        public
+    {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__Unauthorized.selector
+        );
+        universalBalanceNative.withdraw(_ONE, false, address(this));
+
+        vm.stopPrank();
+    }
 
     function test_universalBalanceNativeWithdraw_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount

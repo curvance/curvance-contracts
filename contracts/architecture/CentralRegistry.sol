@@ -22,14 +22,14 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 /// @title Curvance DAO Central Registry.
 /// @notice Manages permissions and protocol contract registration
 ///         within the Curvance Protocol.
-/// @dev The Central Registry acts a single source of truth for the Curvance
+/// @dev The Central Registry acts as a single source of truth for the Curvance
 ///      Protocol. This covers everything from multichain operations, to
 ///      contract locations, to protocol fees, to protocol multipliers
 ///      associated with various actions.
 ///
-///      Permissions inside Curvance has two tiers:
+///      Permissions inside Curvance have two tiers:
 ///      - Standard DAO permissions: This is associated with actions that
-///        reduce risk inside the Curvance system, or need to continually
+///        reduce risk inside the Curvance system, or need to be continually
 ///        managed by the DAO elected operating team.
 ///      - Elevated DAO permissions: This is associated with actions that
 ///        increase risk inside the Curvance system, the most sensitive of
@@ -751,10 +751,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         address user
     ) external view returns (bool) {
         DelegationConfig memory userConfig = delegationConfig[user];
-        return (
-            userConfig.delegationDisabled ||
-            userConfig.delegationEnabledTimestamp > block.timestamp
-        );
+        return (userConfig.delegationDisabled ||
+            userConfig.delegationEnabledTimestamp > block.timestamp);
     }
 
     /// @notice Returns `user`'s approval index.
@@ -784,15 +782,16 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sets a callers status for whether to allow new delegation
     ///         or not.
-    /// @param delegable Whether caller wants to allow new delegation or not.
+    /// @param delegationDisabled Whether caller wants to allow new delegation
+    ///                           or not.
     ///      Emits a {DelegableStatusSet} event.
-    function setDelegable(bool delegable) external {
+    function setDelegable(bool delegationDisabled) external {
         DelegationConfig storage userConfig = delegationConfig[msg.sender];
 
         // Validates that user is intending on flipping their delegation
         // status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
-        if (delegable == userConfig.delegationDisabled) {
+        if (delegationDisabled == userConfig.delegationDisabled) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -801,22 +800,26 @@ contract CentralRegistry is ERC165, LockableRegistry {
         // If the user is trying to enable delegation again,
         // add their cooldown period, an added layer against phishing
         // attempts.
-        if (!delegable) {
+        if (!delegationDisabled) {
             // Validate the user did not recently reduce their cooldown,
             // triggering their transfer cooldown.
             if (userConfig.delegationEnabledTimestamp > block.timestamp) {
                 _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
             }
 
-            enableTimestamp = userTransferConfig[
-                msg.sender
-            ].transferCooldown + block.timestamp;
+            enableTimestamp =
+                _userTransferConfig[msg.sender].transferCooldown +
+                block.timestamp;
             userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
         }
 
-        userConfig.delegationDisabled = delegable;
+        userConfig.delegationDisabled = delegationDisabled;
 
-        emit DelegableStatusSet(msg.sender, delegable, enableTimestamp);
+        emit DelegableStatusSet(
+            msg.sender,
+            delegationDisabled,
+            enableTimestamp
+        );
     }
 
     /// OWNERSHIP LOGIC
