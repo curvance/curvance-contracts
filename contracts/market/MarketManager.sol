@@ -750,11 +750,7 @@ contract MarketManager is
             bool[] memory positionsToClose
         ) = _canRedeem(mToken, from, amount);
 
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            from,
-            positionsToClose
-        );
+        _closePositionsIfNeeded(positionClosureNeeded, from, positionsToClose);
     }
 
     /// @notice Checks if the account should be allowed to transfer collateral
@@ -807,7 +803,6 @@ contract MarketManager is
         // Queue the liquidation for execution.
         _queueLiquidation(liquidator, account, true);
     }
-
 
     /// @notice Queues an account liquidation for `account` liquidating
     ///         `pToken` by repaying a portion of `account`'s active debt.
@@ -1741,7 +1736,6 @@ contract MarketManager is
         );
     }
 
-    
     /// @notice Helper function for closing user positions after liquidity
     ///         checks have been passed.
     /// @dev Used as sort of a garbage collection system for any user positions

@@ -10,6 +10,5 @@ import { CVEBase } from "contracts/token/CVEBase.sol";
 contract CVE is CVEBase {
     /// CONSTRUCTOR ///
 
-    constructor(ICentralRegistry centralRegistry_) CVEBase(centralRegistry_){}
-
+    constructor(ICentralRegistry centralRegistry_) CVEBase(centralRegistry_) {}
 }
