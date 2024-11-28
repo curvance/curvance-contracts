@@ -16,6 +16,26 @@ contract CanRedeemTest is TestBaseMarketManager {
         marketManager.canRedeem(address(pBALRETH), user1, 100e6);
     }
 
+    function test_canRedeem_fail_whenTransferIsDisabled() public {
+        vm.prank(user1);
+        centralRegistry.setTransferLockStatus(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+    }
+
+    function test_canRedeem_fail_whenCooldownIsNotEnded() public {
+        vm.startPrank(user1);
+
+        centralRegistry.setCooldown(10 days);
+        centralRegistry.setCooldown(5 days);
+
+        vm.stopPrank();
+
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+    }
+
     function test_canRedeem_fail_whenWithinMinimumHoldPeriod() public {
         vm.prank(address(eUSDC));
         marketManager.notifyBorrow(address(eUSDC), user1);
