@@ -39,9 +39,7 @@ abstract contract LiquidationManager {
 
     /// EVENTS ///
 
-    event SpecificSequencingStatusChanged(
-        bool sequencingActive
-    );
+    event SpecificSequencingStatusChanged(bool sequencingActive);
 
     event LiquidationBundlerStatusChanged(
         address indexed bundler,
@@ -63,7 +61,7 @@ abstract contract LiquidationManager {
     error LiquidationManager__InvalidLiquidator();
 
     /// CONSTRUCTOR ///
-  
+
     constructor() {
         liquidationBundlers[tx.origin] = true;
     }
@@ -126,7 +124,7 @@ abstract contract LiquidationManager {
             emit LiquidationQueued(account, liquidator, msg.sender);
             return;
         }
-        
+
         emit AccountLiquidationQueued(account, liquidator);
     }
 
@@ -186,7 +184,6 @@ abstract contract LiquidationManager {
         }
     }
 
-    
     /// @notice Updates status of unique liquidation sequencing to
     ///         `sequencingActive`.
     /// @dev NOTE: This function MUST be called inside an external or public
@@ -207,9 +204,6 @@ abstract contract LiquidationManager {
     ) external {
         liquidationBundlers[liquidationBundler] = isApproved;
 
-        emit LiquidationBundlerStatusChanged(
-            liquidationBundler,
-            isApproved
-        );
+        emit LiquidationBundlerStatusChanged(liquidationBundler, isApproved);
     }
 }

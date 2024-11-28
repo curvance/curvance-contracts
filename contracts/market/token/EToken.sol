@@ -452,10 +452,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account being liquidated and repaid on behalf of.
     /// @param pToken The position token to be liquidated from
     ///               `account`.
-    function queueLiquidation(
-        address account,
-        IMToken pToken
-    ) external {
+    function queueLiquidation(address account, IMToken pToken) external {
         // Fail if account = liquidator.
         assembly {
             if eq(account, caller()) {
@@ -501,10 +498,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the liquidation.
     /// @param account The address of the account to be liquidated.
     /// @param pToken The market in which to seize collateral from `account`.
-    function liquidate(
-        address account,
-        IMToken pToken
-    ) external nonReentrant {
+    function liquidate(address account, IMToken pToken) external nonReentrant {
         _liquidate(
             msg.sender,
             account,
@@ -1536,12 +1530,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        pToken.seize(
-            liquidator,
-            account,
-            liquidatedTokens,
-            protocolTokens
-        );
+        pToken.seize(liquidator, account, liquidatedTokens, protocolTokens);
 
         emit Liquidated(
             liquidator,

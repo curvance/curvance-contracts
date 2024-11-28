@@ -102,8 +102,8 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         isUnderlyingToken[strategyData.token0] = true;
         isUnderlyingToken[strategyData.token1] = true;
 
-        rewardTokenIsUnderlying = (rewardToken ==
-            strategyData.token0 || rewardToken == strategyData.token1);
+        rewardTokenIsUnderlying = (rewardToken == strategyData.token0 ||
+            rewardToken == strategyData.token1);
 
         if (rewardToken != asset()) {
             isApprovedAsset[rewardToken] = true;
@@ -144,7 +144,9 @@ contract VelodromeVolatilePToken is CompoundingPToken {
             sd.gauge.getReward(address(this));
 
             {
-                uint256 rewardAmount = IERC20(rewardToken).balanceOf(address(this));
+                uint256 rewardAmount = IERC20(rewardToken).balanceOf(
+                    address(this)
+                );
                 // If there are no pending rewards, skip swapping logic.
                 if (rewardAmount > 0) {
                     // Take protocol fee for veCVE lockers and auto

@@ -117,8 +117,8 @@ contract VelodromeStablePToken is CompoundingPToken {
         isUnderlyingToken[strategyData.token0] = true;
         isUnderlyingToken[strategyData.token1] = true;
 
-        rewardTokenIsUnderlying = (rewardToken ==
-            strategyData.token0 || rewardToken == strategyData.token1);
+        rewardTokenIsUnderlying = (rewardToken == strategyData.token0 ||
+            rewardToken == strategyData.token1);
 
         if (rewardToken != asset()) {
             isApprovedAsset[rewardToken] = true;
