@@ -11,6 +11,33 @@ contract SetDelegableTest is TestBaseMarket {
         uint256 delegationEnabledTimestamp
     );
 
+    function test_setDelegable_fail_whenStatusIsNotFlipping() public {
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setDelegable(false);
+
+        centralRegistry.setDelegable(true);
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setDelegable(true);
+    }
+
+    function test_setDelegable_fail_whenCooldownIsNotEnded() public {
+        centralRegistry.setCooldown(10 days);
+
+        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegable(true);
+
+        vm.expectRevert(
+            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+        );
+        centralRegistry.setDelegable(false);
+    }
+
     function test_setDelegable_success() public {
         vm.startPrank(user1);
 

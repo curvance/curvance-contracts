@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { VelodromeStablePToken, ICentralRegistry, IERC20, IVeloGauge, IVeloPairFactory, IVeloRouter } from "contracts/market/token/VelodromeStablePToken.sol";
 
 contract AerodromeStablePToken is VelodromeStablePToken {
-   
     /// CONSTRUCTOR ///
 
     constructor(
@@ -14,9 +13,16 @@ contract AerodromeStablePToken is VelodromeStablePToken {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router
-    ) VelodromeStablePToken(
-        centralRegistry_, asset_, marketManager_, gauge, pairFactory, router
-    ) {}
+    )
+        VelodromeStablePToken(
+            centralRegistry_,
+            asset_,
+            marketManager_,
+            gauge,
+            pairFactory,
+            router
+        )
+    {}
 
     /// @notice Validates whether a contract can be deployed based on
     ///         the current chainid.
@@ -27,5 +33,4 @@ contract AerodromeStablePToken is VelodromeStablePToken {
             revert BasePToken__UnsupportedChain();
         }
     }
-
 }

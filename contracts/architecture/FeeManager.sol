@@ -223,17 +223,13 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__OTCExecutionTermsFailed();
         }
 
-
         // Cache router to save gas.
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
 
-        (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager.getPrice(
-            tokenToOTC,
-            true,
-            true
-        );
+        (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager
+            .getPrice(tokenToOTC, true, true);
         (uint256 feeTokenPrice, uint256 errorCodeFeeToken) = oracleManager
             .getPrice(feeToken, true, true);
 
@@ -251,10 +247,9 @@ contract FeeManager is ReentrancyGuard {
 
         // Check if Curvance DAO is paying more than anticipated.
         if (expectedFeeTokens < feeTokenRequiredForOTC) {
-            uint256 slippage = ((
-                feeTokenRequiredForOTC - expectedFeeTokens 
-            ) * WAD) / expectedFeeTokens;
-            
+            uint256 slippage = ((feeTokenRequiredForOTC - expectedFeeTokens) *
+                WAD) / expectedFeeTokens;
+
             if (slippage > slippageLimit) {
                 revert FeeManager__OTCExecutionTermsFailed();
             }
