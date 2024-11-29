@@ -81,6 +81,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// EVENTS ///
 
     event RewardPaid(address user, address rewardToken, uint256 amount);
+    event EpochRewardsSet(
+        uint256 epochDelivered,
+        uint256 rewardsPerPoint,
+        uint256 rewardAmount
+    );
 
     /// ERRORS ///
 
@@ -133,7 +138,13 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
+        epochRewardsPerPoint[nextEpochToDeliver] = rewardsPerPoint;
+
+        emit EpochRewardsSet(
+            nextEpochToDeliver++,
+            rewardsPerPoint,
+            rewardsPerPoint * veCVE.chainPoints()
+        );
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -607,10 +618,15 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bool isContinuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        IERC20 cve = IERC20(_getCVE());
-        uint256 lockAmount = cve.balanceOf(address(this));
+        address cve = _getCVE();
 
-        cve.approve(address(veCVE), lockAmount);
+        // The reward manager never custodies CVE so we can use the pure
+        // balance here and if anyone ever sends cve to this constant it
+        // acts as a two in one token skimmer and locker.
+        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
+
+        // Approve veCVE contract to lock `lockAmount` CVE for `user`.
+        SafeTransferLib.safeApprove(cve, address(veCVE), lockAmount);
 
         veCVE.compoundRewardsIntoLock(
             user,
