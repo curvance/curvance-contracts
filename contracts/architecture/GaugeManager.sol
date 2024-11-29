@@ -676,7 +676,7 @@ contract GaugeManager is
             cveRewards = boostedRewards;
         }
 
-        // Approve veCVE to take necessary cve to extend/create the lock
+        // Approve veCVE to take necessary cve to extend/create the lock.
         SafeTransferLib.safeApprove(cve, address(veCVE), cveRewards);
 
         if (isNewLock) {

@@ -607,10 +607,15 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bool isContinuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        IERC20 cve = IERC20(_getCVE());
-        uint256 lockAmount = cve.balanceOf(address(this));
+        address cve = _getCVE();
+        
+        // The reward manager never custodies CVE so we can use the pure
+        // balance here and if anyone ever sends cve to this constant it
+        // acts as a two in one token skimmer and locker.
+        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
 
-        cve.approve(address(veCVE), lockAmount);
+        // Approve veCVE contract to lock `lockAmount` CVE for `user`.
+        SafeTransferLib.safeApprove(cve, address(veCVE), lockAmount);
 
         veCVE.compoundRewardsIntoLock(
             user,

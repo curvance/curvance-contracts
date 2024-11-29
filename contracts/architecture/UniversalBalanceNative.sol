@@ -118,7 +118,8 @@ contract UniversalBalanceNative is UniversalBalance {
     ///                            should be pulledonly from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
-    /// @param owner The account that will redeem from their universal balance.
+    /// @param owner The account that will redeem from their universal
+    ///              balance.
     function withdrawNativeFor(
         uint256 amount,
         bool forceLentRedemption,
@@ -149,8 +150,8 @@ contract UniversalBalanceNative is UniversalBalance {
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
-    /// @param owner Which user is funding the oracle update from their universal
-    ///              balance account.
+    /// @param owner Which user is funding the oracle update from their
+    ///              universal balance account.
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update.
     function useBalanceForOracleUpdate(
@@ -167,7 +168,8 @@ contract UniversalBalanceNative is UniversalBalance {
         }
 
         // Withdraw from `owner`'s universal balance and transfer the wrapped
-        // native tokens to the Oracle Adaptor for use in updating oracle feed.
+        // native tokens to the Oracle Adaptor for use in updating oracle
+        // feed.
         (amount, ) = _withdraw(amount, false, msg.sender, owner);
 
         // Transfer the withdrawn tokens to the oracle adaptor.

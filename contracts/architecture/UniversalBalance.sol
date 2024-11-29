@@ -342,7 +342,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///                            should be pulledonly from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The address who will receive the underlying assets.
-    /// @param owner The account that will redeem from their universal balance.
+    /// @param owner The account that will redeem from their universal
+    ///              balance.
     function _withdraw(
         uint256 amount,
         bool forceLentRedemption,
