@@ -83,7 +83,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     event RewardPaid(address user, address rewardToken, uint256 amount);
     event EpochRewardsSet(
         uint256 epochDelivered,
-        uint256 rewardsPerPoint
+        uint256 rewardsPerPoint,
+        uint256 rewardAmount
     );
 
     /// ERRORS ///
@@ -139,7 +140,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // then update nextEpochToDeliver invariant.
         epochRewardsPerPoint[nextEpochToDeliver] = rewardsPerPoint;
 
-        emit EpochRewardsSet(nextEpochToDeliver++, rewardsPerPoint, rewardsPerPoint * veCVE.chainPoints());
+        emit EpochRewardsSet(
+            nextEpochToDeliver++,
+            rewardsPerPoint,
+            rewardsPerPoint * veCVE.chainPoints()
+        );
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
