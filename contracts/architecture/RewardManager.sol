@@ -81,6 +81,10 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// EVENTS ///
 
     event RewardPaid(address user, address rewardToken, uint256 amount);
+    event EpochRewardsSet(
+        uint256 epochDelivered,
+        uint256 rewardsPerPoint
+    );
 
     /// ERRORS ///
 
@@ -133,7 +137,9 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
         // Record rewards per CVE for the epoch,
         // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
+        epochRewardsPerPoint[nextEpochToDeliver] = rewardsPerPoint;
+
+        emit EpochRewardsSet(nextEpochToDeliver++, rewardsPerPoint, rewardsPerPoint * veCVE.chainPoints());
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -608,7 +614,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         uint256 lockIndex
     ) internal returns (uint256) {
         address cve = _getCVE();
-        
+
         // The reward manager never custodies CVE so we can use the pure
         // balance here and if anyone ever sends cve to this constant it
         // acts as a two in one token skimmer and locker.
