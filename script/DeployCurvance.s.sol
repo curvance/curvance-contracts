@@ -98,15 +98,15 @@ contract DeployCurvance is
         _deployVeCve(centralRegistry);
         _setVeCVE(veCve);
 
-        // Deploy MessagingHub
-        _deployMessagingHub(centralRegistry);
-        _setMessagingHub(messagingHub);
-        _addLockingPermissions(messagingHub);
-
         // Deploy GaugeManagerPool
         _deployGaugeManager(centralRegistry);
         _addLockingPermissions(gaugeManager);
         _setGaugeManager(gaugeManager);
+
+        // Deploy MessagingHub
+        _deployMessagingHub(centralRegistry);
+        _setMessagingHub(messagingHub);
+        _addLockingPermissions(messagingHub);
 
         // Deploy VotingHub
         _deployVotingHub(centralRegistry, 1000);
