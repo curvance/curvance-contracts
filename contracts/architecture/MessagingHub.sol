@@ -689,7 +689,7 @@ contract MessagingHub is QueryResponse {
     ) internal {
         // Query rewards for this epoch.
         uint256 feeTokensHeld = _getFeeTokenHeld();
-        
+
         // We temporary cache this chains lock points inside the currentChainId
         // variable since it will be overridden before it is ever called again.
         // We do this to avoid having to reserve another storage slot which will
@@ -706,7 +706,6 @@ contract MessagingHub is QueryResponse {
 
         IRewardManager rewardManager = _getRewardManager();
         ChainData memory chainData;
-        uint256 feeTokensForChain;
 
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere
@@ -734,9 +733,8 @@ contract MessagingHub is QueryResponse {
         // Calculate the fee tokens that should stay on this chain by querying
         // this chains lock points directly and adjusting versus all remote
         // chains.
-        feeTokensForChain =
-            (((feeTokensHeld * WAD) / totalPoints) * currentChainId) /
-            WAD;
+        uint256 feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
+            currentChainId) / WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
