@@ -200,9 +200,10 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -280,10 +281,10 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 60e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -320,9 +321,10 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -402,14 +404,14 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 60e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);

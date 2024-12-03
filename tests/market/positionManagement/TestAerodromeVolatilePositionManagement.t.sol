@@ -225,9 +225,10 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -309,7 +310,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             block.timestamp
         );
         deleverageData.swapData[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[1].inputAmount = 3000e6;
+        deleverageData.swapData[1].inputAmount = 3098e6;
         deleverageData.swapData[1].outputToken = _DAI_ADDRESS;
         deleverageData.swapData[1].target = address(aeroRouter);
         deleverageData.swapData[1].slippage = 1e18;
@@ -320,16 +321,16 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         routes[0].factory = address(aeroPairFactory);
         deleverageData.swapData[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            3000e6,
+            3098e6,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
-        deleverageData.repayAmount = 3000e18;
+        deleverageData.repayAmount = 3097e18;
 
         pWETHUSDC.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -366,9 +367,10 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -452,7 +454,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             block.timestamp
         );
         deleverageData.swapData[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[1].inputAmount = 3000e6;
+        deleverageData.swapData[1].inputAmount = 3098e6;
         deleverageData.swapData[1].outputToken = _DAI_ADDRESS;
         deleverageData.swapData[1].target = address(aeroRouter);
         deleverageData.swapData[1].slippage = 1e18;
@@ -463,20 +465,20 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         routes[0].factory = address(aeroPairFactory);
         deleverageData.swapData[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            3000e6,
+            3098e6,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
-        deleverageData.repayAmount = 3000e18;
+        deleverageData.repayAmount = 3097e18;
 
         pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -492,5 +494,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+
+        vm.stopPrank();
     }
 }

@@ -194,7 +194,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             address(new MockCalldataChecker(address(veloRouter)))
         );
 
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(6000);
     }
 
     function testInitialize() public {
@@ -225,9 +225,10 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -263,10 +264,10 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         assertEq(eDAIBalance, 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
+        (uint256 pWETHUSDCBalance, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC
             .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.00013 ether);
-        assertEq(pUSDCDAIBorrowed, 0 ether);
+        assertGt(pWETHUSDCBalance, 0.000245 ether);
+        assertEq(pWETHUSDCBorrowed, 0 ether);
 
         vm.stopPrank();
     }
@@ -291,7 +292,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
         deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
-        deleverageData.swapData[0].inputAmount = 0.7 ether;
+        deleverageData.swapData[0].inputAmount = 0.7413 ether;
         deleverageData.swapData[0].outputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].target = address(veloRouter);
         deleverageData.swapData[0].slippage = 1e18;
@@ -302,14 +303,15 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         routes[0].factory = address(veloPairFactory);
         deleverageData.swapData[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            0.7 ether,
+            0.7413 ether,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
+
         deleverageData.swapData[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[1].inputAmount = 2300e6;
+        deleverageData.swapData[1].inputAmount = 2424e6;
         deleverageData.swapData[1].outputToken = _DAI_ADDRESS;
         deleverageData.swapData[1].target = address(veloRouter);
         deleverageData.swapData[1].slippage = 1e18;
@@ -320,16 +322,16 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         routes[0].factory = address(veloPairFactory);
         deleverageData.swapData[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            2300e6,
+            2424e6,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
-        deleverageData.repayAmount = 2300e18;
+        deleverageData.repayAmount = 2420e18;
 
         pWETHUSDC.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
+        positionManagement.deleverage(deleverageData, 0.052e18); // 5.2% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -366,9 +368,10 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -434,7 +437,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
         deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
-        deleverageData.swapData[0].inputAmount = 0.7 ether;
+        deleverageData.swapData[0].inputAmount = 0.7413 ether;
         deleverageData.swapData[0].outputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].target = address(veloRouter);
         deleverageData.swapData[0].slippage = 1e18;
@@ -445,14 +448,14 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         routes[0].factory = address(veloPairFactory);
         deleverageData.swapData[0].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            0.7 ether,
+            0.7413 ether,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
         deleverageData.swapData[1].inputToken = _USDC_ADDRESS;
-        deleverageData.swapData[1].inputAmount = 2300e6;
+        deleverageData.swapData[1].inputAmount = 2424e6;
         deleverageData.swapData[1].outputToken = _DAI_ADDRESS;
         deleverageData.swapData[1].target = address(veloRouter);
         deleverageData.swapData[1].slippage = 1e18;
@@ -463,20 +466,20 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         routes[0].factory = address(veloPairFactory);
         deleverageData.swapData[1].call = abi.encodeWithSelector(
             IVeloRouter.swapExactTokensForTokens.selector,
-            2300e6,
+            2424e6,
             0,
             routes,
             address(positionManagement),
             block.timestamp
         );
-        deleverageData.repayAmount = 2300e18;
+        deleverageData.repayAmount = 2420e18;
 
         pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
+        positionManagement.deleverageFor(deleverageData, user, 0.052e18); // 5.2% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -492,5 +495,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+
+        vm.stopPrank();
     }
 }

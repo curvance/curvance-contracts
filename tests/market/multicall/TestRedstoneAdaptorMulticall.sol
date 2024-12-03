@@ -303,7 +303,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(6000);
 
         // provide fee to universal balance
         deal(_WBTC_ADDRESS, user1, 0.1e8);
@@ -316,9 +316,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         marketManager.postCollateral(user1, address(pWBTC), 0.1e8);
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user1, address(eUSDC)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user1,
+            address(eUSDC)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eUSDC;
