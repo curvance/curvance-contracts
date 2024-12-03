@@ -342,13 +342,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            borrowToken != address(leverageData.borrowToken) ||
-            borrowAmount != leverageData.borrowAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         address borrowUnderlying = SimplePToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
@@ -358,11 +351,19 @@ abstract contract PositionManagementBase is
         // Take protocol fee, if any.
         uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
         if (fee > 0) {
+            borrowAmount -= fee;
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
                 centralRegistry.daoAddress(),
                 fee
             );
+        }
+
+        if (
+            borrowToken != address(leverageData.borrowToken) ||
+            borrowAmount != leverageData.borrowAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
         }
 
         // We do not need to check whether positionToken is listed
@@ -449,13 +450,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            positionToken != address(deleverageData.positionToken) ||
-            collateralAmount != deleverageData.collateralAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
         address collateralUnderlying = SimplePToken(positionToken)
@@ -478,7 +472,14 @@ abstract contract PositionManagementBase is
                 fee
             );
         }
-        deleverageData.collateralAmount = collateralAmount;
+
+        if (
+            positionToken != address(deleverageData.positionToken) ||
+            collateralAmount != deleverageData.collateralAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
         _swapCollateralToBorrowUnderlying(deleverageData);
 
         // We do not need to check whether borrowToken is listed
