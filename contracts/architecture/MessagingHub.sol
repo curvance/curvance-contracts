@@ -281,27 +281,20 @@ contract MessagingHub is QueryResponse {
                 address[] memory tokens,
                 uint256[] memory emissions
             ) = abi.decode(
-                payload,
-                (uint8, uint256, uint256, address[], uint256[])
-            );
+                    payload,
+                    (uint8, uint256, uint256, address[], uint256[])
+                );
 
             IGaugeManager cachedGaugeManager = gaugeManager;
 
             // Mint appropriate gauge emissions to Gauge Manager.
-            cve.mintGaugeEmissions(
-                address(cachedGaugeManager),
-                emissionTotal
-            );
+            cve.mintGaugeEmissions(address(cachedGaugeManager), emissionTotal);
 
             // Set upcoming epoch emissions for voted configuration.
-            cachedGaugeManager.setEmissionRates(
-                epoch,
-                tokens,
-                emissions
-            );
+            cachedGaugeManager.setEmissionRates(epoch, tokens, emissions);
         } else if (payloadType == 3) {
-            // payloadType = 3:  Receiving fees from a foreign chain and
-            //                   finalized epoch rewards data.
+            // payloadType = 3: Receiving fees from a foreign chain and
+            //                  finalized epoch rewards data.
 
             IRewardManager rewardManager = _getRewardManager();
             (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
@@ -440,7 +433,13 @@ contract MessagingHub is QueryResponse {
         _sendPayload(
             chainData.messagingChainId,
             chainData.messagingHub,
-            abi.encode(2, epoch, emissionData), // payload
+            abi.encode(
+                2,
+                epoch,
+                emissionData.emissionTotal,
+                emissionData.tokens,
+                emissionData.emissions
+            ), // payload
             gasLimit,
             wormholeFee
         );

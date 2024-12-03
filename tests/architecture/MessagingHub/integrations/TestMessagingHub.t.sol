@@ -112,7 +112,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
-            WAD_SQUARED) / _ONE;
+            WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 100e6);

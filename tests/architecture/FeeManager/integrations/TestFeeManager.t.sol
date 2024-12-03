@@ -155,7 +155,7 @@ contract TestFeeManager is TestBaseFeeManager {
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
-            WAD_SQUARED) / _ONE;
+            WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(this)), 0);
@@ -288,7 +288,7 @@ contract TestFeeManager is TestBaseFeeManager {
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
-            WAD_SQUARED) / _ONE;
+            WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         uint256 balanceBefore = usdc.balanceOf(address(this));
