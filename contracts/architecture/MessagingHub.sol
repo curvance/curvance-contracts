@@ -274,15 +274,9 @@ contract MessagingHub is QueryResponse {
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
-            (
-                ,
-                uint256 epoch,
-                uint256 emissionTotal,
-                address[] memory tokens,
-                uint256[] memory emissions
-            ) = abi.decode(
+            (, uint256 epoch, EmissionData memory emissionData) = abi.decode(
                 payload,
-                (uint8, uint256, uint256, address[], uint256[])
+                (uint8, uint256, EmissionData)
             );
 
             IGaugeManager cachedGaugeManager = gaugeManager;
@@ -290,14 +284,14 @@ contract MessagingHub is QueryResponse {
             // Mint appropriate gauge emissions to Gauge Manager.
             cve.mintGaugeEmissions(
                 address(cachedGaugeManager),
-                emissionTotal
+                emissionData.emissionTotal
             );
 
             // Set upcoming epoch emissions for voted configuration.
             cachedGaugeManager.setEmissionRates(
                 epoch,
-                tokens,
-                emissions
+                emissionData.tokens,
+                emissionData.emissions
             );
         } else if (payloadType == 3) {
             // payloadType = 3:  Receiving fees from a foreign chain and
@@ -695,6 +689,7 @@ contract MessagingHub is QueryResponse {
     ) internal {
         // Query rewards for this epoch.
         uint256 feeTokensHeld = _getFeeTokenHeld();
+        
         // We temporary cache this chains lock points inside the currentChainId
         // variable since it will be overridden before it is ever called again.
         // We do this to avoid having to reserve another storage slot which will
