@@ -584,7 +584,7 @@ abstract contract PositionManagementBase is
         uint256 newCollateral = FixedPointMathLib.mulDiv(
             IMToken(positionToken).previewDeposit(collateralAmount),
             price,
-            IMToken(positionToken).decimals() * WAD
+            10 ** IMToken(positionToken).decimals()
         );
 
         (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
