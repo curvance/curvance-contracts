@@ -272,6 +272,67 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testDepositAndLeverage() public {
+        vm.startPrank(user);
+
+        deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
+        IERC20(_AERODROME_WETH_USDC).approve(
+            address(positionManagement),
+            0.0001 ether
+        );
+
+        // allow delegation for postCollateral
+        pWETHUSDC.setDelegateApproval(address(positionManagement), true);
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = 1.204e22;
+
+        PositionManagementAerodromeVolatile.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
+        leverageData.swapData.inputToken = _DAI_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = _WETH_ADDRESS;
+        leverageData.swapData.target = address(aeroRouter);
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](2);
+        routes[0].from = _DAI_ADDRESS;
+        routes[0].to = _USDC_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(aeroPairFactory);
+        routes[1].from = _USDC_ADDRESS;
+        routes[1].to = _WETH_ADDRESS;
+        routes[1].stable = false;
+        routes[1].factory = address(aeroPairFactory);
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            amountForLeverage,
+            0,
+            routes,
+            address(positionManagement),
+            type(uint256).max
+        );
+        leverageData.swapData.slippage = 2e18;
+        leverageData.auxData = bytes("");
+
+        positionManagement.depositAndLeverage(
+            0.0001 ether,
+            leverageData,
+            0.05e18
+        ); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pWETHUSDC
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
         // Warp until collateral posting wait time ends
