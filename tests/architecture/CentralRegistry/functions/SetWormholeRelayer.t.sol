@@ -9,7 +9,7 @@ contract SetWormholeRelayerTest is TestBaseMarket {
 
     address public newWormholeRelayer = makeAddr("Wormhole Relayer");
 
-    function test_setWormholeRelayer_fail_whenUnauthorized() public {
+    function test_setWormholeRelayer_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

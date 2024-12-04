@@ -28,14 +28,6 @@ contract TestBaseEToken is TestBaseMarket {
             0,
             true
         );
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
-            0,
-            true
-        );
         mockWethFeed = new MockDataFeed(_CHAINLINK_ETH_USD);
         chainlinkAdaptor.addAsset(
             _WETH_ADDRESS,
@@ -68,7 +60,6 @@ contract TestBaseEToken is TestBaseMarket {
 
         chainlinkEthUsd.updateAnswer(1500e8);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
@@ -96,6 +87,12 @@ contract TestBaseEToken is TestBaseMarket {
             0,
             1000
         );
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManager.setPTokenCollateralCaps(tokens, caps);
 
         pBALRETH.mint(1e18, address(this));
     }

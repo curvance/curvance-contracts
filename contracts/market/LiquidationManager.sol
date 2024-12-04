@@ -188,7 +188,7 @@ abstract contract LiquidationManager {
     ///         `sequencingActive`.
     /// @dev NOTE: This function MUST be called inside an external or public
     ///            function triggered by a call from the Central Registry.
-    function _setSequencingStatus(bool sequencingActive) internal virtual {
+    function _setSequencingStatus(bool sequencingActive) internal {
         specificSequencingActive = sequencingActive;
 
         emit SpecificSequencingStatusChanged(sequencingActive);
@@ -201,7 +201,7 @@ abstract contract LiquidationManager {
     function _setBundler(
         address liquidationBundler,
         bool isApproved
-    ) external {
+    ) internal {
         liquidationBundlers[liquidationBundler] = isApproved;
 
         emit LiquidationBundlerStatusChanged(liquidationBundler, isApproved);

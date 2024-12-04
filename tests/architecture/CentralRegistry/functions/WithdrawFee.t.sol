@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract WithdrawFeeTest is TestBaseMarket {
-    function test_withdrawFee_fail_whenUnauthorized() public {
+    function test_withdrawFee_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

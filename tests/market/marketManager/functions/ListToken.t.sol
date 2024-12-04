@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract listTokenTest is TestBaseMarketManager {
+contract ListTokenTest is TestBaseMarketManager {
     event TokenListed(address mToken);
 
     function test_listToken_fail_whenCallerIsNotAuthorized() public {

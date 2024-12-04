@@ -1221,7 +1221,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         /// to `WAD`.
         interestFactor = newInterestFactor * 1e14;
 
-        emit NewInterestFactor(oldInterestFactor, newInterestFactor);
+        emit NewInterestFactor(oldInterestFactor, interestFactor);
     }
 
     /// @notice Transfers `tokens` tokens from `from` to `to`, executed by
@@ -1571,6 +1571,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 }

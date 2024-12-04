@@ -572,7 +572,7 @@ abstract contract PositionManagementBase is
             DENOMINATOR;
 
         (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
+            centralRegistry.oracleManager()
         ).getPrice(address(borrowToken), true, false);
 
         // Validate we got a price for `borrowToken`.
@@ -708,6 +708,6 @@ abstract contract PositionManagementBase is
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 }

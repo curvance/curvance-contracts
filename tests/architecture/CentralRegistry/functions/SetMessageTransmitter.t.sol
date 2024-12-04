@@ -9,7 +9,9 @@ contract SetMessageTransmitterTest is TestBaseMarket {
 
     address public newMessageTransmitter = makeAddr("Message Transmitter");
 
-    function test_setMessageTransmitter_fail_whenUnauthorized() public {
+    function test_setMessageTransmitter_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

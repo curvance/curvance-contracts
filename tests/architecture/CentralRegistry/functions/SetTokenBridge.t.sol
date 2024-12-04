@@ -9,7 +9,7 @@ contract SetTokenBridgeTest is TestBaseMarket {
 
     address public newTokenBridge = makeAddr("Token Bridge");
 
-    function test_setTokenBridge_fail_whenUnauthorized() public {
+    function test_setTokenBridge_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

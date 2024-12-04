@@ -1338,6 +1338,26 @@ contract MarketManager is
         emit NewPositionManagementContract(newPositionManagement);
     }
 
+    /// @notice Updates status of unique liquidation sequencing to
+    ///         `sequencingActive`.
+    function setSequencingStatus(bool sequencingActive) external {
+        if (msg.sender != address(centralRegistry)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _setSequencingStatus(sequencingActive);
+    }
+
+    /// @notice Updates status of `liquidationBundler` for whether they have
+    ///         the authority to execute liquidation bundlers or not.
+    function setBundler(address liquidationBundler, bool isApproved) external {
+        if (msg.sender != address(centralRegistry)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _setBundler(liquidationBundler, isApproved);
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165
@@ -1896,6 +1916,6 @@ contract MarketManager is
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 }

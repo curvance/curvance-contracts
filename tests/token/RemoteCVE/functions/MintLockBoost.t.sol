@@ -5,7 +5,7 @@ import { TestBaseRemoteCVE } from "../TestBaseRemoteCVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintLockBoostTest is TestBaseRemoteCVE {
-    function test_mintLockBoost_fail_whenUnauthorized() public {
+    function test_mintLockBoost_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);

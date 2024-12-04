@@ -5,7 +5,9 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetProtocolCompoundFeeTest is TestBaseMarket {
-    function test_setProtocolCompoundFee_fail_whenUnauthorized() public {
+    function test_setProtocolCompoundFee_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

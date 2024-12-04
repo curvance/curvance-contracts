@@ -26,7 +26,9 @@ contract WithdrawReservesMultiTest is TestBaseMarket {
         eDAI.depositReserves(100e18);
     }
 
-    function test_withdrawReservesMulti_fail_whenUnauthorized() public {
+    function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

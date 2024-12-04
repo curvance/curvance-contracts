@@ -198,4 +198,12 @@ interface IMarketManager {
     function positionManagement(
         address positionContract
     ) external view returns (bool);
+
+    /// @notice Updates status of unique liquidation sequencing to
+    ///         `sequencingActive`.
+    function setSequencingStatus(bool sequencingActive) external;
+
+    /// @notice Updates status of `liquidationBundler` for whether they have
+    ///         the authority to execute liquidation bundlers or not.
+    function setBundler(address liquidationBundler, bool isApproved) external;
 }

@@ -1124,6 +1124,37 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
+    /// @notice Updates status of unique liquidation sequencing to
+    ///         `sequencingActive`.
+    function setSequencingStatus(bool sequencingActive) external {
+        _checkElevatedPermissions();
+
+        // Cache market list.
+        uint256 numMarkets = marketManagers.length;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            IMarketManager(marketManagers[i]).setSequencingStatus(
+                sequencingActive
+            );
+        }
+    }
+
+    /// @notice Updates status of `liquidationBundler` for whether they have
+    ///         the authority to execute liquidation bundlers or not.
+    function setBundler(address liquidationBundler, bool isApproved) external {
+        _checkElevatedPermissions();
+
+        // Cache market list.
+        uint256 numMarkets = marketManagers.length;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            IMarketManager(marketManagers[i]).setBundler(
+                liquidationBundler,
+                isApproved
+            );
+        }
+    }
+
     /// @notice Adds a Harvester contract for use in Curvance.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Cannot be a supported Harvester contract prior.

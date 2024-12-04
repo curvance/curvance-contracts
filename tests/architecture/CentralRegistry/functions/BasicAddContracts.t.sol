@@ -21,7 +21,7 @@ contract BasicAddContractsTest is TestBaseMarket {
         expectedLogs = ["Locking Permissions", "Harvestor"];
     }
 
-    function test_addFunc_fail_whenUnauthorized() public {
+    function test_addFunc_fail_whenCallerIsNotAuthorized() public {
         uint8 length = uint8(addFuncs.length);
         vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {

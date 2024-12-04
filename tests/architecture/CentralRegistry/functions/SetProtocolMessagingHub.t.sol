@@ -9,7 +9,7 @@ contract SetMessagingHubTest is TestBaseMarket {
 
     address public newMessagingHub = makeAddr("Messaging Hub");
 
-    function test_setMessagingHub_fail_whenUnauthorized() public {
+    function test_setMessagingHub_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

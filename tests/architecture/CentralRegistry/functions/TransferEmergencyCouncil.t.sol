@@ -13,7 +13,9 @@ contract TransferEmergencyCouncilTest is TestBaseMarket {
         address indexed newEmergencyCouncil
     );
 
-    function test_transferEmergencyCouncil_fail_whenUnauthorized() public {
+    function test_transferEmergencyCouncil_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

@@ -12,7 +12,9 @@ contract TransferDaoOwnershipTest is TestBaseMarket {
         address indexed newOwner
     );
 
-    function test_transferDaoOwnership_fail_whenUnauthorized() public {
+    function test_transferDaoOwnership_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(
