@@ -12,13 +12,12 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract PositionManagementVelodromeStable is PositionManagementBase {
-
     address public pairFactory;
 
     address public router;
 
     /// ERRORS ///
-    
+
     error PositionManagementVelodromeStable__SlippageError();
 
     /// CONSTRUCTOR ///
@@ -58,7 +57,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
         address _asset = pool;
         address token0 = IVeloPool(_asset).token0();
         address token1 = IVeloPool(_asset).token1();
-        
+
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
@@ -70,17 +69,13 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.outputToken != token0 ||
-                swapData.inputAmount != leverageData.borrowAmount
+                swapData.outputToken != token0
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
 
             // Swap borrow underlying to token0.
-            SwapperLib.swapSafe(
-                centralRegistry,
-                swapData
-            );
+            SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
@@ -89,7 +84,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             revert PositionManagementVelodromeStable__SlippageError();
         }
 
-        {   
+        {
             uint256 decimalsA = 10 ** IERC20(token0).decimals();
             uint256 decimalsB = 10 ** IERC20(token1).decimals();
             // Pull reserve data so we can swap half of token0 into token1
@@ -165,7 +160,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             pool,
             deleverageData.collateralAmount
         );
-        
+
         // Check to make sure there is calldata attached to execute the swap.
         if (deleverageData.swapData.length > 0) {
             for (uint256 i; i < deleverageData.swapData.length; ++i) {

@@ -35,9 +35,7 @@ contract PositionManagementSimple is PositionManagementBase {
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData
-            .positionToken
-            .underlying();
+        address collateralUnderlying = leverageData.positionToken.underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
@@ -50,8 +48,7 @@ contract PositionManagementSimple is PositionManagementBase {
         if (
             swapData.target == address(0) ||
             swapData.inputToken != borrowUnderlying ||
-            swapData.outputToken != collateralUnderlying ||
-            swapData.inputAmount != leverageData.borrowAmount
+            swapData.outputToken != collateralUnderlying
         ) {
             revert PositionManagementBase__InvalidSwapperParam();
         }
