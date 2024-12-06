@@ -34,7 +34,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     }
 
     function test_getPricesForMarket_fail_whenNoFeedsAvailable() public {
-        deal(_USDC_ADDRESS, address(this), 1e18);
+        _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
@@ -50,7 +50,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     function test_getPricesForMarket_fail_whenErrorCodeExceedsBreakpoint()
         public
     {
-        deal(_USDC_ADDRESS, address(this), 1e18);
+        _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
@@ -67,7 +67,7 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
     }
 
     function test_getPricesForMarket_success() public {
-        deal(_USDC_ADDRESS, address(this), 1e18);
+        _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 

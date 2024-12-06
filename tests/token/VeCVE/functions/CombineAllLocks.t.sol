@@ -10,8 +10,8 @@ contract CombineAllLocksTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 30e6);
-        deal(address(cve), address(this), _INITIAL_AMOUNT);
+        _prepareUSDC(address(rewardManager), 30e6);
+        _prepareCVE(address(this), _INITIAL_AMOUNT);
         cve.approve(address(veCVE), _INITIAL_AMOUNT);
 
         _skipRestrictionDuration();
@@ -58,7 +58,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
             _MIN_FUZZ_AMOUNT,
             _MAX_FUZZ_AMOUNT - _INITIAL_AMOUNT
         );
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
         veCVE.createLock(amount, true, rewardsData, "", 0);
@@ -104,7 +104,7 @@ contract CombineAllLocksTest is TestBaseVeCVE {
     }
 
     function _deal(uint256 amount) internal {
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
     }
 

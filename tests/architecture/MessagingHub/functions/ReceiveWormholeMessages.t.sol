@@ -102,7 +102,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     function test_receiveWormholeMessages_fail_whenMessageIsAlreadyDelivered()
         public
     {
-        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
+        _prepareUSDC(address(messagingHub), 100e6);
 
         vm.startPrank(_WORMHOLE_RELAYER);
 
@@ -136,7 +136,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     function test_receiveWormholeMessages_success_whenSourceAddressIsNotMessagingHub()
         public
     {
-        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
+        _prepareUSDC(address(messagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
         messagingHub.receiveWormholeMessages(
@@ -154,7 +154,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     function test_receiveWormholeMessages_success_whenOperatorIsNotAuthorized()
         public
     {
-        deal(_USDC_ADDRESS, address(messagingHub), 100e6);
+        _prepareUSDC(address(messagingHub), 100e6);
 
         vm.prank(_WORMHOLE_RELAYER);
         messagingHub.receiveWormholeMessages(
@@ -200,7 +200,6 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
-        
         vm.warp(veCVE.nextEpochStartTime() + 100);
 
         uint256 epoch = gaugeManager.currentEpoch();

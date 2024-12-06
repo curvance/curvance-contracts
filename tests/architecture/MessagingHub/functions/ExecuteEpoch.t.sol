@@ -188,7 +188,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         );
 
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), 100e6);
+        _prepareUSDC(address(feeManager), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
@@ -204,7 +204,7 @@ contract ExecuteEpochTest is TestBaseMessagingHub {
         assertEq(usdc.balanceOf(address(feeManager)), 0);
         assertEq(usdc.balanceOf(address(this)), compoundingFee);
 
-        deal(_USDC_ADDRESS, address(feeManager), 100e6);
+        _prepareUSDC(address(feeManager), 100e6);
 
         rewardManager.notifyShutdown();
 

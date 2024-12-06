@@ -11,7 +11,7 @@ contract RewardManagerRescueTokenTest is TestBaseRewardManager {
     function setUp() public override {
         super.setUp();
 
-        deal(_DAI_ADDRESS, address(rewardManager), 100e18);
+        _prepareDAI(address(rewardManager), 100e18);
         deal(address(rewardManager), 100e18);
     }
 

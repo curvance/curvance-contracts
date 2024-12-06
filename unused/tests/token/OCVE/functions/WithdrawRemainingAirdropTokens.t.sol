@@ -48,7 +48,7 @@
 
 //         skip(4 weeks + 1);
 
-//         deal(address(cve), address(oCVE), _ONE);
+//         _prepareCVE( address(oCVE), _ONE);
 //         uint256 cveBalance = cve.balanceOf(address(this));
 
 //         assertEq(cve.balanceOf(address(oCVE)), _ONE);

@@ -55,8 +55,8 @@ contract MultiDepositTest is TestBaseCurvancePrefarm {
     }
 
     function test_multiDeposit_success() public {
-        deal(_USDC_ADDRESS, user1, 100e6);
-        deal(_DAI_ADDRESS, user1, 100e18);
+        _prepareUSDC(user1, 100e6);
+        _prepareDAI(user1, 100e18);
 
         vm.startPrank(user1);
 

@@ -15,7 +15,7 @@ contract WithdrawFeeTest is TestBaseMarket {
     }
 
     function test_withdrawFee_success() public {
-        deal(_USDC_ADDRESS, address(centralRegistry), 100e6);
+        _prepareUSDC(address(centralRegistry), 100e6);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
         assertEq(usdc.balanceOf(address(centralRegistry)), 100e6);

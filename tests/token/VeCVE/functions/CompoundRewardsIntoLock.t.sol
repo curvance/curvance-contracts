@@ -8,9 +8,9 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
-        deal(address(cve), address(rewardManager), 30e18);
-        deal(address(cve), user1, 100e18);
+        _prepareUSDC(address(rewardManager), 10000e6);
+        _prepareCVE(address(rewardManager), 30e18);
+        _prepareCVE(user1, 100e18);
 
         _skipRestrictionDuration();
 

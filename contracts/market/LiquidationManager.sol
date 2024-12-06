@@ -50,6 +50,7 @@ abstract contract LiquidationManager {
         address indexed account,
         address indexed liquidator
     );
+
     event LiquidationQueued(
         address indexed account,
         address indexed liquidator,

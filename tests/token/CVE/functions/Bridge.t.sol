@@ -9,7 +9,7 @@ contract BridgeTest is TestBaseMarket {
     function setUp() public override {
         super.setUp();
 
-        deal(address(cve), user1, _ONE);
+        _prepareCVE(user1, _ONE);
         deal(user1, _ONE);
     }
 

@@ -52,9 +52,9 @@ contract TestFeeManager is TestBaseFeeManager {
             0
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
-        deal(_USDC_ADDRESS, address(this), 100000e6);
-        deal(address(cve), address(this), 100e18);
+        _prepareUSDC(address(rewardManager), 100000e6);
+        _prepareUSDC(address(this), 100000e6);
+        _prepareCVE(address(this), 100e18);
 
         usdc.approve(_UNISWAP_V2_ROUTER, 100000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 100e18);
@@ -80,7 +80,7 @@ contract TestFeeManager is TestBaseFeeManager {
 
         _initMainVariables();
 
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
 
         centralRegistry.addChainSupport(
             address(messagingHubs[42161]),
@@ -113,7 +113,7 @@ contract TestFeeManager is TestBaseFeeManager {
         address[] memory rewardTokens = new address[](1);
         rewardTokens[0] = _WETH_ADDRESS;
         feeManager.addRewardTokens(rewardTokens);
-        deal(_WETH_ADDRESS, address(feeManager), 1 ether);
+        _prepareWETH(address(feeManager), 1 ether);
 
         // multiswap
         SwapperLib.Swap[] memory multiSwapData = new SwapperLib.Swap[](1);
@@ -253,10 +253,10 @@ contract TestFeeManager is TestBaseFeeManager {
         rewardTokens[0] = _WETH_ADDRESS;
         feeManager.addRewardTokens(rewardTokens);
         feeManager.setEarmarked(_WETH_ADDRESS, true);
-        deal(_WETH_ADDRESS, address(feeManager), 1 ether);
+        _prepareWETH(address(feeManager), 1 ether);
 
         // multiswap
-        deal(_USDC_ADDRESS, address(this), 2500e8);
+        _prepareUSDC(address(this), 2500e8);
         usdc.approve(address(feeManager), 2500e8);
 
         // Eth spoofed as $2500, USDC spoofed as $1
@@ -385,7 +385,7 @@ contract TestFeeManager is TestBaseFeeManager {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(_ONE, false, rewardsData, "0x", 0);

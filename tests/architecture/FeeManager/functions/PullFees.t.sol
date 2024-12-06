@@ -20,7 +20,7 @@ contract PullFeesTest is TestBaseFeeManager {
     }
 
     function test_pullFees_success() public {
-        deal(_USDC_ADDRESS, address(feeManager), 100e6);
+        _prepareUSDC(address(feeManager), 100e6);
 
         uint256 messagingHubBalance = usdc.balanceOf(address(messagingHub));
         uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());

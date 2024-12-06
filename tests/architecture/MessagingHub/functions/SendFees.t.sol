@@ -54,7 +54,7 @@ contract SendFeesTest is TestBaseMessagingHub {
     function test_sendFees_fail_whenHasNoEnoughNativeAssetForMessageFee()
         public
     {
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         vm.expectRevert(
             MessagingHub.MessagingHub__InsufficientGasToken.selector
@@ -71,7 +71,7 @@ contract SendFeesTest is TestBaseMessagingHub {
 
     function test_sendFees_fail_whenCCTPIsNotConfigured() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         centralRegistry.setCircleTokenMessenger(address(0));
 
@@ -81,7 +81,7 @@ contract SendFeesTest is TestBaseMessagingHub {
 
     function test_sendFees_success() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         assertEq(usdc.balanceOf(address(feeManager)), _ONE);
 
