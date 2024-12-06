@@ -342,13 +342,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            borrowToken != address(leverageData.borrowToken) ||
-            borrowAmount != leverageData.borrowAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         address borrowUnderlying = SimplePToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
@@ -358,11 +351,19 @@ abstract contract PositionManagementBase is
         // Take protocol fee, if any.
         uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
         if (fee > 0) {
+            borrowAmount -= fee;
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
                 centralRegistry.daoAddress(),
                 fee
             );
+        }
+
+        if (
+            borrowToken != address(leverageData.borrowToken) ||
+            borrowAmount != leverageData.borrowAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
         }
 
         // We do not need to check whether positionToken is listed
@@ -449,13 +450,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            positionToken != address(deleverageData.positionToken) ||
-            collateralAmount != deleverageData.collateralAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
         address collateralUnderlying = SimplePToken(positionToken)
@@ -478,7 +472,14 @@ abstract contract PositionManagementBase is
                 fee
             );
         }
-        deleverageData.collateralAmount = collateralAmount;
+
+        if (
+            positionToken != address(deleverageData.positionToken) ||
+            collateralAmount != deleverageData.collateralAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
         _swapCollateralToBorrowUnderlying(deleverageData);
 
         // We do not need to check whether borrowToken is listed
@@ -549,7 +550,8 @@ abstract contract PositionManagementBase is
     ///         `account` can borrow for maximum leverage based on a new
     ///         position token deposit and collateralized.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
@@ -557,15 +559,18 @@ abstract contract PositionManagementBase is
     ///                      leverage against.
     /// @param collateralAmount The amount of underlying pToken that `account`
     ///                         will deposit to leverage against.
-    /// @return Returns the maximum remaining borrow amount allowed from
-    ///         `borrowToken`, measured in underlying token amount, after
-    ///         the new hypothetical deposit.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
     function hypotheticalMaxRemainingLeverageOf(
         address account,
         address borrowToken,
         address positionToken,
         uint256 collateralAmount
-    ) public view returns (uint256) {
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
         ).getPrice(address(positionToken), true, true);
@@ -584,7 +589,7 @@ abstract contract PositionManagementBase is
         uint256 newCollateral = FixedPointMathLib.mulDiv(
             IMToken(positionToken).previewDeposit(collateralAmount),
             price,
-            IMToken(positionToken).decimals() * WAD
+            10 ** IMToken(positionToken).decimals()
         );
 
         (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
@@ -599,12 +604,21 @@ abstract contract PositionManagementBase is
         sumCollateral += newCollateral;
         maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
 
-        return _maxRemainingLeverageOf(
+        maxDebtBorrowable = _maxRemainingLeverageOf(
             sumCollateral,
             maxDebt,
             sumDebt,
             borrowToken
         );
+
+        uint256 liquidityAvailable = IERC20(
+            IMToken(borrowToken).underlying()
+        ).balanceOf(borrowToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///

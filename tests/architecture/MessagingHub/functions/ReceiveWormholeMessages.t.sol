@@ -4,7 +4,6 @@ pragma solidity 0.8.19;
 import { TestBaseMessagingHub } from "../TestBaseMessagingHub.sol";
 import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.sol";
-import { EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 
 contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
@@ -200,23 +199,20 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     }
 
     function test_receiveWormholeMessages_success_whenPayloadTypeIs2() public {
-        
         vm.warp(veCVE.nextEpochStartTime() + 100);
 
         uint256 epoch = gaugeManager.currentEpoch();
 
-        EmissionData memory emissionData;
+        uint256 emissionTotal = _ONE;
+        address[] memory tokens = new address[](1);
+        uint256[] memory emissions = new uint256[](1);
 
-        emissionData.tokens = new address[](1);
-        emissionData.emissions = new uint256[](1);
-
-        emissionData.emissionTotal = _ONE;
-        emissionData.tokens[0] = _USDC_ADDRESS;
-        emissionData.emissions[0] = _ONE;
+        tokens[0] = _USDC_ADDRESS;
+        emissions[0] = _ONE;
 
         vm.prank(_WORMHOLE_RELAYER);
         messagingHub.receiveWormholeMessages(
-            abi.encode(2, epoch, emissionData),
+            abi.encode(2, epoch, emissionTotal, tokens, emissions),
             additionalMessages,
             _addressToBytes32(srcMessagingHub),
             23,
