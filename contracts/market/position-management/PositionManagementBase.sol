@@ -559,15 +559,18 @@ abstract contract PositionManagementBase is
     ///                      leverage against.
     /// @param collateralAmount The amount of underlying pToken that `account`
     ///                         will deposit to leverage against.
-    /// @return Returns the maximum remaining borrow amount allowed from
-    ///         `borrowToken`, measured in underlying token amount, after
-    ///         the new hypothetical deposit.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
     function hypotheticalMaxRemainingLeverageOf(
         address account,
         address borrowToken,
         address positionToken,
         uint256 collateralAmount
-    ) public view returns (uint256) {
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
         ).getPrice(address(positionToken), true, true);
@@ -601,7 +604,7 @@ abstract contract PositionManagementBase is
         sumCollateral += newCollateral;
         maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
 
-        uint256 maxDebtBorrowable = _maxRemainingLeverageOf(
+        maxDebtBorrowable = _maxRemainingLeverageOf(
             sumCollateral,
             maxDebt,
             sumDebt,
@@ -614,9 +617,8 @@ abstract contract PositionManagementBase is
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
         }
-
-        return maxDebtBorrowable;
     }
 
     /// PUBLIC FUNCTIONS ///
