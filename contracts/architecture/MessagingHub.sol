@@ -40,7 +40,7 @@ contract MessagingHub is QueryResponse {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 500_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
