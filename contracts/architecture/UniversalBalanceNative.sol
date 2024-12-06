@@ -18,7 +18,7 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value };
+            IWETH(underlying).deposit{ value: msg.value }();
             // We false a sitting balance due to small gas allowance
             // on .transfer calls.
             _deposit(msg.value, false, msg.sender);

@@ -550,7 +550,8 @@ abstract contract PositionManagementBase is
     ///         `account` can borrow for maximum leverage based on a new
     ///         position token deposit and collateralized.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
@@ -600,12 +601,22 @@ abstract contract PositionManagementBase is
         sumCollateral += newCollateral;
         maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
 
-        return _maxRemainingLeverageOf(
+        uint256 maxDebtBorrowable = _maxRemainingLeverageOf(
             sumCollateral,
             maxDebt,
             sumDebt,
             borrowToken
         );
+
+        uint256 liquidityAvailable = IERC20(
+            IMToken(borrowToken).underlying()
+        ).balanceOf(borrowToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+        }
+
+        return maxDebtBorrowable;
     }
 
     /// PUBLIC FUNCTIONS ///

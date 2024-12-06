@@ -337,6 +337,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // Update pending interest.
+        // This generally is a redundant check due to interest accrual
+        // done inside checkSlippage check in position management contract
+        // implementations, but we keep this check in for invariant
+        // protection in the case of a incorrectly implemented position
+        // management contract.
         accrueInterest();
 
         // Notifies the Market Manager that a user is taking on more debt,
