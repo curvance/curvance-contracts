@@ -22,6 +22,7 @@
   "firstTestMarket-simpleZapper": "0x639603FFD0182939dF985d0c91A62c1D421238c2",
   "fourthTestMarket": "0x05718A9B729aEa18bA7Ca4f6c4eb07A4A5bD8565",
   "fourthTestMarket-complexZapper": "0xB908290A20036dc09F48769eB1B2ff6f0933c203",
+  "fourthTestMarket-positionManagementSimple": "0xac865638FA09364662E17c5094F9BefCb028B9B5",
   "fourthTestMarket-simpleZapper": "0xDD7E644F674790a34e9eB0618d8309302c7127Ff",
   "gaugeManager": "0x4887807C23b5322e642585432f461AF131aaE482",
   "mETH": "0xb5EAF089A61F51836FdEE443256b2a3984e2cf73",
@@ -35,6 +36,7 @@
   "rewardManager": "0xF723C290170E50cea79072dD543a061a826085D4",
   "secondTestMarket": "0x555E8d84F2BA6fcA5234053048F15edBc235667E",
   "secondTestMarket-complexZapper": "0x01eEe360d9ddD613D29a2Bb5370d216f32334647",
+  "secondTestMarket-positionManagementSimple": "0xdEE1bCdEa427966E507EF02d946B1bFA004392e8",
   "secondTestMarket-simpleZapper": "0x3c212d8Da22246659512bF3516ACB896DB77e0d9",
   "veCve": "0x1F9B0af9D8798F7be7ba844638c4C0f3A3d923b8",
   "votingHub": "0xdf95361F97535e6310267fFEa4655F1B345735A0"

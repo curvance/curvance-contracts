@@ -23,7 +23,7 @@ async function main() {
       `--rpc-url ${rpc}`,
       '-vvvv',
       '--ffi',
-      `--with-gas-price 30gwei`,
+      `--with-gas-price 40gwei`,
     ];
 
     if (resume) {
