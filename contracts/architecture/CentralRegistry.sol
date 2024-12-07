@@ -381,12 +381,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newCVE The new address of cve.
     function setCVE(address newCVE) external {
+        // If the contract is already set and needs to be updated, make sure
+        // reward system as not already started, ossifying contracts.
         if (cve != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            _checkGenesisEpochHasNotStarted();
         }
 
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         cve = newCVE;
         emit CoreContractSet("CVE", newCVE);
@@ -397,12 +398,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      Only settable once. Emits a {CoreContractSet} event.
     /// @param newVeCVE The new address of veCVE.
     function setVeCVE(address newVeCVE) external {
+        // If the contract is already set and needs to be updated, make sure
+        // reward system as not already started, ossifying contracts.
         if (veCVE != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            _checkGenesisEpochHasNotStarted();
         }
 
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         veCVE = newVeCVE;
         emit CoreContractSet("VeCVE", newVeCVE);
@@ -413,12 +415,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      Emits a {CoreContractSet} event.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
+        // If the contract is already set and needs to be updated, make sure
+        // reward system as not already started, ossifying contracts.
         if (rewardManager != address(0)) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            _checkGenesisEpochHasNotStarted();
         }
 
         _checkElevatedPermissions();
-        _checkGenesisEpochHasNotStarted();
 
         rewardManager = newRewardManager;
         emit CoreContractSet("Reward Manager", newRewardManager);
