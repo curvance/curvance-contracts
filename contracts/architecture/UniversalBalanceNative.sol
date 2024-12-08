@@ -88,7 +88,6 @@ contract UniversalBalanceNative is UniversalBalance {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            address(this),
             msg.sender
         );
 
@@ -130,7 +129,6 @@ contract UniversalBalanceNative is UniversalBalance {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            address(this),
             owner
         );
 
@@ -170,7 +168,7 @@ contract UniversalBalanceNative is UniversalBalance {
         // Withdraw from `owner`'s universal balance and transfer the wrapped
         // native tokens to the Oracle Adaptor for use in updating oracle
         // feed.
-        (amount, ) = _withdraw(amount, false, msg.sender, owner);
+        (amount, ) = _withdraw(amount, false, owner);
 
         // Transfer the withdrawn tokens to the oracle adaptor.
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);

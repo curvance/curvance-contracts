@@ -149,7 +149,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            recipient,
             msg.sender
         );
 
@@ -187,7 +186,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            recipient,
             owner
         );
 
@@ -222,7 +220,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         (amountTransferred, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            recipient,
             msg.sender
         );
 
@@ -254,7 +251,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         (amountTransferred, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            recipient,
             owner
         );
 
@@ -278,7 +274,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
             SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
-            if (token == underlying || token == linkedEToken) {
+            if (token == underlying || token == address(linkedEToken)) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
@@ -341,13 +337,11 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulledonly from `owner`'s lent
     ///                            position or the full account.
-    /// @param recipient The address who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal
     ///              balance.
     function _withdraw(
         uint256 amount,
         bool forceLentRedemption,
-        address recipient,
         address owner
     ) internal returns (uint256, bool) {
         // Validate caller is not trying to withdraw nothing, though this
