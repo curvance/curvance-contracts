@@ -52,13 +52,6 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///      approved address' delegation privileges at the same time.
 ///
 contract CentralRegistry is ERC165, LockableRegistry {
-    /// TYPES ///
-    struct DelegationConfig {
-        uint208 approvalIndex;
-        uint40 delegationEnabledTimestamp;
-        bool delegationDisabled;
-    }
-
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
@@ -163,16 +156,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @dev Market Manager => Protocol Interest Factor, in `WAD`.
     mapping(address => uint256) public protocolInterestFactor;
 
-    /// USER DELEGATION ///
-
-    /// @notice Contains a user's configuration values for delegated actions
-    ///         inside Curvance.
-    /// @dev By incrementing their approval index, a user's delegates will all
-    ///      have their delegation authority revoked across all Curvance
-    ///      contracts.
-    ///      User => User delegation configuration values.
-    mapping(address => DelegationConfig) public delegationConfig;
-
     // DAO PERMISSION DATA
 
     /// @notice Whether an address has DAO permissioning or not.
@@ -219,12 +202,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
     event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
-    event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
-    event DelegableStatusSet(
-        address indexed user,
-        bool delegable,
-        uint256 delegationEnabledTimestamp
-    );
     event OwnershipTransferred(
         address indexed previousOwner,
         address indexed newOwner
@@ -742,86 +719,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
         emit MultiplierSet("Lock Boost", value);
     }
 
-    /// USER DELEGATION PLUGIN MANAGEMENT ///
-
-    /// @notice Checks whether `user` has delegation enabled or disabled
-    ///         for user actions inside Curvance.
-    /// @return Returns true if the user has delegation disabled.
-    function checkDelegationDisabled(
-        address user
-    ) external view returns (bool) {
-        DelegationConfig memory userConfig = delegationConfig[user];
-        return (userConfig.delegationDisabled ||
-            userConfig.delegationEnabledTimestamp > block.timestamp);
-    }
-
-    /// @notice Returns `user`'s approval index.
-    /// @dev The approval index is a way to revoke approval on all tokens,
-    ///      and features at once if a malicious delegation was allowed by
-    ///      `user`.
-    /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) external view returns (uint256) {
-        return delegationConfig[user].approvalIndex;
-    }
-
-    /// @notice Increments a caller's approval index.
-    /// @dev By incrementing their approval index, a user's delegates will all
-    ///      have their delegation authority revoked across all Curvance
-    ///      contracts.
-    ///      Emits an {ApprovalIndexIncremented} event.
-    function incrementApprovalIndex() external {
-        DelegationConfig storage userConfig = delegationConfig[msg.sender];
-        uint256 newIndex = userConfig.approvalIndex + 1;
-        userConfig.approvalIndex = uint208(newIndex);
-
-        emit ApprovalIndexIncremented(msg.sender, newIndex);
-    }
-
-    /// @notice Sets a callers status for whether to allow new delegation
-    ///         or not.
-    /// @param delegationDisabled Whether caller wants to allow new delegation
-    ///                           or not.
-    ///      Emits a {DelegableStatusSet} event.
-    function setDelegable(bool delegationDisabled) external {
-        DelegationConfig storage userConfig = delegationConfig[msg.sender];
-
-        // Validates that user is intending on flipping their delegation
-        // status, even though we could assume they want to flip
-        // by calling this function, it helps to validate for human error.
-        if (delegationDisabled == userConfig.delegationDisabled) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        uint256 enableTimestamp;
-
-        // If the user is trying to enable delegation again,
-        // add their cooldown period, an added layer against phishing
-        // attempts.
-        if (!delegationDisabled) {
-            // Validate the user did not recently reduce their cooldown,
-            // triggering their transfer cooldown.
-            if (userConfig.delegationEnabledTimestamp > block.timestamp) {
-                _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-            }
-
-            enableTimestamp =
-                _userTransferConfig[msg.sender].transferCooldown +
-                block.timestamp;
-            userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
-        }
-
-        userConfig.delegationDisabled = delegationDisabled;
-
-        emit DelegableStatusSet(
-            msg.sender,
-            delegationDisabled,
-            enableTimestamp
-        );
-    }
-
     /// OWNERSHIP LOGIC
 
     /// @notice Sets DAO ownership to a new address.
@@ -1306,15 +1203,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @dev Internal helper function for easily converting between scalars.
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
-    }
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

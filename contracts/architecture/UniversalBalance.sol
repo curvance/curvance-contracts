@@ -278,7 +278,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
             SafeTransferLib.safeTransferETH(daoOperator, amount);
         } else {
-            if (token == underlying) {
+            if (token == underlying || token == linkedEToken) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
