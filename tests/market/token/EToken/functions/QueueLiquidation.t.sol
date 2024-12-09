@@ -29,6 +29,17 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         eUSDC.queueLiquidation(user1, IMToken(address(eUSDC)));
     }
 
+    function test_eTokenQueueLiquidation_fail_whenNoLiquidationAvailable()
+        public
+    {
+        vm.prank(user2);
+
+        vm.expectRevert(
+            MarketManager.MarketManager__NoLiquidationAvailable.selector
+        );
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+    }
+
     function test_eTokenQueueLiquidation_success() public {
         _prepareLiquidation();
 

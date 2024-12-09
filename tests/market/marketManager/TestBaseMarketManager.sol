@@ -140,6 +140,6 @@ contract TestBaseMarketManager is TestBaseMarket {
 
         mockUsdcFeed.setMockAnswer(2e8);
 
-        _prepareUSDC(user2, 250e6);
+        _prepareUSDC(user2, 1000e6);
     }
 }

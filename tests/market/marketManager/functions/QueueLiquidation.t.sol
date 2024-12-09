@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     event LiquidationQueued(
@@ -63,6 +64,36 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
 
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
+        );
+        marketManager.queueLiquidation(
+            address(eUSDC),
+            address(pBALRETH),
+            user2,
+            user1
+        );
+    }
+
+    function test_marketManagerQueueLiquidation_fail_whenNoLiquidationAvailable()
+        public
+    {
+        marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(pBALRETH));
+
+        marketManager.updatePositionToken(
+            IMToken(address(pBALRETH)),
+            7000,
+            4000, // liquidate at 71%
+            3000,
+            200, // 2% liq incentive
+            400,
+            0,
+            1000
+        );
+
+        vm.prank(address(eUSDC));
+
+        vm.expectRevert(
+            MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.queueLiquidation(
             address(eUSDC),
