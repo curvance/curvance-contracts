@@ -133,7 +133,7 @@ contract CompoundRewardsIntoLockTest is TestBaseVeCVE {
                 centralRegistry.genesisEpoch() +
                     (veCVE.currentEpoch(block.timestamp) *
                         veCVE.epochDuration()) +
-                    veCVE.LOCK_DURATION()
+                    veCVE.lockDuration()
             );
         } else {
             assertEq(unlockTime, veCVE.CONTINUOUS_LOCK_VALUE());
