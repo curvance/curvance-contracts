@@ -48,7 +48,8 @@ contract PositionManagementSimple is PositionManagementBase {
         if (
             swapData.target == address(0) ||
             swapData.inputToken != borrowUnderlying ||
-            swapData.outputToken != collateralUnderlying
+            swapData.outputToken != collateralUnderlying ||
+            swapData.inputAmount != leverageData.borrowAmount
         ) {
             revert PositionManagementBase__InvalidSwapperParam();
         }

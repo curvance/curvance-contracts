@@ -58,6 +58,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
+                swapData.inputAmount != leverageData.borrowAmount ||
                 !sy.isValidTokenIn(swapData.outputToken)
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();

@@ -77,7 +77,8 @@ contract PositionManagementPendlePT is PositionManagementBase {
             // check if swapData is valid
             if (
                 swapData.target == address(0) ||
-                swapData.inputToken != borrowUnderlying
+                swapData.inputToken != borrowUnderlying ||
+                swapData.inputAmount != leverageData.borrowAmount
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }

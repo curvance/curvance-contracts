@@ -127,7 +127,7 @@ abstract contract PositionManagementBase is
     /// @notice Deposits into a Curvance position and then leverages in favor
     ///         of increasing both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
-    ///      in `checkSlippage` modifier. 
+    ///      in `checkSlippage` modifier.
     ///      NOTE: The caller MUST have approved this smart contract to have
     ///      delegated actions inside `leverageData.positionToken` or
     ///      depositAsCollateralFor will only deposit and the leverage
@@ -348,22 +348,22 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidAmount();
         }
 
-        // Take protocol fee, if any.
-        uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
-        if (fee > 0) {
-            borrowAmount -= fee;
-            SafeTransferLib.safeTransfer(
-                borrowUnderlying,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
-
         if (
             borrowToken != address(leverageData.borrowToken) ||
             borrowAmount != leverageData.borrowAmount
         ) {
             revert PositionManagementBase__InvalidParam();
+        }
+
+        // Take protocol fee, if any.
+        uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
+        if (fee > 0) {
+            leverageData.borrowAmount -= fee;
+            SafeTransferLib.safeTransfer(
+                borrowUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
         }
 
         // We do not need to check whether positionToken is listed
@@ -462,22 +462,22 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidAmount();
         }
 
-        // Take protocol fee, if any.
-        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
-        if (fee > 0) {
-            collateralAmount -= fee;
-            SafeTransferLib.safeTransfer(
-                collateralUnderlying,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
-
         if (
             positionToken != address(deleverageData.positionToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
             revert PositionManagementBase__InvalidParam();
+        }
+
+        // Take protocol fee, if any.
+        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
+        if (fee > 0) {
+            deleverageData.collateralAmount -= fee;
+            SafeTransferLib.safeTransfer(
+                collateralUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
         }
 
         _swapCollateralToBorrowUnderlying(deleverageData);
@@ -588,7 +588,9 @@ abstract contract PositionManagementBase is
             10 ** IMToken(positionToken).decimals()
         );
 
-        (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
+        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+            positionToken
+        );
 
         // If the position token cannot be borrowed against the hypothetical
         // leverage check will result in 0 meaning nothing new to leverage
@@ -600,12 +602,13 @@ abstract contract PositionManagementBase is
         sumCollateral += newCollateral;
         maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
 
-        return _maxRemainingLeverageOf(
-            sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowToken
-        );
+        return
+            _maxRemainingLeverageOf(
+                sumCollateral,
+                maxDebt,
+                sumDebt,
+                borrowToken
+            );
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -629,12 +632,13 @@ abstract contract PositionManagementBase is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        return _maxRemainingLeverageOf(
-            sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowToken
-        );
+        return
+            _maxRemainingLeverageOf(
+                sumCollateral,
+                maxDebt,
+                sumDebt,
+                borrowToken
+            );
     }
 
     /// @inheritdoc ERC165
@@ -737,7 +741,7 @@ abstract contract PositionManagementBase is
         uint256 maxDebt,
         uint256 sumDebt,
         address borrowToken
-    ) internal view returns(uint256) {
+    ) internal view returns (uint256) {
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
         // in the equation 1 / (1 - LTV).

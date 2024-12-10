@@ -69,7 +69,8 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.outputToken != token0
+                swapData.outputToken != token0 ||
+                swapData.inputAmount != leverageData.borrowAmount
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
