@@ -433,7 +433,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             unlockTime,
             centralRegistry.genesisEpoch() +
                 (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.LOCK_DURATION()
+                veCVE.lockDuration()
         );
 
         assertEq(veCVE.chainPoints(), _ONE);
