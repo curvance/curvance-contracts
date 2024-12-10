@@ -986,6 +986,32 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// View Functions ///
 
+    /// @notice Returns whether state changes are allowed or not based on epoch
+    ///         status.
+    function canModifyState() external view returns (bool) {
+        uint256 nextEpochTimestamp = nextEpochStartTime();
+        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
+
+        if (
+            currentEpochTimestamp <= block.timestamp &&
+            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
+        ) {
+            return false;
+        }
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
+            return false;
+        }
+
+        if (
+            _getRewardManager().nextEpochToDeliver() !=
+            currentEpoch(block.timestamp)
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
     /// @notice Used for frontend, needed due to array of structs.
     /// @param user The user to query veCVE locks for.
     /// @return Unwrapped user lock information.
@@ -1031,39 +1057,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
         return votes;
     }
 
-    /// @notice Returns whether lock state changes are currently allowed or
-    ///         not based on epoch status.
-    function canModifyState() external view returns (bool) {
-        uint256 nextEpochTimestamp = nextEpochStartTime();
-        uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
-
-        // Validate that we are not within the pre-epoch rollover
-        // restriction window.
-        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
-            return false;
-        }
-
-        // Validate that we are not within the post-epoch rollover
-        // restriction window.
-        if (
-            currentEpochTimestamp <= block.timestamp &&
-            block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
-        ) {
-            return false;
-        }
-        
-        // Validate that all epoch rewards have been delivered to the Reward
-        // Manager already.
-        if (
-            _getRewardManager().nextEpochToDeliver() !=
-            currentEpoch(block.timestamp)
-        ) {
-            return false;
-        }
-
-        return true;
-    }
-
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
@@ -1077,17 +1070,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// @notice Returns the current epoch for the given time.
-    /// @param time The timestamp for which to calculate the epoch.
+    /// @param timestamp The timestamp for which to calculate the epoch.
     /// @return The current epoch.
-    function currentEpoch(uint256 time) public view returns (uint256) {
-        uint256 genesisEpoch = centralRegistry.genesisEpoch();
-
-        if (time < genesisEpoch) {
-            return 0;
-        }
+    function currentEpoch(uint256 timestamp) public view returns (uint256) {
+        uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
 
         // Rounds down intentionally.
-        return ((time - genesisEpoch) / epochDuration);
+        return
+            timestamp < cachedGenesisEpoch
+                ? 0
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// @notice Returns the timestamp of when the next epoch begins.
@@ -1531,8 +1523,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
             DENOMINATOR;
     }
 
-    /// @notice Returns the genesis epoch.
-    /// @return The genesis epoch.
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
     }
@@ -1557,29 +1549,22 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
     }
 
-    /// @dev Check whether lock state changes are currently allowed or
-    ///      not based on epoch status.
+    /// @dev Check whether state changes are restricted due to epoch
+    ///      structure or not.
     function _canModifyState() internal view {
         uint256 nextEpochTimestamp = nextEpochStartTime();
         uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
 
-        // Validate that we are not within the pre-epoch rollover
-        // restriction window.
-        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
-            revert VeCVE__PreEpochRestriction();
-        }
-
-        // Validate that we are not within the post-epoch rollover
-        // restriction window.
         if (
             currentEpochTimestamp <= block.timestamp &&
             block.timestamp <= currentEpochTimestamp + RESTRICTION_DURATION
         ) {
             revert VeCVE__PostEpochRestriction();
         }
-        
-        // Validate that all epoch rewards have been delivered to the Reward
-        // Manager already.
+        if (nextEpochTimestamp - RESTRICTION_DURATION <= block.timestamp) {
+            revert VeCVE__PreEpochRestriction();
+        }
+
         if (
             _getRewardManager().nextEpochToDeliver() !=
             currentEpoch(block.timestamp)
