@@ -1070,17 +1070,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// @notice Returns the current epoch for the given time.
-    /// @param time The timestamp for which to calculate the epoch.
+    /// @param timestamp The timestamp for which to calculate the epoch.
     /// @return The current epoch.
-    function currentEpoch(uint256 time) public view returns (uint256) {
-        uint256 genesisEpoch = centralRegistry.genesisEpoch();
-
-        if (time < genesisEpoch) {
-            return 0;
-        }
+    function currentEpoch(uint256 timestamp) public view returns (uint256) {
+        uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
 
         // Rounds down intentionally.
-        return ((time - genesisEpoch) / epochDuration);
+        return
+            timestamp < cachedGenesisEpoch
+                ? 0
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// @notice Returns the timestamp of when the next epoch begins.
@@ -1524,8 +1523,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
             DENOMINATOR;
     }
 
-    /// @notice Returns the genesis epoch.
-    /// @return The genesis epoch.
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
     }

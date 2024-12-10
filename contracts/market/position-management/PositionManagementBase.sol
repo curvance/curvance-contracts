@@ -783,6 +783,46 @@ abstract contract PositionManagementBase is
                 (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
+    /// @notice Helper function for efficiently transferring tokens
+    ///         to desired user.
+    /// @param token The token to transfer to `recipient`,
+    ///              this can be the network gas token.
+    /// @param recipient The user receiving `token`.
+    /// @param amount The amount of `token` to be transferred to `recipient`.
+    function _transferToRecipient(
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal {
+        if (CommonLib.isETH(token)) {
+            revert PositionManagementBase__Unauthorized();
+        }
+
+        SafeTransferLib.safeTransfer(token, recipient, amount);
+    }
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return ICentralRegistry(centralRegistry);
+    }
+
+    /// FUNCTIONS TO OVERRIDE ///
+
     /// @notice Callback function on borrowing tokens from an eToken contract
     ///         providing instant liquidity in the eToken underlying which is
     ///         then swapped into the underlying of a pToken that a user is
@@ -804,24 +844,4 @@ abstract contract PositionManagementBase is
     function _swapCollateralToBorrowUnderlying(
         DeleverageStruct memory deleverageData
     ) internal virtual;
-
-    /// @dev Internal helper for reverting efficiently.
-    function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x00, s)
-            revert(0x1c, 0x04)
-        }
-    }
-
-    /// @notice Returns the Protocol Central Registry contract in interface
-    ///         form.
-    function _getCentralRegistry()
-        internal
-        view
-        override
-        returns (ICentralRegistry)
-    {
-        return ICentralRegistry(centralRegistry);
-    }
 }

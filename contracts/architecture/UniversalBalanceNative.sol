@@ -101,7 +101,7 @@ contract UniversalBalanceNative is UniversalBalance {
             msg.sender,
             recipient,
             msg.sender,
-            amount,
+            amountWithdrawn,
             lendingBalanceUsed
         );
     }
@@ -142,7 +142,7 @@ contract UniversalBalanceNative is UniversalBalance {
             msg.sender,
             recipient,
             owner,
-            amount,
+            amountWithdrawn,
             lendingBalanceUsed
         );
     }

@@ -50,8 +50,11 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
     ///                        to facilitate leveraging.
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
+    /// @param recipient The user account who will receive the remaining dust
+    ///                  post swap, if any.
     function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
+        LeverageStruct memory leverageData,
+        address recipient
     ) internal virtual override {
         // Cache asset to minimize storage reads.
         address pool = leverageData.positionToken.underlying();
@@ -62,11 +65,15 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
+        // If the token being borrowed isn't token0 we will need to swap
+        // into it.
         if (borrowUnderlying != token0) {
+            // Make sure there is swap instructions.
             if (swapData.call.length == 0) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
 
+            // Make sure the swap instructions are safe.
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
@@ -91,13 +98,13 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
 
         uint256 decimalsA = 10 ** IERC20(token0).decimals();
         uint256 decimalsB = 10 ** IERC20(token1).decimals();
-        // Pull reserve data so we can swap half of token0 into token1
-        // optimally.
+        // Pull reserve data so we can swap half of token0 into token1.
         (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
         (uint256 reserveA, uint256 reserveB) = token0 ==
             IVeloPair(_asset).token0()
             ? (r0, r1)
             : (r1, r0);
+
         // Feed library pair factory, lpToken, and stable = true,
         // plus calculated data.
         uint256 swapAmount = VelodromeLib._optimalDeposit(
@@ -133,6 +140,19 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             totalAmountB,
             VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
             );
+
+        // We can reuse totalAmount variables to avoid stack too deep error
+        // and minimize storage warming from 0 -> number.
+        totalAmountA = IERC20(token0).balanceOf(address(this));
+        totalAmountB = IERC20(token1).balanceOf(address(this));
+
+        if (totalAmountA > 0) {
+            _transferToRecipient(token0, recipient, totalAmountA);
+        }
+
+        if (totalAmountB > 0) {
+            _transferToRecipient(token1, recipient, totalAmountB);
+        }
     }
 
     /// @notice Callback function on redemption of tokens from a pToken vault
