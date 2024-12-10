@@ -267,10 +267,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address[] calldata owners
     ) external {
-        uint256 userLength = recipients.length;
+        uint256 amountsLength = amounts.length;
         if (
-            userLength != amounts.length ||
-            userLength != forceLentRedemption.length
+            amountsLength != forceLentRedemption.length ||
+            amountsLength != owners.length
             ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
@@ -279,12 +279,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         uint256 amountWithdrawn;
         bool lendingBalanceUsed;
 
-        for (uint256 i; i < userLength; ++i) {
+        for (uint256 i; i < amountsLength; ++i) {
             _checkDelegation(owners[i]);
             (amountWithdrawn, lendingBalanceUsed) = _withdraw(
-                amount,
-                forceLentRedemption,
-                owner
+                amounts[i],
+                forceLentRedemption[i],
+                owners[i]
             );
 
             emit Withdraw(
