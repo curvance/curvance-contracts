@@ -248,10 +248,13 @@ contract VotingHub is QueryResponse {
     function epochOfTimestamp(
         uint256 timestamp
     ) public view returns (uint256) {
+        uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
+        
+        // Rounds down intentionally.
         return
-            timestamp < startTime
+            timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - startTime) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// INTERNAL FUNCTIONS ///
