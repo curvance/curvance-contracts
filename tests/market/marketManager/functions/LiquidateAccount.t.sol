@@ -136,6 +136,38 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         _checkLiquidationResult();
     }
 
+    function test_liquidateAccount_success_withRegularQueueLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        // Prepare user3 as liquidator
+        _prepareUSDC(user3, 250 ether);
+
+        vm.startPrank(user2, address(1));
+
+        marketManager.queueAccountLiquidation(user1);
+        usdc.approve(address(eUSDC), 1000e6);
+        vm.stopPrank();
+
+        vm.startPrank(user3, address(2));
+        usdc.approve(address(eUSDC), 1000e6);
+
+        skip(1);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+
+        skip(1);
+        marketManager.liquidateAccount(user1);
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
     function _checkLiquidationResult() internal {
         assertApproxEqAbs(pBALRETH.balanceOf(user1), 0, 1);
         assertEq(pBALRETH.exchangeRateCached(), _ONE);
