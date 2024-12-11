@@ -387,6 +387,12 @@ contract VotingHub is QueryResponse {
         EmissionData memory emissionData,
         uint256 epoch
     ) internal {
+        // If there are no emissions to distribute we can skip emission
+        // configuration logic.
+        if (emissionData.emissionTotal == 0) {
+            return;
+        }
+
         IGaugeManager cachedGaugeManager = gaugeManager;
 
         // Mint epoch gauge emissions to the Gauge Manager.
@@ -425,6 +431,12 @@ contract VotingHub is QueryResponse {
         uint256 gasLimit,
         uint256 epoch
     ) internal {
+        // If there are no emissions to distribute we can skip emission
+        // configuration logic.
+        if (emissionData.emissionTotal == 0) {
+            return;
+        }
+
         IMessagingHub(centralRegistry.messagingHub()).sendEmissions(
             emissionData,
             dstChainId,

@@ -87,7 +87,7 @@ abstract contract LockableRegistry {
         if (cooldown > COOLDOWN_MAXIMUM) {
             revert LockableRegistry__UnsafeCooldown();
         }
-
+        
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // If a user is decreasing their cooldown, lock cooldown

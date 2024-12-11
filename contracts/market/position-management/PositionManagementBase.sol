@@ -614,8 +614,9 @@ abstract contract PositionManagementBase is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
-            .balanceOf(borrowToken);
+        uint256 liquidityAvailable = IERC20(
+            IMToken(borrowToken).underlying()
+        ).balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;
