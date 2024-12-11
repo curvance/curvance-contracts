@@ -19,8 +19,8 @@ contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {
             IWETH(underlying).deposit{ value: msg.value }();
-            // We false a sitting balance due to small gas allowance
-            // on .transfer calls.
+            // We default to a sitting balance deposit due to small gas
+            // allowance on .transfer calls.
             _deposit(msg.value, false, msg.sender);
         }
     }
@@ -162,7 +162,7 @@ contract UniversalBalanceNative is UniversalBalance {
                 msg.sender
             )
         ) {
-            revert UniversalBalance__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // Withdraw from `owner`'s universal balance and transfer the wrapped

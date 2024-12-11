@@ -10,8 +10,13 @@ contract PositionManagementSimple is PositionManagementBase {
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address marketManager_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {}
+        address marketManager_,
+        address wrappedNative_
+    ) PositionManagementBase(
+        centralRegistry_,
+        marketManager_,
+        address wrappedNative_
+    ) {}
 
     /// @notice Callback function on borrowing tokens from an eToken contract
     ///         providing instant liquidity in the eToken underlying which is

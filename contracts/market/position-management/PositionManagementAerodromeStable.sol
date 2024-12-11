@@ -10,11 +10,13 @@ contract PositionManagementAerodromeStable is PositionManagementVelodromeStable 
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
+        address wrappedNative_,
         address router_,
         address pairFactory_
     ) PositionManagementVelodromeStable(
         centralRegistry_,
         marketManager_,
+        address wrappedNative_,
         router_,
         pairFactory_
     ) {}

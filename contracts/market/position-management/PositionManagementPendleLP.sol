@@ -18,8 +18,13 @@ contract PositionManagementPendleLP is PositionManagementBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
+        address wrappedNative_,
         IPendleRouter router_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    ) PositionManagementBase(
+        centralRegistry_,
+        marketManager_,
+        address wrappedNative_
+    ) {
         router = router_;
     }
 

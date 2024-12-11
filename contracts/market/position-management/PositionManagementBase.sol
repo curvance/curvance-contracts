@@ -20,6 +20,7 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
 ///      usually would require multiple looped actions to facilitate,
@@ -46,6 +47,8 @@ abstract contract PositionManagementBase is
     /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
 
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
@@ -107,7 +110,9 @@ abstract contract PositionManagementBase is
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address marketManager_
+        address marketManager_,
+        address wrappedNative_
+
     ) PluginDelegable(centralRegistry_) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
@@ -116,6 +121,7 @@ abstract contract PositionManagementBase is
         }
 
         marketManager = IMarketManager(marketManager_);
+        wrappedNative = wrappedNative_;
     }
 
     /// @notice Lightweight getter for any associated leverage fee.
@@ -798,8 +804,11 @@ abstract contract PositionManagementBase is
         address recipient,
         uint256 amount
     ) internal {
+        // If the token to refund is the chains' native gas token we wrap
+        // then transfer it to prevent callback attack vectors.
         if (CommonLib.isETH(token)) {
-            revert PositionManagementBase__Unauthorized();
+            IWETH(wrappedNative).deposit{ value: amount }();
+            token = wrappedNative;
         }
 
         SafeTransferLib.safeTransfer(token, recipient, amount);
