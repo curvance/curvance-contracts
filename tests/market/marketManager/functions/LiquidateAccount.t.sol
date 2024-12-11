@@ -136,7 +136,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         _checkLiquidationResult();
     }
 
-    function _checkLiquidationResult() internal view {
+    function _checkLiquidationResult() internal {
         assertApproxEqAbs(pBALRETH.balanceOf(user1), 0, 1);
         assertEq(pBALRETH.exchangeRateCached(), _ONE);
 

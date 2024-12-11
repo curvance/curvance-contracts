@@ -85,7 +85,7 @@ contract LiquidateExactTest is TestBaseEToken {
         _checkLiquidationResult();
     }
 
-    function _checkLiquidationResult() internal view {
+    function _checkLiquidationResult() internal {
         (uint256 balRETHPrice, ) = oracleManager.getPrice(
             address(balRETH),
             true,
