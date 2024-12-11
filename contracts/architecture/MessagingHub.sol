@@ -278,8 +278,8 @@ contract MessagingHub is QueryResponse {
                 ,
                 uint256 epoch,
                 uint256 emissionTotal,
-                address[] emissionTokens,
-                uint256[] emissionAmounts
+                address[] memory emissionTokens,
+                uint256[] memory emissionAmounts
             ) = abi.decode(
                     payload,
                     (uint8, uint256, uint256, address[], uint256[])
