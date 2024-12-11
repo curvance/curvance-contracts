@@ -274,24 +274,27 @@ contract MessagingHub is QueryResponse {
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
-            (, uint256 epoch, EmissionData memory emissionData) = abi.decode(
-                payload,
-                (uint8, uint256, EmissionData)
-            );
+            (
+                ,
+                uint256 epoch,
+                uint256 emissionTotal,
+                address[] emissionTokens,
+                uint256[] emissionAmounts
+            ) = abi.decode(
+                    payload,
+                    (uint8, uint256, uint256, address[], uint256[])
+                );
 
             IGaugeManager cachedGaugeManager = gaugeManager;
 
             // Mint appropriate gauge emissions to Gauge Manager.
-            cve.mintGaugeEmissions(
-                address(cachedGaugeManager),
-                emissionData.emissionTotal
-            );
+            cve.mintGaugeEmissions(address(cachedGaugeManager), emissionTotal);
 
             // Set upcoming epoch emissions for voted configuration.
             cachedGaugeManager.setEmissionRates(
                 epoch,
-                emissionData.tokens,
-                emissionData.emissions
+                emissionTokens,
+                emissionAmounts
             );
         } else if (payloadType == 3) {
             // payloadType = 3: Receiving fees from a foreign chain and
