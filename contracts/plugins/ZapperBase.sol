@@ -11,6 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
@@ -113,7 +114,8 @@ abstract contract ZapperBase is ReentrancyGuard {
                 );
             } else {
                 // User wants to enter and collateralize a position for
-                // someone else, so we need to validate they have plugin authority.
+                // someone else, so we need to validate they have plugin
+                // authority.
                 if (IPluginDelegable(pToken).isDelegate(recipient, msg.sender)) {
                     shares = IMToken(pToken).depositAsCollateralFor(
                         amount,
@@ -231,6 +233,39 @@ abstract contract ZapperBase is ReentrancyGuard {
         }
 
         return amount;
+    }
+
+    /// @notice Prepares for an upcoming swap based on input parameters
+    ///         accounting for both native gas token routing versus
+    ///         erc20s.
+    /// @param inputToken The token being inputted into the upcoming swap.
+    /// @param inputAmount The amount of `inputToken` to be swapped.
+    /// @param depositAsWrappedNative Used if `inputToken` is the chain's
+    ///                               native gas token and should be wrapped
+    ///                               before execution.
+    function _prepareSwap(
+        address inputToken,
+        uint256 inputAmount,
+        bool depositAsWrappedNative
+    ) internal {
+        if (CommonLib.isETH(inputToken)) {
+            // Validate message has gas token attached.
+            if (inputAmount != msg.value) {
+                revert ZapperBase__ExecutionError();
+            }
+
+            if (depositAsWrappedNative) {
+                IWETH(wrappedNative).deposit{ value: inputAmount }();
+            }
+            return;
+        }
+        
+        SafeTransferLib.safeTransferFrom(
+            inputToken,
+            msg.sender,
+            address(this),
+            inputAmount
+        );
     }
 
     /// @notice Helper function for efficiently transferring tokens

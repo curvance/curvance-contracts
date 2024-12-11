@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CurveLib } from "contracts/libraries/CurveLib.sol";
 import { BalancerLib } from "contracts/libraries/BalancerLib.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
-import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 
 contract ComplexZapper is ZapperBase {
@@ -810,25 +808,7 @@ contract ComplexZapper is ZapperBase {
         SwapperLib.Swap[] memory swapData,
         bool depositAsWrappedNative
     ) internal {
-        // If the input token is chain gas token, check if it should be
-        // wrapped.
-        if (CommonLib.isETH(inputToken)) {
-            // Validate message has gas token attached.
-            if (inputAmount != msg.value) {
-                revert ComplexZapper__ExecutionError();
-            }
-
-            if (depositAsWrappedNative) {
-                IWETH(wrappedNative).deposit{ value: inputAmount }();
-            }
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                inputToken,
-                msg.sender,
-                address(this),
-                inputAmount
-            );
-        }
+        _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
         uint256 numTokenSwaps = swapData.length;
         // Swap `inputToken` into desired pToken underlying tokens.

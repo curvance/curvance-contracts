@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
-
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-
-import { IWETH } from "contracts/interfaces/IWETH.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 contract SimpleZapper is ZapperBase {
     /// ERRORS ///
 
     error SimpleZapper__Unauthorized();
-    error SimpleZapper__ExecutionError();
-    error SimpleZapper__InsufficientToRepay();
 
     /// CONSTRUCTOR ///
 
@@ -44,23 +38,11 @@ contract SimpleZapper is ZapperBase {
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256) {
-        if (CommonLib.isETH(swapData.inputToken)) {
-            // Validate message has gas token attached.
-            if (swapData.inputAmount != msg.value) {
-                revert SimpleZapper__ExecutionError();
-            }
-
-            if (depositAsWrappedNative) {
-                IWETH(wrappedNative).deposit{ value: swapData.inputAmount }();
-            }
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                swapData.inputToken,
-                msg.sender,
-                address(this),
-                swapData.inputAmount
-            );
-        }
+        _prepareSwap(
+            swapData.inputToken,
+            swapData.inputAmount,
+            depositAsWrappedNative
+        );
 
         // If we are trying to deposit wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
@@ -108,23 +90,11 @@ contract SimpleZapper is ZapperBase {
         uint256 repayAmount,
         address recipient
     ) external payable nonReentrant returns (uint256) {
-        if (CommonLib.isETH(swapData.inputToken)) {
-            // Validate message has gas token attached.
-            if (swapData.inputAmount != msg.value) {
-                revert SimpleZapper__ExecutionError();
-            }
-
-            if (depositAsWrappedNative) {
-                IWETH(wrappedNative).deposit{ value: swapData.inputAmount }();
-            }
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                swapData.inputToken,
-                msg.sender,
-                address(this),
-                swapData.inputAmount
-            );
-        }
+        _prepareSwap(
+            swapData.inputToken,
+            swapData.inputAmount,
+            depositAsWrappedNative
+        );
 
         // If we are trying to repay wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
@@ -164,8 +134,8 @@ contract SimpleZapper is ZapperBase {
     /// @notice Withdraws a Curvance position, and swaps it into
     ///         desired token (swapData.outputToken).
     /// @dev Requires plugin approval for redemption.
-    /// @param redemptionData Struct containing information on redemption action
-    ///                       to execute. Containing values:
+    /// @param redemptionData Struct containing information on redemption
+    ///                       action to execute. Containing values:
     ///                       1. The address of the mToken corresponding to
     ///                          position to be exited.
     ///                       2. The amount of shares to redeemed.
