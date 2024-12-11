@@ -112,7 +112,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             centralRegistry.protocolCompoundFee()) /
             centralRegistry.protocolHarvestFee();
         uint256 epochRewardsPerPoint = ((100e6 - compoundingFee) *
-            WAD_SQUARED) / _ONE;
+            WAD_SQUARED) / (_ONE * 2);
 
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
         assertEq(usdc.balanceOf(address(feeManager)), 100e6);
@@ -433,7 +433,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             unlockTime,
             centralRegistry.genesisEpoch() +
                 (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.LOCK_DURATION()
+                veCVE.lockDuration()
         );
 
         assertEq(veCVE.chainPoints(), _ONE);

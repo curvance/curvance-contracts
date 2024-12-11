@@ -6,8 +6,9 @@ import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -37,9 +38,9 @@ abstract contract PositionManagementBase is
     /// @notice Maximum desired leverage output, we choose 99% of what is
     ///         possible to minimize reversion from things like price
     ///         fluctuations, swap fees, and oracle vs pool price divergence,
-    ///         in basis points.
-    /// @dev 9900 = 99% = 0.99.
-    uint256 public constant MAX_LEVERAGE = 9900;
+    ///         in WAD (1e18).
+    /// @dev 0.99e18 = 99% = 0.99.
+    uint256 public constant MAX_LEVERAGE = 0.99e18;
 
     /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
@@ -67,7 +68,7 @@ abstract contract PositionManagementBase is
     ///      leverage/deleverage action, works similar to reentryguard
     ///      with pre and post checks.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     modifier checkSlippage(address account, uint256 slippage) {
         IMToken[] memory mTokens = marketManager.assetsOf(account);
         uint256 numTokens = mTokens.length;
@@ -92,7 +93,7 @@ abstract contract PositionManagementBase is
         if (liquidityBefore > liquidityAfter) {
             if (
                 liquidityBefore - liquidityAfter >=
-                (liquidityBefore * slippage) / DENOMINATOR
+                (liquidityBefore * slippage) / WAD
             ) {
                 revert PositionManagementBase__InvalidSlippage();
             }
@@ -126,7 +127,11 @@ abstract contract PositionManagementBase is
     /// @notice Deposits into a Curvance position and then leverages in favor
     ///         of increasing both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
-    ///      in `checkSlippage` modifier.
+    ///      in `checkSlippage` modifier. 
+    ///      NOTE: The caller MUST have approved this smart contract to have
+    ///      delegated actions inside `leverageData.positionToken` or
+    ///      depositAsCollateralFor will only deposit and the leverage
+    ///      operation will fail.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
@@ -141,26 +146,34 @@ abstract contract PositionManagementBase is
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
-    function depositAndleverage(
+    ///                 `leverageData` leverage action, in WAD (1e18).
+    function depositAndLeverage(
         uint256 assets,
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
         SimplePToken pToken = leverageData.positionToken;
         address pTokenUnderlying = pToken.asset();
+        // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
             msg.sender,
             address(this),
             assets
         );
+
+        // Approve pToken to process a deposit.
         SwapperLib._approveTokenIfNeeded(
             pTokenUnderlying,
             address(pToken),
             assets
         );
+
+        // Deposit and Collateralize the underlying tokens in pToken
+        // contract.
         pToken.depositAsCollateralFor(assets, msg.sender);
+
+        // Execute leverage operation.
         _leverage(leverageData, msg.sender);
     }
 
@@ -181,7 +194,7 @@ abstract contract PositionManagementBase is
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     function leverage(
         LeverageStruct calldata leverageData,
         uint256 slippage
@@ -211,7 +224,7 @@ abstract contract PositionManagementBase is
     /// @param account The account to leverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `leverageData` leverage action, in basis points.
+    ///                 `leverageData` leverage action, in WAD (1e18).
     function leverageFor(
         LeverageStruct calldata leverageData,
         address account,
@@ -247,7 +260,7 @@ abstract contract PositionManagementBase is
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageData` deleverage action, in basis points.
+    ///                 `deleverageData` deleverage action, in WAD (1e18).
     function deleverage(
         DeleverageStruct calldata deleverageData,
         uint256 slippage
@@ -277,7 +290,7 @@ abstract contract PositionManagementBase is
     /// @param account The account to deleverage an active Curvance position
     ///                for.
     /// @param slippage Slippage accepted by the user for execution of
-    ///                 `deleverageData` deleverage action, in basis points.
+    ///                 `deleverageData` deleverage action, in WAD (1e18).
     function deleverageFor(
         DeleverageStruct calldata deleverageData,
         address account,
@@ -329,13 +342,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            borrowToken != address(leverageData.borrowToken) ||
-            borrowAmount != leverageData.borrowAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         address borrowUnderlying = SimplePToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
@@ -345,11 +351,19 @@ abstract contract PositionManagementBase is
         // Take protocol fee, if any.
         uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
         if (fee > 0) {
+            borrowAmount -= fee;
             SafeTransferLib.safeTransfer(
                 borrowUnderlying,
                 centralRegistry.daoAddress(),
                 fee
             );
+        }
+
+        if (
+            borrowToken != address(leverageData.borrowToken) ||
+            borrowAmount != leverageData.borrowAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
         }
 
         // We do not need to check whether positionToken is listed
@@ -436,13 +450,6 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (
-            positionToken != address(deleverageData.positionToken) ||
-            collateralAmount != deleverageData.collateralAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
         address collateralUnderlying = SimplePToken(positionToken)
@@ -465,7 +472,14 @@ abstract contract PositionManagementBase is
                 fee
             );
         }
-        deleverageData.collateralAmount = collateralAmount;
+
+        if (
+            positionToken != address(deleverageData.positionToken) ||
+            collateralAmount != deleverageData.collateralAmount
+        ) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
         _swapCollateralToBorrowUnderlying(deleverageData);
 
         // We do not need to check whether borrowToken is listed
@@ -532,6 +546,81 @@ abstract contract PositionManagementBase is
         );
     }
 
+    /// @notice Calculates the hypothetical maximum amount of `borrowToken`
+    ///         `account` can borrow for maximum leverage based on a new
+    ///         position token deposit and collateralized.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
+    /// @param account The account to query maximum borrow amount for.
+    /// @param borrowToken The eToken that `account` will borrow from
+    ///                    to achieve leverage.
+    /// @param positionToken The pToken that `account` will deposit to
+    ///                      leverage against.
+    /// @param collateralAmount The amount of underlying pToken that `account`
+    ///                         will deposit to leverage against.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
+    function hypotheticalMaxRemainingLeverageOf(
+        address account,
+        address borrowToken,
+        address positionToken,
+        uint256 collateralAmount
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(positionToken), true, true);
+
+        // Validate we got a price for `positionToken`.
+        if (errorCode != 0) {
+            revert PositionManagementBase__InvalidTokenPrice();
+        }
+
+        (
+            uint256 sumCollateral,
+            uint256 maxDebt,
+            uint256 sumDebt
+        ) = marketManager.statusOf(account);
+
+        uint256 newCollateral = FixedPointMathLib.mulDiv(
+            IMToken(positionToken).previewDeposit(collateralAmount),
+            price,
+            10 ** IMToken(positionToken).decimals()
+        );
+
+        (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
+
+        // If the position token cannot be borrowed against the hypothetical
+        // leverage check will result in 0 meaning nothing new to leverage
+        // against.
+        if (collRatio == 0) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
+        sumCollateral += newCollateral;
+        maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
+
+        maxDebtBorrowable = _maxRemainingLeverageOf(
+            sumCollateral,
+            maxDebt,
+            sumDebt,
+            borrowToken
+        );
+
+        uint256 liquidityAvailable = IERC20(
+            IMToken(borrowToken).underlying()
+        ).balanceOf(borrowToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
+        }
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Calculates the maximum amount of `borrowToken` `account` can
@@ -541,9 +630,9 @@ abstract contract PositionManagementBase is
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
-    /// @return The maximum borrow amount allowed from eToken, measured in
-    ///         underlying token amount.
-    function queryAmountToBorrowForLeverageMax(
+    /// @return Returns the maximum remaining borrow amount allowed from
+    ///         `borrowToken`, measured in underlying token amount.
+    function maxRemainingLeverageOf(
         address account,
         address borrowToken
     ) public view returns (uint256) {
@@ -553,36 +642,12 @@ abstract contract PositionManagementBase is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        // We can calculate terminal leverage by calculating the infinite
-        // series of swapping to maximum LTV over and over, which results
-        // in the equation 1 / (1 - LTV).
-        //
-        // For example, 80% LTV will result in terminal maximum leverage of:
-        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
-        // The equation below is equal to this equation,
-        // just extrapolated for an account's collateral vs debt.
-        //
-        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
-        // transaction failure from imperfect execution due to things
-        // such as price fluctuations, and AMM fees.
-        uint256 maxLeverage = ((maxDebt - sumDebt) *
-            MAX_LEVERAGE *
-            sumCollateral) /
-            (sumCollateral - maxDebt) /
-            DENOMINATOR;
-
-        (uint256 price, uint256 errorCode) = IOracleManager(
-            ICentralRegistry(centralRegistry).oracleManager()
-        ).getPrice(address(borrowToken), true, false);
-
-        // Validate we got a price for `borrowToken`.
-        if (errorCode != 0) {
-            revert PositionManagementBase__InvalidTokenPrice();
-        }
-
-        return
-            (((maxLeverage * WAD) / price) *
-                (10 ** IERC20(borrowToken).decimals())) / WAD;
+        return _maxRemainingLeverageOf(
+            sumCollateral,
+            maxDebt,
+            sumDebt,
+            borrowToken
+        );
     }
 
     /// @inheritdoc ERC165
@@ -618,7 +683,7 @@ abstract contract PositionManagementBase is
     ) internal {
         EToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
-        uint256 maxBorrowAmount = queryAmountToBorrowForLeverageMax(
+        uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,
             address(borrowToken)
         );
@@ -667,6 +732,55 @@ abstract contract PositionManagementBase is
             deleverageData.collateralAmount,
             deleverageData
         );
+    }
+
+    /// @notice Calculates the maximum amount of `borrowToken` `account` can
+    ///         borrow for maximum leverage.
+    /// @dev Applies a minor dampening effect to calculated maximum leverage
+    ///      via `MAX_LEVERAGE`.
+    /// @param sumCollateral total collateral amount of account.
+    /// @param maxDebt max borrow amount of account.
+    /// @param sumDebt total borrow amount of account.
+    /// @param borrowToken The eToken that `account` will borrow from
+    ///                    to achieve leverage.
+    /// @return Returns the maximum remaining borrow amount allowed from
+    ///         `borrowToken`, measured in underlying token amount.
+    function _maxRemainingLeverageOf(
+        uint256 sumCollateral,
+        uint256 maxDebt,
+        uint256 sumDebt,
+        address borrowToken
+    ) internal view returns(uint256) {
+        // We can calculate terminal leverage by calculating the infinite
+        // series of swapping to maximum LTV over and over, which results
+        // in the equation 1 / (1 - LTV).
+        //
+        // For example, 80% LTV will result in terminal maximum leverage of:
+        // 1 / (1 - .8) -> (1 / 0.2) -> 5x leverage.
+        // The equation below is equal to this equation,
+        // just extrapolated for an account's collateral vs debt.
+        //
+        // We also embed a `MAX_LEVERAGE` dampening effect to minimize
+        // transaction failure from imperfect execution due to things
+        // such as price fluctuations, and AMM fees.
+        uint256 maxLeverage = ((maxDebt - sumDebt) *
+            MAX_LEVERAGE *
+            sumCollateral) /
+            (sumCollateral - maxDebt) /
+            WAD;
+
+        (uint256 price, uint256 errorCode) = IOracleManager(
+            ICentralRegistry(centralRegistry).oracleManager()
+        ).getPrice(address(borrowToken), true, false);
+
+        // Validate we got a price for `borrowToken`.
+        if (errorCode != 0) {
+            revert PositionManagementBase__InvalidTokenPrice();
+        }
+
+        return
+            (((maxLeverage * WAD) / price) *
+                (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
     /// @notice Callback function on borrowing tokens from an eToken contract

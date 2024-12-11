@@ -182,7 +182,7 @@ abstract contract CVEBase is ERC20 {
 
     /// @dev Returns the name of the token.
     function name() public pure override returns (string memory) {
-        return "Curvance";
+        return "Curvance Collective";
     }
 
     /// @dev Returns the symbol of the token.

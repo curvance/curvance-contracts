@@ -32,21 +32,12 @@ contract SetRewardManagerTest is TestBaseMarket {
     }
 
     function test_setRewardManager_fail_whenEpochAlreadyStarted() public {
+        centralRegistry.setRewardManager(newRewardManager);
+
         vm.warp(centralRegistry.genesisEpoch());
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__EpochHasStarted.selector
-        );
-        centralRegistry.setRewardManager(newRewardManager);
-    }
-
-    function test_setRewardManager_fail_whenRewardManagerIsAlreadySet()
-        public
-    {
-        centralRegistry.setRewardManager(newRewardManager);
-
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.setRewardManager(newRewardManager);
     }
@@ -60,5 +51,14 @@ contract SetRewardManagerTest is TestBaseMarket {
         centralRegistry.setRewardManager(newRewardManager);
 
         assertEq(centralRegistry.rewardManager(), newRewardManager);
+
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+
+        address newRewardManager1 = makeAddr("Reward Manager 1");
+
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractSet("Reward Manager", newRewardManager1);
+
+        centralRegistry.setRewardManager(newRewardManager1);
     }
 }

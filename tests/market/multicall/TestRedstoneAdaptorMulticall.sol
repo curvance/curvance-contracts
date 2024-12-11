@@ -317,7 +317,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user1, address(eUSDC)) * 50) /
+            .maxRemainingLeverageOf(user1, address(eUSDC)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;

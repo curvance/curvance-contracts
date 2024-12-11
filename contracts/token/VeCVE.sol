@@ -116,15 +116,22 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @notice The unix timestamp `unlockTime` will be set to when a lock
     //          is set on continuous lock (CL) mode.
     uint40 public constant CONTINUOUS_LOCK_VALUE = type(uint40).max;
-    /// @notice The length of state change restriction pre/post epoch, in weeks.
+    /// @notice The length of state change restriction pre/post epoch,
+    ///         in weeks.
     uint256 public constant RESTRICTION_DURATION = 12 hours;
     /// @notice The length of a fresh voting escrow CVE position, in epochs.
     uint256 public constant LOCK_DURATION_EPOCHS = 26;
-    /// @notice The length of a fresh voting escrow CVE position, in weeks.
-    uint256 public constant LOCK_DURATION = 52 weeks;
     /// @notice Point multiplier for a continuous lock.
     /// @dev 2 = 200%.
     uint256 public constant CL_POINT_MULTIPLIER = 2;
+
+    /// @notice The length of one protocol epoch, in seconds.
+    uint256 public immutable epochDuration;
+    /// @notice The length of a fresh voting escrow token position,
+    ///         in seconds.
+    uint256 public immutable lockDuration;
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
 
     /// @dev `bytes4(keccak256(bytes("VeCVE__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x32c4d25d;
@@ -132,16 +139,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     uint256 internal constant _INVALID_LOCK_SELECTOR = 0x21d223d9;
     /// @dev `bytes4(keccak256(bytes("VeCVE__VeCVEShutdown()")))`
     uint256 internal constant _VECVE_SHUTDOWN_SELECTOR = 0x3ad2450b;
-
-    /// @notice The length of one protocol epoch, in seconds.
-    uint256 public immutable epochDuration;
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
-
-    /// @notice veCVE name metadata.
-    bytes32 private immutable _name;
-    /// @notice veCVE symbol metadata.
-    bytes32 private immutable _symbol;
 
     /// STORAGE ///
 
@@ -202,9 +199,6 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
-        _name = "Vote Escrowed CVE";
-        _symbol = "veCVE";
-
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -215,10 +209,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         centralRegistry = centralRegistry_;
-
-        // Query epoch and token configuration directly to minimize potential
-        // human error.
+        // Query epoch duration directly to minimize potential human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
+        lockDuration = epochDuration * LOCK_DURATION_EPOCHS;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -913,7 +906,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         _removeLock(locks, lockIndex);
 
         // Penalty value = lock amount * penalty multiplier,
-        // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
+        // linearly scaled down as `unlockTime` scales from `lockDuration`
         // down to 0.
         uint256 penaltyAmount = _getUnlockPenalty(
             amount,
@@ -1060,27 +1053,26 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
-    function name() public view override returns (string memory) {
-        return string(abi.encodePacked(_name));
+    function name() public pure override returns (string memory) {
+        return "Vote Escrowed CVE";
     }
 
     /// @dev Returns the symbol of the token.
-    function symbol() public view override returns (string memory) {
-        return string(abi.encodePacked(_symbol));
+    function symbol() public pure override returns (string memory) {
+        return "veCVE";
     }
 
     /// @notice Returns the current epoch for the given time.
-    /// @param time The timestamp for which to calculate the epoch.
+    /// @param timestamp The timestamp for which to calculate the epoch.
     /// @return The current epoch.
-    function currentEpoch(uint256 time) public view returns (uint256) {
-        uint256 genesisEpoch = centralRegistry.genesisEpoch();
-
-        if (time < genesisEpoch) {
-            return 0;
-        }
+    function currentEpoch(uint256 timestamp) public view returns (uint256) {
+        uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
 
         // Rounds down intentionally.
-        return ((time - genesisEpoch) / epochDuration);
+        return
+            timestamp < cachedGenesisEpoch
+                ? 0
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// @notice Returns the timestamp of when the next epoch begins.
@@ -1114,7 +1106,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             uint40(
                 _genesisEpoch() +
                     (currentEpoch(block.timestamp) * epochDuration) +
-                    LOCK_DURATION
+                    lockDuration
             );
     }
 
@@ -1511,7 +1503,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 unlockTime
     ) internal view returns (uint256) {
         // Penalty value = lock amount * penalty multiplier,
-        // linearly scaled down as `unlockTime` scales from `LOCK_DURATION`
+        // linearly scaled down as `unlockTime` scales from `lockDuration`
         // down to 0.
         // If the lock mode is continuous, we know its a full penalty unlock.
         if (unlockTime == CONTINUOUS_LOCK_VALUE) {
@@ -1520,12 +1512,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
         return
             (amount *
-                ((penalty * (unlockTime - block.timestamp)) / LOCK_DURATION)) /
+                ((penalty * (unlockTime - block.timestamp)) / lockDuration)) /
             DENOMINATOR;
     }
 
-    /// @notice Returns the genesis epoch.
-    /// @return The genesis epoch.
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
     }

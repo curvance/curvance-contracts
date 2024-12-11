@@ -51,6 +51,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xd55eef72;
     /// @dev `bytes4(keccak256(bytes("RewardManager__NoEpochRewards()")))`.
     uint256 internal constant _NO_EPOCH_REWARDS_SELECTOR = 0x0a2e9ede;
+    uint256 internal constant _EPOCH_REWARDS_OVERRIDE_BUFFER = 1 hours;
 
     /// STORAGE ///
 
@@ -81,6 +82,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// EVENTS ///
 
     event RewardPaid(address user, address rewardToken, uint256 amount);
+    event EpochRewardsSet(
+        uint256 epochDelivered,
+        uint256 rewardsPerPoint,
+        uint256 rewardAmount
+    );
 
     /// ERRORS ///
 
@@ -89,6 +95,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     error RewardManager__Unauthorized();
     error RewardManager__NoEpochRewards();
     error RewardManager__RewardManagerIsAlreadyStarted();
+    error RewardManager__EpochDeliveryOverrideUnavailable();
 
     receive() external payable {}
 
@@ -111,6 +118,42 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Permissioned function for overriding an epoch rewards incase
+    ///         the crosschain message can not be delivered for some reason
+    ///         by the Messaging Hub.
+    /// @dev Only callable on by an entity with DAO permissions or higher,
+    ///      once the time buffer has passed without rewards being delivered
+    ///      properly.
+    function overrideRecordEpochRewards() external {
+        _checkDaoPermissions();
+
+        // Cache next epoch to deliver value to save on storage reads.
+        uint256 epoch = nextEpochToDeliver;
+
+        uint256 nextEpochToDeliverStartTime = epoch == 0 ?
+            centralRegistry.genesisEpoch() :
+            centralRegistry.genesisEpoch() + (epoch * epochDuration);
+
+        // Add the time buffer required for overriding an epoch's reward
+        // value.
+        nextEpochToDeliverStartTime += _EPOCH_REWARDS_OVERRIDE_BUFFER;
+
+        // Check that time buffer for overriding has passed.
+        if (block.timestamp < nextEpochToDeliverStartTime) {
+            revert RewardManager__EpochDeliveryOverrideUnavailable();
+        }
+
+        // We can skip updating `epochRewardsPerPoint` as uint256 values
+        // default to a value of 0 already, so we can just emit the
+        // expected event and increment the `nextEpochToDeliver` invariant.
+
+        emit EpochRewardsSet(
+            nextEpochToDeliver++,
+            0,
+            0
+        );
+    }
+
     /// @notice Called by the Messaging Hub to record rewards allocated to
     ///         an epoch.
     /// @dev Only callable on by the Messaging Hub.
@@ -123,6 +166,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
 
         if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
@@ -131,9 +175,16 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             veCVE.updateChainPoints(epoch);
         }
 
-        // Record rewards per CVE for the epoch,
-        // then update nextEpochToDeliver invariant.
-        epochRewardsPerPoint[nextEpochToDeliver++] = rewardsPerPoint;
+        // Record rewards per token for the epoch.
+        epochRewardsPerPoint[epoch] = rewardsPerPoint;
+
+        // Emit an event indicating rewards were set, then update
+        // `nextEpochToDeliver` invariant.
+        emit EpochRewardsSet(
+            nextEpochToDeliver++,
+            rewardsPerPoint,
+            rewardsPerPoint * veCVE.chainPoints()
+        );
     }
 
     /// @notice Starts the Reward Manager, called by the DAO after setting up
@@ -607,10 +658,15 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bool isContinuousLock,
         uint256 lockIndex
     ) internal returns (uint256) {
-        IERC20 cve = IERC20(_getCVE());
-        uint256 lockAmount = cve.balanceOf(address(this));
+        address cve = _getCVE();
 
-        cve.approve(address(veCVE), lockAmount);
+        // The reward manager never custodies CVE so we can use the pure
+        // balance here and if anyone ever sends cve to this constant it
+        // acts as a two in one token skimmer and locker.
+        uint256 lockAmount = IERC20(cve).balanceOf(address(this));
+
+        // Approve veCVE contract to lock `lockAmount` CVE for `user`.
+        SafeTransferLib.safeApprove(cve, address(veCVE), lockAmount);
 
         veCVE.compoundRewardsIntoLock(
             user,
