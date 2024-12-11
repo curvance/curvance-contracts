@@ -956,7 +956,9 @@ contract ComplexZapper is ReentrancyGuard {
             token,
             data,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            0,
+            0
         );
 
         uint256 numTokenSwaps = swapData.length;

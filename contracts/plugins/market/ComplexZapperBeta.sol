@@ -402,9 +402,10 @@ contract ComplexZapperBeta is ReentrancyGuard {
                 msg.sender
             );
         } else if (
-            collateralize && msg.sender != recipient && 
+            collateralize &&
+            msg.sender != recipient &&
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-            ) {
+        ) {
             shares = SimplePToken(pToken).depositAsCollateralFor(
                 amount,
                 recipient
@@ -537,7 +538,9 @@ contract ComplexZapperBeta is ReentrancyGuard {
             token,
             data,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            0,
+            0
         );
 
         uint256 numTokenSwaps = swapData.length;

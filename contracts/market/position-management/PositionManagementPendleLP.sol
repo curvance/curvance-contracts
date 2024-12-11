@@ -133,12 +133,25 @@ contract PositionManagementPendleLP is PositionManagementBase {
             tokenOut,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount
+            deleverageData.collateralAmount,
+            0,
+            0
         );
 
         if (tokenOut != borrowUnderlying) {
+            uint256 length = deleverageData.swapData.length;
+
+            if (
+                length == 0 ||
+                deleverageData.swapData[0].inputToken != tokenOut ||
+                deleverageData.swapData[length - 1].outputToken !=
+                borrowUnderlying
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
             // Swap sy output token for borrow underlying.
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+            for (uint256 i; i < length; ++i) {
                 SwapperLib.swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]
