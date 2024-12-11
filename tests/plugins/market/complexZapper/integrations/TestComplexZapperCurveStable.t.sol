@@ -16,13 +16,6 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
 
     fallback() external payable {}
 
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
-    }
-
     function testEnterCurveWithETH() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);

@@ -9,6 +9,7 @@ import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRoute
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
@@ -82,13 +83,6 @@ contract TestComplexZapperPendle is TestBaseMarket {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
-    }
-
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
     }
 
     function testEnterPendle() public {
@@ -285,8 +279,8 @@ contract TestComplexZapperPendle is TestBaseMarket {
         vm.prank(user1);
         cSTETH.setDelegateApproval(address(complexZapper), true);
 
-        ComplexZapper.RedemptionData memory redemptionData;
-        redemptionData.pToken = address(cSTETH);
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(cSTETH);
         redemptionData.shares = 1.24 ether;
         redemptionData.forceRedeemCollateral = false;
 

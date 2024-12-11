@@ -45,7 +45,6 @@ contract TestSimpleZapper is TestBaseMarket {
 
         simpleZapper = new SimpleZapper(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
             _WETH_ADDRESS
         );
 
@@ -163,13 +162,6 @@ contract TestSimpleZapper is TestBaseMarket {
             block.timestamp
         );
         vm.stopPrank();
-    }
-
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
     }
 
     function testSwapAndDeposit() public {

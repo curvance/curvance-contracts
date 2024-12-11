@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, CommonLib, IMToken, IERC20, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -151,7 +151,14 @@ contract SimpleZapper is ZapperBase {
             amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
-        return _repayDebt(eToken, eTokenUnderlying, amount, repayAmount, recipient);
+        return
+            _repayDebt(
+                eToken,
+                eTokenUnderlying,
+                amount,
+                repayAmount,
+                recipient
+            );
     }
 
     /// @notice Withdraws a Curvance position, and swaps it into
