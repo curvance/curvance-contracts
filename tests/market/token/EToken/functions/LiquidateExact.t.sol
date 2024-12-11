@@ -85,6 +85,39 @@ contract LiquidateExactTest is TestBaseEToken {
         _checkLiquidationResult();
     }
 
+    function test_liquidateExact_success_withRegularQueueLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        // Prepare user3 as liquidator
+        _prepareUSDC(user3, 250 ether);
+
+        vm.startPrank(user2, address(1));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        usdc.approve(address(eUSDC), 250e6);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3, address(2));
+        usdc.approve(address(eUSDC), 250e6);
+
+        skip(1);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
+        skip(1);
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
     function _checkLiquidationResult() internal {
         (uint256 balRETHPrice, ) = oracleManager.getPrice(
             address(balRETH),

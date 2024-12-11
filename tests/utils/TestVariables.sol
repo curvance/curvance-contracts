@@ -159,6 +159,8 @@ contract TestVariables {
     address public randomUser = address(1000000);
     address public user1 = address(1000001);
     address public user2 = address(1000002);
+    address public user3 = address(1000004);
+    address public user4 = address(1000005);
     address public liquidator = address(1000003);
     uint256 public voteBoostMultiplier = 11000; // 110%
     uint256 public lockBoostMultiplier = 10000; // 110%
