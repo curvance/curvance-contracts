@@ -185,7 +185,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
@@ -215,7 +215,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         data.input.swapData.needScale = false;
         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
 
-        positionManagement.leverage(leverageData, 500);
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -263,7 +263,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         deleverageData.auxData = abi.encode(_LP_STETH, data);
 
         pPendlePT.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 500);
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -301,7 +301,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
@@ -335,7 +335,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.leverageFor(leverageData, user, 500);
+        positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -387,7 +387,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 500);
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);

@@ -166,6 +166,21 @@ interface IMarketManager {
     /// @param mToken market token address.
     function isListed(address mToken) external view returns (bool);
 
+    /// @notice Market token data including listing status,
+    ///         token characterists, account position data.
+    /// @dev Market Token Address => MarketToken struct.
+    function tokenData(address mToken) external view returns (
+        bool isListed,
+        uint256 collRatio,
+        uint256 collReqSoft,
+        uint256 collReqHard,
+        uint256 liqBaseIncentive,
+        uint256 liqCurve,
+        uint256 liqFee,
+        uint256 baseCFactor,
+        uint256 cFactorCurve
+    );
+
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
     /// @return A dynamic list with the assets the account has entered.

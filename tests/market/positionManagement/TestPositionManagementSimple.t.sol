@@ -135,7 +135,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
@@ -159,7 +159,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         );
         leverageData.swapData.slippage = 0.3e18;
 
-        positionManagement.leverage(leverageData, 500);
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -206,7 +206,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         );
         deleverageData.swapData[0].slippage = 0.3e18;
         deleverageData.repayAmount = 890 ether;
-        positionManagement.deleverage(deleverageData, 500);
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -245,7 +245,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // try leverage with 50% of max
         uint256 amountForLeverage = (positionManagement
-            .queryAmountToBorrowForLeverageMax(user, address(eDAI)) * 50) /
+            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
             100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
@@ -273,7 +273,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.leverageFor(leverageData, user, 500);
+        positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -327,7 +327,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 500);
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);

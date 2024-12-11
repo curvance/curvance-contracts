@@ -40,7 +40,7 @@ contract MessagingHub is QueryResponse {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 500_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
@@ -294,8 +294,8 @@ contract MessagingHub is QueryResponse {
                 emissionData.emissions
             );
         } else if (payloadType == 3) {
-            // payloadType = 3:  Receiving fees from a foreign chain and
-            //                   finalized epoch rewards data.
+            // payloadType = 3: Receiving fees from a foreign chain and
+            //                  finalized epoch rewards data.
 
             IRewardManager rewardManager = _getRewardManager();
             (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
@@ -689,13 +689,23 @@ contract MessagingHub is QueryResponse {
     ) internal {
         // Query rewards for this epoch.
         uint256 feeTokensHeld = _getFeeTokenHeld();
+
+        // We temporary cache this chains lock points inside the currentChainId
+        // variable since it will be overridden before it is ever called again.
+        // We do this to avoid having to reserve another storage slot which will
+        // create a stack too deep error and reduces runtime gas costs.
+        uint256 currentChainId = queryLockPoints();
+
+        // Add this chain's lock points to the sum of all remote
+        // chain's points.
+        totalPoints += currentChainId;
+
         // Calculate rewards per veCVE point.
         uint256 epochRewardsPerPoint = (feeTokensHeld * WAD_SQUARED) /
             totalPoints;
 
         IRewardManager rewardManager = _getRewardManager();
         ChainData memory chainData;
-        uint256 currentChainId;
         uint256 feeTokensForChain;
 
         // If theres no epoch rewards per point this implies fee token amount
@@ -720,16 +730,6 @@ contract MessagingHub is QueryResponse {
                 return;
             }
         }
-
-        // We temporary cache this chains lock points inside the currentChainId
-        // variable since it will be overridden before it is ever called again.
-        // We do this to avoid having to reserve another storage slot which will
-        // create a stack too deep error and reduces runtime gas costs.
-        currentChainId = queryLockPoints();
-
-        // Add this chain's lock points to the sum of all remote
-        // chain's points.
-        totalPoints += currentChainId;
 
         // Calculate the fee tokens that should stay on this chain by querying
         // this chains lock points directly and adjusting versus all remote

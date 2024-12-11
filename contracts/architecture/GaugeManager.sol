@@ -464,6 +464,243 @@ contract GaugeManager is
         }
     }
 
+    /// @notice Returns pending reward of user for their deposited `tokens`
+    ///         across all reward tokens.
+    /// @param tokens Array of Protocol supported mToken addresses to check
+    ///               rewards for.
+    /// @param user User address to query pending rewards for.
+    function pendingRewards(
+        address[] calldata tokens,
+        address user
+    )
+        external
+        view
+        returns (
+            address[][] memory pendingRewardTokens,
+            uint256[][] memory rewardAmounts
+        )
+    {
+        uint256 numMTokens = tokens.length;
+        pendingRewardTokens = new address[][](numMTokens);
+        rewardAmounts = new uint256[][](numMTokens);
+
+        address[] memory rewardTokensForMToken;
+        uint256 numRewardTokens;
+        address cachedToken;
+        address cachedRewardToken;
+
+        for (uint256 i; i < numMTokens; ++i) {
+            cachedToken = tokens[i];
+            rewardTokensForMToken = rewardTokens[cachedToken];
+            numRewardTokens = rewardTokensForMToken.length;
+
+            pendingRewardTokens[i] = new address[](numRewardTokens);
+            rewardAmounts[i] = new uint256[](numRewardTokens);
+
+            for (uint256 j = 0; j < numRewardTokens; ++j) {
+                cachedRewardToken = rewardTokensForMToken[j];
+                pendingRewardTokens[i][j] = cachedRewardToken;
+                rewardAmounts[i][j] = pendingRewards(
+                    cachedToken,
+                    user,
+                    cachedRewardToken
+                );
+            }
+        }
+    }
+
+    /// @notice Registers an `amount` deposit of `token` for `user` inside
+    ///         the Gauge System.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to deposit for
+    ///              `user`.
+    /// @param user User address to deposit `amount` of `token` for.
+    /// @param amount The amount of `token` to deposit.
+    function deposit(
+        address token,
+        address user,
+        uint256 amount
+    ) external nonReentrant {
+        if (amount == 0) {
+            revert GaugeManager__InvalidAmount();
+        }
+
+        // Make sure the token is listed inside this market,
+        // and that the token is executing the deposit call.
+        IMarketManager marketManager = IMToken(token).marketManager();
+        if (
+            msg.sender != token ||
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
+        ) {
+            revert GaugeManager__InvalidToken();
+        }
+
+        updatePool(token);
+
+        _calcPending(user, token);
+
+        balanceOf[token][user] += amount;
+        totalSupply[token] += amount;
+
+        _calcDebt(user, token);
+
+        emit Deposit(user, token, amount);
+    }
+
+    /// @notice Registers an `amount` withdrawal of `token` for `user` from
+    ///         the Gauge System.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to withdraw from
+    ///              `user`'s virtual balance.
+    /// @param user User address to withdraw `amount` of `token` from.
+    /// @param amount The amount of `token` to withdraw.
+    function withdraw(
+        address token,
+        address user,
+        uint256 amount
+    ) external nonReentrant {
+        if (amount == 0) {
+            revert GaugeManager__InvalidAmount();
+        }
+
+        // Make sure the token is listed inside this market,
+        // and that the token is executing the withdraw call.
+        IMarketManager marketManager = IMToken(token).marketManager();
+        if (
+            msg.sender != token ||
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
+        ) {
+            revert GaugeManager__InvalidToken();
+        }
+
+        if (balanceOf[token][user] < amount) {
+            revert GaugeManager__InvalidAmount();
+        }
+
+        updatePool(token);
+        _calcPending(user, token);
+
+        balanceOf[token][user] -= amount;
+        totalSupply[token] -= amount;
+
+        _calcDebt(user, token);
+
+        emit Withdraw(user, token, amount);
+    }
+
+    /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
+    /// @param tokens Array containing pool token addresses to claim
+    ///               rewards for.
+    /// @param user The user address that gauge rewards should be claimed for,
+    ///             if `user` is not the caller, plugin delegation status is
+    ///             checked.
+    function claim(
+        address[] calldata tokens,
+        address user
+    ) external nonReentrant {
+        if (block.timestamp < startTime) {
+            revert GaugeManager__NotStarted();
+        }
+
+        if (user != msg.sender) {
+            if (!isDelegate(user, msg.sender)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+        }
+
+        uint256 cveRewards;
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; ) {
+            cveRewards += _claim(tokens[i++], user);
+        }
+
+        if (cveRewards == 0) {
+            return;
+        }
+
+        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
+    }
+
+    /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
+    ///         into a new or existing veCVE lock.
+    /// @dev Users who choose to lock emissions may potentially receive an
+    ///      emission boost based on `lockBoostMultiplier` stored inside the
+    ///      DAO Central Registry.
+    /// @param tokens Array containing pool token addresses to claim rewards for.
+    /// @param isNewLock True if creating a new lock, false if extending existing.
+    /// @param lockIndex The index of the lock to extend (ignored if isNewLock is true).
+    /// @param continuousLock Whether the lock should be continuous or not.
+    /// @param rewardsData Rewards data for desired Reward Manager action.
+    /// @param params Parameters for rewards claim function.
+    /// @param aux Auxiliary data.
+    function claimAndLock(
+        address[] calldata tokens,
+        bool isNewLock,
+        bool continuousLock,
+        uint256 lockIndex,
+        RewardsData memory rewardsData,
+        bytes calldata params,
+        uint256 aux
+    ) external nonReentrant {
+        // If gauge emissions have not started yet,
+        // theres nothing to claim and lock.
+        if (block.timestamp < startTime) {
+            revert GaugeManager__NotStarted();
+        }
+
+        uint256 cveRewards;
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; ) {
+            cveRewards += _claim(tokens[i++], msg.sender);
+        }
+
+        if (cveRewards == 0) {
+            revert GaugeManager__NoReward();
+        }
+
+        uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
+
+        // If theres a current lock boost, recognize their bonus rewards.
+        if (currentLockBoost > 0) {
+            uint256 boostedRewards = (cveRewards * currentLockBoost) /
+                DENOMINATOR;
+            // We know this will never underflow due to `currentLockBoost`
+            // needing to be greater than 1.
+            ICVE(cve).mintLockBoost(boostedRewards - cveRewards);
+            cveRewards = boostedRewards;
+        }
+
+        // Approve veCVE to take necessary cve to extend/create the lock.
+        SafeTransferLib.safeApprove(cve, address(veCVE), cveRewards);
+
+        if (isNewLock) {
+            veCVE.createLockFor(
+                msg.sender,
+                cveRewards,
+                continuousLock,
+                rewardsData,
+                params,
+                aux
+            );
+        } else {
+            veCVE.increaseAmountAndExtendLockFor(
+                msg.sender,
+                cveRewards,
+                lockIndex,
+                continuousLock,
+                rewardsData,
+                params,
+                aux
+            );
+        }
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns current epoch number.
@@ -477,24 +714,27 @@ contract GaugeManager is
         uint256 timestamp
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
+        uint256 cachedGenesisEpoch = _genesisEpoch();
+        
+        // Rounds down intentionally.
         return
-            timestamp < startTime
+            timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - startTime) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + epoch * epochDuration;
+        return _genesisEpoch() + (epoch * epochDuration);
     }
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + (epoch + 1) * epochDuration;
+        return _genesisEpoch() + ((epoch + 1) * epochDuration);
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -528,10 +768,11 @@ contract GaugeManager is
         return (epochDuration * _epochRewardPerSec[token][epoch][index]);
     }
 
-    /// @notice Returns pending reward of user.
-    /// @param token Pool token address.
-    /// @param user User address.
-    /// @param rewardToken Reward token address.
+    /// @notice Returns pending reward of user for their deposited `token`
+    ///         across all reward tokens.
+    /// @param token Protocol supported mToken address to check rewards for.
+    /// @param user User address to query pending rewards for.
+    /// @param rewardToken Reward token address to check pending rewards for.
     function pendingRewards(
         address token,
         address user,
@@ -589,251 +830,10 @@ contract GaugeManager is
             info.rewardDebt;
     }
 
-    /// @notice Returns pending rewards of user.
-    /// @param token Pool token address.
-    /// @param user User address.
-    function pendingRewards(
-        address token,
-        address user
-    ) external view returns (uint256[] memory results) {
-        uint256 numTokens = rewardTokens[token].length;
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        results = new uint256[](numTokens);
-
-        for (uint256 i; i < numTokens; ++i) {
-            results[i] = pendingRewards(token, user, rewardTokensForMToken[i]);
-        }
-    }
-
-    /// @notice Deposit into Gauge Manager.
-    /// @param token Pool token address.
-    /// @param user User address.
-    /// @param amount Amounts to deposit.
-    function deposit(
-        address token,
-        address user,
-        uint256 amount
-    ) external nonReentrant {
-        if (amount == 0) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        // Make sure the token is listed inside this market,
-        // and that the token is executing the deposit call.
-        IMarketManager marketManager = IMToken(token).marketManager();
-        if (
-            msg.sender != token ||
-            !marketManager.isListed(token) ||
-            !centralRegistry.isMarketManager(address(marketManager))
-        ) {
-            revert GaugeManager__InvalidToken();
-        }
-
-        updatePool(token);
-
-        _calcPending(user, token);
-
-        balanceOf[token][user] += amount;
-        totalSupply[token] += amount;
-
-        _calcDebt(user, token);
-
-        emit Deposit(user, token, amount);
-    }
-
-    /// @notice Registers a withdrawal of `token` deposits by `user`
-    ///         from the Gauge Manager.
-    /// @dev This does not actually include any token transfers as tokens
-    ///      are permissionlessly escrowed by PToken/EToken contracts and
-    ///      we simply record deposits/withdraws here.
-    /// @param token Pool token address.
-    /// @param user The user address.
-    /// @param amount Amounts to withdraw.
-    function withdraw(
-        address token,
-        address user,
-        uint256 amount
-    ) external nonReentrant {
-        if (amount == 0) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        // Make sure the token is listed inside this market,
-        // and that the token is executing the withdraw call.
-        IMarketManager marketManager = IMToken(token).marketManager();
-        if (
-            msg.sender != token ||
-            !marketManager.isListed(token) ||
-            !centralRegistry.isMarketManager(address(marketManager))
-        ) {
-            revert GaugeManager__InvalidToken();
-        }
-
-        if (balanceOf[token][user] < amount) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        updatePool(token);
-        _calcPending(user, token);
-
-        balanceOf[token][user] -= amount;
-        totalSupply[token] -= amount;
-
-        _calcDebt(user, token);
-
-        emit Withdraw(user, token, amount);
-    }
-
-    /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
-    /// @param tokens Array containing pool token addresses to claim
-    ///               rewards for.
-    /// @param user The user address that gauge rewards should be claimed for,
-    ///             is the user is not the caller, delegation will be checked
-    ///             instead.
-    function claim(
-        address[] calldata tokens,
-        address user
-    ) external nonReentrant {
-        if (block.timestamp < startTime) {
-            revert GaugeManager__NotStarted();
-        }
-
-        if (user != msg.sender) {
-            if (!isDelegate(user, msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-        }
-
-        uint256 cveRewards;
-        uint256 numTokens = tokens.length;
-        for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++], user);
-        }
-
-        if (cveRewards == 0) {
-            return;
-        }
-
-        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
-    }
-
-    function _claim(
-        address token,
-        address user
-    ) internal returns (uint256 cveRewards) {
-        updatePool(token);
-        _calcPending(user, token);
-
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokensForMToken.length;
-
-        for (uint256 i; i < numTokens; ) {
-            // Query rewardToken then increment i.
-            address rewardToken = rewardTokensForMToken[i++];
-            uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 rewards = userDebtInfo[token][user][index].rewardPending;
-            // If the caller has rewards, send them,
-            // and prevent transaction reversion.
-            if (rewards > 0) {
-                if (rewardToken == cve) {
-                    cveRewards = rewards;
-                } else {
-                    // User rewards are always expected to go to a caller
-                    // even if its a plugin call.
-                    SafeTransferLib.safeTransfer(
-                        rewardToken,
-                        msg.sender,
-                        rewards
-                    );
-                }
-            }
-
-            // Update pending rewards to zero.
-            userDebtInfo[token][user][index].rewardPending = 0;
-        }
-
-        _calcDebt(user, token);
-
-        emit Claim(user, token);
-    }
-
-    /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
-    ///         into a new or existing veCVE lock.
-    /// @dev Users who choose to lock emissions may potentially receive an
-    ///      emission boost based on `lockBoostMultiplier` stored inside the
-    ///      DAO Central Registry.
-    /// @param tokens Array containing pool token addresses to claim rewards for.
-    /// @param isNewLock True if creating a new lock, false if extending existing.
-    /// @param lockIndex The index of the lock to extend (ignored if isNewLock is true).
-    /// @param continuousLock Whether the lock should be continuous or not.
-    /// @param rewardsData Rewards data for desired Reward Manager action.
-    /// @param params Parameters for rewards claim function.
-    /// @param aux Auxiliary data.
-    function claimAndLock(
-        address[] calldata tokens,
-        bool isNewLock,
-        bool continuousLock,
-        uint256 lockIndex,
-        RewardsData memory rewardsData,
-        bytes calldata params,
-        uint256 aux
-    ) external nonReentrant {
-        // If gauge emissions have not started yet,
-        // theres nothing to claim and lock.
-        if (block.timestamp < startTime) {
-            revert GaugeManager__NotStarted();
-        }
-
-        uint256 cveRewards;
-        uint256 numTokens = tokens.length;
-        for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++], msg.sender);
-        }
-
-        if (cveRewards == 0) {
-            revert GaugeManager__NoReward();
-        }
-
-        uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
-
-        // If theres a current lock boost, recognize their bonus rewards.
-        if (currentLockBoost > 0) {
-            uint256 boostedRewards = (cveRewards * currentLockBoost) /
-                DENOMINATOR;
-            // We know this will never underflow due to `currentLockBoost`
-            // needing to be greater than 1.
-            ICVE(cve).mintLockBoost(boostedRewards - cveRewards);
-            cveRewards = boostedRewards;
-        }
-
-        // Approve veCVE to take necessary cve to extend/create the lock
-        SafeTransferLib.safeApprove(cve, address(veCVE), cveRewards);
-
-        if (isNewLock) {
-            veCVE.createLockFor(
-                msg.sender,
-                cveRewards,
-                continuousLock,
-                rewardsData,
-                params,
-                aux
-            );
-        } else {
-            veCVE.increaseAmountAndExtendLockFor(
-                msg.sender,
-                cveRewards,
-                lockIndex,
-                continuousLock,
-                rewardsData,
-                params,
-                aux
-            );
-        }
-    }
-
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Update reward variables of the given pool to be up-to-date.
+    /// @notice Update reward variables for `token` to be up to date as
+    ///         of the current block timestamp.
     /// @param token Pool token address.
     function updatePool(address token) public {
         {
@@ -921,6 +921,55 @@ contract GaugeManager is
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Claim all pending rewards for `token` from the Gauge Manager.
+    /// @param token Pool token address to claim rewards for.
+    /// @param user The user address that gauge rewards should be claimed for.
+    function _claim(
+        address token,
+        address user
+    ) internal returns (uint256 cveRewards) {
+        updatePool(token);
+        _calcPending(user, token);
+
+        address[] memory rewardTokensForMToken = rewardTokens[token];
+        uint256 numTokens = rewardTokensForMToken.length;
+
+        for (uint256 i; i < numTokens; ) {
+            // Query rewardToken then increment i.
+            address rewardToken = rewardTokensForMToken[i++];
+            uint256 index = rewardTokenToIndex[token][rewardToken];
+            uint256 rewards = userDebtInfo[token][user][index].rewardPending;
+            // If the caller has rewards, send them,
+            // and prevent transaction reversion.
+            if (rewards > 0) {
+                if (rewardToken == cve) {
+                    cveRewards = rewards;
+                } else {
+                    // User rewards are always expected to go to a caller
+                    // even if its a plugin call.
+                    SafeTransferLib.safeTransfer(
+                        rewardToken,
+                        msg.sender,
+                        rewards
+                    );
+                }
+            }
+
+            // Update pending rewards to zero.
+            userDebtInfo[token][user][index].rewardPending = 0;
+        }
+
+        _calcDebt(user, token);
+
+        emit Claim(user, token);
+    }
+
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
+    }
 
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {

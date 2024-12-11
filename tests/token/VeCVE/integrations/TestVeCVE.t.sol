@@ -170,7 +170,7 @@ contract TestVeCVE is TestBaseVeCVE {
             unlockTime,
             centralRegistry.genesisEpoch() +
                 (veCVE.currentEpoch(timestamp) * veCVE.epochDuration()) +
-                veCVE.LOCK_DURATION()
+                veCVE.lockDuration()
         );
 
         assertEq(veCVE.chainPoints(), amount);

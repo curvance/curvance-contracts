@@ -32,19 +32,12 @@ contract SetVeCVETest is TestBaseMarket {
     }
 
     function test_setVeCVE_fail_whenEpochAlreadyStarted() public {
+        centralRegistry.setVeCVE(newVeCVE);
+
         vm.warp(centralRegistry.genesisEpoch());
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__EpochHasStarted.selector
-        );
-        centralRegistry.setVeCVE(newVeCVE);
-    }
-
-    function test_setVeCVE_fail_whenVeCVEIsAlreadySet() public {
-        centralRegistry.setVeCVE(newVeCVE);
-
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.setVeCVE(newVeCVE);
     }
@@ -58,5 +51,16 @@ contract SetVeCVETest is TestBaseMarket {
         centralRegistry.setVeCVE(newVeCVE);
 
         assertEq(centralRegistry.veCVE(), newVeCVE);
+
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+
+        address newVeCVE1 = makeAddr("VeCVE1");
+
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractSet("VeCVE", newVeCVE1);
+
+        centralRegistry.setVeCVE(newVeCVE1);
+
+        assertEq(centralRegistry.veCVE(), newVeCVE1);
     }
 }
