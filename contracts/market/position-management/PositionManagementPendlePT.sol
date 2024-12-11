@@ -20,8 +20,13 @@ contract PositionManagementPendlePT is PositionManagementBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
+        address wrappedNative_,
         IPendleRouter router_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    ) PositionManagementBase(
+        centralRegistry_,
+        marketManager_,
+        address wrappedNative_
+    ) {
         router = router_;
     }
 
@@ -43,7 +48,8 @@ contract PositionManagementPendlePT is PositionManagementBase {
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
+        LeverageStruct memory leverageData,
+        address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();

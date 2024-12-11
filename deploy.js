@@ -23,6 +23,7 @@ async function main() {
       `--rpc-url ${rpc}`,
       '-vvvv',
       '--ffi',
+      `--with-gas-price 40gwei`,
     ];
 
     if (resume) {
@@ -36,7 +37,7 @@ async function main() {
         '--broadcast',
         '--skip-simulation',
         '--no-storage-caching',
-        '--priority-gas-price 150',
+        '--priority-gas-price 200',
         '-g 230'
       ]);
       console.log(`Deploying to ${network}`);

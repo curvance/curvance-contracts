@@ -34,25 +34,6 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
 
     fallback() external payable {}
 
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        deal(_VELODROME_DAI_USDC, liquidityProvider, 1 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // mint eDAI
-        dai.approve(address(eDAI), 20000000 ether);
-        eDAI.mint(20000000 ether);
-
-        // mint pUSDCDAI
-        IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-        pUSDCDAI.deposit(1 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
-
     function setUp() public override {
         _fork("ETH_NODE_URI_OPTIMISM", 109095500);
 
@@ -581,5 +562,24 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        deal(_VELODROME_DAI_USDC, liquidityProvider, 1 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
+
+        // mint pUSDCDAI
+        IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
+        pUSDCDAI.deposit(1 ether, liquidityProvider);
+
+        vm.stopPrank();
     }
 }

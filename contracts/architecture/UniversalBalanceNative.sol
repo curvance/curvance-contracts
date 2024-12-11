@@ -18,9 +18,9 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value };
-            // We false a sitting balance due to small gas allowance
-            // on .transfer calls.
+            IWETH(underlying).deposit{ value: msg.value }();
+            // We default to a sitting balance deposit due to small gas
+            // allowance on .transfer calls.
             _deposit(msg.value, false, msg.sender);
         }
     }
@@ -88,7 +88,6 @@ contract UniversalBalanceNative is UniversalBalance {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            address(this),
             msg.sender
         );
 
@@ -102,7 +101,7 @@ contract UniversalBalanceNative is UniversalBalance {
             msg.sender,
             recipient,
             msg.sender,
-            amount,
+            amountWithdrawn,
             lendingBalanceUsed
         );
     }
@@ -130,7 +129,6 @@ contract UniversalBalanceNative is UniversalBalance {
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
-            address(this),
             owner
         );
 
@@ -144,7 +142,7 @@ contract UniversalBalanceNative is UniversalBalance {
             msg.sender,
             recipient,
             owner,
-            amount,
+            amountWithdrawn,
             lendingBalanceUsed
         );
     }
@@ -164,13 +162,13 @@ contract UniversalBalanceNative is UniversalBalance {
                 msg.sender
             )
         ) {
-            revert UniversalBalance__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         // Withdraw from `owner`'s universal balance and transfer the wrapped
         // native tokens to the Oracle Adaptor for use in updating oracle
         // feed.
-        (amount, ) = _withdraw(amount, false, msg.sender, owner);
+        (amount, ) = _withdraw(amount, false, owner);
 
         // Transfer the withdrawn tokens to the oracle adaptor.
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);

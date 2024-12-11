@@ -477,7 +477,6 @@ contract TestBaseMarket is TestBase {
     {
         complexZapper = complexZappers[block.chainid] = new ComplexZapper(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
             _WETH_ADDRESS
         );
         centralRegistry.setExternalCalldataChecker(

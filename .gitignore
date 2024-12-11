@@ -16,6 +16,7 @@
 **/node_modules
 **/out
 **/output
+/coverage_report
 
 # files
 **/.DS_Store

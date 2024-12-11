@@ -714,24 +714,27 @@ contract GaugeManager is
         uint256 timestamp
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
+        uint256 cachedGenesisEpoch = _genesisEpoch();
+        
+        // Rounds down intentionally.
         return
-            timestamp < startTime
+            timestamp < cachedGenesisEpoch
                 ? 0
-                : (timestamp - startTime) / epochDuration;
+                : (timestamp - cachedGenesisEpoch) / epochDuration;
     }
 
     /// @notice Returns start time of `epoch`.
     /// @param epoch Epoch number to return start time for.
     function epochStartTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + epoch * epochDuration;
+        return _genesisEpoch() + (epoch * epochDuration);
     }
 
     /// @notice Returns end time of `epoch`.
     /// @param epoch Epoch number to return end time for.
     function epochEndTime(uint256 epoch) public view returns (uint256) {
         _checkGaugeHasStarted();
-        return startTime + (epoch + 1) * epochDuration;
+        return _genesisEpoch() + ((epoch + 1) * epochDuration);
     }
 
     /// @notice Returns if given gauge token is enabled in `epoch`.
@@ -960,6 +963,12 @@ contract GaugeManager is
         _calcDebt(user, token);
 
         emit Claim(user, token);
+    }
+
+    /// @notice Returns the genesis epoch timestamp.
+    /// @return The genesis epoch timestamp.
+    function _genesisEpoch() internal view returns (uint256) {
+        return centralRegistry.genesisEpoch();
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

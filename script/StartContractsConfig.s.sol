@@ -360,13 +360,11 @@ contract StartContractsConfig is
         _deployPositionManagementSimple(address(market), marketName);
         _deployComplexZapper(
             address(cr),
-            address(market),
             _readConfigAddress(".zapper.weth"),
             marketName
         );
         _deploySimpleZapper(
             address(cr),
-            address(market),
             _readConfigAddress(".zapper.weth"),
             marketName
         );

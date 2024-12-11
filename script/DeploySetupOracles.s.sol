@@ -41,9 +41,9 @@ contract DeploySetupOracles is
             ".centralRegistry.genesisEpoch"
         );
 
-        if (_is_testnet(network) && genesisEpoch < block.timestamp) {
-            genesisEpoch = block.timestamp + 4 hours;
-        }
+        // if (_is_testnet(network) && genesisEpoch < block.timestamp) {
+        //     genesisEpoch = block.timestamp + 4 hours;
+        // }
 
         // Deploy CentralRegistry
         _deployCentralRegistry(

@@ -8,6 +8,7 @@ import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -19,6 +20,7 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
 ///      usually would require multiple looped actions to facilitate,
@@ -45,6 +47,8 @@ abstract contract PositionManagementBase is
     /// @dev `bytes4(keccak256(bytes("PositionManagementBase__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xdb6ad9f5;
 
+    /// @notice The address of wrapped native token on this chain.
+    address public immutable wrappedNative;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
@@ -106,7 +110,9 @@ abstract contract PositionManagementBase is
 
     constructor(
         ICentralRegistry centralRegistry_,
-        address marketManager_
+        address marketManager_,
+        address wrappedNative_
+
     ) PluginDelegable(centralRegistry_) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
@@ -115,6 +121,7 @@ abstract contract PositionManagementBase is
         }
 
         marketManager = IMarketManager(marketManager_);
+        wrappedNative = wrappedNative_;
     }
 
     /// @notice Lightweight getter for any associated leverage fee.
@@ -375,7 +382,7 @@ abstract contract PositionManagementBase is
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = positionToken.underlying();
 
-        _swapBorrowUnderlyingToCollateral(leverageData);
+        _swapBorrowUnderlyingToCollateral(leverageData, borrower);
 
         uint256 amount = IERC20(collateralUnderlying).balanceOf(address(this));
 
@@ -550,7 +557,8 @@ abstract contract PositionManagementBase is
     ///         `account` can borrow for maximum leverage based on a new
     ///         position token deposit and collateralized.
     /// @dev Applies a minor dampening effect to calculated maximum leverage
-    ///      via `MAX_LEVERAGE`.
+    ///      via `MAX_LEVERAGE`. Offsets maximum borrowable debt amount if
+    ///      there is insufficient liquidity to borrow in the target market.
     /// @param account The account to query maximum borrow amount for.
     /// @param borrowToken The eToken that `account` will borrow from
     ///                    to achieve leverage.
@@ -558,15 +566,18 @@ abstract contract PositionManagementBase is
     ///                      leverage against.
     /// @param collateralAmount The amount of underlying pToken that `account`
     ///                         will deposit to leverage against.
-    /// @return Returns the maximum remaining borrow amount allowed from
-    ///         `borrowToken`, measured in underlying token amount, after
-    ///         the new hypothetical deposit.
+    /// @return maxDebtBorrowable Returns the maximum remaining borrow amount
+    ///                           allowed from `borrowToken`, measured in
+    ///                           underlying token amount, after the new
+    ///                           hypothetical deposit.
+    /// @return isOffset Whether the maximum borrowable debt amount returned
+    ///                  has been offset due to available liquidity or not.
     function hypotheticalMaxRemainingLeverageOf(
         address account,
         address borrowToken,
         address positionToken,
         uint256 collateralAmount
-    ) public view returns (uint256) {
+    ) public view returns (uint256 maxDebtBorrowable, bool isOffset) {
         (uint256 price, uint256 errorCode) = IOracleManager(
             ICentralRegistry(centralRegistry).oracleManager()
         ).getPrice(address(positionToken), true, true);
@@ -602,13 +613,21 @@ abstract contract PositionManagementBase is
         sumCollateral += newCollateral;
         maxDebt += FixedPointMathLib.mulDiv(newCollateral, collRatio, WAD);
 
-        return
-            _maxRemainingLeverageOf(
-                sumCollateral,
-                maxDebt,
-                sumDebt,
-                borrowToken
-            );
+        maxDebtBorrowable = _maxRemainingLeverageOf(
+            sumCollateral,
+            maxDebt,
+            sumDebt,
+            borrowToken
+        );
+
+        uint256 liquidityAvailable = IERC20(
+            IMToken(borrowToken).underlying()
+        ).balanceOf(borrowToken);
+
+        if (liquidityAvailable < maxDebtBorrowable) {
+            maxDebtBorrowable = liquidityAvailable;
+            isOffset = true;
+        }
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -774,27 +793,26 @@ abstract contract PositionManagementBase is
                 (10 ** IERC20(borrowToken).decimals())) / WAD;
     }
 
-    /// @notice Callback function on borrowing tokens from an eToken contract
-    ///         providing instant liquidity in the eToken underlying which is
-    ///         then swapped into the underlying of a pToken that a user is
-    ///         currently putting up as collateral against the eToken debt
-    ///         position, creating a leveraged spot position.
-    /// @dev MUST be overridden in every position management contract's
-    ///      implementation.
-    function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
-    ) internal virtual;
+    /// @notice Helper function for efficiently transferring tokens
+    ///         to desired user.
+    /// @param token The token to transfer to `recipient`,
+    ///              this can be the network gas token.
+    /// @param recipient The user receiving `token`.
+    /// @param amount The amount of `token` to be transferred to `recipient`.
+    function _transferToRecipient(
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal {
+        // If the token to refund is the chains' native gas token we wrap
+        // then transfer it to prevent callback attack vectors.
+        if (CommonLib.isETH(token)) {
+            IWETH(wrappedNative).deposit{ value: amount }();
+            token = wrappedNative;
+        }
 
-    /// @notice Callback function on redemption of tokens from a pToken vault
-    ///         providing instant liquidity in the pToken underlying which is
-    ///         then swapped into the underlying of an eToken that a user is
-    ///         currently borrowing from, partially or fully closing a
-    ///         leveraged spot position.
-    /// @dev MUST be overridden in every position management contract's
-    ///      implementation.
-    function _swapCollateralToBorrowUnderlying(
-        DeleverageStruct memory deleverageData
-    ) internal virtual;
+        SafeTransferLib.safeTransfer(token, recipient, amount);
+    }
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
@@ -815,4 +833,29 @@ abstract contract PositionManagementBase is
     {
         return ICentralRegistry(centralRegistry);
     }
+
+    /// FUNCTIONS TO OVERRIDE ///
+
+    /// @notice Callback function on borrowing tokens from an eToken contract
+    ///         providing instant liquidity in the eToken underlying which is
+    ///         then swapped into the underlying of a pToken that a user is
+    ///         currently putting up as collateral against the eToken debt
+    ///         position, creating a leveraged spot position.
+    /// @dev MUST be overridden in every position management contract's
+    ///      implementation.
+    function _swapBorrowUnderlyingToCollateral(
+        LeverageStruct memory leverageData,
+        address /* recipient */
+    ) internal virtual;
+
+    /// @notice Callback function on redemption of tokens from a pToken vault
+    ///         providing instant liquidity in the pToken underlying which is
+    ///         then swapped into the underlying of an eToken that a user is
+    ///         currently borrowing from, partially or fully closing a
+    ///         leveraged spot position.
+    /// @dev MUST be overridden in every position management contract's
+    ///      implementation.
+    function _swapCollateralToBorrowUnderlying(
+        DeleverageStruct memory deleverageData
+    ) internal virtual;
 }
