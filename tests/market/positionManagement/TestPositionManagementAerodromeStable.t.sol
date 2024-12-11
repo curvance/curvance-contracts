@@ -24,6 +24,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
     IVeloRouter public aeroRouter =
         IVeloRouter(0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43);
 
+    IERC20 public aerodromeDAIUSDC;
     AerodromeStablePToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
     PositionManagementAerodromeStable public positionManagement;
@@ -34,25 +35,6 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
     receive() external payable {}
 
     fallback() external payable {}
-
-    function _provideEnoughLiquidityForLeverage() internal {
-        address liquidityProvider = makeAddr("liquidityProvider");
-
-        deal(_AERODROME_DAI_USDC, liquidityProvider, 1 ether);
-        _prepareDAI(liquidityProvider, 20000000e18);
-
-        vm.startPrank(liquidityProvider);
-
-        // mint eDAI
-        dai.approve(address(eDAI), 20000000 ether);
-        eDAI.mint(20000000 ether);
-
-        // mint pUSDCDAI
-        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-        pUSDCDAI.deposit(1 ether, liquidityProvider);
-
-        vm.stopPrank();
-    }
 
     function setUp() public override {
         _fork("ETH_NODE_URI_BASE", 19000000);
@@ -102,6 +84,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         owner = address(this);
         user = user1;
+        aerodromeDAIUSDC = IERC20(_AERODROME_DAI_USDC);
 
         // setup eDAI
         {
@@ -201,9 +184,10 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementAerodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -249,7 +233,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = eDAI;
 
-        uint256 usdcAmount = 28451980;
+        uint256 usdcAmount = 28451980 - usdc.balanceOf(user);
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].inputAmount = usdcAmount;
@@ -308,9 +292,10 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
         PositionManagementAerodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;
@@ -357,7 +342,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deleverageData.collateralAmount = 0.00003 ether;
         deleverageData.borrowToken = eDAI;
 
-        uint256 usdcAmount = 28451980;
+        uint256 usdcAmount = 28451980 - usdc.balanceOf(user);
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].inputAmount = usdcAmount;
@@ -399,5 +384,24 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+    }
+
+    function _provideEnoughLiquidityForLeverage() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+
+        deal(_AERODROME_DAI_USDC, liquidityProvider, 1 ether);
+        _prepareDAI(liquidityProvider, 20000000e18);
+
+        vm.startPrank(liquidityProvider);
+
+        // mint eDAI
+        dai.approve(address(eDAI), 20000000 ether);
+        eDAI.mint(20000000 ether);
+
+        // mint pUSDCDAI
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
+        pUSDCDAI.deposit(1 ether, liquidityProvider);
+
+        vm.stopPrank();
     }
 }

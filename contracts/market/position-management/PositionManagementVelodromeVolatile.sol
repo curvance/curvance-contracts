@@ -9,16 +9,14 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
-import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract PositionManagementVelodromeVolatile is PositionManagementBase {
-
     address public pairFactory;
 
     address public router;
 
     /// ERRORS ///
-    
+
     error PositionManagementVelodromeVolatile__SlippageError();
 
     /// CONSTRUCTOR ///
@@ -56,18 +54,16 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         LeverageStruct memory leverageData,
         address recipient
     ) internal virtual override {
-        // Cache asset to minimize storage reads.
         address pool = leverageData.positionToken.underlying();
-        address _asset = pool;
-        address token0 = IVeloPool(_asset).token0();
-        address token1 = IVeloPool(_asset).token1();
-        
-        SwapperLib.Swap memory swapData = leverageData.swapData;
+        address token0 = IVeloPair(pool).token0();
+        address token1 = IVeloPair(pool).token1();
+
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
         // If the token being borrowed isn't token0 we will need to swap
         // into it.
         if (borrowUnderlying != token0) {
+            SwapperLib.Swap memory swapData = leverageData.swapData;
             // Make sure there is swap instructions.
             if (swapData.call.length == 0) {
                 revert PositionManagementBase__InvalidSwapperParam();
@@ -84,10 +80,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             }
 
             // Swap borrow underlying to token0.
-            SwapperLib.swapSafe(
-                centralRegistry,
-                swapData
-            );
+            SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
         // Validate swap was routed into token0, or borrow token was token0.
@@ -100,17 +93,17 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         uint256 decimalsB = 10 ** IERC20(token1).decimals();
         // Pull reserve data so we can swap half of token0 into token1
         // optimally.
-        (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
+        (uint256 r0, uint256 r1, ) = IVeloPair(pool).getReserves();
         (uint256 reserveA, uint256 reserveB) = token0 ==
-            IVeloPair(_asset).token0()
+            IVeloPair(pool).token0()
             ? (r0, r1)
             : (r1, r0);
-            
+
         // Feed library pair factory, lpToken, and stable = false,
         // plus calculated data.
         uint256 swapAmount = VelodromeLib._optimalDeposit(
             pairFactory,
-            _asset,
+            pool,
             totalAmountA,
             reserveA,
             reserveB,
@@ -121,7 +114,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         // Feed calculated data, and stable = false.
         uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
             router,
-            _asset,
+            pool,
             token0,
             token1,
             swapAmount,
@@ -130,7 +123,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
         // Decrement amount of token0 swapped into token1.
         totalAmountA -= swapAmount;
-    
+
         // Add liquidity to Velodrome lp with volatile params.
         VelodromeLib._addLiquidity(
             router,

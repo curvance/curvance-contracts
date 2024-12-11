@@ -31,13 +31,12 @@ contract PositionManagementSimple is PositionManagementBase {
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
+        LeverageStruct memory leverageData,
+        address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
-        address collateralUnderlying = leverageData
-            .positionToken
-            .underlying();
+        address collateralUnderlying = leverageData.positionToken.underlying();
 
         if (borrowUnderlying == collateralUnderlying) {
             return;
