@@ -32,19 +32,12 @@ contract SetCVETest is TestBaseMarket {
     }
 
     function test_setCVE_fail_whenEpochAlreadyStarted() public {
+        centralRegistry.setCVE(newCVE);
+
         vm.warp(centralRegistry.genesisEpoch());
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__EpochHasStarted.selector
-        );
-        centralRegistry.setCVE(newCVE);
-    }
-
-    function test_setCVE_fail_whenCVEIsAlreadySet() public {
-        centralRegistry.setCVE(newCVE);
-
-        vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.setCVE(newCVE);
     }
@@ -58,5 +51,14 @@ contract SetCVETest is TestBaseMarket {
         centralRegistry.setCVE(newCVE);
 
         assertEq(centralRegistry.cve(), newCVE);
+
+        vm.warp(centralRegistry.genesisEpoch() - 1);
+
+        address newCVE1 = makeAddr("CVE1");
+
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractSet("CVE", newCVE1);
+
+        centralRegistry.setCVE(newCVE1);
     }
 }

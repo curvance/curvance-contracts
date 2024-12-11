@@ -274,27 +274,24 @@ contract MessagingHub is QueryResponse {
         } else if (payloadType == 2) {
             // payloadType = 2: Crosschain Gauge Emission Configuration.
 
-            (
-                ,
-                uint256 epoch,
-                uint256 emissionTotal,
-                address[] memory emissionTokens,
-                uint256[] memory emissionAmounts
-            ) = abi.decode(
-                    payload,
-                    (uint8, uint256, uint256, address[], uint256[])
-                );
+            (, uint256 epoch, EmissionData memory emissionData) = abi.decode(
+                payload,
+                (uint8, uint256, EmissionData)
+            );
 
             IGaugeManager cachedGaugeManager = gaugeManager;
 
             // Mint appropriate gauge emissions to Gauge Manager.
-            cve.mintGaugeEmissions(address(cachedGaugeManager), emissionTotal);
+            cve.mintGaugeEmissions(
+                address(cachedGaugeManager),
+                emissionData.emissionTotal
+            );
 
             // Set upcoming epoch emissions for voted configuration.
             cachedGaugeManager.setEmissionRates(
                 epoch,
-                emissionTokens,
-                emissionAmounts
+                emissionData.tokens,
+                emissionData.emissions
             );
         } else if (payloadType == 3) {
             // payloadType = 3: Receiving fees from a foreign chain and
@@ -437,13 +434,7 @@ contract MessagingHub is QueryResponse {
         _sendPayload(
             chainData.messagingChainId,
             chainData.messagingHub,
-            abi.encode(
-                2,
-                epoch,
-                emissionData.emissionTotal,
-                emissionData.tokens,
-                emissionData.emissions
-            ), // payload
+            abi.encode(2, epoch, emissionData), // payload
             gasLimit,
             wormholeFee
         );
