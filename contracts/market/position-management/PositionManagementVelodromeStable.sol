@@ -27,11 +27,13 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
         address wrappedNative_,
         address router_,
         address pairFactory_
-    ) PositionManagementBase(
-        centralRegistry_,
-        marketManager_,
-        address wrappedNative_
-    ) {
+    )
+        PositionManagementBase(
+            centralRegistry_,
+            marketManager_,
+            wrappedNative_
+        )
+    {
         router = router_;
         pairFactory = pairFactory_;
     }
@@ -189,8 +191,8 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
 
         // Check to make sure there is calldata attached to execute the swap.
         if (numSwaps > 0) {
-            address token0 = IVeloPool(pool).token0();
-            address token1 = IVeloPool(pool).token1();
+            address token0 = IVeloPair(pool).token0();
+            address token1 = IVeloPair(pool).token1();
 
             if (
                 (deleverageData.swapData[0].inputToken != token0 &&

@@ -133,6 +133,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         positionManagement = new PositionManagementVelodromeStable(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             address(veloRouter),
             address(veloPairFactory)
         );

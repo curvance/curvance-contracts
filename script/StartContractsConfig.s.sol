@@ -357,7 +357,11 @@ contract StartContractsConfig is
         );
 
         // Deploy Addons
-        _deployPositionManagementSimple(address(market), marketName);
+        _deployPositionManagementSimple(
+            address(market),
+            _readConfigAddress(".zapper.weth"),
+            marketName
+        );
         _deployComplexZapper(
             address(cr),
             _readConfigAddress(".zapper.weth"),

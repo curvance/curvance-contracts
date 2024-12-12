@@ -210,7 +210,8 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         {
             positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
-                address(marketManager)
+                address(marketManager),
+                _WETH_ADDRESS
             );
             marketManager.setPositionManagement(address(positionManagement));
         }

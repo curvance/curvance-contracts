@@ -112,7 +112,6 @@ abstract contract PositionManagementBase is
         ICentralRegistry centralRegistry_,
         address marketManager_,
         address wrappedNative_
-
     ) PluginDelegable(centralRegistry_) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
@@ -620,9 +619,8 @@ abstract contract PositionManagementBase is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(
-            IMToken(borrowToken).underlying()
-        ).balanceOf(borrowToken);
+        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
+            .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;

@@ -14,6 +14,7 @@ contract PositionManagementSimpleDeployer is DeployConfiguration {
 
     function _deployPositionManagementSimple(
         address marketManager,
+        address weth,
         string memory marketName
     ) internal {
         address centralRegistry = _getDeployedContract("centralRegistry");
@@ -24,7 +25,8 @@ contract PositionManagementSimpleDeployer is DeployConfiguration {
         positionManagementSimple = address(
             new PositionManagementSimple(
                 ICentralRegistry(centralRegistry),
-                marketManager
+                marketManager,
+                weth
             )
         );
 
