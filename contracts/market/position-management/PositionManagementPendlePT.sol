@@ -159,8 +159,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
             pendleData,
             lpToken,
             deleverageData.collateralAmount,
-            0,
-            0
+            0 // don't need for PT
         );
 
         uint256 length = deleverageData.swapData.length;

@@ -107,7 +107,6 @@ library PendleLib {
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
     /// @param amount The Pendle lp/pt amount to exit.
-    /// @param minSyOut The minimum SY output amount acceptable.
     /// @param minTokenOut The minimum token output amount acceptable.
     function exitPendle(
         address router,
@@ -116,7 +115,6 @@ library PendleLib {
         PendleData memory data,
         address lpToken,
         uint256 amount,
-        uint256 minSyOut,
         uint256 minTokenOut
     ) internal {
         if (isPt) {
@@ -137,7 +135,7 @@ library PendleLib {
                     address(this),
                     lpToken,
                     amount,
-                    minSyOut,
+                    0,
                     data.limit
                 );
 

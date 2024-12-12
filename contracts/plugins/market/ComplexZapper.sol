@@ -775,7 +775,6 @@ contract ComplexZapper is ZapperBase {
             data,
             zapData.inputToken,
             zapData.inputAmount,
-            0,
             0
         );
 
