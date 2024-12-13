@@ -27,11 +27,13 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         address wrappedNative_,
         address router_,
         address pairFactory_
-    ) PositionManagementBase(
-        centralRegistry_,
-        marketManager_,
-        address wrappedNative_
-    ) {
+    )
+        PositionManagementBase(
+            centralRegistry_,
+            marketManager_,
+            wrappedNative_
+        )
+    {
         router = router_;
         pairFactory = pairFactory_;
     }

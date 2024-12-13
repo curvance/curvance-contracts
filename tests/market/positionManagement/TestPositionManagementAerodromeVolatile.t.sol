@@ -158,6 +158,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         positionManagement = new PositionManagementAerodromeVolatile(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             address(aeroRouter),
             address(aeroPairFactory)
         );

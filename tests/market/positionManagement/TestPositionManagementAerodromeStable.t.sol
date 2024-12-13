@@ -136,6 +136,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         positionManagement = new PositionManagementAerodromeStable(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             address(aeroRouter),
             address(aeroPairFactory)
         );

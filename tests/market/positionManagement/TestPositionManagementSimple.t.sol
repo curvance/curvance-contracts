@@ -79,7 +79,8 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         positionManagement = new PositionManagementSimple(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager)
+            address(marketManager),
+            _WETH_ADDRESS
         );
 
         marketManager.setPositionManagement(address(positionManagement));
@@ -134,9 +135,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -244,9 +246,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;

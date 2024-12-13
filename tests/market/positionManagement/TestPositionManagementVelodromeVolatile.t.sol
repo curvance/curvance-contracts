@@ -158,6 +158,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         positionManagement = new PositionManagementVelodromeVolatile(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             address(veloRouter),
             address(veloPairFactory)
         );

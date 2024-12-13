@@ -210,7 +210,8 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         {
             positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
-                address(marketManager)
+                address(marketManager),
+                _WETH_ADDRESS
             );
             marketManager.setPositionManagement(address(positionManagement));
         }
@@ -348,9 +349,10 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         marketManager.postCollateral(user1, address(pWBTC), 0.1e8);
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user1, address(eUSDC)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user1,
+            address(eUSDC)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eUSDC;

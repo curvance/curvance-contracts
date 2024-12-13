@@ -136,6 +136,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         positionManagement = new PositionManagementPendleLP(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             _ROUTER
         );
 
@@ -191,9 +192,10 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -323,9 +325,10 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;

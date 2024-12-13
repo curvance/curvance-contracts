@@ -3,8 +3,9 @@ pragma solidity ^0.8.19;
 
 import { PositionManagementVelodromeStable, ICentralRegistry } from "contracts/market/position-management/PositionManagementVelodromeStable.sol";
 
-contract PositionManagementAerodromeStable is PositionManagementVelodromeStable {
-
+contract PositionManagementAerodromeStable is
+    PositionManagementVelodromeStable
+{
     /// CONSTRUCTOR ///
 
     constructor(
@@ -13,12 +14,13 @@ contract PositionManagementAerodromeStable is PositionManagementVelodromeStable 
         address wrappedNative_,
         address router_,
         address pairFactory_
-    ) PositionManagementVelodromeStable(
-        centralRegistry_,
-        marketManager_,
-        address wrappedNative_,
-        router_,
-        pairFactory_
-    ) {}
-
+    )
+        PositionManagementVelodromeStable(
+            centralRegistry_,
+            marketManager_,
+            wrappedNative_,
+            router_,
+            pairFactory_
+        )
+    {}
 }
