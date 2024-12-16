@@ -65,195 +65,135 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Routes lp/BPT into Curvance pToken contract.
-    /// @param pToken The Curvance pToken address.
-    /// @param inputToken The input token address, should match
-    ///                   pToken.underlying().
-    /// @param amount The amount of `inputToken` to deposit into pToken
+    /// @notice Routes `underlying` token into Curvance mToken contract.
+    ///         Either as a pToken position or eToken position.
+    /// @param mToken The Curvance pToken address.
+    /// @param underlying The input token address, should match
+    ///                   mToken.underlying().
+    /// @param isPToken Whether `mToken` is a pToken or not.
+    /// @param assets The amount of `underlying` to deposit into mToken
     ///               position.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `assets` of `underlying` into
+    ///                       `mToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
-    /// @param recipient Address that should receive Curvance pTokens.
-    /// @return The output amount of pTokens received.
-    function _enterCurvanceDeposit(
-        address pToken,
-        address inputToken,
-        uint256 amount,
+    /// @param recipient Address that should receive Curvance mTokens.
+    /// @return The output amount of shares received.
+    function _enterCurvance(
+        address mToken,
+        address underlying,
+        bool isPToken,
+        uint256 assets,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) internal returns (uint256) {
-        // pToken not configured so transfer their token back and return.
-        if (pToken == address(0)) {
-            SafeTransferLib.safeTransfer(inputToken, recipient, amount);
-            return amount;
+        // Validate `mToken` exists, otherwise transfer their tokens
+        // back and return.
+        if (mToken == address(0)) {
+            SafeTransferLib.safeTransfer(underlying, recipient, assets);
+            return assets;
         }
 
-        // Validate inputToken matches underlying token of pToken contract.
-        if (IMToken(pToken).underlying() != inputToken) {
+        // Validate `underlying` matches underlying token of mToken contract.
+        if (IMToken(mToken).underlying() != underlying) {
             revert ZapperBase__UnderlyingTokenIsNotInputToken();
         }
 
-        // Approve pToken to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(inputToken, pToken, amount);
+        // Approve `mToken` to take `underlying`.
+        SwapperLib._approveTokenIfNeeded(underlying, mToken, assets);
 
-        uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
-
+        uint256 priorBalance = IERC20(mToken).balanceOf(recipient);
         uint256 shares;
-        // The user is trusting this plugin to not use their delegation
-        // approval for nefarious reasons such as keeping them stuck in
-        // positions, so lets validate that the recipient is a delegate
-        // as well.
-        if (collateralize) {
-            // Enter Curvance pToken position and collateralize.
-            if (msg.sender == recipient) {
-                // User wants to enter and collateralize a position for
-                // themselves.
-                shares = IMToken(pToken).depositAsCollateral(
-                    amount,
-                    msg.sender
-                );
-            } else {
-                // User wants to enter and collateralize a position for
-                // someone else, so we need to validate they have plugin
-                // authority.
-                if (IPluginDelegable(pToken).isDelegate(recipient, msg.sender)) {
-                    shares = IMToken(pToken).depositAsCollateralFor(
-                        amount,
-                        recipient
+
+        if (isPToken) {
+            // The user is trusting this plugin to not use their delegation
+            // approval for nefarious reasons such as keeping them stuck in
+            // positions, so lets validate that the recipient is a delegate
+            // as well.
+            if (collateralize) {
+                // Enter Curvance pToken position and collateralize.
+                if (msg.sender == recipient) {
+                    // User wants to enter and collateralize a position for
+                    // themselves.
+                    shares = IMToken(mToken).depositAsCollateral(
+                        assets,
+                        msg.sender
                     );
                 } else {
-                    revert ZapperBase__Unauthorized();
+                    // User wants to enter and collateralize a position for
+                    // someone else, so we need to validate they have plugin
+                    // authority.
+                    if (IPluginDelegable(mToken).isDelegate(recipient, msg.sender)) {
+                        shares = IMToken(mToken).depositAsCollateralFor(
+                            assets,
+                            recipient
+                        );
+                    } else {
+                        revert ZapperBase__Unauthorized();
+                    }
                 }
+            } else {
+                // User wants to enter an uncollateralized a position so we dont
+                // care if they are zapping for themselves or someone else.
+                shares = IMToken(mToken).deposit(assets, recipient);
             }
         } else {
-            // User wants to enter an uncollateralized a position so we dont
-            // care if they are zapping for themselves or someone else.
-            shares = IMToken(pToken).deposit(amount, recipient);
+            // Depositing into a lending position is permissionless so we can
+            // just directly mint for the recipient.
+            shares = IMToken(mToken).mintFor(assets, recipient);
         }
 
-        // Make sure `recipient` got pTokens.
-        if (shares == 0) {
+        // Make sure `recipient` got sufficient shares.
+        if (shares < expectedShares) {
             revert ZapperBase__ExecutionError();
         }
 
         // Remove any leftover approval.
-        SwapperLib._removeApprovalIfNeeded(inputToken, pToken);
+        SwapperLib._removeApprovalIfNeeded(underlying, mToken);
 
-        // Bubble up how many pTokens `recipient` received.
-        return IERC20(pToken).balanceOf(recipient) - priorBalance;
-    }
-
-    /// @notice Routes lp/BPT into Curvance pToken contract.
-    /// @param eToken The Curvance pToken address.
-    /// @param inputToken The input token address, should match
-    ///                   pToken.underlying().
-    /// @param amount The amount of `inputToken` to deposit into pToken
-    ///               position.
-    /// @param recipient Address that should receive Curvance pTokens.
-    /// @return The output amount of pTokens received.
-    function _enterCurvanceLend(
-        address eToken,
-        address inputToken,
-        uint256 amount,
-        address recipient
-    ) internal returns (uint256) {
-        // eToken not configured so transfer their token back and return.
-        if (eToken == address(0)) {
-            SafeTransferLib.safeTransfer(inputToken, recipient, amount);
-            return amount;
-        }
-
-        // Validate inputToken matches underlying token of eToken contract.
-        if (IMToken(eToken).underlying() != inputToken) {
-            revert ZapperBase__UnderlyingTokenIsNotInputToken();
-        }
-
-        // Approve Token to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(inputToken, eToken, amount);
-
-        uint256 priorBalance = IERC20(eToken).balanceOf(recipient);
-        uint256 shares;
-
-        shares = IMToken(eToken).mintFor(amount, recipient);
-
-        // Make sure `recipient` got pTokens.
-        if (shares == 0) {
-            revert ZapperBase__ExecutionError();
-        }
-
-        // Remove any leftover approval.
-        SwapperLib._removeApprovalIfNeeded(inputToken, eToken);
-
-        // Bubble up how many eTokens `recipient` received.
-        return IERC20(eToken).balanceOf(recipient) - priorBalance;
+        // Bubble up how many mTokens `recipient` received.
+        return IERC20(mToken).balanceOf(recipient) - priorBalance;
     }
 
     /// @notice Exits a Curvance position.
-    /// @param pToken The address of the pToken to be exited.
+    /// @param mToken The address of the mToken to be redeemed from.
+    /// @param underlying The expected underlying token of `mToken`.
     /// @param shares The amount of shares to redeemed.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from callers collateralPosted.
-    /// @param underlying The expected underlying token of `pToken`.
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
-    function _exitCurvanceDeposit(
-        IMToken pToken,
-        uint256 shares,
-        bool forceRedeemCollateral,
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced from callers collateralPosted.
+    /// @param recipient Address that should receive redeemed assets.
+    function _exitCurvance(
+        IMToken mToken,
         address underlying,
+        uint256 shares,
         uint256 expectedAssets,
+        bool forceRedeemCollateral,
         address recipient
     ) internal {
-        if (pToken.underlying() != underlying) {
+        // Validate `underlying` matches underlying token of mToken contract.
+        if (mToken.underlying() != underlying) {
             revert ZapperBase__ExecutionError();
         }
 
         uint256 assets;
 
         // Transfer underlying tokens to the Zapper.
+        // We do not care whether `mToken` is a pToken or mToken here because
+        // uncollateralized redemption looks the same for both tokens, whereas
+        // only pTokens would ever use "forceRedeemCollateral".
         if (forceRedeemCollateral) {
-            assets = pToken.redeemCollateralFor(
+            assets = mToken.redeemCollateralFor(
                 shares,
                 address(this),
                 msg.sender
             );
         } else {
-            assets = pToken.redeemFor(shares, address(this), msg.sender);
+            assets = mToken.redeemFor(shares, address(this), msg.sender);
         }
-
-        // Validate output of redemption is sufficient.
-        if (assets < expectedAssets) {
-            revert ZapperBase__ExecutionError();
-        }
-
-        // Return any excess assets remaining back to the user.
-        if (assets > expectedAssets) {
-            _transferToRecipient(
-                underlying,
-                recipient,
-                assets - expectedAssets
-            );
-        }
-    }
-
-    /// @notice Exits a Curvance position.
-    /// @param eToken The address of the pToken to be exited.
-    /// @param shares The amount of shares to redeemed.
-    /// @param underlying The expected underlying token of `pToken`.
-    /// @param expectedAssets The amount of assets expected to be redeemed
-    ///                       on exiting Curvance position.
-    function _exitCurvanceLend(
-        IMToken eToken,
-        uint256 shares,
-        address underlying,
-        uint256 expectedAssets,
-        address recipient
-    ) internal {
-        if (eToken.underlying() != underlying) {
-            revert ZapperBase__ExecutionError();
-        }
-
-        uint256 assets = eToken.redeemFor(shares, address(this), msg.sender);
 
         // Validate output of redemption is sufficient.
         if (assets < expectedAssets) {
