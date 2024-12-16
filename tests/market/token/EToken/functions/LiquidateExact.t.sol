@@ -78,6 +78,7 @@ contract LiquidateExactTest is TestBaseEToken {
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         skip(1);
+
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         vm.stopPrank();
@@ -85,9 +86,99 @@ contract LiquidateExactTest is TestBaseEToken {
         _checkLiquidationResult();
     }
 
-    function test_liquidateExact_success_withRegularQueueLiquidation()
+    function test_liquidateExact_success_withDifferentUserAfterRegularDuration()
         public
     {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.prank(user3, address(1));
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        skip(2);
+
+        vm.startPrank(user2, address(1));
+
+        usdc.approve(address(eUSDC), 250e6);
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
+    function test_liquidateExact_success_multipleTimes_withSamePriorityQueueLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.startPrank(user2, address(1));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        usdc.approve(address(eUSDC), 250e6);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        skip(1);
+
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
+    function test_liquidateExact_success_multipleTimes_withDifferentQueueLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        _checkQueueNonce(0);
+
+        vm.startPrank(user2, address(1));
+
+        usdc.approve(address(eUSDC), 250e6);
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        _checkQueueNonce(1);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        skip(1);
+
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        skip(30);
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        _checkQueueNonce(2);
+
+        skip(1);
+
+        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
+    function test_liquidateExact_success_withRegularQueueLiquidation() public {
         centralRegistry.setSequencingStatus(true);
 
         // Prepare user3 as liquidator
@@ -111,11 +202,20 @@ contract LiquidateExactTest is TestBaseEToken {
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         skip(1);
+
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         vm.stopPrank();
 
         _checkLiquidationResult();
+    }
+
+    function _checkQueueNonce(uint64 expectedNonce) internal {
+        bytes32 queueKey = keccak256(abi.encodePacked(user1, address(eUSDC)));
+
+        (, , , uint64 nonce) = marketManager.regularQueue(queueKey);
+
+        assertEq(nonce, expectedNonce);
     }
 
     function _checkLiquidationResult() internal {

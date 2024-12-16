@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract LiquidateAccountTest is TestBaseMarketManager {
     function setUp() public override {
@@ -81,10 +82,44 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         marketManager.liquidateAccount(user1);
     }
 
+    function test_liquidateAccount_fail_whenUserOnlyQueuedLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.startPrank(user2);
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        usdc.approve(address(eUSDC), 1000e6);
+
+        vm.stopPrank();
+
+        skip(1);
+
+        vm.prank(address(eUSDC));
+        marketManager.canLiquidateWithExecution(
+            address(eUSDC),
+            address(pBALRETH),
+            user2,
+            user1,
+            0,
+            false
+        );
+
+        vm.prank(user2, user2);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+    }
+
     function test_liquidateAccount_success() public {
         vm.startPrank(user2);
+
         usdc.approve(address(eUSDC), 1000e6);
         marketManager.liquidateAccount(user1);
+
         vm.stopPrank();
 
         _checkLiquidationResult();
@@ -136,6 +171,65 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         _checkLiquidationResult();
     }
 
+    function test_liquidateAccount_success_withRequeueAfterQueueLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.startPrank(user2, address(1));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        skip(1);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+
+        usdc.approve(address(eUSDC), 1000e6);
+
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
+        marketManager.queueAccountLiquidation(user1);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+
+        skip(1);
+
+        marketManager.liquidateAccount(user1);
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
+    function test_liquidateAccount_success_withDifferentUserAfterRegularDuration()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.prank(user3, address(1));
+        marketManager.queueAccountLiquidation(user1);
+
+        skip(2);
+
+        vm.startPrank(user2, address(1));
+
+        usdc.approve(address(eUSDC), 1000e6);
+
+        marketManager.queueAccountLiquidation(user1);
+
+        marketManager.liquidateAccount(user1);
+
+        vm.stopPrank();
+
+        _checkLiquidationResult();
+    }
+
     function test_liquidateAccount_success_withRegularQueueLiquidation()
         public
     {
@@ -161,6 +255,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         marketManager.liquidateAccount(user1);
 
         skip(1);
+
         marketManager.liquidateAccount(user1);
 
         vm.stopPrank();

@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
-import "forge-std/console.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
-import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 
 contract TestLiquidationSequencing is TestBaseMarket {
     address public owner;
@@ -17,7 +15,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
     fallback() external payable {}
 
-    bytes4 constant INVALID_LIQUIDATOR_ERROR = bytes4(keccak256("LiquidationManager__InvalidLiquidator()"));
+    bytes4 public constant INVALID_LIQUIDATOR_ERROR =
+        bytes4(keccak256("LiquidationManager__InvalidLiquidator()"));
 
     function setUp() public override {
         super.setUp();
@@ -121,8 +120,10 @@ contract TestLiquidationSequencing is TestBaseMarket {
         pBALRETH.deposit(10 ether, liquidityProvider);
         vm.stopPrank();
     }
-    
-    function testSecondLiquidationWithSameNonceSucceedsAfterPriorityDuration() public {
+
+    function testSecondLiquidationWithSameNonceSucceedsAfterPriorityDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -143,18 +144,18 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user2 as liquidator
         _prepareDAI(user2, 500 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
         // test multiple different liquidators queuing in same block
-        vm.startPrank(user3, user3);  
+        vm.startPrank(user3, user3);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -169,7 +170,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Verify liquidation succeeded by checking balances
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 750 ether, 0.01e18);
-        
+
         // Make position liquidatable by adjusting DAI price
         mockDaiFeed.setMockAnswer(300000000);
 
@@ -183,7 +184,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationWithSameNonceForDifferentNonQueuingLiquidator() public {
+    function testSecondLiquidationWithSameNonceForDifferentNonQueuingLiquidator()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -207,18 +210,18 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user3 as liquidator
         _prepareDAI(user3, 250 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
         // test multiple different liquidators queuing in same block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -256,7 +259,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationWithSameNonceFailsAfterEndDurationForDifferentNonQueuingLiquidator() public {
+    function testSecondLiquidationWithSameNonceFailsAfterEndDurationForDifferentNonQueuingLiquidator()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -280,13 +285,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user3 as liquidator
         _prepareDAI(user3, 250 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -294,7 +299,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -321,7 +326,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterPriorityDuration() public {
+    function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterPriorityDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -342,13 +349,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user2 as liquidator
         _prepareDAI(user2, 500 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -356,7 +363,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -381,7 +388,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
         eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
 
-        // User2's queues liquidation and increments nonce  
+        // User2's queues liquidation and increments nonce
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -389,7 +396,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -403,7 +410,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterRegularDuration() public {
+    function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterRegularDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -424,13 +433,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user2 as liquidator
         _prepareDAI(user2, 500 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -453,11 +462,11 @@ contract TestLiquidationSequencing is TestBaseMarket {
         mockDaiFeed.setMockAnswer(300000000);
 
         vm.startPrank(user3, user3);
-        // User3 queues liquidation and increments nonce  
+        // User3 queues liquidation and increments nonce
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
-         // Skip priority duration for second nonce
+        // Skip priority duration for second nonce
         skip(1 seconds);
 
         vm.startPrank(user2, user2);
@@ -471,7 +480,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -485,7 +494,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationFailsForSameLiquidatorAfterIncrementingNonceAfterSecondEndDuration() public {
+    function testSecondLiquidationFailsForSameLiquidatorAfterIncrementingNonceAfterSecondEndDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -506,18 +517,18 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user2 as liquidator
         _prepareDAI(user2, 500 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
         // test multiple different liquidators queuing over same block
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -539,12 +550,12 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // Make position liquidatable by adjusting DAI price
         mockDaiFeed.setMockAnswer(300000000);
 
-        // User2's queues liquidation and increments nonce 
-        vm.startPrank(user2, user2);  
+        // User2's queues liquidation and increments nonce
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
-        // Skip to second after second end duration 
+        // Skip to second after second end duration
         skip(31 seconds);
 
         // User2's liquidation should fail because it is after end duration for new nonce
@@ -555,7 +566,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterPriorityDuration() public {
+    function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterPriorityDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -579,13 +592,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user3 as liquidator
         _prepareDAI(user3, 250 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -613,7 +626,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
         eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
 
-        // User3 queues liquidation and increments nonce  
+        // User3 queues liquidation and increments nonce
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -621,7 +634,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple blocks
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -635,7 +648,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterRegularDuration() public {
+    function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterRegularDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -659,13 +674,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user3 as liquidator
         _prepareDAI(user3, 250 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -688,7 +703,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         mockDaiFeed.setMockAnswer(300000000);
 
         vm.startPrank(user2, user2);
-        // User2 queues liquidation and increments nonce  
+        // User2 queues liquidation and increments nonce
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -706,7 +721,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         skip(1 seconds);
 
         // test multiple different liquidators queuing over multiple blocks
-        vm.startPrank(user4, user4);  
+        vm.startPrank(user4, user4);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -720,7 +735,9 @@ contract TestLiquidationSequencing is TestBaseMarket {
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 500 ether, 0.01e18);
     }
 
-    function testSecondLiquidationFailsForDifferentLiquidatorAfterIncrementingNonceAfterSecondEndDuration() public {
+    function testSecondLiquidationFailsForDifferentLiquidatorAfterIncrementingNonceAfterSecondEndDuration()
+        public
+    {
         // First let's verify that user2 is not a bundler
         assertEq(marketManager.liquidationBundlers(user2), false);
         _prepareBALRETH(user1, 1 ether);
@@ -744,13 +761,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // Prepare user3 as liquidator
         _prepareDAI(user3, 250 ether);
-    
+
         // Enable sequencing
         vm.prank(address(centralRegistry));
         marketManager.setSequencingStatus(true);
 
         // User2's queues liquidation
-        vm.startPrank(user2, user2);  
+        vm.startPrank(user2, user2);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
         vm.stopPrank();
 
@@ -772,11 +789,11 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // Make position liquidatable by adjusting DAI price
         mockDaiFeed.setMockAnswer(300000000);
 
-        // User3 queues liquidation and increments nonce 
-        vm.startPrank(user3, user3);  
+        // User3 queues liquidation and increments nonce
+        vm.startPrank(user3, user3);
         eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
 
-        // Skip to second after second end duration 
+        // Skip to second after second end duration
         skip(31 seconds);
 
         // User3's liquidation should fail because it is after end duration for new nonce

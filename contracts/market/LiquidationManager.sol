@@ -174,10 +174,12 @@ abstract contract LiquidationManager {
                     )
                 )
             ];
-            // The liqQueue.endLine < block.timestamp check earlier ensures 
-            // that verifying priorityStartLine != 0 also verifies that  
+            // The liqQueue.endLine < block.timestamp check earlier ensures
+            // that verifying priorityStartLine != 0 also verifies that
             // priorityStartline > block.timestamp - END_DURATION
-            if (priorityStartLine > block.timestamp || priorityStartLine == 0) {
+            if (
+                priorityStartLine > block.timestamp || priorityStartLine == 0
+            ) {
                 revert LiquidationManager__InvalidLiquidator();
             }
         }

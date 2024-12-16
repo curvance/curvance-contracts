@@ -44,8 +44,14 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         _prepareLiquidation();
 
         bytes32 queueKey = keccak256(abi.encodePacked(user1, address(eUSDC)));
-        bytes32 accessKey = keccak256(
+        bytes32 user2AccessKey = keccak256(
             abi.encodePacked(user1, user2, uint64(1), address(eUSDC))
+        );
+        bytes32 user3AccessKey = keccak256(
+            abi.encodePacked(user1, user3, uint64(1), address(eUSDC))
+        );
+        bytes32 user4AccessKey = keccak256(
+            abi.encodePacked(user1, user4, uint64(2), address(eUSDC))
         );
 
         (
@@ -59,12 +65,21 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         assertEq(regularStartline, 0);
         assertEq(endLine, 0);
         assertEq(nonce, 0);
-        assertEq(marketManager.priorityAccess(accessKey), 0);
+        assertEq(marketManager.priorityAccess(user2AccessKey), 0);
+        assertEq(marketManager.priorityAccess(user3AccessKey), 0);
+        assertEq(marketManager.priorityAccess(user4AccessKey), 0);
 
         vm.prank(user2);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit LiquidationQueued(user1, user2, address(eUSDC));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        vm.prank(user3);
+
+        vm.expectEmit(true, true, true, true, address(marketManager));
+        emit LiquidationQueued(user1, user3, address(eUSDC));
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
 
@@ -75,6 +90,35 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         assertEq(regularStartline, block.timestamp + 2);
         assertEq(endLine, block.timestamp + 30);
         assertEq(nonce, 1);
-        assertEq(marketManager.priorityAccess(accessKey), block.timestamp + 1);
+        assertEq(
+            marketManager.priorityAccess(user2AccessKey),
+            block.timestamp + 1
+        );
+        assertEq(
+            marketManager.priorityAccess(user3AccessKey),
+            block.timestamp + 1
+        );
+
+        vm.roll(block.number + 10);
+        skip(100);
+
+        vm.prank(user4);
+
+        vm.expectEmit(true, true, true, true, address(marketManager));
+        emit LiquidationQueued(user1, user4, address(eUSDC));
+
+        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+
+        (priorityStartline, regularStartline, endLine, nonce) = marketManager
+            .regularQueue(queueKey);
+
+        assertEq(priorityStartline, block.timestamp + 1);
+        assertEq(regularStartline, block.timestamp + 2);
+        assertEq(endLine, block.timestamp + 30);
+        assertEq(nonce, 2);
+        assertEq(
+            marketManager.priorityAccess(user4AccessKey),
+            block.timestamp + 1
+        );
     }
 }
