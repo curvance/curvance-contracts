@@ -144,7 +144,7 @@ contract SimpleRewardZapper is ZapperBase {
 
         // Enter Curvance pToken position.
         return
-            _enterCurvance(
+            _enterCurvanceDeposit(
                 pToken,
                 swapData.outputToken,
                 amount,

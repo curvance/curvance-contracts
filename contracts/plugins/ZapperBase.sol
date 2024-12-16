@@ -37,7 +37,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// ERRORS ///
 
     error ZapperBase__Unauthorized();
-    error ZapperBase__PTokenUnderlyingIsNotInputToken();
+    error ZapperBase__UnderlyingTokenIsNotInputToken();
     error ZapperBase__ExecutionError();
     error ZapperBase__InsufficientToRepay();
     error ZapperBase__InvalidCentralRegistry();
@@ -75,7 +75,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Curvance pTokens.
     /// @return The output amount of pTokens received.
-    function _enterCurvance(
+    function _enterCurvanceDeposit(
         address pToken,
         address inputToken,
         uint256 amount,
@@ -90,7 +90,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Validate inputToken matches underlying token of pToken contract.
         if (IMToken(pToken).underlying() != inputToken) {
-            revert ZapperBase__PTokenUnderlyingIsNotInputToken();
+            revert ZapperBase__UnderlyingTokenIsNotInputToken();
         }
 
         // Approve pToken to take `inputToken`.
@@ -143,6 +143,51 @@ abstract contract ZapperBase is ReentrancyGuard {
         return IERC20(pToken).balanceOf(recipient) - priorBalance;
     }
 
+    /// @notice Routes lp/BPT into Curvance pToken contract.
+    /// @param eToken The Curvance pToken address.
+    /// @param inputToken The input token address, should match
+    ///                   pToken.underlying().
+    /// @param amount The amount of `inputToken` to deposit into pToken
+    ///               position.
+    /// @param recipient Address that should receive Curvance pTokens.
+    /// @return The output amount of pTokens received.
+    function _enterCurvanceLend(
+        address eToken,
+        address inputToken,
+        uint256 amount,
+        address recipient
+    ) internal returns (uint256) {
+        // eToken not configured so transfer their token back and return.
+        if (eToken == address(0)) {
+            SafeTransferLib.safeTransfer(inputToken, recipient, amount);
+            return amount;
+        }
+
+        // Validate inputToken matches underlying token of eToken contract.
+        if (IMToken(eToken).underlying() != inputToken) {
+            revert ZapperBase__UnderlyingTokenIsNotInputToken();
+        }
+
+        // Approve Token to take `inputToken`.
+        SwapperLib._approveTokenIfNeeded(inputToken, eToken, amount);
+
+        uint256 priorBalance = IERC20(eToken).balanceOf(recipient);
+        uint256 shares;
+
+        shares = IMToken(eToken).mintFor(amount, recipient);
+
+        // Make sure `recipient` got pTokens.
+        if (shares == 0) {
+            revert ZapperBase__ExecutionError();
+        }
+
+        // Remove any leftover approval.
+        SwapperLib._removeApprovalIfNeeded(inputToken, eToken);
+
+        // Bubble up how many eTokens `recipient` received.
+        return IERC20(eToken).balanceOf(recipient) - priorBalance;
+    }
+
     /// @notice Exits a Curvance position.
     /// @param pToken The address of the pToken to be exited.
     /// @param shares The amount of shares to redeemed.
@@ -151,7 +196,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @param underlying The expected underlying token of `pToken`.
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
-    function _exitCurvance(
+    function _exitCurvanceDeposit(
         IMToken pToken,
         uint256 shares,
         bool forceRedeemCollateral,
@@ -175,6 +220,40 @@ abstract contract ZapperBase is ReentrancyGuard {
         } else {
             assets = pToken.redeemFor(shares, address(this), msg.sender);
         }
+
+        // Validate output of redemption is sufficient.
+        if (assets < expectedAssets) {
+            revert ZapperBase__ExecutionError();
+        }
+
+        // Return any excess assets remaining back to the user.
+        if (assets > expectedAssets) {
+            _transferToRecipient(
+                underlying,
+                recipient,
+                assets - expectedAssets
+            );
+        }
+    }
+
+    /// @notice Exits a Curvance position.
+    /// @param eToken The address of the pToken to be exited.
+    /// @param shares The amount of shares to redeemed.
+    /// @param underlying The expected underlying token of `pToken`.
+    /// @param expectedAssets The amount of assets expected to be redeemed
+    ///                       on exiting Curvance position.
+    function _exitCurvanceLend(
+        IMToken eToken,
+        uint256 shares,
+        address underlying,
+        uint256 expectedAssets,
+        address recipient
+    ) internal {
+        if (eToken.underlying() != underlying) {
+            revert ZapperBase__ExecutionError();
+        }
+
+        uint256 assets = eToken.redeemFor(shares, address(this), msg.sender);
 
         // Validate output of redemption is sufficient.
         if (assets < expectedAssets) {

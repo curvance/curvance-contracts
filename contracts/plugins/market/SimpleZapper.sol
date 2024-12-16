@@ -21,7 +21,7 @@ contract SimpleZapper is ZapperBase {
     ///         underlying, and enters into Curvance position,
     ///         for `recipient`.
     /// @dev Requires plugin approval for collateralization.
-    /// @param pToken The Curvance pToken address.
+    /// @param pToken The Curvance position token (pToken) address.
     /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
     ///                               a chain's native token, dictates whether
     ///                               native should be deposited as native or
@@ -62,11 +62,61 @@ contract SimpleZapper is ZapperBase {
 
         // Enter Curvance pToken position.
         return
-            _enterCurvance(
+            _enterCurvanceDeposit(
                 pToken,
                 swapData.outputToken,
                 amount,
                 collateralize,
+                recipient
+            );
+    }
+
+    /// @notice Swaps then deposits `swapData.outputToken`, a pToken
+    ///         underlying, and enters into Curvance position,
+    ///         for `recipient`.
+    /// @dev Requires plugin approval for collateralization.
+    /// @param eToken The Curvance earning token (eToken) address.
+    /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
+    ///                               a chain's native token, dictates whether
+    ///                               native should be deposited as native or
+    ///                               wrapped native.
+    /// @param swapData Swap instruction data to execute the swap.
+    /// @param recipient Address that should receive Zapped deposit.
+    /// @return The output amount received from Zapping.
+    function swapAndLend(
+        address eToken,
+        bool depositAsWrappedNative,
+        SwapperLib.Swap memory swapData,
+        address recipient
+    ) external payable nonReentrant returns (uint256) {
+        _prepareSwap(
+            swapData.inputToken,
+            swapData.inputAmount,
+            depositAsWrappedNative
+        );
+
+        // If we are trying to deposit wrapped native, we may be able to skip
+        // a swapper call by changing the input token and checking versus
+        // output token.
+        if (CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative) {
+            // Switch inputToken to wrapped native token address.
+            swapData.inputToken = address(wrappedNative);
+        }
+
+        uint256 amount;
+        if (swapData.inputToken == swapData.outputToken) {
+            amount = swapData.inputAmount;
+        } else {
+            // Execute swap into eToken underlying.
+            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
+
+        // Enter Curvance pToken position.
+        return
+            _enterCurvanceLend(
+                eToken,
+                swapData.outputToken,
+                amount,
                 recipient
             );
     }

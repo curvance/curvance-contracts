@@ -81,7 +81,7 @@ contract ComplexZapper is ZapperBase {
         );
 
         // Enter Curvance pToken position.
-        outAmount = _enterCurvance(
+        outAmount = _enterCurvanceDeposit(
             pToken,
             zapData.outputToken,
             outAmount,
@@ -192,7 +192,7 @@ contract ComplexZapper is ZapperBase {
         );
 
         // Enter Curvance pToken position.
-        outAmount = _enterCurvance(
+        outAmount = _enterCurvanceDeposit(
             pToken,
             zapData.outputToken,
             outAmount,
