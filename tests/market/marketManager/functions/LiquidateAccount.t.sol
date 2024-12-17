@@ -221,8 +221,6 @@ contract LiquidateAccountTest is TestBaseMarketManager {
 
         usdc.approve(address(eUSDC), 1000e6);
 
-        marketManager.queueAccountLiquidation(user1);
-
         marketManager.liquidateAccount(user1);
 
         vm.stopPrank();
