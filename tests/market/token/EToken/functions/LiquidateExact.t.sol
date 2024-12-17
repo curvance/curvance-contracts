@@ -100,8 +100,6 @@ contract LiquidateExactTest is TestBaseEToken {
 
         usdc.approve(address(eUSDC), 250e6);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
-
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         vm.stopPrank();
