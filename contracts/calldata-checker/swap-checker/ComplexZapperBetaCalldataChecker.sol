@@ -51,6 +51,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         address,
+                        uint256,
                         bool,
                         address
                     )
