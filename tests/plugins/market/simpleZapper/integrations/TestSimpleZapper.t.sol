@@ -190,6 +190,7 @@ contract TestSimpleZapper is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            0,
             false,
             address(simpleZapper)
         );
@@ -197,8 +198,10 @@ contract TestSimpleZapper is TestBaseMarket {
         vm.prank(user1);
         simpleZapper.swapAndDeposit{ value: ethAmount }(
             address(cSTETH),
+            true,
             false,
             swapData,
+            0,
             false,
             user1
         );
@@ -250,9 +253,9 @@ contract TestSimpleZapper is TestBaseMarket {
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(
+            address(eDAI),
             false,
             swapData,
-            address(eDAI),
             450e18,
             user1
         );

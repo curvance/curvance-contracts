@@ -111,6 +111,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             false,
             user1
         );
@@ -185,6 +186,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             false,
             user1
         );
@@ -222,6 +224,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             true,
             user1
         );
@@ -262,6 +265,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             true,
             user1
         );
