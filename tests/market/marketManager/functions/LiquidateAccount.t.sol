@@ -153,7 +153,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         marketManager.queueAccountLiquidation(user1);
         usdc.approve(address(eUSDC), 1000e6);
@@ -176,7 +176,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
 
@@ -212,12 +212,12 @@ contract LiquidateAccountTest is TestBaseMarketManager {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.prank(user3, address(1));
+        vm.prank(user3, user3);
         marketManager.queueAccountLiquidation(user1);
 
         skip(2);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         usdc.approve(address(eUSDC), 1000e6);
 
@@ -236,13 +236,13 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         // Prepare user3 as liquidator
         _prepareUSDC(user3, 250 ether);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         marketManager.queueAccountLiquidation(user1);
         usdc.approve(address(eUSDC), 1000e6);
         vm.stopPrank();
 
-        vm.startPrank(user3, address(2));
+        vm.startPrank(user3, user3);
         usdc.approve(address(eUSDC), 1000e6);
 
         skip(1);

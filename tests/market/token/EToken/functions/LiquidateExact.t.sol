@@ -15,12 +15,32 @@ contract LiquidateExactTest is TestBaseEToken {
     function test_liquidateExact_fail_whenLiquidationWindowHasPassed() public {
         centralRegistry.setSequencingStatus(true);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
         usdc.approve(address(eUSDC), 250e6);
 
         skip(31);
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
+        vm.stopPrank();
+    }
+
+    function test_liquidateExact_fail_whenUserOnlyQueuedAccountLiquidation()
+        public
+    {
+        centralRegistry.setSequencingStatus(true);
+
+        vm.startPrank(user2, user2);
+
+        marketManager.queueAccountLiquidation(user1);
+        usdc.approve(address(eUSDC), 250e6);
+
+        skip(1);
 
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
@@ -67,7 +87,7 @@ contract LiquidateExactTest is TestBaseEToken {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
         usdc.approve(address(eUSDC), 250e6);
@@ -91,12 +111,12 @@ contract LiquidateExactTest is TestBaseEToken {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.prank(user3, address(1));
+        vm.prank(user3, user3);
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
 
         skip(2);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         usdc.approve(address(eUSDC), 250e6);
 
@@ -112,7 +132,7 @@ contract LiquidateExactTest is TestBaseEToken {
     {
         centralRegistry.setSequencingStatus(true);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
         usdc.approve(address(eUSDC), 250e6);
@@ -140,7 +160,7 @@ contract LiquidateExactTest is TestBaseEToken {
 
         _checkQueueNonce(0);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         usdc.approve(address(eUSDC), 250e6);
 
@@ -182,14 +202,14 @@ contract LiquidateExactTest is TestBaseEToken {
         // Prepare user3 as liquidator
         _prepareUSDC(user3, 250 ether);
 
-        vm.startPrank(user2, address(1));
+        vm.startPrank(user2, user2);
 
         eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
         usdc.approve(address(eUSDC), 250e6);
 
         vm.stopPrank();
 
-        vm.startPrank(user3, address(2));
+        vm.startPrank(user3, user3);
         usdc.approve(address(eUSDC), 250e6);
 
         skip(1);
