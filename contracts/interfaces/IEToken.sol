@@ -51,6 +51,18 @@ interface IEToken is IMToken {
         address recipient
     ) external returns (uint256);
 
+    /// @notice Redeems eTokens in exchange for the underlying asset,
+    ///         on behalf of `account`.
+    /// @param tokens The number of eTokens to redeem for underlying tokens.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param account The account who will have their eTokens redeemed.
+    /// @return Returns amount of underlying asset redeemed.
+    function redeemFor(
+        uint256 tokens,
+        address recipient,
+        address account
+    ) external returns (uint256);
+
     /// @notice Helper function for Position Management contract to
     ///         borrow assets.
     /// @param account The account address to borrow on behalf of.

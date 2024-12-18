@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
@@ -17,6 +15,7 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract ComplexZapperBeta is ReentrancyGuard {
     /// TYPES ///
@@ -196,7 +195,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            SimplePToken(redemptionData.pToken),
+            IPToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -329,7 +328,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            SimplePToken(redemptionData.pToken),
+            IPToken(redemptionData.pToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             zapData.inputToken,
@@ -381,7 +380,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
         }
 
         // Validate inputToken matches underlying token of pToken contract.
-        if (SimplePToken(pToken).underlying() != inputToken) {
+        if (IPToken(pToken).underlying() != inputToken) {
             revert ComplexZapper__PTokenUnderlyingIsNotInputToken();
         }
 
@@ -397,22 +396,17 @@ contract ComplexZapperBeta is ReentrancyGuard {
         // as well.
         // Enter Curvance pToken position and collateralize
         if (collateralize && msg.sender == recipient) {
-            shares = SimplePToken(pToken).depositAsCollateral(
-                amount,
-                msg.sender
-            );
+            shares = IPToken(pToken).depositAsCollateral(amount, msg.sender);
         } else if (
-            collateralize && msg.sender != recipient && 
+            collateralize &&
+            msg.sender != recipient &&
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-            ) {
-            shares = SimplePToken(pToken).depositAsCollateralFor(
-                amount,
-                recipient
-            );
+        ) {
+            shares = IPToken(pToken).depositAsCollateralFor(amount, recipient);
         }
         // Enter Curvance pToken position,
         else {
-            shares = SimplePToken(pToken).deposit(amount, recipient);
+            shares = IPToken(pToken).deposit(amount, recipient);
         }
 
         // Make sure `recipient` got pTokens.
@@ -436,7 +430,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
     function _exitCurvance(
-        SimplePToken pToken,
+        IPToken pToken,
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,

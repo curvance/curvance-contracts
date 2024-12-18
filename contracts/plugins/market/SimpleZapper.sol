@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -15,6 +12,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract SimpleZapper is ReentrancyGuard {
     /// TYPES ///
@@ -240,7 +240,7 @@ contract SimpleZapper is ReentrancyGuard {
 
         // Exit Curvance position.
         _exitCurvance(
-            SimplePToken(redemptionData.mToken),
+            IMToken(redemptionData.mToken),
             redemptionData.shares,
             redemptionData.forceRedeemCollateral,
             swapData.inputToken,
@@ -274,7 +274,7 @@ contract SimpleZapper is ReentrancyGuard {
         address recipient
     ) internal returns (uint256) {
         // Validate inputToken matches underlying token of pToken contract.
-        if (SimplePToken(pToken).underlying() != inputToken) {
+        if (IPToken(pToken).underlying() != inputToken) {
             revert SimpleZapper__PTokenUnderlyingIsNotInputToken();
         }
 
@@ -294,16 +294,13 @@ contract SimpleZapper is ReentrancyGuard {
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
         ) {
             if (
-                SimplePToken(pToken).depositAsCollateralFor(
-                    amount,
-                    recipient
-                ) == 0
+                IPToken(pToken).depositAsCollateralFor(amount, recipient) == 0
             ) {
                 revert SimpleZapper__ExecutionError();
             }
             // Enter Curvance pToken position,
             // and make sure `recipient` got pTokens.
-        } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+        } else if (IPToken(pToken).deposit(amount, recipient) == 0) {
             revert SimpleZapper__ExecutionError();
         }
 
@@ -323,7 +320,7 @@ contract SimpleZapper is ReentrancyGuard {
     /// @param expectedAssets The amount of assets expected to be redeemed
     ///                       on exiting Curvance position.
     function _exitCurvance(
-        SimplePToken mToken,
+        IMToken mToken,
         uint256 shares,
         bool forceRedeemCollateral,
         address underlying,
@@ -339,13 +336,17 @@ contract SimpleZapper is ReentrancyGuard {
         // Transfer underlying tokens to the Zapper.
         // Requires plugin approval to redeem on users behalf.
         if (forceRedeemCollateral && mToken.isPToken()) {
-            assets = mToken.redeemCollateralFor(
+            assets = IPToken(address(mToken)).redeemCollateralFor(
                 shares,
                 address(this),
                 msg.sender
             );
         } else {
-            assets = mToken.redeemFor(shares, address(this), msg.sender);
+            assets = IEToken(address(mToken)).redeemFor(
+                shares,
+                address(this),
+                msg.sender
+            );
         }
 
         // Validate output of redemption is sufficient.
@@ -377,7 +378,7 @@ contract SimpleZapper is ReentrancyGuard {
         uint256 repayAmount,
         address recipient
     ) internal returns (uint256) {
-        address eTokenUnderlying = EToken(eToken).underlying();
+        address eTokenUnderlying = IEToken(eToken).underlying();
 
         // Revert if the swap experienced too much slippage.
         if (amount < repayAmount) {
@@ -392,7 +393,7 @@ contract SimpleZapper is ReentrancyGuard {
         );
 
         // Execute repayment of eToken debt.
-        EToken(eToken).repayFor(recipient, repayAmount);
+        IEToken(eToken).repayFor(recipient, repayAmount);
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);

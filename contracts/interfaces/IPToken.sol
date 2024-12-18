@@ -45,6 +45,30 @@ interface IPToken is IMToken {
         address receiver
     ) external returns (uint256 shares);
 
+    /// @notice Caller withdraws assets from the market and burns their shares,
+    ///         on behalf of `owner`.
+    /// @param shares The amount of shares to redeemed.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw assets.
+    /// @return assets the amount of assets redeemed by `owner`.
+    function redeemFor(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
+
+    /// @notice Caller withdraws assets from the market and burns their shares,
+    ///         on behalf of `owner`.
+    /// @param shares The amount of shares to redeemed.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw assets.
+    /// @return assets the amount of assets redeemed by `owner`.
+    function redeemCollateralFor(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
+
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.

@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
-
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
@@ -15,6 +12,8 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 
 contract SimpleRewardZapper is ReentrancyGuard {
     /// CONSTANTS ///
@@ -250,7 +249,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         }
 
         // Cache underlying to minimize external calls.
-        address eTokenUnderlying = EToken(eToken).underlying();
+        address eTokenUnderlying = IEToken(eToken).underlying();
 
         if (rewardToken != eTokenUnderlying) {
             // Validate that if we are swapping that the output token
@@ -372,7 +371,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         address recipient
     ) internal returns (uint256) {
         // Validate inputToken matches underlying token of pToken contract.
-        if (SimplePToken(pToken).underlying() != inputToken) {
+        if (IPToken(pToken).underlying() != inputToken) {
             revert SimpleRewardZapper__PTokenUnderlyingIsNotInputToken();
         }
 
@@ -392,16 +391,13 @@ contract SimpleRewardZapper is ReentrancyGuard {
             IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
         ) {
             if (
-                SimplePToken(pToken).depositAsCollateralFor(
-                    amount,
-                    recipient
-                ) == 0
+                IPToken(pToken).depositAsCollateralFor(amount, recipient) == 0
             ) {
                 revert SimpleRewardZapper__ExecutionError();
             }
             // Enter Curvance pToken position,
             // and make sure `recipient` got pTokens.
-        } else if (SimplePToken(pToken).deposit(amount, recipient) == 0) {
+        } else if (IPToken(pToken).deposit(amount, recipient) == 0) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -441,7 +437,7 @@ contract SimpleRewardZapper is ReentrancyGuard {
         );
 
         // Execute repayment of eToken debt.
-        EToken(eToken).repayFor(recipient, repayAmount);
+        IEToken(eToken).repayFor(recipient, repayAmount);
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);
