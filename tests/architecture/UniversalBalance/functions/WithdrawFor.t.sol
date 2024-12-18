@@ -39,16 +39,15 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     function test_universalBalanceWithdrawFor_fail_whenTransferIsDisabled()
         public
     {
-        vm.startPrank(user1);
-
+        vm.prank(user1);
         centralRegistry.setTransferLockStatus(true);
+
+        vm.prank(user2);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
         );
         universalBalance.withdrawFor(1e6, true, user2, user1);
-
-        vm.stopPrank();
     }
 
     function test_universalBalanceWithdrawFor_fail_whenCooldownIsNotEnded()
@@ -59,12 +58,14 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
+        vm.stopPrank();
+
+        vm.prank(user2);
+
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
         );
         universalBalance.withdrawFor(1e6, true, user2, user1);
-
-        vm.stopPrank();
     }
 
     function test_universalBalanceWithdrawFor_fail_whenExceedsLentBalance_fuzzed(

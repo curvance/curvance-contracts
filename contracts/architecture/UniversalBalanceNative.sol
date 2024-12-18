@@ -3,9 +3,7 @@ pragma solidity ^0.8.19;
 
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -25,17 +23,21 @@ contract UniversalBalanceNative is UniversalBalance {
         }
     }
 
+    /// ERRORS ///
+
+    error UniversalBalanceNative__UnderlyingTokenMismatch();
+
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         address eToken,
-        address underlying_
+        address nativeWrapppedToken
     ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).underlying() != underlying_) {
-            revert UniversalBalance__UnderlyingTokenMismatch();
+        if (IMToken(eToken).underlying() != nativeWrapppedToken) {
+            revert UniversalBalanceNative__UnderlyingTokenMismatch();
         }
     }
 

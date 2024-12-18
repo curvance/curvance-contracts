@@ -55,15 +55,17 @@ contract RewardManagerRescueTokenTest is TestBaseRewardManager {
     function test_rewardManagerRescueToken_success_withNativeAsset_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount > 0 && amount <= 100e18);
+        vm.assume(0 <= amount && amount <= 100e18);
 
         uint256 balance = address(rewardManager).balance;
         uint256 holding = address(this).balance;
 
         rewardManager.rescueToken(address(0), amount);
 
-        assertEq(address(rewardManager).balance, balance - amount);
-        assertEq(address(this).balance, holding + amount);
+        uint256 withdrawalAmount = amount == 0 ? balance : amount;
+
+        assertEq(address(rewardManager).balance, balance - withdrawalAmount);
+        assertEq(address(this).balance, holding + withdrawalAmount);
     }
 
     function test_rewardManagerRescueToken_success_withNonNativeAsset_withWithdrawAll()
@@ -81,14 +83,19 @@ contract RewardManagerRescueTokenTest is TestBaseRewardManager {
     function test_rewardManagerRescueToken_success_withNonNativeAsset_fuzzed(
         uint256 amount
     ) public {
-        vm.assume(amount > 0 && amount <= 100e18);
+        vm.assume(0 <= amount && amount <= 100e18);
 
         uint256 balance = dai.balanceOf(address(rewardManager));
         uint256 holding = dai.balanceOf(address(this));
 
         rewardManager.rescueToken(_DAI_ADDRESS, amount);
 
-        assertEq(dai.balanceOf(address(rewardManager)), balance - amount);
-        assertEq(dai.balanceOf(address(this)), holding + amount);
+        uint256 withdrawalAmount = amount == 0 ? balance : amount;
+
+        assertEq(
+            dai.balanceOf(address(rewardManager)),
+            balance - withdrawalAmount
+        );
+        assertEq(dai.balanceOf(address(this)), holding + withdrawalAmount);
     }
 }

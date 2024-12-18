@@ -66,7 +66,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// ERRORS ///
 
     error UniversalBalance__InsufficientBalance();
-    error UniversalBalance__UnderlyingTokenMismatch();
     error UniversalBalance__InvalidParameter();
     error UniversalBalance__Unauthorized();
     error UniversalBalance__SlippageError();
@@ -271,7 +270,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         if (
             amountsLength != forceLentRedemption.length ||
             amountsLength != owners.length
-            ) {
+        ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -309,7 +308,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Transfers `amount` from caller's universal balance, currently
     ///         held or lent out to `recipient`.
-    /// @dev Emits { Deposit } and { Withdraw } events.
+    /// @dev Emits { Withdraw } and { Deposit } events.
     /// @param amount The amount of underlying token to be transferred.
     /// @param forceLentRedemption Whether the transferred underlying tokens
     ///                            should be pulled only from the caller's
@@ -329,6 +328,14 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             msg.sender
         );
 
+        emit Withdraw(
+            msg.sender,
+            msg.sender,
+            msg.sender,
+            amountTransferred,
+            lendingBalanceUsed
+        );
+
         _deposit(amountTransferred, willLend, recipient);
     }
 
@@ -336,7 +343,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///         account, currently held or lent out.
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their universal balance.
-    ///      Emits { Withdraw } event.
+    ///      Emits { Withdraw } and { Deposit } events.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
@@ -358,6 +365,14 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             amount,
             forceLentRedemption,
             owner
+        );
+
+        emit Withdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            amountTransferred,
+            lendingBalanceUsed
         );
 
         _deposit(amountTransferred, willLend, recipient);
