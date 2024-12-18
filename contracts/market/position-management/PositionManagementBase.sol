@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -154,8 +153,8 @@ abstract contract PositionManagementBase is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        SimplePToken pToken = leverageData.positionToken;
-        address pTokenUnderlying = pToken.asset();
+        IPToken pToken = leverageData.positionToken;
+        address pTokenUnderlying = pToken.underlying();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
@@ -344,7 +343,7 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        address borrowUnderlying = SimplePToken(borrowToken).underlying();
+        address borrowUnderlying = IPToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
             revert PositionManagementBase__InvalidAmount();
@@ -372,7 +371,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        SimplePToken positionToken = leverageData.positionToken;
+        IPToken positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = positionToken.underlying();
@@ -454,8 +453,7 @@ abstract contract PositionManagementBase is
 
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
-        address collateralUnderlying = SimplePToken(positionToken)
-            .underlying();
+        address collateralUnderlying = IPToken(positionToken).underlying();
 
         if (
             IERC20(collateralUnderlying).balanceOf(address(this)) <
@@ -488,7 +486,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        EToken borrowToken = deleverageData.borrowToken;
+        IEToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = borrowToken.underlying();
@@ -685,7 +683,7 @@ abstract contract PositionManagementBase is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        EToken borrowToken = leverageData.borrowToken;
+        IEToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,

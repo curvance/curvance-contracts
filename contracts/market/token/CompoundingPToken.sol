@@ -103,7 +103,7 @@ abstract contract CompoundingPToken is BasePToken {
         address owner,
         uint256 assets,
         IPositionManagement.DeleverageStruct memory deleverageData
-    ) external virtual nonReentrant {
+    ) external virtual override nonReentrant {
         // Validate that the position folding contract is calling.
         if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);

@@ -13,6 +13,7 @@ import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
@@ -284,6 +285,21 @@ abstract contract BasePToken is
                 exchangeRate: convertToAssets(WAD)
             })
         );
+    }
+
+    /// @notice Helper function for Position Management contract to
+    ///         redeem assets.
+    /// @param owner The owner address of assets to redeem.
+    /// @param assets The amount of the underlying assets to redeem.
+    function withdrawByPositionManagement(
+        address owner,
+        uint256 assets,
+        IPositionManagement.DeleverageStruct memory deleverageData
+    ) external virtual nonReentrant {
+        // Validate that the position folding contract is calling.
+        if (!marketManager.positionManagement(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     /// PToken MARKET START LOGIC TO OVERRIDE

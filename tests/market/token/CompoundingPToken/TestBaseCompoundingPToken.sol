@@ -80,5 +80,21 @@ contract TestBaseCompoundingPToken is TestBaseMarket {
             _ONE
         );
         marketManager.listToken(address(pBALRETH));
+        marketManager.updatePositionToken(
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            0,
+            1000
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100 ether;
+        marketManager.setPTokenCollateralCaps(mTokens, caps);
     }
 }

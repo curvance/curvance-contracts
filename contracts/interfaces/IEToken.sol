@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IMToken } from "./IMToken.sol";
-
+import { IPositionManagement } from "./IPositionManagement.sol";
 interface IEToken is IMToken {
     /// @notice Address of the current Interest Rate Model.
     function interestRateModel() external view returns (IInterestRateModel);
@@ -50,6 +50,24 @@ interface IEToken is IMToken {
         uint256 tokens,
         address recipient
     ) external returns (uint256);
+
+    /// @notice Helper function for Position Management contract to
+    ///         borrow assets.
+    /// @param account The account address to borrow on behalf of.
+    /// @param amount The amount of the underlying assets to borrow.
+    /// @param leverageData The data for the leverage operation.
+    function borrowForPositionManagement(
+        address account,
+        uint256 amount,
+        IPositionManagement.LeverageStruct memory leverageData
+    ) external;
+
+    /// @notice Repays underlying tokens to lenders, on behalf of `account`,
+    ///         freeing up their collateral posted inside this market.
+    /// @dev Updates pending interest before executing the repay.
+    /// @param account The account address to repay on behalf of.
+    /// @param amount The amount to repay, or 0 for the full outstanding amount.
+    function repayFor(address account, uint256 amount) external;
 
     /// @notice Used by the market manager contract to repay a portion
     ///         of underlying token debt to lenders, remaining debt shortfall

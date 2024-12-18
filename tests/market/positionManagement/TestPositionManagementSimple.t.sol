@@ -7,6 +7,8 @@ import { PositionManagementSimple } from "contracts/market/position-management/P
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract TestPositionManagementSimple is TestBaseMarket {
     address public owner;
@@ -139,9 +141,9 @@ contract TestPositionManagementSimple is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDC));
+        leverageData.positionToken = IPToken(address(pUSDC));
         leverageData.swapData.inputToken = address(dai);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = address(usdc);
@@ -185,9 +187,9 @@ contract TestPositionManagementSimple is TestBaseMarket {
         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
         PositionManagementSimple.DeleverageStruct memory deleverageData;
-        deleverageData.positionToken = SimplePToken(address(pUSDC));
+        deleverageData.positionToken = IPToken(address(pUSDC));
         deleverageData.collateralAmount = 900e6;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = address(usdc);
         deleverageData.swapData[0].inputAmount = 900e6;
@@ -250,9 +252,9 @@ contract TestPositionManagementSimple is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDC));
+        leverageData.positionToken = IPToken(address(pUSDC));
         leverageData.swapData.inputToken = address(dai);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = address(usdc);
@@ -301,9 +303,9 @@ contract TestPositionManagementSimple is TestBaseMarket {
         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
         PositionManagementSimple.DeleverageStruct memory deleverageData;
-        deleverageData.positionToken = SimplePToken(address(pUSDC));
+        deleverageData.positionToken = IPToken(address(pUSDC));
         deleverageData.collateralAmount = 900e6;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = address(usdc);
         deleverageData.swapData[0].inputAmount = 900e6;

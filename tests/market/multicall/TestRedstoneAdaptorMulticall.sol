@@ -5,6 +5,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -321,9 +323,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eUSDC;
+        leverageData.borrowToken = IEToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pWBTC));
+        leverageData.positionToken = IPToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { IMToken } from "./IMToken.sol";
+import { IPositionManagement } from "./IPositionManagement.sol";
 
 interface IPToken is IMToken {
     /// @notice Caller deposits assets into the market and receives shares.
@@ -9,6 +10,20 @@ interface IPToken is IMToken {
     /// @param receiver The account that should receive the pToken shares.
     /// @return shares The amount of pToken shares received by `receiver`.
     function deposit(
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+
+    /// @notice Caller deposits assets into the market, `receiver` receives
+    ///         shares, and turns on collateralization of the assets.
+    /// @dev The caller must be depositing for themselves, or be managing
+    ///      their position through the position folding contract.
+    ///      If the caller is not approved to collateralize the function will
+    ///      simply deposit assets on behalf of `receiver`.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return shares The amount of pToken shares received by `receiver`.
+    function depositAsCollateral(
         uint256 assets,
         address receiver
     ) external returns (uint256 shares);
@@ -29,6 +44,17 @@ interface IPToken is IMToken {
         uint256 assets,
         address receiver
     ) external returns (uint256 shares);
+
+    /// @notice Helper function for Position Management contract to
+    ///         redeem assets.
+    /// @param owner The owner address of assets to redeem.
+    /// @param assets The amount of the underlying assets to redeem.
+    /// @param deleverageData The data for the deleverage operation.
+    function withdrawByPositionManagement(
+        address owner,
+        uint256 assets,
+        IPositionManagement.DeleverageStruct memory deleverageData
+    ) external;
 
     /// @notice Transfers collateral tokens (this pToken) from `account`
     ///         to `liquidator`.
