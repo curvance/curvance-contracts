@@ -10,6 +10,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
@@ -27,7 +28,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice The address of the eToken linked to this contract.
-    IMToken public immutable linkedEToken;
+    IEToken public immutable linkedEToken;
 
     /// @notice The address of universal balance underlying token.
     address public immutable underlying;
@@ -82,7 +83,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        linkedEToken = IMToken(eToken);
+        linkedEToken = IEToken(eToken);
         address underlying_ = IMToken(eToken).underlying();
         underlying = underlying_;
 

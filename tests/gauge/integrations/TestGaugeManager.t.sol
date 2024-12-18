@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
@@ -312,11 +312,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testRewardRatioOfDifferentPools() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -350,11 +350,11 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -406,11 +406,11 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
 
         // user2 deposit 2x
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -470,11 +470,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testRewardCalculationWithDifferentEpoch() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
@@ -552,11 +552,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testMassUpdatePoolDoesNotMessUpTheRewardCalculation() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -593,11 +593,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testPendingRewardsReturnsAllRewards() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -639,11 +639,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testUpdatePoolDoesNotMessUpTheRewardCalculation() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -679,14 +679,14 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -740,11 +740,11 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
 
         // user2 deposit 2x
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
@@ -814,11 +814,11 @@ contract TestGaugeManager is TestBaseMarket {
         address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user0 deposit 100 token1
         vm.prank(users[0]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -851,14 +851,14 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -904,7 +904,7 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
@@ -971,11 +971,11 @@ contract TestGaugeManager is TestBaseMarket {
         address[] memory listedTokens = marketManager.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user0 deposit 100 token1
         vm.prank(users[0]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
@@ -1008,14 +1008,14 @@ contract TestGaugeManager is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         gaugeManager.updatePool(tokens[0]);
         gaugeManager.updatePool(tokens[1]);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -1097,7 +1097,7 @@ contract TestGaugeManager is TestBaseMarket {
 
         // set collateral factor
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             0,
             4000,
             3000,
@@ -1139,11 +1139,11 @@ contract TestGaugeManager is TestBaseMarket {
     function testRedeemRevertInvalidAmount() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user0 withdraw half
         vm.prank(users[0]);
         vm.expectRevert();
-        IMToken(tokens[0]).redeem(100 ether + 1, address(this));
+        IEToken(tokens[0]).redeem(100 ether + 1, address(this));
     }
 }

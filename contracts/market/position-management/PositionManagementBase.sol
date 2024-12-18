@@ -18,6 +18,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 
 /// @dev The Curvance Position Folding contract enshrines actions that
@@ -74,7 +76,7 @@ abstract contract PositionManagementBase is
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
             if (!mTokens[i].isPToken()) {
-                mTokens[i].accrueInterest();
+                IEToken(address(mTokens[i])).accrueInterest();
             }
         }
 
@@ -127,7 +129,7 @@ abstract contract PositionManagementBase is
     /// @notice Deposits into a Curvance position and then leverages in favor
     ///         of increasing both collateral and debt inside the system.
     /// @dev Measures slippage through pre/post conditional slippage check
-    ///      in `checkSlippage` modifier. 
+    ///      in `checkSlippage` modifier.
     ///      NOTE: The caller MUST have approved this smart contract to have
     ///      delegated actions inside `leverageData.positionToken` or
     ///      depositAsCollateralFor will only deposit and the leverage
@@ -587,12 +589,14 @@ abstract contract PositionManagementBase is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            IMToken(positionToken).previewDeposit(collateralAmount),
+            IPToken(positionToken).previewDeposit(collateralAmount),
             price,
-            10 ** IMToken(positionToken).decimals()
+            10 ** IPToken(positionToken).decimals()
         );
 
-        (, uint256 collRatio,,,,,,,) = marketManager.tokenData(positionToken);
+        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+            positionToken
+        );
 
         // If the position token cannot be borrowed against the hypothetical
         // leverage check will result in 0 meaning nothing new to leverage
@@ -611,9 +615,8 @@ abstract contract PositionManagementBase is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(
-            IMToken(borrowToken).underlying()
-        ).balanceOf(borrowToken);
+        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
+            .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;
@@ -642,12 +645,13 @@ abstract contract PositionManagementBase is
             uint256 sumDebt
         ) = marketManager.statusOf(account);
 
-        return _maxRemainingLeverageOf(
-            sumCollateral,
-            maxDebt,
-            sumDebt,
-            borrowToken
-        );
+        return
+            _maxRemainingLeverageOf(
+                sumCollateral,
+                maxDebt,
+                sumDebt,
+                borrowToken
+            );
     }
 
     /// @inheritdoc ERC165
@@ -750,7 +754,7 @@ abstract contract PositionManagementBase is
         uint256 maxDebt,
         uint256 sumDebt,
         address borrowToken
-    ) internal view returns(uint256) {
+    ) internal view returns (uint256) {
         // We can calculate terminal leverage by calculating the infinite
         // series of swapping to maximum LTV over and over, which results
         // in the equation 1 / (1 - LTV).

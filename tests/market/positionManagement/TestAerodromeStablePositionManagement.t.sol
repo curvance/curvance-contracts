@@ -10,7 +10,6 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { PositionManagementAerodromeStable } from "contracts/market/position-management/PositionManagementAerodromeStable.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
 
@@ -132,7 +131,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             marketManager.listToken(address(pUSDCDAI));
 
             marketManager.updatePositionToken(
-                IMToken(address(pUSDCDAI)),
+                address(pUSDCDAI),
                 7000,
                 4000,
                 3000,
@@ -201,9 +200,10 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementAerodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -308,9 +308,10 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
         PositionManagementAerodromeStable.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
         leverageData.borrowAmount = amountForLeverage;

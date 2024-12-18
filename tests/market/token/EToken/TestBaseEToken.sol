@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract TestBaseEToken is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;
@@ -87,7 +86,7 @@ contract TestBaseEToken is TestBaseMarket {
 
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000, // liquidate at 71%
             3000,

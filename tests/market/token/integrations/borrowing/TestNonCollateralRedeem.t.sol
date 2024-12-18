@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract TestNonCollateralRedeem is TestBaseMarket {
     function setUp() public override {
@@ -29,7 +28,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
 
         // Config position token
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,

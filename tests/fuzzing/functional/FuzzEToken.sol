@@ -4,7 +4,7 @@ import { FuzzMarketManager } from "tests/fuzzing/FuzzMarketManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract FuzzEToken is FuzzMarketManager {
     constructor() {
@@ -481,7 +481,7 @@ contract FuzzEToken is FuzzMarketManager {
         {
             uint256 senderBalanceUnderlying = IERC20(underlyingEToken)
                 .balanceOf(msg.sender);
-            uint256 collateralBalanceBefore = IMToken(positionToken).balanceOf(
+            uint256 collateralBalanceBefore = IPToken(positionToken).balanceOf(
                 address(this)
             );
             uint256 priorDebt = EToken(eToken).debtBalanceCached(
@@ -492,7 +492,7 @@ contract FuzzEToken is FuzzMarketManager {
             );
 
             hevm.prank(msg.sender);
-            try EToken(eToken).liquidate(account, IMToken(positionToken)) {
+            try EToken(eToken).liquidate(account, positionToken) {
                 // After a non-exact (maximum) liquidation, the user should no longer have a position in the position token.
                 assertWithMsg(
                     !_hasPosition(positionToken),
@@ -521,12 +521,12 @@ contract FuzzEToken is FuzzMarketManager {
                 );
                 emit LogUint256(
                     "current bal",
-                    IMToken(positionToken).balanceOf(address(this))
+                    IPToken(positionToken).balanceOf(address(this))
                 );
                 emit LogUint256("seized by protocol", seizedForProtocol);
                 assertEq(
                     collateralBalanceBefore -
-                        IMToken(positionToken).balanceOf(address(this)),
+                        IPToken(positionToken).balanceOf(address(this)),
                     seizedForLiquidation,
                     "DTOK-23 soft liquidate should decrease collateral balance for account"
                 );
@@ -589,11 +589,7 @@ contract FuzzEToken is FuzzMarketManager {
 
         hevm.prank(msg.sender);
         try
-            EToken(eToken).liquidateExact(
-                account,
-                amount,
-                IMToken(positionToken)
-            )
+            EToken(eToken).liquidateExact(account, amount, positionToken)
         {} catch (bytes memory revertData) {
             uint256 errorSelector = extractErrorSelector(revertData);
             // liquidating 0 tokens SHOULD fail with one of these two error messages
@@ -648,11 +644,7 @@ contract FuzzEToken is FuzzMarketManager {
                 );
 
                 hevm.prank(msg.sender);
-                EToken(eToken).liquidateExact(
-                    account,
-                    amount,
-                    IMToken(positionToken)
-                );
+                EToken(eToken).liquidateExact(account, amount, positionToken);
 
                 // The user's previous collateral balance - post collateral balance must equal the total amount that was seized for liquidation
                 assertEq(

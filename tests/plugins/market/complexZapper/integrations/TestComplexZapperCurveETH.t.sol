@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
@@ -79,7 +78,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         IERC20(_CURVE_STETH_LP).approve(address(pToken), 1 ether);
         marketManager.listToken(address(pToken));
         marketManager.updatePositionToken(
-            IMToken(address(pToken)),
+            address(pToken),
             7000,
             4000,
             3000,

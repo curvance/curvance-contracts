@@ -97,7 +97,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         }
 
         marketManager.updatePositionToken(
-            IMToken(positionToken),
+            positionToken,
             collRatio,
             collReqA,
             collReqB,

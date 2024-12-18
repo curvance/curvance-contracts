@@ -141,7 +141,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
 
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,
@@ -202,7 +202,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
 
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,
@@ -292,7 +292,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
 
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,

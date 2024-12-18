@@ -10,7 +10,6 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { PositionManagementVelodromeVolatile } from "contracts/market/position-management/PositionManagementVelodromeVolatile.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
 contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
@@ -156,7 +155,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             marketManager.listToken(address(pWETHUSDC));
 
             marketManager.updatePositionToken(
-                IMToken(address(pWETHUSDC)),
+                address(pWETHUSDC),
                 7000,
                 4000,
                 3000,
@@ -225,9 +224,10 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -366,9 +366,10 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;

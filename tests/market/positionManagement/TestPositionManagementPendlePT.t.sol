@@ -6,7 +6,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { PositionManagementPendlePT } from "contracts/market/position-management/PositionManagementPendlePT.sol";
@@ -105,7 +104,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
             oracleManager.addMTokenSupport(address(pPendlePT));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(pPendlePT)),
+                address(pPendlePT),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -184,9 +183,10 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -300,9 +300,10 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;

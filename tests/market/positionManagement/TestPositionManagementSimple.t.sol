@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
@@ -60,7 +59,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
             marketManager.listToken(address(pUSDC));
             oracleManager.addMTokenSupport(address(pUSDC));
             marketManager.updatePositionToken(
-                IMToken(address(pUSDC)),
+                address(pUSDC),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -134,9 +133,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -244,9 +244,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
@@ -102,11 +102,11 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -123,11 +123,11 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);

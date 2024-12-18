@@ -9,6 +9,7 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD } from "contracts/libraries/Constants.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 import "forge-std/console2.sol";
 
@@ -96,7 +97,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     function _setCollateralData(address positionToken) internal {
         // set collateral factor
         marketManager.updatePositionToken(
-            IMToken(positionToken),
+            positionToken,
             7000,
             4000,
             3000,
@@ -540,7 +541,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         _eToken.liquidateExact(
             _account,
             _expectedLiqAmount,
-            IMToken(address(_collateral))
+            address(_collateral)
         );
     }
 
@@ -551,7 +552,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         address _liquidator
     ) internal {
         vm.prank(_liquidator);
-        _eToken.liquidate(_account, IMToken(address(_collateral)));
+        _eToken.liquidate(_account, address(_collateral));
     }
 
     function _getHypotheicalLiquidity(

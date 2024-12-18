@@ -14,6 +14,8 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
@@ -170,7 +172,7 @@ contract MarketManager is
     event TokenPositionCreated(address mToken, address account);
     event TokenPositionClosed(address mToken, address account);
     event PositionTokenUpdated(
-        IMToken mToken,
+        address mToken,
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
@@ -831,7 +833,7 @@ contract MarketManager is
             mToken = accountAssetsPrior[i++];
             if (!mToken.isPToken()) {
                 // Update EToken interest if necessary.
-                mToken.accrueInterest();
+                IEToken(address(mToken)).accrueInterest();
             }
         }
 
@@ -878,7 +880,7 @@ contract MarketManager is
             mToken = accountAssetsPrior[i++];
             if (!mToken.isPToken()) {
                 // Update EToken interest if necessary.
-                mToken.accrueInterest();
+                IEToken(address(mToken)).accrueInterest();
             }
         }
 
@@ -900,7 +902,7 @@ contract MarketManager is
             // Cache `account` mToken.
             mToken = accountAssetsPrior[i];
             if (!mToken.isPToken()) {
-                debt = mToken.debtBalanceCached(account);
+                debt = IEToken(address(mToken)).debtBalanceCached(account);
 
                 // If the debt balance now does not match initial
                 // debt balance, there has been an attempt at
@@ -919,7 +921,11 @@ contract MarketManager is
                     // Where debtToPay is what caller repays to receive collateral,
                     // badDebt is loss to lenders by offsetting
                     // totalBorrows (total estimated outstanding debt).
-                    mToken.repayWithBadDebt(msg.sender, account, repayRatio);
+                    IEToken(address(mToken)).repayWithBadDebt(
+                        msg.sender,
+                        account,
+                        repayRatio
+                    );
                 }
             }
         }
@@ -963,7 +969,7 @@ contract MarketManager is
                         collateral
                     );
                     // Seize `account`'s collateral and give to caller.
-                    mToken.seizeAccountLiquidation(
+                    IPToken(address(mToken)).seizeAccountLiquidation(
                         msg.sender,
                         account,
                         collateral
@@ -1052,7 +1058,7 @@ contract MarketManager is
     /// @param liqFee The protocol liquidation fee for `pToken`,
     ///               in basis points.
     function updatePositionToken(
-        IMToken pToken,
+        address pToken,
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
@@ -1068,7 +1074,7 @@ contract MarketManager is
         }
 
         // Verify pToken is listed.
-        MarketToken storage marketToken = tokenData[address(pToken)];
+        MarketToken storage marketToken = tokenData[pToken];
         if (!marketToken.isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
@@ -1154,7 +1160,7 @@ contract MarketManager is
         }
 
         (, uint256 errorCode) = IOracleManager(centralRegistry.oracleManager())
-            .getPrice(address(pToken), true, true);
+            .getPrice(pToken, true, true);
 
         // Validate that we get a usable price.
         if (errorCode == 2) {
@@ -1675,7 +1681,7 @@ contract MarketManager is
             uint256 incentive = pToken.liqBaseIncentive +
                 ((pToken.liqCurve * data.lFactor) / WAD);
             maxAmount =
-                (cFactor * IMToken(earnToken).debtBalanceCached(account)) /
+                (cFactor * IEToken(earnToken).debtBalanceCached(account)) /
                 WAD;
 
             // Get the exchange rate, and calculate the number of
@@ -1683,7 +1689,7 @@ contract MarketManager is
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
-                    IMToken(positionToken).exchangeRateCached());
+                    IPToken(positionToken).exchangeRateCached());
         }
 
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
