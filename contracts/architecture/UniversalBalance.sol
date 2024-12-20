@@ -150,11 +150,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool[] calldata willLend,
         address[] calldata recipients
     ) external {
-        uint256 userLength = recipients.length;
-        if (userLength != amounts.length || userLength != willLend.length) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         SafeTransferLib.safeTransferFrom(
             underlying,
             msg.sender,
@@ -162,19 +157,20 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             depositSum
         );
 
-        for (uint256 i; i < userLength; ++i) {
-            _checkDelegation(recipients[i]);
-
-            // If the inputted deposit sum is invalid this will natively
-            // panic preventing invariant manipulation.
-            depositSum -= amounts[i];
-
-            _deposit(amounts[i], willLend[i], recipients[i]);
-        }
+        uint256 unusedDeposit = _multiDepositFor(
+            depositSum,
+            amounts,
+            willLend,
+            recipients
+        );
 
         // Reimburse any unused deposit amount.
-        if (depositSum > 0) {
-            SafeTransferLib.safeTransfer(underlying, msg.sender, depositSum);
+        if (unusedDeposit > 0) {
+            SafeTransferLib.safeTransfer(
+                underlying,
+                msg.sender,
+                unusedDeposit
+            );
         }
     }
 
@@ -266,41 +262,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address[] calldata owners
     ) external {
-        uint256 amountsLength = amounts.length;
-        if (
-            amountsLength != forceLentRedemption.length ||
-            amountsLength != owners.length
-        ) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        uint256 withdrawSum;
-        uint256 amountWithdrawn;
-        bool lendingBalanceUsed;
-
-        for (uint256 i; i < amountsLength; ++i) {
-            _checkDelegation(owners[i]);
-            (amountWithdrawn, lendingBalanceUsed) = _withdraw(
-                amounts[i],
-                forceLentRedemption[i],
-                owners[i]
-            );
-
-            emit Withdraw(
-                msg.sender,
-                recipient,
-                owners[i],
-                amountWithdrawn,
-                lendingBalanceUsed
-            );
-
-            withdrawSum += amountWithdrawn;
-        }
-
-        // Validate that tokens were actually redeemed.
-        if (withdrawSum == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        uint256 withdrawSum = _multiWithdrawFor(
+            amounts,
+            forceLentRedemption,
+            recipient,
+            owners
+        );
 
         // Transfer the withdrawn tokens.
         SafeTransferLib.safeTransfer(underlying, recipient, withdrawSum);
@@ -451,12 +418,49 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         emit Deposit(msg.sender, recipient, amount, willLend);
     }
 
+    /// @notice Deposits underlying token into `recipients` universal balance
+    ///         accounts, either to be held or lent out.
+    /// @dev Requires that all `recipients` has approved the caller previously
+    ///      to access their universal balance.
+    ///      Emits one or more { Deposit } event(s).
+    /// @param amounts An array containing the amount of underlying token to
+    ///                be deposited to each account.
+    /// @param willLend An array containing whether the deposited underlying
+    ///                 tokens should be lent out inside Curvance Protocol for
+    ///                 each account.
+    /// @param recipients An array containing the accounts who will receive a
+    ///                   deposit based on their matching `amounts` value.
+    /// @return The total amount of unused underlying token to deposit.
+    function _multiDepositFor(
+        uint256 depositSum,
+        uint256[] calldata amounts,
+        bool[] calldata willLend,
+        address[] calldata recipients
+    ) internal returns (uint256) {
+        uint256 userLength = recipients.length;
+        if (userLength != amounts.length || userLength != willLend.length) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        for (uint256 i; i < userLength; ++i) {
+            _checkDelegation(recipients[i]);
+
+            // If the inputted deposit sum is invalid this will natively
+            // panic preventing invariant manipulation.
+            depositSum -= amounts[i];
+
+            _deposit(amounts[i], willLend[i], recipients[i]);
+        }
+
+        return depositSum;
+    }
+
     /// @notice Withdraws underlying token from user's universal balance
     ///         account, either currently held or lent out.
     /// @dev Emits { Withdraw } event.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
-    ///                            should be pulledonly from `owner`'s lent
+    ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param owner The account that will redeem from their universal
     ///              balance.
@@ -540,6 +544,66 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
         // If lent balance was used at all, remainingAmount will be greater than 0.
         return (amount, remainingAmount > 0);
+    }
+
+    /// @notice Withdraws underlying token from `owners` universal balance
+    ///         accounts, currently held or lent out.
+    /// @dev Requires that each `owners` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits one or more { Withdraw } event(s).
+    /// @param amounts An array containing the amount of underlying token to
+    ///                be withdrawn from each account.
+    /// @param forceLentRedemption An array containing whether the withdrawn
+    ///                            underlying tokens should be pulled only
+    ///                            from an `owners` lent position or the full
+    ///                            account.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owners An array containing the accounts that will redeem from
+    ///               their universal balance.
+    /// @return The total amount of underlying token withdrawn from all accounts.
+    function _multiWithdrawFor(
+        uint256[] calldata amounts,
+        bool[] calldata forceLentRedemption,
+        address recipient,
+        address[] calldata owners
+    ) internal returns (uint256) {
+        uint256 amountsLength = amounts.length;
+        if (
+            amountsLength != forceLentRedemption.length ||
+            amountsLength != owners.length
+        ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        uint256 withdrawSum;
+        uint256 amountWithdrawn;
+        bool lendingBalanceUsed;
+
+        for (uint256 i; i < amountsLength; ++i) {
+            _checkDelegation(owners[i]);
+            (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+                amounts[i],
+                forceLentRedemption[i],
+                owners[i]
+            );
+
+            emit Withdraw(
+                msg.sender,
+                recipient,
+                owners[i],
+                amountWithdrawn,
+                lendingBalanceUsed
+            );
+
+            withdrawSum += amountWithdrawn;
+        }
+
+        // Validate that tokens were actually redeemed.
+        if (withdrawSum == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        return withdrawSum;
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
