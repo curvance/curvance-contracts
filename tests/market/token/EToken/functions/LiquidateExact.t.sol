@@ -59,24 +59,24 @@ contract LiquidateExactTest is TestBaseEToken {
         _checkLiquidationResult();
     }
 
-    function test_liquidateExact_success_byWhitelistedBundler() public {
-        address bundler = makeAddr("bundler");
+    function test_liquidateExact_success_duringAtlasOev() public {
+        address dappControl = makeAddr("dappControl");
 
         centralRegistry.setSequencingStatus(true);
 
         vm.prank(user2);
         usdc.approve(address(eUSDC), 250e6);
 
-        vm.prank(user2, bundler);
-
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
-        centralRegistry.setBundler(bundler, true);
+        centralRegistry.setAuthorizedAtlasDAppControl(dappControl);
+        vm.prank(dappControl);
+        marketManager.unlockAtlasOev();
 
-        vm.prank(user2, bundler);
+        vm.prank(user2);
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
         _checkLiquidationResult();

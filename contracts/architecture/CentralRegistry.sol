@@ -1142,18 +1142,17 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
-    function setBundler(address liquidationBundler, bool isApproved) external {
+    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
+    ///         to execute Atlas OEV liquidations.
+    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl) external {
         _checkElevatedPermissions();
 
         // Cache market list.
         uint256 numMarkets = marketManagers.length;
 
         for (uint256 i; i < numMarkets; ++i) {
-            IMarketManager(marketManagers[i]).setBundler(
-                liquidationBundler,
-                isApproved
+            IMarketManager(marketManagers[i]).setAuthorizedAtlasDAppControl(
+                authorizedAtlasDAppControl
             );
         }
     }

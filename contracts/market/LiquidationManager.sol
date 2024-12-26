@@ -35,15 +35,16 @@ abstract contract LiquidationManager {
 
     mapping(bytes32 => LiqQueue) public regularQueue;
     mapping(bytes32 => uint256) public priorityAccess;
-    mapping(address => bool) public liquidationBundlers;
+
+    address public authorizedAtlasDAppControl;
+    bool public atlasOevAllowed;
 
     /// EVENTS ///
 
     event SpecificSequencingStatusChanged(bool sequencingActive);
 
-    event LiquidationBundlerStatusChanged(
-        address indexed bundler,
-        bool isApproved
+    event AuthorizedAtlasDAppControlChanged(
+        address indexed authorizedAtlasDAppControl
     );
 
     event AccountLiquidationQueued(
@@ -60,10 +61,11 @@ abstract contract LiquidationManager {
     /// ERRORS ///
 
     error LiquidationManager__InvalidLiquidator();
-
     /// CONSTRUCTOR ///
 
-    constructor() {}
+    constructor() {
+        atlasOevAllowed = false;
+    }
 
     /// INTERNAL FUNCTIONS ///
 
@@ -145,7 +147,7 @@ abstract contract LiquidationManager {
         }
         // CASE: Called from SolverOp within Atlas tx so allow liquidations
         //       without queue validation.
-        if (liquidationBundlers[tx.origin]) {
+        if (atlasOevAllowed) {
             return;
         }
 
@@ -195,16 +197,15 @@ abstract contract LiquidationManager {
         emit SpecificSequencingStatusChanged(sequencingActive);
     }
 
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
+    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
+    ///         to execute Atlas OEV liquidations.
     /// @dev NOTE: This function MUST be called inside an external or public
     ///            function triggered by a call from the Central Registry.
-    function _setBundler(
-        address liquidationBundler,
-        bool isApproved
+    function _setAuthorizedAtlasDAppControl(
+        address authorizedAtlasDAppControl_
     ) internal {
-        liquidationBundlers[liquidationBundler] = isApproved;
+        authorizedAtlasDAppControl = authorizedAtlasDAppControl_;
 
-        emit LiquidationBundlerStatusChanged(liquidationBundler, isApproved);
+        emit AuthorizedAtlasDAppControlChanged(authorizedAtlasDAppControl);
     }
 }

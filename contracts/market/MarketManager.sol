@@ -123,6 +123,8 @@ contract MarketManager is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
+    /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidAtlasDAppControl()")))`
+    uint256 internal constant _INVALID_ATLAS_DAPP_CONTROL_SELECTOR = 0x5e3b0970;
 
     /// STORAGE ///
 
@@ -197,6 +199,7 @@ contract MarketManager is
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
     error MarketManager__InvariantError();
+    error MarketManager__InvalidAtlasDAppControl();
 
     /// CONSTRUCTOR ///
 
@@ -1348,14 +1351,28 @@ contract MarketManager is
         _setSequencingStatus(sequencingActive);
     }
 
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
-    function setBundler(address liquidationBundler, bool isApproved) external {
+    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
+    ///         to execute Atlas OEV liquidations.
+    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl) external {
         if (msg.sender != address(centralRegistry)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _setBundler(liquidationBundler, isApproved);
+        _setAuthorizedAtlasDAppControl(authorizedAtlasDAppControl);
+    }
+
+    function unlockAtlasOev() external {
+        if (msg.sender != authorizedAtlasDAppControl) {
+            _revert(_INVALID_ATLAS_DAPP_CONTROL_SELECTOR);
+        }
+        atlasOevAllowed = true;
+    }
+
+    function lockAtlasOev() external {
+        if (msg.sender != authorizedAtlasDAppControl) {
+            _revert(_INVALID_ATLAS_DAPP_CONTROL_SELECTOR);
+        }
+        atlasOevAllowed = false;
     }
 
     /// PUBLIC FUNCTIONS ///

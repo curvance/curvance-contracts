@@ -125,24 +125,24 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         _checkLiquidationResult();
     }
 
-    function test_liquidateAccount_success_byWhitelistedBundler() public {
-        address bundler = makeAddr("bundler");
+    function test_liquidateAccount_success_duringAtlasOev() public {
+        address dappControl = makeAddr("dappControl");
 
         centralRegistry.setSequencingStatus(true);
 
         vm.prank(user2);
         usdc.approve(address(eUSDC), 1000e6);
 
-        vm.prank(user2, bundler);
-
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
         marketManager.liquidateAccount(user1);
 
-        centralRegistry.setBundler(bundler, true);
+        centralRegistry.setAuthorizedAtlasDAppControl(dappControl);
+        vm.prank(dappControl);
+        marketManager.unlockAtlasOev();
 
-        vm.prank(user2, bundler);
+        vm.prank(user2);
         marketManager.liquidateAccount(user1);
 
         _checkLiquidationResult();
