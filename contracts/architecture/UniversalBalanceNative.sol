@@ -3,9 +3,7 @@ pragma solidity ^0.8.19;
 
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
-import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -25,17 +23,21 @@ contract UniversalBalanceNative is UniversalBalance {
         }
     }
 
+    /// ERRORS ///
+
+    error UniversalBalanceNative__UnderlyingTokenMismatch();
+
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         address eToken,
-        address underlying_
+        address nativeWrapppedToken
     ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).underlying() != underlying_) {
-            revert UniversalBalance__UnderlyingTokenMismatch();
+        if (IMToken(eToken).underlying() != nativeWrapppedToken) {
+            revert UniversalBalanceNative__UnderlyingTokenMismatch();
         }
     }
 
@@ -71,13 +73,47 @@ contract UniversalBalanceNative is UniversalBalance {
         _deposit(msg.value, isLent, recipient);
     }
 
+    /// @notice Deposits native gas token into `recipient`'s universal balance
+    ///         account, either to be held or lent out.
+    /// @dev Requires that all `recipients` has approved the caller previously
+    ///      to access their universal balance. The amount of native token to be
+    ///      deposited is attached to the transaction.
+    ///      Emits one or more { Deposit } event(s).
+    /// @param amounts An array containing the amount of native token to
+    ///                be deposited to each account.
+    /// @param willLend An array containing whether the deposited native
+    ///                 tokens should be lent out inside Curvance Protocol for
+    ///                 each account.
+    /// @param recipients An array containing the accounts who will receive a
+    ///                   deposit based on their matching `amounts` value.
+    function multiDepositNativeFor(
+        uint256[] calldata amounts,
+        bool[] calldata willLend,
+        address[] calldata recipients
+    ) external payable {
+        IWETH(underlying).deposit{ value: msg.value }();
+
+        uint256 unusedDeposit = _multiDepositFor(
+            msg.value,
+            amounts,
+            willLend,
+            recipients
+        );
+
+        // Reimburse any unused deposit amount.
+        if (unusedDeposit > 0) {
+            IWETH(underlying).withdraw(unusedDeposit);
+            SafeTransferLib.safeTransferETH(msg.sender, unusedDeposit);
+        }
+    }
+
     /// @notice Withdraws wrapped native token from user's universal balance
     ///         account, either currently held or lent out and transfers it
     ///         to the user in native form.
     /// @dev Emits { Withdraw } event.
     /// @param amount The amount of native token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
-    ///                            should be pulledonly from `owner`'s lent
+    ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
     function withdrawNative(
@@ -114,9 +150,9 @@ contract UniversalBalanceNative is UniversalBalance {
     ///      Emits { Withdraw } event.
     /// @param amount The amount of native token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
-    ///                            should be pulledonly from `owner`'s lent
+    ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
-    /// @param recipient The account who will receive the underlying assets.
+    /// @param recipient The account who will receive the native token.
     /// @param owner The account that will redeem from their universal
     ///              balance.
     function withdrawNativeFor(
@@ -145,6 +181,40 @@ contract UniversalBalanceNative is UniversalBalance {
             amountWithdrawn,
             lendingBalanceUsed
         );
+    }
+
+    /// @notice Withdraws native gas token from `owners` universal balance
+    ///         accounts, currently held or lent out.
+    /// @dev Requires that each `owners` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits one or more { Withdraw } event(s).
+    /// @param amounts An array containing the amount of native token to
+    ///                be withdrawn from each account.
+    /// @param forceLentRedemption An array containing whether the withdrawn
+    ///                            underlying tokens should be pulled only
+    ///                            from an `owners` lent position or the full
+    ///                            account.
+    /// @param recipient The account who will receive the native assets.
+    /// @param owners An array containing the accounts that will redeem from
+    ///               their universal balance.
+    function multiWithdrawNativeFor(
+        uint256[] calldata amounts,
+        bool[] calldata forceLentRedemption,
+        address recipient,
+        address[] calldata owners
+    ) external {
+        uint256 withdrawSum = _multiWithdrawFor(
+            amounts,
+            forceLentRedemption,
+            recipient,
+            owners
+        );
+
+        // No need to transfer wrapped native tokens out as we need to
+        // withdraw them from wrapper contract and then transfer native
+        // tokens to `recipient`.
+        IWETH(underlying).withdraw(withdrawSum);
+        SafeTransferLib.safeTransferETH(recipient, withdrawSum);
     }
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.

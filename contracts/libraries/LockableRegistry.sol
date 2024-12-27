@@ -87,7 +87,7 @@ abstract contract LockableRegistry {
         if (cooldown > COOLDOWN_MAXIMUM) {
             revert LockableRegistry__UnsafeCooldown();
         }
-        
+
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // If a user is decreasing their cooldown, lock cooldown
@@ -96,8 +96,9 @@ abstract contract LockableRegistry {
         // tracking a user to decrease their cooldown to 0 and then enabling
         // transferability.
         if (userConfig.lockCooldown > cooldown) {
-            uint40 newCooldown = 
-                uint40(userConfig.lockCooldown + block.timestamp);
+            uint40 newCooldown = uint40(
+                userConfig.lockCooldown + block.timestamp
+            );
             userConfig.transferEnabledTimestamp = newCooldown;
             userConfig.delegationEnabledTimestamp = newCooldown;
         }
