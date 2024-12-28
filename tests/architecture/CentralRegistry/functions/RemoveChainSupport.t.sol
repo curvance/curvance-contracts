@@ -8,7 +8,11 @@ import { stdStorage, StdStorage } from "forge-std/Test.sol";
 contract RemoveChainSupportTest is TestBaseMarket {
     using stdStorage for StdStorage;
 
-    event RemovedChain(uint256 chainId, address messagingHub, address votingHub);
+    event RemovedChain(
+        uint256 chainId,
+        address messagingHub,
+        address votingHub
+    );
 
     address public relayer = makeAddr("Wormhole Relayer");
 
@@ -49,7 +53,7 @@ contract RemoveChainSupportTest is TestBaseMarket {
         );
     }
 
-    function test_removeChainSupport_fail_whenUnauthorized() public {
+    function test_removeChainSupport_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
@@ -58,18 +62,14 @@ contract RemoveChainSupportTest is TestBaseMarket {
         centralRegistry.removeChainSupport(user1, user1, 42161);
     }
 
-    function test_removeChainSupport_fail_whenMessagingHubIsInvalid()
-        public
-    {
+    function test_removeChainSupport_fail_whenMessagingHubIsInvalid() public {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
         centralRegistry.removeChainSupport(address(1), address(this), 42161);
     }
 
-    function test_removeChainSupport_fail_whenVotingHubIsInvalid()
-        public
-    {
+    function test_removeChainSupport_fail_whenVotingHubIsInvalid() public {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
@@ -80,7 +80,11 @@ contract RemoveChainSupportTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.removeChainSupport(address(this), address(this), 42160);
+        centralRegistry.removeChainSupport(
+            address(this),
+            address(this),
+            42160
+        );
     }
 
     function test_removeChainSupport_success() public {
@@ -113,7 +117,9 @@ contract RemoveChainSupportTest is TestBaseMarket {
         emit RemovedChain(42161, messagingHub, votingHub);
         centralRegistry.removeChainSupport(messagingHub, votingHub, 42161);
 
-        (isSupported, , , , , , , ) = centralRegistry.supportedChainData(42161);
+        (isSupported, , , , , , , ) = centralRegistry.supportedChainData(
+            42161
+        );
 
         assertEq(isSupported, 1);
         assertEq(centralRegistry.messagingToGETHChainId(42161), 0);

@@ -71,7 +71,7 @@ contract SwapAndDepositTest is TestBaseCurvancePrefarm {
     function test_swapAndDeposit_fail_whenSwappedAmountIsNotEnoughToDeposit()
         public
     {
-        deal(_WETH_ADDRESS, user1, _ONE);
+        _prepareWETH(user1, _ONE);
 
         vm.startPrank(user1);
 
@@ -87,7 +87,7 @@ contract SwapAndDepositTest is TestBaseCurvancePrefarm {
     }
 
     function test_swapAndDeposit_success() public {
-        deal(_WETH_ADDRESS, user1, _ONE);
+        _prepareWETH(user1, _ONE);
 
         assertEq(weth.balanceOf(user1), _ONE);
         assertEq(usdc.balanceOf(user1), 0);

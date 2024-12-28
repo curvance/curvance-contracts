@@ -10,7 +10,7 @@ contract ETokenRescueTokenTest is TestBaseEToken {
         super.setUp();
 
         deal(address(eUSDC), _ONE);
-        deal(_DAI_ADDRESS, address(eUSDC), _ONE);
+        _prepareDAI(address(eUSDC), _ONE);
     }
 
     function test_eTokenRescueToken_fail_whenCallerIsNotAuthorized() public {

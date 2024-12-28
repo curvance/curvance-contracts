@@ -13,8 +13,8 @@ contract WithdrawReservesMultiTest is TestBaseMarket {
         eTokens.push(address(eUSDC));
         eTokens.push(address(eDAI));
 
-        deal(_USDC_ADDRESS, address(this), 1000e6);
-        deal(_DAI_ADDRESS, address(this), 1000e18);
+        _prepareUSDC(address(this), 1000e6);
+        _prepareDAI(address(this), 1000e18);
 
         usdc.approve(address(eUSDC), 1000e6);
         dai.approve(address(eDAI), 1000e18);
@@ -26,7 +26,9 @@ contract WithdrawReservesMultiTest is TestBaseMarket {
         eDAI.depositReserves(100e18);
     }
 
-    function test_withdrawReservesMulti_fail_whenUnauthorized() public {
+    function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

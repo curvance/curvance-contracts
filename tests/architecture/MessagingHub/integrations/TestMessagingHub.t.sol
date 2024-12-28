@@ -38,7 +38,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         // Deploy contracts on forked Arbitrum
         _deployBaseContracts();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCalldataChecker(
@@ -63,9 +63,9 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
         deal(address(messagingHub), _ONE);
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
@@ -106,7 +106,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
             abi.encodeWithSignature("queryLockPoints()")
         );
 
-        deal(_USDC_ADDRESS, address(feeManager), 100e6);
+        _prepareUSDC(address(feeManager), 100e6);
 
         uint256 compoundingFee = (100e6 *
             centralRegistry.protocolCompoundFee()) /
@@ -206,8 +206,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
     function test_executeOTC_sendFees_success() public {
         feeManager.setEarmarked(_WETH_ADDRESS, true);
 
-        deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(this), 10000e6);
+        _prepareWETH(address(feeManager), _ONE);
         uint256 feeBalanceBefore = usdc.balanceOf(address(this));
 
         assertEq(weth.balanceOf(address(this)), 0);
@@ -255,7 +255,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
@@ -274,7 +274,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
     function test_sendFees_multiple_success() public {
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
 
         uint256 daoBalance = usdc.balanceOf(address(this));
         uint256 usdcBalance = usdc.balanceOf(address(feeManager));
@@ -301,7 +301,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 0);
 
@@ -338,7 +338,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         _initMainVariables();
 
-        deal(_USDC_ADDRESS, address(messagingHub), pullAmount);
+        _prepareUSDC(address(messagingHub), pullAmount);
 
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), pullAmount);
 
@@ -454,7 +454,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
     function test_cve_bridge_success() public {
         deal(user1, _ONE);
-        deal(address(cve), user1, _ONE);
+        _prepareCVE(user1, _ONE);
 
         uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
 
@@ -484,7 +484,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(_ONE, false, rewardsData, "0x", 0);
@@ -493,8 +493,8 @@ contract TestMessagingHub is TestBaseMessagingHub {
     }
 
     function _addLiquidityToUniswap() internal {
-        deal(_USDC_ADDRESS, user2, 1000000e6);
-        deal(address(cve), user2, 1000e18);
+        _prepareUSDC(user2, 1000000e6);
+        _prepareCVE(user2, 1000e18);
 
         vm.startPrank(user2);
 

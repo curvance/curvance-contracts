@@ -8,7 +8,7 @@ contract DisabledTransfers is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         _skipRestrictionDuration();

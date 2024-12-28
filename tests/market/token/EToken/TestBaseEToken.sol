@@ -7,7 +7,6 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract TestBaseEToken is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;
-    MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
@@ -25,14 +24,6 @@ contract TestBaseEToken is TestBaseMarket {
         dualChainlinkAdaptor.addAsset(
             _USDC_ADDRESS,
             address(mockUsdcFeed),
-            0,
-            true
-        );
-        mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
-        chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
-        dualChainlinkAdaptor.addAsset(
-            _DAI_ADDRESS,
-            address(mockDaiFeed),
             0,
             true
         );
@@ -68,7 +59,6 @@ contract TestBaseEToken is TestBaseMarket {
 
         chainlinkEthUsd.updateAnswer(1500e8);
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
@@ -97,6 +87,43 @@ contract TestBaseEToken is TestBaseMarket {
             1000
         );
 
-        pBALRETH.mint(1e18, address(this));
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManager.setPTokenCollateralCaps(tokens, caps);
+
+        pBALRETH.mint(_ONE, address(this));
+    }
+
+    function _prepareLiquidation() internal {
+        address liquidityProvider = makeAddr("liquidityProvider");
+        _prepareUSDC(liquidityProvider, 200000e6);
+        _prepareBALRETH(liquidityProvider, 10e18);
+        // mint eUSDC
+        vm.startPrank(liquidityProvider);
+        usdc.approve(address(eUSDC), 200000e6);
+        eUSDC.mint(200000e6);
+        // mint cBALETH
+        balRETH.approve(address(pBALRETH), 10e18);
+        pBALRETH.deposit(10e18, liquidityProvider);
+        vm.stopPrank();
+
+        _prepareBALRETH(user1, _ONE);
+
+        vm.startPrank(user1);
+        balRETH.approve(address(pBALRETH), _ONE);
+        pBALRETH.deposit(_ONE, user1);
+        marketManager.postCollateral(user1, address(pBALRETH), _ONE - 1);
+
+        eUSDC.borrow(1000e6);
+        vm.stopPrank();
+
+        // skip min hold period
+        skip(20 minutes);
+
+        mockUsdcFeed.setMockAnswer(2e8);
+
+        _prepareUSDC(user2, 250e6);
     }
 }

@@ -99,7 +99,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
             address(cSTETH),
             1 ether
         );
-        deal(_USDC_ADDRESS, address(this), 1 ether);
+        _prepareUSDC(address(this), 1 ether);
         marketManager.listToken(address(cSTETH));
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
         marketManager.listToken(address(eUSDC));
@@ -120,7 +120,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
-        deal(_USDC_ADDRESS, address(eUSDC), 100_000e6);
+        _prepareUSDC(address(eUSDC), 100_000e6);
         deal(address(CONVEX_STETH_ETH_POOL), user1, 10_000e18);
         vm.startPrank(user1);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1_000e18);

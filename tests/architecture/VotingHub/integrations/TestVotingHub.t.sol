@@ -37,7 +37,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCalldataChecker(
@@ -64,7 +64,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100000e6);
+        _prepareUSDC(address(rewardManager), 100000e6);
 
         centralRegistry.setMessageTransmitter(_CIRCLE_MESSAGE_TRANSMITTER);
         centralRegistry.setExternalCalldataChecker(

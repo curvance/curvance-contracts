@@ -108,7 +108,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
         // try large swap (500K _USDC_ADDRESS)
         uint256 amount = 500000e6;
-        deal(_USDC_ADDRESS, address(this), amount);
+        _prepareUSDC(address(this), amount);
         VelodromeLib._swapExactTokensForTokens(
             _VELO_ROUTER,
             _VELODROME_WETH_USDC,
@@ -144,7 +144,7 @@ contract TestVelodromeVolatileLPAdaptor is TestBaseOracleManager {
 
         // try large swap (5M _USDC_ADDRESS)
         uint256 amount = 5000000e6;
-        deal(_USDC_ADDRESS, address(this), amount);
+        _prepareUSDC(address(this), amount);
         VelodromeLib._swapExactTokensForTokens(
             _VELO_ROUTER,
             _VELODROME_WETH_USDC,

@@ -214,17 +214,4 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
             }
         }
     }
-
-    function _updateRoundDataWithEntropy(
-        MockV3Aggregator _agg,
-        uint256 i
-    ) internal {
-        uint256 _price = _genRandom(i, entropy, 1e7, 2e7);
-        _agg.updateRoundData(
-            uint80(_agg.latestRound() + 1),
-            int256(_price),
-            block.timestamp,
-            block.timestamp
-        );
-    }
 }

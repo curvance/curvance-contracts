@@ -22,7 +22,7 @@ contract SetRewardManagerTest is TestBaseMarket {
         );
     }
 
-    function test_setRewardManager_fail_whenUnauthorized() public {
+    function test_setRewardManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

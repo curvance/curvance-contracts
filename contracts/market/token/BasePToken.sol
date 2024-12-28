@@ -951,6 +951,6 @@ abstract contract BasePToken is
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 }

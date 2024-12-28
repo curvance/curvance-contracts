@@ -197,10 +197,6 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         );
     }
 
-    function _prepareWBTC(address user, uint256 amount) internal {
-        deal(_WBTC_ADDRESS, user, amount);
-    }
-
     function provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = address(new User());
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -306,7 +302,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         centralRegistry.setSlippageLimit(60000);
 
         // provide fee to universal balance
-        deal(_WBTC_ADDRESS, user1, 0.1e8);
+        _prepareWBTC(user1, 0.1e8);
         vm.prank(user1);
         wbtc.approve(address(pWBTC), 0.1e8);
 

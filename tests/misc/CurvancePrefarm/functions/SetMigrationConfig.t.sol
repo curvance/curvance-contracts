@@ -51,8 +51,8 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
     }
 
     function test_setMigrationConfig_success() public {
-        deal(_USDC_ADDRESS, address(this), 1000e6);
-        deal(_BAL_WETH_RETH_ADDRESS, address(this), 1000e18);
+        _prepareUSDC(address(this), 1000e6);
+        _prepareBALRETH(address(this), 1000e18);
 
         usdc.approve(address(eUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);

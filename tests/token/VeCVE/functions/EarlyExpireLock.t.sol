@@ -14,8 +14,8 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 100e18);
-        deal(address(cve), address(this), 100e18);
+        _prepareUSDC(address(rewardManager), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         _skipRestrictionDuration();

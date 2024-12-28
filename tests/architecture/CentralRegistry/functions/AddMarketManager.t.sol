@@ -23,7 +23,7 @@ contract AddMarketManagerTest is TestBaseMarket {
         newMarket = address(new Market());
     }
 
-    function test_addMarketManager_fail_whenUnauthorized() public {
+    function test_addMarketManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

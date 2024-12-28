@@ -29,7 +29,7 @@ contract BasicRemoveContractsTest is TestBaseMarket {
         addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
     }
 
-    function test_removeFunc_fail_whenUnauthorized() public {
+    function test_removeFunc_fail_whenCallerIsNotAuthorized() public {
         uint8 length = uint8(removeFuncs.length);
         vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {

@@ -16,7 +16,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         MockERC20Token USDC = MockERC20Token(eUSDC.underlying());
 
         // Prepare token balances
-        deal(address(balRETH), address(this), 10e18);
+        _prepareBALRETH(address(this), 10e18);
         deal(address(USDC), address(this), 1_000_000e6);
 
         // Approve underlying tokens

@@ -1064,7 +1064,7 @@ contract TestGaugeManager is TestBaseMarket {
         poolWeights[0] = 1e18;
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        deal(address(cve), address(gaugeManager), 1e18);
+        _prepareCVE(address(gaugeManager), 1e18);
 
         vm.startPrank(mToken);
 
@@ -1114,7 +1114,7 @@ contract TestGaugeManager is TestBaseMarket {
         poolWeights[0] = 1e18;
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-        deal(address(cve), address(gaugeManager), 1e18);
+        _prepareCVE(address(gaugeManager), 1e18);
 
         vm.startPrank(address(pBALRETH));
 

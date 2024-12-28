@@ -73,7 +73,7 @@ contract CanRedeemTest is TestBaseMarketManager {
         _setPBALRETHCollateralCaps(100_000e18);
 
         assertTrue(pBALRETH.isPToken());
-        deal(address(balRETH), user1, 10_000e18);
+        _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1e18, user1);

@@ -16,7 +16,7 @@ contract TestBaseUniversalBalance is TestBaseMarket {
             address(eUSDC)
         );
 
-        deal(_USDC_ADDRESS, address(this), 1000e6);
+        _prepareUSDC(address(this), 1000e6);
         deal(user1, _ONE);
 
         usdc.approve(address(eUSDC), 1000e6);

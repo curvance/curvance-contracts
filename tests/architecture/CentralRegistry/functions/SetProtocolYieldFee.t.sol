@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetProtocolYieldFeeTest is TestBaseMarket {
-    function test_setProtocolYieldFee_fail_whenUnauthorized() public {
+    function test_setProtocolYieldFee_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

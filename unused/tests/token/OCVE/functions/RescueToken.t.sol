@@ -10,7 +10,7 @@
 //         super.setUp();
 
 //         deal(address(oCVE), _ONE);
-//         deal(_USDC_ADDRESS, address(oCVE), 1e6);
+//         _prepareUSDC(address(oCVE), 1e6);
 //     }
 
 //     function test_oCVERescueToken_fail_whenCallerIsNotAuthorized() public {

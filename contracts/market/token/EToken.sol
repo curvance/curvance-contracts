@@ -457,7 +457,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         assembly {
             if eq(account, caller()) {
                 // revert with EToken__Unauthorized().
-                mstore(0x00, 0xefeae624)
+                mstore(0x00, 0xc7e7bc18)
                 revert(0x1c, 0x04)
             }
         }
@@ -1221,7 +1221,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         /// to `WAD`.
         interestFactor = newInterestFactor * 1e14;
 
-        emit NewInterestFactor(oldInterestFactor, newInterestFactor);
+        emit NewInterestFactor(oldInterestFactor, interestFactor);
     }
 
     /// @notice Transfers `tokens` tokens from `from` to `to`, executed by
@@ -1470,7 +1470,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         assembly {
             if eq(account, caller()) {
                 // revert with EToken__Unauthorized().
-                mstore(0x00, 0xefeae624)
+                mstore(0x00, 0xc7e7bc18)
                 revert(0x1c, 0x04)
             }
         }
@@ -1571,6 +1571,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 }

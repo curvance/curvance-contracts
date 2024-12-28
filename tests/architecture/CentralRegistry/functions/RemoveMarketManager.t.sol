@@ -30,7 +30,7 @@ contract RemoveMarketManagerTest is TestBaseMarket {
         newMarket = address(new Market());
     }
 
-    function test_removeMarketManager_fail_whenUnauthorized() public {
+    function test_removeMarketManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

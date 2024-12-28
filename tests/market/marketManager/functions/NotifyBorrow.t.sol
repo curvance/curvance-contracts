@@ -5,8 +5,6 @@ import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract NotifyBorrowTest is TestBaseMarketManager {
-    event MarketEntered(address mToken, address account);
-
     function setUp() public override {
         super.setUp();
 

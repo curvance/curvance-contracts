@@ -5,7 +5,9 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract ClaimContributorAddressTest is TestBaseMarket {
-    function test_claimContributorAddress_fail_whenUnauthorized() public {
+    function test_claimContributorAddress_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(1));
 
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);

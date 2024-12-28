@@ -50,6 +50,7 @@ abstract contract LiquidationManager {
         address indexed account,
         address indexed liquidator
     );
+
     event LiquidationQueued(
         address indexed account,
         address indexed liquidator,
@@ -62,9 +63,7 @@ abstract contract LiquidationManager {
 
     /// CONSTRUCTOR ///
 
-    constructor() {
-        liquidationBundlers[tx.origin] = true;
-    }
+    constructor() {}
 
     /// INTERNAL FUNCTIONS ///
 
@@ -160,15 +159,12 @@ abstract contract LiquidationManager {
         // CASE: Not eligible for liquidation yet or previous liquidation
         //       window has passed.
         if (liqQueue.nonce == 0 || liqQueue.endLine < block.timestamp) {
-            // NOTE: If we haven't reached the priorityStartline then
-            //       there is no way we're at regularStartline.
             revert LiquidationManager__InvalidLiquidator();
         }
         // CASE: Liquidation is neither available to anyone, nor does the
         //       liquidator have priority access.
-        if (
-            uint256(liqQueue.regularStartline) > block.timestamp &&
-            priorityAccess[
+        if (uint256(liqQueue.regularStartline) > block.timestamp) {
+            uint256 priorityStartLine = priorityAccess[
                 keccak256(
                     abi.encodePacked(
                         account,
@@ -177,10 +173,15 @@ abstract contract LiquidationManager {
                         liquidationTarget
                     )
                 )
-            ] >
-            block.timestamp
-        ) {
-            revert LiquidationManager__InvalidLiquidator();
+            ];
+            // The liqQueue.endLine < block.timestamp check earlier ensures
+            // that verifying priorityStartLine != 0 also verifies that
+            // priorityStartline > block.timestamp - END_DURATION
+            if (
+                priorityStartLine > block.timestamp || priorityStartLine == 0
+            ) {
+                revert LiquidationManager__InvalidLiquidator();
+            }
         }
     }
 
@@ -188,7 +189,7 @@ abstract contract LiquidationManager {
     ///         `sequencingActive`.
     /// @dev NOTE: This function MUST be called inside an external or public
     ///            function triggered by a call from the Central Registry.
-    function _setSequencingStatus(bool sequencingActive) internal virtual {
+    function _setSequencingStatus(bool sequencingActive) internal {
         specificSequencingActive = sequencingActive;
 
         emit SpecificSequencingStatusChanged(sequencingActive);
@@ -201,7 +202,7 @@ abstract contract LiquidationManager {
     function _setBundler(
         address liquidationBundler,
         bool isApproved
-    ) external {
+    ) internal {
         liquidationBundlers[liquidationBundler] = isApproved;
 
         emit LiquidationBundlerStatusChanged(liquidationBundler, isApproved);

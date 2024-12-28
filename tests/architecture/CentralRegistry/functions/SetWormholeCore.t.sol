@@ -9,7 +9,7 @@ contract SetWormholeCoreTest is TestBaseMarket {
 
     address public newWormholeCore = makeAddr("Wormhole Core");
 
-    function test_setWormholeCore_fail_whenUnauthorized() public {
+    function test_setWormholeCore_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

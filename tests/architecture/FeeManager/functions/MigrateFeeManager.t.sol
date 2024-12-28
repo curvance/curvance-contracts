@@ -22,9 +22,9 @@ contract MigrateFeeManagerTest is TestBaseFeeManager {
 
         feeManager.addRewardTokens(rewardTokens);
 
-        deal(_USDC_ADDRESS, address(feeManager), _ONE);
-        deal(_DAI_ADDRESS, address(feeManager), _ONE);
-        deal(_BAL_WETH_RETH_ADDRESS, address(feeManager), _ONE);
+        _prepareUSDC(address(feeManager), _ONE);
+        _prepareDAI(address(feeManager), _ONE);
+        _prepareBALRETH(address(feeManager), _ONE);
 
         uint256[] memory rewardTokenBalances = feeManager
             .getRewardTokenBalances();

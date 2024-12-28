@@ -254,7 +254,7 @@ contract TestSimpleZapper is TestBaseMarket {
             params
         );
 
-        deal(_USDC_ADDRESS, user1, 500e6);
+        _prepareUSDC(user1, 500e6);
         vm.startPrank(user1);
         usdc.approve(address(simpleZapper), 500e6);
         simpleZapper.swapAndRepay(
