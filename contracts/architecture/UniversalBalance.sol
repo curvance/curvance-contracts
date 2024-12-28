@@ -273,6 +273,44 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         SafeTransferLib.safeTransfer(underlying, recipient, withdrawSum);
     }
 
+    /// @notice Moves a user's universal balance between lent and sitting
+    ///         mode.
+    /// @dev Emits a { Withdraw } and { Deposit } event.
+    /// @param amount The amount of underlying token to be shifted.
+    /// @param fromLent Whether the shifted underlying tokens should be pulled
+    ///                 from the user's lent balance or the full balance.
+    function shiftBalance(
+        uint256 amount,
+        bool fromLent
+    )  external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+        // If deposited balance is shifted from sitting balance, the typical
+        // workflow would be to dip into lent balance if necessary, but then
+        // we'd be withdrawing and then immediately re-depositing, minimizing
+        // the efficacy of shifting balance's intended functionality.
+        //Therefore, a more strict check is done prior to _withdraw.
+        if (!fromLent) {
+            if (userBalances[msg.sender].sittingBalance < amount) {
+                revert UniversalBalance__InsufficientBalance();
+            }
+        }
+
+        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+            amount,
+            fromLent,
+            msg.sender
+        );
+
+        emit Withdraw(
+            msg.sender,
+            msg.sender,
+            msg.sender,
+            amountWithdrawn,
+            lendingBalanceUsed
+        );
+
+        _deposit(amountWithdrawn, !fromLent, msg.sender);
+    }
+
     /// @notice Transfers `amount` from caller's universal balance, currently
     ///         held or lent out to `recipient`.
     /// @dev Emits { Withdraw } and { Deposit } events.
