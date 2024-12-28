@@ -103,8 +103,6 @@ abstract contract ZapperBase is ReentrancyGuard {
 
         // Approve `mToken` to take `underlying`.
         SwapperLib._approveTokenIfNeeded(underlying, mToken, assets);
-
-        uint256 priorBalance = IERC20(mToken).balanceOf(recipient);
         uint256 shares;
 
         if (isPToken) {
@@ -154,7 +152,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         SwapperLib._removeApprovalIfNeeded(underlying, mToken);
 
         // Bubble up how many mTokens `recipient` received.
-        return IERC20(mToken).balanceOf(recipient) - priorBalance;
+        return shares;
     }
 
     /// @notice Exits a Curvance position.

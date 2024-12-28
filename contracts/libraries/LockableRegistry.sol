@@ -67,11 +67,15 @@ abstract contract LockableRegistry {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Checks whether `user` has their tokens transferability locked.
-    /// @param user The address to check whether transferability is disabled.
-    /// @return Returns whether `user` has their token transferability locked.
-    function lockEnabled(address user) public view returns (bool) {
-        return !_userConfig[user].transferDisabled;
+    /// @notice Checks whether `user` has transferability enabled or disabled
+    ///         for their tokens.
+    /// @return Returns true if the user has transferability disabled.
+    function checkTransfersDisabled(
+        address user
+    ) external view returns (bool) {
+        UserConfig memory userConfig = _userConfig[user];
+        return (userConfig.transferDisabled ||
+            userConfig.transferEnabledTimestamp > block.timestamp);
     }
 
     /// @notice Sets token transferability unlock cooldown.
@@ -147,17 +151,6 @@ abstract contract LockableRegistry {
 
         // Timestamp emitted is 0 if locking transferability.
         emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
-    }
-
-    /// @notice Checks whether `user` has transferability enabled or disabled
-    ///         for their tokens.
-    /// @return Returns true if the user has transferability disabled.
-    function checkTransfersDisabled(
-        address user
-    ) external view returns (bool) {
-        UserConfig memory userConfig = _userConfig[user];
-        return (userConfig.transferDisabled ||
-            userConfig.transferEnabledTimestamp > block.timestamp);
     }
 
     /// USER DELEGATION PLUGIN MANAGEMENT ///
