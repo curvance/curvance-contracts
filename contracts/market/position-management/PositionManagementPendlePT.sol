@@ -95,7 +95,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
             SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
-        // enter pendle
+        // Enter Pendle position.
         PendleLib.enterPendle(
             address(router),
             true,
@@ -151,7 +151,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
-        // exit pendle
+        // Exit Pendle position.
         PendleLib.exitPendle(
             address(router),
             true,
