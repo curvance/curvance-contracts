@@ -40,6 +40,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapData.call),
@@ -49,6 +50,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         address[],
+                        uint256,
                         bool,
                         address
                     )
@@ -116,6 +118,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ComplexZapper.ZapperData memory desc,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapData.call),
@@ -124,6 +127,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         ComplexZapper.BalancerData,
                         ComplexZapper.ZapperData,
                         SwapperLib.Swap[],
+                        uint256,
                         bool,
                         address
                     )
@@ -190,6 +194,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapData.call),
@@ -199,6 +204,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         address,
+                        uint256,
                         bool,
                         address
                     )
@@ -258,6 +264,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                 ,
                 ,
                 ,
+                ,
                 address _recipient
             ) = abi.decode(
                     _getFuncParams(swapData.call),
@@ -268,6 +275,7 @@ contract ComplexZapperCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         PendleLib.PendleData,
+                        uint256,
                         bool,
                         address
                     )

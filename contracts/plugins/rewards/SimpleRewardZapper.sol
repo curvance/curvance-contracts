@@ -102,17 +102,23 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// @notice Claims Reward Manager rewards, then Zaps, then deposits
-    ///         `zapperCall.inputToken`, a pToken underlying, and enters
+    ///         `zapperCall.inputToken`, a mToken underlying, and enters
     ///         into Curvance collateral position.
+    /// @param mToken The Curvance mToken address.
+    /// @param isPToken Whether `mToken` is a pToken or not.
     /// @param swapData Swap instruction data to execute the swap.
-    /// @param pToken The Curvance pToken address.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `mToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
-    /// @return The output amount of pTokens received from Zapping.
+    /// @return The output amount of mToken shares received from Zapping.
     function claimSwapAndDeposit(
+        address mToken,
+        bool isPToken,
         SwapperLib.Swap memory swapData,
-        address pToken,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external nonReentrant returns (uint256) {
@@ -133,21 +139,26 @@ contract SimpleRewardZapper is ZapperBase {
 
         // Claim caller rewards and cache reward amount.
         uint256 rewards = _processRewards(msg.sender);
-
         // Validate Zap input amount equals rewards received.
         if (swapData.inputAmount != rewards) {
             revert SimpleRewardZapper__InvalidInputAmount();
         }
 
-        // Execute Swap into pToken.underlying.
-        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        if (swapData.inputToken == swapData.outputToken) {
+            rewards = swapData.inputAmount;
+        } else {
+            // Execute swap into mToken underlying.
+            rewards = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
 
-        // Enter Curvance pToken position.
+        // Enter Curvance mToken position.
         return
             _enterCurvance(
-                pToken,
+                mToken,
                 swapData.outputToken,
-                amount,
+                isPToken,
+                rewards,
+                expectedShares,
                 collateralize,
                 recipient
             );

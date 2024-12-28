@@ -86,7 +86,8 @@ contract PositionManagementPendlePT is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.inputAmount != leverageData.borrowAmount
+                swapData.inputAmount != leverageData.borrowAmount ||
+                swapData.outputToken != pendleData.input.tokenIn
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
@@ -128,6 +129,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address ptToken = deleverageData.positionToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         // decode pendle data
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
@@ -156,12 +158,24 @@ contract PositionManagementPendlePT is PositionManagementBase {
             ptToken,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount
+            deleverageData.collateralAmount,
+            0 // don't need for PT
         );
 
-        if (deleverageData.swapData.length > 0) {
+        uint256 length = deleverageData.swapData.length;
+
+        if (length > 0) {
+            if (
+                deleverageData.swapData[0].inputToken !=
+                pendleData.output.tokenOut ||
+                deleverageData.swapData[length - 1].outputToken !=
+                borrowUnderlying
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
             // Swap output token for borrow underlying.
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+            for (uint256 i; i < length; ++i) {
                 SwapperLib.swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]

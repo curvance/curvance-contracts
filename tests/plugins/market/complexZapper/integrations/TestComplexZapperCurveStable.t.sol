@@ -37,6 +37,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );
@@ -68,6 +69,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_TRICRYPTO_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );

@@ -280,8 +280,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
-            swapData,
             address(pWETH),
+            true,
+            swapData,
+            0,
             false,
             user1
         );

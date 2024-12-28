@@ -17,24 +17,29 @@ contract SimpleZapper is ZapperBase {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Swaps then deposits `swapData.outputToken`, a pToken
+    /// @notice Swaps then deposits `swapData.outputToken`, a mToken
     ///         underlying, and enters into Curvance position,
     ///         for `recipient`.
     /// @dev Requires plugin approval for collateralization.
-    /// @param pToken The Curvance pToken address.
+    /// @param mToken The Curvance position token (mToken) address.
     /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
     ///                               a chain's native token, dictates whether
     ///                               native should be deposited as native or
     ///                               wrapped native.
     /// @param swapData Swap instruction data to execute the swap.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `mToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
     /// @return The output amount received from Zapping.
     function swapAndDeposit(
-        address pToken,
+        address mToken,
+        bool isPToken,
         bool depositAsWrappedNative,
         SwapperLib.Swap memory swapData,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256) {
@@ -56,16 +61,18 @@ contract SimpleZapper is ZapperBase {
         if (swapData.inputToken == swapData.outputToken) {
             amount = swapData.inputAmount;
         } else {
-            // Execute swap into pToken underlying.
+            // Execute swap into mToken underlying.
             amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
-        // Enter Curvance pToken position.
+        // Enter Curvance mToken position.
         return
             _enterCurvance(
-                pToken,
+                mToken,
                 swapData.outputToken,
+                isPToken,
                 amount,
+                expectedShares,
                 collateralize,
                 recipient
             );
@@ -73,20 +80,20 @@ contract SimpleZapper is ZapperBase {
 
     /// @notice Swaps then repays eToken debt inside Curvance for `recipient`.
     /// @dev Sends any excess eToken underlying to `recipient`.
+    /// @param eToken The Curvance eToken address.
     /// @param depositAsWrappedNative Used only if `swapData.inputToken` is
     ///                               a chain's native token, dictates whether
     ///                               native should be deposited as native or
     ///                               wrapped native.
     /// @param swapData Swap instruction data to execute the repayment.
-    /// @param eToken The Curvance eToken address.
     /// @param repayAmount The amount of eToken underlying to be repaid.
     /// @param recipient Address that should have its outstanding debt repaid.
     /// @return The excess amount of eToken underlying that was returned
     ///         to `recipient`.
     function swapAndRepay(
+        address eToken,
         bool depositAsWrappedNative,
         SwapperLib.Swap memory swapData,
-        address eToken,
         uint256 repayAmount,
         address recipient
     ) external payable nonReentrant returns (uint256) {
@@ -153,10 +160,10 @@ contract SimpleZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvance(
             IMToken(redemptionData.mToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
             swapData.inputToken,
+            redemptionData.shares,
             swapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 

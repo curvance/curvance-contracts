@@ -304,7 +304,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(6000);
 
         // provide fee to universal balance
         deal(_WBTC_ADDRESS, user1, 0.1e8);

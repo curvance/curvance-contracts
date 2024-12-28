@@ -112,7 +112,6 @@ abstract contract PositionManagementBase is
         ICentralRegistry centralRegistry_,
         address marketManager_,
         address wrappedNative_
-
     ) PluginDelegable(centralRegistry_) {
         // Validate that `marketManager_` is configured as a market manager
         // inside the Central Registry.
@@ -355,22 +354,22 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidAmount();
         }
 
-        // Take protocol fee, if any.
-        uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
-        if (fee > 0) {
-            borrowAmount -= fee;
-            SafeTransferLib.safeTransfer(
-                borrowUnderlying,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
-
         if (
             borrowToken != address(leverageData.borrowToken) ||
             borrowAmount != leverageData.borrowAmount
         ) {
             revert PositionManagementBase__InvalidParam();
+        }
+
+        // Take protocol fee, if any.
+        uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
+        if (fee > 0) {
+            leverageData.borrowAmount -= fee;
+            SafeTransferLib.safeTransfer(
+                borrowUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
         }
 
         // We do not need to check whether positionToken is listed
@@ -469,22 +468,22 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidAmount();
         }
 
-        // Take protocol fee, if any.
-        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
-        if (fee > 0) {
-            collateralAmount -= fee;
-            SafeTransferLib.safeTransfer(
-                collateralUnderlying,
-                centralRegistry.daoAddress(),
-                fee
-            );
-        }
-
         if (
             positionToken != address(deleverageData.positionToken) ||
             collateralAmount != deleverageData.collateralAmount
         ) {
             revert PositionManagementBase__InvalidParam();
+        }
+
+        // Take protocol fee, if any.
+        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
+        if (fee > 0) {
+            deleverageData.collateralAmount -= fee;
+            SafeTransferLib.safeTransfer(
+                collateralUnderlying,
+                centralRegistry.daoAddress(),
+                fee
+            );
         }
 
         _swapCollateralToBorrowUnderlying(deleverageData);
@@ -620,9 +619,8 @@ abstract contract PositionManagementBase is
             borrowToken
         );
 
-        uint256 liquidityAvailable = IERC20(
-            IMToken(borrowToken).underlying()
-        ).balanceOf(borrowToken);
+        uint256 liquidityAvailable = IERC20(IMToken(borrowToken).underlying())
+            .balanceOf(borrowToken);
 
         if (liquidityAvailable < maxDebtBorrowable) {
             maxDebtBorrowable = liquidityAvailable;

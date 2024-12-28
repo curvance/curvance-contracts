@@ -107,13 +107,15 @@ library PendleLib {
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
     /// @param amount The Pendle lp/pt amount to exit.
+    /// @param minTokenOut The minimum token output amount acceptable.
     function exitPendle(
         address router,
         bool isPt,
         address token,
         PendleData memory data,
         address lpToken,
-        uint256 amount
+        uint256 amount,
+        uint256 minTokenOut
     ) internal {
         if (isPt) {
             SwapperLib._approveTokenIfNeeded(token, router, amount);
@@ -138,7 +140,7 @@ library PendleLib {
                 );
 
             (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
-            sy.redeem(address(this), balance, token, 0, false);
+            sy.redeem(address(this), balance, token, minTokenOut, false);
         }
     }
 }

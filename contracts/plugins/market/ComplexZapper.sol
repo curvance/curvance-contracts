@@ -61,6 +61,9 @@ contract ComplexZapper is ZapperBase {
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param lpMinter The minter address of the Curve lp token.
     /// @param tokens The underlying coins of the Curve lp token.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped position deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -71,6 +74,7 @@ contract ComplexZapper is ZapperBase {
         SwapperLib.Swap[] calldata swapData,
         address lpMinter,
         address[] calldata tokens,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -83,7 +87,7 @@ contract ComplexZapper is ZapperBase {
         );
 
         // Enter Curve lp position.
-        uint256 lpOutAmount = CurveLib.enterCurve(
+        outAmount = CurveLib.enterCurve(
             lpMinter,
             zapData.outputToken,
             tokens,
@@ -94,7 +98,9 @@ contract ComplexZapper is ZapperBase {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
-            lpOutAmount,
+            true,
+            outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -181,10 +187,10 @@ contract ComplexZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvance(
             IMToken(redemptionData.mToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -211,6 +217,9 @@ contract ComplexZapper is ZapperBase {
     ///                       3. The underlying tokens of the BPT.
     /// @param zapData Zap instruction data to execute the Zap.
     /// @param swapData Array of swap instruction data to execute the Zap.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -220,6 +229,7 @@ contract ComplexZapper is ZapperBase {
         BalancerData calldata balancerData,
         ZapperData calldata zapData,
         SwapperLib.Swap[] calldata swapData,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -232,7 +242,7 @@ contract ComplexZapper is ZapperBase {
         );
 
         // Enter BPT position.
-        uint256 lpOutAmount = BalancerLib.enterBalancer(
+        outAmount = BalancerLib.enterBalancer(
             balancerData.balancerVault,
             balancerData.balancerPoolId,
             zapData.outputToken,
@@ -244,7 +254,9 @@ contract ComplexZapper is ZapperBase {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
-            lpOutAmount,
+            true,
+            outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -334,10 +346,10 @@ contract ComplexZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvance(
             IMToken(redemptionData.mToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -362,6 +374,9 @@ contract ComplexZapper is ZapperBase {
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -372,6 +387,7 @@ contract ComplexZapper is ZapperBase {
         SwapperLib.Swap[] calldata swapData,
         address router,
         address factory,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -397,7 +413,9 @@ contract ComplexZapper is ZapperBase {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
+            true,
             outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -452,10 +470,10 @@ contract ComplexZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvance(
             IMToken(redemptionData.mToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -473,6 +491,9 @@ contract ComplexZapper is ZapperBase {
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -484,6 +505,7 @@ contract ComplexZapper is ZapperBase {
         address router,
         bool isPt,
         PendleLib.PendleData calldata data,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -508,7 +530,9 @@ contract ComplexZapper is ZapperBase {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
+            true,
             outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -585,10 +609,10 @@ contract ComplexZapper is ZapperBase {
         // Exit Curvance position.
         _exitCurvance(
             IMToken(redemptionData.mToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -774,7 +798,8 @@ contract ComplexZapper is ZapperBase {
             token,
             data,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            0
         );
 
         uint256 numTokenSwaps = swapData.length;

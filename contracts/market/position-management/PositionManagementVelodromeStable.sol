@@ -179,6 +179,7 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         VelodromeLib.exitVelodrome(
             router,
@@ -186,9 +187,23 @@ contract PositionManagementVelodromeStable is PositionManagementBase {
             deleverageData.collateralAmount
         );
 
+        uint256 numSwaps = deleverageData.swapData.length;
+
         // Check to make sure there is calldata attached to execute the swap.
-        if (deleverageData.swapData.length > 0) {
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+        if (numSwaps > 0) {
+            address token0 = IVeloPair(pool).token0();
+            address token1 = IVeloPair(pool).token1();
+
+            if (
+                (deleverageData.swapData[0].inputToken != token0 &&
+                    deleverageData.swapData[0].inputToken != token1) ||
+                deleverageData.swapData[numSwaps - 1].outputToken !=
+                borrowUnderlying
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
+            for (uint256 i; i < numSwaps; ++i) {
                 // Swap Swapper input token for borrow underlying.
                 SwapperLib.swapSafe(
                     centralRegistry,

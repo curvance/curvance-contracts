@@ -110,6 +110,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );
@@ -173,6 +174,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );
@@ -205,6 +207,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             true,
             user1
         );
@@ -240,6 +243,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             true,
             user1
         );

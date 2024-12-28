@@ -225,6 +225,82 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testLeverageWithFeeEnabled() public {
+        // 1% leverage fee
+        centralRegistry.setProtocolLeverageFee(100);
+
+        vm.startPrank(user);
+
+        deal(_VELODROME_DAI_USDC, user, 0.0001 ether);
+        IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 0.0001 ether);
+
+        // mint
+        assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
+        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        // borrow
+        eDAI.borrow(100 ether);
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+
+        uint256 protocolBalanceBeforeLeverage = dai.balanceOf(
+            centralRegistry.daoAddress()
+        );
+        uint256 leverageFee = amountForLeverage / 100;
+
+        PositionManagementVelodromeStable.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.swapData.inputToken = _DAI_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
+        leverageData.swapData.outputToken = _USDC_ADDRESS;
+        leverageData.swapData.target = address(veloRouter);
+        leverageData.swapData.slippage = 50e16;
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _DAI_ADDRESS;
+        routes[0].to = _USDC_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(veloPairFactory);
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            amountForLeverage - leverageFee,
+            0,
+            routes,
+            address(positionManagement),
+            type(uint256).max
+        );
+        leverageData.auxData = bytes("");
+
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        uint256 protocolBalanceAfterLeverage = dai.balanceOf(
+            centralRegistry.daoAddress()
+        );
+        assertEq(
+            protocolBalanceAfterLeverage,
+            protocolBalanceBeforeLeverage + leverageFee
+        );
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
         // Warp until collateral posting wait time ends
@@ -263,10 +339,10 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 60e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -282,6 +358,82 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+
+        vm.stopPrank();
+    }
+
+    function testDeLeverageWithFeeEnabled() public {
+        testLeverage();
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+
+        // 1% leverage fee
+        centralRegistry.setProtocolLeverageFee(100);
+
+        vm.startPrank(user);
+
+        PositionManagementVelodromeStable.DeleverageStruct
+            memory deleverageData;
+
+        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+
+        uint256 collateralAmount = 0.00003 ether;
+        uint256 leverageFee = collateralAmount / 100;
+        uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
+            .balanceOf(centralRegistry.daoAddress());
+
+        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        deleverageData.collateralAmount = collateralAmount;
+        deleverageData.borrowToken = eDAI;
+
+        uint256 usdcAmount = 27177254;
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
+        deleverageData.swapData[0].inputAmount = usdcAmount;
+        deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
+        deleverageData.swapData[0].target = address(veloRouter);
+        deleverageData.swapData[0].slippage = 50e16;
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _USDC_ADDRESS;
+        routes[0].to = _DAI_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(veloPairFactory);
+        deleverageData.swapData[0].call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
+            usdcAmount,
+            0,
+            routes,
+            address(positionManagement),
+            type(uint256).max
+        );
+        deleverageData.repayAmount = 59.3e18;
+
+        pUSDCDAI.approve(address(positionManagement), type(uint256).max);
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(
+            eDAIBorrowed,
+            eDAIBorrowedBefore - deleverageData.repayAmount
+        );
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertEq(
+            pUSDCDAIBalance,
+            pUSDCDAIBalanceBefore - deleverageData.collateralAmount
+        );
+        assertEq(pUSDCDAIBorrowed, 0);
+
+        uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
+            .balanceOf(centralRegistry.daoAddress());
+        assertEq(
+            protocolBalanceAfterDeLeverage,
+            protocolBalanceBeforeDeLeverage + leverageFee
+        );
 
         vm.stopPrank();
     }
@@ -346,6 +498,8 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             .getSnapshot(user);
         assertGt(pUSDCDAIBalance, 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        vm.stopPrank();
     }
 
     function testDeLeverageFor() public {
@@ -386,14 +540,14 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 60e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);

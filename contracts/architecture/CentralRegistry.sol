@@ -690,9 +690,10 @@ contract CentralRegistry is ERC165, LockableRegistry {
     function setVoteBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Voting power boost cannot be less than 1,
-        // unless its being turned off.
-        if (value < DENOMINATOR && value != 0) {
+        // Voting power boost cannot be less than or equal to 1,
+        // unless its being turned off, which is represented with a
+        // value of 0.
+        if (value <= DENOMINATOR && value != 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -712,8 +713,10 @@ contract CentralRegistry is ERC165, LockableRegistry {
     function setLockBoostMultiplier(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Emissions boost cannot be less than 1, unless its being turned off.
-        if (value < DENOMINATOR && value != 0) {
+        // Locking emissions boost cannot be less than or equal to 1,
+        // unless its being turned off, which is represented with a
+        // value of 0.
+        if (value <= DENOMINATOR && value != 0) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 

@@ -216,6 +216,51 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testDepositAndLeverage() public {
+        vm.startPrank(user);
+
+        deal(_AERODROME_DAI_USDC, user, 0.0001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(
+            address(positionManagement),
+            0.0001 ether
+        );
+
+        // allow delegation for postCollateral
+        pUSDCDAI.setDelegateApproval(address(positionManagement), true);
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = 0.66e20;
+
+        PositionManagementAerodromeStable.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.swapData.inputToken = address(0x0);
+        leverageData.swapData.inputAmount = 0;
+        leverageData.swapData.outputToken = address(0x0);
+        leverageData.swapData.target = address(0x0);
+        leverageData.swapData.slippage = 0;
+        leverageData.swapData.call = bytes("");
+        leverageData.auxData = bytes("");
+
+        positionManagement.depositAndLeverage(
+            0.0001 ether,
+            leverageData,
+            0.05e18
+        ); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
         // Warp until collateral posting wait time ends
@@ -239,24 +284,25 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].inputAmount = usdcAmount;
         deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapData[0].target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData[0].target = address(aeroRouter);
         deleverageData.swapData[0].slippage = 1e18;
-        address[] memory path = new address[](2);
-        path[0] = _USDC_ADDRESS;
-        path[1] = _DAI_ADDRESS;
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _USDC_ADDRESS;
+        routes[0].to = _DAI_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(aeroPairFactory);
+        deleverageData.swapData[0].call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
             usdcAmount,
             0,
-            path,
+            routes,
             address(positionManagement),
             block.timestamp
         );
-        IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(usdcAmount, path);
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 59.56e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
-        positionManagement.deleverage(deleverageData, 0.5e18); // 50% slippage
+        positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -348,28 +394,29 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deleverageData.swapData[0].inputToken = _USDC_ADDRESS;
         deleverageData.swapData[0].inputAmount = usdcAmount;
         deleverageData.swapData[0].outputToken = _DAI_ADDRESS;
-        deleverageData.swapData[0].target = _UNISWAP_V2_ROUTER;
+        deleverageData.swapData[0].target = address(aeroRouter);
         deleverageData.swapData[0].slippage = 1e18;
-        address[] memory path = new address[](2);
-        path[0] = _USDC_ADDRESS;
-        path[1] = _DAI_ADDRESS;
-        deleverageData.swapData[0].call = abi.encodeWithSignature(
-            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+        IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
+        routes[0].from = _USDC_ADDRESS;
+        routes[0].to = _DAI_ADDRESS;
+        routes[0].stable = true;
+        routes[0].factory = address(aeroPairFactory);
+        deleverageData.swapData[0].call = abi.encodeWithSelector(
+            IVeloRouter.swapExactTokensForTokens.selector,
             usdcAmount,
             0,
-            path,
+            routes,
             address(positionManagement),
             block.timestamp
         );
-        IUniswapV2Router(_UNISWAP_V2_ROUTER).getAmountsOut(usdcAmount, path);
-        deleverageData.repayAmount = 30e18;
+        deleverageData.repayAmount = 59.56e18;
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
 
         vm.prank(user2);
-        positionManagement.deleverageFor(deleverageData, user, 0.5e18); // 50% slippage
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
@@ -385,6 +432,8 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
+
+        vm.stopPrank();
     }
 
     function _provideEnoughLiquidityForLeverage() internal {

@@ -148,6 +148,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             false,
             user1
         );
@@ -202,6 +203,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             false,
             user1
         );
@@ -229,6 +231,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             true,
             user1
         );
@@ -259,6 +262,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             true,
             user1
         );
