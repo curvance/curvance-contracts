@@ -6,7 +6,7 @@ import { CVE } from "contracts/token/CVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintTreasuryTest is TestBaseMarket {
-    function test_mintTreasury_fail_whenUnauthorized() public {
+    function test_mintTreasury_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintTreasury(1000);

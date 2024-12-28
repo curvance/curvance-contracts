@@ -19,7 +19,7 @@ contract BridgeTokenTest is TestBaseMessagingHub {
             3
         );
 
-        deal(address(cve), address(messagingHub), _ONE);
+        _prepareCVE(address(messagingHub), _ONE);
         deal(address(cve), _ONE);
         deal(address(veCVE), _ONE);
     }
@@ -43,7 +43,11 @@ contract BridgeTokenTest is TestBaseMessagingHub {
     function test_bridgeToken_fail_whenDestinationChainIsNotSupported()
         public
     {
-        centralRegistry.removeChainSupport(address(messagingHub), address(votingHub), 42161);
+        centralRegistry.removeChainSupport(
+            address(messagingHub),
+            address(votingHub),
+            42161
+        );
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.bridgeToken(42161, user1, _ONE, 0, 0, false);

@@ -12,11 +12,11 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(this), 1000e6);
-        deal(_BAL_WETH_RETH_ADDRESS, address(this), 1000e18);
-        deal(_WETH_ADDRESS, user1, _ONE);
-        deal(_WETH_ADDRESS, user2, 100e18);
-        deal(_BAL_WETH_RETH_ADDRESS, user2, 100e18);
+        _prepareUSDC(address(this), 1000e6);
+        _prepareBALRETH(address(this), 1000e18);
+        _prepareWETH(user1, _ONE);
+        _prepareWETH(user2, 100e18);
+        _prepareBALRETH(user2, 100e18);
 
         address[] memory newPrefarmTokens = new address[](1);
         newPrefarmTokens[0] = _BAL_WETH_RETH_ADDRESS;

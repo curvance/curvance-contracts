@@ -138,15 +138,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         );
     }
 
-    function _withdraw(
-        address _user,
-        MockSimplePToken _pToken,
-        uint256 /* _amount */
-    ) internal {
-        vm.prank(_user);
-        _pToken.withdraw(1e20, address(_user), address(_user));
-    }
-
     function _supplyEToken(
         address _user,
         EToken _eToken,
@@ -163,14 +154,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     function _borrow(address _user, EToken _eToken, uint256 _amount) internal {
         vm.prank(_user);
         _eToken.borrow(_amount);
-    }
-
-    function _repay(address _user, EToken _eToken, uint256 _amount) internal {
-        MockERC20Token tokenDebt = MockERC20Token(_eToken.underlying());
-        vm.startPrank(_user);
-        tokenDebt.approve(address(_eToken), _amount);
-        _eToken.repay(_amount);
-        vm.stopPrank();
     }
 
     function _checkLiquidation(
@@ -365,51 +348,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         );
     }
 
-    function _runLiquidationChecks(
-        address userToLiquidate,
-        address liquidator,
-        EToken _eToken,
-        MockSimplePToken _pToken,
-        uint256 _expectedLiqAmount
-    ) internal {
-        EToken[] memory _eTokens = new EToken[](1);
-        _eTokens[0] = _eToken;
-        MockSimplePToken[] memory _pTokens = new MockSimplePToken[](1);
-        _pTokens[0] = _pToken;
-        address[] memory _users = new address[](2);
-        _users[0] = userToLiquidate;
-        _users[1] = liquidator;
-
-        console2.log("\n pre liquidation asset check");
-        _checkAssets(_eTokens, _pTokens, _users);
-        console2.log("\n liquidate");
-        uint256 snapshot = vm.snapshot();
-
-        console2.log("Market Manager liquidateAccount");
-
-        _liquidateAccount(userToLiquidate, liquidator);
-        _checkAssets(_eTokens, _pTokens, _users);
-
-        vm.revertTo(snapshot);
-
-        console2.log("eTokens liquidateExact");
-
-        _eTokenLiquidateExact(
-            _eTokens[0],
-            _pTokens[0],
-            _expectedLiqAmount,
-            userToLiquidate,
-            liquidator
-        );
-        _checkAssets(_eTokens, _pTokens, _users);
-
-        vm.revertTo(snapshot);
-
-        console2.log("eTokens liquidate");
-        _eTokenLiquidate(_eToken, _pToken, userToLiquidate, liquidator);
-        _checkAssets(_eTokens, _pTokens, _users);
-    }
-
     function _liquidateAllExact(
         EToken[] memory eTokens,
         MockSimplePToken[] memory pTokens,
@@ -552,144 +490,5 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     ) internal {
         vm.prank(_liquidator);
         _eToken.liquidate(_account, IMToken(address(_collateral)));
-    }
-
-    function _getHypotheicalLiquidity(
-        address account,
-        address mTokenModified,
-        uint256 redeemTokens, // in shares
-        uint256 borrowAmount // in assets
-    )
-        internal
-        view
-        returns (uint256 overR, uint256 underR, uint256 overB, uint256 underB)
-    {
-        (overR, underR, ) = marketManager.hypotheticalLiquidityOf(
-            account,
-            address(mTokenModified),
-            redeemTokens,
-            0
-        );
-
-        (overB, underB, ) = marketManager.hypotheticalLiquidityOf(
-            account,
-            address(mTokenModified),
-            0,
-            borrowAmount
-        );
-        console2.log("redeem: over %s under %s", overR, underR);
-        console2.log("borrow: over %s under %s", overB, underB);
-    }
-
-    function _getHypotheicalLiquidityAllUsers(
-        address[] memory users,
-        EToken[] memory eTokens,
-        uint256 redeemTokens, // in shares
-        uint256 borrowAmount // in assets
-    ) internal view {
-        for (uint256 i; i < noOfUsersCollateral; i++) {
-            console2.log("user %s", users[i]);
-            for (uint256 j; j < noOfEarnTokens; j++) {
-                console2.log("earnToken %s", address(eTokens[j]));
-                _getHypotheicalLiquidity(
-                    users[i],
-                    address(eTokens[j]),
-                    redeemTokens,
-                    borrowAmount
-                );
-            }
-        }
-    }
-
-    function _checkAssets(
-        EToken[] memory _eTokens,
-        MockSimplePToken[] memory _pTokens,
-        address[] memory _users
-    ) internal view returns (bool) {
-        address user;
-        for (uint256 i = 0; i < _users.length; i++) {
-            user = _users[i];
-            console2.log("\nuser %s", user);
-            for (uint256 j = 0; j < _eTokens.length; j++) {
-                console2.log("\neToken %s", j);
-                _checkAssetEToken(_eTokens[j], user);
-            }
-            for (uint256 j = 0; j < _pTokens.length; j++) {
-                console2.log("\npToken %s", j);
-                _checkAssetPToken(_pTokens[j], user);
-            }
-        }
-        console2.log("\nliquidator %s", liquidator);
-        for (uint256 j = 0; j < _eTokens.length; j++) {
-            console2.log("\neToken %s", j);
-            _checkAssetEToken(_eTokens[j], liquidator);
-        }
-        for (uint256 j = 0; j < _pTokens.length; j++) {
-            console2.log("\npToken %s", j);
-            _checkAssetPToken(_pTokens[j], liquidator);
-        }
-        return true;
-    }
-
-    function _checkAssetEToken(
-        EToken _eToken,
-        address _user
-    ) internal view returns (bool) {
-        console2.log(
-            "eToken %s balance %s",
-            address(_eToken),
-            _eToken.balanceOf(_user)
-        );
-        console2.log(
-            "underlying %s balance %s",
-            address(_eToken.underlying()),
-            IERC20(_eToken.underlying()).balanceOf(_user)
-        );
-        return true;
-    }
-
-    function _checkAssetPToken(
-        MockSimplePToken _pToken,
-        address _user
-    ) internal view returns (bool) {
-        console2.log(
-            "pToken %s balance %s",
-            address(_pToken),
-            _pToken.balanceOf(_user)
-        );
-        console2.log(
-            "underlying %s balance %s",
-            address(_pToken.underlying()),
-            IERC20(_pToken.underlying()).balanceOf(_user)
-        );
-        return true;
-    }
-
-    function _getUserAssets(
-        address user
-    )
-        internal
-        view
-        returns (
-            IMToken[] memory userAssets,
-            uint256[] memory pTokenBalances,
-            uint256[] memory eTokenBalances,
-            uint256[] memory underlyingBalances
-        )
-    {
-        userAssets = marketManager.assetsOf(user);
-        pTokenBalances = new uint256[](noOfPositionTokens);
-        eTokenBalances = new uint256[](noOfEarnTokens);
-        underlyingBalances = new uint256[](noOfEarnTokens);
-
-        for (uint256 i = 0; i < userAssets.length; i++) {
-            if (userAssets[i].isPToken()) {
-                pTokenBalances[i] = userAssets[i].balanceOf(user);
-            } else {
-                eTokenBalances[i] = userAssets[i].balanceOf(user);
-                underlyingBalances[i] = IERC20(userAssets[i].underlying())
-                    .balanceOf(user);
-            }
-        }
     }
 }

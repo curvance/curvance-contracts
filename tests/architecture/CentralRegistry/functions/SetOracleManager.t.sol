@@ -9,7 +9,7 @@ contract SetOracleManagerTest is TestBaseMarket {
 
     address public newOracleManager = makeAddr("Oracle Manager");
 
-    function test_setOracleManager_fail_whenUnauthorized() public {
+    function test_setOracleManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

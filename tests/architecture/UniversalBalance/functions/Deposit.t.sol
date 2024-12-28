@@ -19,7 +19,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.startPrank(user1);
 
@@ -36,7 +36,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_USDC_ADDRESS, user1, amount + 1);
+        _prepareUSDC(user1, amount + 1);
 
         vm.startPrank(user1);
 
@@ -49,7 +49,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     }
 
     function test_universalBalanceDeposit_fail_whenTokenIsNotListed() public {
-        deal(_USDC_ADDRESS, user1, 100e6);
+        _prepareUSDC(user1, 100e6);
 
         eUSDC = _deployEUSDC();
 
@@ -82,7 +82,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         uint256 receiveAmount = eUSDC.convertToShares(amount);
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
@@ -118,7 +118,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
         uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));

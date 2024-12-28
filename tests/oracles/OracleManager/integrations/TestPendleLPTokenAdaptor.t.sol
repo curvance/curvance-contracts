@@ -125,7 +125,7 @@ contract TestPendleLPTokenAdaptor is TestBaseOracleManager {
 
         // try large swap (100k DAI)
         uint256 amount = 100000e18;
-        deal(_DAI_ADDRESS, address(this), amount);
+        _prepareDAI(address(this), amount);
 
         PendleLib.PendleData memory data;
         data.approx.guessMin = 16e18;

@@ -12,7 +12,9 @@ contract MigrateTimelockConfigurationTest is TestBaseMarket {
         address indexed newTimelock
     );
 
-    function test_migrateTimelockConfiguration_fail_whenUnauthorized() public {
+    function test_migrateTimelockConfiguration_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

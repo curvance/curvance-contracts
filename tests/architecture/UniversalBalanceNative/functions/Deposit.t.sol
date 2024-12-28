@@ -19,7 +19,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        _prepareWETH(user1, amount);
 
         vm.startPrank(user1);
 
@@ -36,7 +36,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     ) public {
         vm.assume(amount < type(uint256).max);
 
-        deal(_WETH_ADDRESS, user1, amount + 1);
+        _prepareWETH(user1, amount + 1);
 
         vm.startPrank(user1);
 
@@ -51,7 +51,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     function test_universalBalanceNativeDeposit_fail_whenTokenIsNotListed()
         public
     {
-        deal(_WETH_ADDRESS, user1, _ONE);
+        _prepareWETH(user1, _ONE);
 
         eWETH = _deployEToken(_WETH_ADDRESS);
 
@@ -86,7 +86,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        _prepareWETH(user1, amount);
 
         uint256 receiveAmount = eWETH.convertToShares(amount);
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
@@ -124,7 +124,7 @@ contract UniversalBalanceNativeDepositTest is TestBaseUniversalBalanceNative {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        _prepareWETH(user1, amount);
 
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
         uint256 eWETHBalance = eWETH.balanceOf(

@@ -63,7 +63,7 @@ contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
     }
 
     function test_setPTokenCollateralCaps_success() public {
-        deal(_BAL_WETH_RETH_ADDRESS, address(this), 1 ether);
+        _prepareBALRETH(address(this), 1 ether);
         balRETH.approve(address(pBALRETH), 1 ether);
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(

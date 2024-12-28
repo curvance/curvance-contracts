@@ -10,10 +10,10 @@ contract MigrateTest is TestBaseCurvancePrefarm {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(this), 1000e6);
-        deal(_BAL_WETH_RETH_ADDRESS, address(this), 1000e18);
-        deal(_USDC_ADDRESS, user1, 100e6);
-        deal(_BAL_WETH_RETH_ADDRESS, user1, 100e18);
+        _prepareUSDC(address(this), 1000e6);
+        _prepareBALRETH(address(this), 1000e18);
+        _prepareUSDC(user1, 100e6);
+        _prepareBALRETH(user1, 100e18);
 
         address[] memory newPrefarmTokens = new address[](1);
         newPrefarmTokens[0] = _BAL_WETH_RETH_ADDRESS;
@@ -68,7 +68,7 @@ contract MigrateTest is TestBaseCurvancePrefarm {
     }
 
     function test_migrate_fail_whenProtocolTokenIsNotConfigured() public {
-        deal(_DAI_ADDRESS, user1, 100e18);
+        _prepareDAI(user1, 100e18);
 
         vm.startPrank(user1);
 

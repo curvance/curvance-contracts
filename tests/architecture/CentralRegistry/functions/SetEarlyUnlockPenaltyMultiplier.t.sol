@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetEarlyUnlockPenaltyMultiplierTest is TestBaseMarket {
-    function test_setEarlyUnlockPenaltyMultiplier_fail_whenUnauthorized()
+    function test_setEarlyUnlockPenaltyMultiplier_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(0));

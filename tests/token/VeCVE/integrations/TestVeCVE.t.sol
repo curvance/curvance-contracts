@@ -16,8 +16,8 @@ contract TestVeCVE is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 1000e6);
-        deal(address(cve), address(this), 100e18);
+        _prepareUSDC(address(rewardManager), 1000e6);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         _skipRestrictionDuration();
@@ -220,7 +220,7 @@ contract TestVeCVE is TestBaseVeCVE {
         setRewardsData(false, false, false)
     {
         // 1. config poc env
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        _prepareUSDC(address(rewardManager), 10000e6);
         vm.warp(centralRegistry.genesisEpoch());
 
         _skipRestrictionDuration();
@@ -229,7 +229,7 @@ contract TestVeCVE is TestBaseVeCVE {
         assertEq(rewardManager.nextEpochToDeliver(), 1);
 
         address user00 = address(0xACC00);
-        deal(address(cve), user00, 100 * 1e18);
+        _prepareCVE(user00, 100 * 1e18);
         vm.prank(user00);
         cve.approve(address(veCVE), type(uint256).max);
 

@@ -19,7 +19,7 @@ contract UpdateUserPointsTest is TestBaseVeCVE {
     }
 
     function test_updateUserPoints_success() public {
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(100e18, false, rewardsData, "", 0);

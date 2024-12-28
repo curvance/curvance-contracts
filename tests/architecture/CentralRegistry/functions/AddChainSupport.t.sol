@@ -9,7 +9,7 @@ contract AddChainSupportTest is TestBaseMarket {
 
     address public relayer = makeAddr("Wormhole Relayer");
 
-    function test_addChainSupport_fail_whenUnauthorized() public {
+    function test_addChainSupport_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

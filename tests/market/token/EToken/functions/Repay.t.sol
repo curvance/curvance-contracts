@@ -12,7 +12,7 @@ contract ETokenRepayTest is TestBaseEToken {
 
         _setPBALRETHCollateralCaps(100_000e18);
 
-        deal(_USDC_ADDRESS, address(eUSDC), 2000e6);
+        _prepareUSDC(address(eUSDC), 2000e6);
 
         marketManager.postCollateral(
             address(this),
@@ -120,7 +120,7 @@ contract ETokenRepayTest is TestBaseEToken {
             address user = users[i];
             vm.startPrank(user);
             // give users enough usdc to repay their debt because accumulated interest
-            deal(_USDC_ADDRESS, user, 1000e6);
+            _prepareUSDC(user, 1000e6);
             usdc.approve(address(eUSDC), type(uint256).max);
             eUSDC.repay(0);
             vm.stopPrank();
@@ -132,7 +132,7 @@ contract ETokenRepayTest is TestBaseEToken {
             eUSDC.accrueInterest();
         }
 
-        deal(_USDC_ADDRESS, users[2], 1000e6);
+        _prepareUSDC(users[2], 1000e6);
         vm.startPrank(users[2]);
         usdc.approve(address(eUSDC), type(uint256).max);
         // 3. user103 repay all his debt would revert because overflow

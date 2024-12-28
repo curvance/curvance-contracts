@@ -25,7 +25,7 @@ contract DepositTest is TestBaseCurvancePrefarm {
     }
 
     function test_deposit_success() public {
-        deal(_USDC_ADDRESS, user1, 100e6);
+        _prepareUSDC(user1, 100e6);
 
         vm.startPrank(user1);
 

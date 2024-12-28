@@ -22,7 +22,7 @@ contract SetVeCVETest is TestBaseMarket {
         );
     }
 
-    function test_setVeCVE_fail_whenUnauthorized() public {
+    function test_setVeCVE_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

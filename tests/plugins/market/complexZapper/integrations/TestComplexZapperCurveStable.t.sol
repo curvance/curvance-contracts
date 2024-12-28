@@ -49,7 +49,7 @@ contract TestComplexZapperCurveStable is TestBaseMarket {
 
     function testEnterCurveWithWETH() public {
         uint256 wethAmount = 3 ether;
-        deal(_WETH_ADDRESS, user1, wethAmount);
+        _prepareWETH(user1, wethAmount);
 
         vm.startPrank(user1);
         weth.approve(address(complexZapper), wethAmount);

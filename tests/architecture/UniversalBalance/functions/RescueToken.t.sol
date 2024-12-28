@@ -11,7 +11,7 @@ contract UniversalBalanceRescueTokenTest is TestBaseUniversalBalance {
     function setUp() public override {
         super.setUp();
 
-        deal(_DAI_ADDRESS, address(universalBalance), 100e18);
+        _prepareDAI(address(universalBalance), 100e18);
         deal(address(universalBalance), 100e18);
     }
 

@@ -23,7 +23,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     function test_universalBalanceWithdrawFor_fail_whenRecipientIsNotApproved()
         public
     {
-        deal(_USDC_ADDRESS, user1, 1e6);
+        _prepareUSDC(user1, 1e6);
 
         vm.prank(user1);
         universalBalance.deposit(1e6, true);
@@ -73,7 +73,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.prank(user1);
         universalBalance.deposit(amount, true);
@@ -89,7 +89,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.prank(user1);
         universalBalance.deposit(amount, false);
@@ -118,7 +118,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(_USDC_ADDRESS, user1, depositAmount * 2);
+        _prepareUSDC(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 
@@ -162,7 +162,7 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < withdrawAmount && withdrawAmount <= depositAmount);
 
-        deal(_USDC_ADDRESS, user1, depositAmount * 2);
+        _prepareUSDC(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 

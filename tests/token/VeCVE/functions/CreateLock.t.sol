@@ -83,7 +83,7 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         veCVE.createLock(100e18, true, rewardsData, "", 0);
@@ -95,7 +95,7 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCVE
@@ -148,7 +148,7 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLock,
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         (uint256[] memory lockAmounts, uint256[] memory lockTimestamps) = veCVE
@@ -205,10 +205,10 @@ contract CreateLockTest is TestBaseVeCVE {
         bool isFreshLockContinuous
     ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
         amount = bound(amount, _MIN_FUZZ_AMOUNT * 2, _MAX_FUZZ_AMOUNT);
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
-        deal(_USDC_ADDRESS, address(rewardManager), amount);
+        _prepareUSDC(address(rewardManager), amount);
 
         uint256 lockAmount = amount / 2;
 

@@ -149,7 +149,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         // deploy eWETH
         {
             // support market
-            deal(_WETH_ADDRESS, owner, 200000 ether);
+            _prepareWETH(owner, 200000 ether);
             weth.approve(address(eWETH), 200000e6);
             marketManager.listToken(address(eWETH));
             // add MToken support on oracle manager
@@ -228,15 +228,11 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         );
     }
 
-    function _prepareWBTC(address user, uint256 amount) internal {
-        deal(_WBTC_ADDRESS, user, amount);
-    }
-
     function provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = address(new User());
         _prepareUSDC(liquidityProvider, 200000e6);
         _prepareWBTC(liquidityProvider, 10 ether);
-        deal(_WETH_ADDRESS, liquidityProvider, 200000 ether);
+        _prepareWETH(liquidityProvider, 200000 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
@@ -339,7 +335,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         vm.prank(user1);
         universalBalanceNative.depositNative{ value: 1 ether }(false);
 
-        deal(_WBTC_ADDRESS, user1, 0.1e8);
+        _prepareWBTC(user1, 0.1e8);
         vm.prank(user1);
         wbtc.approve(address(pWBTC), 0.1e8);
 

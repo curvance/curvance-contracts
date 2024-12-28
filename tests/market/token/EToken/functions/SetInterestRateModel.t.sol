@@ -6,7 +6,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract ETokenSetInterestRateModelTest is TestBaseEToken {
+contract SetInterestRateModelTest is TestBaseEToken {
     DynamicInterestRateModel public newDynamicInterestRateModel;
 
     function setUp() public override {
@@ -24,7 +24,7 @@ contract ETokenSetInterestRateModelTest is TestBaseEToken {
         );
     }
 
-    function test_eTokenSetDynamicInterestRateModel_fail_whenCallerIsNotAuthorized()
+    function test_setInterestRateModel_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
@@ -33,14 +33,14 @@ contract ETokenSetInterestRateModelTest is TestBaseEToken {
         eUSDC.setInterestRateModel(address(newDynamicInterestRateModel));
     }
 
-    function test_eTokenSetDynamicInterestRateModel_fail_whenInvalidDynamicInterestRateModel()
+    function test_setInterestRateModel_fail_whenInvalidInterestRateModel()
         public
     {
         vm.expectRevert();
         eUSDC.setInterestRateModel(address(1));
     }
 
-    function test_eTokenSetDynamicInterestRateModel_success() public {
+    function test_setInterestRateModel_success() public {
         assertEq(
             address(eUSDC.interestRateModel()),
             address(interestRateModels[block.chainid][_USDC_ADDRESS])

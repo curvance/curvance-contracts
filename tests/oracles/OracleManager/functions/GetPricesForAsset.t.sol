@@ -37,7 +37,7 @@ contract GetPricesForAssetTest is TestBaseOracleManager {
     }
 
     function test_mToken_getPricesForAsset_success() public {
-        deal(_USDC_ADDRESS, address(this), 1e18);
+        _prepareUSDC(address(this), 1e18);
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 

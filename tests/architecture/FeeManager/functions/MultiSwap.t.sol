@@ -144,7 +144,7 @@ contract MultiSwapTest is TestBaseFeeManager {
     }
 
     function test_multiSwap_success() public {
-        deal(_WETH_ADDRESS, address(feeManager), _ONE);
+        _prepareWETH(address(feeManager), _ONE);
 
         vm.prank(harvester);
         feeManager.multiSwap(abi.encode(swapData), tokens);

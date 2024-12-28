@@ -829,7 +829,7 @@ abstract contract PositionManagementBase is
         override
         returns (ICentralRegistry)
     {
-        return ICentralRegistry(centralRegistry);
+        return centralRegistry;
     }
 
     /// FUNCTIONS TO OVERRIDE ///

@@ -17,7 +17,7 @@ contract VotesTest is TestBaseVeCVE {
 
     function test_getVotes_zero_whenLockIsExpired(uint256 amount) public {
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
         veCVE.createLock(amount, false, rewardsData, "", 0);
@@ -35,7 +35,7 @@ contract VotesTest is TestBaseVeCVE {
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
         boost = uint16(bound(boost, denominator, type(uint16).max));
         centralRegistry.setVoteBoostMultiplier(boost);
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
         veCVE.createLock(amount, true, rewardsData, "", 0);
@@ -50,7 +50,7 @@ contract VotesTest is TestBaseVeCVE {
 
     function test_getVotes_after_lock(uint256 amount, uint16 timeWarp) public {
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
-        deal(address(cve), address(this), amount);
+        _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);
 
         veCVE.createLock(amount, false, rewardsData, "", 0);

@@ -31,7 +31,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 1e18);
+        _prepareUSDC(address(rewardManager), 1e18);
 
         mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
         chainlinkAdaptor.addAsset(
@@ -97,7 +97,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             );
 
             // support market
-            deal(_WETH_ADDRESS, owner, 1 ether);
+            _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
             marketManager.listToken(address(pWETH));
             // add MToken support on oracle manager
@@ -134,7 +134,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     function provideEnoughLiquidityForLeverage() internal {
         address liquidityProvider = address(new User());
         _prepareUSDC(liquidityProvider, 200000e6);
-        deal(_WETH_ADDRESS, liquidityProvider, 10 ether);
+        _prepareWETH(liquidityProvider, 10 ether);
         // mint eUSDC
         vm.startPrank(liquidityProvider);
         usdc.approve(address(eUSDC), 200000e6);
@@ -169,7 +169,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
-        deal(address(cve), user1, amount);
+        _prepareCVE(user1, amount);
         cve.approve(address(veCVE), amount);
         veCVE.createLock(
             amount,
@@ -185,7 +185,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 rewards = amount /= 1e12;
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -235,7 +235,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
-        deal(address(cve), user1, amount);
+        _prepareCVE(user1, amount);
         cve.approve(address(veCVE), amount);
         veCVE.createLock(
             amount,
@@ -251,7 +251,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 rewards = amount /= 1e12;
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;
@@ -298,7 +298,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
     function testClaimSwapAndRepay() public {
         // mint
         vm.startPrank(user1);
-        deal(_WETH_ADDRESS, user1, 1 ether);
+        _prepareWETH(user1, 1 ether);
         weth.approve(address(pWETH), 1 ether);
         pWETH.mint(1 ether, user1);
         marketManager.postCollateral(user1, address(pWETH), 1 ether);
@@ -318,7 +318,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 amount = 100e18;
         vm.startPrank(user1);
-        deal(address(cve), user1, amount);
+        _prepareCVE(user1, amount);
         cve.approve(address(veCVE), amount);
         veCVE.createLock(
             amount,
@@ -334,7 +334,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         uint256 rewards = amount /= 1e12;
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
         address[] memory path = new address[](2);
         path[0] = _USDC_ADDRESS;

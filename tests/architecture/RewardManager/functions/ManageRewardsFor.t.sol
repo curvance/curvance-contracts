@@ -13,7 +13,7 @@ contract ManageRewardsForTest is TestBaseRewardManager {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        _prepareUSDC(address(rewardManager), 10000e6);
     }
 
     function test_manageRewardsFor_fail_whenNotDelegated() public {
@@ -28,7 +28,7 @@ contract ManageRewardsForTest is TestBaseRewardManager {
 
         rewardManager.setDelegateApproval(address(this), true);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(100e18, false, rewardsData, "0x", 0);

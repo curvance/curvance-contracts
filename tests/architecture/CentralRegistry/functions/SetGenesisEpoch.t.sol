@@ -13,7 +13,7 @@ contract SetGenesisEpochTest is TestBaseMarket {
         vm.warp(centralRegistry.genesisEpoch() - 1);
     }
 
-    function test_setGenesisEpoch_fail_whenUnauthorized() public {
+    function test_setGenesisEpoch_fail_whenCallerIsNotAuthorized() public {
         uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.prank(address(0));
