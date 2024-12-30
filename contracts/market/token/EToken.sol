@@ -673,7 +673,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         accrueInterest();
 
         // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount) {
+        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
         }
 
@@ -699,7 +699,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      withdrawn first. Updates pending interest before executing
     ///      the reserve withdrawal.
     function processWithdrawReserves() external {
-        // Only callable via the DAO Central Registry.
+        // Only callable via the DAO Operator via Central Registry.
         if (msg.sender != address(centralRegistry)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -711,7 +711,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount = convertToAssets(totalReservesCached);
 
         // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount) {
+        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
         }
 
@@ -723,7 +723,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Withdraw reserves from gauge.
         gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
 
-        // Transfer underlying to DAO measured in assets.
+        // Transfer underlying to DAO, measured in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
 
@@ -938,7 +938,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ) public view returns (uint256) {
         // Cache current exchange rate data.
         MarketData memory cachedData = marketData;
-        // If `timestamp` is before block.timestamp, round up.
+        // If `timestamp` is before block.timestamp, use current timestamp.
         timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
 
         // If we are up to date there is no reason to continue.
@@ -981,9 +981,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return
-            (accountDebt.principal * exchangeRateNew) /
-            accountDebt.accountExchangeRate;
+        return FixedPointMathLib.mulDivUp(
+            accountDebt.principal,
+            exchangeRateNew,
+            accountDebt.accountExchangeRate
+        );
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1005,9 +1007,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return
-            (accountDebt.principal * marketData.exchangeRate) /
-            accountDebt.accountExchangeRate;
+        return FixedPointMathLib.mulDivUp(
+            accountDebt.principal,
+            marketData.exchangeRate,
+            accountDebt.accountExchangeRate
+        );
     }
 
     /// @notice Returns the decimals of the eToken.
