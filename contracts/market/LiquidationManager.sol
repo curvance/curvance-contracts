@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 /// @title Curvance Liquidation Manager.
 /// @notice Triages and configures uniquely sequenced market liquidations.
 /// @dev NOTE: Only use this as an abstract contract as no account or market
@@ -15,7 +17,8 @@ abstract contract LiquidationManager {
     }
 
     /// CONSTANTS ///
-
+    /// @notice Curvance DAO hub address.
+    address public immutable centralRegistryAddress;
     /// @notice Duration that a normal liquidation must wait for auction end.
     /// @dev 2 = 2 seconds.
     uint256 public constant REGULAR_HOLD_DURATION = 2;
@@ -36,16 +39,9 @@ abstract contract LiquidationManager {
     mapping(bytes32 => LiqQueue) public regularQueue;
     mapping(bytes32 => uint256) public priorityAccess;
 
-    address public authorizedAtlasDAppControl;
-    bool public atlasOevAllowed;
-
     /// EVENTS ///
 
     event SpecificSequencingStatusChanged(bool sequencingActive);
-
-    event AuthorizedAtlasDAppControlChanged(
-        address indexed authorizedAtlasDAppControl
-    );
 
     event AccountLiquidationQueued(
         address indexed account,
@@ -59,12 +55,11 @@ abstract contract LiquidationManager {
     );
 
     /// ERRORS ///
-
     error LiquidationManager__InvalidLiquidator();
-    /// CONSTRUCTOR ///
 
-    constructor() {
-        atlasOevAllowed = false;
+    /// CONSTRUCTOR ///
+    constructor(address _centralRegistryAddress) {
+        centralRegistryAddress = _centralRegistryAddress;
     }
 
     /// INTERNAL FUNCTIONS ///
@@ -147,7 +142,7 @@ abstract contract LiquidationManager {
         }
         // CASE: Called from SolverOp within Atlas tx so allow liquidations
         //       without queue validation.
-        if (atlasOevAllowed) {
+        if (ICentralRegistry(centralRegistryAddress).atlasOevAllowed()) {
             return;
         }
 
@@ -195,17 +190,5 @@ abstract contract LiquidationManager {
         specificSequencingActive = sequencingActive;
 
         emit SpecificSequencingStatusChanged(sequencingActive);
-    }
-
-    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
-    ///         to execute Atlas OEV liquidations.
-    /// @dev NOTE: This function MUST be called inside an external or public
-    ///            function triggered by a call from the Central Registry.
-    function _setAuthorizedAtlasDAppControl(
-        address authorizedAtlasDAppControl_
-    ) internal {
-        authorizedAtlasDAppControl = authorizedAtlasDAppControl_;
-
-        emit AuthorizedAtlasDAppControlChanged(authorizedAtlasDAppControl);
     }
 }

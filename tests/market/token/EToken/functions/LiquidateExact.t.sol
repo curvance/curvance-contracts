@@ -74,7 +74,7 @@ contract LiquidateExactTest is TestBaseEToken {
 
         centralRegistry.setAuthorizedAtlasDAppControl(dappControl);
         vm.prank(dappControl);
-        marketManager.unlockAtlasOev();
+        centralRegistry.unlockAtlasOev();
 
         vm.prank(user2);
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));

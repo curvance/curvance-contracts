@@ -212,6 +212,12 @@ contract CentralRegistry is ERC165, LockableRegistry {
     mapping(address => bool) public isMulticallProvider;
     mapping(address => address) public multicallChecker;
 
+    // Atlas OEV DAppControl
+    address public authorizedAtlasDAppControl;
+
+    // Atlas OEV allowed
+    bool public atlasOevAllowed;
+
     /// EVENTS ///
 
     event GenesisEpochSet(uint256 newGenesisEpoch);
@@ -261,6 +267,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
         address calldataChecker
     );
     event MulticallProviderSet(address provider, bool supportedStatus);
+    event AtlasDAppControlSet(address atlasDAppControl);
 
     /// ERRORS ///
 
@@ -1142,19 +1149,30 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
+    function lockAtlasOev() external {
+        if (msg.sender != authorizedAtlasDAppControl) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        atlasOevAllowed = false;
+    }
+
+    function unlockAtlasOev() external {
+        if (msg.sender != authorizedAtlasDAppControl) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        atlasOevAllowed = true;
+    }
+
     /// @notice Updates `authorizedAtlasDAppControl` who has the authority
     ///         to execute Atlas OEV liquidations.
-    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl) external {
+    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
         _checkElevatedPermissions();
 
-        // Cache market list.
-        uint256 numMarkets = marketManagers.length;
+        authorizedAtlasDAppControl = authorizedAtlasDAppControl_;
 
-        for (uint256 i; i < numMarkets; ++i) {
-            IMarketManager(marketManagers[i]).setAuthorizedAtlasDAppControl(
-                authorizedAtlasDAppControl
-            );
-        }
+        emit AtlasDAppControlSet(authorizedAtlasDAppControl);
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.

@@ -125,7 +125,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -188,7 +188,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -263,7 +263,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -330,7 +330,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -414,7 +414,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -498,7 +498,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -570,7 +570,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -652,7 +652,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -739,7 +739,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         public
     {
         // First let's verify that atlas OEV is not allowed
-        assertEq(marketManager.atlasOevAllowed(), false);
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position

@@ -198,5 +198,6 @@ interface ICentralRegistry {
     function multicallChecker(
         address addressToCheck
     ) external view returns (address);
-    
+
+    function atlasOevAllowed() external view returns (bool);
 }

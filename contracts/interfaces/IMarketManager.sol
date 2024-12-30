@@ -218,7 +218,11 @@ interface IMarketManager {
     ///         `sequencingActive`.
     function setSequencingStatus(bool sequencingActive) external;
 
-    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
-    ///         to execute Atlas OEV liquidations.alias
-    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl) external;
+    /// @notice Locks Atlas OEV liquidations
+    /// @dev This function must be called by an authorized Atlas DApp Control
+    function lockAtlasOev() external;
+
+    /// @notice Unlocks Atlas OEV liquidations
+    /// @dev This function must be called by an authorized Atlas DApp Control
+    function unlockAtlasOev() external;
 }
