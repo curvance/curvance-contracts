@@ -798,8 +798,7 @@ contract ComplexZapper is ZapperBase {
             token,
             data,
             zapData.inputToken,
-            zapData.inputAmount,
-            0
+            zapData.inputAmount
         );
 
         uint256 numTokenSwaps = swapData.length;

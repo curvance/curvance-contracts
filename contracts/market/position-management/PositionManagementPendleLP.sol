@@ -129,8 +129,10 @@ contract PositionManagementPendleLP is PositionManagementBase {
         }
 
         // decode pendle data
-        (uint256 minTokenOut, PendleLib.PendleData memory pendleData) = abi
-            .decode(deleverageData.auxData, (uint256, PendleLib.PendleData));
+        PendleLib.PendleData memory pendleData = abi.decode(
+            deleverageData.auxData,
+            (PendleLib.PendleData)
+        );
 
         // exit pendle
         PendleLib.exitPendle(
@@ -139,8 +141,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
             tokenOut,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount,
-            minTokenOut
+            deleverageData.collateralAmount
         );
 
         if (tokenOut != borrowUnderlying) {

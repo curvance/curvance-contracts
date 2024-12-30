@@ -175,7 +175,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
@@ -241,7 +241,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
@@ -324,7 +324,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
