@@ -145,6 +145,15 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         vm.prank(user2);
         marketManager.liquidateAccount(user1);
 
+        vm.prank(dappControl);
+        centralRegistry.lockAtlasOev();
+
+        vm.prank(user2);
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+
         _checkLiquidationResult();
     }
 
