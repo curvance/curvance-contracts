@@ -11,18 +11,6 @@ contract CentralRegistrySetAtlasDAppControlTest is TestBaseMarket {
 
     function setUp() public override {
         super.setUp();
-
-        centralRegistry.removeMarketManager(address(marketManager));
-
-        for (uint256 i = 0; i < 10; i++) {
-            _marketManagers.push(
-                new MarketManager(ICentralRegistry(address(centralRegistry)))
-            );
-            centralRegistry.addMarketManager(
-                address(_marketManagers[i]),
-                marketInterestFactor
-            );
-        }
     }
 
     function test_centralRegistrySetAuthorizedAtlasDAppControl_fail_whenCallerIsNotAuthorized()
