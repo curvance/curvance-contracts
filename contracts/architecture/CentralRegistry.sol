@@ -1149,6 +1149,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried.
     function lockAtlasOev() external {
         if (msg.sender != authorizedAtlasDAppControl) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -1157,6 +1159,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         atlasOevAllowed = false;
     }
 
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried.
     function unlockAtlasOev() external {
         if (msg.sender != authorizedAtlasDAppControl) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -1165,8 +1169,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         atlasOevAllowed = true;
     }
 
-    /// @notice Updates `authorizedAtlasDAppControl` who has the authority
-    ///         to execute Atlas OEV liquidations.
+    /// @notice Updates `authorizedAtlasDAppControl` to a contract with
+    ///         the authority to execute Atlas OEV liquidations.
     function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
         _checkElevatedPermissions();
 
