@@ -79,6 +79,14 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.prank(user2);
         eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
 
+        vm.prank(dappControl);
+        centralRegistry.lockAtlasOev();
+
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+
         _checkLiquidationResult();
     }
 
