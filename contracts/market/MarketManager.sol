@@ -202,7 +202,7 @@ contract MarketManager is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) LiquidationManager(address(centralRegistry_)) {}
+    ) LiquidityManager(centralRegistry_) LiquidationManager() {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -1902,7 +1902,7 @@ contract MarketManager is
     function _getCentralRegistry()
         internal
         view
-        override
+        override (LiquidationManager, Multicall)
         returns (ICentralRegistry)
     {
         return centralRegistry;

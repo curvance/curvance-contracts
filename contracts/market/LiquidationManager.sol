@@ -17,8 +17,6 @@ abstract contract LiquidationManager {
     }
 
     /// CONSTANTS ///
-    /// @notice Curvance DAO hub address.
-    address public immutable centralRegistryAddress;
     /// @notice Duration that a normal liquidation must wait for auction end.
     /// @dev 2 = 2 seconds.
     uint256 public constant REGULAR_HOLD_DURATION = 2;
@@ -58,9 +56,7 @@ abstract contract LiquidationManager {
     error LiquidationManager__InvalidLiquidator();
 
     /// CONSTRUCTOR ///
-    constructor(address _centralRegistryAddress) {
-        centralRegistryAddress = _centralRegistryAddress;
-    }
+    constructor() {}
 
     /// INTERNAL FUNCTIONS ///
 
@@ -142,7 +138,7 @@ abstract contract LiquidationManager {
         }
         // CASE: Called from SolverOp within Atlas tx so allow liquidations
         //       without queue validation.
-        if (ICentralRegistry(centralRegistryAddress).atlasOevAllowed()) {
+        if (_getCentralRegistry().atlasOevAllowed()) {
             return;
         }
 
@@ -191,4 +187,13 @@ abstract contract LiquidationManager {
 
         emit SpecificSequencingStatusChanged(sequencingActive);
     }
+
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
+    /// @dev MUST be overridden in every implementing contract
+    function _getCentralRegistry()
+        internal
+        view
+        virtual
+        returns (ICentralRegistry);
 }
