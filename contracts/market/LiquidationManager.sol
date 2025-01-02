@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-
 /// @title Curvance Liquidation Manager.
 /// @notice Triages and configures uniquely sequenced market liquidations.
 /// @dev NOTE: Only use this as an abstract contract as no account or market
@@ -138,7 +136,7 @@ abstract contract LiquidationManager {
         }
         // CASE: Called from SolverOp within Atlas tx so allow liquidations
         //       without queue validation.
-        if (_getCentralRegistry().atlasOevAllowed()) {
+        if (_checkAtlasOevAllowed()) {
             return;
         }
 
@@ -188,12 +186,7 @@ abstract contract LiquidationManager {
         emit SpecificSequencingStatusChanged(sequencingActive);
     }
 
-    /// @notice Returns the Protocol Central Registry contract in interface
-    ///         form.
-    /// @dev MUST be overridden in every implementing contract
-    function _getCentralRegistry()
-        internal
-        view
-        virtual
-        returns (ICentralRegistry);
+    /// @notice Checks whether OEV is enabled or not.
+    /// @dev MUST be overridden in `MarketManager`.
+    function _checkAtlasOevAllowed() internal view virtual returns (bool);
 }

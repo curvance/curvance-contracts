@@ -209,7 +209,7 @@ contract MarketManager is
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
     function isListed(address mToken) external view returns (bool) {
-        return (tokenData[mToken].isListed);
+        return tokenData[mToken].isListed;
     }
 
     function queryTokensListed() external view returns (address[] memory) {
@@ -413,9 +413,7 @@ contract MarketManager is
             _checkIsToken(pToken);
         }
 
-        if (!tokenData[pToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(pToken);
 
         if (!IMToken(pToken).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -485,9 +483,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(mToken);
     }
 
     /// @notice Checks if the account should be allowed to redeem `amount`
@@ -591,9 +587,8 @@ contract MarketManager is
     /// @param account The address of the account that has just borrowed.
     function notifyBorrow(address mToken, address account) external {
         _checkIsToken(mToken);
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(mToken);
+
         accountAssets[account].cooldownTimestamp = block.timestamp;
     }
 
@@ -602,9 +597,7 @@ contract MarketManager is
     /// @param mToken The market token to verify the repayment of.
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external view {
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(mToken);
 
         // We require a `minimumHoldPeriod` to break flashloan
         // and multi-block price manipulations if the dynamic dual oracle
@@ -704,27 +697,19 @@ contract MarketManager is
 
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `earnToken` should be allowed.
-    /// @param positionToken pToken which was used as collateral
-    ///                        and will be seized.
-    /// @param earnToken eToken which was borrowed by the account
-    ///                  and will repaid.
-    function canSeize(address positionToken, address earnToken) external view {
+    /// @param pToken pToken which was used as collateral
+    ///               and will be seized.
+    /// @param eToken eToken which was borrowed by the account
+    ///               and will repaid.
+    function canSeize(address pToken, address eToken) external view {
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[positionToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(pToken);
+        _checkIsListed(eToken);
 
-        if (!tokenData[earnToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
-
-        if (
-            IMToken(positionToken).marketManager() !=
-            IMToken(earnToken).marketManager()
-        ) {
+        if (IMToken(pToken).marketManager() != IMToken(eToken).marketManager()) {
             revert MarketManager__MarketManagerMismatch();
         }
     }
@@ -1257,10 +1242,7 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setMintPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(mToken);
 
         mintPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Mint Paused", state);
@@ -1273,10 +1255,7 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setBorrowPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(mToken);
 
         borrowPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Borrow Paused", state);
@@ -1437,9 +1416,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[eToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(eToken);
 
         // Check if the user already has an active borrow in the eToken.
         if (tokenData[eToken].accountPositions[account].activePosition != 2) {
@@ -1491,16 +1468,14 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
+        _checkIsListed(mToken);
+
         if (
             ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
                 account
             )
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
 
         // We require a `minimumHoldPeriod` to break flashloan
@@ -1596,15 +1571,13 @@ contract MarketManager is
                 positionsToClose
             );
         } else {
+            _checkIsListed(pToken);
+
             if (
                 ILockableRegistry(address(centralRegistry))
                     .checkTransfersDisabled(account)
             ) {
                 _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            if (!tokenData[pToken].isListed) {
-                _revert(_TOKEN_NOT_LISTED_SELECTOR);
             }
 
             // We require a `minimumHoldPeriod` to break flashloan
@@ -1649,9 +1622,7 @@ contract MarketManager is
         uint256 debtAmount,
         bool liquidateExact
     ) internal view returns (uint256, uint256, uint256) {
-        if (!tokenData[earnToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListed(earnToken);
 
         MarketToken storage pToken = tokenData[positionToken];
 
@@ -1884,6 +1855,13 @@ contract MarketManager is
         }
     }
 
+    /// @dev Checks whether `mToken` is listed in this Market Manager.
+    function _checkIsListed(address mToken) internal view {
+        if (!tokenData[mToken].isListed) {
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller is the desired mToken contract.
     function _checkIsToken(address mToken) internal view {
         /// @solidity memory-safe-assembly
@@ -1897,12 +1875,17 @@ contract MarketManager is
         }
     }
 
+    /// @notice Checks whether OEV is enabled or not.
+    function _checkAtlasOevAllowed() internal view override returns (bool){
+        return centralRegistry.atlasOevAllowed();
+    }
+
     /// @dev Returns the Protocol Central Registry contract in interface
     ///      form.
     function _getCentralRegistry()
         internal
         view
-        override (LiquidationManager, Multicall)
+        override
         returns (ICentralRegistry)
     {
         return centralRegistry;
