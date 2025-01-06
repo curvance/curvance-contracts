@@ -343,7 +343,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(data);
+        deleverageData.auxData = abi.encode(0, data);
 
         pSTETH.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
@@ -478,7 +478,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(data);
+        deleverageData.auxData = abi.encode(0, data);
 
         pSTETH.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);
