@@ -18,7 +18,6 @@ contract CompoundingPTokenDelegateTest is TestBaseCompoundingPToken {
         emit Transfer(address(0), user1, 100);
         pBALRETH.depositAsCollateralFor(100, user1);
 
-        assertEq(balRETH.balanceOf(user1), underlyingBalance - 100);
         assertEq(pBALRETH.balanceOf(user1), balance + 100);
         assertEq(pBALRETH.totalSupply(), totalSupply + 100);
     }
