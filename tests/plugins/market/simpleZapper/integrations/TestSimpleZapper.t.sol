@@ -309,6 +309,52 @@ contract TestSimpleZapper is TestBaseMarket {
         vm.prank(user1);
         simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
 
-        assertGt(user1.balance, 2.99 ether);
+        assertGt(user1.balance, 2.99 ether); // 3 ether - fees
+    }
+
+    function testRedeemAndSwapEToken() public {
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        vm.startPrank(user1);
+
+        // mint eDAI
+        _prepareDAI(user1, 10 ether);
+        dai.approve(address(eDAI), 10 ether);
+        eDAI.mint(10 ether);
+
+        eDAI.setDelegateApproval(address(simpleZapper), true);
+
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(eDAI);
+        redemptionData.shares = 10 ether;
+        redemptionData.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = _DAI_ADDRESS;
+        swapData.inputAmount = 10 ether;
+        swapData.outputToken = _USDC_ADDRESS;
+        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 10 ether;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapData.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+
+        assertGt(usdc.balanceOf(user1), 9.99e6); // 10e6 - fees
+
+        vm.stopPrank();
     }
 }
