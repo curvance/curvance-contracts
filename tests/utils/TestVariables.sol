@@ -156,7 +156,6 @@ contract TestVariables {
     mapping(uint256 => ComplexZapper) public complexZappers;
 
     address public harvester;
-    address public randomUser = address(1000000);
     address public user1 = address(1000001);
     address public user2 = address(1000002);
     address public user3 = address(1000003);

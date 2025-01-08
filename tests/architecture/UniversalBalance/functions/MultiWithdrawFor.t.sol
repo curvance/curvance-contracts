@@ -299,7 +299,7 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
                     withdrawAmounts_[i] <= depositAmounts[i]
             );
 
-            deal(_USDC_ADDRESS, owners[i], depositAmounts[i] * 2);
+            _prepareUSDC(owners[i], depositAmounts[i] * 2);
 
             vm.startPrank(owners[i]);
 

@@ -4,7 +4,9 @@ pragma solidity 0.8.19;
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
-contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
+contract UniversalBalanceNativeShiftBalanceTest is
+    TestBaseUniversalBalanceNative
+{
     event Deposit(
         address indexed by,
         address indexed owner,
@@ -19,25 +21,33 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
         bool lendingRedemption
     );
 
-    function test_universalBalanceNativeTransfer_fail_whenTransferIsDisabled()
+    function test_universalBalanceNativeShiftBalance_fail_whenTransferIsDisabled()
         public
     {
+        _prepareWETH(user1, 1e6);
+
         vm.startPrank(user1);
+
+        universalBalanceNative.deposit(1e6, false);
 
         centralRegistry.setTransferLockStatus(true);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
         );
-        universalBalanceNative.transfer(_ONE, false, true, user2);
+        universalBalanceNative.shiftBalance(1e6, false);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeTransfer_fail_whenCooldownIsNotEnded()
+    function test_universalBalanceNativeShiftBalance_fail_whenCooldownIsNotEnded()
         public
     {
+        _prepareWETH(user1, 1e6);
+
         vm.startPrank(user1);
+
+        universalBalanceNative.deposit(1e6, false);
 
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
@@ -45,12 +55,12 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector
         );
-        universalBalanceNative.transfer(_ONE, false, true, user2);
+        universalBalanceNative.shiftBalance(1e6, false);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeTransfer_fail_whenExceedsLentBalance_fuzzed(
+    function test_universalBalanceNativeShiftBalance_fail_whenExceedsLentBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -62,12 +72,12 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
         universalBalanceNative.deposit(amount, true);
 
         vm.expectRevert();
-        universalBalanceNative.transfer(amount + 1, true, true, user2);
+        universalBalanceNative.shiftBalance(amount + 1, true);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeTransfer_fail_whenExceedsSittingBalance_fuzzed(
+    function test_universalBalanceNativeShiftBalance_fail_whenExceedsSittingBalance_fuzzed(
         uint256 amount
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
@@ -78,13 +88,15 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
 
         universalBalanceNative.deposit(amount, false);
 
-        vm.expectRevert();
-        universalBalanceNative.transfer(amount + 1, false, true, user2);
+        vm.expectRevert(
+            UniversalBalance.UniversalBalance__InsufficientBalance.selector
+        );
+        universalBalanceNative.shiftBalance(amount + 1, false);
 
         vm.stopPrank();
     }
 
-    function test_universalBalanceNativeTransfer_fail_whenAmountIsZero()
+    function test_universalBalanceNativeShiftBalance_fail_whenAmountIsZero()
         public
     {
         vm.prank(user1);
@@ -92,19 +104,18 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
         vm.expectRevert(
             UniversalBalance.UniversalBalance__InvalidParameter.selector
         );
-        universalBalanceNative.transfer(0, false, true, user2);
+        universalBalanceNative.shiftBalance(0, false);
     }
 
-    function test_universalBalanceNativeTransfer_success_fuzzed(
+    function test_universalBalanceNativeShiftBalance_success_fuzzed(
         uint256 depositAmount,
-        uint256 transferAmount,
-        bool forceLentRedemption,
-        bool willLend
+        uint256 shiftAmount,
+        bool fromLent
     ) public {
         vm.assume(
             0 < depositAmount && depositAmount < type(uint256).max / _ONE
         );
-        vm.assume(0 < transferAmount && transferAmount <= depositAmount);
+        vm.assume(0 < shiftAmount && shiftAmount <= depositAmount);
 
         _prepareWETH(user1, depositAmount * 2);
 
@@ -115,60 +126,47 @@ contract UniversalBalanceNativeTransferTest is TestBaseUniversalBalanceNative {
 
         vm.stopPrank();
 
-        uint256 redeemAmount = eWETH.convertToShares(transferAmount);
+        uint256 redeemAmount = eWETH.convertToShares(shiftAmount);
         uint256 ethBalance = address(universalBalanceNative).balance;
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
         uint256 eWETHBalance = eWETH.balanceOf(
             address(universalBalanceNative)
         );
-        uint256 userWETHBalance = weth.balanceOf(user2);
+        uint256 userUSDCBalance = weth.balanceOf(user1);
 
         vm.expectEmit();
-        emit Withdraw(
-            user1,
-            user1,
-            user1,
-            transferAmount,
-            forceLentRedemption
-        );
+        emit Withdraw(user1, user1, user1, shiftAmount, fromLent);
         vm.expectEmit();
-        emit Deposit(user1, user2, transferAmount, willLend);
+        emit Deposit(user1, user1, shiftAmount, !fromLent);
 
         vm.prank(user1);
-        universalBalanceNative.transfer(
-            transferAmount,
-            forceLentRedemption,
-            willLend,
-            user2
-        );
+        universalBalanceNative.shiftBalance(shiftAmount, fromLent);
 
         (
-            uint256 user1SittingBalance,
-            uint256 user1LentBalance
+            uint256 userSittingBalance,
+            uint256 userLentBalance
         ) = universalBalanceNative.userBalances(user1);
-        (
-            uint256 user2SittingBalance,
-            uint256 user2LentBalance
-        ) = universalBalanceNative.userBalances(user2);
 
         assertEq(
-            user1SittingBalance,
-            depositAmount - (forceLentRedemption ? 0 : transferAmount)
+            userSittingBalance,
+            fromLent
+                ? depositAmount + shiftAmount
+                : depositAmount - shiftAmount
         );
         assertEq(
-            user1LentBalance,
-            depositAmount - (forceLentRedemption ? transferAmount : 0)
+            userLentBalance,
+            fromLent
+                ? depositAmount - shiftAmount
+                : depositAmount + shiftAmount
         );
-        assertEq(user2SittingBalance, willLend ? 0 : transferAmount);
-        assertEq(user2LentBalance, willLend ? transferAmount : 0);
         assertEq(address(universalBalanceNative).balance, ethBalance);
-        assertEq(weth.balanceOf(user2), userWETHBalance);
+        assertEq(weth.balanceOf(user1), userUSDCBalance);
 
-        if (forceLentRedemption && !willLend) {
-            wethBalance += transferAmount;
+        if (fromLent) {
+            wethBalance += shiftAmount;
             eWETHBalance -= redeemAmount;
-        } else if (!forceLentRedemption && willLend) {
-            wethBalance -= transferAmount;
+        } else {
+            wethBalance -= shiftAmount;
             eWETHBalance += redeemAmount;
         }
 

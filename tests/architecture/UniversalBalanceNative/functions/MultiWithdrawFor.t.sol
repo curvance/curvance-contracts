@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract UniversalBalanceNativeMultiWithdrawForTest is
     TestBaseUniversalBalanceNative
@@ -306,7 +305,7 @@ contract UniversalBalanceNativeMultiWithdrawForTest is
                     withdrawAmounts_[i] <= depositAmounts[i]
             );
 
-            deal(_WETH_ADDRESS, owners[i], depositAmounts[i] * 2);
+            _prepareWETH(owners[i], depositAmounts[i] * 2);
 
             vm.startPrank(owners[i]);
 

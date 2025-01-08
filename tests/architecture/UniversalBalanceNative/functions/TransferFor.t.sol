@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract UniversalBalanceNativeTransferForTest is
     TestBaseUniversalBalanceNative
@@ -32,7 +31,7 @@ contract UniversalBalanceNativeTransferForTest is
     function test_universalBalanceNativeTransferFor_fail_whenOwnerIsNotApproved()
         public
     {
-        deal(_WETH_ADDRESS, user1, _ONE);
+        _prepareWETH(user1, _ONE);
 
         vm.prank(user1);
         universalBalanceNative.deposit(_ONE, true);
@@ -88,7 +87,7 @@ contract UniversalBalanceNativeTransferForTest is
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        _prepareWETH(user1, amount);
 
         vm.prank(user1);
         universalBalanceNative.deposit(amount, true);
@@ -110,7 +109,7 @@ contract UniversalBalanceNativeTransferForTest is
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_WETH_ADDRESS, user1, amount);
+        _prepareWETH(user1, amount);
 
         vm.prank(user1);
         universalBalanceNative.deposit(amount, false);
@@ -149,7 +148,7 @@ contract UniversalBalanceNativeTransferForTest is
         );
         vm.assume(0 < transferAmount && transferAmount <= depositAmount);
 
-        deal(_WETH_ADDRESS, user1, depositAmount * 2);
+        _prepareWETH(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 

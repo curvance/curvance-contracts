@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract NativeMultiWithdrawNativeForTest is TestBaseUniversalBalanceNative {
     event Withdraw(

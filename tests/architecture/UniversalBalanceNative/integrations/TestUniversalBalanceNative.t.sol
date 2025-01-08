@@ -365,6 +365,125 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testTransfer() public {
+        testDeposit();
+
+        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
+        uint256 userUSDCBalance = weth.balanceOf(user2);
+
+        vm.prank(user1);
+        universalBalanceNative.transfer(100e18, true, false, user2);
+
+        (
+            uint256 user1SittingBalance,
+            uint256 user1LentBalance
+        ) = universalBalanceNative.userBalances(user1);
+        (
+            uint256 user2SittingBalance,
+            uint256 user2LentBalance
+        ) = universalBalanceNative.userBalances(user2);
+
+        assertEq(user1SittingBalance, 100e18);
+        assertEq(user1LentBalance, 0);
+        assertEq(user2SittingBalance, 100e18);
+        assertEq(user2LentBalance, 0);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(weth.balanceOf(user2), userUSDCBalance);
+
+        wethBalance += 100e18;
+        eWETHBalance -= redeemAmount;
+
+        assertEq(weth.balanceOf(address(universalBalanceNative)), wethBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+
+        vm.prank(user1);
+        universalBalanceNative.transfer(100e18, false, true, user2);
+
+        (user1SittingBalance, user1LentBalance) = universalBalanceNative
+            .userBalances(user1);
+        (user2SittingBalance, user2LentBalance) = universalBalanceNative
+            .userBalances(user2);
+
+        assertEq(user1SittingBalance, 0);
+        assertEq(user1LentBalance, 0);
+        assertEq(user2SittingBalance, 100e18);
+        assertEq(user2LentBalance, 100e18);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(weth.balanceOf(user2), userUSDCBalance);
+
+        wethBalance -= 100e18;
+        eWETHBalance += redeemAmount;
+
+        assertEq(weth.balanceOf(address(universalBalanceNative)), wethBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+    }
+
+    function testShiftBalance() public {
+        testDeposit();
+
+        uint256 redeemAmount = eWETH.convertToShares(100e18);
+        uint256 ethBalance = address(universalBalanceNative).balance;
+        uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
+        uint256 eWETHBalance = eWETH.balanceOf(
+            address(universalBalanceNative)
+        );
+        uint256 userUSDCBalance = weth.balanceOf(user1);
+
+        vm.prank(user1);
+        universalBalanceNative.shiftBalance(100e18, true);
+
+        (
+            uint256 userSittingBalance,
+            uint256 userLentBalance
+        ) = universalBalanceNative.userBalances(user1);
+
+        assertEq(userSittingBalance, 200e18);
+        assertEq(userLentBalance, 0);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(weth.balanceOf(user1), userUSDCBalance);
+
+        wethBalance += 100e18;
+        eWETHBalance -= redeemAmount;
+
+        assertEq(weth.balanceOf(address(universalBalanceNative)), wethBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+
+        vm.prank(user1);
+        universalBalanceNative.shiftBalance(200e18, false);
+
+        redeemAmount = eWETH.convertToShares(200e18);
+        (userSittingBalance, userLentBalance) = universalBalanceNative
+            .userBalances(user1);
+
+        assertEq(userSittingBalance, 0);
+        assertEq(userLentBalance, 200e18);
+        assertEq(address(universalBalanceNative).balance, ethBalance);
+        assertEq(weth.balanceOf(user1), userUSDCBalance);
+
+        wethBalance -= 200e18;
+        eWETHBalance += redeemAmount;
+
+        assertEq(weth.balanceOf(address(universalBalanceNative)), wethBalance);
+        assertEq(
+            eWETH.balanceOf(address(universalBalanceNative)),
+            eWETHBalance
+        );
+    }
+
     function testLentBalanceIncreased() public {
         testDeposit();
 

@@ -29,7 +29,7 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
     function test_universalBalanceTransferFor_fail_whenOwnerIsNotApproved()
         public
     {
-        deal(_USDC_ADDRESS, user1, 1e6);
+        _prepareUSDC(user1, 1e6);
 
         vm.prank(user1);
         universalBalance.deposit(1e6, true);
@@ -79,7 +79,7 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.prank(user1);
         universalBalance.deposit(amount, true);
@@ -95,7 +95,7 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
     ) public {
         vm.assume(0 < amount && amount < type(uint256).max / _ONE);
 
-        deal(_USDC_ADDRESS, user1, amount);
+        _prepareUSDC(user1, amount);
 
         vm.prank(user1);
         universalBalance.deposit(amount, false);
@@ -126,7 +126,7 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
         );
         vm.assume(0 < transferAmount && transferAmount <= depositAmount);
 
-        deal(_USDC_ADDRESS, user1, depositAmount * 2);
+        _prepareUSDC(user1, depositAmount * 2);
 
         vm.startPrank(user1);
 

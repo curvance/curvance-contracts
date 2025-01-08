@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
 contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
     function test_useBalanceForOracleUpdate_fail_whenCallerIsNotAuthorized()

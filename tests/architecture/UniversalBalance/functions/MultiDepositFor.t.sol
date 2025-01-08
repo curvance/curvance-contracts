@@ -36,7 +36,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -72,7 +72,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -97,7 +97,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -118,7 +118,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum + 1);
+        _prepareUSDC(user1, depositSum + 1);
 
         vm.startPrank(user1);
 
@@ -139,7 +139,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         eUSDC = _deployEUSDC();
 
@@ -174,7 +174,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         amounts[0] = 0;
         willLend[0] = false;
@@ -195,7 +195,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_USDC_ADDRESS, user1, depositSum);
+        _prepareUSDC(user1, depositSum);
 
         vm.prank(user1);
 
@@ -215,7 +215,7 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
     ) public setupVariables(amounts_, willLend_) {
         vm.assume(exceedDepositAmount < 100e6);
 
-        deal(_USDC_ADDRESS, user1, depositSum + exceedDepositAmount);
+        _prepareUSDC(user1, depositSum + exceedDepositAmount);
 
         uint256[] memory receiveAmounts = new uint256[](3);
 

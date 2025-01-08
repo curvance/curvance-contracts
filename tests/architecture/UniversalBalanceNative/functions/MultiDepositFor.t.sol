@@ -39,7 +39,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -75,7 +75,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -100,7 +100,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         vm.startPrank(user1);
 
@@ -121,7 +121,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum + 1);
+        _prepareWETH(user1, depositSum + 1);
 
         vm.startPrank(user1);
 
@@ -142,7 +142,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         eWETH = _deployEToken(_WETH_ADDRESS);
 
@@ -178,7 +178,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         amounts[0] = 0;
         willLend[0] = false;
@@ -199,7 +199,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
         uint256[3] memory amounts_,
         bool[3] memory willLend_
     ) public setupVariables(amounts_, willLend_) {
-        deal(_WETH_ADDRESS, user1, depositSum);
+        _prepareWETH(user1, depositSum);
 
         vm.prank(user1);
 
@@ -219,7 +219,7 @@ contract UniversalBalanceNativeMultiDepositForTest is
     ) public setupVariables(amounts_, willLend_) {
         vm.assume(exceedDepositAmount < 100e18);
 
-        deal(_WETH_ADDRESS, user1, depositSum + exceedDepositAmount);
+        _prepareWETH(user1, depositSum + exceedDepositAmount);
 
         uint256[] memory receiveAmounts = new uint256[](3);
 

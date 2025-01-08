@@ -282,12 +282,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     function shiftBalance(
         uint256 amount,
         bool fromLent
-    )  external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
+    ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
         // If deposited balance is shifted from sitting balance, the typical
         // workflow would be to dip into lent balance if necessary, but then
         // we'd be withdrawing and then immediately re-depositing, minimizing
         // the efficacy of shifting balance's intended functionality.
-        //Therefore, a more strict check is done prior to _withdraw.
+        // Therefore, a more strict check is done prior to _withdraw.
         if (!fromLent) {
             if (userBalances[msg.sender].sittingBalance < amount) {
                 revert UniversalBalance__InsufficientBalance();
@@ -500,8 +500,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
-    /// @param owner The account that will redeem from their universal
-    ///              balance.
+    /// @param owner The account that will redeem from their universal balance.
     function _withdraw(
         uint256 amount,
         bool forceLentRedemption,
@@ -525,7 +524,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         UserBalance memory ownerBalance = userBalances[owner];
         uint256 exchangeRate = linkedEToken.exchangeRateWithUpdate();
 
-        // If its a forced lending redemption only check their lent balance,
+        // If it's a forced lending redemption only check their lent balance,
         // otherwise look at both sitting and lent balances.
         uint256 pointerAmount = forceLentRedemption
             ? FixedPointMathLib.mulDiv(
@@ -547,7 +546,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             revert UniversalBalance__InsufficientBalance();
         }
 
-        // If its not a forced lent redemption, pull from sitting balance
+        // If it's not a forced lent redemption, pull from sitting balance
         // first before pulling from balance being lent.
         if (!forceLentRedemption) {
             if (ownerBalance.sittingBalance > 0) {
@@ -580,7 +579,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             }
         }
 
-        // If lent balance was used at all, remainingAmount will be greater than 0.
+        // If lent balance was used at all,
+        // remainingAmount will be greater than 0.
         return (amount, remainingAmount > 0);
     }
 
@@ -598,7 +598,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param recipient The account who will receive the underlying assets.
     /// @param owners An array containing the accounts that will redeem from
     ///               their universal balance.
-    /// @return The total amount of underlying token withdrawn from all accounts.
+    /// @return The total amount of underlying token withdrawn
+    ///         from all accounts.
     function _multiWithdrawFor(
         uint256[] calldata amounts,
         bool[] calldata forceLentRedemption,
