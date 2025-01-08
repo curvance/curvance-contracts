@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -263,5 +264,51 @@ contract TestSimpleZapper is TestBaseMarket {
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
         assertApproxEqAbs(eDAI.debtBalanceCached(user1), 50 ether, 1 ether);
+    }
+
+    function testRedeemAndSwapPToken() public {
+        testSwapAndDeposit();
+
+        vm.prank(user1);
+        cSTETH.setDelegateApproval(address(simpleZapper), true);
+
+        uint256 shares = cSTETH.balanceOf(user1);
+
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(cSTETH);
+        redemptionData.shares = shares;
+        redemptionData.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = _CURVE_STETH_LP;
+        swapData.inputAmount = shares;
+        swapData.outputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapData.target = address(complexZapper);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        tokens[1] = _STETH_ADDRESS;
+
+        swapData.call = abi.encodeWithSelector(
+            ComplexZapper.exitCurve.selector,
+            _CURVE_STETH_MINTER,
+            ComplexZapper.ZapperData(
+                _CURVE_STETH_LP,
+                shares,
+                0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+                1,
+                false
+            ),
+            tokens,
+            2,
+            0,
+            new SwapperLib.Swap[](0),
+            address(simpleZapper)
+        );
+
+        vm.prank(user1);
+        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+
+        assertGt(user1.balance, 2.99 ether);
     }
 }
