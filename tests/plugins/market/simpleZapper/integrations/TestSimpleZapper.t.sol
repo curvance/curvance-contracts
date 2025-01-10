@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SimpleZapper } from "contracts/plugins/market/SimpleZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -263,5 +264,97 @@ contract TestSimpleZapper is TestBaseMarket {
 
         assertApproxEqAbs(dai.balanceOf(user1), 550 ether, 1 ether);
         assertApproxEqAbs(eDAI.debtBalanceCached(user1), 50 ether, 1 ether);
+    }
+
+    function testRedeemAndSwapPToken() public {
+        testSwapAndDeposit();
+
+        vm.prank(user1);
+        cSTETH.setDelegateApproval(address(simpleZapper), true);
+
+        uint256 shares = cSTETH.balanceOf(user1);
+
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(cSTETH);
+        redemptionData.shares = shares;
+        redemptionData.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = _CURVE_STETH_LP;
+        swapData.inputAmount = shares;
+        swapData.outputToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        swapData.target = address(complexZapper);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        tokens[1] = _STETH_ADDRESS;
+
+        swapData.call = abi.encodeWithSelector(
+            ComplexZapper.exitCurve.selector,
+            _CURVE_STETH_MINTER,
+            ComplexZapper.ZapperData(
+                _CURVE_STETH_LP,
+                shares,
+                0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+                1,
+                false
+            ),
+            tokens,
+            2,
+            0,
+            new SwapperLib.Swap[](0),
+            address(simpleZapper)
+        );
+
+        vm.prank(user1);
+        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+
+        assertGt(user1.balance, 2.99 ether); // 3 ether - fees
+    }
+
+    function testRedeemAndSwapEToken() public {
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V3_SWAP_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V3_SWAP_ROUTER))
+        );
+
+        vm.startPrank(user1);
+
+        // mint eDAI
+        _prepareDAI(user1, 10 ether);
+        dai.approve(address(eDAI), 10 ether);
+        eDAI.mint(10 ether);
+
+        eDAI.setDelegateApproval(address(simpleZapper), true);
+
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(eDAI);
+        redemptionData.shares = 10 ether;
+        redemptionData.forceRedeemCollateral = false;
+
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = _DAI_ADDRESS;
+        swapData.inputAmount = 10 ether;
+        swapData.outputToken = _USDC_ADDRESS;
+        swapData.target = _UNISWAP_V3_SWAP_ROUTER;
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _USDC_ADDRESS;
+        params.fee = 100;
+        params.recipient = address(simpleZapper);
+        params.deadline = block.timestamp;
+        params.amountIn = 10 ether;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        swapData.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+
+        simpleZapper.redeemAndSwap(redemptionData, swapData, user1);
+
+        assertGt(usdc.balanceOf(user1), 9.99e6); // 10e6 - fees
+
+        vm.stopPrank();
     }
 }

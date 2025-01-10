@@ -261,6 +261,124 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testDepositAndLeverageMaxWithExistingPosition() public {
+        vm.startPrank(user);
+
+        // deposit and borrow (~1k collateral and 500 debt)
+        deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.001 ether);
+        pUSDCDAI.deposit(0.001 ether, user);
+        marketManager.postCollateral(user, address(pUSDCDAI), 0.001 ether);
+        assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        eDAI.borrow(500 ether);
+        assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
+
+        // deposit and leverage
+        deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(
+            address(positionManagement),
+            0.001 ether
+        );
+
+        // allow delegation for postCollateral
+        pUSDCDAI.setDelegateApproval(address(positionManagement), true);
+
+        // try max leverage
+        uint256 amountForLeverage = positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        );
+
+        PositionManagementAerodromeStable.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.swapData.inputToken = address(0x0);
+        leverageData.swapData.inputAmount = 0;
+        leverageData.swapData.outputToken = address(0x0);
+        leverageData.swapData.target = address(0x0);
+        leverageData.swapData.slippage = 0;
+        leverageData.swapData.call = bytes("");
+        leverageData.auxData = bytes("");
+
+        positionManagement.depositAndLeverage(
+            0.001 ether,
+            leverageData,
+            0.05e18 // 5% slippage
+        );
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage + 500 ether);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.0034 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverageHalfOfMaxWithExistingPosition() public {
+        vm.startPrank(user);
+
+        // deposit and borrow (~1k collateral and 500 debt)
+        deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.001 ether);
+        pUSDCDAI.deposit(0.001 ether, user);
+        marketManager.postCollateral(user, address(pUSDCDAI), 0.001 ether);
+        assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        eDAI.borrow(500 ether);
+        assertEq(balanceBeforeBorrow + 500 ether, dai.balanceOf(user));
+
+        // deposit and leverage
+        deal(_AERODROME_DAI_USDC, user, 0.001 ether);
+        IERC20(_AERODROME_DAI_USDC).approve(
+            address(positionManagement),
+            0.001 ether
+        );
+
+        // allow delegation for postCollateral
+        pUSDCDAI.setDelegateApproval(address(positionManagement), true);
+
+        // try half of max leverage
+        uint256 amountForLeverage = positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) / 2;
+
+        PositionManagementAerodromeStable.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.swapData.inputToken = address(0x0);
+        leverageData.swapData.inputAmount = 0;
+        leverageData.swapData.outputToken = address(0x0);
+        leverageData.swapData.target = address(0x0);
+        leverageData.swapData.slippage = 0;
+        leverageData.swapData.call = bytes("");
+        leverageData.auxData = bytes("");
+
+        positionManagement.depositAndLeverage(
+            0.001 ether,
+            leverageData,
+            0.05e18 // 5% slippage
+        );
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage + 500 ether);
+
+        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
+            .getSnapshot(user);
+        assertGt(pUSDCDAIBalance, 0.0027 ether);
+        assertEq(pUSDCDAIBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
         // Warp until collateral posting wait time ends
