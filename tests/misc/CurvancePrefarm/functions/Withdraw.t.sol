@@ -10,7 +10,7 @@ contract WithdrawTest is TestBaseCurvancePrefarm {
     function setUp() public override {
         super.setUp();
 
-        deal(_USDC_ADDRESS, user1, 100e6);
+        _prepareUSDC(user1, 100e6);
 
         vm.startPrank(user1);
 

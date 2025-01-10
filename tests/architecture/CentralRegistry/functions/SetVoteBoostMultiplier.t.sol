@@ -6,7 +6,9 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
 contract SetVoteBoostMultiplierTest is TestBaseMarket {
-    function test_setVoteBoostMultiplier_fail_whenUnauthorized() public {
+    function test_setVoteBoostMultiplier_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

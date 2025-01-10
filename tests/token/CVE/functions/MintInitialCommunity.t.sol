@@ -6,7 +6,9 @@ import { CVE } from "contracts/token/CVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintCommunityAllocationTest is TestBaseMarket {
-    function test_mintCommunityAllocation_fail_whenUnauthorized() public {
+    function test_mintCommunityAllocation_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintCommunityAllocation(1000);

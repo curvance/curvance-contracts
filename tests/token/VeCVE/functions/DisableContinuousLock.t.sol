@@ -10,14 +10,14 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
-        deal(address(cve), address(this), 100e18);
+        _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
 
         _skipRestrictionDuration();
 
         veCVE.createLock(50e18, true, rewardsData, "", 0);
 
-        deal(_USDC_ADDRESS, address(rewardManager), 200e18);
+        _prepareUSDC(address(rewardManager), 200e18);
     }
 
     function test_disableContinuousLock_fail_whenLockIndexIsInvalid() public {

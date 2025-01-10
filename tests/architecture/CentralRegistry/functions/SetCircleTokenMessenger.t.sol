@@ -10,7 +10,9 @@ contract SetCircleTokenMessengerTest is TestBaseMarket {
     address public newCircleTokenMessenger =
         makeAddr("Circle Token Messenger");
 
-    function test_setCircleTokenMessenger_fail_whenUnauthorized() public {
+    function test_setCircleTokenMessenger_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

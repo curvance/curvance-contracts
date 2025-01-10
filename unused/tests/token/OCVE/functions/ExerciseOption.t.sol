@@ -45,7 +45,7 @@
 //     }
 
 //     function test_exerciseOption_fail_whenOptionIsNotEnough() public {
-//         deal(address(cve), address(oCVE), oCVEBalance + 1);
+//         _prepareCVE( address(oCVE), oCVEBalance + 1);
 
 //         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
 //         oCVE.exerciseOption(oCVEBalance + 1);
@@ -69,7 +69,7 @@
 
 //         oCVEBalance = oCVE.balanceOf(address(this));
 
-//         deal(address(cve), address(oCVE), oCVEBalance);
+//         _prepareCVE( address(oCVE), oCVEBalance);
 
 //         vm.expectRevert(OCVE.OCVE__CannotExercise.selector);
 //         oCVE.exerciseOption{ value: oCVEBalance - 1 }(oCVEBalance);
@@ -97,7 +97,7 @@
 
 //         deal(address(this), amount);
 //         deal(address(oCVE), address(this), amount);
-//         deal(address(cve), address(oCVE), amount);
+//         _prepareCVE( address(oCVE), amount);
 
 //         uint256 ethBalance = address(this).balance;
 //         uint256 oCVEETHBalance = address(oCVE).balance;
@@ -122,8 +122,8 @@
 //         uint256 payAmount = optionExerciseCost / 1e12;
 
 //         deal(address(oCVE), address(this), amount);
-//         deal(address(cve), address(oCVE), amount);
-//         deal(_USDC_ADDRESS, address(this), payAmount * 3);
+//         _prepareCVE( address(oCVE), amount);
+//         _prepareUSDC(address(this), payAmount * 3);
 
 //         usdc.approve(address(oCVE), payAmount);
 

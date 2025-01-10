@@ -129,7 +129,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
         assertEq(errorCode, 0);
         assertGt(price, 0);
 
-        deal(_DAI_ADDRESS, user1, amount0 * 2);
+        _prepareDAI(user1, amount0 * 2);
 
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _DAI_ADDRESS;

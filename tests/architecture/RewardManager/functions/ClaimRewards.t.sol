@@ -37,10 +37,10 @@ contract ClaimRewardsTest is TestBaseRewardManager {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 10000e6);
+        _prepareUSDC(address(rewardManager), 10000e6);
 
-        deal(_USDC_ADDRESS, address(this), 10000e6);
-        deal(address(cve), address(this), 1000000e18);
+        _prepareUSDC(address(this), 10000e6);
+        _prepareCVE(address(this), 1000000e18);
 
         usdc.approve(_UNISWAP_V2_ROUTER, 10000e6);
         cve.approve(_UNISWAP_V2_ROUTER, 1000000e18);
@@ -75,7 +75,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(100e18, false, rewardsData, "0x", 0);
@@ -124,7 +124,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(amount, isFreshLockContinuous, rewardsData, "0x", 0);
@@ -142,7 +142,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         assertTrue(rewardManager.hasRewardsToClaim(user1));
         assertEq(rewardManager.hypotheticalRewardsClaim(user1), rewards);
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
         swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(

@@ -5,7 +5,7 @@ import { TestBaseRemoteCVE } from "../TestBaseRemoteCVE.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintGaugeEmissionsTest is TestBaseRemoteCVE {
-    function test_mintGaugeEmissions_fail_whenUnauthorized() public {
+    function test_mintGaugeEmissions_fail_whenCallerIsNotAuthorized() public {
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         remoteCVE.mintGaugeEmissions(address(gaugeManager), 1000);
     }

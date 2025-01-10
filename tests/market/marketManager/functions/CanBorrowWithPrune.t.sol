@@ -7,8 +7,6 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 contract CanBorrowWithPruneTest is TestBaseMarketManager {
-    event MarketEntered(address mToken, address account);
-
     function setUp() public override {
         super.setUp();
 
@@ -109,7 +107,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
-        deal(address(balRETH), user1, 1_000e18);
+        _prepareBALRETH(user1, 1_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, user1);
@@ -162,7 +160,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
-        deal(address(balRETH), user1, 10_000e18);
+        _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);
@@ -264,7 +262,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
-        deal(address(balRETH), user1, 10_000e18);
+        _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);

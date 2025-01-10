@@ -11,7 +11,7 @@ contract WithdrawDepositedTest is TestBaseMessagingHub {
         super.setUp();
 
         deal(address(messagingHub), _ONE);
-        deal(_USDC_ADDRESS, address(messagingHub), _ONE);
+        _prepareUSDC(address(messagingHub), _ONE);
     }
 
     function test_withdrawDeposited_fail_whenCallerIsNotAuthorized() public {

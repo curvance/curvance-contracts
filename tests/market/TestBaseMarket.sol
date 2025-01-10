@@ -104,8 +104,7 @@ contract TestBaseMarket is TestBase {
         centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
         centralRegistry.setSlippageLimit(6000);
 
-        deal(
-            _USDC_ADDRESS,
+        _prepareUSDC(
             address(centralRegistry.circleMessageTransmitter()),
             1_000_000e6
         );
@@ -511,6 +510,13 @@ contract TestBaseMarket is TestBase {
         redstoneSigners.push(0xfb5009a8573762f98E9E99304195197a6f188de1);
     }
 
+    function _prepareWETH(
+        address user,
+        uint256 amount
+    ) internal initMainVariables {
+        deal(_WETH_ADDRESS, user, amount);
+    }
+
     function _prepareUSDC(
         address user,
         uint256 amount
@@ -525,11 +531,25 @@ contract TestBaseMarket is TestBase {
         deal(_DAI_ADDRESS, user, amount);
     }
 
+    function _prepareWBTC(
+        address user,
+        uint256 amount
+    ) internal initMainVariables {
+        deal(_WBTC_ADDRESS, user, amount);
+    }
+
     function _prepareBALRETH(
         address user,
         uint256 amount
     ) internal initMainVariables {
         deal(_BAL_WETH_RETH_ADDRESS, user, amount);
+    }
+
+    function _prepareCVE(
+        address user,
+        uint256 amount
+    ) internal initMainVariables {
+        deal(address(cve), user, amount);
     }
 
     function _setPBALRETHCollateralCaps(

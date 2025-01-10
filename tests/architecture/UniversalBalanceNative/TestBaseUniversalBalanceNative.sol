@@ -21,7 +21,7 @@ contract TestBaseUniversalBalanceNative is TestBaseMarket {
             _WETH_ADDRESS
         );
 
-        deal(_WETH_ADDRESS, address(this), 10e18);
+        _prepareWETH(address(this), 10e18);
         deal(user1, _ONE);
 
         weth.approve(address(eWETH), 10e18);

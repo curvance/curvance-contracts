@@ -49,7 +49,7 @@ contract BasicSettersTest is TestBaseMarket {
         ];
     }
 
-    function test_setter_fail_whenUnauthorized() public {
+    function test_setter_fail_whenCallerIsNotAuthorized() public {
         uint8 length = uint8(setters.length);
         vm.startPrank(address(0));
         for (uint256 i; i < length; i++) {

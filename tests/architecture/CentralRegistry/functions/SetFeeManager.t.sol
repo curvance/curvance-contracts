@@ -9,7 +9,7 @@ contract SetFeeManagerTest is TestBaseMarket {
 
     address public newFeeManager = makeAddr("Fee Manager");
 
-    function test_setFeeManager_fail_whenUnauthorized() public {
+    function test_setFeeManager_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

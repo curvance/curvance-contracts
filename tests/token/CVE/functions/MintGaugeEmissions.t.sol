@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintGaugeEmissionsTest is TestBaseMarket {
-    function test_mintGaugeEmissions_fail_whenUnauthorized() public {
+    function test_mintGaugeEmissions_fail_whenCallerIsNotAuthorized() public {
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintGaugeEmissions(address(gaugeManager), 1000);
     }

@@ -104,7 +104,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         // deploy eWETH
         {
             // support market
-            deal(_WETH_ADDRESS, owner, 200000 ether);
+            _prepareWETH(owner, 200000 ether);
             weth.approve(address(eWETH), 200000e18);
             marketManager.listToken(address(eWETH));
             // add MToken support on oracle manager
@@ -127,7 +127,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
             );
 
             // support market
-            deal(_WBTC_ADDRESS, owner, 1e8);
+            _prepareWBTC(owner, 1e8);
             wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
             // add MToken support on oracle manager
@@ -168,7 +168,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
     }
 
     function testDeposit() public {
-        deal(_WETH_ADDRESS, user1, 200e18);
+        _prepareWETH(user1, 200e18);
 
         uint256 receiveAmount = eWETH.convertToShares(100e18);
         uint256 wethBalance = weth.balanceOf(address(universalBalanceNative));
@@ -368,7 +368,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
         testDeposit();
 
         // mint cWBTC & borrow WETH
-        deal(_WBTC_ADDRESS, user2, 100e8);
+        _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.mint(100e8, user2);
@@ -379,7 +379,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
 
         skip(10 weeks);
 
-        deal(_WETH_ADDRESS, owner, 100e18);
+        _prepareWETH(owner, 100e18);
         weth.approve(address(eWETH), 100e18);
         eWETH.mint(100e18);
 

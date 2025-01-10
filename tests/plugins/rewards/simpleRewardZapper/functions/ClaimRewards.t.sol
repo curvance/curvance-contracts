@@ -39,7 +39,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
         );
 
-        deal(_USDC_ADDRESS, address(rewardManager), 1e18);
+        _prepareUSDC(address(rewardManager), 1e18);
     }
 
     function test_claimRewards_fail_whenNoEpochRewardsToClaim() public {
@@ -64,7 +64,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         vm.startPrank(user1);
 
-        deal(address(cve), user1, 100e18);
+        _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
         veCVE.createLock(amount, false, rewardsData, "0x", 0);
@@ -78,7 +78,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         _recordEpochRewards(2, 1e6 * _ONE);
 
-        deal(_USDC_ADDRESS, address(rewardManager), rewards);
+        _prepareUSDC(address(rewardManager), rewards);
 
         swapData.inputAmount = rewards;
         swapData.call = abi.encodeWithSignature(

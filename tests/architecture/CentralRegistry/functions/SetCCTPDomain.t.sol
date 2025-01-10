@@ -7,7 +7,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 contract SetCCTPDomainTest is TestBaseMarket {
     event CCTPDomainSet(uint32 newDomain);
 
-    function test_setCCTPDomain_fail_whenUnauthorized() public {
+    function test_setCCTPDomain_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(

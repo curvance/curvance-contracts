@@ -132,7 +132,7 @@ contract TestAerodromeVolatilePToken is TestBaseMarket {
         assertEq(errorCode, 0);
         assertGt(price, 0);
 
-        deal(_USDC_ADDRESS, user1, amount1 * 2);
+        _prepareUSDC(user1, amount1 * 2);
 
         IVeloRouter.Route[] memory routes = new IVeloRouter.Route[](1);
         routes[0].from = _USDC_ADDRESS;

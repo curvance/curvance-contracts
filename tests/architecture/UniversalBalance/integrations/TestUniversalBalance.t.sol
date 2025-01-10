@@ -97,7 +97,7 @@ contract TestUniversalBalance is TestBaseMarket {
         // deploy eUSDC
         {
             // support market
-            deal(_USDC_ADDRESS, owner, 200_000e6);
+            _prepareUSDC(owner, 200_000e6);
             usdc.approve(address(eUSDC), 200_000e6);
             marketManager.listToken(address(eUSDC));
 
@@ -119,7 +119,7 @@ contract TestUniversalBalance is TestBaseMarket {
             );
 
             // support market
-            deal(_WBTC_ADDRESS, owner, 1e8);
+            _prepareWBTC(owner, 1e8);
             wbtc.approve(address(cWBTC), 1e8);
             marketManager.listToken(address(cWBTC));
             // add MToken support on oracle manager
@@ -157,7 +157,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testDeposit() public {
-        deal(_USDC_ADDRESS, user1, 200e6);
+        _prepareUSDC(user1, 200e6);
 
         uint256 receiveAmount = eUSDC.convertToShares(100e6);
         uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
@@ -243,7 +243,7 @@ contract TestUniversalBalance is TestBaseMarket {
         testDeposit();
 
         // mint cWBTC & borrow USDC
-        deal(_WBTC_ADDRESS, user2, 100e8);
+        _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.mint(100e8, user2);
@@ -254,7 +254,7 @@ contract TestUniversalBalance is TestBaseMarket {
 
         skip(10 weeks);
 
-        deal(_USDC_ADDRESS, owner, 100e6);
+        _prepareUSDC(owner, 100e6);
         usdc.approve(address(eUSDC), 100e6);
         eUSDC.mint(100e6);
 

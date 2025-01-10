@@ -7,7 +7,9 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 contract SetExternalCalldataCheckerTest is TestBaseMarket {
     address public externalCalldataChecker = makeAddr("Calldata Checker");
 
-    function test_setExternalCalldataChecker_fail_whenUnauthorized() public {
+    function test_setExternalCalldataChecker_fail_whenCallerIsNotAuthorized()
+        public
+    {
         vm.prank(address(0));
 
         vm.expectRevert(

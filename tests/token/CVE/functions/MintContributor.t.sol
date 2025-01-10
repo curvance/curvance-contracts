@@ -5,7 +5,7 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";
 
 contract MintContributorTest is TestBaseMarket {
-    function test_mintContributor_fail_whenUnauthorized() public {
+    function test_mintContributor_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
         vm.expectRevert(CVEBase.CVE__Unauthorized.selector);
         cve.mintContributor();
@@ -30,7 +30,10 @@ contract MintContributorTest is TestBaseMarket {
         // 2 months worth of contributor allocation
         uint256 expectedAmount = 2 * cve.contributorAllocationPerMonth();
         assertEq(expectedAmount, cve.contributorAllocationMinted());
-        assertEq(cve.balanceOf(contributorAddress), prevBalance + expectedAmount);
+        assertEq(
+            cve.balanceOf(contributorAddress),
+            prevBalance + expectedAmount
+        );
 
         skip(31 days);
         vm.prank(contributorAddress);
@@ -39,7 +42,10 @@ contract MintContributorTest is TestBaseMarket {
         // 3 months worth of contributor allocation
         expectedAmount = cve.contributorAllocationPerMonth() * 3;
         assertEq(expectedAmount, cve.contributorAllocationMinted());
-        assertEq(cve.balanceOf(contributorAddress), prevBalance + expectedAmount);
+        assertEq(
+            cve.balanceOf(contributorAddress),
+            prevBalance + expectedAmount
+        );
 
         // 4 years
         skip(1460 days);
@@ -48,6 +54,9 @@ contract MintContributorTest is TestBaseMarket {
 
         expectedAmount = cve.contributorAllocation();
         assertEq(expectedAmount, cve.contributorAllocationMinted());
-        assertEq(cve.balanceOf(contributorAddress), prevBalance + expectedAmount);
+        assertEq(
+            cve.balanceOf(contributorAddress),
+            prevBalance + expectedAmount
+        );
     }
 }

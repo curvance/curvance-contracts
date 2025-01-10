@@ -142,7 +142,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        deal(address(balRETH), user1, 10_000e18);
+        _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);
@@ -192,14 +192,14 @@ contract CanLiquidateTest is TestBaseMarketManager {
         );
 
         // Mint pBALRETH for collateral
-        deal(address(balRETH), user1, 10_000e18);
+        _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1e18, user1);
         marketManager.postCollateral(user1, address(pBALRETH), 1e18 - 1);
 
         // Borrow eUSDC with pBALRETH as collateral
-        deal(_USDC_ADDRESS, address(eUSDC), 100_000e6);
+        _prepareUSDC(address(eUSDC), 100_000e6);
         eUSDC.borrow(1000e6);
         vm.stopPrank();
 
