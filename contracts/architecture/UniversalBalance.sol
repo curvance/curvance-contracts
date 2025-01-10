@@ -495,7 +495,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Withdraws underlying token from user's universal balance
     ///         account, either currently held or lent out.
-    /// @dev Emits { Withdraw } event.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent

@@ -123,7 +123,7 @@ contract MessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-        _canSubmitQueries();
+        _checkCrosschainPermissions();
 
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
@@ -381,7 +381,7 @@ contract MessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-        _canSubmitQueries();
+        _checkCrosschainPermissions();
 
         ChainData memory chainData = _getChainData(dstChainId);
 
@@ -962,7 +962,7 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @notice Checks if the caller can submit votes to the protocol.
-    function _canSubmitQueries() internal view {
+    function _checkCrosschainPermissions() internal view {
         if (
             !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)

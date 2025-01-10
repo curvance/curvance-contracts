@@ -671,7 +671,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Update pending interest.
         accrueInterest();
-
+        
         // Make sure we have enough underlying held to cover withdrawal.
         if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
@@ -1334,9 +1334,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount
     ) internal returns (uint256) {
         // Check if we have enough underlying held to support the redemption.
-        // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
-        // because the startMarket() assets can never be withdraw since the
-        // market itself owns the corresponding eTokens.
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
         if (
             marketUnderlyingHeld() - convertToAssets(totalReserves) <
             amount + _BASE_UNDERLYING_RESERVE
