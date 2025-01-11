@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative, UniversalBalance } from "contracts/architecture/UniversalBalanceNative.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
 contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
     function test_useBalanceForOracleUpdate_fail_whenCallerIsNotAuthorized()
@@ -44,7 +44,10 @@ contract UseBalanceForOracleUpdateTest is TestBaseUniversalBalanceNative {
             depositAmount1 < type(uint256).max / _ONE &&
                 depositAmount2 < type(uint256).max / _ONE
         );
-        vm.assume(withdrawAmount <= depositAmount1 + depositAmount2);
+        vm.assume(
+            0 < withdrawAmount &&
+                withdrawAmount <= depositAmount1 + depositAmount2
+        );
 
         deal(user1, depositAmount1 + depositAmount2);
 

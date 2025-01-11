@@ -78,7 +78,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(100e18, false, rewardsData, "0x", 0);
+        veCVE.createLock(100e18, false, rewardsData, "", 0);
 
         vm.stopPrank();
 
@@ -127,7 +127,7 @@ contract ClaimRewardsTest is TestBaseRewardManager {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, isFreshLockContinuous, rewardsData, "0x", 0);
+        veCVE.createLock(amount, isFreshLockContinuous, rewardsData, "", 0);
 
         vm.stopPrank();
 

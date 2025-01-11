@@ -20,7 +20,6 @@ contract SetCooldownTest is TestBaseMarket {
     function test_setCooldown_success() public {
         vm.startPrank(user1);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
@@ -28,7 +27,6 @@ contract SetCooldownTest is TestBaseMarket {
 
         centralRegistry.setCooldown(10 days);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
@@ -36,12 +34,10 @@ contract SetCooldownTest is TestBaseMarket {
 
         centralRegistry.setCooldown(5 days);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
         skip(10 days);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
 
         vm.stopPrank();

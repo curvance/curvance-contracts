@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
@@ -31,11 +32,12 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
         address inputToken;
         uint256 inputAmount;
         address outputToken;
-        
+
         if (funcSigHash == ComplexZapper.enterVelodrome.selector) {
             (
                 address pToken,
                 ComplexZapper.ZapperData memory desc,
+                ,
                 ,
                 ,
                 ,
@@ -49,6 +51,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
                         SwapperLib.Swap[],
                         address,
                         address,
+                        uint256,
                         bool,
                         address
                     )
@@ -80,7 +83,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
             funcSigHash == ComplexZapper.redeemAndExitVelodrome.selector
         ) {
             (
-                ComplexZapper.RedemptionData memory redemptionData,
+                ZapperBase.RedemptionData memory redemptionData,
                 ,
                 ComplexZapper.ZapperData memory desc,
                 ,
@@ -88,7 +91,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
             ) = abi.decode(
                     _getFuncParams(swapData.call),
                     (
-                        ComplexZapper.RedemptionData,
+                        ZapperBase.RedemptionData,
                         address,
                         ComplexZapper.ZapperData,
                         SwapperLib.Swap[],
@@ -96,13 +99,14 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.pToken;
+            inputToken = redemptionData.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.enterPendle.selector) {
             (
                 address pToken,
                 ComplexZapper.ZapperData memory desc,
+                ,
                 ,
                 ,
                 ,
@@ -118,6 +122,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
                         address,
                         bool,
                         PendleLib.PendleData,
+                        uint256,
                         bool,
                         address
                     )
@@ -153,7 +158,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
             outputToken = desc.outputToken;
         } else if (funcSigHash == ComplexZapper.redeemAndExitPendle.selector) {
             (
-                ComplexZapper.RedemptionData memory redemptionData,
+                ZapperBase.RedemptionData memory redemptionData,
                 ,
                 ,
                 ,
@@ -164,7 +169,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
             ) = abi.decode(
                     _getFuncParams(swapData.call),
                     (
-                        ComplexZapper.RedemptionData,
+                        ZapperBase.RedemptionData,
                         address,
                         bool,
                         address,
@@ -175,7 +180,7 @@ contract ComplexZapperBetaCalldataChecker is BaseSwapChecker {
                     )
                 );
             recipient = _recipient;
-            inputToken = redemptionData.pToken;
+            inputToken = redemptionData.mToken;
             inputAmount = desc.inputAmount;
             outputToken = desc.outputToken;
         } else {

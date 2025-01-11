@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
     event Withdraw(
@@ -10,7 +9,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function setUp() public override {
@@ -115,7 +114,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, true);
 
         vm.prank(user2);
         universalBalanceNative.withdrawNativeFor(
@@ -165,7 +164,7 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user2.balance;
 
         vm.expectEmit();
-        emit Withdraw(user2, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user2, user2, user1, withdrawAmount, false);
 
         vm.prank(user2);
         universalBalanceNative.withdrawNativeFor(

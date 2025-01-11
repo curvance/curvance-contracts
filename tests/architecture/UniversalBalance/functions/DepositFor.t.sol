@@ -11,7 +11,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function setUp() public override {
@@ -122,7 +122,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, receiveAmount);
+        emit Deposit(user1, user2, amount, true);
 
         universalBalance.depositFor(amount, true, user2);
 
@@ -157,7 +157,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, amount);
+        emit Deposit(user1, user2, amount, false);
 
         universalBalance.depositFor(amount, false, user2);
 

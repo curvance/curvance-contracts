@@ -8,6 +8,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
@@ -83,13 +84,6 @@ contract TestComplexZapperPendle is TestBaseMarket {
         marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
-    }
-
     function testEnterPendle() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
@@ -116,6 +110,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             false,
             user1
         );
@@ -190,6 +185,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             false,
             user1
         );
@@ -227,6 +223,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             true,
             user1
         );
@@ -267,6 +264,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
             _PENDLE_ROUTER,
             _IS_PT,
             data,
+            1.2 ether,
             true,
             user1
         );
@@ -284,8 +282,8 @@ contract TestComplexZapperPendle is TestBaseMarket {
         vm.prank(user1);
         cSTETH.setDelegateApproval(address(complexZapper), true);
 
-        ComplexZapper.RedemptionData memory redemptionData;
-        redemptionData.pToken = address(cSTETH);
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(cSTETH);
         redemptionData.shares = 1.24 ether;
         redemptionData.forceRedeemCollateral = false;
 

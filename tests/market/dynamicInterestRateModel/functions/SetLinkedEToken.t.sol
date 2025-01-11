@@ -18,7 +18,7 @@ contract SetLinkedETokenTest is TestBaseDynamicInterestRateModel {
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            12 hours, // adjustmentRate
+            4 hours, // adjustmentRate
             5000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate

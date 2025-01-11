@@ -40,7 +40,7 @@ contract MessagingHub is QueryResponse {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
-    uint256 internal constant _DEFAULT_GAS_LIMIT = 500_000;
+    uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
 
     /// @dev `bytes4(keccak256(bytes("MessagingHub__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0x68bc8bd3;
@@ -123,7 +123,7 @@ contract MessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-        _canSubmitQueries();
+        _checkCrosschainPermissions();
 
         IRewardManager rewardManager = _getRewardManager();
         uint256 epoch = _getNextEpochToDeliver(rewardManager);
@@ -294,8 +294,8 @@ contract MessagingHub is QueryResponse {
                 emissionData.emissions
             );
         } else if (payloadType == 3) {
-            // payloadType = 3: Receiving fees from a foreign chain and
-            //                  finalized epoch rewards data.
+            // payloadType = 3:  Receiving fees from a foreign chain and
+            //                   finalized epoch rewards data.
 
             IRewardManager rewardManager = _getRewardManager();
             (, uint256 epochToDeliver, uint256 epochRewardsPerPoint) = abi
@@ -381,7 +381,7 @@ contract MessagingHub is QueryResponse {
         uint256 gasLimit
     ) external {
         _checkMessagingStatus(1);
-        _canSubmitQueries();
+        _checkCrosschainPermissions();
 
         ChainData memory chainData = _getChainData(dstChainId);
 
@@ -706,7 +706,6 @@ contract MessagingHub is QueryResponse {
 
         IRewardManager rewardManager = _getRewardManager();
         ChainData memory chainData;
-        uint256 feeTokensForChain;
 
         // If theres no epoch rewards per point this implies fee token amount
         // of 0 everywhere so we can record epoch rewards of 0 everywhere
@@ -734,9 +733,8 @@ contract MessagingHub is QueryResponse {
         // Calculate the fee tokens that should stay on this chain by querying
         // this chains lock points directly and adjusting versus all remote
         // chains.
-        feeTokensForChain =
-            (((feeTokensHeld * WAD) / totalPoints) * currentChainId) /
-            WAD;
+        uint256 feeTokensForChain = (((feeTokensHeld * WAD) / totalPoints) *
+            currentChainId) / WAD;
 
         // If the Reward Manager is shutdown, transfer fees to DAO
         // instead of recording epoch rewards.
@@ -964,7 +962,7 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @notice Checks if the caller can submit votes to the protocol.
-    function _canSubmitQueries() internal view {
+    function _checkCrosschainPermissions() internal view {
         if (
             !centralRegistry.isHarvester(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)

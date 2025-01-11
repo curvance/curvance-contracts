@@ -187,7 +187,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         {
             positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
-                address(marketManager)
+                address(marketManager),
+                _WETH_ADDRESS
             );
             marketManager.setPositionManagement(address(positionManagement));
         }
@@ -300,7 +301,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(6000);
 
         // provide fee to universal balance
         _prepareWBTC(user1, 0.1e8);

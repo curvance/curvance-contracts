@@ -126,6 +126,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         positionManagement = new PositionManagementPendlePT(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             _ROUTER
         );
 

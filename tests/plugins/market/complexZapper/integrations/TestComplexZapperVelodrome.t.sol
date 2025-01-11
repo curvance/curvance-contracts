@@ -5,6 +5,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
@@ -45,7 +46,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
 
         complexZapper = new ComplexZapper(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
             _WETH
         );
 
@@ -130,13 +130,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         marketManager.setPTokenCollateralCaps(tokens, caps);
     }
 
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
-    }
-
     function testEnterVelodrome() public {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
@@ -154,6 +147,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             false,
             user1
         );
@@ -208,6 +202,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             false,
             user1
         );
@@ -235,6 +230,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             true,
             user1
         );
@@ -265,6 +261,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _VELODROME_ROUTER,
             _VELODROME_FACTORY,
+            6e13,
             true,
             user1
         );
@@ -281,8 +278,8 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ComplexZapper.RedemptionData memory redemptionData;
-        redemptionData.pToken = address(pToken);
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(pToken);
         redemptionData.shares = 0.00006 ether;
         redemptionData.forceRedeemCollateral = false;
 

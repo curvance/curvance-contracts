@@ -11,7 +11,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function test_universalBalanceDeposit_fail_whenHasNoEnoughUSDC_fuzzed(
@@ -94,7 +94,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, receiveAmount);
+        emit Deposit(user1, user1, amount, true);
 
         universalBalance.deposit(amount, true);
 
@@ -129,7 +129,7 @@ contract UniversalBalanceDepositTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, amount);
+        emit Deposit(user1, user1, amount, false);
 
         universalBalance.deposit(amount, false);
 

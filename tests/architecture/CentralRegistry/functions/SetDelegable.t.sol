@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
 
 contract SetDelegableTest is TestBaseMarket {
     event DelegableStatusSet(
@@ -13,14 +14,14 @@ contract SetDelegableTest is TestBaseMarket {
 
     function test_setDelegable_fail_whenStatusIsNotFlipping() public {
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            LockableRegistry.LockableRegistry__InvalidParams.selector
         );
         centralRegistry.setDelegable(false);
 
         centralRegistry.setDelegable(true);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            LockableRegistry.LockableRegistry__InvalidParams.selector
         );
         centralRegistry.setDelegable(true);
     }
@@ -33,7 +34,7 @@ contract SetDelegableTest is TestBaseMarket {
         centralRegistry.setDelegable(true);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            LockableRegistry.LockableRegistry__InvalidParams.selector
         );
         centralRegistry.setDelegable(false);
     }

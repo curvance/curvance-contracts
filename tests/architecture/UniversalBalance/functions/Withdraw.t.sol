@@ -10,7 +10,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function test_universalBalanceWithdraw_fail_whenTransferIsDisabled()
@@ -114,7 +114,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         universalBalance.withdraw(withdrawAmount, true, user2);
 
@@ -156,7 +156,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
         uint256 userUSDCBalance = usdc.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         vm.prank(user1);
         universalBalance.withdraw(withdrawAmount, false, user2);

@@ -134,7 +134,7 @@ contract DynamicInterestRateModelDeploymentTest is
             1000,
             1000,
             5000,
-            12 hours,
+            4 hours,
             5000,
             100000000,
             (maxVertexDecayRate / 1e14) + 1
@@ -154,7 +154,7 @@ contract DynamicInterestRateModelDeploymentTest is
             1000,
             1000,
             5000,
-            12 hours,
+            4 hours,
             5000,
             type(uint192).max / (1000 * 1e14) / 1e14 + 1,
             100
@@ -167,7 +167,7 @@ contract DynamicInterestRateModelDeploymentTest is
             1500,
             1500,
             5500,
-            10 hours,
+            4 hours,
             5500,
             150000000,
             150

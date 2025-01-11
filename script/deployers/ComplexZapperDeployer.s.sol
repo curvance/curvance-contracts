@@ -13,20 +13,14 @@ contract ComplexZapperDeployer is DeployConfiguration {
 
     function _deployComplexZapper(
         address centralRegistry,
-        address marketManager,
         address weth,
         string memory marketName
     ) internal returns (address) {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(marketManager != address(0), "Set the marketManager!");
         require(weth != address(0), "Set the weth!");
 
         complexZapper = address(
-            new ComplexZapper(
-                ICentralRegistry(centralRegistry),
-                marketManager,
-                weth
-            )
+            new ComplexZapper(ICentralRegistry(centralRegistry), weth)
         );
 
         console.log(

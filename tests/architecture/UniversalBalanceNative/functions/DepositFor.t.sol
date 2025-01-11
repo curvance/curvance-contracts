@@ -14,7 +14,7 @@ contract UniversalBalanceNativeDepositForTest is
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function setUp() public override {
@@ -131,7 +131,7 @@ contract UniversalBalanceNativeDepositForTest is
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, receiveAmount);
+        emit Deposit(user1, user2, amount, true);
 
         universalBalanceNative.depositFor(amount, true, user2);
 
@@ -168,7 +168,7 @@ contract UniversalBalanceNativeDepositForTest is
         weth.approve(address(universalBalanceNative), amount);
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, amount);
+        emit Deposit(user1, user2, amount, false);
 
         universalBalanceNative.depositFor(amount, false, user2);
 

@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
     event Withdraw(
@@ -11,7 +10,7 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function test_universalBalanceNativeWithdraw_fail_whenTransferIsDisabled()
@@ -116,7 +115,7 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 userWETHBalance = weth.balanceOf(user2);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         vm.prank(user1);
         universalBalanceNative.withdraw(withdrawAmount, true, user2);
@@ -161,7 +160,7 @@ contract UniversalBalanceNativeWithdrawTest is TestBaseUniversalBalanceNative {
         uint256 userWETHBalance = weth.balanceOf(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         vm.prank(user1);
         universalBalanceNative.withdraw(withdrawAmount, false, user2);

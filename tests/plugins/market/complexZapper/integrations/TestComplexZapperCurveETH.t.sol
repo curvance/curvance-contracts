@@ -7,6 +7,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
@@ -26,13 +27,6 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
     receive() external payable {}
 
     fallback() external payable {}
-
-    function testInitialize() public {
-        assertEq(
-            address(complexZapper.marketManager()),
-            address(marketManager)
-        );
-    }
 
     function setUp() public override {
         super.setUp();
@@ -115,6 +109,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );
@@ -178,6 +173,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             false,
             user1
         );
@@ -210,6 +206,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             true,
             user1
         );
@@ -245,6 +242,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             new SwapperLib.Swap[](0),
             _CURVE_STETH_MINTER,
             tokens,
+            2.9 ether,
             true,
             user1
         );
@@ -262,8 +260,8 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         vm.prank(user1);
         pToken.setDelegateApproval(address(complexZapper), true);
 
-        ComplexZapper.RedemptionData memory redemptionData;
-        redemptionData.pToken = address(pToken);
+        ZapperBase.RedemptionData memory redemptionData;
+        redemptionData.mToken = address(pToken);
         redemptionData.shares = 2.9 ether;
         redemptionData.forceRedeemCollateral = false;
 

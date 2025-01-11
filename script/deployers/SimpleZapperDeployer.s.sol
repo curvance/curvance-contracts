@@ -13,20 +13,14 @@ contract SimpleZapperDeployer is DeployConfiguration {
 
     function _deploySimpleZapper(
         address centralRegistry,
-        address marketManager,
         address weth,
         string memory marketName
     ) internal returns (address) {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(marketManager != address(0), "Set the marketManager!");
         require(weth != address(0), "Set the weth!");
 
         simpleZapper = address(
-            new SimpleZapper(
-                ICentralRegistry(centralRegistry),
-                marketManager,
-                weth
-            )
+            new SimpleZapper(ICentralRegistry(centralRegistry), weth)
         );
 
         console.log(

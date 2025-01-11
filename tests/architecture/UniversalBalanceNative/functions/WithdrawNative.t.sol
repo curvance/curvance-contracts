@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 
 contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
     event Withdraw(
@@ -10,7 +9,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
         address indexed to,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingRedemption
     );
 
     function test_withdrawNative_fail_whenExceedsLentBalance_fuzzed(
@@ -84,7 +83,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, redeemAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, true);
 
         universalBalanceNative.withdrawNative(withdrawAmount, true, user2);
 
@@ -130,7 +129,7 @@ contract WithdrawNativeTest is TestBaseUniversalBalanceNative {
         vm.prank(user1);
 
         vm.expectEmit();
-        emit Withdraw(user1, user2, user1, withdrawAmount, withdrawAmount);
+        emit Withdraw(user1, user2, user1, withdrawAmount, false);
 
         universalBalanceNative.withdrawNative(withdrawAmount, false, user2);
 

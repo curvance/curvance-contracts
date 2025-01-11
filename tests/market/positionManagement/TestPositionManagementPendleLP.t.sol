@@ -136,6 +136,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         positionManagement = new PositionManagementPendleLP(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             _ROUTER
         );
 
@@ -243,6 +244,65 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         vm.stopPrank();
     }
 
+    function testDepositAndLeverage() public {
+        vm.startPrank(user);
+
+        deal(_LP_STETH, user, 1 ether);
+        IERC20(_LP_STETH).approve(address(positionManagement), 1 ether);
+
+        // allow delegation for postCollateral
+        pSTETH.setDelegateApproval(address(positionManagement), true);
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = 7.4983181832e21;
+
+        PositionManagementPendleLP.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.swapData.inputToken = _DAI_ADDRESS;
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = _WETH_ADDRESS;
+        leverageData.swapData.target = address(_UNISWAP_V3_SWAP_ROUTER);
+        IUniswapV3Router.ExactInputSingleParams memory params;
+        params.tokenIn = _DAI_ADDRESS;
+        params.tokenOut = _WETH_ADDRESS;
+        params.fee = 3000;
+        params.recipient = address(positionManagement);
+        params.deadline = block.timestamp;
+        params.amountIn = amountForLeverage;
+        params.amountOutMinimum = 0;
+        params.sqrtPriceLimitX96 = 0;
+        leverageData.swapData.call = abi.encodeWithSelector(
+            IUniswapV3Router.exactInputSingle.selector,
+            params
+        );
+        leverageData.swapData.slippage = 0.6e18;
+
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 1e10;
+        data.approx.guessMax = 1e18;
+        data.approx.guessOffchain = 0;
+        data.approx.maxIteration = 200;
+        data.approx.eps = 1e18;
+
+        leverageData.auxData = abi.encode(0, data);
+
+        positionManagement.depositAndLeverage(1 ether, leverageData, 0.05e18); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage);
+
+        (uint256 pSTETHBalance, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(
+            user
+        );
+        assertGt(pSTETHBalance, 2 ether);
+        assertEq(pSTETHBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
     function testDeLeverage() public {
         testLeverage();
         // Warp until collateral posting wait time ends
@@ -283,7 +343,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(data);
+        deleverageData.auxData = abi.encode(0, data);
 
         pSTETH.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
@@ -418,7 +478,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
-        deleverageData.auxData = abi.encode(data);
+        deleverageData.auxData = abi.encode(0, data);
 
         pSTETH.approve(address(positionManagement), type(uint256).max);
         positionManagement.setDelegateApproval(address(user2), true);

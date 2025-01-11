@@ -41,7 +41,6 @@ contract SetTransferLockStatusTest is TestBaseMarket {
     function test_setTransferLockStatus_success() public {
         vm.startPrank(user1);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
@@ -49,7 +48,6 @@ contract SetTransferLockStatusTest is TestBaseMarket {
 
         centralRegistry.setTransferLockStatus(true);
 
-        assertFalse(centralRegistry.lockEnabled(user1));
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
         centralRegistry.setCooldown(10 days);
@@ -62,12 +60,10 @@ contract SetTransferLockStatusTest is TestBaseMarket {
 
         centralRegistry.setTransferLockStatus(false);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
         skip(5 days);
 
-        assertTrue(centralRegistry.lockEnabled(user1));
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
 
         vm.stopPrank();

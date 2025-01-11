@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-import { IWETH } from "contracts/interfaces/IWETH.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
-contract ComplexZapperBeta is ReentrancyGuard {
+contract ComplexZapper is ZapperBase {
     /// TYPES ///
 
     /// @param inputToken Address of input token to Zap from.
@@ -37,64 +29,16 @@ contract ComplexZapperBeta is ReentrancyGuard {
         bool depositAsWrappedNative;
     }
 
-    /// @param pToken The address of the pToken corresponding to Curve lp
-    ///               token to be exited.
-    /// @param shares The amount of shares to redeemed.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from callers collateralPosted.
-    struct RedemptionData {
-        address pToken;
-        uint256 shares;
-        bool forceRedeemCollateral;
-    }
-
-    /// CONSTANTS ///
-
-    /// @notice Curvance DAO hub.
-    ICentralRegistry public immutable centralRegistry;
-    /// @notice Address of the Market Manager linked to this contract.
-    IMarketManager public immutable marketManager;
-    /// @notice The address of wrapped native token on this chain.
-    address public immutable wrappedNative;
-
     /// ERRORS ///
 
-    error ComplexZapper__ExecutionError();
-    error ComplexZapper__InvalidCentralRegistry();
-    error ComplexZapper__InvalidMarketManager();
-    error ComplexZapper__PTokenUnderlyingIsNotInputToken();
-    error ComplexZapper__Unauthorized();
     error ComplexZapper__SlippageError();
 
     /// CONSTRUCTOR ///
 
-    receive() external payable {}
-
     constructor(
         ICentralRegistry centralRegistry_,
-        address marketManager_,
         address wrappedNative_
-    ) {
-        if (
-            !ERC165Checker.supportsInterface(
-                address(centralRegistry_),
-                type(ICentralRegistry).interfaceId
-            )
-        ) {
-            revert ComplexZapper__InvalidCentralRegistry();
-        }
-
-        centralRegistry = centralRegistry_;
-
-        // Validate that `marketManager_` is configured as a market manager
-        // inside the Central Registry.
-        if (!centralRegistry.isMarketManager(marketManager_)) {
-            revert ComplexZapper__InvalidMarketManager();
-        }
-
-        marketManager = IMarketManager(marketManager_);
-        wrappedNative = wrappedNative_;
-    }
+    ) ZapperBase(centralRegistry_, wrappedNative_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -106,6 +50,9 @@ contract ComplexZapperBeta is ReentrancyGuard {
     /// @param swapData Array of swap instruction data to execute the Zap.
     /// @param router The Velodrome router address.
     /// @param factory The Velodrome factory address.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -116,6 +63,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
         SwapperLib.Swap[] calldata swapData,
         address router,
         address factory,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -141,7 +89,9 @@ contract ComplexZapperBeta is ReentrancyGuard {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
+            true,
             outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -195,11 +145,11 @@ contract ComplexZapperBeta is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.pToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
+            IPToken(redemptionData.mToken),
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -217,6 +167,9 @@ contract ComplexZapperBeta is ReentrancyGuard {
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
     ///             and limit order data.
+    /// @param expectedShares The minimum expected amount of shares received
+    ///                       from depositing `amount` of `swapData.outputToken`
+    ///                       into `pToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -228,6 +181,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
         address router,
         bool isPt,
         PendleLib.PendleData calldata data,
+        uint256 expectedShares,
         bool collateralize,
         address recipient
     ) external payable nonReentrant returns (uint256 outAmount) {
@@ -252,7 +206,9 @@ contract ComplexZapperBeta is ReentrancyGuard {
         outAmount = _enterCurvance(
             pToken,
             zapData.outputToken,
+            true,
             outAmount,
+            expectedShares,
             collateralize,
             recipient
         );
@@ -328,11 +284,11 @@ contract ComplexZapperBeta is ReentrancyGuard {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.pToken),
-            redemptionData.shares,
-            redemptionData.forceRedeemCollateral,
+            IPToken(redemptionData.mToken),
             zapData.inputToken,
+            redemptionData.shares,
             zapData.inputAmount,
+            redemptionData.forceRedeemCollateral,
             recipient
         );
 
@@ -349,125 +305,6 @@ contract ComplexZapperBeta is ReentrancyGuard {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Routes lp/BPT into Curvance pToken contract.
-    /// @param pToken The Curvance pToken address.
-    /// @param inputToken The input token address, should match
-    ///                   pToken.underlying().
-    /// @param amount The amount of `inputToken` to deposit into pToken
-    ///               position.
-    /// @param collateralize Whether the zapped deposit should be
-    ///                      collateralized afterwards.
-    /// @param recipient Address that should receive Curvance pTokens.
-    /// @return The output amount of pTokens received.
-    function _enterCurvance(
-        address pToken,
-        address inputToken,
-        uint256 amount,
-        bool collateralize,
-        address recipient
-    ) internal returns (uint256) {
-        // pToken not configured so transfer their token back and return.
-        if (pToken == address(0)) {
-            SafeTransferLib.safeTransfer(inputToken, recipient, amount);
-            return amount;
-        }
-
-        // Validate that `pToken` is listed inside the associated
-        // Market Manager.
-        if (!marketManager.isListed(pToken)) {
-            revert ComplexZapper__Unauthorized();
-        }
-
-        // Validate inputToken matches underlying token of pToken contract.
-        if (IPToken(pToken).underlying() != inputToken) {
-            revert ComplexZapper__PTokenUnderlyingIsNotInputToken();
-        }
-
-        // Approve pToken to take `inputToken`.
-        SwapperLib._approveTokenIfNeeded(inputToken, pToken, amount);
-
-        uint256 priorBalance = IERC20(pToken).balanceOf(recipient);
-
-        uint256 shares;
-        // The user is trusting this plugin to not use their delegation
-        // approval for nefarious reasons such as keeping them stuck in
-        // positions, so lets validate that the recipient is a delegate
-        // as well.
-        // Enter Curvance pToken position and collateralize
-        if (collateralize && msg.sender == recipient) {
-            shares = IPToken(pToken).depositAsCollateral(amount, msg.sender);
-        } else if (
-            collateralize &&
-            msg.sender != recipient &&
-            IPluginDelegable(pToken).isDelegate(recipient, msg.sender)
-        ) {
-            shares = IPToken(pToken).depositAsCollateralFor(amount, recipient);
-        }
-        // Enter Curvance pToken position,
-        else {
-            shares = IPToken(pToken).deposit(amount, recipient);
-        }
-
-        // Make sure `recipient` got pTokens.
-        if (shares == 0) {
-            revert ComplexZapper__ExecutionError();
-        }
-
-        // Remove any leftover approval.
-        SwapperLib._removeApprovalIfNeeded(inputToken, pToken);
-
-        // Bubble up how many pTokens `recipient` received.
-        return IERC20(pToken).balanceOf(recipient) - priorBalance;
-    }
-
-    /// @notice Exits a Curvance position.
-    /// @param pToken The address of the pToken to be exited.
-    /// @param shares The amount of shares to redeemed.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from callers collateralPosted.
-    /// @param underlying The expected underlying token of `pToken`.
-    /// @param expectedAssets The amount of assets expected to be redeemed
-    ///                       on exiting Curvance position.
-    function _exitCurvance(
-        IPToken pToken,
-        uint256 shares,
-        bool forceRedeemCollateral,
-        address underlying,
-        uint256 expectedAssets,
-        address recipient
-    ) internal {
-        if (pToken.underlying() != underlying) {
-            revert ComplexZapper__ExecutionError();
-        }
-
-        uint256 assets;
-
-        // Transfer underlying lp tokens to the Zapper.
-        if (forceRedeemCollateral) {
-            assets = pToken.redeemCollateralFor(
-                shares,
-                address(this),
-                msg.sender
-            );
-        } else {
-            assets = pToken.redeemFor(shares, address(this), msg.sender);
-        }
-
-        // Validate output of redemption is sufficient.
-        if (assets < expectedAssets) {
-            revert ComplexZapper__ExecutionError();
-        }
-
-        // Return any excess assets remaining back to the user.
-        if (assets > expectedAssets) {
-            _transferToRecipient(
-                underlying,
-                recipient,
-                assets - expectedAssets
-            );
-        }
-    }
 
     /// @notice Withdraws a Curvance Velodrome sAMM/vAMM position, and zaps it
     ///         into desired token (zapData.outputToken).
@@ -531,7 +368,8 @@ contract ComplexZapperBeta is ReentrancyGuard {
             token,
             data,
             zapData.inputToken,
-            zapData.inputAmount
+            zapData.inputAmount,
+            0
         );
 
         uint256 numTokenSwaps = swapData.length;
@@ -565,25 +403,7 @@ contract ComplexZapperBeta is ReentrancyGuard {
         SwapperLib.Swap[] memory swapData,
         bool depositAsWrappedNative
     ) internal {
-        // If the input token is chain gas token, check if it should be
-        // wrapped.
-        if (CommonLib.isETH(inputToken)) {
-            // Validate message has gas token attached.
-            if (inputAmount != msg.value) {
-                revert ComplexZapper__ExecutionError();
-            }
-
-            if (depositAsWrappedNative) {
-                IWETH(wrappedNative).deposit{ value: inputAmount }();
-            }
-        } else {
-            SafeTransferLib.safeTransferFrom(
-                inputToken,
-                msg.sender,
-                address(this),
-                inputAmount
-            );
-        }
+        _prepareSwap(inputToken, inputAmount, depositAsWrappedNative);
 
         uint256 numTokenSwaps = swapData.length;
         // Swap `inputToken` into desired pToken underlying tokens.
@@ -599,23 +419,5 @@ contract ComplexZapperBeta is ReentrancyGuard {
             // Execute swap into underlying(s).
             SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
         }
-    }
-
-    /// @notice Helper function for efficiently transferring tokens
-    ///         to desired user.
-    /// @param token The token to transfer to `recipient`,
-    ///              this can be the network gas token.
-    /// @param recipient The user receiving `token`.
-    /// @param amount The amount of `token` to be transferred to `recipient`.
-    function _transferToRecipient(
-        address token,
-        address recipient,
-        uint256 amount
-    ) internal {
-        if (CommonLib.isETH(token)) {
-            return SafeTransferLib.safeTransferETH(recipient, amount);
-        }
-
-        SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 }
