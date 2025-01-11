@@ -187,7 +187,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.mToken),,
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -346,7 +346,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -470,7 +470,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -609,7 +609,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,

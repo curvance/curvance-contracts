@@ -159,7 +159,7 @@ contract SimpleZapper is ZapperBase {
     ) external nonReentrant returns (uint256) {
         // Exit Curvance position.
         _exitCurvance(
-            IPToken(redemptionData.mToken),
+            redemptionData.mToken,
             swapData.inputToken,
             redemptionData.shares,
             swapData.inputAmount,
