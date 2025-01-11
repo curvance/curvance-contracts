@@ -23,10 +23,10 @@ contract SetVoteBoostMultiplierTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setVoteBoostMultiplier(DENOMINATOR - 1);
+        centralRegistry.setVoteBoostMultiplier(DENOMINATOR);
 
         centralRegistry.setVoteBoostMultiplier(0);
-        centralRegistry.setVoteBoostMultiplier(DENOMINATOR);
+        centralRegistry.setVoteBoostMultiplier(DENOMINATOR + 1);
     }
 
     function test_setVoteBoostMultiplier_success() public {

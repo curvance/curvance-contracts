@@ -14,17 +14,20 @@ contract PositionManagementSimpleDeployer is DeployConfiguration {
 
     function _deployPositionManagementSimple(
         address marketManager,
-        string memory marketName
+        string memory marketName,
+        address wrappedNative
     ) internal {
         address centralRegistry = _getDeployedContract("centralRegistry");
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(marketManager != address(0), "Set the marketManager!");
         require(bytes(marketName).length > 0, "Set the marketName!");
+        require(wrappedNative != address(0), "Set the wrappedNative!");
 
         positionManagementSimple = address(
             new PositionManagementSimple(
                 ICentralRegistry(centralRegistry),
-                marketManager
+                marketManager,
+                wrappedNative
             )
         );
 

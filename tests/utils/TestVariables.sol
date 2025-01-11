@@ -156,14 +156,13 @@ contract TestVariables {
     mapping(uint256 => ComplexZapper) public complexZappers;
 
     address public harvester;
-    address public randomUser = address(1000000);
     address public user1 = address(1000001);
     address public user2 = address(1000002);
     address public user3 = address(1000003);
     address public user4 = address(1000004);
     address public liquidator = address(1000005);
-    uint256 public voteBoostMultiplier = 11000; // 110%
-    uint256 public lockBoostMultiplier = 10000; // 110%
+    uint256 public voteBoostMultiplier = 12000; // 120%
+    uint256 public lockBoostMultiplier = 13000; // 130%
     uint256 public marketInterestFactor = 1000; // 10%
 
     bytes public response;

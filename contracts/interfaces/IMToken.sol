@@ -66,6 +66,20 @@ interface IMToken {
         address receiver
     ) external returns (uint256 shares);
 
+    /// @notice Caller deposits assets into the market, `receiver` receives
+    ///         shares, and turns on collateralization of the assets.
+    /// @dev The caller must be depositing for themselves, or be managing
+    ///      their position through the position folding contract.
+    ///      If the caller is not approved to collateralize the function will
+    ///      simply deposit assets on behalf of `receiver`.
+    /// @param assets The amount of the underlying assets to deposit.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return shares The amount of pToken shares received by `receiver`.
+    function depositAsCollateral(
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+
     /// @notice Caller deposits assets into the market, `receivier` receives
     ///         shares, and turns on collateralization of the assets.
     /// @dev Requires that `receiver` approves the caller prior to
@@ -113,6 +127,34 @@ interface IMToken {
         address recipient
     ) external returns (uint256);
 
+    /// @notice Withdraws assets, quoted in `shares` from the market,
+    ///         and burns `owner` shares, on behalf of `owner`.
+    /// @dev Does not force collateral to be withdrawn.
+    /// @param shares The amount of shares to be redeemed.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return assets The amount of assets redeemed by `owner`.
+    function redeemFor(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
+
+        /// @notice Caller withdraws assets from the market and burns their shares,
+    ///         on behalf of `owner`.
+    /// @dev Forces collateral to be withdrawn from `owner` collateralPosted.
+    /// @param shares The amount of shares to redeemed.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw assets.
+    /// @return assets the amount of assets redeemed by `owner`.
+    function redeemCollateralFor(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external returns (uint256 assets);
+
+
     /// @notice Transfers collateral tokens (this pToken) from `account`
     ///         to `liquidator`.
     /// @dev Will fail unless called by a eToken during the process
@@ -127,6 +169,13 @@ interface IMToken {
         uint256 liquidatedTokens,
         uint256 protocolTokens
     ) external;
+
+    /// @notice Repays underlying tokens to lenders, on behalf of `account`,
+    ///         freeing up their collateral posted inside this market.
+    /// @dev Updates pending interest before executing the repay.
+    /// @param account The account address to repay on behalf of.
+    /// @param amount The amount to repay, or 0 for the full outstanding amount.
+    function repayFor(address account, uint256 amount) external;
 
     /// @notice Used by the market manager contract to repay a portion
     ///         of underlying token debt to lenders, remaining debt shortfall

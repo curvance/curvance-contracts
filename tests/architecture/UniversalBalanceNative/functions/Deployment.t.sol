@@ -34,6 +34,21 @@ contract UniversalBalanceNativeDeploymentTest is
         );
     }
 
+    function test_universalBalanceNativeDeployment_fail_whenUnderlyingTokenMismatch()
+        public
+    {
+        vm.expectRevert(
+            UniversalBalanceNative
+                .UniversalBalanceNative__UnderlyingTokenMismatch
+                .selector
+        );
+        new UniversalBalanceNative(
+            ICentralRegistry(address(centralRegistry)),
+            address(eWETH),
+            _USDC_ADDRESS
+        );
+    }
+
     function test_universalBalanceNativeDeployment_success() public {
         universalBalanceNative = new UniversalBalanceNative(
             ICentralRegistry(address(centralRegistry)),

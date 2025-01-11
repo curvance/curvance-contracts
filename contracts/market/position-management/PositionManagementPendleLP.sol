@@ -18,8 +18,15 @@ contract PositionManagementPendleLP is PositionManagementBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
+        address wrappedNative_,
         IPendleRouter router_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    )
+        PositionManagementBase(
+            centralRegistry_,
+            marketManager_,
+            wrappedNative_
+        )
+    {
         router = router_;
     }
 
@@ -41,7 +48,8 @@ contract PositionManagementPendleLP is PositionManagementBase {
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
+        LeverageStruct memory leverageData,
+        address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
@@ -121,10 +129,8 @@ contract PositionManagementPendleLP is PositionManagementBase {
         }
 
         // decode pendle data
-        PendleLib.PendleData memory pendleData = abi.decode(
-            deleverageData.auxData,
-            (PendleLib.PendleData)
-        );
+        (uint256 minTokenOut, PendleLib.PendleData memory pendleData) = abi
+            .decode(deleverageData.auxData, (uint256, PendleLib.PendleData));
 
         // exit pendle
         PendleLib.exitPendle(
@@ -133,12 +139,24 @@ contract PositionManagementPendleLP is PositionManagementBase {
             tokenOut,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount
+            deleverageData.collateralAmount,
+            minTokenOut
         );
 
         if (tokenOut != borrowUnderlying) {
+            uint256 length = deleverageData.swapData.length;
+
+            if (
+                length == 0 ||
+                deleverageData.swapData[0].inputToken != tokenOut ||
+                deleverageData.swapData[length - 1].outputToken !=
+                borrowUnderlying
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
             // Swap sy output token for borrow underlying.
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+            for (uint256 i; i < length; ++i) {
                 SwapperLib.swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]

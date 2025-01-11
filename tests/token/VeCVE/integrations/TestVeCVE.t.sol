@@ -100,7 +100,10 @@ contract TestVeCVE is TestBaseVeCVE {
             0
         );
 
-        assertEq(veCVE.getVotes(address(this)), amount + amount / 10);
+        assertEq(
+            veCVE.getVotes(address(this)),
+            (amount * voteBoostMultiplier) / 1e4
+        );
 
         uint256 prevPenaltyAmount = veCVE.getUnlockPenalty(address(this), 0);
 

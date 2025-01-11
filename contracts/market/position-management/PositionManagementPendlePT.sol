@@ -20,8 +20,15 @@ contract PositionManagementPendlePT is PositionManagementBase {
     constructor(
         ICentralRegistry centralRegistry_,
         address marketManager_,
+        address wrappedNative_,
         IPendleRouter router_
-    ) PositionManagementBase(centralRegistry_, marketManager_) {
+    )
+        PositionManagementBase(
+            centralRegistry_,
+            marketManager_,
+            wrappedNative_
+        )
+    {
         router = router_;
     }
 
@@ -43,7 +50,8 @@ contract PositionManagementPendlePT is PositionManagementBase {
     ///                     5. Optional auxiliary data for execution of a
     ///                        leverage action.
     function _swapBorrowUnderlyingToCollateral(
-        LeverageStruct memory leverageData
+        LeverageStruct memory leverageData,
+        address /* recipient */
     ) internal virtual override {
         SwapperLib.Swap memory swapData = leverageData.swapData;
         address borrowUnderlying = leverageData.borrowToken.underlying();
@@ -78,7 +86,8 @@ contract PositionManagementPendlePT is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.inputAmount != leverageData.borrowAmount
+                swapData.inputAmount != leverageData.borrowAmount ||
+                swapData.outputToken != pendleData.input.tokenIn
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
@@ -86,7 +95,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
             SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
-        // enter pendle
+        // Enter Pendle position.
         PendleLib.enterPendle(
             address(router),
             true,
@@ -120,6 +129,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address ptToken = deleverageData.positionToken.underlying();
+        address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         // decode pendle data
         (address lpToken, PendleLib.PendleData memory pendleData) = abi.decode(
@@ -141,19 +151,31 @@ contract PositionManagementPendlePT is PositionManagementBase {
             revert PositionManagementBase__InvalidSwapperParam();
         }
 
-        // exit pendle
+        // Exit Pendle position.
         PendleLib.exitPendle(
             address(router),
             true,
             ptToken,
             pendleData,
             lpToken,
-            deleverageData.collateralAmount
+            deleverageData.collateralAmount,
+            0 // don't need for PT
         );
 
-        if (deleverageData.swapData.length > 0) {
+        uint256 length = deleverageData.swapData.length;
+
+        if (length > 0) {
+            if (
+                deleverageData.swapData[0].inputToken !=
+                pendleData.output.tokenOut ||
+                deleverageData.swapData[length - 1].outputToken !=
+                borrowUnderlying
+            ) {
+                revert PositionManagementBase__InvalidSwapperParam();
+            }
+
             // Swap output token for borrow underlying.
-            for (uint256 i; i < deleverageData.swapData.length; ++i) {
+            for (uint256 i; i < length; ++i) {
                 SwapperLib.swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]

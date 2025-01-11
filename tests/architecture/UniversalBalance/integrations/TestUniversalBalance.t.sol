@@ -240,6 +240,110 @@ contract TestUniversalBalance is TestBaseMarket {
         assertEq(usdc.balanceOf(user2), 200e6);
     }
 
+    function testTransfer() public {
+        testDeposit();
+
+        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 ethBalance = address(universalBalance).balance;
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user2);
+
+        vm.prank(user1);
+        universalBalance.transfer(100e6, true, false, user2);
+
+        (
+            uint256 user1SittingBalance,
+            uint256 user1LentBalance
+        ) = universalBalance.userBalances(user1);
+        (
+            uint256 user2SittingBalance,
+            uint256 user2LentBalance
+        ) = universalBalance.userBalances(user2);
+
+        assertEq(user1SittingBalance, 100e6);
+        assertEq(user1LentBalance, 0);
+        assertEq(user2SittingBalance, 100e6);
+        assertEq(user2LentBalance, 0);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(usdc.balanceOf(user2), userUSDCBalance);
+
+        usdcBalance += 100e6;
+        eUSDCBalance -= redeemAmount;
+
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+
+        vm.prank(user1);
+        universalBalance.transfer(100e6, false, true, user2);
+
+        (user1SittingBalance, user1LentBalance) = universalBalance
+            .userBalances(user1);
+        (user2SittingBalance, user2LentBalance) = universalBalance
+            .userBalances(user2);
+
+        assertEq(user1SittingBalance, 0);
+        assertEq(user1LentBalance, 0);
+        assertEq(user2SittingBalance, 100e6);
+        assertEq(user2LentBalance, 100e6);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(usdc.balanceOf(user2), userUSDCBalance);
+
+        usdcBalance -= 100e6;
+        eUSDCBalance += redeemAmount;
+
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+    }
+
+    function testShiftBalance() public {
+        testDeposit();
+
+        uint256 redeemAmount = eUSDC.convertToShares(100e6);
+        uint256 ethBalance = address(universalBalance).balance;
+        uint256 usdcBalance = usdc.balanceOf(address(universalBalance));
+        uint256 eUSDCBalance = eUSDC.balanceOf(address(universalBalance));
+        uint256 userUSDCBalance = usdc.balanceOf(user1);
+
+        vm.prank(user1);
+        universalBalance.shiftBalance(100e6, true);
+
+        (
+            uint256 userSittingBalance,
+            uint256 userLentBalance
+        ) = universalBalance.userBalances(user1);
+
+        assertEq(userSittingBalance, 200e6);
+        assertEq(userLentBalance, 0);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance);
+
+        usdcBalance += 100e6;
+        eUSDCBalance -= redeemAmount;
+
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+
+        vm.prank(user1);
+        universalBalance.shiftBalance(200e6, false);
+
+        redeemAmount = eUSDC.convertToShares(200e6);
+        (userSittingBalance, userLentBalance) = universalBalance.userBalances(
+            user1
+        );
+
+        assertEq(userSittingBalance, 0);
+        assertEq(userLentBalance, 200e6);
+        assertEq(address(universalBalance).balance, ethBalance);
+        assertEq(usdc.balanceOf(user1), userUSDCBalance);
+
+        usdcBalance -= 200e6;
+        eUSDCBalance += redeemAmount;
+
+        assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
+        assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+    }
+
     function testLentBalanceIncreased() public {
         testDeposit();
 

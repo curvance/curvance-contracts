@@ -71,19 +71,27 @@ contract ETokenRepayTest is TestBaseEToken {
         uint256 balance = eUSDC.balanceOf(address(this));
         uint256 totalSupply = eUSDC.totalSupply();
         uint256 totalBorrows = eUSDC.totalBorrows();
+        uint256 expectedTotalBorrows;
+
+        // If the totalBorrows adjustment won't be rounded down then we
+        // pre-compute expected totalBorrows versus expecting a value
+        // of 0.
+        if (totalBorrows >= debtBalanceCached) {
+            expectedTotalBorrows = totalBorrows - debtBalanceCached;
+        }
 
         vm.expectEmit(true, true, true, true, address(eUSDC));
         emit Repay(address(this), address(this), debtBalanceCached);
 
         eUSDC.repay(0);
-
+        
         assertEq(
             usdc.balanceOf(address(this)),
             underlyingBalance - debtBalanceCached
         );
         assertEq(eUSDC.balanceOf(address(this)), balance);
         assertEq(eUSDC.totalSupply(), totalSupply);
-        assertEq(eUSDC.totalBorrows(), totalBorrows - debtBalanceCached);
+        assertEq(eUSDC.totalBorrows(), expectedTotalBorrows);
     }
 
     function test_borrowers_repayAllDebts() public {

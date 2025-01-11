@@ -52,7 +52,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(1e18, false, rewardsData, "0x", 0);
+        veCVE.createLock(1e18, false, rewardsData, "", 0);
 
         vm.stopPrank();
 
@@ -83,7 +83,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(amount, false, rewardsData, "0x", 0);
+        veCVE.createLock(amount, false, rewardsData, "", 0);
 
         vm.stopPrank();
 

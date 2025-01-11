@@ -79,7 +79,8 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         positionManagement = new PositionManagementSimple(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager)
+            address(marketManager),
+            _WETH_ADDRESS
         );
 
         marketManager.setPositionManagement(address(positionManagement));
@@ -134,9 +135,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
@@ -164,6 +166,54 @@ contract TestPositionManagementSimple is TestBaseMarket {
         (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
         assertEq(eDAIBalance, 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
+            user
+        );
+        assertGt(pUSDCBalance, 1900e6);
+        assertEq(pUSDCBorrowed, 0);
+
+        vm.stopPrank();
+    }
+
+    function testDepositAndLeverage() public {
+        vm.startPrank(user);
+
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(positionManagement), 1000e6);
+
+        // allow delegation for postCollateral
+        pUSDC.setDelegateApproval(address(positionManagement), true);
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = 0.99e21;
+
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = eDAI;
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = SimplePToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+
+        positionManagement.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
+
+        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAIBalance, 0);
+        assertEq(eDAIBorrowed, amountForLeverage);
 
         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
             user
@@ -244,9 +294,10 @@ contract TestPositionManagementSimple is TestBaseMarket {
         assertEq(dai.balanceOf(user), balanceBeforeBorrow + 100 ether);
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
         leverageData.borrowToken = eDAI;
