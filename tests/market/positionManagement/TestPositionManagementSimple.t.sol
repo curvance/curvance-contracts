@@ -190,9 +190,9 @@ contract TestPositionManagementSimple is TestBaseMarket {
         uint256 amountForLeverage = 0.99e21;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDC));
+        leverageData.positionToken = IPToken(address(pUSDC));
         leverageData.swapData.inputToken = address(dai);
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = address(usdc);

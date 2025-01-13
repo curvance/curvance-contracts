@@ -257,9 +257,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         uint256 amountForLeverage = 7.4983181832e21;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.positionToken = IPToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;

@@ -285,9 +285,9 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         uint256 leverageFee = amountForLeverage / 100;
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pWETHUSDC));
+        leverageData.positionToken = IPToken(address(pWETHUSDC));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -435,9 +435,9 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_WETH_USDC)
             .balanceOf(centralRegistry.daoAddress());
 
-        deleverageData.positionToken = SimplePToken(address(pWETHUSDC));
+        deleverageData.positionToken = IPToken(address(pWETHUSDC));
         deleverageData.collateralAmount = collateralAmount;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](2);
         deleverageData.swapData[0].inputToken = _WETH_ADDRESS;
