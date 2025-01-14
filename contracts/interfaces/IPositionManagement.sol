@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
-import { EToken } from "contracts/market/token/EToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 interface IPositionManagement {
     /// TYPES ///
@@ -19,9 +19,9 @@ interface IPositionManagement {
     /// @param auxData Optional auxiliary data for execution of a leverage
     ///                action.
     struct LeverageStruct {
-        EToken borrowToken;
+        IEToken borrowToken;
         uint256 borrowAmount;
-        SimplePToken positionToken;
+        IPToken positionToken;
         SwapperLib.Swap swapData;
         bytes auxData;
     }
@@ -40,9 +40,9 @@ interface IPositionManagement {
     /// @param auxData Optional auxiliary data for execution of a deleverage
     ///                action.
     struct DeleverageStruct {
-        SimplePToken positionToken;
+        IPToken positionToken;
         uint256 collateralAmount;
-        EToken borrowToken;
+        IEToken borrowToken;
         SwapperLib.Swap[] swapData;
         uint256 repayAmount;
         bytes auxData;

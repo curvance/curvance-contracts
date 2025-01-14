@@ -10,6 +10,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -214,7 +215,7 @@ contract CurvanceAuxiliaryData {
             .tokenDataOf(account, token);
         collateralOrDebtAmount = isPToken
             ? collateralOrDebtAmount
-            : IMToken(token).debtBalanceCached(account);
+            : IEToken(token).debtBalanceCached(account);
     }
 
     /// @notice Return the debt balance of `account` based on stored data.
@@ -224,7 +225,7 @@ contract CurvanceAuxiliaryData {
         address account,
         address token
     ) external view returns (uint256) {
-        return IMToken(token).debtBalanceCached(account);
+        return IEToken(token).debtBalanceCached(account);
     }
 
     /// @notice Calculates `token` utilization rate.
@@ -232,7 +233,7 @@ contract CurvanceAuxiliaryData {
     function getUtilizationRate(
         address token
     ) external view returns (uint256) {
-        return IMToken(token).utilizationRate();
+        return IEToken(token).utilizationRate();
     }
 
     /// @notice Returns `token` borrow interest rate per year.
@@ -240,7 +241,7 @@ contract CurvanceAuxiliaryData {
     function getBorrowRatePerYear(
         address token
     ) external view returns (uint256) {
-        return IMToken(token).borrowRatePerYear();
+        return IEToken(token).borrowRatePerYear();
     }
 
     /// @notice Returns `token` borrow interest rate per year.
@@ -248,7 +249,7 @@ contract CurvanceAuxiliaryData {
     function getPredictedBorrowRatePerYear(
         address token
     ) external view returns (uint256) {
-        return IMToken(token).predictedBorrowRatePerYear();
+        return IEToken(token).predictedBorrowRatePerYear();
     }
 
     /// @notice Returns `token` supply interest rate per year.
@@ -256,7 +257,7 @@ contract CurvanceAuxiliaryData {
     function getSupplyRatePerYear(
         address token
     ) external view returns (uint256) {
-        return IMToken(token).supplyRatePerYear();
+        return IEToken(token).supplyRatePerYear();
     }
 
     function getBaseRewards(address token) external view returns (uint256) {}
@@ -627,13 +628,13 @@ contract CurvanceAuxiliaryData {
     function getTokenBorrows(
         address token
     ) public view returns (uint256 result) {
-        IMToken mToken = IMToken(token);
+        IEToken eToken = IEToken(token);
 
         // Get outstanding borrows then query price and return.
         result =
-            (_getTokenPrice(mToken.underlying(), false) *
-                mToken.totalBorrows()) /
-            10 ** mToken.decimals();
+            (_getTokenPrice(eToken.underlying(), false) *
+                eToken.totalBorrows()) /
+            10 ** eToken.decimals();
     }
 
     function getTokenPrice(address token) public view returns (uint256) {

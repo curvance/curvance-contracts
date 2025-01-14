@@ -7,14 +7,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { PositionManagementPendleLP } from "contracts/market/position-management/PositionManagementPendleLP.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract TestPositionManagementPendleLP is TestBaseMarket {
     address internal _UNISWAP_V3_SWAP_ROUTER =
@@ -117,7 +117,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         marketManager.listToken(address(pSTETH));
 
         marketManager.updatePositionToken(
-            IMToken(address(pSTETH)),
+            address(pSTETH),
             7000,
             4000,
             3000,
@@ -198,9 +198,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.positionToken = IPToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -257,9 +257,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         uint256 amountForLeverage = 7.4983181832e21;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.positionToken = IPToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -314,9 +314,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pSTETH));
+        deleverageData.positionToken = IPToken(address(pSTETH));
         deleverageData.collateralAmount = 1 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = _STETH;
@@ -390,9 +390,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementPendleLP.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pSTETH));
+        leverageData.positionToken = IPToken(address(pSTETH));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WETH_ADDRESS;
@@ -449,9 +449,9 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pSTETHBalanceBefore, , ) = pSTETH.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pSTETH));
+        deleverageData.positionToken = IPToken(address(pSTETH));
         deleverageData.collateralAmount = 1 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         deleverageData.swapData = new SwapperLib.Swap[](1);
         deleverageData.swapData[0].inputToken = _STETH;

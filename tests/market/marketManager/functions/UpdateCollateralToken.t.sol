@@ -3,11 +3,10 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract UpdatePositionTokenTest is TestBaseMarketManager {
     event PositionTokenUpdated(
-        IMToken mToken,
+        address mToken,
         uint256 collRatio,
         uint256 CollReqSoft,
         uint256 CollReqHard,
@@ -22,7 +21,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(eUSDC)),
+            address(eUSDC),
             9100 + 1,
             200,
             300,
@@ -38,7 +37,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.updatePositionToken(
-            IMToken(address(eUSDC)),
+            address(eUSDC),
             9000,
             200,
             300,
@@ -58,7 +57,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9000,
             200,
             300,
@@ -76,7 +75,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9000,
             200,
             300,
@@ -94,7 +93,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9000,
             23500, // collReqSoft
             300,
@@ -114,7 +113,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9000,
             4000, // CollReqSoft - soft liquidation requirement
             4100,
@@ -132,7 +131,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9101, // collRatio
             200,
             300,
@@ -152,7 +151,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9100, // collRatio
             4000,
             3000,
@@ -172,7 +171,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             200,
             2900,
@@ -190,7 +189,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9100,
             200,
             300,
@@ -204,7 +203,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     function test_updatePositionToken_fail_whenMTokenIsNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             9100,
             300,
             200,
@@ -222,7 +221,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         marketManager.listToken(address(pBALRETH));
         vm.expectRevert(MarketManager.MarketManager__PriceError.selector);
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000, // collRatio
             4000,
             3000,
@@ -239,7 +238,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
 
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit PositionTokenUpdated(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             0.7e18,
             0.4e18,
             0.3e18,
@@ -250,7 +249,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         );
 
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000, // collRatio
             4000,
             3000,

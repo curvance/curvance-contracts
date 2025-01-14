@@ -1,7 +1,8 @@
 pragma solidity 0.8.19;
 
 import { WAD } from "contracts/libraries/Constants.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 
 contract FuzzLiquidations is StatefulBaseMarket {
@@ -136,10 +137,10 @@ contract FuzzLiquidations is StatefulBaseMarket {
                 earnToken,
                 positionToken
             );
-        uint256 debtBalanceCached = IMToken(earnToken).debtBalanceCached(
+        uint256 debtBalanceCached = IEToken(earnToken).debtBalanceCached(
             address(this)
         );
-        uint256 exchangeRateCached = IMToken(earnToken).exchangeRateCached();
+        uint256 exchangeRateCached = IEToken(earnToken).exchangeRateCached();
 
         data = LiquidationData(
             isListed,
@@ -285,8 +286,8 @@ contract FuzzLiquidations is StatefulBaseMarket {
     /// @custom:property liq-11 if position token decimals < earnTokenDecimals, amountAdjusted < debtBalanceCached
     function _calculateAmountAdjusted() private {
         // Saves state
-        uint256 positionTokenDecimals = IMToken(positionToken).decimals();
-        uint256 earnTokenDecimals = IMToken(earnToken).decimals();
+        uint256 positionTokenDecimals = IPToken(positionToken).decimals();
+        uint256 earnTokenDecimals = IEToken(earnToken).decimals();
 
         uint256 amountAdjusted = (data.debtBalanceCached *
             10 ** positionTokenDecimals) / (10 ** earnTokenDecimals);

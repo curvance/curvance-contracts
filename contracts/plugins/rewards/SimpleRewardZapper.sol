@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IMToken } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken } from "contracts/plugins/ZapperBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";

@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -113,7 +112,7 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
         marketManager.listToken(address(pToken));
 
         marketManager.updatePositionToken(
-            IMToken(address(pToken)),
+            address(pToken),
             7000,
             4000,
             3000,

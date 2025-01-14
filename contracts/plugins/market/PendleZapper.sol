@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
@@ -165,7 +165,7 @@ contract PendleZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
