@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IMToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 import { CurveLib } from "contracts/libraries/CurveLib.sol";
 import { BalancerLib } from "contracts/libraries/BalancerLib.sol";
@@ -9,6 +9,7 @@ import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { PendleLib } from "contracts/libraries/PendleLib.sol";
 
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract ComplexZapper is ZapperBase {
     /// TYPES ///
@@ -186,7 +187,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -345,7 +346,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -469,7 +470,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,
@@ -608,7 +609,7 @@ contract ComplexZapper is ZapperBase {
     ) external nonReentrant returns (uint256 outAmount) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             zapData.inputToken,
             redemptionData.shares,
             zapData.inputAmount,

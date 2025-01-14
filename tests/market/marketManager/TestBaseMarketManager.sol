@@ -95,7 +95,7 @@ contract TestBaseMarketManager is TestBaseMarket {
 
         marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000, // liquidate at 71%
             3000,

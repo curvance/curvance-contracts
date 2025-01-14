@@ -1,8 +1,8 @@
-pragma solidity 0.8.19;
 import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -44,7 +44,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     function setup() public {
         setUpFeeds();
         marketManager.updatePositionToken(
-            IMToken(address(pUSDC)),
+            address(pUSDC),
             7000,
             4000,
             3000,
@@ -248,7 +248,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
         try
             marketManager.updatePositionToken(
-                IMToken(address(mtoken)),
+                address(mtoken),
                 safeBounds.collRatio,
                 safeBounds.collReqSoft,
                 safeBounds.collReqHard,
@@ -394,7 +394,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         }
         try
             marketManager.updatePositionToken(
-                IMToken(address(mtoken)),
+                address(mtoken),
                 safeBounds.collRatio,
                 safeBounds.collReqSoft,
                 safeBounds.collReqHard,
@@ -482,7 +482,8 @@ contract FuzzMarketManager is FuzzLiquidations {
                 // ensure account collateral has increased by # of tokens
                 uint256 newCollateralForUser = _collateralPostedFor(mtoken);
 
-                uint256 mtokenExchange = MockSimplePToken(mtoken).exchangeRateSafe();
+                uint256 mtokenExchange = MockSimplePToken(mtoken)
+                    .exchangeRateSafe();
                 assertEq(
                     (newCollateralForUser) * mtokenExchange,
                     (oldCollateralForUser + tokens) * mtokenExchange,
@@ -898,7 +899,9 @@ contract FuzzMarketManager is FuzzLiquidations {
                     );
                 } else {
                     assertEq(
-                        IMToken(assets[i]).debtBalanceCached(address(this)),
+                        IEToken(address(assets[i])).debtBalanceCached(
+                            address(this)
+                        ),
                         0,
                         "MARKET-37 - liquidateAccount should zero out debt balance"
                     );
@@ -910,10 +913,10 @@ contract FuzzMarketManager is FuzzLiquidations {
                     if (assets[i].isPToken()) {
                         continue;
                     }
-                    uint256 totalBorrows = IMToken(assets[i]).totalBorrows();
-                    uint256 accountDebt = IMToken(assets[i]).debtBalanceCached(
-                        address(this)
-                    );
+                    uint256 totalBorrows = IEToken(address(assets[i]))
+                        .totalBorrows();
+                    uint256 accountDebt = IEToken(address(assets[i]))
+                        .debtBalanceCached(address(this));
                     if (totalBorrows < accountDebt) {
                         emit LogUint256(
                             "difference between totalBorrows and accountDebt",

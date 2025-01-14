@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { EToken, WAD } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
@@ -19,6 +18,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
@@ -78,7 +79,7 @@ abstract contract PositionManagementBase is
         uint256 numTokens = mTokens.length;
         for (uint256 i; i < numTokens; ++i) {
             if (!mTokens[i].isPToken()) {
-                mTokens[i].accrueInterest();
+                IEToken(address(mTokens[i])).accrueInterest();
             }
         }
 
@@ -158,8 +159,8 @@ abstract contract PositionManagementBase is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        SimplePToken pToken = leverageData.positionToken;
-        address pTokenUnderlying = pToken.asset();
+        IPToken pToken = leverageData.positionToken;
+        address pTokenUnderlying = pToken.underlying();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
@@ -348,7 +349,7 @@ abstract contract PositionManagementBase is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        address borrowUnderlying = SimplePToken(borrowToken).underlying();
+        address borrowUnderlying = IPToken(borrowToken).underlying();
 
         if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
             revert PositionManagementBase__InvalidAmount();
@@ -376,7 +377,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        SimplePToken positionToken = leverageData.positionToken;
+        IPToken positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
         address collateralUnderlying = positionToken.underlying();
@@ -458,8 +459,7 @@ abstract contract PositionManagementBase is
 
         // Swap position token (pToken underlying) to
         // borrow token (eToken underlying).
-        address collateralUnderlying = SimplePToken(positionToken)
-            .underlying();
+        address collateralUnderlying = IPToken(positionToken).underlying();
 
         if (
             IERC20(collateralUnderlying).balanceOf(address(this)) <
@@ -492,7 +492,7 @@ abstract contract PositionManagementBase is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        EToken borrowToken = deleverageData.borrowToken;
+        IEToken borrowToken = deleverageData.borrowToken;
 
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = borrowToken.underlying();
@@ -593,9 +593,9 @@ abstract contract PositionManagementBase is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            IMToken(positionToken).previewDeposit(collateralAmount),
+            IPToken(positionToken).previewDeposit(collateralAmount),
             price,
-            10 ** IMToken(positionToken).decimals()
+            10 ** IPToken(positionToken).decimals()
         );
 
         (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
@@ -689,7 +689,7 @@ abstract contract PositionManagementBase is
         LeverageStruct memory leverageData,
         address account
     ) internal {
-        EToken borrowToken = leverageData.borrowToken;
+        IEToken borrowToken = leverageData.borrowToken;
         uint256 borrowAmount = leverageData.borrowAmount;
         uint256 maxBorrowAmount = maxRemainingLeverageOf(
             account,

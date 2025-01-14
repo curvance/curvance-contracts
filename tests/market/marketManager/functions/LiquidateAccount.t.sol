@@ -89,7 +89,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
 
         vm.startPrank(user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
         usdc.approve(address(eUSDC), 1000e6);
 
         vm.stopPrank();
@@ -178,7 +178,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
 
         vm.startPrank(user2, user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         skip(1);
 
@@ -189,7 +189,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
 
         usdc.approve(address(eUSDC), 1000e6);
 
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         marketManager.queueAccountLiquidation(user1);
 
