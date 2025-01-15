@@ -29,7 +29,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
     bool internal _IS_PT = false;
 
     PendleLPTokenAdaptor public adaptor;
-    PendleLPPToken public cSTETH;
+    PendleLPPToken public pSTETH;
 
     receive() external payable {}
 
@@ -55,19 +55,19 @@ contract TestComplexZapperPendle is TestBaseMarket {
         oracleManager.addApprovedAdaptor(address(adaptor));
         oracleManager.addAssetPriceFeed(_LP_STETH, address(adaptor));
 
-        cSTETH = new PendleLPPToken(
+        pSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManager),
             IPendleRouter(_PENDLE_ROUTER)
         );
-        oracleManager.addMTokenSupport(address(cSTETH));
+        oracleManager.addMTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, address(this), 1 ether);
-        IERC20(_LP_STETH).approve(address(cSTETH), 1 ether);
-        marketManager.listToken(address(cSTETH));
+        IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
+        marketManager.listToken(address(pSTETH));
         marketManager.updatePositionToken(
-            address(cSTETH),
+            address(pSTETH),
             7000,
             4000,
             3000,
@@ -78,7 +78,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
         );
 
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cSTETH);
+        tokens[0] = address(pSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
@@ -173,7 +173,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         vm.prank(user1);
         complexZapper.enterPendle{ value: ethAmount }(
-            address(cSTETH),
+            address(pSTETH),
             ComplexZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -192,7 +192,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = cSTETH.getSnapshot(user1);
+        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
         assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
         assertEq(borrowed, 0);
     }
@@ -211,7 +211,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         vm.prank(user1);
         complexZapper.enterPendle{ value: ethAmount }(
-            address(cSTETH),
+            address(pSTETH),
             ComplexZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -230,7 +230,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = cSTETH.getSnapshot(user1);
+        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
         assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
         assertEq(borrowed, 0);
     }
@@ -240,7 +240,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
         vm.deal(user2, ethAmount);
 
         vm.prank(user1);
-        cSTETH.setDelegateApproval(user2, true);
+        pSTETH.setDelegateApproval(user2, true);
 
         PendleLib.PendleData memory data;
 
@@ -252,7 +252,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         vm.prank(user2);
         complexZapper.enterPendle{ value: ethAmount }(
-            address(cSTETH),
+            address(pSTETH),
             ComplexZapper.ZapperData(
                 address(0),
                 ethAmount,
@@ -271,7 +271,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         assertEq(user2.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = cSTETH.getSnapshot(user1);
+        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
         assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
         assertEq(borrowed, 0);
     }
@@ -280,10 +280,10 @@ contract TestComplexZapperPendle is TestBaseMarket {
         testEnterPendleWithPTokenWithCollateralize();
 
         vm.prank(user1);
-        cSTETH.setDelegateApproval(address(complexZapper), true);
+        pSTETH.setDelegateApproval(address(complexZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(cSTETH);
+        redemptionData.mToken = address(pSTETH);
         redemptionData.shares = 1.24 ether;
         redemptionData.forceRedeemCollateral = false;
 

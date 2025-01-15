@@ -32,7 +32,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
     address public owner;
 
-    Convex2PoolPToken public cSTETH;
+    Convex2PoolPToken public pSTETH;
     SimpleZapper public simpleZapper;
 
     receive() external payable {}
@@ -108,8 +108,8 @@ contract TestSimpleZapper is TestBaseMarket {
             block.timestamp
         );
 
-        // deploy cSTETH
-        cSTETH = new Convex2PoolPToken(
+        // deploy pSTETH
+        pSTETH = new Convex2PoolPToken(
             ICentralRegistry(address(centralRegistry)),
             CONVEX_STETH_ETH_POOL,
             address(marketManager),
@@ -119,12 +119,12 @@ contract TestSimpleZapper is TestBaseMarket {
         );
 
         deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
-        CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
-        marketManager.listToken(address(cSTETH));
-        oracleManager.addMTokenSupport(address(cSTETH));
+        CONVEX_STETH_ETH_POOL.approve(address(pSTETH), 1 ether);
+        marketManager.listToken(address(pSTETH));
+        oracleManager.addMTokenSupport(address(pSTETH));
 
         marketManager.updatePositionToken(
-            address(cSTETH),
+            address(pSTETH),
             5000,
             1500,
             1200,
@@ -134,7 +134,7 @@ contract TestSimpleZapper is TestBaseMarket {
             1000
         );
         address[] memory tokens = new address[](1);
-        tokens[0] = address(cSTETH);
+        tokens[0] = address(pSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
@@ -198,7 +198,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         vm.prank(user1);
         simpleZapper.swapAndDeposit{ value: ethAmount }(
-            address(cSTETH),
+            address(pSTETH),
             true,
             false,
             swapData,
@@ -208,13 +208,13 @@ contract TestSimpleZapper is TestBaseMarket {
         );
 
         assertEq(user1.balance, 0);
-        assertGt(cSTETH.balanceOf(user1), 0);
+        assertGt(pSTETH.balanceOf(user1), 0);
     }
 
     function testSwapAndRepay() external {
         testSwapAndDeposit();
         vm.startPrank(user1);
-        marketManager.postCollateral(user1, address(cSTETH), 1 ether);
+        marketManager.postCollateral(user1, address(pSTETH), 1 ether);
 
         // try borrow()
         eDAI.borrow(500 ether);
@@ -270,12 +270,12 @@ contract TestSimpleZapper is TestBaseMarket {
         testSwapAndDeposit();
 
         vm.prank(user1);
-        cSTETH.setDelegateApproval(address(simpleZapper), true);
+        pSTETH.setDelegateApproval(address(simpleZapper), true);
 
-        uint256 shares = cSTETH.balanceOf(user1);
+        uint256 shares = pSTETH.balanceOf(user1);
 
         ZapperBase.RedemptionData memory redemptionData;
-        redemptionData.mToken = address(cSTETH);
+        redemptionData.mToken = address(pSTETH);
         redemptionData.shares = shares;
         redemptionData.forceRedeemCollateral = false;
 
