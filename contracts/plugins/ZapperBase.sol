@@ -11,6 +11,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
 abstract contract ZapperBase is ReentrancyGuard {
@@ -115,7 +117,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                 if (msg.sender == recipient) {
                     // User wants to enter and collateralize a position for
                     // themselves.
-                    shares = IMToken(mToken).depositAsCollateral(
+                    shares = IPToken(mToken).depositAsCollateral(
                         assets,
                         msg.sender
                     );
@@ -124,7 +126,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                     // someone else, so we need to validate they have plugin
                     // authority.
                     if (IPluginDelegable(mToken).isDelegate(recipient, msg.sender)) {
-                        shares = IMToken(mToken).depositAsCollateralFor(
+                        shares = IPToken(mToken).depositAsCollateralFor(
                             assets,
                             recipient
                         );
@@ -135,12 +137,12 @@ abstract contract ZapperBase is ReentrancyGuard {
             } else {
                 // User wants to enter an uncollateralized a position so we dont
                 // care if they are zapping for themselves or someone else.
-                shares = IMToken(mToken).deposit(assets, recipient);
+                shares = IPToken(mToken).deposit(assets, recipient);
             }
         } else {
             // Depositing into a lending position is permissionless so we can
             // just directly mint for the recipient.
-            shares = IMToken(mToken).mintFor(assets, recipient);
+            shares = IEToken(mToken).mintFor(assets, recipient);
         }
 
         // Make sure `recipient` got sufficient shares.
@@ -165,7 +167,7 @@ abstract contract ZapperBase is ReentrancyGuard {
     ///                              reduced from callers collateralPosted.
     /// @param recipient Address that should receive redeemed assets.
     function _exitCurvance(
-        IMToken mToken,
+        address mToken,
         address underlying,
         uint256 shares,
         uint256 expectedAssets,
@@ -173,7 +175,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address recipient
     ) internal {
         // Validate `underlying` matches underlying token of mToken contract.
-        if (mToken.underlying() != underlying) {
+        if (IMToken(mToken).underlying() != underlying) {
             revert ZapperBase__ExecutionError();
         }
 
@@ -184,13 +186,13 @@ abstract contract ZapperBase is ReentrancyGuard {
         // uncollateralized redemption looks the same for both tokens, whereas
         // only pTokens would ever use "forceRedeemCollateral".
         if (forceRedeemCollateral) {
-            assets = mToken.redeemCollateralFor(
+            assets = IPToken(mToken).redeemCollateralFor(
                 shares,
                 address(this),
                 msg.sender
             );
         } else {
-            assets = mToken.redeemFor(shares, address(this), msg.sender);
+            assets = IEToken(mToken).redeemFor(shares, address(this), msg.sender);
         }
 
         // Validate output of redemption is sufficient.
@@ -237,7 +239,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         );
 
         // Execute repayment of eToken debt.
-        IMToken(eToken).repayFor(recipient, repayAmount);
+        IEToken(eToken).repayFor(recipient, repayAmount);
 
         // Remove any excess approval.
         SwapperLib._removeApprovalIfNeeded(eTokenUnderlying, eToken);

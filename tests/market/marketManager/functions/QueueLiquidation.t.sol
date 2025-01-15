@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
     event LiquidationQueued(
@@ -80,7 +79,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
         marketManager.listToken(address(pBALRETH));
 
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000, // liquidate at 71%
             3000,

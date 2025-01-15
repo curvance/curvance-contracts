@@ -87,7 +87,7 @@ contract TestPTokenWithExitFeeReserves is TestBaseMarket {
             marketManager.listToken(address(pBALRETHWithExitFee));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETHWithExitFee)),
+                address(pBALRETHWithExitFee),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -164,11 +164,7 @@ contract TestPTokenWithExitFeeReserves is TestBaseMarket {
         _prepareDAI(user2, repayAmount);
         vm.startPrank(user2);
         dai.approve(address(eDAI), repayAmount);
-        eDAI.liquidateExact(
-            user1,
-            repayAmount,
-            IMToken(address(pBALRETHWithExitFee))
-        );
+        eDAI.liquidateExact(user1, repayAmount, address(pBALRETHWithExitFee));
         vm.stopPrank();
 
         assertApproxEqRel(

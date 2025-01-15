@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IMToken, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 contract SimpleZapper is ZapperBase {
     /// ERRORS ///
@@ -159,7 +159,7 @@ contract SimpleZapper is ZapperBase {
     ) external nonReentrant returns (uint256) {
         // Exit Curvance position.
         _exitCurvance(
-            IMToken(redemptionData.mToken),
+            redemptionData.mToken,
             swapData.inputToken,
             redemptionData.shares,
             swapData.inputAmount,

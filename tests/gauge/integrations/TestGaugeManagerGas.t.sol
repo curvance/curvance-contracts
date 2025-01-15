@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
@@ -122,7 +122,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         // deposit
         gasStart = gasleft();
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(10 ether);
+        IEToken(tokens[0]).mint(10 ether);
         uint256 gasUsedForDeposit = gasStart - gasleft();
 
         // start epoch 1
@@ -146,7 +146,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether, address(this));
+        IEToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);
@@ -188,7 +188,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         // deposit
         gasStart = gasleft();
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(10 ether);
+        IEToken(tokens[0]).mint(10 ether);
         uint256 gasUsedForDeposit = gasStart - gasleft();
 
         // check pending rewards after 100 seconds
@@ -201,7 +201,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether, address(this));
+        IEToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);
@@ -243,7 +243,7 @@ contract TestGaugePoolGas is TestBaseMarket {
         // deposit
         gasStart = gasleft();
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(10 ether);
+        IEToken(tokens[0]).mint(10 ether);
         uint256 gasUsedForDeposit = gasStart - gasleft();
 
         // start epoch 2
@@ -256,7 +256,7 @@ contract TestGaugePoolGas is TestBaseMarket {
 
         vm.prank(users[0]);
         gasStart = gasleft();
-        IMToken(tokens[0]).redeem(10 ether, address(this));
+        IEToken(tokens[0]).redeem(10 ether, address(this));
         uint256 gasUsedForWithdraw = gasStart - gasleft();
 
         emit log_named_uint("Gas Used For Deposit", gasUsedForDeposit);

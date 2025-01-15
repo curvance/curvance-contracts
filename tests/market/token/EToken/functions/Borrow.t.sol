@@ -46,4 +46,31 @@ contract ETokenBorrowTest is TestBaseEToken {
         assertEq(eUSDC.totalSupply(), totalSupply);
         assertEq(eUSDC.totalBorrows(), totalBorrows + 100e6);
     }
+
+    function test_eTokenBorrowFor_success() public {
+        _setPBALRETHCollateralCaps(100_000e18);
+
+        eUSDC.mint(200e6);
+
+        marketManager.postCollateral(
+            address(this),
+            address(pBALRETH),
+            1e18 - 1
+        );
+
+        uint256 underlyingBalance = usdc.balanceOf(address(this));
+        uint256 balance = eUSDC.balanceOf(address(this));
+        uint256 totalSupply = eUSDC.totalSupply();
+        uint256 totalBorrows = eUSDC.totalBorrows();
+
+        eUSDC.setDelegateApproval(user1, true);
+
+        vm.prank(user1);
+        eUSDC.borrowFor(address(this), address(this), 100e6);
+
+        assertEq(usdc.balanceOf(address(this)), underlyingBalance + 100e6);
+        assertEq(eUSDC.balanceOf(address(this)), balance);
+        assertEq(eUSDC.totalSupply(), totalSupply);
+        assertEq(eUSDC.totalBorrows(), totalBorrows + 100e6);
+    }
 }

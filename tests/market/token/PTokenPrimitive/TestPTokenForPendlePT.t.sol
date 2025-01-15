@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
@@ -133,7 +133,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
             oracleManager.addMTokenSupport(address(cPendlePT));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(cPendlePT)),
+                address(cPendlePT),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -449,7 +449,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         _prepareUSDC(user2, 250e6);
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 250e6);
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(cPendlePT)));
+        eUSDC.liquidateExact(user1, 250e6, address(cPendlePT));
         vm.stopPrank();
 
         uint256 liquidatedAmount = 250e6;
@@ -494,7 +494,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         _prepareUSDC(user2, 1000e6);
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 1000e6);
-        eUSDC.liquidate(user1, IMToken(address(cPendlePT)));
+        eUSDC.liquidate(user1, address(cPendlePT));
         vm.stopPrank();
 
         uint256 liquidatedAmount = 590e6;

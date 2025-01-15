@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 
@@ -134,7 +133,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
             oracleManager.addMTokenSupport(address(cWBTC));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(cWBTC)),
+                address(cWBTC),
                 7000,
                 4000, // liquidate at 71%
                 3000,

@@ -493,7 +493,7 @@ contract StartContractsConfig is
         market.listToken(pToken);
         market.updatePositionToken(
             // From FuzzMarketManager -> setup()
-            IMToken(pToken),
+            pToken,
             7000,
             4000,
             3000,

@@ -7,6 +7,8 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 
 contract CurvancePrefarm {
     /// TYPES ///
@@ -282,14 +284,14 @@ contract CurvancePrefarm {
             if (collateralize) {
                 // Migrate to a position token and immediately
                 // collateralize it.
-                IMToken(mToken).depositAsCollateralFor(amount, msg.sender);
+                IPToken(mToken).depositAsCollateralFor(amount, msg.sender);
             } else {
                 // Migrate to a position token and just deposit it.
-                IMToken(mToken).deposit(amount, msg.sender);
+                IPToken(mToken).deposit(amount, msg.sender);
             }
         } else {
             // Migrate a debt token to be lent to users.
-            IMToken(mToken).mintFor(amount, msg.sender);
+            IEToken(mToken).mintFor(amount, msg.sender);
         }
 
         // Remove any excess approval.

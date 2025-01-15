@@ -27,7 +27,6 @@ import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.s
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
@@ -556,7 +555,7 @@ contract TestBaseMarket is TestBase {
         uint256 cap
     ) internal initMainVariables {
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,

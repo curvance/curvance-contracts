@@ -10,8 +10,8 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { PositionManagementVelodromeStable } from "contracts/market/position-management/PositionManagementVelodromeStable.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
-import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract TestPositionManagementVelodromeStable is TestBaseMarket {
     address internal _VELODROME_DAI_USDC =
@@ -112,7 +112,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             marketManager.listToken(address(pUSDCDAI));
 
             marketManager.updatePositionToken(
-                IMToken(address(pUSDCDAI)),
+                address(pUSDCDAI),
                 7000,
                 4000,
                 3000,
@@ -188,9 +188,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementVelodromeStable.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.positionToken = IPToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -256,9 +256,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         uint256 leverageFee = amountForLeverage / 100;
 
         PositionManagementVelodromeStable.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.positionToken = IPToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage - leverageFee;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -315,9 +315,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        deleverageData.positionToken = IPToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         uint256 usdcAmount = 27451772;
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -384,9 +384,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         uint256 protocolBalanceBeforeDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());
 
-        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        deleverageData.positionToken = IPToken(address(pUSDCDAI));
         deleverageData.collateralAmount = collateralAmount;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         uint256 usdcAmount = 27177254;
         deleverageData.swapData = new SwapperLib.Swap[](1);
@@ -461,9 +461,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementVelodromeStable.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        leverageData.positionToken = IPToken(address(pUSDCDAI));
         leverageData.swapData.inputToken = _DAI_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _USDC_ADDRESS;
@@ -516,9 +516,9 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pUSDCDAI));
+        deleverageData.positionToken = IPToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
 
         uint256 usdcAmount = 27451772;
         deleverageData.swapData = new SwapperLib.Swap[](1);

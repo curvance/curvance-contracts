@@ -6,7 +6,6 @@ import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
@@ -68,7 +67,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
         IERC20(_LP_STETH).approve(address(cSTETH), 1 ether);
         marketManager.listToken(address(cSTETH));
         marketManager.updatePositionToken(
-            IMToken(address(cSTETH)),
+            address(cSTETH),
             7000,
             4000,
             3000,

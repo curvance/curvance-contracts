@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract ETokenQueueLiquidationTest is TestBaseEToken {
     event LiquidationQueued(
@@ -17,7 +16,7 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         vm.prank(user1);
 
         vm.expectRevert(EToken.EToken__Unauthorized.selector);
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
     }
 
     function test_eTokenQueueLiquidation_fail_whenMTokenIsNotPositionToken()
@@ -26,7 +25,7 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         vm.prank(user2);
 
         vm.expectRevert(EToken.EToken__ValidationFailed.selector);
-        eUSDC.queueLiquidation(user1, IMToken(address(eUSDC)));
+        eUSDC.queueLiquidation(user1, address(eUSDC));
     }
 
     function test_eTokenQueueLiquidation_fail_whenNoLiquidationAvailable()
@@ -37,7 +36,7 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         vm.expectRevert(
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
     }
 
     function test_eTokenQueueLiquidation_success() public {
@@ -74,14 +73,14 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit LiquidationQueued(user1, user2, address(eUSDC));
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         vm.prank(user3);
 
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit LiquidationQueued(user1, user3, address(eUSDC));
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         (priorityStartline, regularStartline, endLine, nonce) = marketManager
             .regularQueue(queueKey);
@@ -107,7 +106,7 @@ contract ETokenQueueLiquidationTest is TestBaseEToken {
         vm.expectEmit(true, true, true, true, address(marketManager));
         emit LiquidationQueued(user1, user4, address(eUSDC));
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         (priorityStartline, regularStartline, endLine, nonce) = marketManager
             .regularQueue(queueKey);

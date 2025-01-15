@@ -124,7 +124,7 @@ contract TestSimpleZapper is TestBaseMarket {
         oracleManager.addMTokenSupport(address(cSTETH));
 
         marketManager.updatePositionToken(
-            IMToken(address(cSTETH)),
+            address(cSTETH),
             5000,
             1500,
             1200,

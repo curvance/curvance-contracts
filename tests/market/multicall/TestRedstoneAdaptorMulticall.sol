@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
@@ -155,7 +156,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(pWBTC)),
+                address(pWBTC),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -319,9 +320,9 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eUSDC;
+        leverageData.borrowToken = IEToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pWBTC));
+        leverageData.positionToken = IPToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

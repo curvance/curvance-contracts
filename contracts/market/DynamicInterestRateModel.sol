@@ -5,7 +5,7 @@ import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 
@@ -291,14 +291,14 @@ contract DynamicInterestRateModel is ERC165 {
         // Validate that the token being linked is actually an earn token
         // and not a position token, if the token is not an mToken at all
         // this will also natively fail, which is fine too.
-        if (IMToken(eTokenAddress).isPToken()) {
+        if (IEToken(eTokenAddress).isPToken()) {
             _revert(_INVALID_TOKEN_SELECTOR);
         }
 
         // Validate that the earn token is actually expecting this interest
         // rate model to be linked to it.
         if (
-            address(IMToken(eTokenAddress).interestRateModel()) !=
+            address(IEToken(eTokenAddress).interestRateModel()) !=
             address(this)
         ) {
             _revert(_INVALID_TOKEN_SELECTOR);

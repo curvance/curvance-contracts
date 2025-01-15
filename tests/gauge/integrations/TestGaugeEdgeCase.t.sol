@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
@@ -96,12 +96,12 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     function testCannotRedeemMoreThanDeposit() public {
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user0 withdraw half
         vm.prank(users[0]);
         vm.expectRevert();
-        IMToken(tokens[0]).redeem(101 ether, address(this));
+        IEToken(tokens[0]).redeem(101 ether, address(this));
     }
 
     function testCanDepositWithdrawBeforeGaugeStartTime() public {
@@ -109,15 +109,15 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
     }
 
     function testCanDepositWithdrawAfterGaugeStartTime() public {
@@ -128,15 +128,15 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
     }
 
     function testSetPartnerGaugesWithoutCVE() public {
@@ -173,11 +173,11 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -243,11 +243,11 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
