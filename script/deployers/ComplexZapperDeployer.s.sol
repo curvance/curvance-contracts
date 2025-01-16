@@ -15,7 +15,7 @@ contract ComplexZapperDeployer is DeployConfiguration {
         address centralRegistry,
         address weth,
         string memory marketName
-    ) internal returns (address) {
+    ) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(weth != address(0), "Set the weth!");
 
