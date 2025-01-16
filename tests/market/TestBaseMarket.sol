@@ -19,6 +19,10 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ComplexZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/ComplexZapperCalldataChecker.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
+import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
+import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -60,6 +64,8 @@ contract TestBaseMarket is TestBase {
         _deployPBALRETHWithExitFee();
 
         _deployComplexZapper();
+        _deployPendleZapper();
+        _deployVelodromeZapper();
 
         _setRedstoneSigners();
 
@@ -482,6 +488,42 @@ contract TestBaseMarket is TestBase {
             address(new ComplexZapperCalldataChecker(address(complexZapper)))
         );
         return complexZapper;
+    }
+
+    function _deployPendleZapper()
+        internal
+        initMainVariables
+        returns (PendleZapper)
+    {
+        pendleZapper = pendleZappers[block.chainid] = new PendleZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+        centralRegistry.setExternalCalldataChecker(
+            address(pendleZapper),
+            address(new PendleZapperCalldataChecker(address(pendleZapper)))
+        );
+        return pendleZapper;
+    }
+
+    function _deployVelodromeZapper()
+        internal
+        initMainVariables
+        returns (VelodromeZapper)
+    {
+        velodromeZapper = velodromeZappers[
+            block.chainid
+        ] = new VelodromeZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+        centralRegistry.setExternalCalldataChecker(
+            address(velodromeZapper),
+            address(
+                new VelodromeZapperCalldataChecker(address(velodromeZapper))
+            )
+        );
+        return velodromeZapper;
     }
 
     function _addSinglePriceFeed() internal initMainVariables {

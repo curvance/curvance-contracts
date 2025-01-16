@@ -7,14 +7,14 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-contract TestComplexZapperPendle is TestBaseMarket {
+contract TestPendleZapper is TestBaseMarket {
     address internal _PENDLE_ROUTER =
         0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal _PENDLE_LP_STETH =
@@ -97,9 +97,9 @@ contract TestComplexZapperPendle is TestBaseMarket {
         data.approx.eps = 1e18;
 
         vm.prank(user1);
-        complexZapper.enterPendle{ value: ethAmount }(
+        pendleZapper.enterPendle{ value: ethAmount }(
             address(0),
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -134,15 +134,15 @@ contract TestComplexZapperPendle is TestBaseMarket {
 
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(
-            address(complexZapper),
+            address(pendleZapper),
             withdrawAmount
         );
-        complexZapper.exitPendle(
+        pendleZapper.exitPendle(
             _PENDLE_ROUTER,
             _IS_PT,
             _STETH,
             data,
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 _PENDLE_LP_STETH,
                 withdrawAmount,
                 _STETH,
@@ -172,9 +172,9 @@ contract TestComplexZapperPendle is TestBaseMarket {
         data.approx.eps = 1e18;
 
         vm.prank(user1);
-        complexZapper.enterPendle{ value: ethAmount }(
+        pendleZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -210,9 +210,9 @@ contract TestComplexZapperPendle is TestBaseMarket {
         data.approx.eps = 1e18;
 
         vm.prank(user1);
-        complexZapper.enterPendle{ value: ethAmount }(
+        pendleZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -251,9 +251,9 @@ contract TestComplexZapperPendle is TestBaseMarket {
         data.approx.eps = 1e18;
 
         vm.prank(user2);
-        complexZapper.enterPendle{ value: ethAmount }(
+        pendleZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 address(0),
                 ethAmount,
                 _PENDLE_LP_STETH,
@@ -280,7 +280,7 @@ contract TestComplexZapperPendle is TestBaseMarket {
         testEnterPendleWithPTokenWithCollateralize();
 
         vm.prank(user1);
-        pSTETH.setDelegateApproval(address(complexZapper), true);
+        pSTETH.setDelegateApproval(address(pendleZapper), true);
 
         ZapperBase.RedemptionData memory redemptionData;
         redemptionData.mToken = address(pSTETH);
@@ -296,14 +296,14 @@ contract TestComplexZapperPendle is TestBaseMarket {
         data.approx.eps = 1e18;
 
         vm.startPrank(user1);
-        IERC20(_PENDLE_LP_STETH).approve(address(complexZapper), 3 ether);
-        complexZapper.redeemAndExitPendle(
+        IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);
+        pendleZapper.redeemAndExitPendle(
             redemptionData,
             _PENDLE_ROUTER,
             _IS_PT,
             _STETH,
             data,
-            ComplexZapper.ZapperData(
+            PendleZapper.ZapperData(
                 _PENDLE_LP_STETH,
                 1.24 ether,
                 _STETH,

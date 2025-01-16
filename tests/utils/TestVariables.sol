@@ -18,6 +18,8 @@ import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
+import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -121,6 +123,8 @@ contract TestVariables {
     MockToken public rewardToken;
     GaugeManager public gaugeManager;
     ComplexZapper public complexZapper;
+    PendleZapper public pendleZapper;
+    VelodromeZapper public velodromeZapper;
 
     // Chain ID => Data
     mapping(uint256 => CVE) public cves;
@@ -154,6 +158,8 @@ contract TestVariables {
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
     mapping(uint256 => ComplexZapper) public complexZappers;
+    mapping(uint256 => PendleZapper) public pendleZappers;
+    mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
     address public harvester;
     address public user1 = address(1000001);
@@ -380,6 +386,8 @@ contract TestVariables {
         rewardToken = rewardTokens[chainId];
         gaugeManager = gaugeManagers[chainId];
         complexZapper = complexZappers[chainId];
+        pendleZapper = pendleZappers[chainId];
+        velodromeZapper = velodromeZappers[chainId];
     }
 
     function _initMainVariables() internal {
