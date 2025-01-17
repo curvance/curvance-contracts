@@ -873,7 +873,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      Emits a {NewChainAdded} event.
     /// @param remoteMessagingHub Address for new chain's Messaging Hub.
     /// @param remoteVotingHub Address for new chain's Voting Hub.
-    /// @param feeTokenAddress Fee token address on the chain. (USDC)
+    /// @param feeTokenAddress Fee token address on the chain.
     /// @param cveAddress CVE address on the chain.
     /// @param chainId GETH Chain ID where this address authorized.
     /// @param messagingChainId Messaging Chain ID where this address authorized.
