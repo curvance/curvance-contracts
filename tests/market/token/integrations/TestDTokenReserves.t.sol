@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
@@ -88,7 +87,7 @@ contract TestETokenReserves is TestBaseMarket {
             marketManager.listToken(address(pBALRETH));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETH)),
+                address(pBALRETH),
                 5000,
                 1500,
                 1200,

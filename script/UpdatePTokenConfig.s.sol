@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "forge-std/Script.sol";
 
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
@@ -50,7 +49,7 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         require(pToken != address(0), "Set the pToken!");
 
         MarketManager(marketManager).updatePositionToken(
-            IMToken(pToken),
+            pToken,
             _readConfigUint256(string.concat(pathName, ".collRatio")),
             _readConfigUint256(string.concat(pathName, ".collReqA")),
             _readConfigUint256(string.concat(pathName, ".collReqB")),

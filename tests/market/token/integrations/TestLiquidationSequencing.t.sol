@@ -87,7 +87,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
             marketManager.listToken(address(pBALRETH));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETH)),
+                address(pBALRETH),
                 7000,
                 4000,
                 3000,
@@ -151,12 +151,12 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // test multiple different liquidators queuing in same block
         vm.startPrank(user3, user3);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -165,7 +165,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -177,7 +177,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed again because this second liquidation is still within the same nonce/end duration
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -217,12 +217,12 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // test multiple different liquidators queuing in same block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -231,7 +231,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -244,7 +244,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user3, user3);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
 
         // Skip to regular duration
         skip(1 seconds);
@@ -252,7 +252,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User3's liquidation should succeed because it is past regular duration
         vm.startPrank(user3, user3);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -292,7 +292,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -300,13 +300,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -322,7 +322,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user3, user3);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
     }
 
@@ -356,7 +356,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -364,13 +364,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -386,10 +386,10 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
 
         // User2's queues liquidation and increments nonce
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration for second nonce
@@ -397,13 +397,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         vm.startPrank(user2, user2);
         // User2's liquidation should succeed because it is after priority duration for new nonce
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -440,7 +440,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -449,7 +449,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -463,7 +463,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         vm.startPrank(user3, user3);
         // User3 queues liquidation and increments nonce
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration for second nonce
@@ -473,7 +473,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should fail because it is before regular duration for new nonce
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Skip regular duration for second nonce
@@ -481,13 +481,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         vm.startPrank(user2, user2);
         // User2's liquidation should succeed because it is after regular duration for new nonce
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -524,12 +524,12 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // test multiple different liquidators queuing over same block
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -538,7 +538,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -552,7 +552,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation and increments nonce
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip to second after second end duration
@@ -562,7 +562,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
     }
 
@@ -599,7 +599,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -608,7 +608,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -624,10 +624,10 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user3, user3);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
 
         // User3 queues liquidation and increments nonce
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration for second nonce
@@ -635,13 +635,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple blocks
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         vm.startPrank(user3, user3);
         // User3's liquidation should succeed because it is after priority duration for new nonce
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -681,7 +681,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -690,7 +690,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -704,7 +704,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         vm.startPrank(user2, user2);
         // User2 queues liquidation and increments nonce
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration for second nonce
@@ -714,7 +714,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.startPrank(user3, user3);
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Skip regular duration for second nonce
@@ -722,13 +722,13 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // test multiple different liquidators queuing over multiple blocks
         vm.startPrank(user4, user4);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         vm.startPrank(user3, user3);
         // User3's liquidation should succeed because it is after priority duration for new nonce
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded again by checking balances
@@ -768,7 +768,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User2's queues liquidation
         vm.startPrank(user2, user2);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
         vm.stopPrank();
 
         // Skip priority duration
@@ -777,7 +777,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User2's liquidation should succeed because they have priority access
         vm.startPrank(user2, user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         // Verify liquidation succeeded by checking balances
@@ -791,7 +791,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
 
         // User3 queues liquidation and increments nonce
         vm.startPrank(user3, user3);
-        eDAI.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eDAI.queueLiquidation(user1, address(pBALRETH));
 
         // Skip to second after second end duration
         skip(31 seconds);
@@ -799,7 +799,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         // User3's liquidation should fail because it is after end duration for new nonce
         dai.approve(address(eDAI), 250 ether);
         vm.expectRevert(INVALID_LIQUIDATOR_ERROR);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
     }
 }

@@ -357,16 +357,18 @@ contract StartContractsConfig is
         );
 
         // Deploy Addons
-        _deployPositionManagementSimple(address(market), marketName);
+        _deployPositionManagementSimple(
+            address(market),
+            marketName,
+            _readConfigAddress(".zapper.weth")
+        );
         _deployComplexZapper(
             address(cr),
-            address(market),
             _readConfigAddress(".zapper.weth"),
             marketName
         );
         _deploySimpleZapper(
             address(cr),
-            address(market),
             _readConfigAddress(".zapper.weth"),
             marketName
         );
@@ -491,7 +493,7 @@ contract StartContractsConfig is
         market.listToken(pToken);
         market.updatePositionToken(
             // From FuzzMarketManager -> setup()
-            IMToken(pToken),
+            pToken,
             7000,
             4000,
             3000,

@@ -18,6 +18,8 @@ import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
+import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
@@ -121,6 +123,8 @@ contract TestVariables {
     MockToken public rewardToken;
     GaugeManager public gaugeManager;
     ComplexZapper public complexZapper;
+    PendleZapper public pendleZapper;
+    VelodromeZapper public velodromeZapper;
 
     // Chain ID => Data
     mapping(uint256 => CVE) public cves;
@@ -154,16 +158,17 @@ contract TestVariables {
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
     mapping(uint256 => ComplexZapper) public complexZappers;
+    mapping(uint256 => PendleZapper) public pendleZappers;
+    mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
     address public harvester;
-    address public randomUser = address(1000000);
     address public user1 = address(1000001);
     address public user2 = address(1000002);
     address public user3 = address(1000003);
     address public user4 = address(1000004);
     address public liquidator = address(1000005);
-    uint256 public voteBoostMultiplier = 11000; // 110%
-    uint256 public lockBoostMultiplier = 10000; // 110%
+    uint256 public voteBoostMultiplier = 12000; // 120%
+    uint256 public lockBoostMultiplier = 13000; // 130%
     uint256 public marketInterestFactor = 1000; // 10%
 
     bytes public response;
@@ -381,6 +386,8 @@ contract TestVariables {
         rewardToken = rewardTokens[chainId];
         gaugeManager = gaugeManagers[chainId];
         complexZapper = complexZappers[chainId];
+        pendleZapper = pendleZappers[chainId];
+        velodromeZapper = velodromeZappers[chainId];
     }
 
     function _initMainVariables() internal {

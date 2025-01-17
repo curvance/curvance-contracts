@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
@@ -179,7 +180,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
             oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(pWBTC)),
+                address(pWBTC),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -210,7 +211,8 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         {
             positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
-                address(marketManager)
+                address(marketManager),
+                _WETH_ADDRESS
             );
             marketManager.setPositionManagement(address(positionManagement));
         }
@@ -327,7 +329,7 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
     }
 
     function testPositionLeverage() public {
-        centralRegistry.setSlippageLimit(60000);
+        centralRegistry.setSlippageLimit(6000);
 
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
@@ -344,14 +346,15 @@ contract TestPythAdaptorMulticall is TestBaseMarket {
         marketManager.postCollateral(user1, address(pWBTC), 0.1e8);
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user1, address(eUSDC)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user1,
+            address(eUSDC)
+        ) * 50) / 100;
 
         PositionManagementSimple.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eUSDC;
+        leverageData.borrowToken = IEToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = SimplePToken(address(pWBTC));
+        leverageData.positionToken = IPToken(address(pWBTC));
         leverageData.swapData.inputToken = _USDC_ADDRESS;
         leverageData.swapData.inputAmount = amountForLeverage;
         leverageData.swapData.outputToken = _WBTC_ADDRESS;

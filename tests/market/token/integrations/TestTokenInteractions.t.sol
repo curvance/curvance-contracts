@@ -88,7 +88,7 @@ contract TestTokenInteractions is TestBaseMarket {
             marketManager.listToken(address(pBALRETH));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETH)),
+                address(pBALRETH),
                 7000,
                 4000,
                 3000,
@@ -396,7 +396,7 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 250e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 250e18);
-        eDAI.liquidateExact(user1, 250e18, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250e18, address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -439,7 +439,7 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 10_000e18);
-        eDAI.liquidate(user1, IMToken(address(pBALRETH)));
+        eDAI.liquidate(user1, address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -476,7 +476,7 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 10_000e18);
-        eDAI.liquidate(user1, IMToken(address(pBALRETH)));
+        eDAI.liquidate(user1, address(pBALRETH));
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 0);
@@ -521,7 +521,7 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 1000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 1000e18);
-        eDAI.liquidate(user1, IMToken(address(pBALRETH)));
+        eDAI.liquidate(user1, address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -546,7 +546,7 @@ contract TestTokenInteractions is TestBaseMarket {
 
         // set collateral factor
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             0,
             4000,
             3000,
@@ -587,7 +587,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        eDAI.liquidate(user1, IMToken(address(pBALRETH)));
+        eDAI.liquidate(user1, address(pBALRETH));
         vm.stopPrank();
 
         vm.prank(user1);

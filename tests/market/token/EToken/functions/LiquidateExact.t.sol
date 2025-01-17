@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract LiquidateExactTest is TestBaseEToken {
     function setUp() public override {
@@ -17,7 +16,7 @@ contract LiquidateExactTest is TestBaseEToken {
 
         vm.startPrank(user2, user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
         usdc.approve(address(eUSDC), 250e6);
 
         skip(31);
@@ -25,7 +24,7 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         vm.stopPrank();
     }
@@ -45,7 +44,7 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         vm.stopPrank();
     }
@@ -53,7 +52,7 @@ contract LiquidateExactTest is TestBaseEToken {
     function test_liquidateExact_success() public {
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 250e6);
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
         vm.stopPrank();
 
         _checkLiquidationResult();
@@ -70,7 +69,7 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
         vm.prank(dappControl);
@@ -97,17 +96,17 @@ contract LiquidateExactTest is TestBaseEToken {
 
         vm.startPrank(user2, user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
         usdc.approve(address(eUSDC), 250e6);
 
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         skip(1);
 
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         vm.stopPrank();
 
@@ -120,7 +119,7 @@ contract LiquidateExactTest is TestBaseEToken {
         centralRegistry.setSequencingStatus(true);
 
         vm.prank(user3, user3);
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         skip(2);
 
@@ -128,7 +127,7 @@ contract LiquidateExactTest is TestBaseEToken {
 
         usdc.approve(address(eUSDC), 250e6);
 
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         vm.stopPrank();
 
@@ -142,19 +141,19 @@ contract LiquidateExactTest is TestBaseEToken {
 
         vm.startPrank(user2, user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
         usdc.approve(address(eUSDC), 250e6);
 
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
         skip(1);
 
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
         vm.stopPrank();
 
@@ -172,32 +171,32 @@ contract LiquidateExactTest is TestBaseEToken {
 
         usdc.approve(address(eUSDC), 250e6);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         _checkQueueNonce(1);
 
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
         skip(1);
 
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
         skip(30);
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
 
         _checkQueueNonce(2);
 
         skip(1);
 
-        eUSDC.liquidateExact(user1, 125e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 125e6, address(pBALRETH));
 
         vm.stopPrank();
 
@@ -212,7 +211,7 @@ contract LiquidateExactTest is TestBaseEToken {
 
         vm.startPrank(user2, user2);
 
-        eUSDC.queueLiquidation(user1, IMToken(address(pBALRETH)));
+        eUSDC.queueLiquidation(user1, address(pBALRETH));
         usdc.approve(address(eUSDC), 250e6);
 
         vm.stopPrank();
@@ -225,11 +224,11 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.expectRevert(
             LiquidationManager.LiquidationManager__InvalidLiquidator.selector
         );
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         skip(1);
 
-        eUSDC.liquidateExact(user1, 250e6, IMToken(address(pBALRETH)));
+        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
         vm.stopPrank();
 

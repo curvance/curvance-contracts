@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
@@ -102,11 +102,11 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -123,11 +123,11 @@ contract TestBoostedLock is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -166,7 +166,7 @@ contract TestBoostedLock is TestBaseMarket {
             false, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
         vm.prank(users[3]);
@@ -176,13 +176,13 @@ contract TestBoostedLock is TestBaseMarket {
             false, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
-        assertEq(veCVE.balanceOf(users[0]) / 1e18, 876020 - 1);
-        assertEq(veCVE.balanceOf(users[3]) / 1e18, 6928160 - 1);
-        assertApproxEqAbs(veCVE.getVotes(users[0]), 842326e18, 1e18);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 6661692e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 1138825);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 9006607);
+        assertApproxEqAbs(veCVE.getVotes(users[0]), 1095025e18, 1e18);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 8660200e18, 1e18);
 
         vm.warp(block.timestamp + 1000);
 
@@ -194,7 +194,7 @@ contract TestBoostedLock is TestBaseMarket {
             true, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
         vm.prank(users[3]);
@@ -204,20 +204,20 @@ contract TestBoostedLock is TestBaseMarket {
             false, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
 
-        assertEq(veCVE.balanceOf(users[0]) / 1e18, 896020 - 1);
-        assertEq(veCVE.balanceOf(users[3]) / 1e18, 7088160 - 1);
-        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622 - 1);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 6815538e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 1164825);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 9214607);
+        assertEq(veCVE.getVotes(users[0]) / 1e18, 1397791);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 8860200e18, 1e18);
 
         vm.warp(block.timestamp + 6 weeks);
-        assertEq(veCVE.balanceOf(users[0]) / 1e18, 896020 - 1);
-        assertEq(veCVE.balanceOf(users[3]) / 1e18, 7088160 - 1);
-        assertEq(veCVE.getVotes(users[0]) / 1e18, 985622 - 1);
-        assertApproxEqAbs(veCVE.getVotes(users[3]), 5997673e18, 1e18);
+        assertEq(veCVE.balanceOf(users[0]) / 1e18, 1164825);
+        assertEq(veCVE.balanceOf(users[3]) / 1e18, 9214607);
+        assertEq(veCVE.getVotes(users[0]) / 1e18, 1397791);
+        assertApproxEqAbs(veCVE.getVotes(users[3]), 7796976e18, 1e18);
     }
 
     function testRevertClaimAndExtendLock() public {
@@ -233,7 +233,7 @@ contract TestBoostedLock is TestBaseMarket {
             true, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
 
@@ -246,7 +246,7 @@ contract TestBoostedLock is TestBaseMarket {
             true, // continuousLock
             0, // lockIndex
             rewardData,
-            "0x",
+            "",
             0
         );
     }
@@ -264,7 +264,7 @@ contract TestBoostedLock is TestBaseMarket {
             true,
             0,
             rewardData,
-            "0x",
+            "",
             0
         );
 
@@ -277,7 +277,7 @@ contract TestBoostedLock is TestBaseMarket {
             true,
             0,
             rewardData,
-            "0x",
+            "",
             0
         );
     }

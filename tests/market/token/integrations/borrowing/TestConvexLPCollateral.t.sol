@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPToken.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -104,7 +103,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         SafeTransferLib.safeApprove(_USDC_ADDRESS, address(eUSDC), 1 ether);
         marketManager.listToken(address(eUSDC));
         marketManager.updatePositionToken(
-            IMToken(address(cSTETH)),
+            address(cSTETH),
             7000,
             4000,
             3000,

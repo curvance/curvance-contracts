@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -145,11 +145,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
     }
 
     function testRevertAddExtraRewardTokenInvalidAddress() public {
@@ -326,11 +326,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -363,11 +363,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user1 deposit 400 token0
         vm.prank(users[1]);
-        IMToken(tokens[0]).mint(400 ether);
+        IEToken(tokens[0]).mint(400 ether);
 
         // user3 deposit 400 token1
         vm.prank(users[3]);
-        IMToken(tokens[1]).mint(400 ether);
+        IEToken(tokens[1]).mint(400 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -496,11 +496,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 withdraw half
         vm.prank(users[0]);
-        IMToken(tokens[0]).redeem(50 ether, address(this));
+        IEToken(tokens[0]).redeem(50 ether, address(this));
 
         // user2 deposit 2x
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -679,11 +679,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user1 deposit 100 token1
         vm.prank(users[1]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -850,11 +850,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
@@ -1004,11 +1004,11 @@ contract TestPartnerGaugePool is TestBaseMarket {
 
         // user0 deposit 100 token0
         vm.prank(users[0]);
-        IMToken(tokens[0]).mint(100 ether);
+        IEToken(tokens[0]).mint(100 ether);
 
         // user2 deposit 100 token1
         vm.prank(users[2]);
-        IMToken(tokens[1]).mint(100 ether);
+        IEToken(tokens[1]).mint(100 ether);
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);

@@ -17,6 +17,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 /// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation
@@ -337,6 +338,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // Update pending interest.
+        // This generally is a redundant check due to interest accrual
+        // done inside checkSlippage check in position management contract
+        // implementations, but we keep this check in for invariant
+        // protection in the case of a incorrectly implemented position
+        // management contract.
         accrueInterest();
 
         // Notifies the Market Manager that a user is taking on more debt,
@@ -452,7 +458,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account being liquidated and repaid on behalf of.
     /// @param pToken The position token to be liquidated from
     ///               `account`.
-    function queueLiquidation(address account, IMToken pToken) external {
+    function queueLiquidation(address account, address pToken) external {
         // Fail if account = liquidator.
         assembly {
             if eq(account, caller()) {
@@ -463,7 +469,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // The MToken must be a position token.
-        if (!pToken.isPToken()) {
+        if (!IPToken(pToken).isPToken()) {
             revert EToken__ValidationFailed();
         }
 
@@ -472,7 +478,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         marketManager.queueLiquidation(
             address(this),
-            address(pToken),
+            pToken,
             msg.sender,
             account
         );
@@ -487,7 +493,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     function liquidateExact(
         address account,
         uint256 amount,
-        IMToken pToken
+        address pToken
     ) external nonReentrant {
         _liquidate(msg.sender, account, amount, pToken, true);
     }
@@ -498,7 +504,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the liquidation.
     /// @param account The address of the account to be liquidated.
     /// @param pToken The market in which to seize collateral from `account`.
-    function liquidate(address account, IMToken pToken) external nonReentrant {
+    function liquidate(address account, address pToken) external nonReentrant {
         _liquidate(
             msg.sender,
             account,
@@ -666,9 +672,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Update pending interest.
         accrueInterest();
-
+        
         // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount) {
+        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
         }
 
@@ -694,7 +700,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///      withdrawn first. Updates pending interest before executing
     ///      the reserve withdrawal.
     function processWithdrawReserves() external {
-        // Only callable via the DAO Central Registry.
+        // Only callable via the DAO Operator via Central Registry.
         if (msg.sender != address(centralRegistry)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -706,7 +712,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount = convertToAssets(totalReservesCached);
 
         // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount) {
+        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
         }
 
@@ -718,7 +724,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Withdraw reserves from gauge.
         gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
 
-        // Transfer underlying to DAO measured in assets.
+        // Transfer underlying to DAO, measured in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
 
@@ -933,7 +939,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ) public view returns (uint256) {
         // Cache current exchange rate data.
         MarketData memory cachedData = marketData;
-        // If `timestamp` is before block.timestamp, round up.
+        // If `timestamp` is before block.timestamp, use current timestamp.
         timestamp = timestamp < block.timestamp ? block.timestamp : timestamp;
 
         // If we are up to date there is no reason to continue.
@@ -976,9 +982,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return
-            (accountDebt.principal * exchangeRateNew) /
-            accountDebt.accountExchangeRate;
+        return FixedPointMathLib.mulDivUp(
+            accountDebt.principal,
+            exchangeRateNew,
+            accountDebt.accountExchangeRate
+        );
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1000,9 +1008,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return
-            (accountDebt.principal * marketData.exchangeRate) /
-            accountDebt.accountExchangeRate;
+        return FixedPointMathLib.mulDivUp(
+            accountDebt.principal,
+            marketData.exchangeRate,
+            accountDebt.accountExchangeRate
+        );
     }
 
     /// @notice Returns the decimals of the eToken.
@@ -1325,9 +1335,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount
     ) internal returns (uint256) {
         // Check if we have enough underlying held to support the redemption.
-        // We do not need to add _BASE_UNDERLYING_RESERVE to the calculation
-        // because the startMarket() assets can never be withdraw since the
-        // market itself owns the corresponding eTokens.
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
         if (
             marketUnderlyingHeld() - convertToAssets(totalReserves) <
             amount + _BASE_UNDERLYING_RESERVE
@@ -1460,7 +1470,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address liquidator,
         address account,
         uint256 amount,
-        IMToken pToken,
+        address pToken,
         bool exactAmount
     ) internal {
         // Update pending interest.
@@ -1476,7 +1486,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         // The MToken must be a position token.
-        if (!pToken.isPToken()) {
+        if (!IPToken(pToken).isPToken()) {
             revert EToken__ValidationFailed();
         }
 
@@ -1488,7 +1498,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         (amount, liquidatedTokens, protocolTokens) = marketManager
             .canLiquidateWithExecution(
                 address(this),
-                address(pToken),
+                pToken,
                 liquidator,
                 account,
                 amount,
@@ -1530,7 +1540,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        pToken.seize(liquidator, account, liquidatedTokens, protocolTokens);
+        IPToken(pToken).seize(
+            liquidator,
+            account,
+            liquidatedTokens,
+            protocolTokens
+        );
 
         emit Liquidated(
             liquidator,

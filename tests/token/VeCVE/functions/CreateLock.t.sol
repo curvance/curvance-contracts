@@ -139,7 +139,10 @@ contract CreateLockTest is TestBaseVeCVE {
             0
         );
 
-        assertEq(veCVE.getVotes(address(this)), amount + amount / 10);
+        assertEq(
+            veCVE.getVotes(address(this)),
+            (amount * voteBoostMultiplier) / 1e4
+        );
     }
 
     function test_createLock_success_withDiscontinuousLock_fuzzed(

@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -91,7 +90,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
             marketManager.listToken(address(pBALRETH));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETH)),
+                address(pBALRETH),
                 7000,
                 4000,
                 3000,

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
@@ -85,7 +84,7 @@ contract TestDynamicLiquidations is TestBaseMarket {
             marketManager.listToken(address(pBALRETH));
             // set collateral factor
             marketManager.updatePositionToken(
-                IMToken(address(pBALRETH)),
+                address(pBALRETH),
                 7000,
                 4000,
                 3000,
@@ -152,7 +151,7 @@ contract TestDynamicLiquidations is TestBaseMarket {
         vm.expectRevert(
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
     }
 
     function testLiquidateWorksWhenAboveColReqA() public {
@@ -183,7 +182,7 @@ contract TestDynamicLiquidations is TestBaseMarket {
         _prepareDAI(user2, 250 ether);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, IMToken(address(pBALRETH)));
+        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(

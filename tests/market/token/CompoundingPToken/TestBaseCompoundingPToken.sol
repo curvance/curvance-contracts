@@ -11,23 +11,14 @@ contract TestBaseCompoundingPToken is TestBaseMarket {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
+    address public owner;
+
     function setUp() public virtual override {
         super.setUp();
 
+        owner = address(this);
+
         // use mock pricing for testing
-        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
-        chainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
-        dualChainlinkAdaptor.addAsset(
-            _USDC_ADDRESS,
-            address(mockUsdcFeed),
-            0,
-            true
-        );
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
         dualChainlinkAdaptor.addAsset(
@@ -60,25 +51,52 @@ contract TestBaseCompoundingPToken is TestBaseMarket {
             _RETH_ADDRESS,
             address(mockRethFeed),
             0,
-            true
+            false
         );
 
+        // start epoch
         vm.warp(gaugeManager.startTime());
         vm.roll(block.number + 1000);
 
-        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockDaiFeed.setMockUpdatedAt(block.timestamp);
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
+        (, int256 ethPrice, , , ) = mockWethFeed.latestRoundData();
+        chainlinkEthUsd.updateAnswer(ethPrice);
         _prepareBALRETH(user1, _ONE);
-        _prepareBALRETH(address(this), _ONE);
 
-        SafeTransferLib.safeApprove(
-            _BAL_WETH_RETH_ADDRESS,
-            address(pBALRETH),
-            _ONE
-        );
-        marketManager.listToken(address(pBALRETH));
+        // deploy eDAI
+        {
+            _prepareDAI(owner, 200000e18);
+            dai.approve(address(eDAI), 200000e18);
+            marketManager.listToken(address(eDAI));
+            // add MToken support on oracle manager
+            oracleManager.addMTokenSupport(address(eDAI));
+        }
+
+        // deploy PBALRETH
+        {
+            // support market
+            _prepareBALRETH(owner, 1 ether);
+            balRETH.approve(address(pBALRETH), 1 ether);
+            marketManager.listToken(address(pBALRETH));
+            // set collateral factor
+            marketManager.updatePositionToken(
+                address(pBALRETH),
+                7000,
+                4000,
+                3000,
+                200,
+                400,
+                10,
+                1000
+            );
+            address[] memory tokens = new address[](1);
+            tokens[0] = address(pBALRETH);
+            uint256[] memory caps = new uint256[](1);
+            caps[0] = 100_000e18;
+            marketManager.setPTokenCollateralCaps(tokens, caps);
+        }
     }
 }

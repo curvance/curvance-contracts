@@ -2,20 +2,25 @@
 pragma solidity ^0.8.19;
 
 /// @title Curvance Lockable Registry.
-/// @notice Facilitates locking a users token transferability as a secondary
-///         protective layer against phishing attempts.
+/// @notice Facilitates locking a users token transferability or plugin
+///         approvals as a secondary protective layer against phishing
+///         attempts.
 /// @dev `LockableRegistry` allows the Curvance Protocol, and any external
 ///      integrator to add an additional protective layer against phishing
-///      attempts. Integrations add an external call increasing transfer calls
-///      by approximately 2.5k gas, increasing costs by approximately 3.5%
+///      attempts and better management of approvals inside Curvance.
+///      Integrations add an external call increasing transfer calls by
+///      approximately 2.5k gas, increasing costs by approximately 3.5%
 ///      for well optimized ERC20 implementations.
 abstract contract LockableRegistry {
     /// TYPES ///
 
-    struct TransferConfig {
-        uint208 transferCooldown;
+    struct UserConfig {
+        uint208 lockCooldown;
         uint40 transferEnabledTimestamp;
         bool transferDisabled;
+        uint208 approvalIndex;
+        uint40 delegationEnabledTimestamp;
+        bool delegationDisabled;
     }
 
     /// CONSTANTS ///
@@ -27,7 +32,14 @@ abstract contract LockableRegistry {
 
     /// STORAGE ///
 
-    mapping(address => TransferConfig) internal _userTransferConfig;
+    /// @notice Contains a user's configuration values for transfers and
+    ///         delegation inside Curvance.
+    /// @dev By incrementing their approval index, a user's delegates will all
+    ///      have their delegation authority revoked across all Curvance
+    ///      contracts. A user can apply a cooldown to their transfers and
+    ///      delegations if they have enabled `lockCooldown`.
+    ///      User => User configuration values.
+    mapping(address => UserConfig) internal _userConfig;
 
     /// EVENTS ///
 
@@ -36,6 +48,12 @@ abstract contract LockableRegistry {
         address indexed user,
         bool isLocked,
         uint256 transferEnabledTimestamp
+    );
+    event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
+    event DelegableStatusSet(
+        address indexed user,
+        bool delegable,
+        uint256 delegationEnabledTimestamp
     );
 
     /// ERRORS ///
@@ -49,40 +67,47 @@ abstract contract LockableRegistry {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Checks whether `user` has their tokens transferability locked.
-    /// @param user The address to check whether transferability is disabled.
-    /// @return Returns whether `user` has their token transferability locked.
-    function lockEnabled(address user) public view returns (bool) {
-        return !_userTransferConfig[user].transferDisabled;
+    /// @notice Checks whether `user` has transferability enabled or disabled
+    ///         for their tokens.
+    /// @return Returns true if the user has transferability disabled.
+    function checkTransfersDisabled(
+        address user
+    ) external view returns (bool) {
+        UserConfig memory userConfig = _userConfig[user];
+        return (userConfig.transferDisabled ||
+            userConfig.transferEnabledTimestamp > block.timestamp);
     }
 
     /// @notice Sets token transferability unlock cooldown.
-    /// @dev Emits a {CooldownSet} event. If a user is decreasing their cooldown,
-    ///      transferability cooldown will automatically apply, delaying when
-    ///      transferability can be re-enabled, preventing a malicious party
-    ///      from tracking a user to decrease their cooldown to 0 and then enabling
-    ///      transferability.
-    /// @param cooldown The length of time transferability should remain
-    ///                 restricted after their transfer lock has been disabled,
-    ///                 in seconds.
+    /// @dev Emits a {CooldownSet} event. If a user is decreasing their
+    ///      cooldown, lock cooldown will automatically apply,
+    ///      delaying when transferability plugin approvals can be re-enabled,
+    ///      preventing a malicious party from tracking a user to decrease
+    ///      their cooldown to 0 and then phishing them.
+    /// @param cooldown The length of time transferability and plugin approval
+    ///                 should remain restricted after their lock has been
+    ///                 disabled, in seconds.
     function setCooldown(uint256 cooldown) external {
         if (cooldown > COOLDOWN_MAXIMUM) {
             revert LockableRegistry__UnsafeCooldown();
         }
 
-        TransferConfig storage userConfig = _userTransferConfig[msg.sender];
+        UserConfig storage userConfig = _userConfig[msg.sender];
 
-        // If a user is decreasing their cooldown, transferability cooldown
-        // will automatically apply, delaying when transferability can be
-        // re-enabled, preventing a malicious party from tracking a user to
-        // decrease their cooldown to 0 and then enabling transferability.
-        if (userConfig.transferCooldown > cooldown) {
-            userConfig.transferEnabledTimestamp = uint40(
-                userConfig.transferCooldown + block.timestamp
+        // If a user is decreasing their cooldown, lock cooldown
+        // will automatically apply, delaying when transferability and plugin
+        // approval can be re-enabled, preventing a malicious party from
+        // tracking a user to decrease their cooldown to 0 and then enabling
+        // transferability.
+        if (userConfig.lockCooldown > cooldown) {
+            uint40 newCooldown = uint40(
+                userConfig.lockCooldown + block.timestamp
             );
+            userConfig.transferEnabledTimestamp = newCooldown;
+            userConfig.delegationEnabledTimestamp = newCooldown;
         }
 
-        userConfig.transferCooldown = uint208(cooldown);
+        userConfig.lockCooldown = uint208(cooldown);
         emit CooldownSet(msg.sender, cooldown);
     }
 
@@ -96,13 +121,14 @@ abstract contract LockableRegistry {
     ///                         it's best to make sure the caller intends on
     ///                         flipping their status for onchain integrators.
     function setTransferLockStatus(bool transferDisabled) external {
-        TransferConfig storage userConfig = _userTransferConfig[msg.sender];
+        UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their transfer
         // lock status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (transferDisabled == userConfig.transferDisabled) {
-            revert LockableRegistry__InvalidParams();
+            // revert with LockableRegistry__InvalidParams()
+            _revert(0x5c82b22a);
         }
 
         uint256 enableTimestamp;
@@ -114,9 +140,10 @@ abstract contract LockableRegistry {
             // Validate the user did not recently reduce their cooldown,
             // triggering their transfer cooldown.
             if (userConfig.transferEnabledTimestamp > block.timestamp) {
-                revert LockableRegistry__InvalidParams();
+                // revert with LockableRegistry__InvalidParams()
+                _revert(0x5c82b22a);
             }
-            enableTimestamp = userConfig.transferCooldown + block.timestamp;
+            enableTimestamp = userConfig.lockCooldown + block.timestamp;
             userConfig.transferEnabledTimestamp = uint40(enableTimestamp);
         }
 
@@ -126,14 +153,96 @@ abstract contract LockableRegistry {
         emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
     }
 
-    /// @notice Checks whether `user` has transferability enabled or disabled
-    ///         for their tokens.
-    /// @return Returns true if the user has transferability disabled.
-    function checkTransfersDisabled(
+    /// USER DELEGATION PLUGIN MANAGEMENT ///
+
+    /// @notice Checks whether `user` has delegation enabled or disabled
+    ///         for user actions inside Curvance.
+    /// @return Returns true if the user has delegation disabled.
+    function checkDelegationDisabled(
         address user
     ) external view returns (bool) {
-        TransferConfig memory userConfig = _userTransferConfig[user];
-        return (userConfig.transferDisabled ||
-            userConfig.transferEnabledTimestamp > block.timestamp);
+        UserConfig memory userConfig = _userConfig[user];
+        return (userConfig.delegationDisabled ||
+            userConfig.delegationEnabledTimestamp > block.timestamp);
+    }
+
+    /// @notice Returns `user`'s approval index.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return `User`'s approval index.
+    function getUserApprovalIndex(
+        address user
+    ) external view returns (uint256) {
+        return _userConfig[user].approvalIndex;
+    }
+
+    /// @notice Increments a caller's approval index.
+    /// @dev By incrementing their approval index, a user's delegates will all
+    ///      have their delegation authority revoked across all Curvance
+    ///      contracts.
+    ///      Emits an {ApprovalIndexIncremented} event.
+    function incrementApprovalIndex() external {
+        UserConfig storage userConfig = _userConfig[msg.sender];
+        uint256 newIndex = userConfig.approvalIndex + 1;
+        userConfig.approvalIndex = uint208(newIndex);
+
+        emit ApprovalIndexIncremented(msg.sender, newIndex);
+    }
+
+    /// @notice Sets a callers status for whether to allow new delegation
+    ///         or not.
+    /// @param delegationDisabled Whether caller wants to allow new delegation
+    ///                           or not.
+    ///      Emits a {DelegableStatusSet} event.
+    function setDelegable(bool delegationDisabled) external {
+        UserConfig storage userConfig = _userConfig[msg.sender];
+
+        // Validates that user is intending on flipping their delegation
+        // status, even though we could assume they want to flip
+        // by calling this function, it helps to validate for human error.
+        if (delegationDisabled == userConfig.delegationDisabled) {
+            // revert with LockableRegistry__InvalidParams()
+            _revert(0x5c82b22a);
+        }
+
+        uint256 enableTimestamp;
+
+        // If the user is trying to enable delegation again,
+        // add their cooldown period, an added layer against phishing
+        // attempts.
+        if (!delegationDisabled) {
+            // Validate the user did not recently reduce their cooldown,
+            // triggering their transfer cooldown.
+            if (userConfig.delegationEnabledTimestamp > block.timestamp) {
+                // revert with LockableRegistry__InvalidParams()
+                _revert(0x5c82b22a);
+            }
+
+            enableTimestamp =
+                _userConfig[msg.sender].lockCooldown +
+                block.timestamp;
+            userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
+        }
+
+        userConfig.delegationDisabled = delegationDisabled;
+
+        emit DelegableStatusSet(
+            msg.sender,
+            delegationDisabled,
+            enableTimestamp
+        );
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @dev Internal helper for reverting efficiently.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
+        }
     }
 }

@@ -19,6 +19,10 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ComplexZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/ComplexZapperCalldataChecker.sol";
+import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
+import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
+import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
+import { VelodromeZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/VelodromeZapperCalldataChecker.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -27,7 +31,6 @@ import { MockMessageTransmitter } from "contracts/mocks/MockMessageTransmitter.s
 import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
 import { QueryTest } from "tests/utils/QueryTest.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
@@ -61,6 +64,8 @@ contract TestBaseMarket is TestBase {
         _deployPBALRETHWithExitFee();
 
         _deployComplexZapper();
+        _deployPendleZapper();
+        _deployVelodromeZapper();
 
         _setRedstoneSigners();
 
@@ -398,7 +403,7 @@ contract TestBaseMarket is TestBase {
             1000, // baseRatePerYear
             1000, // vertexRatePerYear
             5000, // vertexUtilizationStart
-            12 hours, // adjustmentRate
+            4 hours, // adjustmentRate
             5000, // adjustmentVelocity
             100000000, // 1000x maximum vertex multiplier
             100 // decayRate
@@ -476,7 +481,6 @@ contract TestBaseMarket is TestBase {
     {
         complexZapper = complexZappers[block.chainid] = new ComplexZapper(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
             _WETH_ADDRESS
         );
         centralRegistry.setExternalCalldataChecker(
@@ -484,6 +488,42 @@ contract TestBaseMarket is TestBase {
             address(new ComplexZapperCalldataChecker(address(complexZapper)))
         );
         return complexZapper;
+    }
+
+    function _deployPendleZapper()
+        internal
+        initMainVariables
+        returns (PendleZapper)
+    {
+        pendleZapper = pendleZappers[block.chainid] = new PendleZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+        centralRegistry.setExternalCalldataChecker(
+            address(pendleZapper),
+            address(new PendleZapperCalldataChecker(address(pendleZapper)))
+        );
+        return pendleZapper;
+    }
+
+    function _deployVelodromeZapper()
+        internal
+        initMainVariables
+        returns (VelodromeZapper)
+    {
+        velodromeZapper = velodromeZappers[
+            block.chainid
+        ] = new VelodromeZapper(
+            ICentralRegistry(address(centralRegistry)),
+            _WETH_ADDRESS
+        );
+        centralRegistry.setExternalCalldataChecker(
+            address(velodromeZapper),
+            address(
+                new VelodromeZapperCalldataChecker(address(velodromeZapper))
+            )
+        );
+        return velodromeZapper;
     }
 
     function _addSinglePriceFeed() internal initMainVariables {
@@ -557,7 +597,7 @@ contract TestBaseMarket is TestBase {
         uint256 cap
     ) internal initMainVariables {
         marketManager.updatePositionToken(
-            IMToken(address(pBALRETH)),
+            address(pBALRETH),
             7000,
             4000,
             3000,

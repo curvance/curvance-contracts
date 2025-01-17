@@ -6,13 +6,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { SwapType } from "contracts/interfaces/external/pendle/IPSwapAggregator.sol";
-import { IMToken } from "contracts/market/LiquidityManager.sol";
 import { IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { PositionManagementPendlePT } from "contracts/market/position-management/PositionManagementPendlePT.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 contract TestPositionManagementPendlePT is TestBaseMarket {
     address internal _CHAINLINK_STETH_USD =
@@ -105,7 +106,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
             oracleManager.addMTokenSupport(address(pPendlePT));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(pPendlePT)),
+                address(pPendlePT),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -125,6 +126,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         positionManagement = new PositionManagementPendlePT(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
+            _WETH_ADDRESS,
             _ROUTER
         );
 
@@ -184,14 +186,15 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = pPendlePT;
+        leverageData.positionToken = IPToken(address(pPendlePT));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 5e17;
         data.approx.guessMax = 1.2e18;
@@ -240,9 +243,9 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pPendlePTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pPendlePT));
+        deleverageData.positionToken = IPToken(address(pPendlePT));
         deleverageData.collateralAmount = 1 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
         deleverageData.repayAmount = 3.141e21;
 
         PendleLib.PendleData memory data;
@@ -300,14 +303,15 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
 
         // try leverage with 50% of max
-        uint256 amountForLeverage = (positionManagement
-            .maxRemainingLeverageOf(user, address(eDAI)) * 50) /
-            100;
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
 
         PositionManagementPendlePT.LeverageStruct memory leverageData;
-        leverageData.borrowToken = eDAI;
+        leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
-        leverageData.positionToken = pPendlePT;
+        leverageData.positionToken = IPToken(address(pPendlePT));
         PendleLib.PendleData memory data;
         data.approx.guessMin = 5e17;
         data.approx.guessMax = 1.2e18;
@@ -360,9 +364,9 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pPendlePTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
 
-        deleverageData.positionToken = SimplePToken(address(pPendlePT));
+        deleverageData.positionToken = IPToken(address(pPendlePT));
         deleverageData.collateralAmount = 1 ether;
-        deleverageData.borrowToken = eDAI;
+        deleverageData.borrowToken = IEToken(address(eDAI));
         deleverageData.repayAmount = 3.141e21;
 
         PendleLib.PendleData memory data;

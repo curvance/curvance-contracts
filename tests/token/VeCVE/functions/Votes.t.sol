@@ -33,7 +33,7 @@ contract VotesTest is TestBaseVeCVE {
     ) public {
         uint256 denominator = 1e4;
         amount = bound(amount, _MIN_FUZZ_AMOUNT, _MAX_FUZZ_AMOUNT);
-        boost = uint16(bound(boost, denominator, type(uint16).max));
+        boost = uint16(bound(boost, denominator + 1, type(uint16).max));
         centralRegistry.setVoteBoostMultiplier(boost);
         _prepareCVE(address(this), amount);
         cve.approve(address(veCVE), amount);

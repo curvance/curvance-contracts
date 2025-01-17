@@ -9,7 +9,6 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IUniswapV2Router } from "contracts/interfaces/external/uniswap/IUniswapV2Router.sol";
@@ -104,7 +103,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             oracleManager.addMTokenSupport(address(pWETH));
             // set position token configuration
             marketManager.updatePositionToken(
-                IMToken(address(pWETH)),
+                address(pWETH),
                 7000,
                 4000, // liquidate at 71%
                 3000,
@@ -145,29 +144,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.stopPrank();
     }
 
-    function testAuthorizedMarketManager() public {
-        assertEq(
-            simpleRewardZapper.authorizedMarketManager(address(marketManager)),
-            0
-        );
-
-        simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
-
-        assertEq(
-            simpleRewardZapper.authorizedMarketManager(address(marketManager)),
-            2
-        );
-
-        simpleRewardZapper.removeAuthorizedMarketManager(
-            address(marketManager)
-        );
-
-        assertEq(
-            simpleRewardZapper.authorizedMarketManager(address(marketManager)),
-            1
-        );
-    }
-
     function testAuthorizedRewardToken() public {
         assertEq(simpleRewardZapper.authorizedOutputToken(_WETH_ADDRESS), 0);
 
@@ -198,7 +174,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
@@ -247,7 +223,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
     function testClaimSwapAndDeposit() public {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
-        simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(address(messagingHub));
@@ -265,7 +240,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
@@ -304,9 +279,10 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
 
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndDeposit(
-            swapData,
-            address(marketManager),
             address(pWETH),
+            true,
+            swapData,
+            0,
             false,
             user1
         );
@@ -330,7 +306,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.stopPrank();
 
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
-        simpleRewardZapper.addAuthorizedMarketManager(address(marketManager));
 
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(address(messagingHub));
@@ -348,7 +323,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             amount,
             false,
             RewardsData(false, false, false, false),
-            "0x",
+            "",
             0
         );
         vm.stopPrank();
@@ -386,7 +361,6 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         vm.prank(user1);
         simpleRewardZapper.claimSwapAndRepay(
             swapData,
-            address(marketManager),
             address(eUSDC),
             100e6,
             user1

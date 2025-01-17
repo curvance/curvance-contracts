@@ -33,7 +33,7 @@ library SwapperLib {
     error SwapperLib__TokenPrice(address inputToken);
     error SwapperLib__Slippage(uint256 slippage);
 
-    /// FUNCTIONS ///
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (unsafe)
     /// @param swapData The swap instruction data to execute.

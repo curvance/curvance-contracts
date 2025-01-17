@@ -11,7 +11,7 @@ contract DepositNativeTest is TestBaseUniversalBalanceNative {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function test_depositNative_fail_whenHasNoEnoughETH_fuzzed(
@@ -66,7 +66,7 @@ contract DepositNativeTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user1.balance;
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, receiveAmount);
+        emit Deposit(user1, user1, amount, true);
 
         vm.prank(user1);
         universalBalanceNative.depositNative{ value: amount }(true);
@@ -100,7 +100,7 @@ contract DepositNativeTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user1.balance;
 
         vm.expectEmit();
-        emit Deposit(user1, user1, amount, amount);
+        emit Deposit(user1, user1, amount, false);
 
         vm.prank(user1);
         universalBalanceNative.depositNative{ value: amount }(false);

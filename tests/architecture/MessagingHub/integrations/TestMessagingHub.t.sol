@@ -487,7 +487,7 @@ contract TestMessagingHub is TestBaseMessagingHub {
         _prepareCVE(user1, 100e18);
         cve.approve(address(veCVE), 100e18);
 
-        veCVE.createLock(_ONE, false, rewardsData, "0x", 0);
+        veCVE.createLock(_ONE, false, rewardsData, "", 0);
 
         vm.stopPrank();
     }

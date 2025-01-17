@@ -124,7 +124,12 @@ contract VotingHub is QueryResponse {
         EmissionData memory emissionData,
         EmissionData[] memory remoteEmissionData
     ) external {
-        _canSubmitQueries();
+        if (
+            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasDaoPermissions(msg.sender)
+        ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
 
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(
             response,
@@ -443,16 +448,6 @@ contract VotingHub is QueryResponse {
             gasLimit,
             epoch
         );
-    }
-
-    /// @notice Checks if the caller can submit votes to the protocol.
-    function _canSubmitQueries() internal view {
-        if (
-            !centralRegistry.isHarvester(msg.sender) &&
-            !centralRegistry.hasDaoPermissions(msg.sender)
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
     }
 
     /// @dev Internal helper for reverting efficiently.

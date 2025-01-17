@@ -11,7 +11,7 @@ contract DepositNativeForTest is TestBaseUniversalBalanceNative {
         address indexed by,
         address indexed owner,
         uint256 assets,
-        uint256 shares
+        bool lendingDeposit
     );
 
     function setUp() public override {
@@ -91,7 +91,7 @@ contract DepositNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user1.balance;
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, receiveAmount);
+        emit Deposit(user1, user2, amount, true);
 
         vm.prank(user1);
         universalBalanceNative.depositNativeFor{ value: amount }(true, user2);
@@ -125,7 +125,7 @@ contract DepositNativeForTest is TestBaseUniversalBalanceNative {
         uint256 userETHBalance = user1.balance;
 
         vm.expectEmit();
-        emit Deposit(user1, user2, amount, amount);
+        emit Deposit(user1, user2, amount, false);
 
         vm.prank(user1);
         universalBalanceNative.depositNativeFor{ value: amount }(false, user2);

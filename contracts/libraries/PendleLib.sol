@@ -19,7 +19,7 @@ library PendleLib {
 
     /// FUNCTIONS ///
 
-    /// @notice Enter a Pendle position.
+    /// @notice Enters a Pendle position.
     /// @param router The Pendle router address.
     /// @param isPt Whether lp token is PT or not.
     /// @param data Pendle specific execution data including input/output,
@@ -35,7 +35,7 @@ library PendleLib {
         uint256 minOutAmount
     ) internal returns (uint256 outAmount) {
         if (isPt) {
-            // swap input token to pt
+            // Swap `tokenIn` to principal token.
             SwapperLib._approveTokenIfNeeded(
                 data.input.tokenIn,
                 address(router),
@@ -56,7 +56,7 @@ library PendleLib {
             address token;
             uint256 balance;
 
-            for (uint256 i = 0; i < numTokens; ++i) {
+            for (uint256 i; i < numTokens; ++i) {
                 token = tokens[i];
 
                 if (token == address(0)) {
@@ -107,13 +107,15 @@ library PendleLib {
     ///             and limit order data.
     /// @param lpToken The Pendle lp token address.
     /// @param amount The Pendle lp/pt amount to exit.
+    /// @param minTokenOut The minimum token output amount acceptable.
     function exitPendle(
         address router,
         bool isPt,
         address token,
         PendleData memory data,
         address lpToken,
-        uint256 amount
+        uint256 amount,
+        uint256 minTokenOut
     ) internal {
         if (isPt) {
             SwapperLib._approveTokenIfNeeded(token, router, amount);
@@ -138,7 +140,7 @@ library PendleLib {
                 );
 
             (IStandardizedYield sy, , ) = IPMarket(lpToken).readTokens();
-            sy.redeem(address(this), balance, token, 0, false);
+            sy.redeem(address(this), balance, token, minTokenOut, false);
         }
     }
 }
