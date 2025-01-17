@@ -13,29 +13,33 @@ contract CentralRegistrySetAtlasDAppControlTest is TestBaseMarket {
         super.setUp();
     }
 
-    function test_centralRegistrySetAuthorizedAtlasDAppControl_fail_whenCallerIsNotAuthorized()
+    function test_centralRegistryAddAuthorizedAtlasDAppControl_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
 
         vm.expectRevert(CentralRegistry.CentralRegistry__Unauthorized.selector);
-        centralRegistry.setAuthorizedAtlasDAppControl(address(1));
+        centralRegistry.addAuthorizedAtlasDAppControl(address(1));
     }
 
-    function test_centralRegistrySetAuthorizedAtlasDAppControl_success() public {
-        assertEq(centralRegistry.authorizedAtlasDAppControl(), address(0));
+    function test_centralRegistryAddAuthorizedAtlasDAppControl_success() public {
+        assertEq(centralRegistry.isAtlasDAppControlAuthorized(address(1)), false);
 
-        centralRegistry.setAuthorizedAtlasDAppControl(address(1));
+        centralRegistry.addAuthorizedAtlasDAppControl(address(1));
 
-        assertEq(centralRegistry.authorizedAtlasDAppControl(), address(1));
+        assertEq(centralRegistry.isAtlasDAppControlAuthorized(address(1)), true);
 
-        centralRegistry.setAuthorizedAtlasDAppControl(address(0));
+        centralRegistry.addAuthorizedAtlasDAppControl(address(0));
 
-        assertEq(centralRegistry.authorizedAtlasDAppControl(), address(0));
+        assertEq(centralRegistry.isAtlasDAppControlAuthorized(address(1)), true);
+
+        centralRegistry.removeAuthorizedAtlasDAppControl(address(1));
+
+        assertEq(centralRegistry.isAtlasDAppControlAuthorized(address(1)), false);
     }
 
-    function test_centralRegistryUnlockAtlasOev_fail_whenCallerIsNotAuthorized() public {
-        centralRegistry.setAuthorizedAtlasDAppControl(address(1));
+    function test_centralRegistryRemoveAuthorizedAtlasDAppControl_fail_whenCallerIsNotAuthorized() public {
+        centralRegistry.addAuthorizedAtlasDAppControl(address(1));
         vm.prank(address(2));
 
         vm.expectRevert(CentralRegistry.CentralRegistry__Unauthorized.selector);
@@ -43,7 +47,7 @@ contract CentralRegistrySetAtlasDAppControlTest is TestBaseMarket {
     }
 
     function test_centralRegistryLockAtlasOev_fail_whenCallerIsNotAuthorized() public {
-        centralRegistry.setAuthorizedAtlasDAppControl(address(1));
+        centralRegistry.addAuthorizedAtlasDAppControl(address(1));
         vm.prank(address(2));
 
         vm.expectRevert(CentralRegistry.CentralRegistry__Unauthorized.selector);
@@ -51,7 +55,7 @@ contract CentralRegistrySetAtlasDAppControlTest is TestBaseMarket {
     }
 
     function test_centralRegistryLockUnlockAtlasOev_success() public {
-        centralRegistry.setAuthorizedAtlasDAppControl(address(5));
+        centralRegistry.addAuthorizedAtlasDAppControl(address(5));
 
         assertEq(centralRegistry.atlasOevAllowed(), false);
 

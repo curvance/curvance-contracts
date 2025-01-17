@@ -138,7 +138,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         );
         marketManager.liquidateAccount(user1);
 
-        centralRegistry.setAuthorizedAtlasDAppControl(dappControl);
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
         vm.prank(dappControl);
         centralRegistry.unlockAtlasOev();
 

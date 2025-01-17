@@ -213,7 +213,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     mapping(address => address) public multicallChecker;
 
     // Atlas OEV DAppControl
-    address public authorizedAtlasDAppControl;
+    mapping(address => bool) public isAtlasDAppControlAuthorized;
 
     // Atlas OEV allowed
     bool public atlasOevAllowed;
@@ -267,7 +267,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         address calldataChecker
     );
     event MulticallProviderSet(address provider, bool supportedStatus);
-    event AtlasDAppControlSet(address atlasDAppControl);
+    event AtlasDAppControlAuthorized(address atlasDAppControl);
+    event AtlasDAppControlUnauthorized(address atlasDAppControl);
 
     /// ERRORS ///
 
@@ -1152,7 +1153,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Called from the Atlas DappControl as a pre hook
     ///         before liquidations are tried.
     function lockAtlasOev() external {
-        if (msg.sender != authorizedAtlasDAppControl) {
+        if (!isAtlasDAppControlAuthorized[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1162,21 +1163,28 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Called from the Atlas DappControl as a post hook
     ///         after liquidations are tried.
     function unlockAtlasOev() external {
-        if (msg.sender != authorizedAtlasDAppControl) {
+        if (!isAtlasDAppControlAuthorized[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         atlasOevAllowed = true;
     }
 
-    /// @notice Updates `authorizedAtlasDAppControl` to a contract with
-    ///         the authority to execute Atlas OEV liquidations.
-    function setAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
+    /// @notice Authorizes an atlas dapp control to lock and unlock Atlas OEV.
+    function addAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
         _checkElevatedPermissions();
 
-        authorizedAtlasDAppControl = authorizedAtlasDAppControl_;
+        isAtlasDAppControlAuthorized[authorizedAtlasDAppControl_] = true;
 
-        emit AtlasDAppControlSet(authorizedAtlasDAppControl);
+        emit AtlasDAppControlAuthorized(authorizedAtlasDAppControl_);
+    }
+
+    function removeAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
+        _checkElevatedPermissions();
+
+        isAtlasDAppControlAuthorized[authorizedAtlasDAppControl_] = false;
+
+        emit AtlasDAppControlUnauthorized(authorizedAtlasDAppControl_);
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
