@@ -332,6 +332,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         if(recipient == msg.sender) {
             revert UniversalBalance__InvalidParameter();
         }
+        
         (amountTransferred, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
@@ -345,10 +346,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             amountTransferred,
             lendingBalanceUsed
         );
-
-        if(recipient == msg.sender) {
-            revert UniversalBalance__InvalidParameter();
-        }
 
         _deposit(amountTransferred, willLend, recipient);
     }
