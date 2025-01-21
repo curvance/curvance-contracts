@@ -17,7 +17,6 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -122,7 +121,6 @@ contract TestVariables {
 
     MockToken public rewardToken;
     GaugeManager public gaugeManager;
-    ComplexZapper public complexZapper;
     PendleZapper public pendleZapper;
     VelodromeZapper public velodromeZapper;
 
@@ -157,7 +155,6 @@ contract TestVariables {
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
-    mapping(uint256 => ComplexZapper) public complexZappers;
     mapping(uint256 => PendleZapper) public pendleZappers;
     mapping(uint256 => VelodromeZapper) public velodromeZappers;
 
@@ -385,7 +382,6 @@ contract TestVariables {
 
         rewardToken = rewardTokens[chainId];
         gaugeManager = gaugeManagers[chainId];
-        complexZapper = complexZappers[chainId];
         pendleZapper = pendleZappers[chainId];
         velodromeZapper = velodromeZappers[chainId];
     }

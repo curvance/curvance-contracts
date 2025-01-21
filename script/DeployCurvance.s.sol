@@ -14,7 +14,6 @@ import { VeCveDeployer } from "./deployers/VeCveDeployer.s.sol";
 import { VotingHubDeployer } from "./deployers/VotingHubDeployer.s.sol";
 import { GaugeManagerDeployer } from "./deployers/GaugeManagerDeployer.s.sol";
 import { MarketManagerDeployer } from "./deployers/MarketManagerDeployer.s.sol";
-import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { OracleManagerDeployer } from "./deployers/OracleManagerDeployer.s.sol";
 import { AuxiliaryDataDeployer } from "./deployers/AuxiliaryDataDeployer.s.sol";
 import { RedstoneAdaptorDeployer } from "./deployers/RedstoneAdaptorDeployer.s.sol";
@@ -31,7 +30,6 @@ contract DeployCurvance is
     VotingHubDeployer,
     GaugeManagerDeployer,
     MarketManagerDeployer,
-    ComplexZapperDeployer,
     OracleManagerDeployer,
     AuxiliaryDataDeployer,
     RedstoneAdaptorDeployer,
