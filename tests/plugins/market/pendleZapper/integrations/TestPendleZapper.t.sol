@@ -241,6 +241,8 @@ contract TestPendleZapper is TestBaseMarket {
 
         vm.prank(user1);
         pSTETH.setDelegateApproval(user2, true);
+        vm.prank(user1);
+        pSTETH.setDelegateApproval(address(pendleZapper), true);
 
         PendleLib.PendleData memory data;
 

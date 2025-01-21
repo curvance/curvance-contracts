@@ -247,6 +247,8 @@ contract TestVelodromeZapper is TestBaseMarket {
 
         vm.prank(user1);
         pToken.setDelegateApproval(user2, true);
+        vm.prank(user1);
+        pToken.setDelegateApproval(address(velodromeZapper), true);
 
         vm.prank(user2);
         velodromeZapper.enterVelodrome{ value: ethAmount }(

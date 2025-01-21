@@ -85,6 +85,22 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         );
 
         vm.stopPrank();
+
+        marketManager.updatePositionToken(
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            0,
+            1000
+        );
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pBALRETH);
+        uint256[] memory newCollateralCaps = new uint256[](1);
+        newCollateralCaps[0] = 1000000 * 10 ** 18;
+        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()
@@ -109,6 +125,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
             block.timestamp
         );
 
+        pBALRETH.setDelegateApproval(address(curvancePrefarm), true);
         curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
         vm.stopPrank();
