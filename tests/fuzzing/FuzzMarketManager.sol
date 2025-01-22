@@ -217,7 +217,6 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 collReqHard,
         uint256 liqIncSoft,
         uint256 liqIncHard,
-        uint256 liqFee,
         uint256 baseCFactor
     ) public {
         require(centralRegistry.hasDaoPermissions(address(this)));
@@ -229,7 +228,7 @@ contract FuzzMarketManager is FuzzLiquidations {
             mtoken
         );
 
-        (, uint256 oldCR, , , , , , , ) = marketManager.tokenData(mtoken);
+        (, uint256 oldCR, , , , , , ) = marketManager.tokenData(mtoken);
         {
             _check_price_feed();
             _getSafeUpdateCollateralBounds(
@@ -253,7 +252,6 @@ contract FuzzMarketManager is FuzzLiquidations {
                 safeBounds.collReqHard,
                 safeBounds.liqIncSoft,
                 safeBounds.liqIncHard,
-                safeBounds.liqFee,
                 safeBounds.baseCFactor
             )
         {
@@ -348,7 +346,6 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 collReqHard,
         uint256 liqIncSoft,
         uint256 liqIncHard,
-        uint256 liqFee,
         uint256 baseCFactor,
         uint256 cap
     ) public {
@@ -384,7 +381,6 @@ contract FuzzMarketManager is FuzzLiquidations {
                 collReqHard,
                 liqIncSoft,
                 liqIncHard,
-                liqFee,
                 baseCFactor
             );
             if (safeBounds.collRatio == 0) {
@@ -399,7 +395,6 @@ contract FuzzMarketManager is FuzzLiquidations {
                 safeBounds.collReqHard,
                 safeBounds.liqIncSoft,
                 safeBounds.liqIncHard,
-                safeBounds.liqFee,
                 safeBounds.baseCFactor
             )
         {
@@ -1112,12 +1107,10 @@ contract FuzzMarketManager is FuzzLiquidations {
                 ,
                 ,
                 ,
-                uint256 liqFee,
                 ,
                 ,
 
             ) = marketManager.tokenData(address(pUSDC));
-            emit LogUint256("liqFee", liqFee);
             // if C_USDC is not listed, make sure to list it
             if (!is_pUSDC_listed) {
                 list_token_should_succeed(address(pUSDC));
@@ -1131,7 +1124,6 @@ contract FuzzMarketManager is FuzzLiquidations {
                     0,
                     0,
                     0,
-                    10000e18,
                     0
                 );
             }
@@ -1146,7 +1138,7 @@ contract FuzzMarketManager is FuzzLiquidations {
 
         {
             // eDAI must be listed in the market manager to continue
-            (bool is_eDAI_listed, , , , , , , , ) = marketManager.tokenData(
+            (bool is_eDAI_listed, , , , , , , ) = marketManager.tokenData(
                 address(eDAI)
             );
             // if eDAI is not listed, list the eDAI token to the manager
@@ -1180,16 +1172,15 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 collReqHard;
         uint256 liqIncSoft;
         uint256 liqIncHard;
-        uint256 liqFee;
         uint256 baseCFactor;
     }
+
     TokenCollateralBounds safeBounds;
 
     // Bounds the specific variables required to call updateCollateralBounds
     // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
     // Assume ALL bounds below are inclusive, on both ends
     // baseCFactor: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
-    // liqFee: [0, MAX_LIQUIDATION_FEE/1e14]
     // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14 + liqFee, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
     // liqIncHard: [liqIncSoft+1, MAX_LIQUIDATION_INCENTIVE/1e14]
     // inherently from above, liqIncSoft < liqIncHard
@@ -1202,19 +1193,12 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 collReqHard,
         uint256 liqIncSoft,
         uint256 liqIncHard,
-        uint256 liqFee,
         uint256 baseCFactor
     ) private {
         safeBounds.baseCFactor = clampBetween(
             baseCFactor,
             marketManager.MIN_BASE_CFACTOR() / 1e14,
             marketManager.MAX_BASE_CFACTOR() / 1e14
-        );
-
-        safeBounds.liqFee = clampBetween(
-            liqFee,
-            0,
-            marketManager.MAX_LIQUIDATION_FEE() / 1e14
         );
 
         safeBounds.liqIncSoft = clampBetween(

@@ -70,12 +70,10 @@ contract FuzzLiquidations is StatefulBaseMarket {
         _calculateDebtToCollateralRatio();
         _calculateAmountAdjusted();
         _calculateLiquidatedTokens();
-        _calculateProtocolTokens();
 
         (
             uint256 _canLiq_debt,
-            uint256 _canLiq_liquidatedTokens,
-            uint256 _canLiqProtocol
+            uint256 _canLiq_liquidatedTokens
         ) = marketManager.canLiquidate(
                 earnToken,
                 positionToken,
@@ -124,7 +122,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 collReqHard,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
-            uint256 liqFee,
             uint256 baseCFactor,
             uint256 cfactorCurve
         ) = marketManager.tokenData(positionToken);
@@ -149,7 +146,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             collReqHard,
             liqBaseIncentive,
             liqCurve,
-            liqFee,
             baseCFactor,
             cfactorCurve,
             lFactor,
