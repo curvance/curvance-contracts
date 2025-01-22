@@ -819,6 +819,9 @@ contract MarketManager is
     ///      Emits a {CollateralRemoved} event.
     /// @param account The address to liquidate completely.
     function liquidateAccount(address account) external {
+        // Validate that the OEV queue is disabled or the liquidator is valid
+        _validateLiquidation(msg.sender, account, false);
+
         (
             BadDebtData memory data,
             uint256[] memory assetBalances
