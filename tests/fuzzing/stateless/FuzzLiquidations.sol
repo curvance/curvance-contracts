@@ -18,7 +18,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
         uint256 collReqHard;
         uint256 liqBaseIncentive;
         uint256 liqCurve;
-        uint256 liqFee;
         uint256 baseCFactor;
         uint256 cFactorCurve;
         uint256 lFactor;
@@ -332,12 +331,5 @@ contract FuzzLiquidations is StatefulBaseMarket {
             }
         }
         calculated.liquidatedTokens = liquidatedTokens;
-    }
-
-    // No pre or post conditions relevant here
-    function _calculateProtocolTokens() private {
-        calculated.liquidatedTokenToProtocol =
-            (calculated.liquidatedTokens * data.liqFee) /
-            WAD;
     }
 }

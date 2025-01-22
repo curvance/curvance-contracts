@@ -237,7 +237,6 @@ contract FuzzMarketManager is FuzzLiquidations {
                 collReqHard,
                 liqIncSoft,
                 liqIncHard,
-                liqFee,
                 baseCFactor
             );
             if (safeBounds.collRatio == 0) {
@@ -1181,7 +1180,7 @@ contract FuzzMarketManager is FuzzLiquidations {
     // Variables are generated in basis points, and converted to WAD (by multiplying by 1e14)
     // Assume ALL bounds below are inclusive, on both ends
     // baseCFactor: [MIN_BASE_CFACTOR/1e14, MAX_BASE_CFACTOR/1e14]
-    // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14 + liqFee, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
+    // liqIncSoft: [MIN_LIQUIDATION_INCENTIVE() / 1e14, MAX_LIQUIDATION_INCENTIVE()/1e14-1]
     // liqIncHard: [liqIncSoft+1, MAX_LIQUIDATION_INCENTIVE/1e14]
     // inherently from above, liqIncSoft < liqIncHard
     // collReqHard = [liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT/1e14, MAX_COLLATERAL_REQUIREMENT()/1e14-1]
@@ -1203,9 +1202,7 @@ contract FuzzMarketManager is FuzzLiquidations {
 
         safeBounds.liqIncSoft = clampBetween(
             liqIncSoft,
-            marketManager.MIN_LIQUIDATION_INCENTIVE() /
-                1e14 +
-                safeBounds.liqFee,
+            marketManager.MIN_LIQUIDATION_INCENTIVE() / 1e14,
             marketManager.MAX_LIQUIDATION_INCENTIVE() / 1e14 - 1
         );
 
