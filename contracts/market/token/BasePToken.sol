@@ -288,23 +288,20 @@ abstract contract BasePToken is
         );
     }
 
+    /// PToken MARKET START LOGIC TO OVERRIDE
+
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
-    /// @param owner The owner address of assets to redeem.
-    /// @param assets The amount of the underlying assets to redeem.
+    /// @dev Overridden in child contract(s).
     function withdrawByPositionManagement(
         address owner,
         uint256 assets,
-        IPositionManagement.DeleverageStruct memory deleverageData
-    ) external virtual nonReentrant {
-        // Validate that the position folding contract is calling.
-        if (!marketManager.positionManagement(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
+        IPositionManagement.DeleverageStruct memory
+    ) external virtual {}
 
-    /// PToken MARKET START LOGIC TO OVERRIDE
-
+    /// @notice Starts a pToken market, executed via marketManager.
+    /// @dev Overridden in child contract(s).
+    /// @param by The account initializing the pToken market.
     function startMarket(address by) external virtual returns (bool) {}
 
     /// PUBLIC FUNCTIONS ///
@@ -498,12 +495,10 @@ abstract contract BasePToken is
     /// @param liquidator The account receiving seized collateral.
     /// @param account The account having collateral seized.
     /// @param liquidatedTokens The total number of pTokens to seize.
-    /// @param protocolTokens The number of pTokens to seize for the protocol.
     function seize(
         address liquidator,
         address account,
-        uint256 liquidatedTokens,
-        uint256 protocolTokens
+        uint256 liquidatedTokens
     ) external nonReentrant {
         // Fails if borrower = liquidator.
         assembly {
@@ -516,24 +511,14 @@ abstract contract BasePToken is
 
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
-        // Calculate tokens to transfer to `liquidator`.
-        uint256 liquidatorTokens = liquidatedTokens - protocolTokens;
 
         // Cache Gauge Manager, then update values for `account`.
         gaugeManager.withdraw(address(this), account, liquidatedTokens);
 
         // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, liquidatorTokens);
+        _transferFromWithoutAllowance(account, liquidator, liquidatedTokens);
         // Update Gauge Manager values for `liquidator`.
-        gaugeManager.deposit(address(this), liquidator, liquidatorTokens);
-
-        if (protocolTokens > 0) {
-            address daoAddress = centralRegistry.daoAddress();
-            // Efficiently transfer token balances from `account` to `daoAddress`.
-            _transferFromWithoutAllowance(account, daoAddress, protocolTokens);
-            // Update Gauge Manager values for new reserves.
-            gaugeManager.deposit(address(this), daoAddress, protocolTokens);
-        }
+        gaugeManager.deposit(address(this), liquidator, liquidatedTokens);
     }
 
     /// @notice Transfers position tokens (this market) to the liquidator.

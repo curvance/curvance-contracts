@@ -102,9 +102,6 @@ contract MarketManager is
     /// @notice The minimum liquidation incentive.
     /// @dev .01e18 = 1%.
     uint256 public constant MIN_LIQUIDATION_INCENTIVE = .01e18;
-    /// @notice The maximum liquidation fee distributed to Curvance DAO.
-    /// @dev .05e18 = 5%.
-    uint256 public constant MAX_LIQUIDATION_FEE = .05e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -178,7 +175,6 @@ contract MarketManager is
         uint256 collReqHard,
         uint256 liqIncSoft,
         uint256 liqIncHard,
-        uint256 liqFee,
         uint256 baseCFactor
     );
     event ActionPaused(string action, bool pauseState);
@@ -633,15 +629,13 @@ contract MarketManager is
     ///         liquidation.
     /// @return The number of `positionToken` tokens to be seized in a
     ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized for the
-    ///         protocol.
     function canLiquidate(
         address eToken,
         address pToken,
         address account,
         uint256 amount,
         bool liquidateExact
-    ) external view returns (uint256, uint256, uint256) {
+    ) external view returns (uint256, uint256) {
         return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
     }
 
@@ -659,8 +653,6 @@ contract MarketManager is
     ///         liquidation.
     /// @return The number of `positionToken` tokens to be seized in a
     ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized for the
-    ///         protocol.
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
@@ -668,13 +660,12 @@ contract MarketManager is
         address account,
         uint256 amount,
         bool liquidateExact
-    ) external returns (uint256, uint256, uint256) {
+    ) external returns (uint256, uint256) {
         _checkIsToken(eToken);
 
         (
             uint256 eTokenRepaid,
-            uint256 pTokenLiquidated,
-            uint256 protocolTokens
+            uint256 pTokenLiquidated
         ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
 
         // Validate that the OEV queue is disabled or the liquidator is valid.
@@ -701,7 +692,7 @@ contract MarketManager is
             );
         }
 
-        return (eTokenRepaid, pTokenLiquidated, protocolTokens);
+        return (eTokenRepaid, pTokenLiquidated);
     }
 
     /// @notice Checks if the seizing of `collateral` by repayment of
@@ -1055,8 +1046,6 @@ contract MarketManager is
     ///                   in basis points.
     /// @param liqIncHard The hard liquidation incentive for `pToken`,
     ///                   in basis points.
-    /// @param liqFee The protocol liquidation fee for `pToken`,
-    ///               in basis points.
     function updatePositionToken(
         address pToken,
         uint256 collRatio,
@@ -1064,7 +1053,6 @@ contract MarketManager is
         uint256 collReqHard,
         uint256 liqIncSoft,
         uint256 liqIncHard,
-        uint256 liqFee,
         uint256 baseCFactor
     ) external {
         _checkElevatedPermissions();
@@ -1087,7 +1075,6 @@ contract MarketManager is
         collReqHard = _bpToWad(collReqHard);
         liqIncSoft = _bpToWad(liqIncSoft);
         liqIncHard = _bpToWad(liqIncHard);
-        liqFee = _bpToWad(liqFee);
         baseCFactor = _bpToWad(baseCFactor);
 
         // Validate collateralization ratio is not above the maximum allowed.
@@ -1130,14 +1117,9 @@ contract MarketManager is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate protocol liquidation fee is not above the maximum allowed.
-        if (liqFee > MAX_LIQUIDATION_FEE) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // We need to make sure that the liquidation incentive is sufficient
-        // for both the protocol and the users.
-        if ((liqIncSoft - liqFee) < MIN_LIQUIDATION_INCENTIVE) {
+        // for the users.
+        if (liqIncSoft < MIN_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1191,13 +1173,6 @@ contract MarketManager is
         // that way we can quickly scale between [base, 100%] based on lFactor.
         marketToken.cFactorCurve = WAD - baseCFactor;
 
-        // We store protocol liquidation fee divided by the soft liquidation
-        // incentive offset, that way we can directly multiply later instead
-        // of needing extra calculations, we do not want the liquidation fee
-        // to increase with the liquidation engine, as we want to offload
-        // risk as quickly as possible by increasing the incentives.
-        marketToken.liqFee = (WAD * liqFee) / (WAD + liqIncSoft);
-
         emit PositionTokenUpdated(
             pToken,
             collRatio,
@@ -1205,7 +1180,6 @@ contract MarketManager is
             collReqHard,
             liqIncSoft,
             liqIncHard,
-            liqFee,
             baseCFactor
         );
     }
@@ -1657,15 +1631,13 @@ contract MarketManager is
     ///         liquidation.
     /// @return The number of `positionToken` tokens to be seized in a
     ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized for the
-    ///         protocol.
     function _canLiquidate(
         address earnToken,
         address positionToken,
         address account,
         uint256 debtAmount,
         bool liquidateExact
-    ) internal view returns (uint256, uint256, uint256) {
+    ) internal view returns (uint256, uint256) {
         if (!tokenData[earnToken].isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
         }
@@ -1755,11 +1727,7 @@ contract MarketManager is
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received.
-        return (
-            debtAmount,
-            liquidatedTokens,
-            (liquidatedTokens * pToken.liqFee) / WAD
-        );
+        return (debtAmount, liquidatedTokens);
     }
 
     /// @notice Helper function for closing user positions after liquidity

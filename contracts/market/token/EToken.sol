@@ -1491,11 +1491,10 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         uint256 liquidatedTokens;
-        uint256 protocolTokens;
 
         // Fail if liquidate not allowed,
         // trying to pay too much debt with excessive `amount` will revert.
-        (amount, liquidatedTokens, protocolTokens) = marketManager
+        (amount, liquidatedTokens) = marketManager
             .canLiquidateWithExecution(
                 address(this),
                 pToken,
@@ -1543,8 +1542,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         IPToken(pToken).seize(
             liquidator,
             account,
-            liquidatedTokens,
-            protocolTokens
+            liquidatedTokens
         );
 
         emit Liquidated(

@@ -50,7 +50,6 @@ contract FuzzMarketManager is FuzzLiquidations {
             3000,
             200,
             400,
-            10,
             1000
         );
         setPToken_should_succeed(address(pUSDC), 100_000e18);

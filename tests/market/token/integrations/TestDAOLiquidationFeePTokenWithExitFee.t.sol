@@ -93,7 +93,6 @@ contract TestPTokenWithExitFeeReserves is TestBaseMarket {
                 3000,
                 200, // 2% liq incentive
                 400,
-                10,
                 1000
             );
             address[] memory tokens = new address[](1);

@@ -603,7 +603,6 @@ contract TestBaseMarket is TestBase {
             3000,
             200, // 2% liq incentive
             400,
-            0,
             1000
         );
         address[] memory tokens = new address[](1);

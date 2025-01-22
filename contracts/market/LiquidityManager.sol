@@ -60,11 +60,6 @@ abstract contract LiquidityManager {
     ///                 e.g. 5% base incentive with 8% curve length results
     ///                 in 13% liquidation incentive on hard liquidation.
     /// @dev In `WAD`, e.g. 0.05e18 = 5% maximum additional incentive.
-    /// @param liqFee The protocol fee that will be taken on liquidation
-    ///               for this market token.
-    /// @dev In `WAD`, e.g. 0.01e18 = 1% liquidation fee to protocol.
-    ///      Note: this is stored as (Fee * WAD) / `liqIncA`
-    ///      in order to save gas for liquidation calculations.
     /// @param baseCFactor Maximum % that a liquidator can repay when
     ///                    soft liquidating an account.
     /// @dev In `WAD` format, e.g. 0.1e18 = 10% base close factor.
@@ -82,7 +77,6 @@ abstract contract LiquidityManager {
         uint256 collReqHard;
         uint256 liqBaseIncentive;
         uint256 liqCurve;
-        uint256 liqFee;
         uint256 baseCFactor;
         uint256 cFactorCurve;
         mapping(address => AccountPosition) accountPositions;
@@ -273,7 +267,7 @@ abstract contract LiquidityManager {
     /// @return result Containing values:
     ///                Excess collateral when adjusted for debt obligations.
     ///                Liquidity deficit when adjusted for debt obligations.
-    ///                Whether account positions need to be updated..
+    ///                Whether account positions need to be updated.
     /// @return Array containing whether a user position should be closed or not.
     function _hypotheticalLiquidityOf(
         address account,

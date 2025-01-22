@@ -130,7 +130,6 @@ contract TestSimpleZapper is TestBaseMarket {
             1200,
             200,
             400,
-            10,
             1000
         );
         address[] memory tokens = new address[](1);
