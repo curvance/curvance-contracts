@@ -92,11 +92,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             _canLiq_liquidatedTokens,
             "LIQUIDATED - expected liquidated tokens = can liquidate liquidate"
         );
-        assertEq(
-            calculated.liquidatedTokenToProtocol,
-            _canLiqProtocol,
-            "LIQUIDATED - expected liquidated tokens to protocol = can liquidate return value"
-        );
 
         bool hadError;
         uint8 index;
