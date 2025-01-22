@@ -467,7 +467,6 @@ contract FuzzEToken is FuzzMarketManager {
         (
             uint256 debtToLiquidate, // debt tokens to be repaid on liquidation
             uint256 seizedForLiquidation, // number of position tokens to be seized for the liquidator
-            uint256 seizedForProtocol // number of position tokens to be seized for the protocol
         ) = marketManager.canLiquidate(
                 eToken,
                 positionToken,
@@ -523,7 +522,6 @@ contract FuzzEToken is FuzzMarketManager {
                     "current bal",
                     IPToken(positionToken).balanceOf(address(this))
                 );
-                emit LogUint256("seized by protocol", seizedForProtocol);
                 assertEq(
                     collateralBalanceBefore -
                         IPToken(positionToken).balanceOf(address(this)),
@@ -541,9 +539,8 @@ contract FuzzEToken is FuzzMarketManager {
                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
                 {
-                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation - the amount of tokens seized for the protocol
-                    uint256 positionTokensForLiquidator = seizedForLiquidation -
-                            seizedForProtocol;
+                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
+                    uint256 positionTokensForLiquidator = seizedForLiquidation;
                     emit LogAddress("msg.sender", msg.sender);
 
                     assertEq(
@@ -623,8 +620,7 @@ contract FuzzEToken is FuzzMarketManager {
 
         (
             uint256 debtToLiquidate,
-            uint256 seizedForLiquidation,
-            uint256 seizedForProtocol
+            uint256 seizedForLiquidation
         ) = marketManager.canLiquidate(
                 eToken,
                 positionToken,
@@ -672,9 +668,8 @@ contract FuzzEToken is FuzzMarketManager {
                 // When liquidating, the liquidator should receive the user's COLLATERAL token in exchange
                 // Therefore, the liquidator's position token balance must be equivalent to their previous balance + their allocation of tokens
                 {
-                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation - the amount of tokens seized for the protocol
-                    uint256 positionTokensForLiquidator = seizedForLiquidation -
-                            seizedForProtocol;
+                    // The # of tokens allocated to the liquidator is equivalent to the total number of tokens seized for liquidation
+                    uint256 positionTokensForLiquidator = seizedForLiquidation;
                     assertEq(
                         IERC20(positionToken).balanceOf(msg.sender),
                         preSenderCollateral + positionTokensForLiquidator,

@@ -221,8 +221,7 @@ contract CanLiquidateTest is TestBaseMarketManager {
         // =================== RESULTS ==================
         (
             uint256 liqAmount,
-            uint256 liquidatedTokens,
-            uint256 protocolTokens
+            uint256 liquidatedTokens
         ) = marketManager.canLiquidate(
                 address(eUSDC),
                 address(pBALRETH),
@@ -232,7 +231,6 @@ contract CanLiquidateTest is TestBaseMarketManager {
             );
 
         (
-            ,
             ,
             ,
             ,
@@ -254,7 +252,6 @@ contract CanLiquidateTest is TestBaseMarketManager {
 
         uint256 collateralAvailable = 1e18 - 1;
         uint256 expectedLiqAmount;
-        uint256 expectedProtocolTokens;
         {
             (
                 ,
@@ -282,8 +279,6 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 collateralAvailable,
                 expectedLiquidatedTokens
             );
-            uint256 liqFee = (WAD * (10 * 1e14)) / liqBaseIncentive;
-            expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
         }
 
         assertEq(
@@ -296,12 +291,6 @@ contract CanLiquidateTest is TestBaseMarketManager {
             liquidatedTokens,
             collateralAvailable,
             "canLiquidate() returns the amount of PTokens to be seized in liquidation"
-        );
-
-        assertEq(
-            protocolTokens,
-            expectedProtocolTokens,
-            "canLiquidate() returns the amount of PTokens to be seized for the protocol"
         );
 
         assertGt(liquidatedTokens, protocolTokens);

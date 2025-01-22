@@ -143,8 +143,7 @@ contract TestPTokenReserves is TestBaseMarket {
 
         (
             uint256 repayAmount,
-            uint256 liquidatedTokens,
-            uint256 protocolTokens
+            uint256 liquidatedTokens
         ) = marketManager.canLiquidate(
                 address(eDAI),
                 address(pBALRETH),
@@ -178,12 +177,12 @@ contract TestPTokenReserves is TestBaseMarket {
 
         assertApproxEqRel(
             pBALRETH.balanceOf(dao),
-            daoBalanceBefore + protocolTokens,
+            daoBalanceBefore,
             0.01e18
         );
         assertApproxEqRel(
             gaugeManager.balanceOf(address(pBALRETH), dao),
-            daoBalanceBefore + protocolTokens,
+            daoBalanceBefore,
             0.01e18
         );
     }

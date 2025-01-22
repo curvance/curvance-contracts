@@ -167,11 +167,10 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         view
         returns (
             uint256 liqAmount,
-            uint256 liquidatedTokens,
-            uint256 protocolTokens
+            uint256 liquidatedTokens
         )
     {
-        (liqAmount, liquidatedTokens, protocolTokens) = marketManager
+        (liqAmount, liquidatedTokens) = marketManager
             .canLiquidate(
                 address(_eToken),
                 address(_pToken),
@@ -181,10 +180,9 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             );
 
         console2.log(
-            "liqAmount %s liquidatedTokens %s protocolTokens %s",
+            "liqAmount %s liquidatedTokens %s",
             liqAmount,
-            liquidatedTokens,
-            protocolTokens
+            liquidatedTokens
         );
     }
 
@@ -275,8 +273,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         view
         returns (
             uint256 expectedLiqAmount,
-            uint256 collateralAvailable,
-            uint256 expectedProtocolTokens
+            uint256 collateralAvailable
         )
     {
         collateralAvailable = _collateralAvailable - 1;
@@ -308,7 +305,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             (10 ** _eToken.decimals());
         uint256 expectedLiquidatedTokens = (amountAdjusted *
             debtToCollateralRatio) / WAD;
-        uint256 liqFee = (WAD * (10 * 1e14)) / liqBaseIncentive;
         expectedLiqAmount = debtAmount;
 
         if (expectedLiquidatedTokens > collateralAvailable) {
@@ -325,13 +321,10 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             }
         }
 
-        expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
-
         console2.log(
-            "expectedLiqAmount %s collateralAvailable %s expectedProtocolTokens %s",
+            "expectedLiqAmount %s collateralAvailable %s",
             expectedLiqAmount,
-            collateralAvailable,
-            expectedProtocolTokens
+            collateralAvailable
         );
     }
 
