@@ -12,11 +12,14 @@ import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.so
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 // this test contract acts as a position management contract to 
 // check the withdrawByPositionManagement function in the
 // CompoundingWithExitFeePToken contract as I did not see a 
 // position management contract for Balancer & Aura LP in the codebase
+// We are checking to see if this contract can properly call 
+// the withdrawByPositionManagement function in the CompoundingWithExitFeePToken contract
 contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
     TestBaseMarket,
     IPositionManagement,
@@ -129,7 +132,8 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         vm.stopPrank();
     }
 
-
+    event debugAddress(string, address);
+    event debugUint(string, uint256);
     function test_compoundingWithExitFeePTokenWithdrawByPositionManagement_success() public {
 
         _prepareBALRETH(user1, 1000e18);
@@ -144,26 +148,51 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
 
         eUSDC.borrow(100e6);
 
-        SwapperLib.Swap[] memory swapData;
+        SwapperLib.Swap[] memory swapData; // empty swap data
         
+        // we aren't using this struct, only for required arguments
         DeleverageStruct memory deleverageData = DeleverageStruct({
             positionToken: IPToken(address(pBALRETHWithExitFee)),
-            collateralAmount: 100e18,
+            collateralAmount: 0,
             borrowToken: IEToken(address(eUSDC)),
             swapData: swapData,
-            repayAmount: 50e6,
+            repayAmount: 0,
             auxData: ""
         });
         vm.stopPrank();
 
         vm.warp(block.timestamp + 21 minutes);
-        pBALRETHWithExitFee.withdrawByPositionManagement(user1,50e6, deleverageData);
-        
+
+        uint256 balRETHBalanceBefore = balRETH.balanceOf(address(this));
+
+        uint256 collateralRemoveAmount = 5e18;
+        uint256 collateralReceivedWithExitFee = _removeExitFeeFromAssets(collateralRemoveAmount);
+
+
+        pBALRETHWithExitFee.withdrawByPositionManagement(user1, collateralRemoveAmount, deleverageData);
+
+        // a usual workflow would swap the collateral for the borrowToken, repay the borrowToken
+        // we are checking that the exit fee is applied
+        uint256 balRETHBalanceAfter = balRETH.balanceOf(address(this));
+
+        assert(balRETHBalanceAfter > balRETHBalanceBefore);
+        assert(balRETHBalanceAfter == collateralReceivedWithExitFee);       
     }
 
     function addPositionManagement() public {
         // Set this contract as a position management handler in the MarketManager
         marketManager.setPositionManagement(address(this));
+    }
+
+    // the same logic from the CompoundingWithExitFeePToken contract which removes the exit fee
+    function _removeExitFeeFromAssets(
+        uint256 assets
+    ) internal view returns (uint256) {
+        // Rounds up with an enforced minimum of assets = 1,
+        // so this can never underflow.
+        uint256 exitFee = .02e18; // implemented with max exit fee of 2%
+        uint256 WAD = 1e18;
+        return assets - FixedPointMathLib.mulDivUp(exitFee, assets, WAD);
     }
 
     /// @inheritdoc IPositionManagement
@@ -184,6 +213,15 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         DeleverageStruct memory deleverageData
     ) external override {
         // Implementation not required for the test
+        // we would usually ensure:
+        // 1. if the positionManagement contract has >= deleveragedata.collateralAmount
+        // 2. if the positionToken is the same as deleverageData.postionToken
+        // 3. if the collateralAmount argument is the same as deleverageData.collateralAmount argument
+        // 4. then take a protocol fee if necessary
+
+        // we would then swap the collateral for the borrowToken, repay the borrowToken
+        // and transfer any remaining borrowed tokens to the user
+        // and transfer any remaining tokenOut tokens to the user
     }
 
     /// @inheritdoc ERC165
