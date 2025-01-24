@@ -131,6 +131,14 @@ contract VotingHub is QueryResponse {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        _ensureNonEmptyEmissionConfigParameters(
+            response, 
+            signatures, 
+            gasLimit, 
+            emissionData, 
+            remoteEmissionData
+        );
+
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(
             response,
             signatures
@@ -448,6 +456,58 @@ contract VotingHub is QueryResponse {
             gasLimit,
             epoch
         );
+    }
+
+    /**
+     * @dev Ensures that all emission configuration parameters provided 
+     *      to `executeEmissionConfiguration` are non-empty and valid.
+     * @param response The Wormhole query response. Must not be empty.
+     * @param signatures The Wormhole signatures corresponding to the 
+     *      query response. Must not be empty.
+     * @param gasLimit An array of gas limit values for each remote 
+     *      chain message. Must not be empty.
+     * @param emissionData The emission configuration data for the 
+     *      current chain. Must include non-empty arrays for tokens and 
+     *      emissions.
+     * @param remoteEmissionData An array of emission configuration data 
+     *      for remote chains. Must not be empty.
+     * @notice This function reverts if any of the provided parameters 
+     *      are empty or invalid. It ensures that all required data is 
+     *      available for the emission configuration process.
+     *      custom error VotingHub__InvalidParameter Emitted when any of 
+     *      the input parameters are empty or invalid.
+     */
+    function _ensureNonEmptyEmissionConfigParameters(
+        bytes calldata response,
+        IWormhole.Signature[] calldata signatures,
+        uint256[] calldata gasLimit,
+        EmissionData memory emissionData,
+        EmissionData[] memory remoteEmissionData
+    ) internal pure {
+        if (response.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (signatures.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (gasLimit.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (emissionData.tokens.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (emissionData.emissions.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (remoteEmissionData.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
     }
 
     /// @dev Internal helper for reverting efficiently.

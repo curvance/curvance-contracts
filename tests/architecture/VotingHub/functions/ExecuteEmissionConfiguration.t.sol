@@ -217,60 +217,60 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
-        // bytes memory zeroResponse = abi.encodePacked("0x");
+        bytes memory zeroResponse = new bytes(0);
 
-        // vm.expectRevert();
-        // votingHub.executeEmissionConfiguration(
-        //     response, // zero response data
-        //     signatures,
-        //     gasLimit,
-        //     _emissionData,
-        //     _remoteEmissionData
-        // );
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            zeroResponse, // zero response data
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
 
-        // IWormhole.Signature[] memory zeroSigs = new IWormhole.Signature[](0);
+        IWormhole.Signature[] memory zeroSigs = new IWormhole.Signature[](0);
 
-        // vm.expectRevert();
-        // votingHub.executeEmissionConfiguration(
-        //     response,
-        //     zeroSigs, // zero signatures
-        //     gasLimit,
-        //     _emissionData,
-        //     _remoteEmissionData
-        // );
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            zeroSigs, // zero signatures
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
 
-        // uint256[] memory zeroGasLimit = new uint256[](0);
+        uint256[] memory zeroGasLimit = new uint256[](0);
 
-        // vm.expectRevert();
-        // votingHub.executeEmissionConfiguration(
-        //     response,
-        //     signatures,
-        //     zeroGasLimit, // zero gas limit
-        //     _emissionData,
-        //     _remoteEmissionData
-        // );
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            zeroGasLimit, // zero gas limit
+            _emissionData,
+            _remoteEmissionData
+        );
 
-        // EmissionData memory zeroEmissionData;
+        EmissionData memory zeroEmissionData;
 
-        // vm.expectRevert();
-        // votingHub.executeEmissionConfiguration(
-        //     response,
-        //     signatures,
-        //     gasLimit,
-        //     zeroEmissionData, // zero emission data
-        //     _remoteEmissionData
-        // );
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            zeroEmissionData, // zero emission data
+            _remoteEmissionData
+        );
 
-        // EmissionData[] memory zeroRemoteEmissionData = new EmissionData[](0);
+        EmissionData[] memory zeroRemoteEmissionData = new EmissionData[](0);
 
-        // vm.expectRevert();
-        // votingHub.executeEmissionConfiguration(
-        //     response,
-        //     signatures,
-        //     gasLimit,
-        //     _emissionData,
-        //     zeroRemoteEmissionData // zero remote emission data
-        // );
+        vm.expectRevert();
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            zeroRemoteEmissionData // zero remote emission data
+        );
 
 
     }

@@ -132,8 +132,6 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         vm.stopPrank();
     }
 
-    event debugAddress(string, address);
-    event debugUint(string, uint256);
     function test_compoundingWithExitFeePTokenWithdrawByPositionManagement_success() public {
 
         _prepareBALRETH(user1, 1000e18);
