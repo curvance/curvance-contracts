@@ -73,22 +73,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
             }
         }
 
-        // add partner gauges
-        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            partnerRewardTokens[i] = address(
-                new MockToken("Reward Token", "RT", 18)
-            );
-            MockToken(partnerRewardTokens[i]).approve(
-                address(gaugeManager),
-                1000 ether
-            );
-
-            gaugeManager.addExtraRewardToken(
-                address(partnerRewardTokens[i]),
-                100
-            );
-        }
-
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
     }
@@ -150,22 +134,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
-        // setup partner gauge without CVE
-        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            gaugeManager.addExtraRewards(
-                tokens[0],
-                1,
-                partnerRewardTokens[i],
-                100 * 2 weeks
-            );
-            gaugeManager.addExtraRewards(
-                tokens[1],
-                1,
-                partnerRewardTokens[i],
-                200 * 2 weeks
-            );
-        }
-
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
 
@@ -181,14 +149,8 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
-        assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            0
-        );
-        assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            0
-        );
+        assertEq(gaugeManager.pendingRewards(tokens[0], users[0]), 0);
+        assertEq(gaugeManager.pendingRewards(tokens[1], users[1]), 0);
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
                 gaugeManager.pendingRewards(
@@ -220,22 +182,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
-        // setup partner gauge without CVE
-        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            gaugeManager.addExtraRewards(
-                tokens[0],
-                1,
-                partnerRewardTokens[i],
-                100 * 2 weeks
-            );
-            gaugeManager.addExtraRewards(
-                tokens[1],
-                1,
-                partnerRewardTokens[i],
-                200 * 2 weeks
-            );
-        }
-
         vm.warp(gaugeManager.startTime());
         _skipEpochDuration(1);
 
@@ -251,14 +197,8 @@ contract TestGaugeEdgeCase is TestBaseMarket {
 
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
-        assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)),
-            0
-        );
-        assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[1], address(cve)),
-            0
-        );
+        assertEq(gaugeManager.pendingRewards(tokens[0], users[0]), 0);
+        assertEq(gaugeManager.pendingRewards(tokens[1], users[1]), 0);
         for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
             assertEq(
                 gaugeManager.pendingRewards(

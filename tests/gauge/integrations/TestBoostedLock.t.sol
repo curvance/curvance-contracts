@@ -111,13 +111,11 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0]) / 1e18,
             10000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2]) / 1e18,
             20000 - 1
         );
 
@@ -132,23 +130,19 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0]) / 1e18,
             12000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[1]) / 1e18,
             8000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2]) / 1e18,
             24000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[3]) / 1e18,
             16000 - 1
         );
 

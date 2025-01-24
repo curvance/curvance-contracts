@@ -82,8 +82,6 @@ contract GaugeManager is
     }
     /// CONSTANTS ///
 
-    uint256 constant SIX_MONTH_IN_EPOCH = 12;
-
     /// @notice CVE contract address.
     address public immutable cve;
     /// @notice VeCVE contract address.
@@ -104,21 +102,6 @@ contract GaugeManager is
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @notice Mapping for approved reward token
-    /// @dev rewardToken => bool
-    mapping(address => bool) public approvedRewardTokens;
-
-    /// @dev mToken => index
-    mapping(address => uint256) public lastRewardTokenIndex;
-
-    /// @dev mToken => rewardToken => index
-    mapping(address => mapping(address => uint256)) public rewardTokenToIndex;
-
-    mapping(address => uint256) public rewardTokenToMinDistribution;
-
-    /// @dev mToken => rewardTokens
-    mapping(address => address[]) public rewardTokens;
-
     /// @dev mToken => rewardToken => last epoch
     mapping(address => mapping(address => uint256)) public lastEpochOf;
 
@@ -134,20 +117,18 @@ contract GaugeManager is
     mapping(address => uint256) public poolLastRewardTimestamp;
     /// @notice The amount of reward token accumulated per share
     ///         for a token.
-    /// @notice mToken => rewardToken index => accRewardPerShare.
-    mapping(address => mapping(uint256 => uint256))
-        public poolAccRewardPerShare;
+    /// @notice mToken => accRewardPerShare.
+    mapping(address => uint256) public poolAccRewardPerShare;
     /// @notice Information corresponding to rewards pending/debt pending
     ///         for a reward token, for a particular user, for a particular
     ///         deposited token.
-    /// @dev mToken => user => rewardToken index => info.
-    mapping(address => mapping(address => mapping(uint256 => UserRewardInfo)))
-        public userDebtInfo;
+    /// @dev mToken => user => info.
+    mapping(address => mapping(address => UserRewardInfo)) public userDebtInfo;
 
     /// @notice The amount of rewards streamed per second, of a particular
     ///         reward token, during an epoch, for a specific token.
-    /// @dev mToken => epoch => rewardToken index => rewardPerSec.
-    mapping(address => mapping(uint256 => mapping(uint256 => uint256)))
+    /// @dev mToken => epoch => rewardPerSec.
+    mapping(address => mapping(uint256 => uint256))
         internal _epochRewardPerSec;
 
     /// ERRORS ///
@@ -181,8 +162,6 @@ contract GaugeManager is
         veCVE = IVeCVE(centralRegistry.veCVE());
         epochDuration = centralRegistry.EPOCH_DURATION();
         startTime = veCVE.nextEpochStartTime();
-
-        approvedRewardTokens[cve] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -262,11 +241,6 @@ contract GaugeManager is
             info.totalWeights = info.totalWeights + weights[i];
             info.tokenWeight[token] = info.tokenWeight[token] + weights[i];
 
-            if (rewardTokenToIndex[token][cve] == 0) {
-                rewardTokens[token].push(cve);
-                rewardTokenToIndex[token][cve] = ++lastRewardTokenIndex[token];
-            }
-
             if (!poolUpdated) {
                 updatePool(token);
             }
@@ -292,178 +266,6 @@ contract GaugeManager is
         }
     }
 
-    /// @notice Sets the minimum incentive amount for a supported reward
-    ///         token. The minimum amount is intended to minimize incentive
-    ///         spam and cultivate meaningful participation from external
-    ///         partners.
-    /// @notice Update reward variables for all pools.
-    /// @param rewardToken The address of the new reward token to add a
-    ///                    minimum incentive value for.
-    /// @param minAmount The minimum amount of `rewardToken` that can be
-    ///                  posted as an incentive via a partner gauge.
-    function setMinDistributionAmount(
-        address rewardToken,
-        uint256 minAmount
-    ) external {
-        _checkDaoPermissions();
-
-        if (!approvedRewardTokens[rewardToken]) {
-            revert GaugeManager__InvalidRewardToken();
-        }
-
-        rewardTokenToMinDistribution[rewardToken] = minAmount;
-
-        emit SetMinDistributionAmount(rewardToken, minAmount);
-    }
-
-    /// @notice Adds a token as a potential reward token for future partner
-    ///         gauge incentives, the minimum distribution value is intended
-    ///         to minimize incentive spam and require meaningful
-    ///         participation from external partners.
-    /// @notice Update reward variables for all pools.
-    /// @param rewardToken The address of the new reward token to add a
-    ///                    minimum incentive value for.
-    /// @param minAmount The minimum amount of `rewardToken` that can be
-    ///                  posted as an incentive via a partner gauge.
-    function addExtraRewardToken(
-        address rewardToken,
-        uint256 minAmount
-    ) external {
-        _checkDaoPermissions();
-
-        if (rewardToken == address(0) || approvedRewardTokens[rewardToken]) {
-            revert GaugeManager__InvalidAddress();
-        }
-
-        approvedRewardTokens[rewardToken] = true;
-        rewardTokenToMinDistribution[rewardToken] = minAmount;
-
-        emit AddExtraRewardToken(rewardToken);
-    }
-
-    /// @notice Removes an extra reward from the gauge system.
-    /// @param rewardToken The address of the extra reward to be removed.
-    function removeExtraRewardToken(address rewardToken) external {
-        _checkDaoPermissions();
-
-        // Cannot remove CVE as a reward token.
-        if (rewardToken == cve) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        approvedRewardTokens[rewardToken] = false;
-        rewardTokenToMinDistribution[rewardToken] = 0;
-
-        emit RemoveExtraRewardToken(rewardToken);
-    }
-
-    /// @notice Returns the active reward tokens on the Gauge Manager
-    ///         for a particular deposit token, for ease of integration
-    ///         by third parties.
-    /// @param depositToken The depositable token to check for active
-    ///                     tokens rewards for.
-    /// @return An array containing the addresses of active reward tokens
-    ///         for depositing `depositToken`.
-    function getRewardTokens(
-        address depositToken
-    ) external view returns (address[] memory) {
-        return rewardTokens[depositToken];
-    }
-
-    /// @notice Returns the number of active reward tokens on the Gauge
-    ///         Manager for a particular deposit token, for ease of
-    ///         integration by third parties.
-    /// @param depositToken The depositable token to check for active
-    ///                     tokens rewards for.
-    /// @return The number of active reward tokens for depositing
-    ///         `depositToken`.
-    function getRewardTokensLength(
-        address depositToken
-    ) external view returns (uint256) {
-        return rewardTokens[depositToken].length;
-    }
-
-    /// @notice Used to update Gauge Manager rewards for `rewardToken`,
-    ///         during `epoch` with `newRewardPerSec`.
-    /// @dev This is only be used for updating partner gauge rewards.
-    /// @param token The token to set rewards for.
-    /// @param epoch The epoch to set rewards for, should be the next epoch.
-    /// @param rewardToken The address of reward token to be updated.
-    /// @param amount The additional rewards amount for distribution
-    function addExtraRewards(
-        address token,
-        uint256 epoch,
-        address rewardToken,
-        uint256 amount
-    ) external {
-        // CVE rewards are only updated through the gauge system by
-        // the messaging hub in setEmissionRates().
-        if (rewardToken == cve) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        if (!approvedRewardTokens[rewardToken]) {
-            revert GaugeManager__InvalidRewardToken();
-        }
-
-        if (
-            !(epoch == 0 && (startTime == 0 || block.timestamp < startTime)) &&
-            epoch != currentEpoch() + 1
-        ) {
-            revert GaugeManager__InvalidEpoch();
-        }
-
-        address[] memory rewardTokenForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokenForMToken.length;
-        for (uint256 i; i < numTokens; ) {
-            address _rewardToken = rewardTokenForMToken[i++];
-            if (_rewardToken == cve || _rewardToken == rewardToken) {
-                continue;
-            }
-            uint256 lastEpoch = lastEpochOf[token][_rewardToken];
-            if (currentEpoch() > lastEpoch + SIX_MONTH_IN_EPOCH) {
-                uint256 indexToRemove = rewardTokenToIndex[token][
-                    _rewardToken
-                ];
-                if (indexToRemove != (numTokens - 1)) {
-                    rewardTokens[token][indexToRemove] = rewardTokens[token][
-                        numTokens - 1
-                    ];
-                }
-                rewardTokens[token].pop();
-                rewardTokenToIndex[token][_rewardToken] = 0;
-            }
-        }
-
-        uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0) {
-            rewardTokens[token].push(rewardToken);
-            rewardTokenToIndex[token][rewardToken] = ++lastRewardTokenIndex[
-                token
-            ];
-            index = lastRewardTokenIndex[token];
-        }
-
-        if (amount < rewardTokenToMinDistribution[rewardToken]) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        updatePool(token);
-
-        SafeTransferLib.safeTransferFrom(
-            rewardToken,
-            msg.sender,
-            address(this),
-            amount
-        );
-
-        _epochRewardPerSec[token][epoch][index] += amount / epochDuration;
-
-        if (lastEpochOf[token][rewardToken] < epoch) {
-            lastEpochOf[token][rewardToken] = epoch;
-        }
-    }
-
     /// @notice Returns pending reward of user for their deposited `tokens`
     ///         across all reward tokens.
     /// @param tokens Array of Protocol supported mToken addresses to check
@@ -472,40 +274,12 @@ contract GaugeManager is
     function pendingRewards(
         address[] calldata tokens,
         address user
-    )
-        external
-        view
-        returns (
-            address[][] memory pendingRewardTokens,
-            uint256[][] memory rewardAmounts
-        )
-    {
+    ) external view returns (uint256[] memory rewardAmounts) {
         uint256 numMTokens = tokens.length;
-        pendingRewardTokens = new address[][](numMTokens);
-        rewardAmounts = new uint256[][](numMTokens);
-
-        address[] memory rewardTokensForMToken;
-        uint256 numRewardTokens;
-        address cachedToken;
-        address cachedRewardToken;
+        rewardAmounts = new uint256[](numMTokens);
 
         for (uint256 i; i < numMTokens; ++i) {
-            cachedToken = tokens[i];
-            rewardTokensForMToken = rewardTokens[cachedToken];
-            numRewardTokens = rewardTokensForMToken.length;
-
-            pendingRewardTokens[i] = new address[](numRewardTokens);
-            rewardAmounts[i] = new uint256[](numRewardTokens);
-
-            for (uint256 j = 0; j < numRewardTokens; ++j) {
-                cachedRewardToken = rewardTokensForMToken[j];
-                pendingRewardTokens[i][j] = cachedRewardToken;
-                rewardAmounts[i][j] = pendingRewards(
-                    cachedToken,
-                    user,
-                    cachedRewardToken
-                );
-            }
+            rewardAmounts[i] = pendingRewards(tokens[i], user);
         }
     }
 
@@ -715,7 +489,7 @@ contract GaugeManager is
     ) public view returns (uint256) {
         _checkGaugeHasStarted();
         uint256 cachedGenesisEpoch = _genesisEpoch();
-        
+
         // Rounds down intentionally.
         return
             timestamp < cachedGenesisEpoch
@@ -750,40 +524,22 @@ contract GaugeManager is
     /// @notice Returns reward emissions of a token.
     /// @param token Pool token address that receives `rewardToken` overtime.
     /// @param epoch The epoch number.
-    /// @param rewardToken The reward token address.
     function rewardAllocation(
         address token,
-        uint256 epoch,
-        address rewardToken
+        uint256 epoch
     ) public view returns (uint256) {
-        if (rewardToken == cve) {
-            return _epochInfo[epoch].tokenWeight[token];
-        }
-
-        uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0 || !approvedRewardTokens[rewardToken]) {
-            revert GaugeManager__InvalidRewardToken();
-        }
-
-        return (epochDuration * _epochRewardPerSec[token][epoch][index]);
+        return _epochInfo[epoch].tokenWeight[token];
     }
 
     /// @notice Returns pending reward of user for their deposited `token`
     ///         across all reward tokens.
     /// @param token Protocol supported mToken address to check rewards for.
     /// @param user User address to query pending rewards for.
-    /// @param rewardToken Reward token address to check pending rewards for.
     function pendingRewards(
         address token,
-        address user,
-        address rewardToken
+        address user
     ) public view returns (uint256) {
-        uint256 index = rewardTokenToIndex[token][rewardToken];
-        if (index == 0 || !approvedRewardTokens[rewardToken]) {
-            revert GaugeManager__InvalidRewardToken();
-        }
-
-        uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
+        uint256 accRewardPerShare = poolAccRewardPerShare[token];
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
         if (lastRewardTimestamp == 0) {
@@ -800,7 +556,7 @@ contract GaugeManager is
                 // update rewards from lastRewardTimestamp to endTimestamp.
                 reward =
                     ((endTimestamp - lastRewardTimestamp) *
-                        rewardAllocation(token, lastEpoch, rewardToken)) /
+                        rewardAllocation(token, lastEpoch)) /
                     epochDuration;
                 accRewardPerShare =
                     accRewardPerShare +
@@ -814,7 +570,7 @@ contract GaugeManager is
             // update rewards from lastRewardTimestamp to current timestamp.
             reward =
                 ((block.timestamp - lastRewardTimestamp) *
-                    rewardAllocation(token, lastEpoch, rewardToken)) /
+                    rewardAllocation(token, lastEpoch)) /
                 epochDuration;
             accRewardPerShare =
                 accRewardPerShare +
@@ -822,7 +578,7 @@ contract GaugeManager is
                 totalDeposited;
         }
 
-        UserRewardInfo memory info = userDebtInfo[token][user][index];
+        UserRewardInfo memory info = userDebtInfo[token][user];
         return
             info.rewardPending +
             (balanceOf[token][user] * accRewardPerShare) /
@@ -864,48 +620,37 @@ contract GaugeManager is
             return;
         }
 
-        // Cache rewardTokens length.
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokensForMToken.length;
-        for (uint256 i; i < numTokens; ) {
-            uint256 lastRewardTimestamp = _lastRewardTimestamp;
+        uint256 lastRewardTimestamp = _lastRewardTimestamp;
+        uint256 accRewardPerShare = poolAccRewardPerShare[token];
+        uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
+        uint256 cachedCurrentEpoch = currentEpoch();
+        uint256 reward;
 
-            // Query rewardToken then increment i.
-            address rewardToken = rewardTokensForMToken[i++];
-            uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
-            uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
-            uint256 cachedCurrentEpoch = currentEpoch();
-            uint256 reward;
+        // Step through epochs and apply rewards.
+        while (lastEpoch < cachedCurrentEpoch) {
+            uint256 endTimestamp = epochEndTime(lastEpoch);
 
-            // Step through epochs and apply rewards.
-            while (lastEpoch < cachedCurrentEpoch) {
-                uint256 endTimestamp = epochEndTime(lastEpoch);
-
-                // Update rewards from lastRewardTimestamp to endTimestamp.
-                reward =
-                    (RAY *
-                        (endTimestamp - lastRewardTimestamp) *
-                        rewardAllocation(token, lastEpoch, rewardToken)) /
-                    epochDuration;
-                accRewardPerShare =
-                    accRewardPerShare +
-                    (reward / totalDeposited);
-
-                ++lastEpoch;
-                lastRewardTimestamp = endTimestamp;
-            }
-
-            // Update rewards from lastRewardTimestamp to current timestamp.
+            // Update rewards from lastRewardTimestamp to endTimestamp.
             reward =
                 (RAY *
-                    (block.timestamp - lastRewardTimestamp) *
-                    rewardAllocation(token, lastEpoch, rewardToken)) /
+                    (endTimestamp - lastRewardTimestamp) *
+                    rewardAllocation(token, lastEpoch)) /
                 epochDuration;
-            accRewardPerShare = accRewardPerShare + reward / totalDeposited;
+            accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
 
-            poolAccRewardPerShare[token][index] = accRewardPerShare;
+            ++lastEpoch;
+            lastRewardTimestamp = endTimestamp;
         }
+
+        // Update rewards from lastRewardTimestamp to current timestamp.
+        reward =
+            (RAY *
+                (block.timestamp - lastRewardTimestamp) *
+                rewardAllocation(token, lastEpoch)) /
+            epochDuration;
+        accRewardPerShare = accRewardPerShare + reward / totalDeposited;
+
+        poolAccRewardPerShare[token] = accRewardPerShare;
 
         // Update pool storage.
         poolLastRewardTimestamp[token] = block.timestamp;
@@ -932,34 +677,10 @@ contract GaugeManager is
         updatePool(token);
         _calcPending(user, token);
 
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokensForMToken.length;
+        cveRewards = userDebtInfo[token][user].rewardPending;
 
-        for (uint256 i; i < numTokens; ) {
-            // Query rewardToken then increment i.
-            address rewardToken = rewardTokensForMToken[i++];
-            uint256 index = rewardTokenToIndex[token][rewardToken];
-            uint256 rewards = userDebtInfo[token][user][index].rewardPending;
-            // If the caller has rewards, send them,
-            // and prevent transaction reversion.
-            if (rewards > 0) {
-                if (rewardToken == cve) {
-                    cveRewards = rewards;
-                } else {
-                    // User rewards are always expected to go to a caller
-                    // even if its a plugin call.
-                    SafeTransferLib.safeTransfer(
-                        rewardToken,
-                        msg.sender,
-                        rewards
-                    );
-                }
-            }
-
-            // Update pending rewards to zero.
-            userDebtInfo[token][user][index].rewardPending = 0;
-        }
-
+        // Update pending rewards to zero.
+        userDebtInfo[token][user].rewardPending = 0;
         _calcDebt(user, token);
 
         emit Claim(user, token);
@@ -989,39 +710,21 @@ contract GaugeManager is
     /// @param user User address.
     /// @param token Pool token address.
     function _calcPending(address user, address token) internal {
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokensForMToken.length;
-
-        for (uint256 i; i < numTokens; ) {
-            // Query rewardToken then increment i.
-            address rewardToken = rewardTokensForMToken[i++];
-            uint256 index = rewardTokenToIndex[token][rewardToken];
-            UserRewardInfo storage info = userDebtInfo[token][user][index];
-            info.rewardPending +=
-                (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][index]) /
-                RAY -
-                info.rewardDebt;
-        }
+        UserRewardInfo storage info = userDebtInfo[token][user];
+        info.rewardPending +=
+            (balanceOf[token][user] * poolAccRewardPerShare[token]) /
+            RAY -
+            info.rewardDebt;
     }
 
     /// @notice Calculate user's debt amount for reward calculation.
     /// @param user User address.
     /// @param token Pool token address.
     function _calcDebt(address user, address token) internal {
-        address[] memory rewardTokensForMToken = rewardTokens[token];
-        uint256 numTokens = rewardTokensForMToken.length;
-
-        for (uint256 i; i < numTokens; ) {
-            // Query rewardToken then increment i.
-            address rewardToken = rewardTokensForMToken[i++];
-            uint256 index = rewardTokenToIndex[token][rewardToken];
-            UserRewardInfo storage info = userDebtInfo[token][user][index];
-            info.rewardDebt =
-                (balanceOf[token][user] *
-                    poolAccRewardPerShare[token][index]) /
-                RAY;
-        }
+        UserRewardInfo storage info = userDebtInfo[token][user];
+        info.rewardDebt =
+            (balanceOf[token][user] * poolAccRewardPerShare[token]) /
+            RAY;
     }
 
     /// @dev Internal helper for reverting efficiently.
