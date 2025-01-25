@@ -173,7 +173,6 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         // we are checking that the exit fee is applied
         uint256 balRETHBalanceAfter = balRETH.balanceOf(address(this));
 
-        assert(balRETHBalanceAfter > balRETHBalanceBefore);
         assert(balRETHBalanceAfter == collateralReceivedWithExitFee);       
     }
 

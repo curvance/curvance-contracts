@@ -265,6 +265,24 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
     }
 
+    function testWithdrawRemainingTokens_success() public {
+
+        distributor.setPauseState(false);
+
+        uint256 cveBalanceOfThisBefore = cve.balanceOf(address(this));
+        uint256 cveBalanceOfDistributorBefore = cve.balanceOf(address(distributor));
+
+        skip(7 weeks);
+        
+        distributor.withdrawRemainingTokens();
+
+        uint256 cveBalanceOfThisAfter = cve.balanceOf(address(this));
+        uint256 cveBalanceOfDistributorAfter = cve.balanceOf(address(distributor));
+
+        assertEq(cveBalanceOfThisAfter, cveBalanceOfDistributorBefore);
+        assertEq(cveBalanceOfDistributorAfter, 0);
+    }
+
 
 
     // this test contract is the DAO address
