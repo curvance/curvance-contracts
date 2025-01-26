@@ -604,13 +604,12 @@ contract CentralRegistry is ERC165, LockableRegistry {
         emit FeeSet("Leverage", value);
     }
 
-    /// @notice Sets the fee taken by Curvance DAO on leverage/deleverage
-    ///         via position folding.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      can only have a maximum value of 2%.
-    ///      Emits a {FeeSet} event.
-    /// @param value The new fee to take on leverage/deleverage when done
-    ///              by position folding, in `basis points`.
+    /// @notice Sets the maximum slippage users can input with swap
+    ///         instructions.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Emits a {SlippageLimit} event.
+    /// @param value The new slippage limit users can input on swap
+    ///              instructions, in `basis points`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
@@ -624,7 +623,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sets the fee taken by Curvance DAO from interest generated.
     /// @dev Only callable on a 7 day delay or by the Emergency Council,
-    ///      can only have a maximum value of 50%.
+    ///      can only have a maximum value of 75%.
     ///      Emits an {InterestFeeSet} event.
     /// @param market The address of the market manager to configure
     ///               interest fees of.
@@ -636,8 +635,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ) external {
         _checkElevatedPermissions();
 
-        // Interest fee cannot be more than 50%.
-        if (value > 5000) {
+        // Interest fee cannot be more than 75%.
+        if (value > 7500) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
@@ -1114,6 +1113,10 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      can only have a maximum value of 50% interest fee.
     ///      Cannot be a supported Market Manager contract prior.
     ///      Emits a {NewCurvanceContract} and {InterestFeeSet} events.
+    ///      This has a lower limit than `setProtocolInterestRateFee` because
+    ///      in specific cases it could make sense to start assigning a high
+    ///      interest rate take rate to push people to a new market
+    ///      implementation.
     /// @param newMarketManager The new Market Manager contract to support
     ///                         for use in Curvance.
     /// @param marketInterestFactor The interest factor associated with
