@@ -256,6 +256,13 @@ contract TestAuraPToken is TestBaseMarket {
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);
+
+        // setCompoundingPaused
+        pBALRETH.setCompoundingPaused(true);
+
+        vm.expectRevert(CompoundingPToken.CompoundingPToken__CompoundingPaused.selector);
+        pBALRETH.harvest(bytes("0"));
+
     }
 
     function testReQueryTokens() external {
