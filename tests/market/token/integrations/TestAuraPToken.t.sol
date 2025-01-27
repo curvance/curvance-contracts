@@ -6,7 +6,7 @@ import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
+import { CompoundingPToken} from "contracts/market/token/CompoundingPToken.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestAuraPToken is TestBaseMarket {
@@ -185,6 +185,14 @@ contract TestAuraPToken is TestBaseMarket {
         );
 
         pBALRETH.harvest(abi.encode(swaps, 0));
+
+        CompoundingPToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
+        uint256 rewardRate = vaultData.rewardRate;
+        uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
+        uint256 lastVestClaim = vaultData.lastVestClaim;
+
+        assert(lastVestClaim == block.timestamp);
+        assert(vestingPeriodEnd == block.timestamp + 1 days);
 
         vm.warp(block.timestamp + 8 days);
 
