@@ -233,7 +233,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
             address(pBALRETH)
         );
         uint256 assetValue = (price *

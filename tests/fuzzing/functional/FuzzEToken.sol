@@ -466,7 +466,7 @@ contract FuzzEToken is FuzzMarketManager {
         EToken(eToken).accrueInterest();
         (
             uint256 debtToLiquidate, // debt tokens to be repaid on liquidation
-            uint256 seizedForLiquidation, // number of position tokens to be seized for the liquidator
+            uint256 seizedForLiquidation // number of position tokens to be seized for the liquidator
         ) = marketManager.canLiquidate(
                 eToken,
                 positionToken,
@@ -618,10 +618,8 @@ contract FuzzEToken is FuzzMarketManager {
         uint256 priorDebt = EToken(eToken).debtBalanceCached(address(this));
         amount = _preLiquidate(amount, DAI_PRICE, USDC_PRICE);
 
-        (
-            uint256 debtToLiquidate,
-            uint256 seizedForLiquidation
-        ) = marketManager.canLiquidate(
+        (uint256 debtToLiquidate, uint256 seizedForLiquidation) = marketManager
+            .canLiquidate(
                 eToken,
                 positionToken,
                 account,

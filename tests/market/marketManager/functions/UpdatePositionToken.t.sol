@@ -227,7 +227,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             1000
         );
 
-        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
             address(pBALRETH)
         );
         assertEq(collRatio, 0.7e18);

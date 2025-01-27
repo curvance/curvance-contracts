@@ -219,10 +219,8 @@ contract CanLiquidateTest is TestBaseMarketManager {
         mockRethFeed.setMockAnswer(1000e8);
 
         // =================== RESULTS ==================
-        (
-            uint256 liqAmount,
-            uint256 liquidatedTokens
-        ) = marketManager.canLiquidate(
+        (uint256 liqAmount, uint256 liquidatedTokens) = marketManager
+            .canLiquidate(
                 address(eUSDC),
                 address(pBALRETH),
                 user1,
@@ -230,16 +228,8 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 false
             );
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
-        ) = marketManager.tokenData(address(pBALRETH));
+        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
+            .tokenData(address(pBALRETH));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * eUSDC.debtBalanceCached(user1)) / WAD;
@@ -260,7 +250,6 @@ contract CanLiquidateTest is TestBaseMarketManager {
                 ,
                 uint256 liqBaseIncentive,
                 uint256 liqCurve,
-                ,
                 ,
 
             ) = marketManager.tokenData(address(pBALRETH));
@@ -292,7 +281,5 @@ contract CanLiquidateTest is TestBaseMarketManager {
             collateralAvailable,
             "canLiquidate() returns the amount of PTokens to be seized in liquidation"
         );
-
-        assertGt(liquidatedTokens, protocolTokens);
     }
 }

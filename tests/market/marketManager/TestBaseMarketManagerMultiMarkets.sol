@@ -162,22 +162,14 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         MockSimplePToken _pToken,
         uint256 _amount,
         bool _exact
-    )
-        internal
-        view
-        returns (
-            uint256 liqAmount,
-            uint256 liquidatedTokens
-        )
-    {
-        (liqAmount, liquidatedTokens) = marketManager
-            .canLiquidate(
-                address(_eToken),
-                address(_pToken),
-                _user,
-                _amount,
-                _exact
-            );
+    ) internal view returns (uint256 liqAmount, uint256 liquidatedTokens) {
+        (liqAmount, liquidatedTokens) = marketManager.canLiquidate(
+            address(_eToken),
+            address(_pToken),
+            _user,
+            _amount,
+            _exact
+        );
 
         console2.log(
             "liqAmount %s liquidatedTokens %s",
@@ -226,18 +218,9 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         EToken _eToken,
         MockSimplePToken _pToken,
         bool _exact
-    ) internal view returns (uint256, uint256, uint256) {
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
-        ) = marketManager.tokenData(address(_pToken));
+    ) internal view returns (uint256, uint256) {
+        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
+            .tokenData(address(_pToken));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * _eToken.debtBalanceCached(_user)) /
@@ -271,10 +254,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     )
         internal
         view
-        returns (
-            uint256 expectedLiqAmount,
-            uint256 collateralAvailable
-        )
+        returns (uint256 expectedLiqAmount, uint256 collateralAvailable)
     {
         collateralAvailable = _collateralAvailable - 1;
         (
@@ -284,7 +264,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             ,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
-            ,
             ,
 
         ) = marketManager.tokenData(address(_pToken));
@@ -424,7 +403,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         _eToken.accrueInterest();
 
         console2.log("\n expected liquidation");
-        (uint256 expectedLiqAmount, , ) = _expectedLiquidation(
+        (uint256 expectedLiqAmount, ) = _expectedLiquidation(
             _pToken.balanceOf(_user),
             _user,
             _eToken,
