@@ -15,9 +15,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     address[] public tokens;
     address[] public users;
 
-    uint256 constant CHILD_GAUGE_COUNT = 5;
-    address[CHILD_GAUGE_COUNT] public partnerRewardTokens;
-
     MockDataFeed public mockDaiFeed;
 
     function setUp() public override {
@@ -123,54 +120,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         IEToken(tokens[0]).redeem(50 ether, address(this));
     }
 
-    function testSetPartnerGaugesWithoutCVE() public {
-        address[] memory tokensParam = new address[](2);
-        tokensParam[0] = tokens[0];
-        tokensParam[1] = tokens[1];
-        uint256[] memory poolWeights = new uint256[](2);
-        poolWeights[0] = 0;
-        poolWeights[1] = 0;
-
-        vm.prank(address(messagingHub));
-        gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-
-        vm.warp(gaugeManager.startTime());
-        _skipEpochDuration(1);
-
-        mockDaiFeed.setMockUpdatedAt(block.timestamp);
-
-        // user0 deposit 100 token0
-        vm.prank(users[0]);
-        IEToken(tokens[0]).mint(100 ether);
-
-        // user1 deposit 100 token1
-        vm.prank(users[1]);
-        IEToken(tokens[1]).mint(100 ether);
-
-        // check pending rewards after 100 seconds
-        vm.warp(block.timestamp + 100);
-        assertEq(gaugeManager.pendingRewards(tokens[0], users[0]), 0);
-        assertEq(gaugeManager.pendingRewards(tokens[1], users[1]), 0);
-        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            assertEq(
-                gaugeManager.pendingRewards(
-                    tokens[0],
-                    users[0],
-                    partnerRewardTokens[i]
-                ),
-                9999
-            );
-            assertEq(
-                gaugeManager.pendingRewards(
-                    tokens[1],
-                    users[1],
-                    partnerRewardTokens[i]
-                ),
-                19999
-            );
-        }
-    }
-
     function testClaimWhenCVERewardIsZero() public {
         address[] memory tokensParam = new address[](2);
         tokensParam[0] = tokens[0];
@@ -199,24 +148,6 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         vm.warp(block.timestamp + 100);
         assertEq(gaugeManager.pendingRewards(tokens[0], users[0]), 0);
         assertEq(gaugeManager.pendingRewards(tokens[1], users[1]), 0);
-        for (uint256 i = 0; i < CHILD_GAUGE_COUNT; i++) {
-            assertEq(
-                gaugeManager.pendingRewards(
-                    tokens[0],
-                    users[0],
-                    partnerRewardTokens[i]
-                ),
-                9999
-            );
-            assertEq(
-                gaugeManager.pendingRewards(
-                    tokens[1],
-                    users[1],
-                    partnerRewardTokens[i]
-                ),
-                19999
-            );
-        }
 
         vm.prank(users[0]);
         gaugeManager.claim(tokens, users[0]);

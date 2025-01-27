@@ -35,15 +35,10 @@ import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 ///      DAO. The Curvance DAO has a long time horizon, and users who align
 ///      with that time horizon should be rewarded more greatly than users
 ///      with a short time horizon, which has a duration mismatch between
-///      parties. Additional reward tokens can be streamed to users through
-///      our "Partner Gauges" these act as additional reward layers on top of
-///      the base CVE reward system. This allows protocols or chains to
-///      directly incentivize their ecosystem without building any additional
-///      technology on top. The partner gauge system works for any token
-///      without writing any additional code.
+///      parties.
 ///
-///      Gauge rewards, and by extension the Partner Gauges, can distribute
-///      rewards to collateral depositors, or lenders, in a market.
+///      Gauge rewards distribute rewards to collateral depositors,
+///      or lenders, in a market.
 ///      Borrowers intentionally do not have the ability to receive rewards
 ///      as this could create looped delta hedged strategies that do not
 ///      add value to the Curvance Protocol to receive essentially risk free
@@ -120,13 +115,11 @@ contract GaugeManager is
     /// @notice mToken => accRewardPerShare.
     mapping(address => uint256) public poolAccRewardPerShare;
     /// @notice Information corresponding to rewards pending/debt pending
-    ///         for a reward token, for a particular user, for a particular
-    ///         deposited token.
+    ///         for a particular user, for a particular deposited token.
     /// @dev mToken => user => info.
     mapping(address => mapping(address => UserRewardInfo)) public userDebtInfo;
-
-    /// @notice The amount of rewards streamed per second, of a particular
-    ///         reward token, during an epoch, for a specific token.
+    /// @notice The amount of rewards streamed per second
+    /// during an epoch, for a specific token.
     /// @dev mToken => epoch => rewardPerSec.
     mapping(address => mapping(uint256 => uint256))
         internal _epochRewardPerSec;
@@ -267,7 +260,6 @@ contract GaugeManager is
     }
 
     /// @notice Returns pending reward of user for their deposited `tokens`
-    ///         across all reward tokens.
     /// @param tokens Array of Protocol supported mToken addresses to check
     ///               rewards for.
     /// @param user User address to query pending rewards for.
@@ -532,13 +524,13 @@ contract GaugeManager is
     }
 
     /// @notice Returns pending reward of user for their deposited `token`
-    ///         across all reward tokens.
     /// @param token Protocol supported mToken address to check rewards for.
     /// @param user User address to query pending rewards for.
     function pendingRewards(
         address token,
         address user
     ) public view returns (uint256) {
+        // Cache storage values
         uint256 accRewardPerShare = poolAccRewardPerShare[token];
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
@@ -667,7 +659,7 @@ contract GaugeManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Claim all pending rewards for `token` from the Gauge Manager.
+    /// @notice Claim pending rewards for `token` from the Gauge Manager.
     /// @param token Pool token address to claim rewards for.
     /// @param user The user address that gauge rewards should be claimed for.
     function _claim(
