@@ -154,7 +154,6 @@ contract GaugeManager is
         cve = centralRegistry.cve();
         veCVE = IVeCVE(centralRegistry.veCVE());
         epochDuration = centralRegistry.EPOCH_DURATION();
-        startTime = veCVE.nextEpochStartTime();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -192,13 +191,12 @@ contract GaugeManager is
         }
 
         // Cache Gauge System start time.
-        uint256 _startTime = startTime;
+        uint256 _startTime = gaugeStartTime();
 
         // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
-            !(epoch == 0 &&
-                (_startTime == 0 || block.timestamp < _startTime)) &&
+            !(epoch == 0 && block.timestamp < _startTime) &&
             epoch != currentEpoch()
         ) {
             revert GaugeManager__InvalidEpoch();
@@ -370,9 +368,7 @@ contract GaugeManager is
         address[] calldata tokens,
         address user
     ) external nonReentrant {
-        if (block.timestamp < startTime) {
-            revert GaugeManager__NotStarted();
-        }
+        _checkGaugeHasStarted();
 
         if (user != msg.sender) {
             if (!isDelegate(user, msg.sender)) {
@@ -414,11 +410,7 @@ contract GaugeManager is
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        // If gauge emissions have not started yet,
-        // theres nothing to claim and lock.
-        if (block.timestamp < startTime) {
-            revert GaugeManager__NotStarted();
-        }
+        _checkGaugeHasStarted();
 
         uint256 cveRewards;
         uint256 numTokens = tokens.length;
@@ -467,6 +459,32 @@ contract GaugeManager is
         }
     }
 
+    /// @notice Locks in `startTime` once the gauge system has formally started
+    ///         and `genesisEpoch` cannot change.
+    /// @dev Purpose of this function is to reduce startTime computation cost
+    ///      once we know its locked in and can directly query `startTime`.
+    function lockInStartTime() external {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        uint256 genesisEpoch = _genesisEpoch();
+
+        // If the gauge system has not started yet, `startTime`
+        // cannot be locked in.
+        if (block.timestamp < genesisEpoch) {
+            revert GaugeManager__NotStarted();
+        }
+
+        // If its currently during the genesis epoch, epochOfTimestamp will
+        // round down by dividing then multiplying by `epochDuration`, setting
+        // startTime equal to `genesisEpoch` otherwise,
+        // it will append on additional epochs if this is a fresh chain
+        // deployment starting after the genesis epoch.
+        startTime = genesisEpoch + (((block.timestamp - genesisEpoch)
+            / epochDuration) * epochDuration);
+    }
+
     /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns current epoch number.
@@ -487,6 +505,31 @@ contract GaugeManager is
             timestamp < cachedGenesisEpoch
                 ? 0
                 : (timestamp - cachedGenesisEpoch) / epochDuration;
+    }
+
+    /// @notice Returns the timestamp of when the gauge system begins.
+    /// @return The calculated gauge start timestamp.
+    function gaugeStartTime() public view returns (uint256) {
+        uint256 _startTime = startTime;
+        if (_startTime != 0) {
+            return _startTime;
+        }
+
+        uint256 genesisEpoch = _genesisEpoch();
+
+        // If the gauge system has not started yet, the gauge start time
+        // is the Genesis Epoch itself.
+        if (block.timestamp < genesisEpoch) {
+            return genesisEpoch;
+        }
+
+        // If its currently during the genesis epoch, epochOfTimestamp will
+        // round down by dividing then multiplying by `epochDuration`, setting
+        // startTime equal to `genesisEpoch` otherwise,
+        // it will append on additional epochs if this is a fresh chain
+        // deployment starting after the genesis epoch.
+        return genesisEpoch + (((block.timestamp - genesisEpoch)
+            / epochDuration) * epochDuration);
     }
 
     /// @notice Returns start time of `epoch`.
@@ -513,9 +556,9 @@ contract GaugeManager is
         return _epochInfo[epoch].tokenWeight[token] > 0;
     }
 
-    /// @notice Returns reward emissions of a token.
-    /// @param token Pool token address that receives `rewardToken` overtime.
-    /// @param epoch The epoch number.
+    /// @notice Returns CVE emissions of `token`.
+    /// @param token Pool token address that receives CVE overtime.
+    /// @param epoch The epoch number to check CVE allocation for.
     function rewardAllocation(
         address token,
         uint256 epoch
@@ -535,7 +578,7 @@ contract GaugeManager is
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
         if (lastRewardTimestamp == 0) {
-            lastRewardTimestamp = startTime;
+            lastRewardTimestamp = gaugeStartTime();
         }
 
         if (block.timestamp > lastRewardTimestamp && totalDeposited != 0) {
@@ -587,22 +630,22 @@ contract GaugeManager is
         {
             // Scope variable to avoid stack too deep error.
             // Cache Gauge System start time.
-            uint256 _startTime = startTime;
+            uint256 _startTime = gaugeStartTime();
             // If rewards have not started yet, there is nothing to update.
-            if (_startTime == 0 || block.timestamp <= _startTime) {
+            if (block.timestamp <= _startTime) {
                 return;
             }
         }
 
-        uint256 _lastRewardTimestamp = poolLastRewardTimestamp[token];
+        uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         // If nobody has updated reward timestamp, set it to current timestamp.
-        if (_lastRewardTimestamp == 0) {
+        if (lastRewardTimestamp == 0) {
             poolLastRewardTimestamp[token] = block.timestamp;
             return;
         }
 
         // Make sure time has passed since the last update.
-        if (block.timestamp <= _lastRewardTimestamp) {
+        if (block.timestamp <= lastRewardTimestamp) {
             return;
         }
 
@@ -612,7 +655,6 @@ contract GaugeManager is
             return;
         }
 
-        uint256 lastRewardTimestamp = _lastRewardTimestamp;
         uint256 accRewardPerShare = poolAccRewardPerShare[token];
         uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
         uint256 cachedCurrentEpoch = currentEpoch();
@@ -622,7 +664,7 @@ contract GaugeManager is
         while (lastEpoch < cachedCurrentEpoch) {
             uint256 endTimestamp = epochEndTime(lastEpoch);
 
-            // Update rewards from lastRewardTimestamp to endTimestamp.
+            // Update rewards from `lastRewardTimestamp` to endTimestamp.
             reward =
                 (RAY *
                     (endTimestamp - lastRewardTimestamp) *
@@ -634,7 +676,7 @@ contract GaugeManager is
             lastRewardTimestamp = endTimestamp;
         }
 
-        // Update rewards from lastRewardTimestamp to current timestamp.
+        // Update rewards from `_lastRewardTimestamp` to current timestamp.
         reward =
             (RAY *
                 (block.timestamp - lastRewardTimestamp) *
@@ -684,16 +726,9 @@ contract GaugeManager is
         return centralRegistry.genesisEpoch();
     }
 
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
     /// @dev Checks whether the gauge controller has started or not.
     function _checkGaugeHasStarted() internal view {
-        if (startTime == 0) {
+        if (block.timestamp < gaugeStartTime()) {
             revert GaugeManager__NotStarted();
         }
     }

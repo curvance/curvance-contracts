@@ -42,9 +42,6 @@ contract VotingHub is QueryResponse {
 
     /// STORAGE ///
 
-    /// @notice Start time that the voting hub starts, in unix time.
-    uint256 public startTime;
-
     /// @notice The amount of CVE rewards allocated on this chain,
     ///         for an epoch.
     /// @dev Epoch # => CVE rewards allocated.
@@ -80,7 +77,6 @@ contract VotingHub is QueryResponse {
         veCVE = IVeCVE(centralRegistry.veCVE());
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
-        startTime = veCVE.nextEpochStartTime();
 
         _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
@@ -201,7 +197,8 @@ contract VotingHub is QueryResponse {
             totalEmissionsAllocated
         );
 
-        // Set emissions for this chain.
+        // Set emissions for this chain, this will natively fail in
+        // `GaugeManager` if `epoch` has not started yet.
         _setEmissions(emissionData, epoch);
 
         // Submit emissions for remote chains.

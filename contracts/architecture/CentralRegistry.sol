@@ -272,6 +272,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
             emergencyCouncil_ = msg.sender;
         }
 
+        // Check to make sure that genesis epoch is at least at the beginning
+        // of 2025 (Jan 1 12:00 EST) so we know the value is not accidently
+        // misconverted or missing with a value of 0.
+        if (genesisEpoch_ < 1735707600) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         // Configure DAO permission data.
         daoAddress = daoAddress_;
         timelock = timelock_;
@@ -341,6 +348,9 @@ contract CentralRegistry is ERC165, LockableRegistry {
     ///      Emits a {GenesisEpochSet} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
+        // Its not possible for `genesisEpoch` to be 0 based on constructor
+        // restrictions, so we do not need to check for 0 input here as this
+        // check would catch `newGenesisEpoch` == 0.
         if (newGenesisEpoch < genesisEpoch) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
@@ -390,6 +400,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Sets a new Reward Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
+    ///      Can only be set once.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
         // If the contract is already set and needs to be updated, make sure
@@ -404,9 +415,10 @@ contract CentralRegistry is ERC165, LockableRegistry {
         emit CoreContractSet("Reward Manager", newRewardManager);
     }
 
-    /// @notice Sets a new Reward Manager contract address.
+    /// @notice Sets a new Gauge Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
+    ///      Can only be set once.
     /// @param newGaugeManager The new address of Gauge Manager.
     function setGaugeManager(address newGaugeManager) external {
         if (gaugeManager != address(0)) {
