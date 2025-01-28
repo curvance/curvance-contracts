@@ -62,6 +62,7 @@ contract UpdateDynamicInterestRateModelTest is
                 .DynamicInterestRateModel__InvalidAdjustmentVelocity
                 .selector
         );
+
         interestRateModel.updateDynamicInterestRateModel(
             1000,
             1000,

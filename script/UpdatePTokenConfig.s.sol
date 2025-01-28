@@ -55,7 +55,6 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
             _readConfigUint256(string.concat(pathName, ".collReqB")),
             _readConfigUint256(string.concat(pathName, ".liqIncA")),
             _readConfigUint256(string.concat(pathName, ".liqIncB")),
-            _readConfigUint256(string.concat(pathName, ".liqFee")),
             _readConfigUint256(string.concat(pathName, ".baseCFactor"))
         );
         console.log("updatePositionToken");
