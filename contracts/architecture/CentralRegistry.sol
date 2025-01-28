@@ -273,9 +273,9 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
 
         // Check to make sure that genesis epoch is at least at the beginning
-        // of 2025 (Jan 1 12:00 EST) so we know the value is not accidently
+        // of 2022 (Jan 1 12:00 EST) so we know the value is not accidently
         // misconverted or missing with a value of 0.
-        if (genesisEpoch_ < 1735707600) {
+        if (genesisEpoch_ < 1640926800) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
