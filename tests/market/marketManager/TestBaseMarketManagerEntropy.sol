@@ -103,7 +103,6 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
             collReqB,
             200,
             400,
-            10,
             1000
         );
         address[] memory tokens = new address[](1);

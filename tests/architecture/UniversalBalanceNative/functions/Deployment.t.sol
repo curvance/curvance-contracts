@@ -61,7 +61,7 @@ contract UniversalBalanceNativeDeploymentTest is
             address(centralRegistry)
         );
         assertEq(
-            address(universalBalanceNative.linkedEToken()),
+            address(universalBalanceNative.linkedToken()),
             address(eWETH)
         );
         assertEq(universalBalanceNative.underlying(), _WETH_ADDRESS);

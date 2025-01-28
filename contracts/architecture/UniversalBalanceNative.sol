@@ -32,18 +32,18 @@ contract UniversalBalanceNative is UniversalBalance {
     constructor(
         ICentralRegistry centralRegistry_,
         address eToken,
-        address nativeWrapppedToken
+        address nativeWrappedToken
     ) UniversalBalance(centralRegistry_, eToken) {
         // Validate that eToken underlying and native wrapped token
         // contract match addresses.
-        if (IMToken(eToken).underlying() != nativeWrapppedToken) {
+        if (IMToken(eToken).underlying() != nativeWrappedToken) {
             revert UniversalBalanceNative__UnderlyingTokenMismatch();
         }
     }
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Deposits native gas token into user's universal balance
+    /// @notice Deposits native gas token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event. The amount of native token to be
     ///      deposited is attached to the transaction.
@@ -54,10 +54,10 @@ contract UniversalBalanceNative is UniversalBalance {
         _deposit(msg.value, isLent, msg.sender);
     }
 
-    /// @notice Deposits native gas token into `recipient`'s universal balance
+    /// @notice Deposits native gas token into `recipient`'s Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Requires that `recipient` has approved the caller previously to
-    ///      access their universal balance. The amount of native token to be
+    ///      access their Universal Balance. The amount of native token to be
     ///      deposited is attached to the transaction.
     ///      Emits { Deposit } event.
     /// @param isLent Whether the deposited native tokens should be lent
@@ -73,10 +73,10 @@ contract UniversalBalanceNative is UniversalBalance {
         _deposit(msg.value, isLent, recipient);
     }
 
-    /// @notice Deposits native gas token into `recipient`'s universal balance
+    /// @notice Deposits native gas token into `recipient`'s Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Requires that all `recipients` has approved the caller previously
-    ///      to access their universal balance. The amount of native token to be
+    ///      to access their Universal Balance. The amount of native token to be
     ///      deposited is attached to the transaction.
     ///      Emits one or more { Deposit } event(s).
     /// @param amounts An array containing the amount of native token to
@@ -107,7 +107,7 @@ contract UniversalBalanceNative is UniversalBalance {
         }
     }
 
-    /// @notice Withdraws wrapped native token from user's universal balance
+    /// @notice Withdraws wrapped native token from user's Universal Balance
     ///         account, either currently held or lent out and transfers it
     ///         to the user in native form.
     /// @dev Emits { Withdraw } event.
@@ -146,7 +146,7 @@ contract UniversalBalanceNative is UniversalBalance {
     ///         balance account, either currently held or lent out and
     ///         transfers it to the user in native form.
     /// @dev Requires that `owner` has approved the caller previously to
-    ///      access their universal balance.
+    ///      access their Universal Balance.
     ///      Emits { Withdraw } event.
     /// @param amount The amount of native token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
@@ -183,10 +183,10 @@ contract UniversalBalanceNative is UniversalBalance {
         );
     }
 
-    /// @notice Withdraws native gas token from `owners` universal balance
+    /// @notice Withdraws native gas token from `owners` Universal Balance
     ///         accounts, currently held or lent out.
     /// @dev Requires that each `owners` has approved the caller previously to
-    ///      access their universal balance.
+    ///      access their Universal Balance.
     ///      Emits one or more { Withdraw } event(s).
     /// @param amounts An array containing the amount of native token to
     ///                be withdrawn from each account.
@@ -196,7 +196,7 @@ contract UniversalBalanceNative is UniversalBalance {
     ///                            account.
     /// @param recipient The account who will receive the native assets.
     /// @param owners An array containing the accounts that will redeem from
-    ///               their universal balance.
+    ///               their Universal Balance.
     function multiWithdrawNativeFor(
         uint256[] calldata amounts,
         bool[] calldata forceLentRedemption,
@@ -219,7 +219,7 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// @notice Used by Oracle Manager to fund a pull-based oracle update.
     /// @param owner Which user is funding the oracle update from their
-    ///              universal balance account.
+    ///              Universal Balance account.
     /// @param amount The amount of underlying token to be earmarked for
     ///               oracle update.
     function useBalanceForOracleUpdate(
@@ -235,7 +235,7 @@ contract UniversalBalanceNative is UniversalBalance {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Withdraw from `owner`'s universal balance and transfer the wrapped
+        // Withdraw from `owner`'s Universal Balance and transfer the wrapped
         // native tokens to the Oracle Adaptor for use in updating oracle
         // feed.
         (amount, ) = _withdraw(amount, false, owner);

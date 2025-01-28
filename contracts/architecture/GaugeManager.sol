@@ -172,7 +172,7 @@ contract GaugeManager is
     }
 
     /// @notice Sets emission rates of tokens of current epoch.
-    /// @dev Only the messaging hub can call this.
+    /// @dev Only the Messaging Hub and Voting Hub can call this.
     /// @param epoch The epoch to set emission rates for, should be the next
     ///              epoch.
     /// @param tokens Array containing all tokens to set emission rates for.

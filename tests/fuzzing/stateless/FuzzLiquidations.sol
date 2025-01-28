@@ -18,7 +18,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
         uint256 collReqHard;
         uint256 liqBaseIncentive;
         uint256 liqCurve;
-        uint256 liqFee;
         uint256 baseCFactor;
         uint256 cFactorCurve;
         uint256 lFactor;
@@ -70,12 +69,10 @@ contract FuzzLiquidations is StatefulBaseMarket {
         _calculateDebtToCollateralRatio();
         _calculateAmountAdjusted();
         _calculateLiquidatedTokens();
-        _calculateProtocolTokens();
 
         (
             uint256 _canLiq_debt,
-            uint256 _canLiq_liquidatedTokens,
-            uint256 _canLiqProtocol
+            uint256 _canLiq_liquidatedTokens
         ) = marketManager.canLiquidate(
                 earnToken,
                 positionToken,
@@ -93,11 +90,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             calculated.liquidatedTokens,
             _canLiq_liquidatedTokens,
             "LIQUIDATED - expected liquidated tokens = can liquidate liquidate"
-        );
-        assertEq(
-            calculated.liquidatedTokenToProtocol,
-            _canLiqProtocol,
-            "LIQUIDATED - expected liquidated tokens to protocol = can liquidate return value"
         );
 
         bool hadError;
@@ -124,7 +116,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 collReqHard,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
-            uint256 liqFee,
             uint256 baseCFactor,
             uint256 cfactorCurve
         ) = marketManager.tokenData(positionToken);
@@ -149,7 +140,6 @@ contract FuzzLiquidations is StatefulBaseMarket {
             collReqHard,
             liqBaseIncentive,
             liqCurve,
-            liqFee,
             baseCFactor,
             cfactorCurve,
             lFactor,
@@ -341,12 +331,5 @@ contract FuzzLiquidations is StatefulBaseMarket {
             }
         }
         calculated.liquidatedTokens = liquidatedTokens;
-    }
-
-    // No pre or post conditions relevant here
-    function _calculateProtocolTokens() private {
-        calculated.liquidatedTokenToProtocol =
-            (calculated.liquidatedTokens * data.liqFee) /
-            WAD;
     }
 }

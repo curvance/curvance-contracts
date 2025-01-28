@@ -78,7 +78,6 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
             3000,
             200,
             400,
-            0,
             1000
         );
         address[] memory mTokens = new address[](1);
@@ -224,6 +223,9 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
 
         vm.prank(user1);
         pToken.setDelegateApproval(user2, true);
+
+        vm.prank(user1);
+        pToken.setDelegateApproval(address(complexZapper), true);
 
         address[] memory tokens = new address[](2);
         tokens[0] = _ETH_ADDRESS;

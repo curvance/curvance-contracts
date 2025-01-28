@@ -47,6 +47,21 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         );
 
         vm.stopPrank();
+
+        marketManager.updatePositionToken(
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
+        );
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pBALRETH);
+        uint256[] memory newCollateralCaps = new uint256[](1);
+        newCollateralCaps[0] = 1000000 * 10 ** 18;
+        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function test_migrate_fail_whenMigrationIsNotStarted() public {
@@ -96,6 +111,9 @@ contract MigrateTest is TestBaseCurvancePrefarm {
             100e18
         );
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 100e18);
+
+        vm.prank(user1);
+        pBALRETH.setDelegateApproval(address(curvancePrefarm), true);
 
         vm.prank(user1);
 

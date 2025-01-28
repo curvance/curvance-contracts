@@ -36,7 +36,7 @@ contract UniversalBalanceDeploymentTest is TestBaseUniversalBalance {
             address(universalBalance.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
+        assertEq(address(universalBalance.linkedToken()), address(eUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
         assertEq(
             usdc.allowance(address(universalBalance), address(eUSDC)),

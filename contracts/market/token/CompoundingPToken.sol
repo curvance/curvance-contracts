@@ -99,6 +99,21 @@ abstract contract CompoundingPToken is BasePToken {
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
     function withdrawByPositionManagement(
         address owner,
         uint256 assets,

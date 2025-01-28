@@ -5,7 +5,7 @@ import { TestBaseFeeManager } from "../TestBaseFeeManager.sol";
 import { FeeManager } from "contracts/architecture/FeeManager.sol";
 
 contract PullFeesTest is TestBaseFeeManager {
-    function test_pullFees_fail_whenCallerIsNotAuthorized() public {
+    function test_pullFees_fail_whenCallerIsNotMessagingHub() public {
         vm.expectRevert(FeeManager.FeeManager__Unauthorized.selector);
         feeManager.pullFees(100e6);
     }

@@ -82,17 +82,15 @@ interface IPToken is IMToken {
 
     /// @notice Transfers collateral tokens (this pToken) from `account`
     ///         to `liquidator`.
-    /// @dev Will fail unless called by a eToken during the process
+    /// @dev Will fail unless called by an eToken during the process
     ///      of liquidation.
     /// @param liquidator The account receiving seized collateral.
     /// @param account The account having collateral seized.
     /// @param liquidatedTokens The total number of pTokens to seize.
-    /// @param protocolTokens The number of pTokens to seize for the protocol.
     function seize(
         address liquidator,
         address account,
-        uint256 liquidatedTokens,
-        uint256 protocolTokens
+        uint256 liquidatedTokens
     ) external;
 
     /// @notice Transfers collateral tokens (this market) to the liquidator.

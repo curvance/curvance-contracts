@@ -23,7 +23,6 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { BalancerStablePoolAdaptor } from "contracts/oracles/adaptors/balancer/BalancerStablePoolAdaptor.sol";
@@ -85,7 +84,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     uint256 public lockBoostMultiplier = 10001; // 110%
     uint256 public marketInterestFactor = 1; // 10%
 
-    ComplexZapper public complexZapper;
     mapping(address => uint256) postedCollateralAt;
     // the maximum collateral cap for a specific mtoken
     mapping(address => uint256) maxCollateralCap;
@@ -134,7 +132,6 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         emit LogString("DEPLOYED: DAI");
         _deployPDAI();
         // emit LogString("DEPLOYED: ZAPPER");
-        // _deployComplexZapper();
     }
 
     function _deployCentralRegistry() internal {

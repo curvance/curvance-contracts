@@ -118,7 +118,6 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
             3000,
             200,
             400,
-            10,
             1000
         );
 
@@ -247,6 +246,8 @@ contract TestComplexZapperVelodrome is TestBaseMarket {
 
         vm.prank(user1);
         pToken.setDelegateApproval(user2, true);
+        vm.prank(user1);
+        pToken.setDelegateApproval(address(complexZapper), true);
 
         vm.prank(user2);
         complexZapper.enterVelodrome{ value: ethAmount }(
