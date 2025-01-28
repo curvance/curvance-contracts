@@ -396,7 +396,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
 
-        if (token == underlying || token == address(linkedEToken)) {
+        if (token == underlying || token == address(linkedToken)) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
