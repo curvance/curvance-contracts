@@ -207,7 +207,7 @@ contract SimpleZapper is ZapperBase {
         bool collateralize,
         address recipient
     ) external nonReentrant returns (uint256) {
-        bool isPToken = IMToken(redemptionData.mToken).isPToken();
+        bool isPToken = IMToken(mToken).isPToken();
         // Exit Curvance position.
         _exitCurvance(
             redemptionData.mToken,
