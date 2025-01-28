@@ -28,8 +28,8 @@ contract SimpleZapper is ZapperBase {
     ///                               wrapped native.
     /// @param swapData Swap instruction data to execute the swap.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapData.outputToken`
-    ///                       into `mToken` position.
+    ///                       from depositing `amount` of
+    ///                       `swapData.outputToken` into `mToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -193,8 +193,8 @@ contract SimpleZapper is ZapperBase {
     ///                          reduced from callers collateralPosted.
     /// @param swapData Swap instruction data to execute the repayment.
     /// @param expectedShares The minimum expected amount of shares received
-    ///                       from depositing `amount` of `swapData.outputToken`
-    ///                       into `mToken` position.
+    ///                       from depositing `amount` of
+    ///                       `swapData.outputToken` into `mToken` position.
     /// @param collateralize Whether the zapped deposit should be
     ///                      collateralized afterwards.
     /// @param recipient Address that should receive Zapped deposit.
@@ -207,7 +207,6 @@ contract SimpleZapper is ZapperBase {
         bool collateralize,
         address recipient
     ) external nonReentrant returns (uint256) {
-        bool isPToken = IMToken(mToken).isPToken();
         // Exit Curvance position.
         _exitCurvance(
             redemptionData.mToken,
@@ -222,7 +221,10 @@ contract SimpleZapper is ZapperBase {
         // new mToken underlying.
         uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
-        // Enter Curvance mToken position.
+        // Check whether new deposit is for a PToken or EToken.
+        bool isPToken = IMToken(mToken).isPToken();
+
+        // Enter new Curvance mToken position.
         return
             _enterCurvance(
                 mToken,
