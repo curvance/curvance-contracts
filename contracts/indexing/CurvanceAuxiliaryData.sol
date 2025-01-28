@@ -55,7 +55,6 @@ contract CurvanceAuxiliaryData {
         uint256 collReqHard;
         uint256 liqBaseIncentive;
         uint256 liqCurve;
-        uint256 liqFee;
         uint256 baseCFactor;
         uint256 cFactorCurve;
     }
@@ -655,7 +654,6 @@ contract CurvanceAuxiliaryData {
             uint256 collReqHard,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
-            uint256 liqFee,
             uint256 baseCFactor,
             uint256 cFactorCurve
         ) = mm.tokenData(token);
@@ -666,7 +664,6 @@ contract CurvanceAuxiliaryData {
         config.collReqHard = collReqHard;
         config.liqBaseIncentive = liqBaseIncentive;
         config.liqCurve = liqCurve;
-        config.liqFee = liqFee;
         config.baseCFactor = baseCFactor;
         config.cFactorCurve = cFactorCurve;
 

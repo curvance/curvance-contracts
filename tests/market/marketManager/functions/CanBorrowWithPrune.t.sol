@@ -97,7 +97,6 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             3000,
             200,
             400,
-            10,
             1000
         );
         address[] memory tokens = new address[](1);
@@ -150,7 +149,6 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             3000,
             200,
             400,
-            10,
             1000
         );
         address[] memory tokens = new address[](1);
@@ -176,7 +174,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
             address(pBALRETH)
         );
         uint256 assetValue = (price *
@@ -251,7 +249,6 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
             3000,
             200,
             400,
-            10,
             1000
         );
 

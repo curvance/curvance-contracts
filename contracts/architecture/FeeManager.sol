@@ -63,9 +63,9 @@ contract FeeManager is ReentrancyGuard {
 
     /// STORAGE ///
 
-    /// @notice We store token data semi redundantly to save gas
-    ///         on daily operations and to help with gelato network structure
-    ///         Used for Gelato Network bots to check what tokens to swap.
+    /// @notice Used for offchain bots to check what tokens to swap.
+    /// @dev    We store token data semi redundantly to save gas
+    ///         on daily operations and to help with offchain bot structure.
     address[] public rewardTokens;
 
     /// @notice Token Address => RewardToken data.
@@ -180,11 +180,11 @@ contract FeeManager is ReentrancyGuard {
             }
 
             // Swap from token to output token (fee token).
-            // Note: Because this is ran directly from Gelato Network we know
-            //       we will not have a malicious actor on swap routing.
-            //       We route liquidity to 1Inch with tight slippage
-            //       requirement, meaning we do not need to separately check
-            //       for slippage here.
+            // Note: Because this is called from permissioned offchain
+            //       operators we know we will not have a malicious actor on
+            //       swap routing. We route liquidity to 1Inch with tight
+            //       slippage requirement, meaning we do not need to
+            //       separately check for slippage here.
             SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
         }
     }
@@ -266,6 +266,35 @@ contract FeeManager is ReentrancyGuard {
         SafeTransferLib.safeTransfer(tokenToOTC, daoAddress, amountToOTC);
     }
 
+    /// @notice Pulls fees and sends them to the DAO, used pending governance
+    ///         proposals.
+    /// @dev Only callable by DAO permissioned operators.
+    /// @param amount The amount of `feeToken` to transfer.
+    /// @return The amount of transferred fee tokens to the DAO address.
+    function pullFeesAsDAO(uint256 amount) external returns (uint256) {
+        _checkDaoPermissions();
+
+        uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
+
+        // If the amount desired is greater than what is available,
+        // move all fees.
+        feeTokens = amount > feeTokens ? feeTokens : amount;
+
+        // If there are no fees collected, revert.
+        if (feeTokens == 0) {
+            revert FeeManager__ConfigurationError();
+        }
+
+        // Transfer desired fees to DAO address.
+        SafeTransferLib.safeTransfer(
+            feeToken,
+            centralRegistry.daoAddress(),
+            feeTokens
+        );
+
+        return feeTokens;
+    }
+
     /// @notice Sends collected fee tokens ex compounding bot stipend to the
     ///         Messaging Hub.
     /// @dev Only callable by the Messaging Hub. Does not fail if fees
@@ -281,7 +310,8 @@ contract FeeManager is ReentrancyGuard {
 
         uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
-        // If the amount desired is greater than what is available, move all fees.
+        // If the amount desired is greater than what is available,
+        // move all fees.
         feeTokens = amount > feeTokens ? feeTokens : amount;
 
         // If there are no fees collected, can just return.
@@ -365,7 +395,7 @@ contract FeeManager is ReentrancyGuard {
         rewardTokenInfo[token].forOTC = state ? 2 : 1;
     }
 
-    /// @notice Adds multiple reward tokens to the contract for Gelato Network
+    /// @notice Adds multiple reward tokens to the contract for offchain bots
     ///         to read.
     /// @dev Does not fail on duplicate token, merely skips it and continues.
     /// @param newTokens Array of token addresses to be added as reward
@@ -390,8 +420,8 @@ contract FeeManager is ReentrancyGuard {
         }
     }
 
-    /// @notice Removes a reward token from the contract data that
-    ///         Gelato Network reads.
+    /// @notice Removes a reward token from the contract data that offchain
+    ///         bots read.
     /// @dev Will revert on unsupported token address.
     /// @param rewardTokenToRemove The address of the token to be removed.
     function removeRewardToken(address rewardTokenToRemove) external {
@@ -489,7 +519,7 @@ contract FeeManager is ReentrancyGuard {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Adds `newToken` to `rewardTokens` array and
-    ///         rewardTokenInfo mapping so gelato network knows a new token
+    ///         rewardTokenInfo mapping so offchain bots knows a new token
     ///         has been added.
     function _addRewardToken(address newToken) internal {
         rewardTokens.push() = newToken;

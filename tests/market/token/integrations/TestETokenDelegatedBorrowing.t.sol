@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import "tests/market/TestBaseMarket.sol";
 
-contract TestETokenReserves is TestBaseMarket {
+contract TestETokenDelegatedBorrowing is TestBaseMarket {
     address public owner;
     address public dao;
 
@@ -93,7 +93,6 @@ contract TestETokenReserves is TestBaseMarket {
                 1200,
                 200,
                 400,
-                10,
                 1000
             );
             address[] memory tokens = new address[](1);
@@ -113,7 +112,7 @@ contract TestETokenReserves is TestBaseMarket {
         );
     }
 
-    function testDaoInterestFromEToken() public {
+    function testDelegatedBorrowing() public {
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, 1000 ether);
         _prepareBALRETH(liquidityProvider, 10 ether);
@@ -131,9 +130,16 @@ contract TestETokenReserves is TestBaseMarket {
         pBALRETH.deposit(1 ether, user1);
         marketManager.postCollateral(user1, address(pBALRETH), 1 ether - 1);
 
-        // try borrow()
-        eDAI.borrow(500 ether);
+        // delegate borrow
+        eDAI.setDelegateApproval(user2, true);
         vm.stopPrank();
+
+        // try borrow()
+        vm.prank(user2);
+        eDAI.borrowFor(user1, user2, 500 ether);
+
+        assertEq(dai.balanceOf(user1), 0);
+        assertEq(dai.balanceOf(user2), 500 ether);
 
         {
             // check accrue interest after 1 day
@@ -223,82 +229,6 @@ contract TestETokenReserves is TestBaseMarket {
                 gaugeManager.balanceOf(address(eDAI), dao),
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
-        }
-    }
-
-    function testDaoDepositReserves() public {
-        testDaoInterestFromEToken();
-
-        uint256 exchangeRate = eDAI.exchangeRateCached();
-        uint256 totalReservesBefore = eDAI.totalReserves();
-        uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
-            address(eDAI),
-            dao
-        );
-
-        uint256 depositAmount = 100 ether;
-        _prepareDAI(dao, depositAmount);
-        vm.startPrank(dao);
-        dai.approve(address(eDAI), depositAmount);
-        eDAI.depositReserves(depositAmount);
-        vm.stopPrank();
-
-        assertEq(
-            eDAI.totalReserves(),
-            totalReservesBefore + (depositAmount * 1e18) / exchangeRate
-        );
-        assertEq(
-            gaugeManager.balanceOf(address(eDAI), dao),
-            gaugeBalanceBefore + (depositAmount * 1e18) / exchangeRate
-        );
-    }
-
-    function testDaoWithdrawReserves() public {
-        testDaoDepositReserves();
-
-        {
-            // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
-            uint256 totalReservesBefore = eDAI.totalReserves();
-            uint256 daiBalanceBefore = dai.balanceOf(dao);
-            uint256 gaugeBalanceBefore = gaugeManager.balanceOf(
-                address(eDAI),
-                dao
-            );
-
-            uint256 withdrawAmount = ((totalReservesBefore / 2) *
-                exchangeRate) / 1e18;
-            vm.prank(dao);
-            eDAI.withdrawReserves(withdrawAmount);
-
-            assertEq(
-                eDAI.totalReserves(),
-                totalReservesBefore - ((withdrawAmount * 1e18) / exchangeRate)
-            );
-            assertEq(
-                gaugeManager.balanceOf(address(eDAI), dao),
-                gaugeBalanceBefore - ((withdrawAmount * 1e18) / exchangeRate)
-            );
-            assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
-        }
-
-        {
-            // withdraw half
-            uint256 exchangeRate = eDAI.exchangeRateCached();
-            uint256 totalReservesBefore = eDAI.totalReserves();
-            uint256 daiBalanceBefore = dai.balanceOf(dao);
-
-            uint256 withdrawAmount = ((totalReservesBefore) * exchangeRate) /
-                1e18;
-            if ((withdrawAmount * 1e18) / exchangeRate < totalReservesBefore) {
-                withdrawAmount += 1;
-            }
-            vm.prank(dao);
-            eDAI.withdrawReserves(withdrawAmount);
-
-            assertEq(eDAI.totalReserves(), 0);
-            assertEq(gaugeManager.balanceOf(address(eDAI), dao), 0);
-            assertEq(dai.balanceOf(dao), daiBalanceBefore + withdrawAmount);
         }
     }
 }

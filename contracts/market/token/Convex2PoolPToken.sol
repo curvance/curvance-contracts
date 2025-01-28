@@ -148,7 +148,7 @@ contract Convex2PoolPToken is CompoundingPToken {
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
-    /// @dev Only callable by Gelato Network bot.
+    /// @dev Only callable by Offchain bots.
     ///      Emits a {Harvest} event.
     /// @param data Byte array for aggregator swap data.
     /// @return yield The amount of new assets acquired from compounding

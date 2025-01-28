@@ -139,7 +139,6 @@ contract TestUniversalBalanceNative is TestBaseMarket {
                 3000,
                 200, // 2% liq incentive
                 400,
-                0,
                 1000
             );
 
@@ -171,7 +170,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
 
     function testInitialize() public {
         assertEq(
-            address(universalBalanceNative.linkedEToken()),
+            address(universalBalanceNative.linkedToken()),
             address(eWETH)
         );
         assertEq(universalBalanceNative.underlying(), _WETH_ADDRESS);
