@@ -297,21 +297,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             }
         }
 
-        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+        (amountWithdrawn, lendingBalanceUsed) = _transfer(
             amount,
             fromLent,
+            !fromLent,
+            msg.sender,
             msg.sender
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            msg.sender,
-            amountWithdrawn,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountWithdrawn, !fromLent, msg.sender);
     }
 
     /// @notice Transfers `amount` from caller's Universal Balance, currently
@@ -330,21 +322,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        (amountTransferred, lendingBalanceUsed) = _withdraw(
+        (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
+            willLend,
+            recipient,
             msg.sender
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            msg.sender,
-            amountTransferred,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountTransferred, willLend, recipient);
     }
 
     /// @notice Withdraws underlying token from `owner`'s Universal Balance
@@ -370,21 +354,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
         _checkDelegation(owner);
 
-        (amountTransferred, lendingBalanceUsed) = _withdraw(
+        (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
+            willLend,
+            recipient,
             owner
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            owner,
-            amountTransferred,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountTransferred, willLend, recipient);
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -634,6 +610,43 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         return withdrawSum;
+    }
+
+    /// @notice Transfers `amount` from owner's universal balance, currently
+    ///         held or lent out to `recipient`.
+    /// @dev Requires that `owner` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Withdraw } and { Deposit } events.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param forceLentRedemption Whether the withdrawn underlying tokens
+    ///                            should be pulled only from `owner`'s lent
+    ///                            position or the full account.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
+    function _transfer(
+        uint256 amount,
+        bool forceLentRedemption,
+        bool willLend,
+        address recipient,
+        address owner
+    ) internal returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        (amountTransferred, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            owner
+        );
+
+        emit Withdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            amountTransferred,
+            lendingBalanceUsed
+        );
+
+        _deposit(amountTransferred, willLend, recipient);
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.

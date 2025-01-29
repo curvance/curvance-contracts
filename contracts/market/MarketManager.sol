@@ -411,13 +411,8 @@ contract MarketManager is
             _checkIsToken(pToken);
         }
 
-        if (!tokenData[pToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
-
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsListedToken(pToken);
+        _checkIsPToken(pToken);
 
         AccountPosition storage accountPositions = tokenData[pToken]
             .accountPositions[account];
@@ -452,9 +447,7 @@ contract MarketManager is
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsPToken(pToken);
 
         if (accountPositions.collateralPosted < tokens) {
             revert MarketManager__InsufficientCollateral();
@@ -483,9 +476,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
     }
 
     /// @notice Checks if the account should be allowed to redeem `amount`
@@ -589,9 +580,8 @@ contract MarketManager is
     /// @param account The address of the account that has just borrowed.
     function notifyBorrow(address mToken, address account) external {
         _checkIsToken(mToken);
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
+
         accountAssets[account].cooldownTimestamp = block.timestamp;
     }
 
@@ -600,9 +590,7 @@ contract MarketManager is
     /// @param mToken The market token to verify the repayment of.
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external view {
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
 
         // We require a `minimumHoldPeriod` to break flashloan
         // and multi-block price manipulations if the dynamic dual oracle
@@ -663,10 +651,13 @@ contract MarketManager is
     ) external returns (uint256, uint256) {
         _checkIsToken(eToken);
 
-        (
-            uint256 eTokenRepaid,
-            uint256 pTokenLiquidated
-        ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+        (uint256 eTokenRepaid, uint256 pTokenLiquidated) = _canLiquidate(
+            eToken,
+            pToken,
+            account,
+            amount,
+            liquidateExact
+        );
 
         // Validate that the OEV queue is disabled or the liquidator is valid.
         _validateLiquidation(liquidator, account, true);
@@ -706,13 +697,8 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[positionToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
-
-        if (!tokenData[earnToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(positionToken);
+        _checkIsListedToken(earnToken);
 
         if (
             IMToken(positionToken).marketManager() !=
@@ -942,9 +928,7 @@ contract MarketManager is
     function listToken(address mToken) external {
         _checkElevatedPermissions();
 
-        if (tokenData[mToken].isListed) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
 
         // Sanity check to make sure its really a mToken.
         IMToken(mToken).isPToken();
@@ -1003,15 +987,8 @@ contract MarketManager is
     ) external {
         _checkElevatedPermissions();
 
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Verify pToken is listed.
-        MarketToken storage marketToken = tokenData[pToken];
-        if (!marketToken.isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(pToken);
+        _checkIsPToken(pToken);
 
         // Convert the parameters from basis points to `WAD` format.
         // While inefficient, we want to minimize potential human error
@@ -1079,6 +1056,8 @@ contract MarketManager is
         if (collRatio > (WAD_SQUARED / (WAD + collReqSoft))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        MarketToken storage marketToken = tokenData[pToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
@@ -1161,9 +1140,7 @@ contract MarketManager is
 
         for (uint256 i; i < numTokens; ++i) {
             // Make sure the pToken is a pToken.
-            if (!IMToken(pTokens[i]).isPToken()) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
+            _checkIsPToken(pTokens[i]);
 
             // Do not let people collateralize assets
             // with collateralization ratio of 0.
@@ -1184,9 +1161,7 @@ contract MarketManager is
     function setMintPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
 
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
 
         mintPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Mint Paused", state);
@@ -1200,9 +1175,7 @@ contract MarketManager is
     function setBorrowPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
 
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
 
         borrowPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Borrow Paused", state);
@@ -1421,9 +1394,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        if (!tokenData[eToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(eToken);
 
         // Check if the user already has an active borrow in the eToken.
         if (tokenData[eToken].accountPositions[account].activePosition != 2) {
@@ -1483,9 +1454,7 @@ contract MarketManager is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(mToken);
 
         // We require a `minimumHoldPeriod` to break flashloan
         // and multi-block price manipulations if the dynamic dual oracle
@@ -1587,9 +1556,7 @@ contract MarketManager is
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            if (!tokenData[pToken].isListed) {
-                _revert(_TOKEN_NOT_LISTED_SELECTOR);
-            }
+            _checkIsListedToken(pToken);
 
             // We require a `minimumHoldPeriod` to break flashloan
             // and multi-block price manipulations if the dynamic dual oracle
@@ -1630,16 +1597,11 @@ contract MarketManager is
         address account,
         uint256 debtAmount,
         bool liquidateExact
-    ) internal view returns (uint256, uint256) {
-        if (!tokenData[earnToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+    ) internal view returns (uint256, uint256, uint256) {
+        _checkIsListedToken(earnToken);
+        _checkIsListedToken(positionToken);
 
         MarketToken storage pToken = tokenData[positionToken];
-
-        if (!pToken.isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
 
         // Do not let people liquidate 0 collateralization ratio assets.
         if (pToken.collRatio == 0) {
@@ -1831,6 +1793,22 @@ contract MarketManager is
         }
 
         return (reductionAmount, accountPositions);
+    }
+
+    /// @notice Check whether token is listed.
+    /// @param token The token to check whether it's listed or not.
+    function _checkIsListedToken(address token) internal view {
+        if (!tokenData[token].isListed) {
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
+        }
+    }
+
+    /// @notice Check whether token is pToken.
+    /// @param token The token to check whether it's pToken or not.
+    function _checkIsPToken(address token) internal view {
+        if (!IMToken(token).isPToken()) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
