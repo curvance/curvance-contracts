@@ -1597,7 +1597,7 @@ contract MarketManager is
         address account,
         uint256 debtAmount,
         bool liquidateExact
-    ) internal view returns (uint256, uint256, uint256) {
+    ) internal view returns (uint256, uint256) {
         _checkIsListedToken(earnToken);
         _checkIsListedToken(positionToken);
 

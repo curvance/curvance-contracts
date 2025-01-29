@@ -271,6 +271,8 @@ contract FeeManager is ReentrancyGuard {
     function pullFeesAsDAO(uint256 amount) external returns (uint256) {
         _checkDaoPermissions();
 
+        address feeToken = _getFeeToken();
+
         uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
         // If the amount desired is greater than what is available,
