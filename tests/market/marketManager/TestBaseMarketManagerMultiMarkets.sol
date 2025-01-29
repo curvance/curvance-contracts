@@ -103,7 +103,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             3000,
             200,
             400,
-            10,
             1000
         );
         address[] memory tokens = new address[](1);
@@ -163,29 +162,19 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         MockSimplePToken _pToken,
         uint256 _amount,
         bool _exact
-    )
-        internal
-        view
-        returns (
-            uint256 liqAmount,
-            uint256 liquidatedTokens,
-            uint256 protocolTokens
-        )
-    {
-        (liqAmount, liquidatedTokens, protocolTokens) = marketManager
-            .canLiquidate(
-                address(_eToken),
-                address(_pToken),
-                _user,
-                _amount,
-                _exact
-            );
+    ) internal view returns (uint256 liqAmount, uint256 liquidatedTokens) {
+        (liqAmount, liquidatedTokens) = marketManager.canLiquidate(
+            address(_eToken),
+            address(_pToken),
+            _user,
+            _amount,
+            _exact
+        );
 
         console2.log(
-            "liqAmount %s liquidatedTokens %s protocolTokens %s",
+            "liqAmount %s liquidatedTokens %s",
             liqAmount,
-            liquidatedTokens,
-            protocolTokens
+            liquidatedTokens
         );
     }
 
@@ -229,18 +218,9 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         EToken _eToken,
         MockSimplePToken _pToken,
         bool _exact
-    ) internal view returns (uint256, uint256, uint256) {
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 baseCFactor,
-            uint256 cFactorCurve
-        ) = marketManager.tokenData(address(_pToken));
+    ) internal view returns (uint256, uint256) {
+        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
+            .tokenData(address(_pToken));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
         uint256 debtAmount = (cFactor * _eToken.debtBalanceCached(_user)) /
@@ -274,11 +254,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
     )
         internal
         view
-        returns (
-            uint256 expectedLiqAmount,
-            uint256 collateralAvailable,
-            uint256 expectedProtocolTokens
-        )
+        returns (uint256 expectedLiqAmount, uint256 collateralAvailable)
     {
         collateralAvailable = _collateralAvailable - 1;
         (
@@ -288,7 +264,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             ,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
-            ,
             ,
 
         ) = marketManager.tokenData(address(_pToken));
@@ -309,7 +284,6 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             (10 ** _eToken.decimals());
         uint256 expectedLiquidatedTokens = (amountAdjusted *
             debtToCollateralRatio) / WAD;
-        uint256 liqFee = (WAD * (10 * 1e14)) / liqBaseIncentive;
         expectedLiqAmount = debtAmount;
 
         if (expectedLiquidatedTokens > collateralAvailable) {
@@ -326,13 +300,10 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
             }
         }
 
-        expectedProtocolTokens = (collateralAvailable * liqFee) / WAD;
-
         console2.log(
-            "expectedLiqAmount %s collateralAvailable %s expectedProtocolTokens %s",
+            "expectedLiqAmount %s collateralAvailable %s",
             expectedLiqAmount,
-            collateralAvailable,
-            expectedProtocolTokens
+            collateralAvailable
         );
     }
 
@@ -432,7 +403,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         _eToken.accrueInterest();
 
         console2.log("\n expected liquidation");
-        (uint256 expectedLiqAmount, , ) = _expectedLiquidation(
+        (uint256 expectedLiqAmount, ) = _expectedLiquidation(
             _pToken.balanceOf(_user),
             _user,
             _eToken,

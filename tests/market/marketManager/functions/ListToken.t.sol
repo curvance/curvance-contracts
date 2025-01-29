@@ -29,7 +29,7 @@ contract ListTokenTest is TestBaseMarketManager {
     }
 
     function test_listToken_success() public {
-        (bool isListed, uint256 collRatio, , , , , , , ) = marketManager
+        (bool isListed, uint256 collRatio, , , , , , ) = marketManager
             .tokenData(address(eUSDC));
         assertFalse(isListed);
         assertEq(collRatio, 0);
@@ -39,7 +39,7 @@ contract ListTokenTest is TestBaseMarketManager {
 
         marketManager.listToken(address(eUSDC));
 
-        (isListed, collRatio, , , , , , , ) = marketManager.tokenData(
+        (isListed, collRatio, , , , , , ) = marketManager.tokenData(
             address(eUSDC)
         );
         assertTrue(isListed);

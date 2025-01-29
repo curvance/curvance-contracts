@@ -131,7 +131,6 @@ contract TestUniversalBalance is TestBaseMarket {
                 3000,
                 200, // 2% liq incentive
                 400,
-                0,
                 1000
             );
 
@@ -162,7 +161,7 @@ contract TestUniversalBalance is TestBaseMarket {
     }
 
     function testInitialize() public {
-        assertEq(address(universalBalance.linkedEToken()), address(eUSDC));
+        assertEq(address(universalBalance.linkedToken()), address(eUSDC));
         assertEq(universalBalance.underlying(), _USDC_ADDRESS);
     }
 

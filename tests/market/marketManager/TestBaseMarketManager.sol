@@ -101,7 +101,6 @@ contract TestBaseMarketManager is TestBaseMarket {
             3000,
             200, // 2% liq incentive
             400,
-            0,
             1000
         );
 

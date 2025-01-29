@@ -24,7 +24,6 @@ import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
-import { ComplexZapperDeployer } from "./deployers/ComplexZapperDeployer.s.sol";
 import { OogaBoogaDeployer } from "./deployers/OogaBoogaDeployer.s.sol";
 import { PositionManagementSimpleDeployer } from "./deployers/PositionManagementSimpleDeployer.s.sol";
 
@@ -32,7 +31,6 @@ contract StartContractsConfig is
     Script,
     DeployConfiguration,
     SimpleZapperDeployer,
-    ComplexZapperDeployer,
     OogaBoogaDeployer,
     PositionManagementSimpleDeployer
 {
@@ -362,11 +360,6 @@ contract StartContractsConfig is
             marketName,
             _readConfigAddress(".zapper.weth")
         );
-        _deployComplexZapper(
-            address(cr),
-            _readConfigAddress(".zapper.weth"),
-            marketName
-        );
         _deploySimpleZapper(
             address(cr),
             _readConfigAddress(".zapper.weth"),
@@ -499,7 +492,6 @@ contract StartContractsConfig is
             3000,
             200,
             400,
-            0,
             1000
         );
         address[] memory mTokens = new address[](1);

@@ -36,7 +36,7 @@ contract SetProtocolInterestRateFeeTest is TestBaseMarket {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setProtocolInterestRateFee(newMarket, 5001);
+        centralRegistry.setProtocolInterestRateFee(newMarket, 7501);
     }
 
     function test_setProtocolInterestRateFee_fail_whenNotLendingMarket()

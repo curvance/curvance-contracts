@@ -17,8 +17,6 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
-import { ComplexZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/ComplexZapperCalldataChecker.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { PendleZapperCalldataChecker } from "contracts/calldata-checker/swap-checker/PendleZapperCalldataChecker.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
@@ -63,7 +61,6 @@ contract TestBaseMarket is TestBase {
         _deployPBALRETH();
         _deployPBALRETHWithExitFee();
 
-        _deployComplexZapper();
         _deployPendleZapper();
         _deployVelodromeZapper();
 
@@ -474,22 +471,6 @@ contract TestBaseMarket is TestBase {
         return pBALRETHWithExitFee;
     }
 
-    function _deployComplexZapper()
-        internal
-        initMainVariables
-        returns (ComplexZapper)
-    {
-        complexZapper = complexZappers[block.chainid] = new ComplexZapper(
-            ICentralRegistry(address(centralRegistry)),
-            _WETH_ADDRESS
-        );
-        centralRegistry.setExternalCalldataChecker(
-            address(complexZapper),
-            address(new ComplexZapperCalldataChecker(address(complexZapper)))
-        );
-        return complexZapper;
-    }
-
     function _deployPendleZapper()
         internal
         initMainVariables
@@ -603,7 +584,6 @@ contract TestBaseMarket is TestBase {
             3000,
             200, // 2% liq incentive
             400,
-            0,
             1000
         );
         address[] memory tokens = new address[](1);

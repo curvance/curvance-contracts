@@ -12,7 +12,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
         uint256 CollReqHard,
         uint256 liqIncA,
         uint256 liqIncB,
-        uint256 liqFee,
         uint256 baseCFactor
     );
 
@@ -27,7 +26,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             300,
             250,
             250,
-            0,
             1000
         );
     }
@@ -43,7 +41,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             300,
             250,
             250,
-            0,
             1000
         );
     }
@@ -63,25 +60,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             300,
             3100, // liqIncA
             250,
-            0,
-            1000
-        );
-    }
-
-    function test_updatePositionToken_fail_whenLiqFeeExceedsMax() public {
-        // when liqFee > _MAX_LIQUIDATION_FEE
-        marketManager.listToken(address(pBALRETH));
-        vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
-        );
-        marketManager.updatePositionToken(
-            address(pBALRETH),
-            9000,
-            200,
-            300,
-            250,
-            250,
-            600, // liqFee
             1000
         );
     }
@@ -99,7 +77,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             300,
             250,
             250,
-            0,
             1000
         );
     }
@@ -119,7 +96,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             4100,
             250,
             250,
-            0,
             1000
         );
     }
@@ -137,7 +113,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             300,
             250,
             250,
-            0,
             1000
         );
     }
@@ -157,7 +132,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             3000,
             250,
             250,
-            0,
             1000
         );
     }
@@ -177,7 +151,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             2900,
             3000,
             250,
-            0,
             1000
         );
     }
@@ -193,9 +166,8 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             9100,
             200,
             300,
-            550, // liqIncA
+            10, // liqIncA
             500, // liqIncB
-            500, // liqFee
             1000
         );
     }
@@ -209,7 +181,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             200,
             200,
             150,
-            0,
             1000
         );
     }
@@ -227,7 +198,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             3000,
             200,
             400,
-            10,
             1000
         );
     }
@@ -244,7 +214,6 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             0.3e18,
             0.02e18,
             0.04e18,
-            0.001e18,
             0.1e18
         );
 
@@ -255,11 +224,10 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
             3000,
             200,
             400,
-            10,
             1000
         );
 
-        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
             address(pBALRETH)
         );
         assertEq(collRatio, 0.7e18);

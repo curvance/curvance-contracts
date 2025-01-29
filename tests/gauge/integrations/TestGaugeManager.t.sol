@@ -1103,7 +1103,6 @@ contract TestGaugeManager is TestBaseMarket {
             3000,
             200,
             400,
-            10,
             1000
         );
 

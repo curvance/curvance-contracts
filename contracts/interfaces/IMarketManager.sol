@@ -97,7 +97,6 @@ interface IMarketManager {
     ///                       liquidation amount.
     /// @return The amount of `earnToken` underlying to be repaid on liquidation.
     /// @return The number of `pToken` tokens to be seized in a liquidation.
-    /// @return The number of `pToken` tokens to be seized for the protocol.
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
@@ -105,7 +104,7 @@ interface IMarketManager {
         address account,
         uint256 amount,
         bool liquidateExact
-    ) external returns (uint256, uint256, uint256);
+    ) external returns (uint256, uint256);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
     /// @param pToken Asset which was used as collateral and will be seized.

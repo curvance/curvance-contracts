@@ -131,7 +131,7 @@ contract VelodromeStablePToken is CompoundingPToken {
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
-    /// @dev Only callable by Gelato Network bot. Passes a block.timestamp
+    /// @dev Only callable by Offchain bots. Passes a block.timestamp
     ///      deadline meaning execution will always get passed, this is due to
     ///      offchain infra calculating calldata right before execution,
     ///      making deadlines irrelevant.
