@@ -183,16 +183,22 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
-
+    /// @notice Messaging ChainId => GETH ChainId.
     mapping(uint16 => uint256) public messagingToGETHChainId;
+    /// @notice GETH ChainId => Messaging ChainId.
     mapping(uint256 => uint16) public GETHToMessagingChainId;
 
     // DAO CONTRACT MAPPINGS
-
+    
+    /// @notice Specifies if an address is a harvester or not.
     mapping(address => bool) public isHarvester;
+    /// @notice Specifies if an address is the market manager or not.
     mapping(address => bool) public isMarketManager;
+    /// @notice Target contract such as 1inch => calldata checker.
     mapping(address => address) public externalCalldataChecker;
+    /// @notice Specifies if an address is a multiCallProvider contract.
     mapping(address => bool) public isMulticallProvider;
+    /// @notice Target contract for external calldata => Multi call checker
     mapping(address => address) public multicallChecker;
 
     /// EVENTS ///
