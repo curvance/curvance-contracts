@@ -928,7 +928,9 @@ contract MarketManager is
     function listToken(address mToken) external {
         _checkElevatedPermissions();
 
-        _checkIsListedToken(mToken);
+        if (tokenData[mToken].isListed) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
         // Sanity check to make sure its really a mToken.
         IMToken(mToken).isPToken();
