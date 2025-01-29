@@ -23,8 +23,6 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 ///         inside the Curvance ecosystem.
 contract CurvanceAuxiliaryData {
     /// TYPES ///
-
-    
     struct AccountMarketPosition {
         uint256 debt;
         uint256 collateral;
