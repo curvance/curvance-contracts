@@ -20,6 +20,12 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
+    /// @notice Stores user-specific balance information within the 
+    /// @notice             Universal Balance system.
+    /// @param sittingBalance The amount of tokens currently held in 
+    ///                     the user's Universal Balance but 
+    ///                     not lent out.
+    /// @param lentBalance The amount of tokens the user has lent out.
     struct UserBalance {
         uint256 sittingBalance;
         uint256 lentBalance;
