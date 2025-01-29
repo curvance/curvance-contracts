@@ -16,6 +16,17 @@ contract TestVeCVE is TestBaseVeCVE {
     function setUp() public override {
         super.setUp();
 
+        centralRegistry.addChainSupport(
+            address(messagingHub),
+            address(votingHub),
+            address(cve),
+            _USDC_ADDRESS,
+            42161,
+            23,
+            makeAddr("Wormhole Relayer"),
+            3
+        );
+
         _prepareUSDC(address(rewardManager), 1000e6);
         _prepareCVE(address(this), 100e18);
         cve.approve(address(veCVE), 100e18);
@@ -264,5 +275,63 @@ contract TestVeCVE is TestBaseVeCVE {
         vm.prank(user00);
         rewardManager.claimRewards(rewardsData, "", 0); // Trigger claim to offset points to what should be 0
         assertEq(veCVE.userPoints(user00), 1e18);
+    }
+
+    function test_bridgeLock_duringBlackoutWindow_fail_fuzzed(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        veCVE.createLock(30e18, false, rewardsData, "", 0);
+        veCVE.createLock(30e18, true, rewardsData, "", 0);
+
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
+
+        VeCVE.BridgeData memory bridgeData = VeCVE.BridgeData(42161, 0, true);
+
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
+
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+
+        vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
+        veCVE.bridgeLock{ value: messageFee }(
+            0,
+            bridgeData,
+            rewardsData,
+            "",
+            0
+        );
+
+        skip(veCVE.epochDuration() - 1);
+
+        vm.expectRevert(VeCVE.VeCVE__PreEpochRestriction.selector);
+        veCVE.bridgeLock{ value: messageFee }(
+            0,
+            bridgeData,
+            rewardsData,
+            "",
+            0
+        );
+
+        skip(veCVE.RESTRICTION_DURATION() + 2);
+
+        vm.prank(address(messagingHub));
+        rewardManager.recordEpochRewards(1e6 * _ONE);
+
+        uint256 veCVEBalance = veCVE.balanceOf(address(this));
+        uint256 cveBalance = cve.balanceOf(address(this));
+        uint256 cveTotalSupply = cve.totalSupply();
+
+        veCVE.bridgeLock{ value: messageFee }(
+            0,
+            bridgeData,
+            rewardsData,
+            "",
+            0
+        );
+
+        assertEq(veCVE.balanceOf(address(this)), 30e18);
+        assertEq(cve.balanceOf(address(this)), cveBalance);
+        assertEq(cve.totalSupply(), cveTotalSupply - veCVEBalance + 30e18);
     }
 }
