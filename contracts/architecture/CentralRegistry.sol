@@ -59,7 +59,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
-    /// @notice Address of fee token.
+    /// @notice Address of fee token which Curvance Protocol compounds
+    ///         strategy fees into for distribution.
     address public immutable feeToken;
 
     /// @dev bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
@@ -92,17 +93,24 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     // DAO CONTRACTS DATA
 
-    /// @notice Reward Manager contract address.
+    /// @notice Reward Manager contract address, distributes rewards in
+    ///         `feeToken` to token lockers every epoch.
     address public rewardManager;
-    /// @notice Gauge Manager contract address.
+    /// @notice Gauge Manager contract address, distributes native token
+    ///         rewards to depositors and lenders inside the Curvance
+    ///         Protocol based on decentralized governance outcomes.
     address public gaugeManager;
-    /// @notice Voting Hub contract address.
+    /// @notice Voting Hub contract address, receives decentralized governance
+    ///         vote outcomes to update onchain across all blockchains.
     address public votingHub;
-    /// @notice Messaging Hub contract address.
+    /// @notice Messaging Hub contract address, processes crosschain messages
+    ///         across all supported blockchains.
     address public messagingHub;
-    /// @notice Oracle Manager contract address.
+    /// @notice Oracle Manager contract address, manages oracle prices
+    ///         for supported assets.
     address public oracleManager;
-    /// @notice Fee Manager contract address.
+    /// @notice Fee Manager contract address, manages fees for decentralized
+    ///         strategies for distribution.
     address public feeManager;
 
     // CROSS-CHAIN MESSAGING DATA
