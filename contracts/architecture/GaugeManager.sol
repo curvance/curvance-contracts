@@ -635,7 +635,7 @@ contract GaugeManager is
             // Cache Gauge System start time.
             uint256 _gaugeStartTime = gaugeStartTime();
             // If rewards have not started yet, there is nothing to update.
-            if (block.timestamp <= _gaugeStartTime) {
+            if (block.timestamp < _gaugeStartTime) {
                 return;
             }
         }
