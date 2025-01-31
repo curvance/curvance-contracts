@@ -104,7 +104,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
     function testCanDepositWithdrawAfterGaugeStartTime() public {
         // start epoch
 
-        vm.warp(gaugeManager.startTime() + 10 seconds);
+        vm.warp(gaugeManager.gaugeStartTime() + 10 seconds);
         vm.roll(block.number + 1000);
 
         // user0 deposit 100 token0
@@ -131,7 +131,7 @@ contract TestGaugeEdgeCase is TestBaseMarket {
         vm.prank(address(messagingHub));
         gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);

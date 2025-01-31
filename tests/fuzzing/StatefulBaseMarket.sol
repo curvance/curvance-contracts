@@ -507,7 +507,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function setUpFeeds() public {
         require(centralRegistry.hasElevatedPermissions(address(this)));
-        require(gaugeManager.startTime() < block.timestamp);
+        require(gaugeManager.gaugeStartTime() < block.timestamp);
         // use mock pricing for testing
         // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
         mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));

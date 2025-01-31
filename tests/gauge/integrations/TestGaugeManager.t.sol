@@ -83,7 +83,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testRevertSetEmissionRatesUnauthorized() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         // set gauge settings of next epoch
@@ -99,7 +99,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testRevertSetEmissionRatesInvalidEpoch() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         // set gauge settings of next epoch
@@ -116,7 +116,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testRevertSetEmissionRatesInvalidLength() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         // set gauge settings of next epoch
@@ -133,7 +133,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testRevertSetEmissionRatesInvalidToken() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         // set gauge settings of next epoch
@@ -151,7 +151,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testIsGaugeEnabled() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -172,7 +172,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testManageEmissionRatesOfEachEpoch() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         assertEq(gaugeManager.currentEpoch(), 0);
@@ -203,7 +203,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testSecondEmissionRatesSetOfEachEpoch() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         assertEq(gaugeManager.currentEpoch(), 0);
@@ -247,7 +247,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testCanOnlyUpdateEmissionRatesOfNextEpoch() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         assertEq(gaugeManager.currentEpoch(), 0);
@@ -295,7 +295,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testRevertClaim() public {
-        vm.warp(gaugeManager.startTime() - 1);
+        vm.warp(gaugeManager.gaugeStartTime() - 1);
 
         vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
         vm.prank(users[0]);
@@ -303,7 +303,7 @@ contract TestGaugeManager is TestBaseMarket {
     }
 
     function testEmptyClaim() public {
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
 
         vm.prank(users[0]);
         gaugeManager.claim(new address[](0), users[0]);
@@ -318,7 +318,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[2]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -422,7 +422,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[1]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         vm.startPrank(address(messagingHub));
@@ -492,7 +492,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[2]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -527,7 +527,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[2]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -567,7 +567,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[2]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -688,7 +688,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[0]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -806,7 +806,7 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[0]);
         IEToken(tokens[1]).mint(100 ether);
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
 
         vm.roll(block.number + 1000);
@@ -892,7 +892,7 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.withdraw(mToken, address(this), 100 ether);
 
         // fast forward to after start time
-        vm.warp(gaugeManager.startTime() + 2 weeks);
+        vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
 
         // make a deposit after start time
         gaugeManager.deposit(mToken, address(this), 100 ether);
@@ -941,7 +941,7 @@ contract TestGaugeManager is TestBaseMarket {
         gaugeManager.withdraw(address(pBALRETH), address(this), 1 ether);
 
         // fast forward to after start time
-        vm.warp(gaugeManager.startTime() + 2 weeks);
+        vm.warp(gaugeManager.gaugeStartTime() + 2 weeks);
 
         // make a deposit after start time
         gaugeManager.deposit(address(pBALRETH), address(this), 1 ether);

@@ -121,7 +121,7 @@ contract FuzzMarketManager is FuzzLiquidations {
         uint256 amount,
         bool lower
     ) public {
-        require(gaugeManager.startTime() < block.timestamp);
+        require(gaugeManager.gaugeStartTime() < block.timestamp);
         require(mtoken == address(pDAI) || mtoken == address(pUSDC));
         if (!marketManager.isListed(mtoken)) {
             list_token_should_succeed(mtoken);

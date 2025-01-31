@@ -112,7 +112,7 @@ contract TestAuraPToken is TestBaseMarket {
             address(chainlinkAdaptor)
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 

@@ -90,7 +90,7 @@ contract GaugeManager is
     /// STORAGE ///
 
     /// @notice Start time that gauge controller starts, in unix time.
-    uint256 public startTime;
+    uint256 internal _startTime;
 
     /// @notice Gauge emission values for the entire Gauge Manager,
     ///         and contained tokens, by epoch.
@@ -191,12 +191,12 @@ contract GaugeManager is
         }
 
         // Cache Gauge System start time.
-        uint256 _startTime = gaugeStartTime();
+        uint256 _gaugeStartTime = gaugeStartTime();
 
         // Validate that Gauge system is fully active and only the current
         // epoch can have emissions set.
         if (
-            !(epoch == 0 && block.timestamp < _startTime) &&
+            !(epoch == 0 && block.timestamp < _gaugeStartTime) &&
             epoch != currentEpoch()
         ) {
             revert GaugeManager__InvalidEpoch();
@@ -481,8 +481,10 @@ contract GaugeManager is
         // startTime equal to `genesisEpoch` otherwise,
         // it will append on additional epochs if this is a fresh chain
         // deployment starting after the genesis epoch.
-        startTime = genesisEpoch + (((block.timestamp - genesisEpoch)
-            / epochDuration) * epochDuration);
+        _startTime =
+            genesisEpoch +
+            (((block.timestamp - genesisEpoch) / epochDuration) *
+                epochDuration);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -510,7 +512,6 @@ contract GaugeManager is
     /// @notice Returns the timestamp of when the gauge system begins.
     /// @return The calculated gauge start timestamp.
     function gaugeStartTime() public view returns (uint256) {
-        uint256 _startTime = startTime;
         if (_startTime != 0) {
             return _startTime;
         }
@@ -528,8 +529,10 @@ contract GaugeManager is
         // startTime equal to `genesisEpoch` otherwise,
         // it will append on additional epochs if this is a fresh chain
         // deployment starting after the genesis epoch.
-        return genesisEpoch + (((block.timestamp - genesisEpoch)
-            / epochDuration) * epochDuration);
+        return
+            genesisEpoch +
+            (((block.timestamp - genesisEpoch) / epochDuration) *
+                epochDuration);
     }
 
     /// @notice Returns start time of `epoch`.
@@ -630,9 +633,9 @@ contract GaugeManager is
         {
             // Scope variable to avoid stack too deep error.
             // Cache Gauge System start time.
-            uint256 _startTime = gaugeStartTime();
+            uint256 _gaugeStartTime = gaugeStartTime();
             // If rewards have not started yet, there is nothing to update.
-            if (block.timestamp <= _startTime) {
+            if (block.timestamp <= _gaugeStartTime) {
                 return;
             }
         }
