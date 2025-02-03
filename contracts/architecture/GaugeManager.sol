@@ -358,6 +358,61 @@ contract GaugeManager is
         emit Withdraw(user, token, amount);
     }
 
+    /// @notice Registers an `amount` deposit of `token` for `user` inside
+    ///         the Gauge System.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to withdraw for
+    ///              `user`.
+    /// @param user User address to withdraw `amount` of `token` for, on
+    ///             liquidation.
+    /// @param liquidator User address to deposit `amount` of `token` for, on
+    ///                   liquidation.
+    /// @param amount The amount of `token` to move from `user` and
+    ///               `liquidator` on liquidation.
+    function processLiquidation(
+        address token,
+        address user,
+        address liquidator,
+        uint256 amount
+    ) external nonReentrant {
+        if (amount == 0) {
+            revert GaugeManager__InvalidAmount();
+        }
+
+        // Make sure the token is listed inside this market,
+        // and that the token is executing the deposit call.
+        IMarketManager marketManager = IMToken(token).marketManager();
+        if (
+            msg.sender != token ||
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
+        ) {
+            revert GaugeManager__InvalidToken();
+        }
+
+        updatePool(token);
+
+        // `totalSupply` does not need to be updated since we call updatePool
+        // prior to balance shift which is the only value that uses
+        // `totalSupply` and by the end of the liquidation balance shift
+        // totalSupply ends up being the same as before, allowing us to avoid
+        // two storage loads.
+
+        _calcPending(user, token);
+        balanceOf[token][user] -= amount;
+        _calcDebt(user, token);
+
+        emit Withdraw(user, token, amount);
+
+        _calcPending(liquidator, token);
+        balanceOf[token][liquidator] += amount;
+        _calcDebt(liquidator, token);
+
+        emit Deposit(liquidator, token, amount);
+    }
+
     /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
     /// @param tokens Array containing pool token addresses to claim
     ///               rewards for.

@@ -40,4 +40,25 @@ interface IGaugeManager {
     /// @param user The user address.
     /// @param amount Amounts to withdraw.
     function withdraw(address token, address user, uint256 amount) external;
+
+    /// @notice Registers an `amount` withdrawal of `token` for `user` and
+    ///         registers an `amount` deposit of `token` for `liquidator`
+    ///         inside the Gauge System on a liquidation of `user`.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to withdraw for
+    ///              `user`.
+    /// @param user User address to withdraw `amount` of `token` for, on
+    ///             liquidation.
+    /// @param liquidator User address to deposit `amount` of `token` for, on
+    ///                   liquidation.
+    /// @param amount The amount of `token` to move from `user` and
+    ///               `liquidator` on liquidation.
+    function processLiquidation(
+        address token,
+        address user,
+        address liquidator,
+        uint256 amount
+    ) external;
 }

@@ -494,11 +494,11 @@ abstract contract BasePToken is
     ///      of liquidation.
     /// @param liquidator The account receiving seized collateral.
     /// @param account The account having collateral seized.
-    /// @param liquidatedTokens The total number of pTokens to seize.
+    /// @param shares The total number of pTokens shares to seize.
     function seize(
         address liquidator,
         address account,
-        uint256 liquidatedTokens
+        uint256 shares
     ) external nonReentrant {
         // Fails if borrower = liquidator.
         assembly {
@@ -511,14 +511,17 @@ abstract contract BasePToken is
 
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
-
-        // Cache Gauge Manager, then update values for `account`.
-        gaugeManager.withdraw(address(this), account, liquidatedTokens);
+        // Process virtual balance updates and accrued rewards from this
+        // liquidation.
+        gaugeManager.processLiquidation(
+            address(this),
+            account,
+            liquidator,
+            shares
+        );
 
         // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, liquidatedTokens);
-        // Update Gauge Manager values for `liquidator`.
-        gaugeManager.deposit(address(this), liquidator, liquidatedTokens);
+        _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
     /// @notice Transfers position tokens (this market) to the liquidator.
@@ -538,18 +541,23 @@ abstract contract BasePToken is
         // this call so we do not need to check here.
 
         // Make sure the MarketManager itself is calling since
-        // then we know all liquidity checks have passed.
+        // then we know all liquidity checks have passed. This check also
+        // means we do not need to check `canSeize`.
         if (msg.sender != address(marketManager)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Cache Gauge Manager, then update values, for `account`.
-        gaugeManager.withdraw(address(this), account, shares);
+        // Process virtual balance updates and accrued rewards from this
+        // liquidation.
+        gaugeManager.processLiquidation(
+            address(this),
+            account,
+            liquidator,
+            shares
+        );
 
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
-        // Update Gauge Manager values for `liquidator`.
-        gaugeManager.deposit(address(this), liquidator, shares);
     }
 
     /// @notice Returns the type of Curvance token.
