@@ -217,7 +217,10 @@ contract Convex2PoolPToken is CompoundingPToken {
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                    if (
+                        !isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
