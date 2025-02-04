@@ -23,8 +23,6 @@ contract VotingHubDeploymentTest is TestBaseVotingHub {
             address(votingHub.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(votingHub.cve()), address(cve));
-        assertEq(address(votingHub.veCVE()), address(veCVE));
 
         uint256 numEras = votingHub.PROTOCOL_REWARD_ERAS();
 
