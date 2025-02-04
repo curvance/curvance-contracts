@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import "./ERC4626.prop.sol";
 
 interface IMockERC20 is IERC20 {
@@ -222,7 +223,10 @@ abstract contract TestERC4626 is ERC4626Prop {
         prop_withdraw(caller, receiver, owner, assets);
     }
 
-    function testFail_withdraw(Init memory init, uint assets) public virtual {
+    function test_RevertWhen_Withdraw(
+        Init memory init,
+        uint assets
+    ) public virtual {
         setUpVault(init);
         address caller = init.user[0];
         address receiver = init.user[1];
@@ -232,8 +236,9 @@ abstract contract TestERC4626 is ERC4626Prop {
         vm.assume(assets > 0);
         _approve(_vault_, owner, caller, 0);
         vm.prank(caller);
-        uint shares = IERC4626(_vault_).withdraw(assets, receiver, owner);
-        assertGt(shares, 0); // this assert is expected to fail
+        // TODO: Function needs to be updated to handle both InsufficientAllowance OR SimplePToken__WithdrawMoreThanMax depending on fuzz state
+        vm.expectRevert();
+        IERC4626(_vault_).withdraw(assets, receiver, owner);
     }
 
     //
@@ -272,7 +277,10 @@ abstract contract TestERC4626 is ERC4626Prop {
         prop_redeem(caller, receiver, owner, shares);
     }
 
-    function testFail_redeem(Init memory init, uint shares) public virtual {
+    function test_RevertWhen_Redeem(
+        Init memory init,
+        uint shares
+    ) public virtual {
         setUpVault(init);
         address caller = init.user[0];
         address receiver = init.user[1];
@@ -282,6 +290,7 @@ abstract contract TestERC4626 is ERC4626Prop {
         vm.assume(shares > 0);
         _approve(_vault_, owner, caller, 0);
         vm.prank(caller);
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
         IERC4626(_vault_).redeem(shares, receiver, owner);
     }
 
