@@ -341,31 +341,17 @@ contract GaugeManager is
         address liquidator,
         uint256 amount
     ) external nonReentrant {
-        if (amount == 0) {
-            revert GaugeManager__InvalidAmount();
-        }
+        // This also calculates pending rewards for `user` which is why
+        // its missing from code below.
+        _validateAndUpdatePool(token, user, amount);
 
-        // Make sure the token is listed inside this market,
-        // and that the token is executing the deposit call.
-        IMarketManager marketManager = IMToken(token).marketManager();
-        if (
-            msg.sender != token ||
-            !marketManager.isListed(token) ||
-            !centralRegistry.isMarketManager(address(marketManager))
-        ) {
-            revert GaugeManager__InvalidToken();
-        }
-
-        updatePool(token);
-
+        balanceOf[token][user] -= amount;
         // `totalSupply` does not need to be updated since we call updatePool
         // prior to balance shift which is the only value that uses
         // `totalSupply` and by the end of the liquidation balance shift
         // totalSupply ends up being the same as before, allowing us to avoid
         // two storage loads.
 
-        _calcPending(user, token);
-        balanceOf[token][user] -= amount;
         _calcDebt(user, token);
 
         emit Withdraw(user, token, amount);
