@@ -79,10 +79,9 @@ contract UniversalBalanceMultiDepositForTest is TestBaseUniversalBalance {
         usdc.approve(address(universalBalance), depositSum);
 
         recipients[0] = address(1);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
 
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
         universalBalance.multiDepositFor(
             depositSum,
             amounts,

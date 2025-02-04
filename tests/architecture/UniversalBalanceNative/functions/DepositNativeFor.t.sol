@@ -23,10 +23,10 @@ contract DepositNativeForTest is TestBaseUniversalBalanceNative {
 
     function test_depositNativeFor_fail_whenRecipientIsNotApproved() public {
         deal(user1, _ONE);
-
         vm.prank(user1);
-
-        vm.expectRevert();
+        
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalanceNative.depositNativeFor{ value: _ONE }(
             true,
             address(1)

@@ -854,7 +854,8 @@ contract TestGaugeManager is TestBaseMarket {
 
         // try to claim without delegation and revert
         vm.prank(users[4]);
-        vm.expectRevert(GaugeManager.GaugeManager__Unauthorized.selector);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         gaugeManager.claim(listedTokens, users[0]);
 
         vm.prank(users[0]);
