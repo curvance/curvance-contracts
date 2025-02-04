@@ -647,15 +647,16 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sets the maximum slippage users can input with swap
     ///         instructions.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    ///      must have a minimum value of 4%.
     ///      Emits a {SlippageLimit} event.
     /// @param value The new slippage limit users can input on swap
     ///              instructions, in `basis points`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
-        // Slippage limit cannot be less than 5%.
-        if (value < 500) {
+        // Slippage limit cannot be less than 4%.
+        if (value < 400) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
