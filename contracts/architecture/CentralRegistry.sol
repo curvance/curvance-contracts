@@ -59,9 +59,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
-    /// @notice Address of fee token which Curvance Protocol compounds
-    ///         strategy fees into for distribution.
-    address public immutable feeToken;
 
     /// @dev bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
     uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
@@ -74,6 +71,12 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Genesis Epoch timestamp.
     uint256 public genesisEpoch;
+
+    // FEE TOKEN
+
+    /// @notice Address of fee token which Curvance Protocol compounds
+    ///         strategy fees into for distribution.
+    address public feeToken;
 
     // DAO GOVERNANCE OPERATORS
 
@@ -207,6 +210,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     event GenesisEpochSet(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
+    event FeeTokenSet(address newAddress);
     event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
@@ -349,6 +353,23 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
             eToken.processWithdrawReserves();
         }
+    }
+
+    /// @notice Sets fee token address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Only settable once. Emits a {FeeTokenSet} event.
+    /// @param newFeeToken The new address of fee token.
+    function setFeeToken(address newFeeToken) external {
+        // If the contract is already set and needs to be updated, make sure
+        // reward system as not already started, ossifying contracts.
+        if (feeToken != address(0)) {
+            _checkGenesisEpochHasNotStarted();
+        }
+
+        _checkElevatedPermissions();
+
+        feeToken = newFeeToken;
+        emit FeeTokenSet(newFeeToken);
     }
 
     /// @notice Sets a new genesis epoch.

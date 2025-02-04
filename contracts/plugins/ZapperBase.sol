@@ -9,7 +9,6 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
@@ -48,10 +47,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     receive() external payable {}
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) {
+    constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -125,7 +121,12 @@ abstract contract ZapperBase is ReentrancyGuard {
                     // User wants to enter and collateralize a position for
                     // someone else, so we need to validate they have plugin
                     // authority.
-                    if (IPluginDelegable(mToken).isDelegate(recipient, msg.sender)) {
+                    if (
+                        IPluginDelegable(mToken).isDelegate(
+                            recipient,
+                            msg.sender
+                        )
+                    ) {
                         shares = IPToken(mToken).depositAsCollateralFor(
                             assets,
                             recipient
@@ -192,7 +193,11 @@ abstract contract ZapperBase is ReentrancyGuard {
                 msg.sender
             );
         } else {
-            assets = IEToken(mToken).redeemFor(shares, address(this), msg.sender);
+            assets = IEToken(mToken).redeemFor(
+                shares,
+                address(this),
+                msg.sender
+            );
         }
 
         // Validate output of redemption is sufficient.
@@ -278,7 +283,7 @@ abstract contract ZapperBase is ReentrancyGuard {
             }
             return;
         }
-        
+
         SafeTransferLib.safeTransferFrom(
             inputToken,
             msg.sender,
