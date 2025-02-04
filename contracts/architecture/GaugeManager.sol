@@ -595,8 +595,6 @@ contract GaugeManager is
             lastRewardTimestamp = gaugeStartTime();
         }
 
-        uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
-
         if (block.timestamp > lastRewardTimestamp && totalDeposited != 0) {
             accRewardPerShare = _calcAccRewardPerShare(
                 token,
