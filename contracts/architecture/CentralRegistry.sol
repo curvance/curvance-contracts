@@ -80,11 +80,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     // DAO GOVERNANCE OPERATORS
 
-    /// @notice DAO multisig.
+    /// @notice DAO multisig, the primary address that the Curvance
+    ///         Collective operates from.
     address public daoAddress;
     /// @notice DAO multisig, with an execution time delay.
     address public timelock;
-    /// @notice Multi-protocol multisig, only for emergencies.
+    /// @notice Multi-protocol multisig, intended to be used only for
+    ///         emergencies.
     address public emergencyCouncil;
 
     // CURVANCE TOKEN CONTRACTS
@@ -184,7 +186,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     // We store this data redundantly so that we can quickly get whatever
     // output we need, with low gas overhead.
 
-    /// @notice Number of chains supported.
+    /// @notice The number of chains supported by the Curvance Protocol.
     uint256 public supportedChains;
     /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
     ///         format.

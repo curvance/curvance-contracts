@@ -6,7 +6,6 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 contract VotingHub is QueryResponse {
@@ -23,10 +22,6 @@ contract VotingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice CVE contract address.
-    ICVE public immutable cve;
-    /// @notice VeCVE contract address.
-    IVeCVE public immutable veCVE;
     /// @notice Address of the Gauge Manager.
     IGaugeManager public immutable gaugeManager;
     /// @notice The length of one protocol epoch, in seconds.
@@ -73,8 +68,6 @@ contract VotingHub is QueryResponse {
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = ICVE(centralRegistry.cve());
-        veCVE = IVeCVE(centralRegistry.veCVE());
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
 
@@ -398,7 +391,7 @@ contract VotingHub is QueryResponse {
         IGaugeManager cachedGaugeManager = gaugeManager;
 
         // Mint epoch gauge emissions to the Gauge Manager.
-        cve.mintGaugeEmissions(
+        ICVE(centralRegistry.cve()).mintGaugeEmissions(
             address(cachedGaugeManager),
             emissionData.emissionTotal
         );
