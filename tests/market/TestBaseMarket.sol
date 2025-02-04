@@ -129,8 +129,7 @@ contract TestBaseMarket is TestBase {
 
     function _deployRewardManager() internal initMainVariables {
         rewardManager = rewardManagers[block.chainid] = new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setRewardManager(address(rewardManager));
 

@@ -519,7 +519,7 @@ abstract contract LiquidityManager {
     ///                Current `account` lFactor.
     ///                Current price for `earnToken`.
     ///                Current price for `positionToken`.
-    function _LiquidationStatusOf(
+    function _liquidationStatusOf(
         address account,
         address earnToken,
         address positionToken
@@ -578,7 +578,7 @@ abstract contract LiquidityManager {
     ///                - Total value of `account` debt.
     /// @return Array of the amount of collateral posted and debt balances for
     ///         each user position.
-    function _AccountLiquidationStatusOf(
+    function _accountLiquidationStatusOf(
         address account
     ) internal view returns (BadDebtData memory result, uint256[] memory) {
         (

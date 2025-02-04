@@ -20,8 +20,6 @@ contract BorrowCircleZapper is ReentrancyGuard {
     uint256 internal constant _DEFAULT_GAS_LIMIT = 300_000;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice Address of fee token.
-    address public immutable feeToken;
 
     /// ERRORS ///
 
@@ -45,8 +43,6 @@ contract BorrowCircleZapper is ReentrancyGuard {
         }
 
         centralRegistry = centralRegistry_;
-
-        feeToken = centralRegistry.feeToken();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -68,6 +64,7 @@ contract BorrowCircleZapper is ReentrancyGuard {
         uint256 dstChainId,
         uint256 gasLimit
     ) external payable nonReentrant {
+        address feeToken = centralRegistry.feeToken();
         uint256 balancePrior = IERC20(feeToken).balanceOf(address(this));
 
         // Borrow on behalf of caller.
@@ -167,6 +164,7 @@ contract BorrowCircleZapper is ReentrancyGuard {
             dstChainId
         );
 
+        address feeToken = centralRegistry.feeToken();
         SwapperLib._approveTokenIfNeeded(
             feeToken,
             address(circleTokenMessenger),

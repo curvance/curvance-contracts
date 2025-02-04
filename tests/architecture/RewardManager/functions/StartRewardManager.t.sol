@@ -10,8 +10,7 @@ contract StartRewardManagerTest is TestBaseRewardManager {
         super.setUp();
 
         rewardManager = new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
     }
 

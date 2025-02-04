@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -42,8 +43,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTANTS ///
 
-    /// @notice Reward Manager Reward token.
-    address public immutable rewardToken;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
 
@@ -90,7 +89,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// ERRORS ///
 
-    error RewardManager__RewardTokenIsZeroAddress();
     error RewardManager__SwapDataIsInvalid();
     error RewardManager__Unauthorized();
     error RewardManager__NoEpochRewards();
@@ -102,18 +100,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        address rewardToken_
+        ICentralRegistry centralRegistry_
     ) PluginDelegable(centralRegistry_) {
-        if (rewardToken_ == address(0)) {
-            revert RewardManager__RewardTokenIsZeroAddress();
-        }
-
         // Query epoch and token configuration directly to minimize potential
         // human error.
         epochDuration = centralRegistry.EPOCH_DURATION();
-
-        rewardToken = rewardToken_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -130,9 +121,9 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
 
-        uint256 nextEpochToDeliverStartTime = epoch == 0 ?
-            centralRegistry.genesisEpoch() :
-            centralRegistry.genesisEpoch() + (epoch * epochDuration);
+        uint256 nextEpochToDeliverStartTime = epoch == 0
+            ? centralRegistry.genesisEpoch()
+            : centralRegistry.genesisEpoch() + (epoch * epochDuration);
 
         // Add the time buffer required for overriding an epoch's reward
         // value.
@@ -147,11 +138,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // default to a value of 0 already, so we can just emit the
         // expected event and increment the `nextEpochToDeliver` invariant.
 
-        emit EpochRewardsSet(
-            nextEpochToDeliver++,
-            0,
-            0
-        );
+        emit EpochRewardsSet(nextEpochToDeliver++, 0, 0);
     }
 
     /// @notice Called by the Messaging Hub to record rewards allocated to
@@ -207,25 +194,12 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == rewardToken) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == _getFeeToken()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the RewardManager and prevents future reward
@@ -481,7 +455,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         if (rewardAmount > 0) {
             emit RewardPaid(
                 user,
-                rewardsData.asCVE ? _getCVE() : rewardToken,
+                rewardsData.asCVE ? _getCVE() : _getFeeToken(),
                 rewardAmount
             );
         }
@@ -503,6 +477,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // Only emit an event if they actually had rewards,
         // do not wanna revert to maintain composability.
         if (rewards > 0) {
+            address rewardToken = _getFeeToken();
+
             // Transfer rewards directly to reward manager for strategy
             // execution.
             SafeTransferLib.safeTransfer(rewardToken, msg.sender, rewards);
@@ -592,6 +568,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         if (rewards == 0) {
             return 0;
         }
+
+        address rewardToken = _getFeeToken();
 
         // Check if `recipient` wants to route their rewards into another token.
         if (rewardsData.asCVE) {
@@ -688,6 +666,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @notice Returns the current CVE address.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
+    }
+
+    /// @notice Returns the current fee token address.
+    function _getFeeToken() internal view returns (address) {
+        return centralRegistry.feeToken();
     }
 
     /// @dev Internal helper for reverting efficiently.

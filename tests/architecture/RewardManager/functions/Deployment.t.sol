@@ -13,32 +13,18 @@ contract RewardManagerDeploymentTest is TestBaseRewardManager {
         vm.expectRevert(
             PluginDelegable.PluginDelegable__InvalidCentralRegistry.selector
         );
-        new RewardManager(ICentralRegistry(address(0)), _USDC_ADDRESS);
-    }
-
-    function test_rewardManagerDeployment_fail_whenRewardTokenIsZeroAddress()
-        public
-    {
-        vm.expectRevert(
-            RewardManager.RewardManager__RewardTokenIsZeroAddress.selector
-        );
-        new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            address(0)
-        );
+        new RewardManager(ICentralRegistry(address(0)));
     }
 
     function test_rewardManagerDeployment_success() public {
         rewardManager = new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
 
         assertEq(
             address(rewardManager.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(rewardManager.rewardToken(), _USDC_ADDRESS);
 
         vm.warp(centralRegistry.genesisEpoch() - 1);
 

@@ -251,7 +251,7 @@ contract VotingHub is QueryResponse {
         uint256 timestamp
     ) public view returns (uint256) {
         uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
-        
+
         // Rounds down intentionally.
         return
             timestamp < cachedGenesisEpoch

@@ -11,15 +11,11 @@ import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 contract RewardManagerDeployer is DeployConfiguration {
     address public rewardManager;
 
-    function _deployRewardManager(
-        address centralRegistry,
-        address rewardToken
-    ) internal {
+    function _deployRewardManager(address centralRegistry) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
-        require(rewardToken != address(0), "Set the rewardToken!");
 
         rewardManager = address(
-            new RewardManager(ICentralRegistry(centralRegistry), rewardToken)
+            new RewardManager(ICentralRegistry(centralRegistry))
         );
 
         console.log("rewardManager: ", rewardManager);

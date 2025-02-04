@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -164,7 +165,7 @@ contract CVEInitialDistribution is ReentrancyGuard {
         uint256 amount,
         bytes32[] calldata proof
     ) external view returns (bool) {
-        if (isPaused == 2){
+        if (isPaused == 2) {
             return false;
         }
 
@@ -196,25 +197,12 @@ contract CVEInitialDistribution is ReentrancyGuard {
     /// @param amount Amount of `token` to rescue, 0 indicates to rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == cve) {
-                revert CVEInitialDistribution__TransferError();
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == cve) {
+            revert CVEInitialDistribution__TransferError();
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Withdraws unclaimed tokens to the DAO after the claim

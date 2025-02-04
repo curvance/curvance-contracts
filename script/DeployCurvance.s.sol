@@ -84,7 +84,7 @@ contract DeployCurvance is
 
         // Deploy Reward Manager
 
-        _deployRewardManager(centralRegistry, rewardToken);
+        _deployRewardManager(centralRegistry);
         _setRewardManager(rewardManager);
 
         // Deploy FeeManager

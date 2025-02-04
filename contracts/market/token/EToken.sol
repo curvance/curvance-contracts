@@ -7,6 +7,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
@@ -225,26 +226,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
 
         uint256 amount = _BASE_UNDERLYING_RESERVE;
-        address market = address(this);
-
-        SafeTransferLib.safeTransferFrom(underlying, by, market, amount);
-
-        // Calculate eTokens to be minted.
-        uint256 tokens = amount;
 
         // We do not need to calculate exchange rate here,
         // `by` will always be the first depositor with totalSupply = 0.
         // Total Supply and contract's balance should always be 0 prior,
         // but we increment incase somehow invariants have been modified.
-        unchecked {
-            totalSupply = totalSupply + tokens;
-            balanceOf[market] = balanceOf[market] + tokens;
-        }
+        _processMint(by, address(this), amount, amount);
 
-        // Update Gauge Manager values for market depositing itself.
-        gaugeManager.deposit(market, market, tokens);
-
-        emit Transfer(address(0), market, amount);
         return true;
     }
 
@@ -672,7 +660,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Update pending interest.
         accrueInterest();
-        
+
         // Make sure we have enough underlying held to cover withdrawal.
         if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
             revert EToken__InsufficientUnderlyingHeld();
@@ -753,25 +741,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///               rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == underlying) {
-                revert EToken__TransferError();
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == underlying) {
+            revert EToken__TransferError();
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Accrues pending interest and updates the interest rate model.
@@ -982,11 +957,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return FixedPointMathLib.mulDivUp(
-            accountDebt.principal,
-            exchangeRateNew,
-            accountDebt.accountExchangeRate
-        );
+        return
+            FixedPointMathLib.mulDivUp(
+                accountDebt.principal,
+                exchangeRateNew,
+                accountDebt.accountExchangeRate
+            );
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1008,11 +984,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // debtBalanceCached calculation:
         // ((Account's principal * EToken's exchange rate) /
         // Account's exchange rate).
-        return FixedPointMathLib.mulDivUp(
-            accountDebt.principal,
-            marketData.exchangeRate,
-            accountDebt.accountExchangeRate
-        );
+        return
+            FixedPointMathLib.mulDivUp(
+                accountDebt.principal,
+                marketData.exchangeRate,
+                accountDebt.accountExchangeRate
+            );
     }
 
     /// @notice Returns the decimals of the eToken.
@@ -1299,26 +1276,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Calculate eTokens to be minted.
         uint256 tokens = convertToShares(amount);
 
-        // Transfer underlying into the eToken contract.
-        SafeTransferLib.safeTransferFrom(
-            underlying,
-            minter,
-            address(this),
-            amount
-        );
-
-        // Update totalSupply, and recipient balance.
-        unchecked {
-            totalSupply = totalSupply + tokens;
-            /// Calculate their new balance.
-            balanceOf[recipient] = balanceOf[recipient] + tokens;
-        }
-
-        // Update Gauge Manager values for `recipient`.
-        gaugeManager.deposit(address(this), recipient, tokens);
-
-        emit Transfer(address(0), recipient, tokens);
-        return tokens;
+        return _processMint(minter, recipient, tokens, amount);
     }
 
     /// @notice Redeems eTokens, in exchange for the underlying asset.
@@ -1401,6 +1359,42 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         emit Borrow(account, amount);
     }
 
+    /// @notice Mints eTokens to `recipient`, based on the deposit of
+    ///         underlying assets into the market by `minter`.
+    /// @dev Updates pending interest before executing the mint.
+    ///      Emits a {Transfer} event.
+    /// @param minter The address of the account which is supplying the assets.
+    /// @param recipient The address of the account which will receive eToken.
+    /// @param amount The amount of the eTokens to be minted.
+    /// @param amount The amount of the underlying asset to supply.
+    function _processMint(
+        address minter,
+        address recipient,
+        uint256 tokens,
+        uint256 amount
+    ) internal returns (uint256) {
+        // Transfer underlying into the eToken contract.
+        SafeTransferLib.safeTransferFrom(
+            underlying,
+            minter,
+            address(this),
+            amount
+        );
+
+        // Update totalSupply, and recipient balance.
+        unchecked {
+            totalSupply = totalSupply + tokens;
+            /// Calculate their new balance.
+            balanceOf[recipient] = balanceOf[recipient] + tokens;
+        }
+
+        // Update Gauge Manager values for `recipient`.
+        gaugeManager.deposit(address(this), recipient, tokens);
+
+        emit Transfer(address(0), recipient, tokens);
+        return tokens;
+    }
+
     /// @notice Repays an outstanding loan of `account` through repayment
     ///         by `payer`, who usually is themselves.
     /// @dev Emits a {Repay} event.
@@ -1408,25 +1402,17 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account with the debt being paid down.
     /// @param amount The amount the payer wishes to repay,
     ///               or 0 for the full outstanding amount.
-    /// @return The amount of underlying token debt repaid for `account`.
-    function _repay(
+    /// @param accountDebt the current debt balance for `account`.
+    function _processRepay(
         address payer,
         address account,
-        uint256 amount
+        uint256 amount,
+        uint256 accountDebt
     ) internal returns (uint256) {
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), account);
-
-        // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalanceCached(account);
-
         // Validate repayment amount is not excessive.
         if (amount > accountDebt) {
             revert EToken__ExcessiveValue();
         }
-
-        // If amount == 0, repay max; amount = accountDebt.
-        amount = amount == 0 ? accountDebt : amount;
 
         SafeTransferLib.safeTransferFrom(
             underlying,
@@ -1453,6 +1439,31 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         emit Repay(payer, account, amount);
         return amount;
+    }
+
+    /// @notice Repays an outstanding loan of `account` through repayment
+    ///         by `payer`, who usually is themselves.
+    /// @dev Emits a {Repay} event.
+    /// @param payer The address paying down the account debt.
+    /// @param account The account with the debt being paid down.
+    /// @param amount The amount the payer wishes to repay,
+    ///               or 0 for the full outstanding amount.
+    /// @return The amount of underlying token debt repaid for `account`.
+    function _repay(
+        address payer,
+        address account,
+        uint256 amount
+    ) internal returns (uint256) {
+        // Validate that the payer is allowed to repay the loan.
+        marketManager.canRepay(address(this), account);
+
+        // Cache how much the account has to save gas.
+        uint256 accountDebt = debtBalanceCached(account);
+
+        // If amount == 0, repay max; amount = accountDebt.
+        amount = amount == 0 ? accountDebt : amount;
+
+        return _processRepay(payer, account, amount, accountDebt);
     }
 
     /// @notice The liquidator liquidates the borrowers collateral.
@@ -1509,32 +1520,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             revert EToken__ValidationFailed();
         }
 
-        // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalanceCached(account);
-
-        // Repay `account`'s debt.
-        SafeTransferLib.safeTransferFrom(
-            underlying,
-            liquidator,
-            address(this),
-            amount
-        );
-
-        // We calculate the new `account` and total borrow balances,
-        // failing on underflow.
-        _debtOf[account].principal = accountDebt - amount;
-        _debtOf[account].accountExchangeRate = marketData.exchangeRate;
-
-        // We round user debt in favor of the protocol to prevent exchange
-        // rate manipulation, as a result in some cases the last user cannot
-        // fully repay their debt.
-        if (totalBorrows < amount) {
-            totalBorrows = 0;
-        } else {
-            totalBorrows -= amount;
-        }
-
-        emit Repay(liquidator, account, amount);
+        _processRepay(liquidator, account, amount, debtBalanceCached(account));
 
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
