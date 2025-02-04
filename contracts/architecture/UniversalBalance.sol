@@ -336,7 +336,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
 
-        if(recipient == msg.sender) {
+        if (recipient == msg.sender) {
             revert UniversalBalance__InvalidParameter();
         }
         
@@ -380,7 +380,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
         _checkDelegation(owner);
 
-        if(recipient == owner) {
+        if (recipient == owner) {
             revert UniversalBalance__InvalidParameter();
         }
 
