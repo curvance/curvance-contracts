@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { TestBaseSimpleRewardZapper, ZapperBase, simpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";

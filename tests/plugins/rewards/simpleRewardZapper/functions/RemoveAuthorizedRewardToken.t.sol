@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { TestBaseSimpleRewardZapper, ZapperBase, simpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 contract RemoveAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {
     function test_removeAuthorizedRewardToken_fail_whenCallerIsNotAuthorized()
