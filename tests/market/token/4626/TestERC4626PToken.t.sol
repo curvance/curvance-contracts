@@ -11,7 +11,20 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarket {
     // @todo check the failing tests: test_maxWithdraw! which reverts
     // test_redeem, test_withdraw have problem with allowance
     function setUp() public override(TestERC4626, TestBaseMarket) {
-        super.setUp();
+        vm.chainId(1);
+        vm.warp(1640926800);
+
+        _USDC_ADDRESSES[1] = address(new MockERC20Token());
+
+        _deployCentralRegistry();
+        _deployCVE();
+        _deployRewardManager();
+        _deployVeCVE();
+        _deployGaugeManager();
+        _deployMarketManager();
+
+        vm.warp(centralRegistry.genesisEpoch());
+        rewardManager.startRewardManager();
 
         // start gauge to enable deposits
         vm.warp(veCVE.nextEpochStartTime() + 1000);
