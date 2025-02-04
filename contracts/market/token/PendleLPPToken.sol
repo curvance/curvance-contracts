@@ -177,7 +177,7 @@ contract PendleLPPToken is CompoundingPToken {
 
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDiv(
+                    protocolFee = FixedPointMathLib.mulDivUp(
                         rewardAmount,
                         harvestFee,
                         1e18

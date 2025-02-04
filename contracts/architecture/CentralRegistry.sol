@@ -654,6 +654,11 @@ contract CentralRegistry is ERC165, LockableRegistry {
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
 
+        // Slippage limit cannot be less than 5%.
+        if (value < 500) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
         // Convert the parameters from basis points to `WAD` format
         // while inefficient we want to minimize potential human error
         // as much as possible, even if it costs a bit extra gas on config.

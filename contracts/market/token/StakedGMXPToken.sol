@@ -94,7 +94,7 @@ contract StakedGMXPToken is CompoundingPToken {
             if (rewardAmount > 0) {
                 // Take protocol fee for veCVE lockers and auto
                 // compounding bot.
-                uint256 protocolFee = FixedPointMathLib.mulDiv(
+                uint256 protocolFee = FixedPointMathLib.mulDivUp(
                     rewardAmount,
                     centralRegistry.protocolHarvestFee(),
                     1e18

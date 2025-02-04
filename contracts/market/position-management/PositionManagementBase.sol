@@ -337,8 +337,9 @@ abstract contract PositionManagementBase is
         uint256 borrowAmount,
         LeverageStruct memory leverageData
     ) external override {
+        // We cast to a generic mToken but this will always be an eToken.
+        address borrowUnderlying = IMToken(borrowToken).underlying();
         // Take protocol fee, if any.
-        address borrowUnderlying = IPToken(borrowToken).underlying();
         uint256 fee = _getFee(
             borrowToken,
             borrowAmount,
@@ -654,7 +655,8 @@ abstract contract PositionManagementBase is
             revert PositionManagementBase__InvalidParam();
         }
 
-        return (amount * getProtocolLeverageFee()) / WAD;
+        // Fee is rounded up in favor of protocol.
+        return FixedPointMathLib.mulDivUp(amount, getProtocolLeverageFee(), WAD);
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
