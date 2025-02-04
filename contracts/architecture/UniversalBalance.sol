@@ -123,7 +123,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external {
-        _checkDelegation(recipient, msg.sender);
+        _checkDelegate(recipient, msg.sender);
 
         SafeTransferLib.safeTransferFrom(
             underlying,
@@ -225,7 +225,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
-        _checkDelegation(owner, msg.sender);
+        _checkDelegate(owner, msg.sender);
 
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
@@ -352,7 +352,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        _checkDelegation(owner, msg.sender);
+        _checkDelegate(owner, msg.sender);
 
         (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
@@ -448,7 +448,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         for (uint256 i; i < userLength; ++i) {
-            _checkDelegation(recipients[i], msg.sender);
+            _checkDelegate(recipients[i], msg.sender);
 
             // If the inputted deposit sum is invalid this will natively
             // panic preventing invariant manipulation.
@@ -586,7 +586,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool lendingBalanceUsed;
 
         for (uint256 i; i < amountsLength; ++i) {
-            _checkDelegation(owners[i], msg.sender);
+            _checkDelegate(owners[i], msg.sender);
             (amountWithdrawn, lendingBalanceUsed) = _withdraw(
                 amounts[i],
                 forceLentRedemption[i],
