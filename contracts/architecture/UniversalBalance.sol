@@ -123,7 +123,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external {
-        _checkDelegation(recipient);
+        _checkDelegation(recipient, msg.sender);
 
         SafeTransferLib.safeTransferFrom(
             underlying,
@@ -225,7 +225,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
-        _checkDelegation(owner);
+        _checkDelegation(owner, msg.sender);
 
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
@@ -352,7 +352,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        _checkDelegation(owner);
+        _checkDelegation(owner, msg.sender);
 
         (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
@@ -448,7 +448,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         for (uint256 i; i < userLength; ++i) {
-            _checkDelegation(recipients[i]);
+            _checkDelegation(recipients[i], msg.sender);
 
             // If the inputted deposit sum is invalid this will natively
             // panic preventing invariant manipulation.
@@ -586,7 +586,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool lendingBalanceUsed;
 
         for (uint256 i; i < amountsLength; ++i) {
-            _checkDelegation(owners[i]);
+            _checkDelegation(owners[i], msg.sender);
             (amountWithdrawn, lendingBalanceUsed) = _withdraw(
                 amounts[i],
                 forceLentRedemption[i],
@@ -652,16 +652,6 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @notice Validates whether a user or contract has the ability to act
-    ///         on behalf of an account.
-    /// @param user The address to check whether caller has delegation
-    ///             permissions.
-    function _checkDelegation(address user) internal view {
-        if (!isDelegate(user, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }

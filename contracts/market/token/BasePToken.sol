@@ -175,9 +175,7 @@ abstract contract BasePToken is
         uint256 assets,
         address receiver
     ) external nonReentrant returns (uint256 shares) {
-        if (!isDelegate(receiver, msg.sender)) {
-            revert BasePToken__Unauthorized();
-        }
+        _checkDelegate(receiver, msg.sender);
 
         shares = _deposit(assets, receiver);
         marketManager.postCollateral(receiver, address(this), shares);

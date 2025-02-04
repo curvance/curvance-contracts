@@ -376,9 +376,7 @@ contract GaugeManager is
         _checkGaugeHasStarted();
 
         if (user != msg.sender) {
-            if (!isDelegate(user, msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
+            _checkDelegate(user, msg.sender);
         }
 
         uint256 cveRewards = _claimRewards(tokens, user);

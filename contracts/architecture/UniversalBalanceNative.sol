@@ -67,7 +67,7 @@ contract UniversalBalanceNative is UniversalBalance {
         bool isLent,
         address recipient
     ) external payable {
-        _checkDelegation(recipient);
+        _checkDelegation(recipient, msg.sender);
 
         IWETH(underlying).deposit{ value: msg.value }();
         _deposit(msg.value, isLent, recipient);
@@ -161,7 +161,7 @@ contract UniversalBalanceNative is UniversalBalance {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
-        _checkDelegation(owner);
+        _checkDelegation(owner, msg.sender);
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
             forceLentRedemption,
