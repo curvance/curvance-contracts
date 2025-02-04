@@ -12,9 +12,6 @@ contract SimpleRewardZapper is ZapperBase {
     /// @notice Curvance Reward Manager.
     IRewardManager public immutable rewardManager;
 
-    /// @dev `bytes4(keccak256(bytes("SimpleRewardZapper__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf52eef9e;
-
     /// STORAGE ///
 
     /// @notice Whether a token is approved for swapping.
@@ -28,7 +25,6 @@ contract SimpleRewardZapper is ZapperBase {
     error SimpleRewardZapper__IsNotAuthorized();
     error SimpleRewardZapper__InvalidInputAmount();
     error SimpleRewardZapper__ExecutionError();
-    error SimpleRewardZapper__Unauthorized();
     error SimpleRewardZapper__InvalidRewardManager();
 
     /// CONSTRUCTOR ///

@@ -17,8 +17,8 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
 
-    /// @param pToken The address of the pToken corresponding to Curve lp
-    ///               token to be exited.
+    /// @param mToken The address of the mToken corresponding to the proposed
+    ///               redemption.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
@@ -34,6 +34,9 @@ abstract contract ZapperBase is ReentrancyGuard {
     ICentralRegistry public immutable centralRegistry;
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
+
+    /// @dev `bytes4(keccak256(bytes("ZapperBase__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xa1b2f000;
 
     /// ERRORS ///
 
@@ -132,7 +135,7 @@ abstract contract ZapperBase is ReentrancyGuard {
                             recipient
                         );
                     } else {
-                        revert ZapperBase__Unauthorized();
+                        _revert(_UNAUTHORIZED_SELECTOR);
                     }
                 }
             } else {

@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 
 contract AddAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {
     function test_addAuthorizedRewardToken_fail_whenCallerIsNotAuthorized()
@@ -11,7 +10,7 @@ contract AddAuthorizedRewardTokenTest is TestBaseSimpleRewardZapper {
         vm.prank(address(1));
 
         vm.expectRevert(
-            SimpleRewardZapper.SimpleRewardZapper__Unauthorized.selector
+            ZapperBase.ZapperBase__Unauthorized.selector
         );
         simpleRewardZapper.addAuthorizedOutputToken(_USDC_ADDRESS);
     }
