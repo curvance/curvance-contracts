@@ -318,7 +318,7 @@ contract MarketManager is
             uint256 positionTokenPrice
         )
     {
-        LiqData memory result = _LiquidationStatusOf(
+        LiqData memory result = _liquidationStatusOf(
             account,
             earnToken,
             positionToken
@@ -339,7 +339,7 @@ contract MarketManager is
     function flaggedForLiquidation(
         address account
     ) external view returns (bool) {
-        LiqData memory data = _LiquidationStatusOf(
+        LiqData memory data = _liquidationStatusOf(
             account,
             address(0),
             address(0)
@@ -804,36 +804,7 @@ contract MarketManager is
     /// @param account The account being liquidated and debt repaid on behalf
     ///                of.
     function queueAccountLiquidation(address account) external {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
-
-        (BadDebtData memory data, ) = _AccountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
+        _getUpdatedLiquidationStatusOf(account);
 
         // Queue the liquidation for execution.
         _queueLiquidation(msg.sender, account, false);
@@ -848,45 +819,17 @@ contract MarketManager is
     ///      Emits a {CollateralRemoved} event.
     /// @param account The address to liquidate completely.
     function liquidateAccount(address account) external {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        (
+            BadDebtData memory data,
+            uint256[] memory assetBalances
+        ) = _getUpdatedLiquidationStatusOf(account);
 
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account, false);
+        uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
+        uint256 debt;
 
         IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
         uint256 numAssetsPrior = accountAssetsPrior.length;
         IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _AccountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
-
-        uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
-        uint256 debt;
 
         // Repay `account`'s debt and recognize bad debt.
         for (uint256 i = 0; i < numAssetsPrior; ++i) {
@@ -1351,6 +1294,53 @@ contract MarketManager is
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Update pending interest in markts and determine `account`'s
+    ///         current status between collateral, debt, and additional
+    ///         liquidity and whether theres associated bad debt available
+    ///         warranting an account liquidation.
+    /// @param account The account to determine bad debt status.
+    /// @return Array of the amount of collateral posted and debt balances for
+    ///         each user position.
+    function _getUpdatedLiquidationStatusOf(
+        address account
+    ) internal returns (BadDebtData memory, uint256[] memory) {
+        // Make sure `account` is not trying to liquidate themselves.
+        if (msg.sender == account) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Make sure liquidations are not paused.
+        if (seizePaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
+        uint256 numAssetsPrior = accountAssetsPrior.length;
+        IMToken mToken;
+
+        // Update pending interest in markets.
+        for (uint256 i; i < numAssetsPrior; ) {
+            // Cache `account` mToken then increment i.
+            mToken = accountAssetsPrior[i++];
+            if (!mToken.isPToken()) {
+                // Update EToken interest if necessary.
+                IEToken(address(mToken)).accrueInterest();
+            }
+        }
+
+        (
+            BadDebtData memory data,
+            uint256[] memory assetBalances
+        ) = _accountLiquidationStatusOf(account);
+
+        // If an account has no collateral or debt this will revert.
+        if (data.collateral >= data.debt) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        return (data, assetBalances);
+    }
+
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
     /// @dev Emits {CollateralPosted} and, potentially, {TokenPositionCreated} events.
@@ -1654,7 +1644,7 @@ contract MarketManager is
         }
 
         // Calculate the users lFactor.
-        LiqData memory data = _LiquidationStatusOf(
+        LiqData memory data = _liquidationStatusOf(
             account,
             earnToken,
             positionToken

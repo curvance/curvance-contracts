@@ -126,7 +126,6 @@ contract GaugeManager is
 
     /// ERRORS ///
 
-    error GaugeManager__InvalidAddress();
     error GaugeManager__Unauthorized();
     error GaugeManager__NotStarted();
     error GaugeManager__InvalidEpoch();
@@ -134,7 +133,6 @@ contract GaugeManager is
     error GaugeManager__InvalidToken();
     error GaugeManager__InvalidAmount();
     error GaugeManager__NoReward();
-    error GaugeManager__InvalidRewardToken();
 
     /// EVENTS ///
 
@@ -278,8 +276,7 @@ contract GaugeManager is
     /// @dev This does not actually include any token transfers as tokens
     ///      are permissionlessly escrowed by pToken/eToken contracts and
     ///      we simply record deposits/withdraws as virtual balances here.
-    /// @param token Protocol supported mToken address to deposit for
-    ///              `user`.
+    /// @param token Protocol supported mToken address to deposit for `user`.
     /// @param user User address to deposit `amount` of `token` for.
     /// @param amount The amount of `token` to deposit.
     function deposit(
@@ -287,24 +284,7 @@ contract GaugeManager is
         address user,
         uint256 amount
     ) external nonReentrant {
-        if (amount == 0) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        // Make sure the token is listed inside this market,
-        // and that the token is executing the deposit call.
-        IMarketManager marketManager = IMToken(token).marketManager();
-        if (
-            msg.sender != token ||
-            !marketManager.isListed(token) ||
-            !centralRegistry.isMarketManager(address(marketManager))
-        ) {
-            revert GaugeManager__InvalidToken();
-        }
-
-        updatePool(token);
-
-        _calcPending(user, token);
+        _validateAndUpdatePool(token, user, amount);
 
         balanceOf[token][user] += amount;
         totalSupply[token] += amount;
@@ -328,27 +308,11 @@ contract GaugeManager is
         address user,
         uint256 amount
     ) external nonReentrant {
-        if (amount == 0) {
-            revert GaugeManager__InvalidAmount();
-        }
-
-        // Make sure the token is listed inside this market,
-        // and that the token is executing the withdraw call.
-        IMarketManager marketManager = IMToken(token).marketManager();
-        if (
-            msg.sender != token ||
-            !marketManager.isListed(token) ||
-            !centralRegistry.isMarketManager(address(marketManager))
-        ) {
-            revert GaugeManager__InvalidToken();
-        }
+        _validateAndUpdatePool(token, user, amount);
 
         if (balanceOf[token][user] < amount) {
             revert GaugeManager__InvalidAmount();
         }
-
-        updatePool(token);
-        _calcPending(user, token);
 
         balanceOf[token][user] -= amount;
         totalSupply[token] -= amount;
@@ -431,11 +395,7 @@ contract GaugeManager is
             }
         }
 
-        uint256 cveRewards;
-        uint256 numTokens = tokens.length;
-        for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++], user);
-        }
+        uint256 cveRewards = _claimRewards(tokens, user);
 
         if (cveRewards == 0) {
             return;
@@ -467,11 +427,7 @@ contract GaugeManager is
     ) external nonReentrant {
         _checkGaugeHasStarted();
 
-        uint256 cveRewards;
-        uint256 numTokens = tokens.length;
-        for (uint256 i; i < numTokens; ) {
-            cveRewards += _claim(tokens[i++], msg.sender);
-        }
+        uint256 cveRewards = _claimRewards(tokens, msg.sender);
 
         if (cveRewards == 0) {
             revert GaugeManager__NoReward();
@@ -639,36 +595,15 @@ contract GaugeManager is
             lastRewardTimestamp = gaugeStartTime();
         }
 
+        uint256 accRewardPerShare = poolAccRewardPerShare[token][index];
+
         if (block.timestamp > lastRewardTimestamp && totalDeposited != 0) {
-            uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
-            uint256 cachedCurrentEpoch = currentEpoch();
-            uint256 reward;
-            while (lastEpoch < cachedCurrentEpoch) {
-                uint256 endTimestamp = epochEndTime(lastEpoch);
-
-                // update rewards from lastRewardTimestamp to endTimestamp.
-                reward =
-                    ((endTimestamp - lastRewardTimestamp) *
-                        rewardAllocation(token, lastEpoch)) /
-                    epochDuration;
-                accRewardPerShare =
-                    accRewardPerShare +
-                    (reward * RAY) /
-                    totalDeposited;
-
-                ++lastEpoch;
-                lastRewardTimestamp = endTimestamp;
-            }
-
-            // update rewards from lastRewardTimestamp to current timestamp.
-            reward =
-                ((block.timestamp - lastRewardTimestamp) *
-                    rewardAllocation(token, lastEpoch)) /
-                epochDuration;
-            accRewardPerShare =
-                accRewardPerShare +
-                (reward * RAY) /
-                totalDeposited;
+            accRewardPerShare = _calcAccRewardPerShare(
+                token,
+                accRewardPerShare,
+                lastRewardTimestamp,
+                totalDeposited
+            );
         }
 
         UserRewardInfo memory info = userDebtInfo[token][user];
@@ -714,35 +649,13 @@ contract GaugeManager is
         }
 
         uint256 accRewardPerShare = poolAccRewardPerShare[token];
-        uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
-        uint256 cachedCurrentEpoch = currentEpoch();
-        uint256 reward;
 
-        // Step through epochs and apply rewards.
-        while (lastEpoch < cachedCurrentEpoch) {
-            uint256 endTimestamp = epochEndTime(lastEpoch);
-
-            // Update rewards from `lastRewardTimestamp` to endTimestamp.
-            reward =
-                (RAY *
-                    (endTimestamp - lastRewardTimestamp) *
-                    rewardAllocation(token, lastEpoch)) /
-                epochDuration;
-            accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
-
-            ++lastEpoch;
-            lastRewardTimestamp = endTimestamp;
-        }
-
-        // Update rewards from `_lastRewardTimestamp` to current timestamp.
-        reward =
-            (RAY *
-                (block.timestamp - lastRewardTimestamp) *
-                rewardAllocation(token, lastEpoch)) /
-            epochDuration;
-        accRewardPerShare = accRewardPerShare + reward / totalDeposited;
-
-        poolAccRewardPerShare[token] = accRewardPerShare;
+        poolAccRewardPerShare[token] = _calcAccRewardPerShare(
+            token,
+            accRewardPerShare,
+            lastRewardTimestamp,
+            totalDeposited
+        );
 
         // Update pool storage.
         poolLastRewardTimestamp[token] = block.timestamp;
@@ -758,6 +671,61 @@ contract GaugeManager is
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Calculate accRewardPerShare.
+    /// @param token Protocol supported mToken address to check rewards for.
+    function _calcAccRewardPerShare(
+        address token,
+        uint256 accRewardPerShare,
+        uint256 lastRewardTimestamp,
+        uint256 totalDeposited
+    ) internal view returns (uint256) {
+        uint256 lastEpoch = epochOfTimestamp(lastRewardTimestamp);
+        uint256 cachedCurrentEpoch = currentEpoch();
+        uint256 reward;
+
+        // Step through epochs and apply rewards.
+        while (lastEpoch < cachedCurrentEpoch) {
+            uint256 endTimestamp = epochEndTime(lastEpoch);
+
+            // update rewards from lastRewardTimestamp to endTimestamp.
+            reward =
+                (RAY *
+                    (endTimestamp - lastRewardTimestamp) *
+                    rewardAllocation(token, lastEpoch)) /
+                epochDuration;
+            accRewardPerShare = accRewardPerShare + (reward / totalDeposited);
+
+            ++lastEpoch;
+            lastRewardTimestamp = endTimestamp;
+        }
+
+        // update rewards from lastRewardTimestamp to current timestamp.
+        reward =
+            (RAY *
+                (block.timestamp - lastRewardTimestamp) *
+                rewardAllocation(token, lastEpoch)) /
+            epochDuration;
+
+        return accRewardPerShare + reward / totalDeposited;
+    }
+
+    /// @notice Claim all pending rewards for `tokens` from the Gauge Manager.
+    /// @param tokens Array containing pool token addresses to claim
+    ///               rewards for.
+    /// @param user The user address that gauge rewards should be claimed for.
+    function _claimRewards(
+        address[] calldata tokens,
+        address user
+    ) internal returns (uint256) {
+        uint256 cveRewards;
+        uint256 numTokens = tokens.length;
+        for (uint256 i; i < numTokens; ) {
+            cveRewards += _claim(tokens[i++], user);
+        }
+
+        return cveRewards;
+    }
 
     /// @notice Claim pending rewards for `token` from the Gauge Manager.
     /// @param token Pool token address to claim rewards for.
@@ -789,6 +757,33 @@ contract GaugeManager is
         if (block.timestamp < gaugeStartTime()) {
             revert GaugeManager__NotStarted();
         }
+    }
+
+    /// @param token Protocol supported mToken address.
+    /// @param user User address to calculate pending rewards.
+    /// @param amount The amount of `token`.
+    function _validateAndUpdatePool(
+        address token,
+        address user,
+        uint256 amount
+    ) internal {
+        if (amount == 0) {
+            revert GaugeManager__InvalidAmount();
+        }
+
+        // Make sure the token is listed inside this market,
+        // and that the token is executing the deposit call.
+        IMarketManager marketManager = IMToken(token).marketManager();
+        if (
+            msg.sender != token ||
+            !marketManager.isListed(token) ||
+            !centralRegistry.isMarketManager(address(marketManager))
+        ) {
+            revert GaugeManager__InvalidToken();
+        }
+
+        updatePool(token);
+        _calcPending(user, token);
     }
 
     /// @notice Calculate user's pending rewards.

@@ -6,6 +6,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -394,25 +395,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///               rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == underlying || token == address(linkedToken)) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == underlying || token == address(linkedEToken)) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current

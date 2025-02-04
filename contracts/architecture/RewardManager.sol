@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -130,9 +131,9 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
 
-        uint256 nextEpochToDeliverStartTime = epoch == 0 ?
-            centralRegistry.genesisEpoch() :
-            centralRegistry.genesisEpoch() + (epoch * epochDuration);
+        uint256 nextEpochToDeliverStartTime = epoch == 0
+            ? centralRegistry.genesisEpoch()
+            : centralRegistry.genesisEpoch() + (epoch * epochDuration);
 
         // Add the time buffer required for overriding an epoch's reward
         // value.
@@ -147,11 +148,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // default to a value of 0 already, so we can just emit the
         // expected event and increment the `nextEpochToDeliver` invariant.
 
-        emit EpochRewardsSet(
-            nextEpochToDeliver++,
-            0,
-            0
-        );
+        emit EpochRewardsSet(nextEpochToDeliver++, 0, 0);
     }
 
     /// @notice Called by the Messaging Hub to record rewards allocated to
@@ -207,25 +204,12 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == rewardToken) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == rewardToken) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the RewardManager and prevents future reward
