@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+
 library SwapperLib {
     /// TYPES ///
-    /// @notice Used to execute a swap, which is selling one token for another.
+    /// @notice Contains instructions to execute a swap, which is selling one
+    ///         token (`inputToken`) for another (`outputToken`).
     /// @param inputToken Address of input token to swap from.
     /// @param inputAmount The amount of `inputToken` to swap.
     /// @param outputToken Address of token to swap into.

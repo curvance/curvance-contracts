@@ -436,7 +436,7 @@ abstract contract CompoundingPToken is BasePToken {
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`. Or whether the caller has delegated approval or not.
         if (delegatedAction) {
-            _checkDelegation(owner, msg.sender);
+            _checkDelegate(owner, msg.sender);
         } else {
             if (msg.sender != owner) {
                 uint256 allowed = allowance(owner, msg.sender);

@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
 /// @dev `PluginDelegable` allows the Curvance Protocol to be a modular system
 ///      that plugins can be built on top of. By delegating action authority
-///      to a secondary address users can utilize potential third-party
+///      to an address or addresses users can utilize potential third-party
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
 abstract contract PluginDelegable {
@@ -120,7 +120,9 @@ abstract contract PluginDelegable {
         address user,
         address delegate
     ) internal view {
-        if (!_isDelegate[user][getUserApprovalIndex(user)][delegate]) {
+        if (!_isDelegate[user][
+                centralRegistry.getUserApprovalIndex(user)
+            ][delegate]) {
             /// @solidity memory-safe-assembly
             assembly {
                 mstore(0x00, 0xcfdc5602) // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))
