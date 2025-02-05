@@ -77,10 +77,6 @@ contract GaugeManager is
     }
     /// CONSTANTS ///
 
-    /// @notice CVE contract address.
-    address public immutable cve;
-    /// @notice VeCVE contract address.
-    IVeCVE public immutable veCVE;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
 
@@ -149,8 +145,6 @@ contract GaugeManager is
     ) PluginDelegable(centralRegistry_) {
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = centralRegistry.cve();
-        veCVE = IVeCVE(centralRegistry.veCVE());
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
@@ -385,7 +379,7 @@ contract GaugeManager is
             return;
         }
 
-        SafeTransferLib.safeTransfer(cve, msg.sender, cveRewards);
+        SafeTransferLib.safeTransfer(_getCVE(), msg.sender, cveRewards);
     }
 
     /// @notice Claim rewards from Gauge Manager and compound any CVE rewards
@@ -417,6 +411,8 @@ contract GaugeManager is
             revert GaugeManager__NoReward();
         }
 
+        address cve = _getCVE();
+        IVeCVE veCVE = _getVeCVE();
         uint256 currentLockBoost = centralRegistry.lockBoostMultiplier();
 
         // If theres a current lock boost, recognize their bonus rewards.
@@ -732,6 +728,16 @@ contract GaugeManager is
     /// @return The genesis epoch timestamp.
     function _genesisEpoch() internal view returns (uint256) {
         return centralRegistry.genesisEpoch();
+    }
+
+    /// @notice Returns the current CVE address.
+    function _getCVE() internal view returns (address) {
+        return centralRegistry.cve();
+    }
+
+    /// @notice Returns the current VeCVE address to call.
+    function _getVeCVE() internal view returns (IVeCVE) {
+        return IVeCVE(centralRegistry.veCVE());
     }
 
     /// @dev Checks whether the gauge controller has started or not.

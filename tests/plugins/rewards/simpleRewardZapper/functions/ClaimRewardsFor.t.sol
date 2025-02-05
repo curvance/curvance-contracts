@@ -55,7 +55,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 epochs = rewardManager.epochsToClaim(user1);
@@ -86,7 +86,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;

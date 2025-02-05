@@ -54,8 +54,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// STORAGE ///
 
-    /// @notice The address of the veCVE contract.
-    IVeCVE public veCVE;
     /// @notice Whether the Reward Manager has been started or not.
     /// @dev 2 = yes; 1 = no.
     uint256 public rewardManagerStarted = 1;
@@ -153,6 +151,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+        IVeCVE veCVE = _getVeCVE();
+
         // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
 
@@ -184,8 +184,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             revert RewardManager__RewardManagerIsAlreadyStarted();
         }
 
-        veCVE = IVeCVE(centralRegistry.veCVE());
-        nextEpochToDeliver = veCVE.currentEpoch(block.timestamp);
+        nextEpochToDeliver = _getVeCVE().currentEpoch(block.timestamp);
         rewardManagerStarted = 2;
     }
 
@@ -207,7 +206,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @dev Should only be used to facilitate migration to a new system.
     function notifyShutdown() external {
         if (
-            msg.sender != address(veCVE) &&
+            msg.sender != address(_getVeCVE()) &&
             !centralRegistry.hasElevatedPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -239,7 +238,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     function hasRewardsToClaim(address user) external view returns (bool) {
         if (
             nextEpochToDeliver > userNextClaimIndex[user] &&
-            veCVE.userPoints(user) > 0
+            _getVeCVE().userPoints(user) > 0
         ) {
             return true;
         }
@@ -261,6 +260,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             return 0;
         }
 
+        IVeCVE veCVE = _getVeCVE();
         uint256 startEpoch = userNextClaimIndex[user];
         uint256 startPoints = veCVE.userPoints(user);
         uint256 rewards;
@@ -527,6 +527,8 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         address user,
         uint256 epoch
     ) internal returns (uint256) {
+        IVeCVE veCVE = _getVeCVE();
+
         if (veCVE.userUnlocksByEpoch(user, epoch) > 0) {
             // If they have tokens unlocking this epoch we need to decrease
             // their tokenPoints.
@@ -635,6 +637,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         uint256 lockIndex
     ) internal returns (uint256) {
         address cve = _getCVE();
+        IVeCVE veCVE = _getVeCVE();
 
         // The reward manager never custodies CVE so we can use the pure
         // balance here and if anyone ever sends cve to this constant it
@@ -666,6 +669,11 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         return centralRegistry.cve();
     }
 
+    /// @notice Returns the current VeCVE address to call.
+    function _getVeCVE() internal view returns (IVeCVE) {
+        return IVeCVE(centralRegistry.veCVE());
+    }
+
     /// @notice Returns the current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
@@ -689,7 +697,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
 
     /// @dev Checks whether the caller is the veCVE contract.
     function _checkIsVeCVE() internal view {
-        address _veCVE = address(veCVE);
+        address _veCVE = address(_getVeCVE());
         assembly {
             if iszero(eq(caller(), _veCVE)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)

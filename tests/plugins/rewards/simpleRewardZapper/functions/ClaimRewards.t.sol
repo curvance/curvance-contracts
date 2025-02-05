@@ -44,7 +44,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
     function test_claimRewards_fail_whenNoEpochRewardsToClaim() public {
         simpleRewardZapper.addAuthorizedOutputToken(_WETH_ADDRESS);
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         vm.prank(user1);
@@ -70,7 +70,7 @@ contract ClaimRewardsTest is TestBaseSimpleRewardZapper {
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;

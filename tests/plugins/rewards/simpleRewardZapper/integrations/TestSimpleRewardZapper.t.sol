@@ -177,7 +177,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;
@@ -243,7 +243,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;
@@ -326,7 +326,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;

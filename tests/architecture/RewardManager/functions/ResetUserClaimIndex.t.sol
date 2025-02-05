@@ -11,12 +11,12 @@ contract ResetUserClaimIndexTest is TestBaseRewardManager {
     }
 
     function test_resetUserClaimIndex_success() public {
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         assertEq(rewardManager.userNextClaimIndex(user1), 1);
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.resetUserClaimIndex(user1);
 
         assertEq(rewardManager.userNextClaimIndex(user1), 0);
