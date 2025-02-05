@@ -13,6 +13,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -200,6 +201,18 @@ contract CentralRegistry is ERC165, LockableRegistry {
     mapping(uint16 => uint256) public messagingToGETHChainId;
     mapping(uint256 => uint16) public GETHToMessagingChainId;
 
+    /// @notice The amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Epoch # => CVE rewards allocated.
+    mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
+
+    /// @notice The amount of CVE rewards allocated across all chains,
+    ///         for an era. An era is a particular period in time in which
+    ///         CVE rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
+    /// @dev Era # => CVE rewards allocated.
+    mapping(uint256 => uint256) public targetEmissionAllocationByEra;
+
     // DAO CONTRACT MAPPINGS
 
     mapping(address => bool) public isHarvester;
@@ -252,6 +265,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
         address calldataChecker
     );
     event MulticallProviderSet(address provider, bool supportedStatus);
+    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
 
@@ -771,6 +785,42 @@ contract CentralRegistry is ERC165, LockableRegistry {
         lockBoostMultiplier = value;
 
         emit MultiplierSet("Lock Boost", value);
+    }
+
+    /// EMISSIONS LOGIC
+
+    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Only callable by the Voting Hub.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param emissionsAllocated The amount of CVE rewards allocated on
+    ///                           this chain, for an epoch.
+    function setEmissionsAllocatedByEpoch(
+        uint256 epoch,
+        uint256 emissionsAllocated
+    ) external {
+        if (msg.sender != votingHub) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        emissionsAllocatedByEpoch[epoch] = emissionsAllocated;
+    }
+
+    /// @notice Sets the target token emissions for each Protocol Era.
+    /// @dev Only callable by the Emergency Council.
+    /// @param epochEmissions The initial token emissions value that the
+    ///                       protocol should allocate, per epoch.
+    function setEraTargetEmissions(uint256 epochEmissions) external {
+        _checkElevatedPermissions();
+
+        uint256 numEras = IVotingHub(votingHub).protocolRewardEras();
+
+        for (uint256 i; i < numEras; ++i) {
+            targetEmissionAllocationByEra[i] = epochEmissions;
+            epochEmissions = epochEmissions / 2;
+        }
+
+        emit EraEmissionsAllotmentSet(epochEmissions);
     }
 
     /// OWNERSHIP LOGIC

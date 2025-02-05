@@ -164,10 +164,10 @@ contract TestBaseMarket is TestBase {
 
     function _deployVotingHub() internal initMainVariables {
         votingHub = votingHubs[block.chainid] = new VotingHub(
-            ICentralRegistry(address(centralRegistry)),
-            _ONE
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setVotingHub(address(votingHub));
+        centralRegistry.setEraTargetEmissions(_ONE);
     }
 
     function _deployFeeManager() internal initMainVariables {

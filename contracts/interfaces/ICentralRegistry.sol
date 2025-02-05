@@ -198,5 +198,23 @@ interface ICentralRegistry {
     function multicallChecker(
         address addressToCheck
     ) external view returns (address);
-    
+
+    /// @notice Returns the amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    function emissionsAllocatedByEpoch(
+        uint256 epoch
+    ) external view returns (uint256);
+
+    /// @notice Returns the amount of CVE rewards allocated across all chains,
+    ///         for an era.
+    function targetEmissionAllocationByEra(
+        uint256 era
+    ) external view returns (uint256);
+
+    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    function setEmissionsAllocatedByEpoch(
+        uint256 epoch,
+        uint256 emissionsAllocated
+    ) external;
 }

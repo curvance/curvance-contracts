@@ -107,8 +107,9 @@ contract DeployCurvance is
         _addLockingPermissions(messagingHub);
 
         // Deploy VotingHub
-        _deployVotingHub(centralRegistry, 1000);
+        _deployVotingHub(centralRegistry);
         _setVotingHub(votingHub);
+        _setEraTargetEmissions(1000);
 
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);

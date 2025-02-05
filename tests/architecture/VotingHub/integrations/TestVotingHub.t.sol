@@ -134,7 +134,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        votingHub.setEraTargetEmissions(_ONE * 5);
+        centralRegistry.setEraTargetEmissions(_ONE * 5);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -274,7 +274,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        votingHub.setEraTargetEmissions(_ONE);
+        centralRegistry.setEraTargetEmissions(_ONE);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -355,7 +355,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -395,7 +395,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         skip(votingHub.epochDuration() * 5);
 
-        votingHub.setEraTargetEmissions(_ONE * 5);
+        centralRegistry.setEraTargetEmissions(_ONE * 5);
 
         _emissionData.emissionTotal = _ONE * 2;
         _emissionData.emissions[0] = _ONE * 2;
@@ -435,7 +435,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         skip(votingHub.epochDuration() * votingHub.REWARD_HALVENING_RATE());
 
-        votingHub.setEraTargetEmissions(_ONE * 10);
+        centralRegistry.setEraTargetEmissions(_ONE * 10);
 
         _emissionData.emissionTotal = _ONE * 3;
         _emissionData.emissions[0] = _ONE * 3;
