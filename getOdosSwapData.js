@@ -65,7 +65,7 @@ async function main() {
             const assembledTransaction = await response.json();
             // log("Results", JSON.stringify(assembledTransaction, null, 2));
 
-            const output = ethers.utils.defaultAbiCoder.encode(["uint", "bytes"],
+            const output = ethers.AbiCoder.defaultAbiCoder().encode(["uint", "bytes"],
                 [assembledTransaction.outputTokens[0].amount, assembledTransaction.transaction.data]);
             process.stdout.write(output);
         } else {
