@@ -6,6 +6,7 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -122,7 +123,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external {
-        _checkDelegation(recipient);
+        _checkDelegate(recipient, msg.sender);
 
         SafeTransferLib.safeTransferFrom(
             underlying,
@@ -224,7 +225,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountWithdrawn, bool lendingBalanceUsed) {
-        _checkDelegation(owner);
+        _checkDelegate(owner, msg.sender);
 
         (amountWithdrawn, lendingBalanceUsed) = _withdraw(
             amount,
@@ -296,21 +297,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
             }
         }
 
-        (amountWithdrawn, lendingBalanceUsed) = _withdraw(
+        (amountWithdrawn, lendingBalanceUsed) = _transfer(
             amount,
             fromLent,
+            !fromLent,
+            msg.sender,
             msg.sender
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            msg.sender,
-            amountWithdrawn,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountWithdrawn, !fromLent, msg.sender);
     }
 
     /// @notice Transfers `amount` from caller's Universal Balance, currently
@@ -329,21 +322,13 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        (amountTransferred, lendingBalanceUsed) = _withdraw(
+        (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
+            willLend,
+            recipient,
             msg.sender
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            msg.sender,
-            amountTransferred,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountTransferred, willLend, recipient);
     }
 
     /// @notice Withdraws underlying token from `owner`'s Universal Balance
@@ -367,23 +352,15 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
-        _checkDelegation(owner);
+        _checkDelegate(owner, msg.sender);
 
-        (amountTransferred, lendingBalanceUsed) = _withdraw(
+        (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
+            willLend,
+            recipient,
             owner
         );
-
-        emit Withdraw(
-            msg.sender,
-            msg.sender,
-            owner,
-            amountTransferred,
-            lendingBalanceUsed
-        );
-
-        _deposit(amountTransferred, willLend, recipient);
     }
 
     /// @notice Rescue any token sent by mistake.
@@ -394,25 +371,12 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///               rescue all.
     function rescueToken(address token, uint256 amount) external {
         _checkDaoPermissions();
-        address daoOperator = centralRegistry.daoAddress();
 
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == underlying || token == address(linkedToken)) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == underlying || token == address(linkedToken)) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Updating delegated access to gauge emissions to the current
@@ -484,7 +448,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         for (uint256 i; i < userLength; ++i) {
-            _checkDelegation(recipients[i]);
+            _checkDelegate(recipients[i], msg.sender);
 
             // If the inputted deposit sum is invalid this will natively
             // panic preventing invariant manipulation.
@@ -622,7 +586,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool lendingBalanceUsed;
 
         for (uint256 i; i < amountsLength; ++i) {
-            _checkDelegation(owners[i]);
+            _checkDelegate(owners[i], msg.sender);
             (amountWithdrawn, lendingBalanceUsed) = _withdraw(
                 amounts[i],
                 forceLentRedemption[i],
@@ -648,19 +612,46 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         return withdrawSum;
     }
 
+    /// @notice Transfers `amount` from owner's universal balance, currently
+    ///         held or lent out to `recipient`.
+    /// @dev Requires that `owner` has approved the caller previously to
+    ///      access their universal balance.
+    ///      Emits { Withdraw } and { Deposit } events.
+    /// @param amount The amount of underlying token to be withdrawn.
+    /// @param forceLentRedemption Whether the withdrawn underlying tokens
+    ///                            should be pulled only from `owner`'s lent
+    ///                            position or the full account.
+    /// @param willLend Whether the deposited underlying tokens should be lent
+    ///                 out inside Curvance Protocol.
+    /// @param recipient The account who will receive the underlying assets.
+    /// @param owner The account that will redeem from their universal balance.
+    function _transfer(
+        uint256 amount,
+        bool forceLentRedemption,
+        bool willLend,
+        address recipient,
+        address owner
+    ) internal returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        (amountTransferred, lendingBalanceUsed) = _withdraw(
+            amount,
+            forceLentRedemption,
+            owner
+        );
+
+        emit Withdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            amountTransferred,
+            lendingBalanceUsed
+        );
+
+        _deposit(amountTransferred, willLend, recipient);
+    }
+
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
-
-    /// @notice Validates whether a user or contract has the ability to act
-    ///         on behalf of an account.
-    /// @param user The address to check whether caller has delegation
-    ///             permissions.
-    function _checkDelegation(address user) internal view {
-        if (!isDelegate(user, msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }

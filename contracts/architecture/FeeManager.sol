@@ -53,13 +53,8 @@ contract FeeManager is ReentrancyGuard {
 
     /// CONSTANTS ///
 
-    /// @notice Address of fee token.
-    address public immutable feeToken;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-
-    /// @notice Fee token decimal unit.
-    uint256 internal immutable _feeTokenDecimals;
 
     /// STORAGE ///
 
@@ -116,8 +111,6 @@ contract FeeManager is ReentrancyGuard {
         }
 
         centralRegistry = centralRegistry_;
-        feeToken = centralRegistry.feeToken();
-        _feeTokenDecimals = 10 ** IERC20(feeToken).decimals();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -171,11 +164,11 @@ contract FeeManager is ReentrancyGuard {
                 );
             }
 
-            if (swapDataArray[i].outputToken != feeToken) {
+            if (swapDataArray[i].outputToken != _getFeeToken()) {
                 revert FeeManager__SwapDataOutputTokenIsNotFeeToken(
                     i,
                     swapDataArray[i].outputToken,
-                    feeToken
+                    _getFeeToken()
                 );
             }
 
@@ -228,6 +221,8 @@ contract FeeManager is ReentrancyGuard {
             centralRegistry.oracleManager()
         );
 
+        address feeToken = _getFeeToken();
+
         (uint256 OTCTokenPrice, uint256 errorCodeSwap) = oracleManager
             .getPrice(tokenToOTC, true, true);
         (uint256 feeTokenPrice, uint256 errorCodeFeeToken) = oracleManager
@@ -242,7 +237,9 @@ contract FeeManager is ReentrancyGuard {
         // Oracle Manager always returns in 1e18 (WAD) format,
         // so we only need to worry about token decimal differences here.
         uint256 feeTokenRequiredForOTC = (
-            ((OTCTokenPrice * amountToOTC * _feeTokenDecimals) / feeTokenPrice)
+            ((OTCTokenPrice *
+                amountToOTC *
+                10 ** IERC20(feeToken).decimals()) / feeTokenPrice)
         ) / 10 ** IERC20(tokenToOTC).decimals();
 
         // Check if Curvance DAO is paying more than anticipated.
@@ -273,6 +270,8 @@ contract FeeManager is ReentrancyGuard {
     /// @return The amount of transferred fee tokens to the DAO address.
     function pullFeesAsDAO(uint256 amount) external returns (uint256) {
         _checkDaoPermissions();
+
+        address feeToken = _getFeeToken();
 
         uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
@@ -308,6 +307,7 @@ contract FeeManager is ReentrancyGuard {
             revert FeeManager__Unauthorized();
         }
 
+        address feeToken = _getFeeToken();
         uint256 feeTokens = IERC20(feeToken).balanceOf(address(this));
 
         // If the amount desired is greater than what is available,
@@ -375,6 +375,7 @@ contract FeeManager is ReentrancyGuard {
             }
         }
 
+        address feeToken = _getFeeToken();
         tokenBalance = IERC20(feeToken).balanceOf(address(this));
 
         // Send remaining fee token to new fee manager, if any.
@@ -517,6 +518,11 @@ contract FeeManager is ReentrancyGuard {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Returns the current fee token address.
+    function _getFeeToken() internal view returns (address) {
+        return centralRegistry.feeToken();
+    }
 
     /// @notice Adds `newToken` to `rewardTokens` array and
     ///         rewardTokenInfo mapping so offchain bots knows a new token

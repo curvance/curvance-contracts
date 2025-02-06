@@ -198,7 +198,7 @@ contract AuraPToken is CompoundingPToken {
 
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDiv(
+                    protocolFee = FixedPointMathLib.mulDivUp(
                         rewardAmount,
                         harvestFee,
                         1e18
@@ -217,7 +217,10 @@ contract AuraPToken is CompoundingPToken {
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                    if (
+                        !isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 

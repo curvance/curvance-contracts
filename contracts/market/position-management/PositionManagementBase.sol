@@ -237,10 +237,7 @@ abstract contract PositionManagementBase is
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
-        if (!isDelegate(account, msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
+        _checkDelegate(account, msg.sender);
         _leverage(leverageData, account);
     }
 
@@ -303,10 +300,7 @@ abstract contract PositionManagementBase is
         address account,
         uint256 slippage
     ) external checkSlippage(account, slippage) nonReentrant {
-        if (!isDelegate(account, msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
+        _checkDelegate(account, msg.sender);
         _deleverage(deleverageData, account);
     }
 
@@ -337,33 +331,16 @@ abstract contract PositionManagementBase is
         uint256 borrowAmount,
         LeverageStruct memory leverageData
     ) external override {
-        // Validate that the debt token itself is executing
-        // the callback.
-        if (msg.sender != borrowToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Validate the debt token is actually listed to this
-        // Market Manager.
-        if (!marketManager.isListed(borrowToken)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        address borrowUnderlying = IPToken(borrowToken).underlying();
-
-        if (IERC20(borrowUnderlying).balanceOf(address(this)) < borrowAmount) {
-            revert PositionManagementBase__InvalidAmount();
-        }
-
-        if (
-            borrowToken != address(leverageData.borrowToken) ||
-            borrowAmount != leverageData.borrowAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
+        // We cast to a generic mToken but this will always be an eToken.
+        address borrowUnderlying = IMToken(borrowToken).underlying();
         // Take protocol fee, if any.
-        uint256 fee = (borrowAmount * getProtocolLeverageFee()) / WAD;
+        uint256 fee = _getFee(
+            borrowToken,
+            borrowAmount,
+            address(leverageData.borrowToken),
+            leverageData.borrowAmount,
+            borrowUnderlying
+        );
         if (fee > 0) {
             leverageData.borrowAmount -= fee;
             SafeTransferLib.safeTransfer(
@@ -445,38 +422,15 @@ abstract contract PositionManagementBase is
         uint256 collateralAmount,
         DeleverageStruct memory deleverageData
     ) external override {
-        // Validate that the position token itself is executing
-        // the callback.
-        if (msg.sender != positionToken) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Validate the position token is actually listed to this
-        // Market Manager.
-        if (!marketManager.isListed(positionToken)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Swap position token (pToken underlying) to
-        // borrow token (eToken underlying).
-        address collateralUnderlying = IPToken(positionToken).underlying();
-
-        if (
-            IERC20(collateralUnderlying).balanceOf(address(this)) <
-            collateralAmount
-        ) {
-            revert PositionManagementBase__InvalidAmount();
-        }
-
-        if (
-            positionToken != address(deleverageData.positionToken) ||
-            collateralAmount != deleverageData.collateralAmount
-        ) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
         // Take protocol fee, if any.
-        uint256 fee = (collateralAmount * getProtocolLeverageFee()) / WAD;
+        address collateralUnderlying = IPToken(positionToken).underlying();
+        uint256 fee = _getFee(
+            positionToken,
+            collateralAmount,
+            address(deleverageData.positionToken),
+            deleverageData.collateralAmount,
+            collateralUnderlying
+        );
         if (fee > 0) {
             deleverageData.collateralAmount -= fee;
             SafeTransferLib.safeTransfer(
@@ -668,6 +622,36 @@ abstract contract PositionManagementBase is
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Do validation and calculate protocol fee.
+    function _getFee(
+        address token,
+        uint256 amount,
+        address dataToken,
+        uint256 dataAmount,
+        address underlying
+    ) internal view returns (uint256) {
+        // Validate that the token itself is executing the callback.
+        if (msg.sender != token) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate the token is actually listed to this Market Manager.
+        if (!marketManager.isListed(token)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (IERC20(underlying).balanceOf(address(this)) < amount) {
+            revert PositionManagementBase__InvalidAmount();
+        }
+
+        if (token != address(dataToken) || amount != dataAmount) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
+        // Fee is rounded up in favor of protocol.
+        return FixedPointMathLib.mulDivUp(amount, getProtocolLeverageFee(), WAD);
+    }
 
     /// @notice Leverages an active Curvance position in favor of increasing
     ///         both collateral and debt inside the system.

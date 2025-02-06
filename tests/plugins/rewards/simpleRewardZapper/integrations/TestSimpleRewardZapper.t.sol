@@ -4,7 +4,6 @@ pragma solidity 0.8.19;
 import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
@@ -60,7 +59,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
 
         // start epoch
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
@@ -178,7 +177,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;
@@ -244,7 +243,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;
@@ -327,7 +326,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         );
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;

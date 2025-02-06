@@ -4,9 +4,6 @@ pragma solidity ^0.8.19;
 import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
 
 contract SimpleZapper is ZapperBase {
-    /// ERRORS ///
-
-    error SimpleZapper__Unauthorized();
 
     /// CONSTRUCTOR ///
 
@@ -118,7 +115,7 @@ contract SimpleZapper is ZapperBase {
         // Make sure if we are swapping that we are swapping into the proper
         // underlying token.
         if (swapData.outputToken != eTokenUnderlying) {
-            revert SimpleZapper__Unauthorized();
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         if (swapData.inputToken == swapData.outputToken) {

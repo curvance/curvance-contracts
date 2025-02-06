@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, IMToken, IPToken } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase, SwapperLib, CommonLib, IMToken } from "contracts/plugins/ZapperBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
@@ -11,11 +11,6 @@ contract SimpleRewardZapper is ZapperBase {
 
     /// @notice Curvance Reward Manager.
     IRewardManager public immutable rewardManager;
-    /// @notice The address of the Reward Manager Reward Token on this chain.
-    address public immutable rewardToken;
-
-    /// @dev `bytes4(keccak256(bytes("SimpleRewardZapper__Unauthorized()")))`.
-    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xf52eef9e;
 
     /// STORAGE ///
 
@@ -30,7 +25,6 @@ contract SimpleRewardZapper is ZapperBase {
     error SimpleRewardZapper__IsNotAuthorized();
     error SimpleRewardZapper__InvalidInputAmount();
     error SimpleRewardZapper__ExecutionError();
-    error SimpleRewardZapper__Unauthorized();
     error SimpleRewardZapper__InvalidRewardManager();
 
     /// CONSTRUCTOR ///
@@ -48,7 +42,6 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         rewardManager = IRewardManager(rewardManager_);
-        rewardToken = IRewardManager(rewardManager_).rewardToken();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -70,7 +63,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapData.inputToken != rewardToken) {
+        if (swapData.inputToken != _getFeeToken()) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -130,7 +123,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
         // solver API call instructions have been configured properly.
-        if (swapData.inputToken != rewardToken) {
+        if (swapData.inputToken != _getFeeToken()) {
             revert SimpleRewardZapper__ExecutionError();
         }
 
@@ -184,6 +177,8 @@ contract SimpleRewardZapper is ZapperBase {
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
         // CommonLib.isETH here.
+
+        address rewardToken = _getFeeToken();
 
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
@@ -266,6 +261,11 @@ contract SimpleRewardZapper is ZapperBase {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Returns the current fee token address.
+    function _getFeeToken() internal view returns (address) {
+        return centralRegistry.feeToken();
+    }
 
     /// @notice Checks whether `user` has rewards, if they do, claim them
     ///         to this contract and bubble up the reward amount.

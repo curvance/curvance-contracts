@@ -66,7 +66,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         vm.prank(user1);
 
@@ -97,7 +97,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         _emissionData.emissions = new uint256[](2);
         _emissionData.emissions[0] = _ONE;
@@ -170,7 +170,7 @@ contract ExecuteEmissionConfigurationTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 

@@ -127,8 +127,6 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         pBALRETH.setDelegateApproval(address(curvancePrefarm), true);
         curvancePrefarm.swapAndDeposit(swapData, 0.1e18);
 
-        vm.stopPrank();
-
         skip(1 weeks);
 
         uint256 underlyingBalance = balRETH.balanceOf(address(pBALRETH));
@@ -139,8 +137,9 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         );
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0.1e18);
 
-        vm.prank(user1);
         curvancePrefarm.migrate(_BAL_WETH_RETH_ADDRESS, 0.1e18, true);
+
+        vm.stopPrank();
 
         assertEq(curvancePrefarm.balanceOf(user1, _BAL_WETH_RETH_ADDRESS), 0);
         assertEq(balRETH.balanceOf(address(curvancePrefarm)), 0);

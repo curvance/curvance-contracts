@@ -84,9 +84,10 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
     uint256 public lockBoostMultiplier = 10001; // 110%
     uint256 public marketInterestFactor = 1; // 10%
 
-    mapping(address => uint256) postedCollateralAt;
+    mapping(address => uint256) public postedCollateralAt;
+
     // the maximum collateral cap for a specific mtoken
-    mapping(address => uint256) maxCollateralCap;
+    mapping(address => uint256) public maxCollateralCap;
 
     constructor() {
         // _fork(18031848);
@@ -158,8 +159,7 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     function _deployRewardManager() internal {
         rewardManager = new RewardManager(
-            ICentralRegistry(address(centralRegistry)),
-            _USDC_ADDRESS
+            ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setRewardManager(address(rewardManager));
     }
@@ -198,9 +198,9 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
         centralRegistry.setFeeManager(address(feeManager));
     }
 
-    int192 constant MIN_ORACLE_ANSWER = 1e6;
-    int192 constant MAX_USDC_ANSWER = 1e11;
-    int192 constant MAX_DAI_ANSWER = 1e50;
+    int192 public constant MIN_ORACLE_ANSWER = 1e6;
+    int192 public constant MAX_USDC_ANSWER = 1e11;
+    int192 public constant MAX_DAI_ANSWER = 1e50;
 
     function _deployChainlinkAdaptors() internal {
         // TODO: These numbers should be pulled into const variables
@@ -502,12 +502,12 @@ contract StatefulBaseMarket is PropertiesAsserts, ErrorConstants {
 
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
-    bool feedsSetup;
-    uint256 lastRoundUpdate;
+    bool public feedsSetup;
+    uint256 public lastRoundUpdate;
 
     function setUpFeeds() public {
         require(centralRegistry.hasElevatedPermissions(address(this)));
-        require(gaugeManager.startTime() < block.timestamp);
+        require(gaugeManager.gaugeStartTime() < block.timestamp);
         // use mock pricing for testing
         // StatefulBaseMarket - chainlinkAdaptor - usdc, dai
         mockUsdcFeed = new MockDataFeed(address(chainlinkUsdcUsd));

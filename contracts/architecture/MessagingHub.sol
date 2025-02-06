@@ -53,8 +53,6 @@ contract MessagingHub is QueryResponse {
     ICentralRegistry public immutable centralRegistry;
     /// @notice Address of the Gauge Manager.
     IGaugeManager public immutable gaugeManager;
-    /// @notice Address of fee token.
-    address public immutable feeToken;
 
     /// STORAGE ///
 
@@ -98,7 +96,6 @@ contract MessagingHub is QueryResponse {
         // Query gauge and token configuration directly to minimize potential
         // human error.
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
-        feeToken = centralRegistry.feeToken();
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -643,6 +640,7 @@ contract MessagingHub is QueryResponse {
         IWormholeRelayer wormholeRelayer = _getWormholeRelayer();
         ChainData memory chainData = _getChainData(dstChainId);
 
+        address feeToken = _getFeeToken();
         _approveTokenIfNeeded(feeToken, address(circleTokenMessenger), amount);
 
         uint64 nonce = circleTokenMessenger.depositForBurnWithCaller(
@@ -850,7 +848,7 @@ contract MessagingHub is QueryResponse {
 
     /// @dev Transfers `amount` `feeToken` to `recipient`.
     function _transferFeeTokens(uint256 amount, address recipient) internal {
-        SafeTransferLib.safeTransfer(feeToken, recipient, amount);
+        SafeTransferLib.safeTransfer(_getFeeToken(), recipient, amount);
     }
 
     /// @notice Record user rewards allocated to an epoch.
@@ -887,6 +885,11 @@ contract MessagingHub is QueryResponse {
         return IVeCVE(centralRegistry.veCVE());
     }
 
+    /// @notice Returns the current fee token address.
+    function _getFeeToken() internal view returns (address) {
+        return centralRegistry.feeToken();
+    }
+
     /// @dev Returns the current Reward Manager address to call.
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
@@ -921,7 +924,7 @@ contract MessagingHub is QueryResponse {
     /// @dev Returns the amount of fee tokens currently held in this
     ///      Messaging Hub.
     function _getFeeTokenHeld() internal view returns (uint256) {
-        return IERC20(feeToken).balanceOf(address(this));
+        return IERC20(_getFeeToken()).balanceOf(address(this));
     }
 
     /// @dev Returns the next protocol epoch to deliver rewards for.

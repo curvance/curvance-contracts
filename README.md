@@ -1,4 +1,4 @@
-<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1663645591/1500x500"/></p>
+<p style="text-align: center;width:100%"> <img src="https://pbs.twimg.com/profile_banners/1445781144125857796/1713381654/1500x500"/></p>
 
 <h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
 
@@ -29,10 +29,10 @@ Main dependencies:
 4. Events
 5. Errors
 6. Constructor
-7. External
-8. Public
-9. Internal
-10. Private as the end of the contract
+7. External Functions
+8. Public Functions
+9. Internal Functions
+10. Private Functions as the end of the contract
 
 ### A/B state variables
 
@@ -99,7 +99,7 @@ If you think something needs to be changed in the code, please require changes. 
 
 ### Assignment
 
-Github will automatically assign 2 developers in round robin manner, counted against to how many pull request reviews
+Github will automatically assign 2 developers in a round robin structure, counted against to how many pull request reviews
 they are already assigned to.
 
 ## Branching strategy

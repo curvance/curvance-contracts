@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
+import { VelodromeVolatilePToken, FixedPointMathLib, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeVolatilePToken.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
@@ -281,7 +281,11 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
         uint256 protocolBalanceBeforeLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
         );
-        uint256 leverageFee = amountForLeverage / 100;
+        uint256 leverageFee = FixedPointMathLib.mulDivUp(
+            amountForLeverage,
+            centralRegistry.protocolLeverageFee(),
+            1e18
+        );
 
         PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));

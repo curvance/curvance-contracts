@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { TestBaseSimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
+import { TestBaseSimpleRewardZapper, ZapperBase, SimpleRewardZapper } from "../TestBaseSimpleRewardZapper.sol";
 
 import { RewardManager } from "contracts/architecture/RewardManager.sol";
-import { SimpleRewardZapper } from "contracts/plugins/rewards/SimpleRewardZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
@@ -56,7 +55,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 epochs = rewardManager.epochsToClaim(user1);
@@ -87,7 +86,7 @@ contract ClaimRewardsForTest is TestBaseSimpleRewardZapper {
 
         vm.stopPrank();
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(user1, 1);
 
         uint256 rewards = amount /= 1e12;

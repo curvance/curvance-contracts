@@ -151,7 +151,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                 if (rewardAmount > 0) {
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
-                    uint256 protocolFee = FixedPointMathLib.mulDiv(
+                    uint256 protocolFee = FixedPointMathLib.mulDivUp(
                         rewardAmount,
                         centralRegistry.protocolHarvestFee(),
                         1e18
@@ -170,7 +170,10 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                             (SwapperLib.Swap)
                         );
 
-                        if (!isApprovedAsset[swapData.inputToken]) {
+                        if (
+                            !isApprovedAsset[swapData.inputToken] ||
+                            swapData.outputToken != sd.token0
+                            ) {
                             // this will be the same check: `swapData.inputToken != rewardToken`
                             revert CompoundingPToken__UnapprovedAssetSwap();
                         }

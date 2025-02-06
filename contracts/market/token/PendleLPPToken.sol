@@ -39,7 +39,7 @@ contract PendleLPPToken is CompoundingPToken {
     StrategyData public strategyData;
 
     /// @notice Whether a particular token address is an underlying token
-    ///         of this Curve 2Pool LP.
+    ///         of this Pendle LP token.
     /// @dev Token => Is underlying token.
     mapping(address => bool) public isUnderlyingToken;
 
@@ -177,7 +177,7 @@ contract PendleLPPToken is CompoundingPToken {
 
                     // Take protocol fee for veCVE lockers and auto
                     // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDiv(
+                    protocolFee = FixedPointMathLib.mulDivUp(
                         rewardAmount,
                         harvestFee,
                         1e18
@@ -194,7 +194,10 @@ contract PendleLPPToken is CompoundingPToken {
             {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
-                    if (!isApprovedAsset[swapDataArray[i].inputToken]) {
+                    if (
+                        !isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 

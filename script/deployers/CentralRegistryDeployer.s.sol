@@ -179,6 +179,18 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry._setOracleManager: ", oracleManager);
     }
 
+    function _setEraTargetEmissions(uint256 baseEmissionsPerEpoch) internal {
+        require(centralRegistry != address(0), "Set the centralRegistry!");
+
+        CentralRegistry(centralRegistry).setEraTargetEmissions(
+            baseEmissionsPerEpoch
+        );
+        console.log(
+            "centralRegistry.setEraTargetEmissions: ",
+            baseEmissionsPerEpoch
+        );
+    }
+
     function _addLockingPermissions(address newApprovedAddress) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(
