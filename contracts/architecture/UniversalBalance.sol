@@ -346,6 +346,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Withdraw } and { Deposit } events.
+    ///      Owner cannot delegate themselves so we can skip the check.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
@@ -363,8 +364,8 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
         _checkDelegate(owner, msg.sender);
-        
-        if (owner == msg.sender) {
+
+        if(owner == recipient) {
             revert UniversalBalance__InvalidParameter();
         }
         

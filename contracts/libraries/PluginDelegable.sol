@@ -38,6 +38,7 @@ abstract contract PluginDelegable {
     error PluginDelegable__Unauthorized();
     error PluginDelegable__InvalidCentralRegistry();
     error PluginDelegable__DelegatingDisabled();
+    error PluginDelegable_InvalidParameter();
 
     /// CONSTRUCTOR ///
 
@@ -82,6 +83,10 @@ abstract contract PluginDelegable {
     function setDelegateApproval(address delegate, bool isApproved) external {
         if (checkDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
+        }
+
+        if (delegate == msg.sender) {
+            revert PluginDelegable_InvalidParameter();
         }
 
         uint256 approvalIndex = getUserApprovalIndex(msg.sender);
