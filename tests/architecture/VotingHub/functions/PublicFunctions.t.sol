@@ -65,7 +65,7 @@ contract VotingHubPublicFunctionsTest is TestBaseVotingHub {
             abi.encodeWithSignature("queryEmissionsAllocated()")
         );
 
-        votingHub.setEraTargetEmissions(_ONE * 3);
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 

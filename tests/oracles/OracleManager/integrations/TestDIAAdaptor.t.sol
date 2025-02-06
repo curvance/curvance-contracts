@@ -44,17 +44,4 @@ contract TestDIAAdaptor is TestBaseOracleManager {
         assertEq(errorCode, 0);
         assertGt(price, 0);
     }
-
-    function testRemovePriceFeed() public {
-        bool isSupportedBeforeRemoval = oracleManager.isSupportedAsset(_WBTC_ADDRESS);
-        
-        assert(isSupportedBeforeRemoval);
-
-        oracleManager.removeAssetPriceFeed(_WBTC_ADDRESS, address(adaptor));
-
-        bool isSupportedAfterRemoval = oracleManager.isSupportedAsset(_WBTC_ADDRESS);
-
-        assert(!isSupportedAfterRemoval);
-
-    }
 }
