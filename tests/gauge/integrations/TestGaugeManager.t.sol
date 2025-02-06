@@ -68,18 +68,34 @@ contract TestGaugeManager is TestBaseMarket {
             }
         }
 
-        // address[] memory tokensParam = new address[](1);
-        // tokensParam[0] = tokens[0];
-        // uint256[] memory poolWeights = new uint256[](1);
-        // poolWeights[0] = 100;
-
-        // vm.prank(address(messagingHub));
-        // gaugeManager.setEmissionRates(0, tokensParam, poolWeights);
-
-        // start epoch
-
         mockDaiFeed = new MockDataFeed(_CHAINLINK_DAI_USD);
         chainlinkAdaptor.addAsset(_DAI_ADDRESS, address(mockDaiFeed), 0, true);
+    }
+
+    function testRevertLockStartTimeBeforeGenesisEpoch() public {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+        vm.warp(genesisEpoch - 1000);
+
+        vm.expectRevert(GaugeManager.GaugeManager__NotStarted.selector);
+        gaugeManager.lockInStartTime();
+    }
+
+    function testStartTimeShouldBeAfterLock() public {
+        uint256 genesisEpoch = centralRegistry.genesisEpoch();
+        uint256 epochDuration = gaugeManager.epochDuration();
+        vm.warp(genesisEpoch + 1000);
+
+        uint256 gaugeStartTimeBefore = gaugeManager.gaugeStartTime();
+        assertEq(
+            gaugeStartTimeBefore,
+            genesisEpoch +
+                (((block.timestamp - genesisEpoch) / epochDuration) *
+                    epochDuration)
+        );
+
+        gaugeManager.lockInStartTime();
+        uint256 gaugeStartTimeAfter = gaugeManager.gaugeStartTime();
+        assertEq(gaugeStartTimeBefore, gaugeStartTimeAfter);
     }
 
     function testRevertSetEmissionRatesUnauthorized() public {
