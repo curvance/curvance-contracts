@@ -66,6 +66,10 @@ abstract contract PositionManagementBase is
         uint256 amount,
         uint256 maximum
     );
+    error PositionManagementBase__InsufficientRepayAmount(
+        uint256 repayAmount,
+        uint256 balance
+    );
 
     /// MODIFIERS ///
 
@@ -451,8 +455,16 @@ abstract contract PositionManagementBase is
         // Unwrap deleverage instructions for debt repayment.
         address borrowUnderlying = borrowToken.underlying();
         uint256 repayAmount = deleverageData.repayAmount;
-        uint256 remaining = IERC20(borrowUnderlying).balanceOf(address(this)) -
-            repayAmount;
+        uint256 borrowUnderlyingBalance = IERC20(borrowUnderlying).balanceOf(
+            address(this)
+        );
+        if (repayAmount > borrowUnderlyingBalance) {
+            revert PositionManagementBase__InsufficientRepayAmount(
+                repayAmount,
+                borrowUnderlyingBalance
+            );
+        }
+        uint256 remaining = borrowUnderlyingBalance - repayAmount;
 
         // Approve `repayAmount` of `borrowUnderlying` to eToken contract.
         SwapperLib._approveTokenIfNeeded(
@@ -650,7 +662,8 @@ abstract contract PositionManagementBase is
         }
 
         // Fee is rounded up in favor of protocol.
-        return FixedPointMathLib.mulDivUp(amount, getProtocolLeverageFee(), WAD);
+        return
+            FixedPointMathLib.mulDivUp(amount, getProtocolLeverageFee(), WAD);
     }
 
     /// @notice Leverages an active Curvance position in favor of increasing
