@@ -314,7 +314,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarket {
             deleverageData.swapData[0].target = address(odosRouterV2);
             deleverageData.swapData[0].slippage = 0.005e18; // 0.5%
             deleverageData.swapData[0].call = odosCallData;
-            deleverageData.repayAmount = daiOutAmount + minDaiOut;
+            deleverageData.repayAmount = daiOutAmount + (minDaiOut / 10) * 9;
         }
 
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
