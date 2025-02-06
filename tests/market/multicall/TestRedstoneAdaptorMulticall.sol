@@ -113,7 +113,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         oracleManager.addAssetPriceFeed(_WBTC_ADDRESS, address(adapter));
 
         // start epoch
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);

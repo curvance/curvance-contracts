@@ -9,7 +9,6 @@ import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
@@ -18,8 +17,8 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
 
-    /// @param pToken The address of the pToken corresponding to Curve lp
-    ///               token to be exited.
+    /// @param mToken The address of the mToken corresponding to the proposed
+    ///               redemption.
     /// @param shares The amount of shares to redeemed.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced from callers collateralPosted.
@@ -36,6 +35,9 @@ abstract contract ZapperBase is ReentrancyGuard {
     /// @notice The address of wrapped native token on this chain.
     address public immutable wrappedNative;
 
+    /// @dev `bytes4(keccak256(bytes("ZapperBase__Unauthorized()")))`.
+    uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xa1b2f000;
+
     /// ERRORS ///
 
     error ZapperBase__Unauthorized();
@@ -48,10 +50,7 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     receive() external payable {}
 
-    constructor(
-        ICentralRegistry centralRegistry_,
-        address wrappedNative_
-    ) {
+    constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
         if (
             !ERC165Checker.supportsInterface(
                 address(centralRegistry_),
@@ -125,13 +124,18 @@ abstract contract ZapperBase is ReentrancyGuard {
                     // User wants to enter and collateralize a position for
                     // someone else, so we need to validate they have plugin
                     // authority.
-                    if (IPluginDelegable(mToken).isDelegate(recipient, msg.sender)) {
+                    if (
+                        IPluginDelegable(mToken).isDelegate(
+                            recipient,
+                            msg.sender
+                        )
+                    ) {
                         shares = IPToken(mToken).depositAsCollateralFor(
                             assets,
                             recipient
                         );
                     } else {
-                        revert ZapperBase__Unauthorized();
+                        _revert(_UNAUTHORIZED_SELECTOR);
                     }
                 }
             } else {
@@ -192,7 +196,11 @@ abstract contract ZapperBase is ReentrancyGuard {
                 msg.sender
             );
         } else {
-            assets = IEToken(mToken).redeemFor(shares, address(this), msg.sender);
+            assets = IEToken(mToken).redeemFor(
+                shares,
+                address(this),
+                msg.sender
+            );
         }
 
         // Validate output of redemption is sufficient.
@@ -278,7 +286,7 @@ abstract contract ZapperBase is ReentrancyGuard {
             }
             return;
         }
-        
+
         SafeTransferLib.safeTransferFrom(
             inputToken,
             msg.sender,

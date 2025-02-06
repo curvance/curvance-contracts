@@ -35,10 +35,8 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
         universalBalance.deposit(1e6, true);
 
         vm.prank(user2);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalance.transferFor(1e6, false, true, user2, address(1));
     }
 

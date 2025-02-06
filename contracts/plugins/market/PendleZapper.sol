@@ -139,8 +139,8 @@ contract PendleZapper is ZapperBase {
     ///         into desired token (zapData.outputToken).
     /// @param redemptionData Struct containing information on the desired
     ///                       redemption action to execute. Containing values:
-    ///                       1. The address of the pToken corresponding to Curve lp
-    ///                          token to be exited.
+    ///                       1. The address of the pToken corresponding to
+    ///                          Pendle lp token to be exited.
     ///                       2. The amount of shares to redeemed.
     ///                       3. Whether the collateral should be always
     ///                          reduced from callers collateralPosted.

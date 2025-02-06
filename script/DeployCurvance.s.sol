@@ -84,7 +84,7 @@ contract DeployCurvance is
 
         // Deploy Reward Manager
 
-        _deployRewardManager(centralRegistry, rewardToken);
+        _deployRewardManager(centralRegistry);
         _setRewardManager(rewardManager);
 
         // Deploy FeeManager
@@ -107,8 +107,9 @@ contract DeployCurvance is
         _addLockingPermissions(messagingHub);
 
         // Deploy VotingHub
-        _deployVotingHub(centralRegistry, 1000);
+        _deployVotingHub(centralRegistry);
         _setVotingHub(votingHub);
+        _setEraTargetEmissions(1000);
 
         //  Deploy Auxiliary Data
         _deployAuxiliaryData(centralRegistry);

@@ -71,7 +71,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         oracleManager.addMTokenSupport(address(cSTETH));
 
         // Ensure STETH/USD, ETH/USD, and USDC/USD feeds are not stale
-        skip(gaugeManager.startTime() - block.timestamp);
+        skip(gaugeManager.gaugeStartTime() - block.timestamp);
         chainlinkStethUsd.updateRoundData(
             0,
             1500e8,

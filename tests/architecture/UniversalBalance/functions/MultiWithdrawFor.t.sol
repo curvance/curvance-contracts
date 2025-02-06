@@ -80,10 +80,9 @@ contract UniversalBalanceMultiWithdrawForTest is TestBaseUniversalBalance {
         owners[0] = address(1);
 
         vm.prank(user1);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
+        
         universalBalance.multiWithdrawFor(
             withdrawAmounts,
             forceLentRedemption,

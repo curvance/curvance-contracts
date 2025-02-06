@@ -25,8 +25,8 @@ contract WithdrawNativeForTest is TestBaseUniversalBalanceNative {
         vm.startPrank(user1);
 
         universalBalanceNative.depositNative{ value: _ONE }(true);
-
-        vm.expectRevert();
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalanceNative.withdrawNativeFor(
             _ONE,
             true,

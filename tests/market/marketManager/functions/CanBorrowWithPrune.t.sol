@@ -11,7 +11,7 @@ contract CanBorrowWithPruneTest is TestBaseMarketManager {
         super.setUp();
 
         marketManager.listToken(address(eUSDC));
-        skip(gaugeManager.startTime() - block.timestamp);
+        skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);

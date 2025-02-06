@@ -45,7 +45,7 @@ contract TestConvex2PoolPToken is TestBaseMarket {
         centralRegistry.setFeeManager(address(this));
 
         // start epoch
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 

@@ -12,6 +12,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarket {
     // test_redeem, test_withdraw have problem with allowance
     function setUp() public override(TestERC4626, TestBaseMarket) {
         vm.chainId(1);
+        vm.warp(1640926800);
 
         _USDC_ADDRESSES[1] = address(new MockERC20Token());
 

@@ -72,7 +72,7 @@ contract TestBaseMarketManager is TestBaseMarket {
         );
 
         // use mock pricing for testing
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         chainlinkEthUsd.updateAnswer(1500e8);

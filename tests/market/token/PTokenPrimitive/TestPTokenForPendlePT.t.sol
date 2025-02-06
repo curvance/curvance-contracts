@@ -91,7 +91,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         oracleManager.addAssetPriceFeed(_PT_STETH, address(adapter));
 
         // start epoch
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 

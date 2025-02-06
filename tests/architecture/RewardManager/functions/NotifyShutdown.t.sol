@@ -15,7 +15,7 @@ contract NotifyShutdownTest is TestBaseRewardManager {
     function test_notifyShutdown_success_fromVeCVE() public {
         assertEq(rewardManager.isShutdown(), 1);
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.notifyShutdown();
 
         assertEq(rewardManager.isShutdown(), 2);

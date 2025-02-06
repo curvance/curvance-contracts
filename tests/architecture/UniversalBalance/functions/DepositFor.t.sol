@@ -29,10 +29,9 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         vm.startPrank(user1);
 
         usdc.approve(address(universalBalance), 1e6);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
 
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
         universalBalance.depositFor(1e6, true, address(1));
 
         vm.stopPrank();

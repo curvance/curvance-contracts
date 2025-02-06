@@ -17,7 +17,8 @@ contract ManageRewardsForTest is TestBaseRewardManager {
     }
 
     function test_manageRewardsFor_fail_whenNotDelegated() public {
-        vm.expectRevert(RewardManager.RewardManager__Unauthorized.selector);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         rewardManager.manageRewardsFor(user1);
     }
 

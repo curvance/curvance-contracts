@@ -114,6 +114,48 @@ contract BridgeLockTest is TestBaseVeCVE {
         );
     }
 
+    function test_bridgeLock_fail_whenPostEpochRestriction(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
+
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
+
+        vm.warp(veCVE.nextEpochStartTime() - veCVE.epochDuration());
+
+        vm.expectRevert(VeCVE.VeCVE__PostEpochRestriction.selector);
+        veCVE.bridgeLock{ value: messageFee }(
+            0,
+            bridgeData,
+            rewardsData,
+            "",
+            0
+        );
+    }
+
+    function test_bridgeLock_fail_whenPreEpochRestriction(
+        bool shouldLock,
+        bool isFreshLock,
+        bool isFreshLockContinuous
+    ) public setRewardsData(shouldLock, isFreshLock, isFreshLockContinuous) {
+        uint256 messageFee = messagingHub.quoteMessageFee(42161, 0);
+
+        centralRegistry.setEarlyUnlockPenaltyMultiplier(3000);
+
+        vm.warp(veCVE.nextEpochStartTime() - 1);
+
+        vm.expectRevert(VeCVE.VeCVE__PreEpochRestriction.selector);
+        veCVE.bridgeLock{ value: messageFee }(
+            0,
+            bridgeData,
+            rewardsData,
+            "",
+            0
+        );
+    }
+
     function test_bridgeLock_success(
         bool shouldLock,
         bool isFreshLock,

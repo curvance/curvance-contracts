@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { NO_ERROR, WAD } from "contracts/libraries/Constants.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+
 library SwapperLib {
     /// TYPES ///
-    /// @notice Used to execute a swap, which is selling one token for another.
+    /// @notice Contains instructions to execute a swap, which is selling one
+    ///         token (`inputToken`) for another (`outputToken`).
     /// @param inputToken Address of input token to swap from.
     /// @param inputAmount The amount of `inputToken` to swap.
     /// @param outputToken Address of token to swap into.
@@ -92,98 +94,57 @@ library SwapperLib {
         ICentralRegistry centralRegistry,
         Swap memory swapData
     ) internal returns (uint256 outAmount) {
-        {
-            address callDataChecker = centralRegistry.externalCalldataChecker(
-                swapData.target
-            );
+        outAmount = swapUnsafe(centralRegistry, swapData);
 
-            // Validate we know how to verify this calldata.
-            if (callDataChecker == address(0)) {
-                revert SwapperLib__UnknownCalldata();
-            }
-
-            // Verify calldata integrity.
-            IExternalCalldataChecker(callDataChecker).checkCalldata(
-                swapData,
-                address(this)
-            );
-
-            // Approve `swapData.inputToken` to target contract, if necessary.
-            _approveTokenIfNeeded(
-                swapData.inputToken,
-                swapData.target,
-                swapData.inputAmount
-            );
-
-            // Cache output token from struct for easier querying.
-            uint256 balance = CommonLib.getTokenBalance(swapData.outputToken);
-
-            uint256 value = CommonLib.isETH(swapData.inputToken)
-                ? swapData.inputAmount
-                : 0;
-
-            LowLevelCallsHelper._callWithNative(
-                swapData.target,
-                swapData.call,
-                value
-            );
-
-            // Remove any excess approval.
-            _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
-
-            outAmount =
-                CommonLib.getTokenBalance(swapData.outputToken) -
-                balance;
+        IOracleManager oracleManager = IOracleManager(
+            centralRegistry.oracleManager()
+        );
+        (uint256 inputTokenPrice, uint256 errorCode) = oracleManager.getPrice(
+            swapData.inputToken,
+            true,
+            true
+        );
+        if (errorCode != NO_ERROR) {
+            revert SwapperLib__TokenPrice(swapData.inputToken);
         }
 
-        {
-            IOracleManager oracleManager = IOracleManager(
-                centralRegistry.oracleManager()
-            );
-            (uint256 inputTokenPrice, uint256 errorCode) = oracleManager
-                .getPrice(swapData.inputToken, true, true);
-            if (errorCode != NO_ERROR) {
-                revert SwapperLib__TokenPrice(swapData.inputToken);
-            }
+        uint256 outputTokenPrice;
+        (outputTokenPrice, errorCode) = oracleManager.getPrice(
+            swapData.outputToken,
+            true,
+            true
+        );
+        if (errorCode != NO_ERROR) {
+            revert SwapperLib__TokenPrice(swapData.outputToken);
+        }
 
-            uint256 outputTokenPrice;
-            (outputTokenPrice, errorCode) = oracleManager.getPrice(
-                swapData.outputToken,
-                true,
-                true
-            );
-            if (errorCode != NO_ERROR) {
-                revert SwapperLib__TokenPrice(swapData.outputToken);
-            }
+        uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
+            (10 **
+                (
+                    CommonLib.isETH(swapData.inputToken)
+                        ? 18
+                        : IERC20(swapData.inputToken).decimals()
+                ));
+        uint256 outputValue = (outputTokenPrice * outAmount) /
+            (10 **
+                (
+                    CommonLib.isETH(swapData.outputToken)
+                        ? 18
+                        : IERC20(swapData.outputToken).decimals()
+                ));
 
-            uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
-                (10 **
-                    (
-                        CommonLib.isETH(swapData.inputToken)
-                            ? 18
-                            : IERC20(swapData.inputToken).decimals()
-                    ));
-            uint256 outputValue = (outputTokenPrice * outAmount) /
-                (10 **
-                    (
-                        CommonLib.isETH(swapData.outputToken)
-                            ? 18
-                            : IERC20(swapData.outputToken).decimals()
-                    ));
+        // Check if swap received positive slippage.
+        if (outputValue > inputValue) {
+            return outAmount;
+        }
 
-            // Check if swap received positive slippage.
-            if (outputValue > inputValue) {
-                return outAmount;
-            }
-
-            // Calculate % slippage from executed swap.
-            uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
-            if (
-                slippage > swapData.slippage ||
-                slippage > centralRegistry.slippageLimit()
-            ) {
-                revert SwapperLib__Slippage(slippage);
-            }
+        // Calculate % slippage from executed swap.
+        uint256 slippage = ((inputValue - outputValue) * WAD) / inputValue;
+        if (
+            slippage > swapData.slippage ||
+            slippage > centralRegistry.slippageLimit()
+        ) {
+            revert SwapperLib__Slippage(slippage);
         }
     }
 
