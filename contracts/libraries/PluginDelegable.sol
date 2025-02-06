@@ -81,12 +81,12 @@ abstract contract PluginDelegable {
     /// @param isApproved Whether `delegate` is being approved or restricted
     ///                   of authority to operate on behalf of caller.
     function setDelegateApproval(address delegate, bool isApproved) external {
-        if (checkDelegationDisabled(msg.sender)) {
-            revert PluginDelegable__DelegatingDisabled();
-        }
-
         if (delegate == msg.sender) {
             revert PluginDelegable_InvalidParameter();
+        }
+
+        if (checkDelegationDisabled(msg.sender)) {
+            revert PluginDelegable__DelegatingDisabled();
         }
 
         uint256 approvalIndex = getUserApprovalIndex(msg.sender);
