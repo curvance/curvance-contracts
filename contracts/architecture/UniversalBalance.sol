@@ -21,6 +21,12 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
+    /// @notice Stores user-specific balance information within the 
+    /// @notice             Universal Balance system.
+    /// @param sittingBalance The amount of tokens currently held in 
+    ///                     the user's Universal Balance but 
+    ///                     not lent out.
+    /// @param lentBalance The amount of tokens the user has lent out.
     struct UserBalance {
         uint256 sittingBalance;
         uint256 lentBalance;
@@ -322,6 +328,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         bool willLend,
         address recipient
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        if (recipient == msg.sender) {
+            revert UniversalBalance__InvalidParameter();
+        }
+        
         (amountTransferred, lendingBalanceUsed) = _transfer(
             amount,
             forceLentRedemption,
@@ -336,6 +346,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @dev Requires that `owner` has approved the caller previously to
     ///      access their Universal Balance.
     ///      Emits { Withdraw } and { Deposit } events.
+    ///      Owner cannot delegate themselves so we can skip the check.
     /// @param amount The amount of underlying token to be withdrawn.
     /// @param forceLentRedemption Whether the withdrawn underlying tokens
     ///                            should be pulled only from `owner`'s lent
@@ -352,6 +363,10 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         address recipient,
         address owner
     ) external returns (uint256 amountTransferred, bool lendingBalanceUsed) {
+        if (owner == recipient) {
+            revert UniversalBalance__InvalidParameter();
+        }
+        
         _checkDelegate(owner, msg.sender);
 
         (amountTransferred, lendingBalanceUsed) = _transfer(

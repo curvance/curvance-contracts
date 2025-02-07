@@ -178,4 +178,113 @@ contract TestCVEInitialDistribution is TestBaseMarket {
 
         vm.stopPrank();
     }
+
+    event debugUint(string, uint256);
+    function testRescueTokenETH_success() public {
+
+        // rescue all ETH
+        uint256 ethBalanceOfThisBefore = address(this).balance;
+
+        deal(address(distributor), 1 ether);
+        distributor.rescueToken(address(0), 0);
+
+        uint256 ethBalanceOfThisAfter = address(this).balance;
+
+        uint256 ethBalanceRecovered = ethBalanceOfThisAfter - ethBalanceOfThisBefore;
+
+        assertEq(ethBalanceRecovered, 1 ether);
+        assertEq(address(distributor).balance, 0);
+        
+        // rescue exact amount of ETH
+
+        ethBalanceOfThisBefore = address(this).balance;
+
+        deal(address(distributor), 100 ether);
+
+        distributor.rescueToken(address(0), 50 ether);
+
+        ethBalanceOfThisAfter = address(this).balance;
+
+        ethBalanceRecovered = ethBalanceOfThisAfter - ethBalanceOfThisBefore;
+
+        assertEq(ethBalanceRecovered, 50 ether);
+        assertEq(address(distributor).balance, 50 ether);
+
+    }
+
+    function testRescueTokenERC20_success() public {
+
+        // rescue all USDC
+
+        _prepareUSDC(address(distributor), 100e6);
+
+        uint256 usdcBalanceOfThisBefore = usdc.balanceOf(address(this));
+
+        distributor.rescueToken(address(usdc), 100e6);
+
+        uint256 usdcBalanceOfThisAfter = usdc.balanceOf(address(this));
+
+        uint256 usdcBalanceRecovered = usdcBalanceOfThisAfter - usdcBalanceOfThisBefore;
+
+        assertEq(usdcBalanceRecovered, 100e6);
+        assertEq(usdc.balanceOf(address(distributor)), 0);
+
+        // rescue exact amount of USDC
+
+        _prepareUSDC(address(distributor), 100e6);
+
+        usdcBalanceOfThisBefore = usdc.balanceOf(address(this));
+
+        distributor.rescueToken(address(usdc), 50e6);
+
+        usdcBalanceOfThisAfter = usdc.balanceOf(address(this));
+
+        usdcBalanceRecovered = usdcBalanceOfThisAfter - usdcBalanceOfThisBefore;
+
+        assertEq(usdcBalanceRecovered, 50e6);
+        assertEq(usdc.balanceOf(address(distributor)), 50e6);
+
+    }
+
+    function testRescueTokenUnauthorized_fail() public {
+
+        vm.startPrank(user1);
+        vm.expectRevert(
+            CVEInitialDistribution.CVEInitialDistribution__Unauthorized.selector
+        );
+        distributor.rescueToken(address(0), 0);
+
+    }
+
+    function testRescueCVE_fail() public {
+
+        vm.expectRevert(
+            CVEInitialDistribution.CVEInitialDistribution__TransferError.selector
+        );
+        distributor.rescueToken(address(cve), 0);
+
+    }
+
+    function testWithdrawRemainingTokens_success() public {
+
+        distributor.setPauseState(false);
+
+        uint256 cveBalanceOfThisBefore = cve.balanceOf(address(this));
+        uint256 cveBalanceOfDistributorBefore = cve.balanceOf(address(distributor));
+
+        skip(7 weeks);
+        
+        distributor.withdrawRemainingTokens();
+
+        uint256 cveBalanceOfThisAfter = cve.balanceOf(address(this));
+        uint256 cveBalanceOfDistributorAfter = cve.balanceOf(address(distributor));
+
+        assertEq(cveBalanceOfThisAfter, cveBalanceOfDistributorBefore);
+        assertEq(cveBalanceOfDistributorAfter, 0);
+    }
+
+
+
+    // this test contract is the DAO address
+    receive() external payable {}
 }

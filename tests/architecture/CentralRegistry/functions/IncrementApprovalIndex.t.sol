@@ -10,12 +10,18 @@ contract IncrementApprovalIndexTest is TestBaseMarket {
     function test_incrementApprovalIndex_success() public {
         assertEq(centralRegistry.getUserApprovalIndex(user1), 0);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        pBALRETH.setDelegateApproval(user2, true);
+
+        assert(pBALRETH.isDelegate(user1, user2));
 
         vm.expectEmit(true, true, true, true);
         emit ApprovalIndexIncremented(user1, 1);
 
         centralRegistry.incrementApprovalIndex();
+
+        assert(!pBALRETH.isDelegate(user1, user2)); // Ensure delegation is reset
 
         assertEq(centralRegistry.getUserApprovalIndex(user1), 1);
     }

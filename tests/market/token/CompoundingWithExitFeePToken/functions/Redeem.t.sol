@@ -13,16 +13,13 @@ contract CompoundingWithExitFeePTokenRedeemTest is
         public
     {
         vm.prank(address(1));
-
         vm.expectRevert();
         pBALRETHWithExitFee.redeem(100, address(this), address(this));
     }
-
     function test_compoundingWithExitFeePTokenRedeem_fail_whenAmountIsZero()
         public
     {
         pBALRETHWithExitFee.mint(100, address(this));
-
         vm.expectRevert(
             CompoundingPToken.CompoundingPToken__ZeroAssets.selector
         );
@@ -38,11 +35,12 @@ contract CompoundingWithExitFeePTokenRedeemTest is
 
         vm.expectEmit(true, true, true, true, address(pBALRETHWithExitFee));
         emit Transfer(address(this), address(0), 100);
-
         pBALRETHWithExitFee.redeem(100, address(this), address(this));
 
         assertEq(balRETH.balanceOf(address(this)), underlyingBalance + 98);
         assertEq(pBALRETHWithExitFee.balanceOf(address(this)), balance - 100);
         assertEq(pBALRETHWithExitFee.totalSupply(), totalSupply - 100);
     }
+
+
 }

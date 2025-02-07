@@ -71,6 +71,11 @@ contract GaugeManager is
         mapping(address => uint256) tokenWeight;
     }
 
+    /// @notice Stores user-specific reward tracking information.
+    /// @param rewardDebt The user's share of previously distributed 
+    ///                     rewards, used for fair reward calculation.
+    /// @param rewardPending The amount of rewards the user has 
+    ///                     accumulated but has not yet claimed.
     struct UserRewardInfo {
         uint256 rewardDebt;
         uint256 rewardPending;

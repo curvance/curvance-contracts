@@ -171,4 +171,21 @@ contract UniversalBalanceTransferTest is TestBaseUniversalBalance {
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
     }
+
+    function test_universalBalanceTransfer_fail_whenToAddressIsSelf() public {
+        uint256 hundredUSDC = 100e6;
+
+        _prepareUSDC(user1, hundredUSDC);
+
+        vm.startPrank(user1);
+
+        universalBalance.deposit(hundredUSDC, false);
+
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
+        universalBalance.transfer(1e6, false, true, user1);
+    }
+
+
+
+
 }
