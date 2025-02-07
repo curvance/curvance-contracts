@@ -13,10 +13,6 @@ interface IGaugeManager {
     /// @notice Returns current epoch number.
     function currentEpoch() external view returns (uint256);
 
-    /// @notice Returns the active reward tokens on the Gauge Manager,
-    ///         for ease of integration by third parties.
-    function getRewardTokens(address) external view returns (address[] memory);
-
     /// @notice Sets emission rates of tokens of next epoch.
     /// @dev Only the messaging hub can call this.
     /// @param epoch The epoch to set emission rates for, should be the next epoch.
@@ -27,20 +23,6 @@ interface IGaugeManager {
         uint256 epoch,
         address[] memory tokens,
         uint256[] memory poolWeights
-    ) external;
-
-    /// @notice Used to update Gauge Manager rewards for `rewardToken`,
-    ///         during `epoch` with `newRewardPerSec`.
-    /// @dev This is only be used for updating partner gauge rewards.
-    /// @param token The token to set rewards for.
-    /// @param epoch The epoch to set rewards for, should be the next epoch.
-    /// @param rewardToken The address of reward token to be updated.
-    /// @param additionalRewards The additional rewards amount for distribution
-    function addExtraRewards(
-        address token,
-        uint256 epoch,
-        address rewardToken,
-        uint256 additionalRewards
     ) external;
 
     /// @notice Deposit into Gauge Manager.
@@ -58,4 +40,25 @@ interface IGaugeManager {
     /// @param user The user address.
     /// @param amount Amounts to withdraw.
     function withdraw(address token, address user, uint256 amount) external;
+
+    /// @notice Registers an `amount` withdrawal of `token` for `user` and
+    ///         registers an `amount` deposit of `token` for `liquidator`
+    ///         inside the Gauge System on a liquidation of `user`.
+    /// @dev This does not actually include any token transfers as tokens
+    ///      are permissionlessly escrowed by pToken/eToken contracts and
+    ///      we simply record deposits/withdraws as virtual balances here.
+    /// @param token Protocol supported mToken address to withdraw for
+    ///              `user`.
+    /// @param user User address to withdraw `amount` of `token` for, on
+    ///             liquidation.
+    /// @param liquidator User address to deposit `amount` of `token` for, on
+    ///                   liquidation.
+    /// @param amount The amount of `token` to move from `user` and
+    ///               `liquidator` on liquidation.
+    function processLiquidation(
+        address token,
+        address user,
+        address liquidator,
+        uint256 amount
+    ) external;
 }

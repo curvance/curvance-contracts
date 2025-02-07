@@ -6,7 +6,7 @@ import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-
+import { CompoundingPToken} from "contracts/market/token/CompoundingPToken.sol";
 import "tests/market/TestBaseMarket.sol";
 
 contract TestAuraPToken is TestBaseMarket {
@@ -112,7 +112,7 @@ contract TestAuraPToken is TestBaseMarket {
             address(chainlinkAdaptor)
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         _skipEpochDuration(1);
         vm.roll(block.number + 1000);
 
@@ -186,6 +186,16 @@ contract TestAuraPToken is TestBaseMarket {
 
         pBALRETH.harvest(abi.encode(swaps, 0));
 
+        // check vault data without modification to vesting period
+
+        CompoundingPToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
+        uint256 rewardRate = vaultData.rewardRate;
+        uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
+        uint256 lastVestClaim = vaultData.lastVestClaim;
+
+        assert(lastVestClaim == block.timestamp);
+        assert(vestingPeriodEnd == block.timestamp + 1 days);
+
         vm.warp(block.timestamp + 8 days);
 
         assertGt(
@@ -197,6 +207,62 @@ contract TestAuraPToken is TestBaseMarket {
         vm.startPrank(user1);
         pBALRETH.withdraw(pBALRETH.balanceOf(user1), user1, user1);
         vm.stopPrank();
+
+        pBALRETH.setVestingPeriod(2 days);
+
+        // increase vesting period to 2 days
+
+        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestUpdate();
+        assert(updateNeeded == true);
+        assert(newVestPeriod == 2 days);
+
+        // harvest again to update the vesting period
+
+        _prepareBALRETH(user2, assets);
+
+        vm.prank(user2);
+        balRETH.approve(address(pBALRETH), assets);
+
+        vm.prank(user2);
+        pBALRETH.deposit(assets, user2);
+
+        IBooster(_AURA_BOOSTER).earmarkRewards(109);
+
+        // Advance time to earn BAL and AURA rewards
+        vm.warp(block.timestamp + 10 days);
+
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockDaiFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+        mockBALFeed.setMockUpdatedAt(block.timestamp);
+        mockAURAFeed.setMockUpdatedAt(block.timestamp);
+
+        swaps[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            balAmount,
+            0,
+            path,
+            address(pBALRETH),
+            block.timestamp
+        );
+
+        pBALRETH.harvest(abi.encode(swaps, 0));
+
+        vaultData = pBALRETH.getVaultYieldStatus();
+        rewardRate = vaultData.rewardRate;
+        vestingPeriodEnd = vaultData.vestingPeriodEnd;
+        lastVestClaim = vaultData.lastVestClaim;
+
+        assert(lastVestClaim == block.timestamp);
+        assert(vestingPeriodEnd == block.timestamp + 2 days);
+
+        // setCompoundingPaused
+        pBALRETH.setCompoundingPaused(true);
+
+        vm.expectRevert(CompoundingPToken.CompoundingPToken__CompoundingPaused.selector);
+        pBALRETH.harvest(bytes("0"));
+
     }
 
     function testReQueryTokens() external {

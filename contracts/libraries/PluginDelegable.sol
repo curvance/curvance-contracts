@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 /// @notice Facilitates delegated actions on behalf of a user inside Curvance.
 /// @dev `PluginDelegable` allows the Curvance Protocol to be a modular system
 ///      that plugins can be built on top of. By delegating action authority
-///      to a secondary address users can utilize potential third-party
+///      to an address or addresses users can utilize potential third-party
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
 abstract contract PluginDelegable {
@@ -35,8 +35,10 @@ abstract contract PluginDelegable {
 
     /// ERRORS ///
 
+    error PluginDelegable__Unauthorized();
     error PluginDelegable__InvalidCentralRegistry();
     error PluginDelegable__DelegatingDisabled();
+    error PluginDelegable_InvalidParameter();
 
     /// CONSTRUCTOR ///
 
@@ -55,12 +57,11 @@ abstract contract PluginDelegable {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Returns whether a user or contract has the ability to act
-    ///         on behalf of an account.
+    /// @notice Returns whether `delegate` has the ability to act on behalf of
+    ///         `user`.
     /// @param user The address to check whether `delegate` has delegation
-    ///             permissions.
-    /// @param delegate The address that will be approved or restricted
-    ///                 from delegated actions on behalf of the caller.
+    ///             permissions for.
+    /// @param delegate The address to check delegation permissions of `user`.
     /// @return Returns whether `delegate` is an approved delegate of `user`.
     function isDelegate(
         address user,
@@ -80,6 +81,10 @@ abstract contract PluginDelegable {
     /// @param isApproved Whether `delegate` is being approved or restricted
     ///                   of authority to operate on behalf of caller.
     function setDelegateApproval(address delegate, bool isApproved) external {
+        if (delegate == msg.sender) {
+            revert PluginDelegable_InvalidParameter();
+        }
+
         if (checkDelegationDisabled(msg.sender)) {
             revert PluginDelegable__DelegatingDisabled();
         }
@@ -109,5 +114,25 @@ abstract contract PluginDelegable {
     /// @return Whether the user has new delegation disabled or not.
     function checkDelegationDisabled(address user) public view returns (bool) {
         return centralRegistry.checkDelegationDisabled(user);
+    }
+
+    /// @notice Checks whether `delegate` has the ability to act on behalf of
+    ///         `user`, reverts if they do not.
+    /// @param user The address to check whether `delegate` has delegation
+    ///             permissions for.
+    /// @param delegate The address to check delegation permissions of `user`.
+    function _checkDelegate(
+        address user,
+        address delegate
+    ) internal view {
+        if (!_isDelegate[user][
+                centralRegistry.getUserApprovalIndex(user)
+            ][delegate]) {
+            /// @solidity memory-safe-assembly
+            assembly {
+                mstore(0x00, 0xcfdc5602) // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))
+                revert(0x1c, 0x04)
+            }
+        }
     }
 }

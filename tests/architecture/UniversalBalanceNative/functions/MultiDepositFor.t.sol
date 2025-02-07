@@ -82,10 +82,8 @@ contract UniversalBalanceNativeMultiDepositForTest is
         weth.approve(address(universalBalanceNative), depositSum);
 
         recipients[0] = address(1);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalanceNative.multiDepositFor(
             depositSum,
             amounts,

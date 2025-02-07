@@ -81,7 +81,7 @@ contract TestBoostedLock is TestBaseMarket {
 
         // start epoch
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
     }
 
@@ -111,13 +111,11 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0]) / 1e18,
             10000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2]) / 1e18,
             20000 - 1
         );
 
@@ -132,23 +130,19 @@ contract TestBoostedLock is TestBaseMarket {
         // check pending rewards after 100 seconds
         vm.warp(block.timestamp + 100);
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[0], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[0]) / 1e18,
             12000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[0], users[1], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[0], users[1]) / 1e18,
             8000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[2], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[2]) / 1e18,
             24000 - 1
         );
         assertEq(
-            gaugeManager.pendingRewards(tokens[1], users[3], address(cve)) /
-                1e18,
+            gaugeManager.pendingRewards(tokens[1], users[3]) / 1e18,
             16000 - 1
         );
 
@@ -221,7 +215,7 @@ contract TestBoostedLock is TestBaseMarket {
     }
 
     function testRevertClaimAndExtendLock() public {
-        vm.warp(gaugeManager.startTime() - 1);
+        vm.warp(gaugeManager.gaugeStartTime() - 1);
 
         RewardsData memory rewardData;
 
@@ -237,7 +231,7 @@ contract TestBoostedLock is TestBaseMarket {
             0
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
         gaugeManager.claimAndLock(
@@ -252,7 +246,7 @@ contract TestBoostedLock is TestBaseMarket {
     }
 
     function testRevertClaimAndLock() public {
-        vm.warp(gaugeManager.startTime() - 1);
+        vm.warp(gaugeManager.gaugeStartTime() - 1);
 
         RewardsData memory rewardData;
 
@@ -268,7 +262,7 @@ contract TestBoostedLock is TestBaseMarket {
             0
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.expectRevert(GaugeManager.GaugeManager__NoReward.selector);
         vm.prank(users[0]);
         gaugeManager.claimAndLock(

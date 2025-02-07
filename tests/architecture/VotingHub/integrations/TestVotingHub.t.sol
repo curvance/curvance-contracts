@@ -134,7 +134,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        votingHub.setEraTargetEmissions(_ONE * 5);
+        centralRegistry.setEraTargetEmissions(_ONE * 5);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -274,7 +274,7 @@ contract TestVotingHub is TestBaseVotingHub {
 
         _skipEpochDuration(1);
 
-        votingHub.setEraTargetEmissions(_ONE);
+        centralRegistry.setEraTargetEmissions(_ONE);
 
         uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
 
@@ -336,5 +336,141 @@ contract TestVotingHub is TestBaseVotingHub {
         );
         assertEq(totalWeights, _ONE);
         assertEq(poolWeight, _ONE);
+    }
+
+    function test_executeEmissionConfiguration_increaseRewardAfterEpochAndEra_success()
+        public
+    {
+        gasLimit.push(250_000);
+
+        _emissionData.tokens = new address[](1);
+        _emissionData.emissions = new uint256[](1);
+
+        _emissionData.tokens[0] = _USDC_ADDRESSES[42161];
+        _remoteEmissionData.push(_emissionData);
+
+        _emissionData.emissionTotal = _ONE;
+        _emissionData.emissions[0] = _ONE;
+        _emissionData.tokens[0] = _USDC_ADDRESS;
+
+        _skipEpochDuration(1);
+
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
+
+        uint256 gaugePoolCVEBalance = cve.balanceOf(address(gaugeManager));
+
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(votingHubs[42161]),
+            abi.encode(0)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        (uint256 totalWeights, uint256 poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugeManager)),
+            gaugePoolCVEBalance + _ONE
+        );
+        assertEq(totalWeights, _ONE);
+        assertEq(poolWeight, _ONE);
+
+        skip(votingHub.epochDuration() * 5);
+
+        centralRegistry.setEraTargetEmissions(_ONE * 5);
+
+        _emissionData.emissionTotal = _ONE * 2;
+        _emissionData.emissions[0] = _ONE * 2;
+
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(votingHubs[42161]),
+            abi.encode(0)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugeManager)),
+            gaugePoolCVEBalance + _ONE * 3
+        );
+        assertEq(totalWeights, _ONE * 2);
+        assertEq(poolWeight, _ONE * 2);
+
+        skip(votingHub.epochDuration() * votingHub.REWARD_HALVENING_RATE());
+
+        centralRegistry.setEraTargetEmissions(_ONE * 10);
+
+        _emissionData.emissionTotal = _ONE * 3;
+        _emissionData.emissions[0] = _ONE * 3;
+
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(votingHubs[42161]),
+            abi.encode(0)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        (totalWeights, poolWeight) = gaugeManager.gaugeWeight(
+            gaugeManager.currentEpoch(),
+            _USDC_ADDRESS
+        );
+
+        assertEq(
+            cve.balanceOf(address(gaugeManager)),
+            gaugePoolCVEBalance + _ONE * 6
+        );
+        assertEq(totalWeights, _ONE * 3);
+        assertEq(poolWeight, _ONE * 3);
     }
 }

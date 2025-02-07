@@ -29,10 +29,8 @@ contract UniversalBalanceWithdrawForTest is TestBaseUniversalBalance {
         universalBalance.deposit(1e6, true);
 
         vm.prank(user2);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalance.withdrawFor(1e6, true, user2, address(1));
     }
 

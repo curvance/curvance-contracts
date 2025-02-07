@@ -63,7 +63,7 @@ contract TestBaseCompoundingWithExitFeePToken is TestBaseMarket {
             true
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);

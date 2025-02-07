@@ -5,9 +5,9 @@ import { WAD, DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { RescueLib } from "contracts/libraries/RescueLib.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
@@ -224,25 +224,11 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        address daoOperator = centralRegistry.daoAddress();
-
-        if (token == address(0)) {
-            if (amount == 0) {
-                amount = address(this).balance;
-            }
-
-            SafeTransferLib.safeTransferETH(daoOperator, amount);
-        } else {
-            if (token == _getCVE()) {
-                revert VeCVE__NonTransferrable();
-            }
-
-            if (amount == 0) {
-                amount = IERC20(token).balanceOf(address(this));
-            }
-
-            SafeTransferLib.safeTransfer(token, daoOperator, amount);
+        if (token == _getCVE()) {
+            revert VeCVE__NonTransferrable();
         }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the contract, unstakes all tokens,

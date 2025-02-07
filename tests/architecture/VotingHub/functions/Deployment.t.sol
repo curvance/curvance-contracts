@@ -10,29 +10,20 @@ contract VotingHubDeploymentTest is TestBaseVotingHub {
         public
     {
         vm.expectRevert();
-        new VotingHub(ICentralRegistry(address(1)), _ONE);
+        new VotingHub(ICentralRegistry(address(1)));
     }
 
     function test_votingHubDeployment_success() public {
-        votingHub = new VotingHub(
-            ICentralRegistry(address(centralRegistry)),
-            _ONE
-        );
+        votingHub = new VotingHub(ICentralRegistry(address(centralRegistry)));
 
         assertEq(
             address(votingHub.centralRegistry()),
             address(centralRegistry)
         );
-        assertEq(address(votingHub.cve()), address(cve));
-        assertEq(address(votingHub.veCVE()), address(veCVE));
-
-        uint256 numEras = votingHub.PROTOCOL_REWARD_ERAS();
-
-        for (uint256 i; i < numEras; i++) {
-            assertEq(
-                votingHub.targetEmissionAllocationByEra(i),
-                _ONE / (2 ** i)
-            );
-        }
+        assertEq(
+            address(votingHub.gaugeManager()),
+            address(centralRegistry.gaugeManager())
+        );
+        assertEq(votingHub.epochDuration(), centralRegistry.EPOCH_DURATION());
     }
 }

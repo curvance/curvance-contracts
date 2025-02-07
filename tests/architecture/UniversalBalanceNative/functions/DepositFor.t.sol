@@ -32,10 +32,9 @@ contract UniversalBalanceNativeDepositForTest is
         vm.startPrank(user1);
 
         weth.approve(address(universalBalanceNative), _ONE);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
+        
         universalBalanceNative.depositFor(_ONE, true, address(1));
 
         vm.stopPrank();

@@ -16,9 +16,7 @@ contract UpdatePositionTokenTest is TestBaseMarketManager {
     );
 
     function test_updatePositionToken_fail_whenNotPToken() public {
-        vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
-        );
+        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.updatePositionToken(
             address(eUSDC),
             9100 + 1,

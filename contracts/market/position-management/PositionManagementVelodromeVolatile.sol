@@ -15,10 +15,6 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
     address public router;
 
-    /// ERRORS ///
-
-    error PositionManagementVelodromeVolatile__SlippageError();
-
     /// CONSTRUCTOR ///
 
     constructor(
@@ -93,7 +89,7 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         // Validate swap was routed into token0, or borrow token was token0.
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
         if (totalAmountA == 0) {
-            revert PositionManagementVelodromeVolatile__SlippageError();
+            revert PositionManagementBase__InvalidSlippage();
         }
 
         uint256 decimalsA = 10 ** IERC20(token0).decimals();

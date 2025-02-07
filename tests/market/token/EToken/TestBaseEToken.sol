@@ -53,7 +53,7 @@ contract TestBaseEToken is TestBaseMarket {
             false
         );
 
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         chainlinkEthUsd.updateAnswer(1500e8);

@@ -35,10 +35,8 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
         universalBalance.deposit(1e6, true);
 
         vm.prank(user2);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalance.transferFor(1e6, false, true, user2, address(1));
     }
 
@@ -193,5 +191,20 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
 
         assertEq(usdc.balanceOf(address(universalBalance)), usdcBalance);
         assertEq(eUSDC.balanceOf(address(universalBalance)), eUSDCBalance);
+    }
+
+    function test_universalBalanceTransferFor_fail_whenToAddressIsSelf() public {
+        uint256 hundredUSDC = 100e6;
+
+        _prepareUSDC(user1, hundredUSDC);
+
+        vm.startPrank(user1);
+
+        universalBalance.deposit(hundredUSDC, true);
+
+        vm.startPrank(user2);
+
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
+        universalBalance.transferFor(hundredUSDC, true, true, user1, user1);
     }
 }

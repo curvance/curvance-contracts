@@ -6,7 +6,6 @@ import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } f
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
-import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 contract VotingHub is QueryResponse {
@@ -23,10 +22,6 @@ contract VotingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice CVE contract address.
-    ICVE public immutable cve;
-    /// @notice VeCVE contract address.
-    IVeCVE public immutable veCVE;
     /// @notice Address of the Gauge Manager.
     IGaugeManager public immutable gaugeManager;
     /// @notice The length of one protocol epoch, in seconds.
@@ -40,27 +35,6 @@ contract VotingHub is QueryResponse {
     bytes4 internal constant _QUERY_EMISSIONS_ALLOCATED_SELECTOR =
         bytes4(hex"a214a94e");
 
-    /// STORAGE ///
-
-    /// @notice Start time that the voting hub starts, in unix time.
-    uint256 public startTime;
-
-    /// @notice The amount of CVE rewards allocated on this chain,
-    ///         for an epoch.
-    /// @dev Epoch # => CVE rewards allocated.
-    mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
-
-    /// @notice The amount of CVE rewards allocated across all chains,
-    ///         for an era. An era is a particular period in time in which
-    ///         CVE rewards are constant, before a halvening event moves the
-    ///         protocol to a new era.
-    /// @dev Epoch # => CVE rewards allocated.
-    mapping(uint256 => uint256) public targetEmissionAllocationByEra;
-
-    /// EVENTS ///
-
-    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
-
     /// ERRORS ///
 
     error VotingHub__Unauthorized();
@@ -69,20 +43,14 @@ contract VotingHub is QueryResponse {
     /// CONSTRUCTOR ///
 
     constructor(
-        ICentralRegistry centralRegistry_,
-        uint256 baseEmissionsPerEpoch
+        ICentralRegistry centralRegistry_
     ) QueryResponse(address(centralRegistry_.wormholeCore())) {
         centralRegistry = centralRegistry_;
 
         // Query epoch and token configuration directly to minimize potential
         // human error.
-        cve = ICVE(centralRegistry.cve());
-        veCVE = IVeCVE(centralRegistry.veCVE());
         gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
         epochDuration = centralRegistry.EPOCH_DURATION();
-        startTime = veCVE.nextEpochStartTime();
-
-        _setEraTargetEmissions(baseEmissionsPerEpoch);
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -130,6 +98,14 @@ contract VotingHub is QueryResponse {
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        _ensureNonEmptyEmissionConfigParameters(
+            response, 
+            signatures, 
+            gasLimit, 
+            emissionData, 
+            remoteEmissionData
+        );
 
         ParsedQueryResponse memory r = parseAndVerifyQueryResponse(
             response,
@@ -188,9 +164,11 @@ contract VotingHub is QueryResponse {
         }
 
         uint256 epoch = currentEpoch();
+        uint256 emissionsAllocated;
+
         // Verify emission values are valid.
         (
-            emissionsAllocatedByEpoch[epoch],
+            emissionsAllocated,
             emissionData,
             remoteEmissionData
         ) = _validateEmissionValues(
@@ -201,7 +179,13 @@ contract VotingHub is QueryResponse {
             totalEmissionsAllocated
         );
 
-        // Set emissions for this chain.
+        centralRegistry.setEmissionsAllocatedByEpoch(
+            epoch,
+            emissionsAllocated
+        );
+
+        // Set emissions for this chain, this will natively fail in
+        // `GaugeManager` if `epoch` has not started yet.
         _setEmissions(emissionData, epoch);
 
         // Submit emissions for remote chains.
@@ -215,27 +199,22 @@ contract VotingHub is QueryResponse {
         }
     }
 
-    /// @notice Sets the token emission values for each protocol epoch based
-    ///         on an initial emission value, by epoch.
-    /// @param baseEmissionsPerEpoch The initial token emissions value that
-    ///                              the protocol should allocate, per epoch.
-    function setEraTargetEmissions(uint256 baseEmissionsPerEpoch) external {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-        _setEraTargetEmissions(baseEmissionsPerEpoch);
-    }
-
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns the number of Protocol Eras, corresponds to how many
+    ///         different periods there are with token emission incentives.
+    function protocolRewardEras() public view returns (uint256) {
+        return PROTOCOL_REWARD_ERAS;
+    }
 
     /// @notice Returns current token emissions allocated, for this epoch.
     function queryEmissionsAllocated() public view returns (uint256) {
-        return emissionsAllocatedByEpoch[currentEpoch()];
+        return centralRegistry.emissionsAllocatedByEpoch(currentEpoch());
     }
 
     /// @notice Returns current target token emissions, for this epoch.
     function currentTargetEmissions() public view returns (uint256) {
-        return targetEmissionAllocationByEra[currentEra()];
+        return centralRegistry.targetEmissionAllocationByEra(currentEra());
     }
 
     /// @notice Returns current era number.
@@ -254,7 +233,7 @@ contract VotingHub is QueryResponse {
         uint256 timestamp
     ) public view returns (uint256) {
         uint256 cachedGenesisEpoch = centralRegistry.genesisEpoch();
-        
+
         // Rounds down intentionally.
         return
             timestamp < cachedGenesisEpoch
@@ -361,21 +340,6 @@ contract VotingHub is QueryResponse {
         return (cachedEmissionsAllocated, emissionData, remoteEmissionData);
     }
 
-    /// @dev Sets the token emission values for each protocol epoch based on
-    ///      an initial emission value, by epoch.
-    /// @param epochEmissions The initial token emissions value that the
-    ///                       protocol should allocate, per epoch.
-    function _setEraTargetEmissions(uint256 epochEmissions) internal {
-        uint256 numEras = PROTOCOL_REWARD_ERAS;
-
-        for (uint256 i; i < numEras; ++i) {
-            targetEmissionAllocationByEra[i] = epochEmissions;
-            epochEmissions = epochEmissions / 2;
-        }
-
-        emit EraEmissionsAllotmentSet(epochEmissions);
-    }
-
     /// @dev Sets new token emissions values to Gauge Managers on this chain,
     ///      for `epoch`.
     /// @param emissionData Struct containing information on emission
@@ -401,7 +365,7 @@ contract VotingHub is QueryResponse {
         IGaugeManager cachedGaugeManager = gaugeManager;
 
         // Mint epoch gauge emissions to the Gauge Manager.
-        cve.mintGaugeEmissions(
+        ICVE(centralRegistry.cve()).mintGaugeEmissions(
             address(cachedGaugeManager),
             emissionData.emissionTotal
         );
@@ -448,6 +412,58 @@ contract VotingHub is QueryResponse {
             gasLimit,
             epoch
         );
+    }
+
+    /**
+     * @dev Ensures that all emission configuration parameters provided 
+     *      to `executeEmissionConfiguration` are non-empty and valid.
+     * @param response The Wormhole query response. Must not be empty.
+     * @param signatures The Wormhole signatures corresponding to the 
+     *      query response. Must not be empty.
+     * @param gasLimit An array of gas limit values for each remote 
+     *      chain message. Must not be empty.
+     * @param emissionData The emission configuration data for the 
+     *      current chain. Must include non-empty arrays for tokens and 
+     *      emissions.
+     * @param remoteEmissionData An array of emission configuration data 
+     *      for remote chains. Must not be empty.
+     * @notice This function reverts if any of the provided parameters 
+     *      are empty or invalid. It ensures that all required data is 
+     *      available for the emission configuration process.
+     *      custom error VotingHub__InvalidParameter Emitted when any of 
+     *      the input parameters are empty or invalid.
+     */
+    function _ensureNonEmptyEmissionConfigParameters(
+        bytes calldata response,
+        IWormhole.Signature[] calldata signatures,
+        uint256[] calldata gasLimit,
+        EmissionData memory emissionData,
+        EmissionData[] memory remoteEmissionData
+    ) internal pure {
+        if (response.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (signatures.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (gasLimit.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (emissionData.tokens.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (emissionData.emissions.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        if (remoteEmissionData.length == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
     }
 
     /// @dev Internal helper for reverting efficiently.

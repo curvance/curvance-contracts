@@ -318,7 +318,7 @@ contract MarketManager is
             uint256 positionTokenPrice
         )
     {
-        LiqData memory result = _LiquidationStatusOf(
+        LiqData memory result = _liquidationStatusOf(
             account,
             earnToken,
             positionToken
@@ -339,7 +339,7 @@ contract MarketManager is
     function flaggedForLiquidation(
         address account
     ) external view returns (bool) {
-        LiqData memory data = _LiquidationStatusOf(
+        LiqData memory data = _liquidationStatusOf(
             account,
             address(0),
             address(0)
@@ -411,11 +411,8 @@ contract MarketManager is
             _checkIsToken(pToken);
         }
 
-        _checkIsListed(pToken);
-
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsListedToken(pToken);
+        _checkIsPToken(pToken);
 
         AccountPosition storage accountPositions = tokenData[pToken]
             .accountPositions[account];
@@ -450,9 +447,7 @@ contract MarketManager is
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsPToken(pToken);
 
         if (accountPositions.collateralPosted < tokens) {
             revert MarketManager__InsufficientCollateral();
@@ -481,7 +476,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        _checkIsListed(mToken);
+        _checkIsListedToken(mToken);
     }
 
     /// @notice Checks if the account should be allowed to redeem `amount`
@@ -585,7 +580,7 @@ contract MarketManager is
     /// @param account The address of the account that has just borrowed.
     function notifyBorrow(address mToken, address account) external {
         _checkIsToken(mToken);
-        _checkIsListed(mToken);
+        _checkIsListedToken(mToken);
 
         accountAssets[account].cooldownTimestamp = block.timestamp;
     }
@@ -595,7 +590,7 @@ contract MarketManager is
     /// @param mToken The market token to verify the repayment of.
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external view {
-        _checkIsListed(mToken);
+        _checkIsListedToken(mToken);
 
         // We require a `minimumHoldPeriod` to break flashloan
         // and multi-block price manipulations if the dynamic dual oracle
@@ -656,10 +651,13 @@ contract MarketManager is
     ) external returns (uint256, uint256) {
         _checkIsToken(eToken);
 
-        (
-            uint256 eTokenRepaid,
-            uint256 pTokenLiquidated
-        ) = _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+        (uint256 eTokenRepaid, uint256 pTokenLiquidated) = _canLiquidate(
+            eToken,
+            pToken,
+            account,
+            amount,
+            liquidateExact
+        );
 
         // Validate that the OEV queue is disabled or the liquidator is valid.
         _validateLiquidation(liquidator, account, true);
@@ -698,9 +696,9 @@ contract MarketManager is
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-
-        _checkIsListed(pToken);
-        _checkIsListed(eToken);
+        
+        _checkIsListedToken(pToken);
+        _checkIsListedToken(eToken);
 
         if (IMToken(pToken).marketManager() != IMToken(eToken).marketManager()) {
             revert MarketManager__MarketManagerMismatch();
@@ -789,36 +787,7 @@ contract MarketManager is
     /// @param account The account being liquidated and debt repaid on behalf
     ///                of.
     function queueAccountLiquidation(address account) external {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
-
-        (BadDebtData memory data, ) = _AccountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
+        _getUpdatedLiquidationStatusOf(account);
 
         // Queue the liquidation for execution.
         _queueLiquidation(msg.sender, account, false);
@@ -833,45 +802,20 @@ contract MarketManager is
     ///      Emits a {CollateralRemoved} event.
     /// @param account The address to liquidate completely.
     function liquidateAccount(address account) external {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
         // Validate that the OEV queue is disabled or the liquidator is valid
         _validateLiquidation(msg.sender, account, false);
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
 
         (
             BadDebtData memory data,
             uint256[] memory assetBalances
-        ) = _AccountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
+        ) = _getUpdatedLiquidationStatusOf(account);
 
         uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
         uint256 debt;
+
+        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
+        uint256 numAssetsPrior = accountAssetsPrior.length;
+        IMToken mToken;
 
         // Repay `account`'s debt and recognize bad debt.
         for (uint256 i = 0; i < numAssetsPrior; ++i) {
@@ -1042,15 +986,8 @@ contract MarketManager is
     ) external {
         _checkElevatedPermissions();
 
-        if (!IMToken(pToken).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Verify pToken is listed.
-        MarketToken storage marketToken = tokenData[pToken];
-        if (!marketToken.isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkIsListedToken(pToken);
+        _checkIsPToken(pToken);
 
         // Convert the parameters from basis points to `WAD` format.
         // While inefficient, we want to minimize potential human error
@@ -1118,6 +1055,8 @@ contract MarketManager is
         if (collRatio > (WAD_SQUARED / (WAD + collReqSoft))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        MarketToken storage marketToken = tokenData[pToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
@@ -1200,9 +1139,7 @@ contract MarketManager is
 
         for (uint256 i; i < numTokens; ++i) {
             // Make sure the pToken is a pToken.
-            if (!IMToken(pTokens[i]).isPToken()) {
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
+            _checkIsPToken(pTokens[i]);
 
             // Do not let people collateralize assets
             // with collateralization ratio of 0.
@@ -1222,7 +1159,7 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setMintPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-        _checkIsListed(mToken);
+        _checkIsListedToken(mToken);
 
         mintPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Mint Paused", state);
@@ -1235,7 +1172,7 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setBorrowPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-        _checkIsListed(mToken);
+        _checkIsListedToken(mToken);
 
         borrowPaused[mToken] = state ? 2 : 1;
         emit TokenActionPaused(mToken, "Borrow Paused", state);
@@ -1319,6 +1256,53 @@ contract MarketManager is
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Update pending interest in markts and determine `account`'s
+    ///         current status between collateral, debt, and additional
+    ///         liquidity and whether theres associated bad debt available
+    ///         warranting an account liquidation.
+    /// @param account The account to determine bad debt status.
+    /// @return Array of the amount of collateral posted and debt balances for
+    ///         each user position.
+    function _getUpdatedLiquidationStatusOf(
+        address account
+    ) internal returns (BadDebtData memory, uint256[] memory) {
+        // Make sure `account` is not trying to liquidate themselves.
+        if (msg.sender == account) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Make sure liquidations are not paused.
+        if (seizePaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
+        uint256 numAssetsPrior = accountAssetsPrior.length;
+        IMToken mToken;
+
+        // Update pending interest in markets.
+        for (uint256 i; i < numAssetsPrior; ) {
+            // Cache `account` mToken then increment i.
+            mToken = accountAssetsPrior[i++];
+            if (!mToken.isPToken()) {
+                // Update EToken interest if necessary.
+                IEToken(address(mToken)).accrueInterest();
+            }
+        }
+
+        (
+            BadDebtData memory data,
+            uint256[] memory assetBalances
+        ) = _accountLiquidationStatusOf(account);
+
+        // If an account has no collateral or debt this will revert.
+        if (data.collateral >= data.debt) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        return (data, assetBalances);
+    }
+
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
     /// @dev Emits {CollateralPosted} and, potentially, {TokenPositionCreated} events.
@@ -1396,7 +1380,7 @@ contract MarketManager is
             _revert(_PAUSED_SELECTOR);
         }
 
-        _checkIsListed(eToken);
+        _checkIsListedToken(eToken);
 
         // Check if the user already has an active borrow in the eToken.
         if (tokenData[eToken].accountPositions[account].activePosition != 2) {
@@ -1447,8 +1431,8 @@ contract MarketManager is
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-
-        _checkIsListed(mToken);
+        
+        _checkIsListedToken(mToken);
 
         if (
             ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
@@ -1551,7 +1535,7 @@ contract MarketManager is
                 positionsToClose
             );
         } else {
-            _checkIsListed(pToken);
+            _checkIsListedToken(pToken);
 
             if (
                 ILockableRegistry(address(centralRegistry))
@@ -1600,13 +1584,10 @@ contract MarketManager is
         uint256 debtAmount,
         bool liquidateExact
     ) internal view returns (uint256, uint256) {
-        _checkIsListed(earnToken);
+        _checkIsListedToken(earnToken);
+        _checkIsListedToken(positionToken);
 
         MarketToken storage pToken = tokenData[positionToken];
-
-        if (!pToken.isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
 
         // Do not let people liquidate 0 collateralization ratio assets.
         if (pToken.collRatio == 0) {
@@ -1614,7 +1595,7 @@ contract MarketManager is
         }
 
         // Calculate the users lFactor.
-        LiqData memory data = _LiquidationStatusOf(
+        LiqData memory data = _liquidationStatusOf(
             account,
             earnToken,
             positionToken
@@ -1798,6 +1779,22 @@ contract MarketManager is
         }
 
         return (reductionAmount, accountPositions);
+    }
+
+    /// @notice Check whether token is listed.
+    /// @param token The token to check whether it's listed or not.
+    function _checkIsListedToken(address token) internal view {
+        if (!tokenData[token].isListed) {
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
+        }
+    }
+
+    /// @notice Check whether token is pToken.
+    /// @param token The token to check whether it's pToken or not.
+    function _checkIsPToken(address token) internal view {
+        if (!IMToken(token).isPToken()) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
     }
 
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`

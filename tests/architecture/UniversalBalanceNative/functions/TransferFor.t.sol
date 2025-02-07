@@ -37,10 +37,8 @@ contract UniversalBalanceNativeTransferForTest is
         universalBalanceNative.deposit(_ONE, true);
 
         vm.prank(user2);
-
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
         universalBalanceNative.transferFor(
             _ONE,
             false,

@@ -80,10 +80,9 @@ contract NativeMultiWithdrawNativeForTest is TestBaseUniversalBalanceNative {
         owners[0] = address(1);
 
         vm.prank(user1);
+        // reverts with PluginDelegable__Unauthorized.selector
+        vm.expectRevert(0xcfdc5602);
 
-        vm.expectRevert(
-            UniversalBalance.UniversalBalance__Unauthorized.selector
-        );
         universalBalanceNative.multiWithdrawNativeFor(
             withdrawAmounts,
             forceLentRedemption,

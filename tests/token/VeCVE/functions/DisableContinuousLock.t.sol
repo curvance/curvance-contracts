@@ -55,7 +55,7 @@ contract DisableContinuousLockTest is TestBaseVeCVE {
             0
         );
 
-        vm.prank(address(rewardManager.veCVE()));
+        vm.prank(address(centralRegistry.veCVE()));
         rewardManager.updateUserClaimIndex(address(this), 1);
 
         _recordEpochRewards(2, 1e6 * _ONE);

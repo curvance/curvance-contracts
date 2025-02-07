@@ -4,8 +4,9 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { ERC20 } from "contracts/libraries/external/ERC20.sol";
+import { DENOMINATOR, WAD } from "contracts/libraries/Constants.sol";
 
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
@@ -60,8 +61,8 @@ library VelodromeLib {
                 amount0,
                 r0,
                 r1,
-                10 ** ERC20(token0).decimals(),
-                10 ** ERC20(token1).decimals(),
+                10 ** IERC20(token0).decimals(),
+                10 ** IERC20(token1).decimals(),
                 stable
             );
 
@@ -102,8 +103,8 @@ library VelodromeLib {
                 amount1,
                 r1,
                 r0,
-                10 ** ERC20(token1).decimals(),
-                10 ** ERC20(token0).decimals(),
+                10 ** IERC20(token1).decimals(),
+                10 ** IERC20(token0).decimals(),
                 stable
             );
 
@@ -199,8 +200,8 @@ library VelodromeLib {
             stable,
             amount0,
             amount1,
-            amount0 - (amount0 * slippage) / 10000,
-            amount1 - (amount1 * slippage) / 10000,
+            amount0 - (amount0 * slippage) / DENOMINATOR,
+            amount1 - (amount1 * slippage) / DENOMINATOR,
             address(this),
             block.timestamp
         );
@@ -210,7 +211,7 @@ library VelodromeLib {
         SwapperLib._removeApprovalIfNeeded(token1, router);
     }
 
-    /// @notice Calculates the optimal amount of TokenA to swap to TokenB
+    /// @notice Calculates the optimal amount of Token0 to swap to Token1
     ///         for a perfect LP deposit for a stable pair.
     /// @param factory The Velodrome factory address.
     /// @param lpToken The Velodrome lp token address.
@@ -220,7 +221,7 @@ library VelodromeLib {
     /// @param decimals0 The decimals of `token0`.
     /// @param decimals1 The decimals of `token1`.
     /// @param stable Whether the Velodrome lp token is stable or volatile.
-    /// @return The optimal amount of TokenA to swap.
+    /// @return The optimal amount of Token0 to swap.
     function _optimalDeposit(
         address factory,
         address lpToken,
@@ -237,25 +238,26 @@ library VelodromeLib {
 
         // sAMM deposit calculation.
         if (stable) {
-            a = (((amount0 * 10000) / (10000 - swapFee)) * 1e18) / decimals0;
+            a = (((amount0 * DENOMINATOR) / (DENOMINATOR - swapFee)
+            ) * WAD) / decimals0;
 
-            uint256 x = (reserve0 * 1e18) / decimals0;
-            uint256 y = (reserve1 * 1e18) / decimals1;
-            uint256 x2 = (x * x) / 1e18;
-            uint256 y2 = (y * y) / 1e18;
-            uint256 p = (y * (((x2 * 3 + y2) * 1e18) / (y2 * 3 + x2))) / x;
+            uint256 x = (reserve0 * WAD) / decimals0;
+            uint256 y = (reserve1 * WAD) / decimals1;
+            uint256 x2 = (x * x) / WAD;
+            uint256 y2 = (y * y) / WAD;
+            uint256 p = (y * (((x2 * 3 + y2) * WAD) / (y2 * 3 + x2))) / x;
 
             uint256 num = a * y;
-            uint256 den = ((a + x) * p) / 1e18 + y;
+            uint256 den = ((a + x) * p) / WAD + y;
 
-            return ((num / den) * decimals0) / 1e18;
+            return ((num / den) * decimals0) / WAD;
         }
 
         // vAMM deposit calculation.
-        uint256 swapFeeFactor = 10000 - swapFee;
+        uint256 swapFeeFactor = DENOMINATOR - swapFee;
 
-        a = (10000 + swapFeeFactor) * reserve0;
-        uint256 b = amount0 * 10000 * reserve0 * 4 * swapFeeFactor;
+        a = (DENOMINATOR + swapFeeFactor) * reserve0;
+        uint256 b = amount0 * DENOMINATOR * reserve0 * 4 * swapFeeFactor;
         uint256 c = FixedPointMathLib.sqrt(a * a + b);
         uint256 d = swapFeeFactor * 2;
         return (c - a) / d;

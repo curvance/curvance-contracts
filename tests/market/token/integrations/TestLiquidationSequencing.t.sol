@@ -60,7 +60,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         );
 
         // start epoch
-        vm.warp(gaugeManager.startTime());
+        vm.warp(gaugeManager.gaugeStartTime());
         vm.roll(block.number + 1000);
 
         mockDaiFeed.setMockUpdatedAt(block.timestamp);

@@ -7,6 +7,18 @@ pragma solidity ^0.8.19;
 ///            data is written here.
 abstract contract LiquidationManager {
     /// TYPES ///
+
+    /// @notice Liquidation queue struct for a specific liquidation target when
+    ///                     liquidation auction is disabled or passed.
+    /// @param prioritStartLine The timestamp where liquidators with 
+    ///                     priority access can start liquidation.
+    /// @param regularStartLine The timestamp where any liquidator can 
+    ///                     start liquidation.
+    /// @param endLine The timestamp where the liquidation window ends.
+    /// @param nonce The nonce uniquely identifies each liquidation event for 
+    ///                     an account, preventing reuse of old liquidations 
+    ///                     and ensuring correct sequencing in the liquidation
+    ///                     queue.
     struct LiqQueue {
         uint64 priorityStartline;
         uint64 regularStartline;

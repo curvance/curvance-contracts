@@ -13,6 +13,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IVotingHub } from "contracts/interfaces/IVotingHub.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
@@ -59,8 +60,6 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sequencer uptime oracle feed address for L2s.
     address public immutable sequencer;
-    /// @notice Address of fee token.
-    address public immutable feeToken;
 
     /// @dev bytes4(keccak256(bytes("CentralRegistry__ParametersMisconfigured()")))
     uint256 internal constant _PARAMETERS_MISCONFIGURED_SELECTOR = 0xa5bb570d;
@@ -74,13 +73,21 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Genesis Epoch timestamp.
     uint256 public genesisEpoch;
 
+    // FEE TOKEN
+
+    /// @notice Address of fee token which Curvance Protocol compounds
+    ///         strategy fees into for distribution.
+    address public feeToken;
+
     // DAO GOVERNANCE OPERATORS
 
-    /// @notice DAO multisig.
+    /// @notice DAO multisig, the primary address that the Curvance
+    ///         Collective operates from.
     address public daoAddress;
     /// @notice DAO multisig, with an execution time delay.
     address public timelock;
-    /// @notice Multi-protocol multisig, only for emergencies.
+    /// @notice Multi-protocol multisig, intended to be used only for
+    ///         emergencies.
     address public emergencyCouncil;
 
     // CURVANCE TOKEN CONTRACTS
@@ -92,17 +99,24 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     // DAO CONTRACTS DATA
 
-    /// @notice Reward Manager contract address.
+    /// @notice Reward Manager contract address, distributes rewards in
+    ///         `feeToken` to token lockers every epoch.
     address public rewardManager;
-    /// @notice Gauge Manager contract address.
+    /// @notice Gauge Manager contract address, distributes native token
+    ///         rewards to depositors and lenders inside the Curvance
+    ///         Protocol based on decentralized governance outcomes.
     address public gaugeManager;
-    /// @notice Voting Hub contract address.
+    /// @notice Voting Hub contract address, receives decentralized governance
+    ///         vote outcomes to update onchain across all blockchains.
     address public votingHub;
-    /// @notice Messaging Hub contract address.
+    /// @notice Messaging Hub contract address, processes crosschain messages
+    ///         across all supported blockchains.
     address public messagingHub;
-    /// @notice Oracle Manager contract address.
+    /// @notice Oracle Manager contract address, manages oracle prices
+    ///         for supported assets.
     address public oracleManager;
-    /// @notice Fee Manager contract address.
+    /// @notice Fee Manager contract address, manages fees for decentralized
+    ///         strategies for distribution.
     address public feeManager;
 
     // CROSS-CHAIN MESSAGING DATA
@@ -173,7 +187,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     // We store this data redundantly so that we can quickly get whatever
     // output we need, with low gas overhead.
 
-    /// @notice Number of chains supported.
+    /// @notice The number of chains supported by the Curvance Protocol.
     uint256 public supportedChains;
     /// @notice Array of Chain IDs recorded in the Messaging Layers Chain ID
     ///         format.
@@ -183,16 +197,34 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice ChainId => 2 = supported; 1 = unsupported.
     mapping(uint256 => ChainData) public supportedChainData;
-
+    /// @notice Messaging ChainId => GETH ChainId.
     mapping(uint16 => uint256) public messagingToGETHChainId;
+    /// @notice GETH ChainId => Messaging ChainId.
     mapping(uint256 => uint16) public GETHToMessagingChainId;
 
-    // DAO CONTRACT MAPPINGS
+    /// @notice The amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Epoch # => CVE rewards allocated.
+    mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
 
+    /// @notice The amount of CVE rewards allocated across all chains,
+    ///         for an era. An era is a particular period in time in which
+    ///         CVE rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
+    /// @dev Era # => CVE rewards allocated.
+    mapping(uint256 => uint256) public targetEmissionAllocationByEra;
+
+    // DAO CONTRACT MAPPINGS
+    
+    /// @notice Specifies if an address is a harvester or not.
     mapping(address => bool) public isHarvester;
+    /// @notice Specifies if an address is the market manager or not.
     mapping(address => bool) public isMarketManager;
+    /// @notice Target contract such as 1inch => calldata checker.
     mapping(address => address) public externalCalldataChecker;
+    /// @notice Specifies if an address is a multiCallProvider contract.
     mapping(address => bool) public isMulticallProvider;
+    /// @notice Target contract for external calldata => Multi call checker
     mapping(address => address) public multicallChecker;
 
     // Atlas OEV DAppControl
@@ -205,6 +237,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     event GenesisEpochSet(uint256 newGenesisEpoch);
     event FeeSet(string indexed fee, uint256 newFee);
+    event FeeTokenSet(address newAddress);
     event SlippageLimit(uint256 newSlippage);
     event InterestFeeSet(address indexed market, uint256 newFee);
     event MultiplierSet(string indexed multiplier, uint256 newMultiplier);
@@ -246,6 +279,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     event MulticallProviderSet(address provider, bool supportedStatus);
     event AtlasDAppControlAuthorized(address atlasDAppControl);
     event AtlasDAppControlUnauthorized(address atlasDAppControl);
+    event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
 
@@ -278,6 +312,13 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
         if (emergencyCouncil_ == address(0)) {
             emergencyCouncil_ = msg.sender;
+        }
+
+        // Check to make sure that genesis epoch is at least at the beginning
+        // of 2022 (Jan 1 12:00 EST) so we know the value is not accidently
+        // misconverted or missing with a value of 0.
+        if (genesisEpoch_ < 1640926800) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
 
         // Configure DAO permission data.
@@ -344,11 +385,31 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
+    /// @notice Sets fee token address.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Only settable once. Emits a {FeeTokenSet} event.
+    /// @param newFeeToken The new address of fee token.
+    function setFeeToken(address newFeeToken) external {
+        // If the contract is already set and needs to be updated, make sure
+        // reward system as not already started, ossifying contracts.
+        if (feeToken != address(0)) {
+            _checkGenesisEpochHasNotStarted();
+        }
+
+        _checkElevatedPermissions();
+
+        feeToken = newFeeToken;
+        emit FeeTokenSet(newFeeToken);
+    }
+
     /// @notice Sets a new genesis epoch.
     /// @dev Only callable by the Emergency Council.
     ///      Emits a {GenesisEpochSet} event.
     /// @param newGenesisEpoch The new genesis epoch.
     function setGenesisEpoch(uint256 newGenesisEpoch) external {
+        // Its not possible for `genesisEpoch` to be 0 based on constructor
+        // restrictions, so we do not need to check for 0 input here as this
+        // check would catch `newGenesisEpoch` == 0.
         if (newGenesisEpoch < genesisEpoch) {
             _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
         }
@@ -398,6 +459,7 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Sets a new Reward Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
+    ///      Can only be set once.
     /// @param newRewardManager The new address of rewardManager.
     function setRewardManager(address newRewardManager) external {
         // If the contract is already set and needs to be updated, make sure
@@ -412,9 +474,10 @@ contract CentralRegistry is ERC165, LockableRegistry {
         emit CoreContractSet("Reward Manager", newRewardManager);
     }
 
-    /// @notice Sets a new Reward Manager contract address.
+    /// @notice Sets a new Gauge Manager contract address.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Emits a {CoreContractSet} event.
+    ///      Can only be set once.
     /// @param newGaugeManager The new address of Gauge Manager.
     function setGaugeManager(address newGaugeManager) external {
         if (gaugeManager != address(0)) {
@@ -614,12 +677,18 @@ contract CentralRegistry is ERC165, LockableRegistry {
 
     /// @notice Sets the maximum slippage users can input with swap
     ///         instructions.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council,
+    ///      must have a minimum value of 4%.
     ///      Emits a {SlippageLimit} event.
     /// @param value The new slippage limit users can input on swap
     ///              instructions, in `basis points`.
     function setSlippageLimit(uint256 value) external {
         _checkElevatedPermissions();
+
+        // Slippage limit cannot be less than 4%.
+        if (value < 400) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
 
         // Convert the parameters from basis points to `WAD` format
         // while inefficient we want to minimize potential human error
@@ -730,6 +799,42 @@ contract CentralRegistry is ERC165, LockableRegistry {
         lockBoostMultiplier = value;
 
         emit MultiplierSet("Lock Boost", value);
+    }
+
+    /// EMISSIONS LOGIC
+
+    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    ///         for an epoch.
+    /// @dev Only callable by the Voting Hub.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param emissionsAllocated The amount of CVE rewards allocated on
+    ///                           this chain, for an epoch.
+    function setEmissionsAllocatedByEpoch(
+        uint256 epoch,
+        uint256 emissionsAllocated
+    ) external {
+        if (msg.sender != votingHub) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        emissionsAllocatedByEpoch[epoch] = emissionsAllocated;
+    }
+
+    /// @notice Sets the target token emissions for each Protocol Era.
+    /// @dev Only callable by the Emergency Council.
+    /// @param epochEmissions The initial token emissions value that the
+    ///                       protocol should allocate, per epoch.
+    function setEraTargetEmissions(uint256 epochEmissions) external {
+        _checkElevatedPermissions();
+
+        uint256 numEras = IVotingHub(votingHub).protocolRewardEras();
+
+        for (uint256 i; i < numEras; ++i) {
+            targetEmissionAllocationByEra[i] = epochEmissions;
+            epochEmissions = epochEmissions / 2;
+        }
+
+        emit EraEmissionsAllotmentSet(epochEmissions);
     }
 
     /// OWNERSHIP LOGIC
