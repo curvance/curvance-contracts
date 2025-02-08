@@ -77,4 +77,46 @@ contract TestRedstoneCoreAdaptor is TestBaseOracleManager {
         assertEq(errorCode, 0);
         assertEq(price, 60000e18);
     }
+
+    function testZeroHeartBeatRequiresPriceUpdateInEverySecond() public {
+        adaptor.addAsset(_WETH_ADDRESS, true, 8, 0);
+
+        bytes memory redstonePayload = getRedstonePayload("WETH:3000:8");
+
+        (, bytes32 symbolHash, , , ) = adaptor.adaptorDataUSD(_WETH_ADDRESS);
+        assertEq(symbolHash, bytes32("WETH"));
+        bytes memory encodedFunction = abi.encodeWithSignature(
+            "writePrice(address,bool)",
+            _WETH_ADDRESS,
+            true
+        );
+        bytes memory encodedFunctionWithRedstonePayload = abi.encodePacked(
+            encodedFunction,
+            redstonePayload
+        );
+
+        // Securely getting oracle value
+        (bool success, ) = address(adaptor).call(
+            encodedFunctionWithRedstonePayload
+        );
+        assertTrue(success);
+
+        oracleManager.addAssetPriceFeed(_WETH_ADDRESS, address(adaptor));
+
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            _WETH_ADDRESS,
+            true,
+            false
+        );
+        assertEq(errorCode, 0);
+        assertEq(price, 3000e18);
+
+        vm.warp(block.timestamp + 1);
+        (price, errorCode) = oracleManager.getPrice(
+            _WETH_ADDRESS,
+            true,
+            false
+        );
+        assertNotEq(errorCode, 0);
+    }
 }
