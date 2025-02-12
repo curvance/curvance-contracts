@@ -445,19 +445,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param pToken The position token to be liquidated from
     ///               `account`.
     function queueLiquidation(address account, address pToken) external {
-        // Fail if account = liquidator.
-        assembly {
-            if eq(account, caller()) {
-                // revert with EToken__Unauthorized().
-                mstore(0x00, 0xc7e7bc18)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // The MToken must be a position token.
-        if (!IPToken(pToken).isPToken()) {
-            revert EToken__ValidationFailed();
-        }
+        _checkAccountAndToken(account, pToken);
 
         // Update pending interest.
         accrueInterest();
@@ -657,25 +645,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
-
         // Convert `amount` assets to shares to match totalReserves
         // denomination.
         uint256 tokens = convertToShares(amount);
 
-        // Update reserves with underflow check.
-        totalReserves = totalReserves - tokens;
-
-        // Query current DAO operating address.
-        address daoAddress = centralRegistry.daoAddress();
-
-        // Withdraw reserves from gauge, in shares.
-        gaugeManager.withdraw(address(this), daoAddress, tokens);
-        // Transfer underlying to DAO, in assets.
-        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+        _withdrawReserves(tokens, amount);
     }
 
     /// @notice Withdraws all reserves from the gauge and transfers them to
@@ -692,24 +666,10 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        uint256 totalReservesCached = totalReserves;
-        uint256 amount = convertToAssets(totalReservesCached);
+        uint256 tokens = totalReserves;
+        uint256 amount = convertToAssets(tokens);
 
-        // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
-
-        // Update reserves to 0 and receive a gas refund.
-        delete totalReserves;
-
-        // Query current DAO operating address.
-        address daoAddress = centralRegistry.daoAddress();
-        // Withdraw reserves from gauge.
-        gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
-
-        // Transfer underlying to DAO, measured in assets.
-        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+        _withdrawReserves(tokens, amount);
     }
 
     /// @notice Sets `amount` as the allowance of `spender` over the
@@ -1483,33 +1443,20 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        // Fail if account = liquidator.
-        assembly {
-            if eq(account, caller()) {
-                // revert with EToken__Unauthorized().
-                mstore(0x00, 0xc7e7bc18)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // The MToken must be a position token.
-        if (!IPToken(pToken).isPToken()) {
-            revert EToken__ValidationFailed();
-        }
+        _checkAccountAndToken(account, pToken);
 
         uint256 liquidatedTokens;
 
         // Fail if liquidate not allowed,
         // trying to pay too much debt with excessive `amount` will revert.
-        (amount, liquidatedTokens) = marketManager
-            .canLiquidateWithExecution(
-                address(this),
-                pToken,
-                liquidator,
-                account,
-                amount,
-                exactAmount
-            );
+        (amount, liquidatedTokens) = marketManager.canLiquidateWithExecution(
+            address(this),
+            pToken,
+            liquidator,
+            account,
+            amount,
+            exactAmount
+        );
 
         // Validate that the token is listed inside the market.
         if (!marketManager.isListed(address(this))) {
@@ -1521,11 +1468,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        IPToken(pToken).seize(
-            liquidator,
-            account,
-            liquidatedTokens
-        );
+        IPToken(pToken).seize(liquidator, account, liquidatedTokens);
 
         emit Liquidated(
             liquidator,
@@ -1536,12 +1479,56 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         );
     }
 
+    /// @notice Withdraws reserves from the gauge and transfers them to
+    ///         Curvance DAO.
+    /// @param tokens Amount of reserves to withdraw, in shares.
+    /// @param amount Amount of reserves to withdraw, in assets.
+    function _withdrawReserves(uint256 tokens, uint256 amount) internal {
+        // Make sure we have enough underlying held to cover withdrawal.
+        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
+            revert EToken__InsufficientUnderlyingHeld();
+        }
+
+        // Update reserves with underflow check.
+        totalReserves = totalReserves - tokens;
+
+        // Query current DAO operating address.
+        address daoAddress = centralRegistry.daoAddress();
+
+        // Withdraw reserves from gauge, in shares.
+        gaugeManager.withdraw(address(this), daoAddress, tokens);
+        // Transfer underlying to DAO, in assets.
+        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+    }
+
     /// @dev Helper function for reverting efficiently.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Check whether the account and token are valid.
+    /// @param account The account to check.
+    /// @param token The token to check.
+    function _checkAccountAndToken(
+        address account,
+        address token
+    ) internal view {
+        // Fail if account = liquidator.
+        assembly {
+            if eq(account, caller()) {
+                // revert with EToken__Unauthorized().
+                mstore(0x00, 0xc7e7bc18)
+                revert(0x1c, 0x04)
+            }
+        }
+
+        // The MToken must be a position token.
+        if (!IPToken(token).isPToken()) {
+            revert EToken__ValidationFailed();
         }
     }
 

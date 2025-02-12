@@ -305,7 +305,7 @@ contract MarketManager is
     ///                 1e18 (WAD) indicating a hard liquidation.
     /// @return earnTokenPrice Current price for `earnToken`.
     /// @return positionTokenPrice Current price for `positionToken`.
-    function LiquidationStatusOf(
+    function liquidationStatusOf(
         address account,
         address earnToken,
         address positionToken
@@ -592,15 +592,7 @@ contract MarketManager is
     function canRepay(address mToken, address account) external view {
         _checkIsListedToken(mToken);
 
-        // We require a `minimumHoldPeriod` to break flashloan
-        // and multi-block price manipulations if the dynamic dual oracle
-        // fails to protect the market somehow.
-        if (
-            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-            block.timestamp
-        ) {
-            revert MarketManager__MinimumHoldPeriod();
-        }
+        _checkHoldPeriod(account);
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
@@ -1121,9 +1113,7 @@ contract MarketManager is
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkDaoPermissions();
 
         uint256 numTokens = pTokens.length;
 
@@ -1458,15 +1448,7 @@ contract MarketManager is
 
         _checkIsListedToken(mToken);
 
-        // We require a `minimumHoldPeriod` to break flashloan
-        // and multi-block price manipulations if the dynamic dual oracle
-        // fails to protect the market somehow.
-        if (
-            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-            block.timestamp
-        ) {
-            revert MarketManager__MinimumHoldPeriod();
-        }
+        _checkHoldPeriod(account);
 
         // If the account does not have an active position in the token,
         // then we can bypass the liquidity check.
@@ -1560,15 +1542,7 @@ contract MarketManager is
 
             _checkIsListedToken(pToken);
 
-            // We require a `minimumHoldPeriod` to break flashloan
-            // and multi-block price manipulations if the dynamic dual oracle
-            // fails to protect the market somehow.
-            if (
-                accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-                block.timestamp
-            ) {
-                revert MarketManager__MinimumHoldPeriod();
-            }
+            _checkHoldPeriod(account);
         }
     }
 
@@ -1797,6 +1771,20 @@ contract MarketManager is
         return (reductionAmount, accountPositions);
     }
 
+    /// @notice Check whether the hold period is met.
+    /// @param account The account to check the hold period for.
+    function _checkHoldPeriod(address account) internal view {
+        // We require a `minimumHoldPeriod` to break flashloan
+        // and multi-block price manipulations if the dynamic dual oracle
+        // fails to protect the market somehow.
+        if (
+            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
+            block.timestamp
+        ) {
+            revert MarketManager__MinimumHoldPeriod();
+        }
+    }
+
     /// @notice Check whether token is listed.
     /// @param token The token to check whether it's listed or not.
     function _checkIsListedToken(address token) internal view {
@@ -1820,6 +1808,13 @@ contract MarketManager is
         return value * 1e14;
     }
 
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissions.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
@@ -1832,13 +1827,9 @@ contract MarketManager is
     /// so `state` = true has reduced permissioning compared to `state` = false.
     function _checkAuthorizedPermissions(bool state) internal view {
         if (state) {
-            if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
+            _checkDaoPermissions();
         } else {
-            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
+            _checkElevatedPermissions();
         }
     }
 
