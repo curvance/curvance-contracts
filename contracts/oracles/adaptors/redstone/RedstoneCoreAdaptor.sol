@@ -339,7 +339,7 @@ contract RedstoneCoreAdaptor is
 
             _uniqueSignersThreshold--;
         } else {
-            if (authorisedSigners.length() < _uniqueSignersThreshold) {
+            if (authorisedSigners.length < _uniqueSignersThreshold) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
         }

@@ -8,7 +8,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
+import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract PositionManagementVelodromeVolatile is PositionManagementBase {
     address public pairFactory;
@@ -62,8 +62,8 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             revert PositionManagementBase__InvalidParam();
         }
 
-        address token0 = IVeloPair(pool).token0();
-        address token1 = IVeloPair(pool).token1();
+        address token0 = IVeloPool(pool).token0();
+        address token1 = IVeloPool(pool).token1();
 
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
@@ -100,9 +100,9 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         uint256 decimalsB = 10 ** IERC20(token1).decimals();
         // Pull reserve data so we can swap half of token0 into token1
         // optimally.
-        (uint256 r0, uint256 r1, ) = IVeloPair(pool).getReserves();
+        (uint256 r0, uint256 r1, ) = IVeloPool(pool).getReserves();
         (uint256 reserveA, uint256 reserveB) = token0 ==
-            IVeloPair(pool).token0()
+            IVeloPool(pool).token0()
             ? (r0, r1)
             : (r1, r0);
 
@@ -196,8 +196,8 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
 
         // Check to make sure there is calldata attached to execute the swap.
         if (length > 0) {
-            address token0 = IVeloPair(pool).token0();
-            address token1 = IVeloPair(pool).token1();
+            address token0 = IVeloPool(pool).token0();
+            address token1 = IVeloPool(pool).token1();
 
             if (
                 (deleverageData.swapData[0].inputToken != token0 &&
