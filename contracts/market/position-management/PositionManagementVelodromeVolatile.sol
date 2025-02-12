@@ -58,6 +58,10 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         address recipient
     ) internal virtual override {
         address pool = leverageData.positionToken.underlying();
+        if (IVeloPool(pool).stable()) {
+            revert PositionManagementBase__InvalidParam();
+        }
+
         address token0 = IVeloPair(pool).token0();
         address token1 = IVeloPair(pool).token1();
 
@@ -176,6 +180,10 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
+        if (IVeloPool(pool).stable()) {
+            revert PositionManagementBase__InvalidParam();
+        }
+        
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         VelodromeLib.exitVelodrome(
