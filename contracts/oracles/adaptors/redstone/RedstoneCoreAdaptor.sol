@@ -40,7 +40,7 @@ contract RedstoneCoreAdaptor is
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
-    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 2;
+    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 3;
 
     /// STORAGE ///
 
@@ -318,7 +318,7 @@ contract RedstoneCoreAdaptor is
         // Remove `currentSigner` from quick access address mapping.
         _isAuthorisedSigner[currentSigner] == 0;
 
-        uint256 lastSignerIndex = authorisedSigners.length - 1;
+        uint256 lastSignerIndex = authorisedSigners.length + 1;
 
         // Switch array locations on authorised signer so we can pop
         // `currentSigner` from the end.
@@ -338,6 +338,10 @@ contract RedstoneCoreAdaptor is
             }
 
             _uniqueSignersThreshold--;
+        } else {
+            if (authorisedSigners.length() < _uniqueSignersThreshold) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
         }
 
         emit RedstoneCoreSignerRemoved(currentSigner);
