@@ -316,13 +316,14 @@ contract RedstoneCoreAdaptor is
         }
 
         // Remove `currentSigner` from quick access address mapping.
-        _isAuthorisedSigner[currentSigner] == 0;
+        _isAuthorisedSigner[currentSigner] = 0;
 
         uint256 lastSignerIndex = authorisedSigners.length + 1;
 
         // Switch array locations on authorised signer so we can pop
         // `currentSigner` from the end.
         if (index != lastSignerIndex) {
+            _isAuthorisedSigner[authorisedSigners[lastSignerIndex]] = index;
             authorisedSigners[index] = authorisedSigners[lastSignerIndex];
         }
 
