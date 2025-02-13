@@ -27,7 +27,6 @@ abstract contract LiquidationManager {
     }
 
     /// CONSTANTS ///
-
     /// @notice Duration that a normal liquidation must wait for auction end.
     /// @dev 2 = 2 seconds.
     uint256 public constant REGULAR_HOLD_DURATION = 2;
@@ -47,16 +46,10 @@ abstract contract LiquidationManager {
 
     mapping(bytes32 => LiqQueue) public regularQueue;
     mapping(bytes32 => uint256) public priorityAccess;
-    mapping(address => bool) public liquidationBundlers;
 
     /// EVENTS ///
 
     event SpecificSequencingStatusChanged(bool sequencingActive);
-
-    event LiquidationBundlerStatusChanged(
-        address indexed bundler,
-        bool isApproved
-    );
 
     event AccountLiquidationQueued(
         address indexed account,
@@ -70,11 +63,9 @@ abstract contract LiquidationManager {
     );
 
     /// ERRORS ///
-
     error LiquidationManager__InvalidLiquidator();
 
     /// CONSTRUCTOR ///
-
     constructor() {}
 
     /// INTERNAL FUNCTIONS ///
@@ -157,7 +148,7 @@ abstract contract LiquidationManager {
         }
         // CASE: Called from SolverOp within Atlas tx so allow liquidations
         //       without queue validation.
-        if (liquidationBundlers[tx.origin]) {
+        if (_checkAtlasOevAllowed()) {
             return;
         }
 
@@ -207,16 +198,7 @@ abstract contract LiquidationManager {
         emit SpecificSequencingStatusChanged(sequencingActive);
     }
 
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
-    /// @dev NOTE: This function MUST be called inside an external or public
-    ///            function triggered by a call from the Central Registry.
-    function _setBundler(
-        address liquidationBundler,
-        bool isApproved
-    ) internal {
-        liquidationBundlers[liquidationBundler] = isApproved;
-
-        emit LiquidationBundlerStatusChanged(liquidationBundler, isApproved);
-    }
+    /// @notice Checks whether OEV is enabled or not.
+    /// @dev MUST be overridden in `MarketManager`.
+    function _checkAtlasOevAllowed() internal view virtual returns (bool);
 }

@@ -123,8 +123,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationWithSameNonceSucceedsAfterPriorityDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -186,8 +186,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationWithSameNonceForDifferentNonQueuingLiquidator()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -261,8 +261,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationWithSameNonceFailsAfterEndDurationForDifferentNonQueuingLiquidator()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -328,8 +328,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterPriorityDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -412,8 +412,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationSucceedsForSameLiquidatorAfterIncrementingNonceAfterRegularDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -496,8 +496,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationFailsForSameLiquidatorAfterIncrementingNonceAfterSecondEndDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -568,8 +568,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterPriorityDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -650,8 +650,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationSucceedsForDifferentLiquidatorAfterIncrementingNonceAfterRegularDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
@@ -737,8 +737,8 @@ contract TestLiquidationSequencing is TestBaseMarket {
     function testSecondLiquidationFailsForDifferentLiquidatorAfterIncrementingNonceAfterSecondEndDuration()
         public
     {
-        // First let's verify that user2 is not a bundler
-        assertEq(marketManager.liquidationBundlers(user2), false);
+        // First let's verify that atlas OEV is not allowed
+        assertEq(centralRegistry.atlasOevAllowed(), false);
         _prepareBALRETH(user1, 1 ether);
 
         // Setup the borrower position
