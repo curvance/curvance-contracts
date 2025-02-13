@@ -200,14 +200,14 @@ contract MarketManager is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) {}
+    ) LiquidityManager(centralRegistry_) LiquidationManager() {}
 
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
     function isListed(address mToken) external view returns (bool) {
-        return (tokenData[mToken].isListed);
+        return tokenData[mToken].isListed;
     }
 
     function queryTokensListed() external view returns (address[] memory) {
@@ -688,22 +688,19 @@ contract MarketManager is
 
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `earnToken` should be allowed.
-    /// @param positionToken pToken which was used as collateral
-    ///                        and will be seized.
-    /// @param earnToken eToken which was borrowed by the account
-    ///                  and will repaid.
-    function canSeize(address positionToken, address earnToken) external view {
+    /// @param pToken pToken which was used as collateral
+    ///               and will be seized.
+    /// @param eToken eToken which was borrowed by the account
+    ///               and will repaid.
+    function canSeize(address pToken, address eToken) external view {
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
+        
+        _checkIsListedToken(pToken);
+        _checkIsListedToken(eToken);
 
-        _checkIsListedToken(positionToken);
-        _checkIsListedToken(earnToken);
-
-        if (
-            IMToken(positionToken).marketManager() !=
-            IMToken(earnToken).marketManager()
-        ) {
+        if (IMToken(pToken).marketManager() != IMToken(eToken).marketManager()) {
             revert MarketManager__MarketManagerMismatch();
         }
     }
@@ -1162,7 +1159,6 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setMintPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-
         _checkIsListedToken(mToken);
 
         mintPaused[mToken] = state ? 2 : 1;
@@ -1176,7 +1172,6 @@ contract MarketManager is
     /// @param state Whether the desired action is pausing or unpausing.
     function setBorrowPaused(address mToken, bool state) external {
         _checkAuthorizedPermissions(state);
-
         _checkIsListedToken(mToken);
 
         borrowPaused[mToken] = state ? 2 : 1;
@@ -1248,17 +1243,6 @@ contract MarketManager is
 
         _setSequencingStatus(sequencingActive);
     }
-
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
-    function setBundler(address liquidationBundler, bool isApproved) external {
-        if (msg.sender != address(centralRegistry)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _setBundler(liquidationBundler, isApproved);
-    }
-
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165
@@ -1447,6 +1431,8 @@ contract MarketManager is
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
+        
+        _checkIsListedToken(mToken);
 
         if (
             ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
@@ -1455,8 +1441,6 @@ contract MarketManager is
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-
-        _checkIsListedToken(mToken);
 
         // We require a `minimumHoldPeriod` to break flashloan
         // and multi-block price manipulations if the dynamic dual oracle
@@ -1551,14 +1535,14 @@ contract MarketManager is
                 positionsToClose
             );
         } else {
+            _checkIsListedToken(pToken);
+
             if (
                 ILockableRegistry(address(centralRegistry))
                     .checkTransfersDisabled(account)
             ) {
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
-
-            _checkIsListedToken(pToken);
 
             // We require a `minimumHoldPeriod` to break flashloan
             // and multi-block price manipulations if the dynamic dual oracle
@@ -1842,6 +1826,13 @@ contract MarketManager is
         }
     }
 
+    /// @dev Checks whether `mToken` is listed in this Market Manager.
+    function _checkIsListed(address mToken) internal view {
+        if (!tokenData[mToken].isListed) {
+            _revert(_TOKEN_NOT_LISTED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller is the desired mToken contract.
     function _checkIsToken(address mToken) internal view {
         /// @solidity memory-safe-assembly
@@ -1853,6 +1844,11 @@ contract MarketManager is
                 revert(0x1c, 0x04)
             }
         }
+    }
+
+    /// @notice Checks whether OEV is enabled or not.
+    function _checkAtlasOevAllowed() internal view override returns (bool){
+        return centralRegistry.atlasOevAllowed();
     }
 
     /// @dev Returns the Protocol Central Registry contract in interface

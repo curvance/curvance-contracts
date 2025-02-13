@@ -199,6 +199,7 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (address);
 
+    function atlasOevAllowed() external view returns (bool);
     /// @notice Returns the amount of CVE rewards allocated on this chain,
     ///         for an epoch.
     function emissionsAllocatedByEpoch(

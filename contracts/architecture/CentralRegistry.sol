@@ -227,6 +227,12 @@ contract CentralRegistry is ERC165, LockableRegistry {
     /// @notice Target contract for external calldata => Multi call checker
     mapping(address => address) public multicallChecker;
 
+    // Atlas OEV DAppControl
+    mapping(address => bool) public isAtlasDAppControlAuthorized;
+
+    // Atlas OEV allowed
+    bool public atlasOevAllowed;
+
     /// EVENTS ///
 
     event GenesisEpochSet(uint256 newGenesisEpoch);
@@ -271,6 +277,8 @@ contract CentralRegistry is ERC165, LockableRegistry {
         address calldataChecker
     );
     event MulticallProviderSet(address provider, bool supportedStatus);
+    event AtlasDAppControlAuthorized(address atlasDAppControl);
+    event AtlasDAppControlUnauthorized(address atlasDAppControl);
     event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
 
     /// ERRORS ///
@@ -1146,20 +1154,41 @@ contract CentralRegistry is ERC165, LockableRegistry {
         }
     }
 
-    /// @notice Updates status of `liquidationBundler` for whether they have
-    ///         the authority to execute liquidation bundlers or not.
-    function setBundler(address liquidationBundler, bool isApproved) external {
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried.
+    function lockAtlasOev() external {
+        if (!isAtlasDAppControlAuthorized[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        atlasOevAllowed = false;
+    }
+
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried.
+    function unlockAtlasOev() external {
+        if (!isAtlasDAppControlAuthorized[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        atlasOevAllowed = true;
+    }
+
+    /// @notice Authorizes an atlas dapp control to lock and unlock Atlas OEV.
+    function addAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
         _checkElevatedPermissions();
 
-        // Cache market list.
-        uint256 numMarkets = marketManagers.length;
+        isAtlasDAppControlAuthorized[authorizedAtlasDAppControl_] = true;
 
-        for (uint256 i; i < numMarkets; ++i) {
-            IMarketManager(marketManagers[i]).setBundler(
-                liquidationBundler,
-                isApproved
-            );
-        }
+        emit AtlasDAppControlAuthorized(authorizedAtlasDAppControl_);
+    }
+
+    function removeAuthorizedAtlasDAppControl(address authorizedAtlasDAppControl_) external {
+        _checkElevatedPermissions();
+
+        isAtlasDAppControlAuthorized[authorizedAtlasDAppControl_] = false;
+
+        emit AtlasDAppControlUnauthorized(authorizedAtlasDAppControl_);
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
