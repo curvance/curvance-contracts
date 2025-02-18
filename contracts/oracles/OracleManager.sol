@@ -191,9 +191,7 @@ contract OracleManager {
     /// @dev Requires that the feed exists for the asset.
     /// @param asset The address of the asset.
     function notifyFeedRemoval(address asset) external {
-        if (!isApprovedAdaptor[msg.sender]) {
-            revert OracleManager__Unauthorized();
-        }
+        _checkIsApprovedAdaptor(msg.sender);
 
         _removeFeed(asset, msg.sender);
     }
@@ -259,9 +257,7 @@ contract OracleManager {
         }
 
         // Validate `adaptorToRemove` is currently supported.
-        if (!isApprovedAdaptor[adaptorToRemove]) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsApprovedAdaptor(adaptorToRemove);
 
         // Validate that the adaptors are not identical as there would be no
         // point to replace an adaptor with itself.
@@ -280,9 +276,7 @@ contract OracleManager {
         _checkElevatedPermissions();
 
         // Validate `adaptorToRemove` is currently supported.
-        if (!isApprovedAdaptor[adaptorToRemove]) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsApprovedAdaptor(adaptorToRemove);
 
         delete isApprovedAdaptor[adaptorToRemove];
     }
@@ -318,68 +312,6 @@ contract OracleManager {
 
         cautionDivergenceFlag = maxCautionDivergence;
         badSourceDivergenceFlag = maxBadSourceDivergence;
-    }
-
-    /// @notice Retrieves the price feed data for a given asset.
-    /// @dev Fetches the price for the provided asset from all available
-    ///      price feeds and returns them in an array.
-    ///      Each FeedData in the array corresponds to a price feed.
-    ///      If less than two feeds are available, only the available feeds
-    ///      are returned.
-    /// @param asset The address of the asset.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return An array of FeedData objects for the asset, each corresponding
-    ///         to a price feed.
-    function getPricesForAsset(
-        address asset,
-        bool inUSD
-    ) external view returns (FeedData[] memory) {
-        bool isMToken = mTokenAssets[asset].isMToken;
-        address parentAsset;
-        if (isMToken) {
-            parentAsset = asset;
-            asset = mTokenAssets[asset].underlying;
-        }
-
-        uint256 numFeeds = assetPriceFeeds[asset].length;
-        if (numFeeds == 0) {
-            _revert(_NOT_SUPPORTED_SELECTOR);
-        }
-
-        FeedData[] memory data = new FeedData[](numFeeds * 2);
-
-        // If the asset only has one price feed, we know it will be in
-        // feed slot 0 so get both prices and return
-        if (numFeeds < 2) {
-            data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
-            data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
-            if (isMToken) {
-                uint256 exchangeRate = IMToken(parentAsset)
-                    .exchangeRateCached();
-                data[0].price = uint240((data[0].price * exchangeRate) / WAD);
-                data[1].price = uint240((data[1].price * exchangeRate) / WAD);
-            }
-
-            return data;
-        }
-
-        // We know the asset has two price feeds, so get pricing from
-        // both feeds and return
-        data[0] = _getPriceFromFeed(asset, 0, inUSD, true);
-        data[1] = _getPriceFromFeed(asset, 0, inUSD, false);
-        data[2] = _getPriceFromFeed(asset, 1, inUSD, true);
-        data[3] = _getPriceFromFeed(asset, 1, inUSD, false);
-
-        if (isMToken) {
-            uint256 exchangeRate = IMToken(parentAsset).exchangeRateCached();
-            data[0].price = uint240((data[0].price * exchangeRate) / WAD);
-            data[1].price = uint240((data[1].price * exchangeRate) / WAD);
-            data[2].price = uint240((data[2].price * exchangeRate) / WAD);
-            data[3].price = uint240((data[3].price * exchangeRate) / WAD);
-        }
-
-        return data;
     }
 
     /// @notice Returns the types of adaptors pricing `asset` uses.
@@ -479,21 +411,22 @@ contract OracleManager {
         }
 
         address mAsset;
+        
         // Check whether asset is an mToken.
         if (mTokenAssets[asset].isMToken) {
             mAsset = asset;
             asset = mTokenAssets[asset].underlying;
         }
 
-        uint256 numFeeds = assetPriceFeeds[asset].length;
-        // Validate we have a feed or feeds to price `asset`.
-        if (numFeeds == 0) {
-            _revert(_NOT_SUPPORTED_SELECTOR);
-        }
+        uint256 numFeeds = _checkHasSupportedFeeds(asset);
 
         // Route pricing to a single feed source or dual feed source.
         if (numFeeds < 2) {
-            (price, errorCode) = _getPriceSingleFeed(asset, inUSD, getLower);
+            bool hadError;
+            (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
+            if (hadError) {
+                errorCode = BAD_SOURCE;
+            }
         } else {
             (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
         }
@@ -607,9 +540,7 @@ contract OracleManager {
     /// @param feed The address of the feed to be added.
     function _addFeed(address asset, address feed) internal {
         // Validate that the proposed feed is approved for usage.
-        if (!isApprovedAdaptor[feed]) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
+        _checkIsApprovedAdaptor(feed);
 
         // Validate that the feed supports the proposed asset.
         if (!IOracleAdaptor(feed).isSupportedAsset(asset)) {
@@ -649,11 +580,7 @@ contract OracleManager {
     /// @param asset The address of the asset.
     /// @param feed The address of the feed to be removed.
     function _removeFeed(address asset, address feed) internal {
-        uint256 numFeeds = assetPriceFeeds[asset].length;
-        // Validate that there is a feed to remove.
-        if (numFeeds == 0) {
-            _revert(_NOT_SUPPORTED_SELECTOR);
-        }
+        uint256 numFeeds = _checkHasSupportedFeeds(asset);
 
         // If theres two feeds, figure out which to remove,
         // otherwise we know the feed to remove is the first entry.
@@ -701,70 +628,33 @@ contract OracleManager {
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, uint256) {
-        FeedData memory feed0 = _getPriceFromFeed(asset, 0, inUSD, getLower);
-        FeedData memory feed1 = _getPriceFromFeed(asset, 1, inUSD, getLower);
+        (uint256 feed0Price, bool feed0Error) = _getPriceFromFeed(asset, 0, inUSD, getLower);
+        (uint256 feed1Price, bool feed1Error)= _getPriceFromFeed(asset, 1, inUSD, getLower);
 
         // Check if we had any working price feeds,
         // if not we need to block any market operations.
-        if (feed0.hadError && feed1.hadError) return (0, BAD_SOURCE);
-
-        // Check if we had an error in either price that should block borrowing.
-        if (feed0.hadError || feed1.hadError) {
-            return (_getWorkingPrice(feed0, feed1), CAUTION);
-        }
-        if (getLower) {
-            return _calculateLowerPrice(feed0.price, feed1.price);
-        }
-
-        return _calculateHigherPrice(feed0.price, feed1.price);
-    }
-
-    /// @notice Retrieves the price of a specified asset from a single oracle.
-    /// @param asset The address of the asset to retrieve the price for.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @param getLower Whether the lower or higher price should be returned
-    ///                 if two feeds are available.
-    /// @return A tuple containing the asset's price and an error flag
-    ///         (if any).
-    ///         If the price feed returns an error, it returns
-    ///         (0, BAD_SOURCE).
-    ///         Otherwise, it returns (price, NO_ERROR).
-    function _getPriceSingleFeed(
-        address asset,
-        bool inUSD,
-        bool getLower
-    ) internal view returns (uint256, uint256) {
-        address adaptor = assetPriceFeeds[asset][0];
-        if (!isApprovedAdaptor[adaptor]) {
-            revert OracleManager__AdaptorIsNotApproved();
-        }
-
-        PriceReturnData memory data = IOracleAdaptor(adaptor).getPrice(
-            asset,
-            inUSD,
-            getLower
-        );
-        // If we had an error pricing the asset, bubble up we had a error.
-        if (data.hadError) {
+        if (feed0Error && feed1Error){
             return (0, BAD_SOURCE);
         }
-
-        // If the feed denomination is not in the proper form, modify it.
-        if (data.inUSD != inUSD) {
-            uint256 newPrice;
-            bool nativeUsdLower = inUSD ? getLower : !getLower;
-            (newPrice, data.hadError) = _getNativeUSD(nativeUsdLower);
-            if (data.hadError) {
-                return (0, BAD_SOURCE);
+        // Check if we had an error in either price that should block borrowing.
+        if (feed0Error || feed1Error) {
+            // We know based on context of when this if statement block is called that
+            // one but not both feeds have an error.
+            // So, if feed0 had the error, feed1 is okay, and vice versa.
+            if (feed0Error) {
+                return (feed1Price, CAUTION);
             }
 
-            data.price = uint240(
-                _convertNativeUSD(data.price, newPrice, data.inUSD)
-            );
+            return (feed0Price, CAUTION);
+        }
+        uint256 errorCode = _checkBounds(feed0Price, feed1Price);
+
+        if (getLower) {
+            return
+            (feed1Price < feed0Price ? feed1Price : feed0Price, errorCode);
         }
 
-        return (data.price, NO_ERROR);
+        return (feed1Price > feed0Price ? feed1Price : feed0Price, errorCode);
     }
 
     /// @notice Retrieves the price of a specified asset from a specific
@@ -774,8 +664,8 @@ contract OracleManager {
     ///      Converts the price to USD if necessary.
     /// @param asset The address of the asset to retrieve the price for.
     /// @param feedNumber The index number of the feed to use.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
+    /// @param inUSD Specifies whether the price format should be in
+    ///              USD (true) or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
     /// @return An instance of FeedData containing the asset's price
@@ -787,20 +677,19 @@ contract OracleManager {
         uint256 feedNumber,
         bool inUSD,
         bool getLower
-    ) internal view returns (FeedData memory) {
+    ) internal view returns (uint256, bool) {
         address adaptor = assetPriceFeeds[asset][feedNumber];
-        if (!isApprovedAdaptor[adaptor]) {
-            revert OracleManager__AdaptorIsNotApproved();
-        }
+        _checkIsApprovedAdaptor(adaptor);
 
         PriceReturnData memory data = IOracleAdaptor(adaptor).getPrice(
             asset,
             inUSD,
             getLower
         );
+
         // If we had an error pricing the asset, bubble up we had a error.
         if (data.hadError) {
-            return FeedData({ price: 0, hadError: true });
+            return (0, true);
         }
 
         // If the feed denomination is not in the proper form, modify it.
@@ -809,7 +698,7 @@ contract OracleManager {
             bool nativeUsdLower = inUSD ? getLower : !getLower;
             (newPrice, data.hadError) = _getNativeUSD(nativeUsdLower);
             if (data.hadError) {
-                return FeedData({ price: 0, hadError: true });
+                return (0, true);
             }
 
             data.price = uint240(
@@ -817,7 +706,7 @@ contract OracleManager {
             );
         }
 
-        return FeedData({ price: data.price, hadError: data.hadError });
+        return (uint256(data.price), data.hadError);
     }
 
     /// @notice Queries the current price of a chain's native token in USD
@@ -834,18 +723,17 @@ contract OracleManager {
     function _getNativeUSD(
         bool getLower
     ) internal view returns (uint256, bool) {
-        uint256 numFeeds = assetPriceFeeds[native].length;
-        // Validate we have a feed or feeds to price `asset`.
-        if (numFeeds == 0) {
-            _revert(_NOT_SUPPORTED_SELECTOR);
-        }
-
+        uint256 numFeeds = _checkHasSupportedFeeds(native);
         uint256 price;
         uint256 errorCode;
 
         // Route pricing to a single feed source or dual feed source.
         if (numFeeds < 2) {
-            (price, errorCode) = _getPriceSingleFeed(native, true, getLower);
+            bool hadError;
+            (price, hadError) = _getPriceFromFeed(native, 0, true, getLower);
+            if (hadError) {
+                errorCode = BAD_SOURCE;
+            }
         } else {
             (price, errorCode) = _getPriceDualFeed(native, true, getLower);
         }
@@ -914,121 +802,71 @@ contract OracleManager {
 
     /// @notice Processes the price data from two different feeds.
     /// @dev Checks for divergence between two prices.
-    ///      If the divergence is more than allowed, it returns (0, CAUTION).
+    ///      If the divergence is more than allowed, it returns (0, CAUTION)
+    ///      or (0, BAD_SOURCE) depending on the level of diversion.
     /// @param a The price from the first feed.
     /// @param b The price from the second feed.
-    /// @return A tuple containing the lower of two prices and an error flag
-    ///         (if any). If the prices are within acceptable range,
-    ///         it returns (min(a,b), NO_ERROR).
-    function _calculateLowerPrice(
+    /// @return Returns the appropriate error code depending on price
+    ///         divergence.
+    function _checkBounds(
         uint256 a,
         uint256 b
-    ) internal view returns (uint256, uint256) {
+    ) internal view returns (uint256) {
         if (a <= b) {
             // Check if both feeds are within `cautionDivergenceFlag`
             // of each other.
             if (((a * cautionDivergenceFlag) / DENOMINATOR) < b) {
-                // Return the price, but, notify that the price is dangerous
-                // and to treat data as a bad source because we are outside
-                // the accepted range of divergence.
+                // Notify that the price is dangerous and to treat data as a
+                // bad source because we are outside the accepted range of
+                // divergence.
                 if (((a * badSourceDivergenceFlag) / DENOMINATOR) < b) {
-                    return (a, BAD_SOURCE);
+                    return BAD_SOURCE;
                 }
 
-                // Return the price, but, notify that the price should be
-                // taken with caution because we are outside
-                // the accepted range of divergence.
-                return (a, CAUTION);
+                // Notify that the price should be taken with caution because
+                // we are outside the accepted range of divergence.
+                return CAUTION;
             }
 
-            return (a, NO_ERROR);
+            return NO_ERROR;
         }
 
         // Check if both feeds are within `cautionDivergenceFlag`
         // of each other.
         if (((b * cautionDivergenceFlag) / DENOMINATOR) < a) {
-            // Return the price, but, notify that the price is dangerous
-            // and to treat data as a bad source because we are outside
-            // the accepted range of divergence.
+            // Notify that the price is dangerous and to treat data as a
+            // bad source because we are outside the accepted range of
+            // divergence.
             if (((b * badSourceDivergenceFlag) / DENOMINATOR) < a) {
-                return (b, BAD_SOURCE);
+                return BAD_SOURCE;
             }
 
-            // Return the price, but, notify that the price should be
-            // taken with caution because we are outside
-            // the accepted range of divergence.
-            return (b, CAUTION);
+            // Notify that the price should be taken with caution because
+            // we are outside the accepted range of divergence.
+            return CAUTION;
         }
 
-        return (b, NO_ERROR);
+        return NO_ERROR;
     }
 
-    /// @notice Processes the price data from two different feeds.
-    /// @dev Checks for divergence between two prices.
-    ///      If the divergence is more than allowed, it returns (0, CAUTION).
-    /// @param a The price from the first feed.
-    /// @param b The price from the second feed.
-    /// @return A tuple containing the higher of two prices and an error flag
-    ///         (if any). If the prices are within acceptable range,
-    ///         it returns (max(a,b), NO_ERROR).
-    function _calculateHigherPrice(
-        uint256 a,
-        uint256 b
-    ) internal view returns (uint256, uint256) {
-        if (a >= b) {
-            // Check if both feeds are within `cautionDivergenceFlag`
-            // of each other.
-            if (((b * cautionDivergenceFlag) / DENOMINATOR) < a) {
-                // Return the price, but, notify that the price is dangerous
-                // and to treat data as a bad source because we are outside
-                // the accepted range of divergence.
-                if (((b * badSourceDivergenceFlag) / DENOMINATOR) < a) {
-                    return (a, BAD_SOURCE);
-                }
-
-                // Return the price, but, notify that the price should be
-                // taken with caution because we are outside
-                // the accepted range of divergence.
-                return (a, CAUTION);
-            }
-
-            return (a, NO_ERROR);
+    /// @notice Checks whether `asset` has supported adaptor feeds or not.
+    ///         Reverts if `asset` is no approved feeds.
+    function _checkHasSupportedFeeds(
+        address asset
+    ) internal view returns (uint256 numFeeds) {
+        numFeeds = assetPriceFeeds[asset].length;
+        // Validate we have a feed or feeds to price `asset`.
+        if (numFeeds == 0) {
+            _revert(_NOT_SUPPORTED_SELECTOR);
         }
-
-        // Check if both feeds are within `cautionDivergenceFlag`
-        // of each other.
-        if (((a * cautionDivergenceFlag) / DENOMINATOR) < b) {
-            // Return the price, but, notify that the price is dangerous
-            // and to treat data as a bad source because we are outside
-            // the accepted range of divergence.
-            if (((a * badSourceDivergenceFlag) / DENOMINATOR) < b) {
-                return (b, BAD_SOURCE);
-            }
-
-            // Return the price, but, notify that the price should be
-            // taken with caution because we are outside
-            // the accepted range of divergence.
-            return (b, CAUTION);
-        }
-
-        return (b, NO_ERROR);
     }
 
-    /// @notice Returns the price from the working feed between two feeds.
-    /// @dev If the first feed had an error, it returns the price from
-    ///      the second feed.
-    /// @param feed0 The first feed's data.
-    /// @param feed1 The second feed's data.
-    /// @return The price from the working feed.
-    function _getWorkingPrice(
-        FeedData memory feed0,
-        FeedData memory feed1
-    ) internal pure returns (uint256) {
-        // We know based on context of when this function is called that
-        // one but not both feeds have an error.
-        // So, if feed0 had the error, feed1 is okay, and vice versa.
-        if (feed0.hadError) return feed1.price;
-        return feed0.price;
+    /// @notice Checks whether `adaptor` is an approved adaptor or not.
+    ///         Reverts if `adaptor` is not approved.
+    function _checkIsApprovedAdaptor(address adaptor) internal view {
+        if (!isApprovedAdaptor[adaptor]) {
+            revert OracleManager__AdaptorIsNotApproved();
+        }
     }
 
     /// @notice Internal helper for reverting efficiently.

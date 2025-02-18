@@ -535,16 +535,7 @@ contract MarketManager is
     ) external {
         _checkIsToken(eToken);
 
-        (
-            uint256 positionClosureNeeded,
-            bool[] memory positionsToClose
-        ) = _canBorrow(eToken, account, amount);
-
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            account,
-            positionsToClose
-        );
+        _canBorrow(eToken, account, amount);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -562,16 +553,7 @@ contract MarketManager is
         _checkIsToken(eToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
 
-        (
-            uint256 positionClosureNeeded,
-            bool[] memory positionsToClose
-        ) = _canBorrow(eToken, account, amount);
-
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            account,
-            positionsToClose
-        );
+        _canBorrow(eToken, account, amount);
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -1365,7 +1347,7 @@ contract MarketManager is
         address eToken,
         address account,
         uint256 amount
-    ) internal returns (uint256, bool[] memory) {
+    ) internal {
         if (borrowPaused[eToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -1404,7 +1386,11 @@ contract MarketManager is
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.positionClosureNeeded, positionsToClose);
+        _closePositionsIfNeeded(
+            result.positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Helper function for checking if the account should be allowed
@@ -1769,7 +1755,7 @@ contract MarketManager is
         }
     }
 
-    /// @notice Check whether token is listed.
+    /// @notice Checks whether `token` is listed in this Market Manager.
     /// @param token The token to check whether it's listed or not.
     function _checkIsListedToken(address token) internal view {
         if (!tokenData[token].isListed) {
@@ -1812,16 +1798,10 @@ contract MarketManager is
     function _checkAuthorizedPermissions(bool state) internal view {
         if (state) {
             _checkDaoPermissions();
-        } else {
-            _checkElevatedPermissions();
+            return;
         }
-    }
 
-    /// @dev Checks whether `mToken` is listed in this Market Manager.
-    function _checkIsListed(address mToken) internal view {
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkElevatedPermissions();
     }
 
     /// @dev Checks whether the caller is the desired mToken contract.

@@ -149,14 +149,15 @@ abstract contract BasePToken is
         uint256 assets,
         address receiver
     ) external nonReentrant returns (uint256 shares) {
-        shares = _deposit(assets, receiver);
-
         if (
-            msg.sender == receiver ||
-            marketManager.positionManagement(msg.sender)
+            msg.sender != receiver &&
+            !marketManager.positionManagement(msg.sender)
         ) {
-            marketManager.postCollateral(receiver, address(this), shares);
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        shares = _deposit(assets, receiver);
+        marketManager.postCollateral(receiver, address(this), shares);
     }
 
     /// @notice Caller deposits assets into the market, `receivier` receives
