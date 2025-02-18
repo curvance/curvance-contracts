@@ -380,7 +380,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
 
     /// @notice Rescue any token sent by mistake.
     /// @dev Restricts the ability to rescue underlying tokens inside the
-    ///      market since Curvance is non-custodial.
+    ///      market since Curvance is non-custodial. Universal Balance has no
+    ///      intention of supporting duel-entry point tokens so extra
+    ///      validation for pre-post balances is not necessary.
     /// @param token The token to rescue.
     /// @param amount The amount of `token` to rescue, 0 indicates to
     ///               rescue all.

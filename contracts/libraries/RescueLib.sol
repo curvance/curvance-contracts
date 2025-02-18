@@ -7,6 +7,9 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 library RescueLib {
     /// @notice Rescue any token sent by mistake.
+    /// @dev Contracts implementing RescueLib.rescueToken should NOT support
+    ///      duel-entry point tokens, otherwise pre/post protected token
+    ///      balances will need to be checked in child implementations.
     /// @param token token to rescue.
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
     function rescueToken(
