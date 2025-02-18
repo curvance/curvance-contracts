@@ -8,7 +8,7 @@ contract NotifyFeedRemovalTest is TestBaseOracleManager {
     function test_notifyFeedRemoval_fail_whenCallerIsNotApprovedAdaptor()
         public
     {
-        vm.expectRevert(OracleManager.OracleManager__Unauthorized.selector);
+        vm.expectRevert(OracleManager.OracleManager__AdaptorIsNotApproved.selector);
         oracleManager.notifyFeedRemoval(_USDC_ADDRESS);
     }
 
