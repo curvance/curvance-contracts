@@ -281,6 +281,12 @@ contract RedstoneCoreAdaptor is
         }
 
         uint256 signerIndex = authorisedSigners.length;
+        // Its not intended to ever get close to 255 signers but this is
+        // theoretically the maximum for the uint8 storage value, so a
+        // sanity check is made.
+        if (signerIndex > 255) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
 
         // Add `newSigner` to quick access address mapping.
         _isAuthorisedSigner[newSigner] = signerIndex + 1;
@@ -318,13 +324,17 @@ contract RedstoneCoreAdaptor is
         // Remove `currentSigner` from quick access address mapping.
         _isAuthorisedSigner[currentSigner] = 0;
 
-        uint256 lastSignerIndex = authorisedSigners.length + 1;
+        uint256 lastSignerIndex = authorisedSigners.length;
 
         // Switch array locations on authorised signer so we can pop
         // `currentSigner` from the end.
         if (index != lastSignerIndex) {
-            _isAuthorisedSigner[authorisedSigners[lastSignerIndex]] = index;
-            authorisedSigners[index] = authorisedSigners[lastSignerIndex];
+            _isAuthorisedSigner[
+                authorisedSigners[lastSignerIndex - 1]
+            ]= index;
+            authorisedSigners[index - 1] = authorisedSigners[
+                lastSignerIndex - 1
+            ];
         }
 
         // Remove `currentSigner` from authorised signer list.
@@ -493,6 +503,10 @@ contract RedstoneCoreAdaptor is
 
         for (uint256 i; i < numSigners; ++i) {
             signer = signers[i];
+            /// Validate that `signer` is not already authorised.
+            if (_isAuthorisedSigner[signer] != 0) {
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
+            }
 
             _isAuthorisedSigner[signer] = i + 1;
             authorisedSigners.push(signer);
