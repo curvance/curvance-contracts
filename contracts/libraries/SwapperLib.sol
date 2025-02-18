@@ -134,7 +134,7 @@ library SwapperLib {
         IOracleManager oracleManager,
         address token,
         uint256 amount
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             token,
             true,
