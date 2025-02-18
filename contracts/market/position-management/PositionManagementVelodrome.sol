@@ -39,6 +39,9 @@ contract PositionManagementVelodrome is PositionManagementBase {
     ///         then swapped into the underlying of a pToken that a user is
     ///         currently putting up as collateral against the eToken debt
     ///         position, creating a leveraged spot position.
+    /// @dev Slippage is checked inside enterVelodrome call to VelodromeLib
+    ///      with the slippage value being encoded in the `aux` field of
+    ///      `leverageData`.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
     ///                     1. Address of eToken that will be borrowed from.

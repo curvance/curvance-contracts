@@ -97,7 +97,7 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x2735eaab);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
