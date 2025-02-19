@@ -628,8 +628,12 @@ contract OracleManager {
         bool inUSD,
         bool getLower
     ) internal view returns (uint256, uint256) {
-        (uint256 feed0Price, bool feed0Error) = _getPriceFromFeed(asset, 0, inUSD, getLower);
-        (uint256 feed1Price, bool feed1Error)= _getPriceFromFeed(asset, 1, inUSD, getLower);
+        (uint256 feed0Price, bool feed0Error) = _getPriceFromFeed(
+            asset, 0, inUSD, getLower
+        );
+        (uint256 feed1Price, bool feed1Error)= _getPriceFromFeed(
+            asset, 1, inUSD, getLower
+        );
 
         // Check if we had any working price feeds,
         // if not we need to block any market operations.
@@ -647,11 +651,11 @@ contract OracleManager {
 
             return (feed0Price, CAUTION);
         }
-        uint256 errorCode = _checkBounds(feed0Price, feed1Price);
 
+        uint256 errorCode = _checkBounds(feed0Price, feed1Price);
         if (getLower) {
-            return
-            (feed1Price < feed0Price ? feed1Price : feed0Price, errorCode);
+            return (feed1Price < feed0Price
+                ? feed1Price : feed0Price, errorCode);
         }
 
         return (feed1Price > feed0Price ? feed1Price : feed0Price, errorCode);

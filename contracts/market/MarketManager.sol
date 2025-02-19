@@ -1295,7 +1295,8 @@ contract MarketManager is
 
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
-    /// @dev Emits {CollateralPosted} and, potentially, {TokenPositionCreated} events.
+    /// @dev Emits {CollateralPosted} and, potentially,
+    ///      {TokenPositionCreated} events.
     /// @param account The account posting collateral.
     /// @param accountPositions Cached account metadata of `account.`
     /// @param pToken The address of the pToken to post collateral for.
