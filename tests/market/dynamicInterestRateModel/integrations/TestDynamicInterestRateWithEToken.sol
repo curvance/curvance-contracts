@@ -320,32 +320,6 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         vm.stopPrank();
     }
 
-    // function testVertexMultiplierDecayOverTime() public {
-    //     // First increase the multiplier
-    //     testVertexMultiplierIncreaseAboveThreshold();
-    //     vm.startPrank(user);
-    //     uint256 initialHighMultiplier = interestRateModel.vertexMultiplier();
-
-    //     // Move time forward several adjustment periods
-    //     uint256 adjustmentPeriods = 5;
-    //     (, , , uint256 adjustmentRate, , , , , , , ) = interestRateModel
-    //         .ratesConfig();
-
-    //     for (uint256 i = 0; i < adjustmentPeriods; i++) {
-    //         vm.warp(block.timestamp + adjustmentRate);
-    //         eDAI.accrueInterest();
-    //     }
-
-    //     uint256 finalMultiplier = interestRateModel.vertexMultiplier();
-    //     assertLt(
-    //         finalMultiplier,
-    //         initialHighMultiplier,
-    //         "Multiplier should decay over time"
-    //     );
-
-    //     vm.stopPrank();
-    // }
-
     function testVertexMultiplierMaximumCap() public {
         vm.startPrank(user);
         // given
