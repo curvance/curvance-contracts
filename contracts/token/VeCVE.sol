@@ -470,16 +470,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         bool isContinuousLock
     ) external {
         _canLock(amount);
+        _validateCallbackFromRewardManager();
 
-        IRewardManager rewardManager = _getRewardManager();
-
-        // Validate that its actually a callback from the Reward Manager as
-        // any other caller opens the protocol up to reentry.
-        if (msg.sender != address(rewardManager)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        uint256 epochs = rewardManager.epochsToClaim(recipient);
+        uint256 epochs = _getRewardManager().epochsToClaim(recipient);
 
         // Validate that user has already claimed all outstanding rewards
         // from the previous reward claim that triggers this callback.
@@ -933,14 +926,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     ///      here.
     function updateUserPoints(address user, uint256 epoch) external {
         _canModifyState();
-
-        address rewardManager = address(_getRewardManager());
-        assembly {
-            if iszero(eq(caller(), rewardManager)) {
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
+        _validateCallbackFromRewardManager();
 
         userPoints[user] = userPoints[user] - userUnlocksByEpoch[user][epoch];
         delete userUnlocksByEpoch[user][epoch];
@@ -952,13 +938,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
     ///      so we do not need for equal 0 here.
     function updateChainPoints(uint256 epoch) external {
-        address rewardManager = address(_getRewardManager());
-        assembly {
-            if iszero(eq(caller(), rewardManager)) {
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
+        _validateCallbackFromRewardManager();
 
         chainPoints = chainPoints - chainUnlocksByEpoch[epoch];
     }
@@ -1268,14 +1248,14 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 lockIndex,
         bool continuousLock
     ) internal {
-        Lock[] storage user = userLocks[recipient];
+        Lock[] storage locks = userLocks[recipient];
 
         // Length is index + 1 so has to be less than array length.
-        if (lockIndex >= user.length) {
+        if (lockIndex >= locks.length) {
             _revert(_INVALID_LOCK_SELECTOR);
         }
 
-        uint40 unlockTimestamp = user[lockIndex].unlockTime;
+        uint40 unlockTimestamp = locks[lockIndex].unlockTime;
 
         if (unlockTimestamp == CONTINUOUS_LOCK_VALUE) {
             if (!continuousLock) {
@@ -1286,7 +1266,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
             _incrementPoints(recipient, _getCLPoints(amount));
 
             // Update the lock value to include the new locked tokens.
-            user[lockIndex].amount = uint216(user[lockIndex].amount + amount);
+            locks[lockIndex].amount = uint216(
+                locks[lockIndex].amount + amount
+            );
         } else {
             // User was not continuous locked prior so we will need
             // to clean up their unlock data.
@@ -1294,12 +1276,12 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 _revert(_INVALID_LOCK_SELECTOR);
             }
 
-            uint256 previousAmount = user[lockIndex].amount;
+            uint256 previousAmount = locks[lockIndex].amount;
             uint256 newAmount = previousAmount + amount;
-            uint256 priorEpoch = currentEpoch(user[lockIndex].unlockTime);
+            uint256 priorEpoch = currentEpoch(locks[lockIndex].unlockTime);
 
             if (continuousLock) {
-                user[lockIndex].unlockTime = CONTINUOUS_LOCK_VALUE;
+                locks[lockIndex].unlockTime = CONTINUOUS_LOCK_VALUE;
 
                 // Decrement their previous non-continuous lock value
                 // and increase points by the continuous lock value.
@@ -1310,7 +1292,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                     previousAmount
                 );
             } else {
-                user[lockIndex].unlockTime = freshLockTimestamp();
+                locks[lockIndex].unlockTime = freshLockTimestamp();
 
                 // Update unlock data removing the old lock amount from
                 // old epoch and add the new lock amount to the new epoch.
@@ -1326,7 +1308,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
                 _incrementPoints(recipient, amount);
             }
 
-            user[lockIndex].amount = uint216(newAmount);
+            locks[lockIndex].amount = uint216(newAmount);
         }
 
         _mint(recipient, amount);
@@ -1335,16 +1317,16 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// @notice Removes a lock from `user`.
-    /// @param user An array of locks for `user`.
+    /// @param locks An array of locks for `user`.
     /// @param lockIndex The index of the lock to be removed.
-    function _removeLock(Lock[] storage user, uint256 lockIndex) internal {
-        uint256 lastLockIndex = user.length - 1;
+    function _removeLock(Lock[] storage locks, uint256 lockIndex) internal {
+        uint256 lastLockIndex = locks.length - 1;
 
         if (lockIndex != lastLockIndex) {
-            user[lockIndex] = user[lastLockIndex];
+            locks[lockIndex] = locks[lastLockIndex];
         }
 
-        user.pop();
+        locks.pop();
     }
 
     /// @notice Increment token points.
@@ -1416,16 +1398,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 previousPoints,
         uint256 points
     ) internal {
-        chainUnlocksByEpoch[previousEpoch] =
-            chainUnlocksByEpoch[previousEpoch] -
-            previousPoints;
-        userUnlocksByEpoch[user][previousEpoch] =
-            userUnlocksByEpoch[user][previousEpoch] -
-            previousPoints;
-        chainUnlocksByEpoch[epoch] = chainUnlocksByEpoch[epoch] + points;
-        userUnlocksByEpoch[user][epoch] =
-            userUnlocksByEpoch[user][epoch] +
-            points;
+        _reduceTokenUnlocks(user, previousEpoch, previousPoints);
+        _incrementTokenUnlocks(user, epoch, points);
     }
 
     /// @notice Update token data from continuous lock on.
@@ -1441,12 +1415,8 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 points,
         uint256 unlocks
     ) internal {
-        chainPoints = chainPoints + points;
-        chainUnlocksByEpoch[epoch] = chainUnlocksByEpoch[epoch] - unlocks;
-        userPoints[user] = userPoints[user] + points;
-        userUnlocksByEpoch[user][epoch] =
-            userUnlocksByEpoch[user][epoch] -
-            unlocks;
+        _incrementPoints(user, points);
+        _reduceTokenUnlocks(user, epoch, unlocks);
     }
 
     /// @notice Update token data from an early expired lock.
@@ -1575,5 +1545,17 @@ contract VeCVE is ERC20, ReentrancyGuard {
         }
 
         _canModifyState();
+    }
+
+    /// @dev Validate that its actually a callback from the Reward Manager as
+    ///      any other caller opens the protocol up to reentry.
+    function _validateCallbackFromRewardManager() internal view {
+        address rewardManager = address(_getRewardManager());
+        assembly {
+            if iszero(eq(caller(), rewardManager)) {
+                mstore(0x00, _UNAUTHORIZED_SELECTOR)
+                revert(0x1c, 0x04)
+            }
+        }
     }
 }

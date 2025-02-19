@@ -197,7 +197,7 @@ contract PendleLPPToken is CompoundingPToken {
                     if (
                         !isApprovedAsset[swapDataArray[i].inputToken] ||
                         !isUnderlyingToken[swapDataArray[i].outputToken]
-                        ) {
+                    ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
@@ -277,12 +277,13 @@ contract PendleLPPToken is CompoundingPToken {
         // Query and populate reward token data fields.
 
         // Query Reward tokens from lp contract.
-        strategyData.rewardTokens = strategyData.lp.getRewardTokens();
-        uint256 numTokens = strategyData.rewardTokens.length;
+        address[] memory currentTokens = strategyData.lp.getRewardTokens();
+        strategyData.rewardTokens = currentTokens;
+        uint256 numTokens = currentTokens.length;
 
         // Approve reward tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            address rewardToken = strategyData.rewardTokens[i++];
+            address rewardToken = currentTokens[i++];
             if (rewardToken != asset()) {
                 isApprovedAsset[rewardToken] = true;
             }
@@ -291,11 +292,12 @@ contract PendleLPPToken is CompoundingPToken {
         // Query and populate underlying token data fields.
 
         // Query LPs underlying tokens from the standardized yield contract.
-        strategyData.underlyingTokens = strategyData.sy.getTokensIn();
-        numTokens = strategyData.underlyingTokens.length;
+        currentTokens = strategyData.sy.getTokensIn();
+        strategyData.underlyingTokens = currentTokens;
+        numTokens = currentTokens.length;
 
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
+            isUnderlyingToken[currentTokens[i++]] = true;
         }
     }
 }

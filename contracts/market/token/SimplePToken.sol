@@ -68,18 +68,23 @@ contract SimplePToken is BasePToken {
         // checks whether `assets` is allowed.
         if (assets > _convertToAssets(balancePrior, ta)) {
             // revert with "SimplePToken__WithdrawMoreThanMax".
-            _revert(0xc6e63cc0);
+            _revert(0x7549b48a);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
-        _processWithdraw(msg.sender, msg.sender, owner, assets, shares, ta);
+        _updateValuesAndProcessWithdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            assets,
+            shares,
+            ta
+        );
 
         // Callback to PositionManagement that executes pToken specific logic.
         IPositionManagement(msg.sender).onRedeem(
@@ -198,8 +203,8 @@ contract SimplePToken is BasePToken {
         // We use a modified version of maxWithdraw which more directly
         // checks whether `assets` is allowed.
         if (assets > _convertToAssets(balanceOf(owner), ta)) {
-            // revert with "SimplePToken__WithdrawMoreThanMax"
-            _revert(0xc6e63cc0);
+            // revert with "SimplePToken__WithdrawMoreThanMax".
+            _revert(0x7549b48a);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
@@ -207,13 +212,7 @@ contract SimplePToken is BasePToken {
 
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`.
-        if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-
-            if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, shares);
-            }
-        }
+        _updateAllowance(owner, shares);
 
         // Validate that `owner` can redeem `shares`.
         marketManager.canRedeemWithCollateralRemoval(
@@ -224,10 +223,15 @@ contract SimplePToken is BasePToken {
             forceRedeemCollateral
         );
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
-        _processWithdraw(msg.sender, receiver, owner, assets, shares, ta);
+        _updateValuesAndProcessWithdraw(
+            msg.sender,
+            receiver,
+            owner,
+            assets,
+            shares,
+            ta
+        );
     }
 
     /// @notice Redeems assets to `receiver` from the market and burns
@@ -254,19 +258,13 @@ contract SimplePToken is BasePToken {
         if (delegatedAction) {
             _checkDelegate(owner, msg.sender);
         } else {
-            if (msg.sender != owner) {
-                uint256 allowed = allowance(owner, msg.sender);
-
-                if (allowed != type(uint256).max) {
-                    _spendAllowance(owner, msg.sender, shares);
-                }
-            }
+            _updateAllowance(owner, shares);
         }
 
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
             // revert with "SimplePToken__RedeemMoreThanMax".
-            _revert(0xb1652d68);
+            _revert(0xf2cb1343);
         }
 
         // Validate that `owner` can redeem `shares`.
@@ -286,10 +284,15 @@ contract SimplePToken is BasePToken {
             revert SimplePToken__ZeroAssets();
         }
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
-        _processWithdraw(msg.sender, receiver, owner, assets, shares, ta);
+        _updateValuesAndProcessWithdraw(
+            msg.sender,
+            receiver,
+            owner,
+            assets,
+            shares,
+            ta
+        );
     }
 
     /// @notice Processes a deposit of `assets` from the market and mints
@@ -327,6 +330,31 @@ contract SimplePToken is BasePToken {
             let m := shr(96, not(0))
             log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
         }
+    }
+
+    /// @notice Updates gauge pool values for `owner` and processes a
+    ///         withdrawal of `shares` from the market by burning `owner`
+    ///         shares and transferring `assets` to `to`, then decreases
+    ///         `ta` by `assets`, and vests rewards if `pending` > 0.
+    /// @param by The account that is executing the withdrawal.
+    /// @param to The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param shares The amount of shares redeemed from `owner`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    function _updateValuesAndProcessWithdraw(
+        address by,
+        address to,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 ta
+    ) internal {
+        // Update gauge pool values for `owner`.
+        gaugeManager.withdraw(address(this), owner, shares);
+        _processWithdraw(by, to, owner, assets, shares, ta);
     }
 
     /// @notice Processes a withdrawal of `shares` from the market by burning

@@ -97,18 +97,16 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x2735eaab);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
-        _processWithdraw(
+        _updateValuesAndProcessWithdraw(
             msg.sender,
             msg.sender,
             owner,

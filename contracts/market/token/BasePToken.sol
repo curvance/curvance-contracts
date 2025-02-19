@@ -451,16 +451,10 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), msg.sender, amount);
-
-        // Cache Gauge Manager, then update values for caller.
-        gaugeManager.withdraw(address(this), msg.sender, amount);
+        _updateGaugeManagerValues(msg.sender, to, amount);
 
         // Execute transfer.
         super.transfer(to, amount);
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -477,16 +471,10 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), from, amount);
-
-        // Cache Gauge Manager, then update values for `from`.
-        gaugeManager.withdraw(address(this), from, amount);
+        _updateGaugeManagerValues(from, to, amount);
 
         // Execute transfer.
         super.transferFrom(from, to, amount);
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -514,17 +502,8 @@ abstract contract BasePToken is
 
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
-        // Process virtual balance updates and accrued rewards from this
-        // liquidation.
-        gaugeManager.processLiquidation(
-            address(this),
-            account,
-            liquidator,
-            shares
-        );
 
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
+        _processLiquidation(account, liquidator, shares);
     }
 
     /// @notice Transfers position tokens (this market) to the liquidator.
@@ -550,17 +529,7 @@ abstract contract BasePToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Process virtual balance updates and accrued rewards from this
-        // liquidation.
-        gaugeManager.processLiquidation(
-            address(this),
-            account,
-            liquidator,
-            shares
-        );
-
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
+        _processLiquidation(account, liquidator, shares);
     }
 
     /// @notice Returns the type of Curvance token.
@@ -695,6 +664,52 @@ abstract contract BasePToken is
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Updates Gauge Manager values for `from` and `to`.
+    /// @param from The address of the account transferring `amount`
+    ///             shares from.
+    /// @param to The address of the destination account to receive `amount`
+    ///           shares.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _updateGaugeManagerValues(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        // Fails if transfer not allowed.
+        marketManager.canTransferPToken(address(this), from, amount);
+
+        // Cache Gauge Manager, then update values for `from`.
+        gaugeManager.withdraw(address(this), from, amount);
+
+        // Update Gauge Manager values for `to`.
+        gaugeManager.deposit(address(this), to, amount);
+    }
+
+    /// @notice Processes liquidation of `account`'s collateral.
+    /// @param account The address of the account transferring `amount`
+    ///                shares from.
+    /// @param liquidator The address of the destination account to
+    ///                   receive `amount` shares.
+    /// @param shares The number of tokens to transfer from `account`
+    ///               to `liquidator`.
+    function _processLiquidation(
+        address account,
+        address liquidator,
+        uint256 shares
+    ) internal {
+        // Process virtual balance updates and accrued rewards from this
+        // liquidation.
+        gaugeManager.processLiquidation(
+            address(this),
+            account,
+            liquidator,
+            shares
+        );
+
+        // Efficiently transfer token balances from `account` to `liquidator`.
+        _transferFromWithoutAllowance(account, liquidator, shares);
+    }
 
     /// @notice Helper function to efficiently transfers pToken balances
     ///         without checking approvals.
@@ -969,5 +984,18 @@ abstract contract BasePToken is
         returns (ICentralRegistry)
     {
         return centralRegistry;
+    }
+
+    /// @notice Updates the allowance for the caller.
+    /// @param owner The owner of the allowance.
+    /// @param amount The spent amount of the allowance.
+    function _updateAllowance(address owner, uint256 amount) internal {
+        if (msg.sender != owner) {
+            uint256 allowed = allowance(owner, msg.sender);
+
+            if (allowed != type(uint256).max) {
+                _spendAllowance(owner, msg.sender, amount);
+            }
+        }
     }
 }

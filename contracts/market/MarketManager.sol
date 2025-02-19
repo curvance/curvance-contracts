@@ -135,6 +135,9 @@ contract MarketManager is
     mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
+    /// @notice Whether liquidations are paused.
+    /// @dev 1 = unpaused; 2 = paused.
+    uint256 public liquidationPaused = 1;
     /// @notice Whether mToken transfers are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public transferPaused = 1;
@@ -776,6 +779,10 @@ contract MarketManager is
     ///      Emits a {CollateralRemoved} event.
     /// @param account The address to liquidate completely.
     function liquidateAccount(address account) external {
+        if (liquidationPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
         // Validate that the OEV queue is disabled or the liquidator is valid
         _validateLiquidation(msg.sender, account, false);
 
@@ -1122,6 +1129,17 @@ contract MarketManager is
             collateralCaps[pTokens[i]] = newCollateralCaps[i];
             emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
         }
+    }
+
+    /// @notice Admin function to set market-wide liquidation status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits an {ActionPaused} event.
+    /// @param state Whether the desired action is pausing or unpausing.
+    function setLiquidationPaused(bool state) external {
+        _checkAuthorizedPermissions(state);
+
+        liquidationPaused = state ? 2 : 1;
+        emit ActionPaused("Liquidation Paused", state);
     }
 
     /// @notice Admin function to set market token mint status.

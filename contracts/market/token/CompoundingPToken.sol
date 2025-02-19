@@ -132,18 +132,13 @@ abstract contract CompoundingPToken is BasePToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x2735eaab);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
         uint256 shares = _previewWithdraw(assets, ta);
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
-        // We don't need to precheck approval since position folding will
-        // always call based on msg.sender, so there is no trust system.
-        // Process withdraw on behalf of `owner`.
-        _processWithdraw(
+        _updateValuesAndProcessWithdraw(
             msg.sender,
             msg.sender,
             owner,
@@ -372,7 +367,7 @@ abstract contract CompoundingPToken is BasePToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balanceOf(owner), ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x05203273);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
@@ -380,13 +375,7 @@ abstract contract CompoundingPToken is BasePToken {
 
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`.
-        if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-
-            if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, shares);
-            }
-        }
+        _updateAllowance(owner, shares);
 
         // Validate that `owner` can redeem `shares`.
         marketManager.canRedeemWithCollateralRemoval(
@@ -397,10 +386,8 @@ abstract contract CompoundingPToken is BasePToken {
             forceRedeemCollateral
         );
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
-        _processWithdraw(
+        _updateValuesAndProcessWithdraw(
             msg.sender,
             receiver,
             owner,
@@ -438,19 +425,13 @@ abstract contract CompoundingPToken is BasePToken {
         if (delegatedAction) {
             _checkDelegate(owner, msg.sender);
         } else {
-            if (msg.sender != owner) {
-                uint256 allowed = allowance(owner, msg.sender);
-
-                if (allowed != type(uint256).max) {
-                    _spendAllowance(owner, msg.sender, shares);
-                }
-            }
+            _updateAllowance(owner, shares);
         }
 
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
             // revert with "CompoundingPToken__RedeemMoreThanMax".
-            _revert(0xcc3c42c0);
+            _revert(0xd7eb44a1);
         }
 
         // Validate that `owner` can redeem `shares`.
@@ -471,10 +452,8 @@ abstract contract CompoundingPToken is BasePToken {
             revert CompoundingPToken__ZeroAssets();
         }
 
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
         // Execute withdrawal.
-        _processWithdraw(
+        _updateValuesAndProcessWithdraw(
             msg.sender,
             receiver,
             owner,
@@ -536,6 +515,34 @@ abstract contract CompoundingPToken is BasePToken {
 
         // Deposit into strategy.
         _afterDeposit(assets, shares);
+    }
+
+    /// @notice Updates gauge pool values for `owner` and processes a
+    ///         withdrawal of `shares` from the market by burning `owner`
+    ///         shares and transferring `assets` to `to`, then decreases
+    ///         `ta` by `assets`, and vests rewards if `pending` > 0.
+    /// @param by The account that is executing the withdrawal.
+    /// @param to The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param shares The amount of shares redeemed from `owner`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this withdrawal.
+    function _updateValuesAndProcessWithdraw(
+        address by,
+        address to,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 ta,
+        uint256 pending
+    ) internal {
+        // Update gauge pool values for `owner`.
+        gaugeManager.withdraw(address(this), owner, shares);
+        _processWithdraw(by, to, owner, assets, shares, ta, pending);
     }
 
     /// @notice Processes a withdrawal of `shares` from the market by burning
