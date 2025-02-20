@@ -1248,16 +1248,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 tokens,
         uint256 amount
     ) internal returns (uint256) {
-        // Check if we have enough underlying held to support the redemption.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        if (
-            marketUnderlyingHeld() - convertToAssets(totalReserves) <
-            amount + _BASE_UNDERLYING_RESERVE
-        ) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
+        _checkUnderlyingHeld(totalReserves, amount);
 
         // Update account balance and totalSupply.
         balanceOf[account] = balanceOf[account] - tokens;
@@ -1288,20 +1279,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         address recipient
     ) internal {
-        // Check if we have enough underlying held to support the borrow.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        // This also acts as a protective mechanism against trying to
-        // manipulate totalBorrows above total underlying assets inside
-        // the system since there will always be at least
-        // _BASE_UNDERLYING_RESERVE excess inside the market.
-        if (
-            marketUnderlyingHeld() - convertToAssets(totalReserves) <
-            amount + _BASE_UNDERLYING_RESERVE
-        ) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
+        _checkUnderlyingHeld(totalReserves, amount);
 
         // Calculate current account debt then add `amount`.
         // Then update account exchange rate, and total borrow balances.
@@ -1484,10 +1462,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param tokens Amount of reserves to withdraw, in shares.
     /// @param amount Amount of reserves to withdraw, in assets.
     function _withdrawReserves(uint256 tokens, uint256 amount) internal {
-        // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
+        // We can pass 0 reserves to hold since we are redeeming from
+        // reserves here directly instead of user driven borrows/redemptions.
+        _checkUnderlyingHeld(0, amount);
 
         // Update reserves with underflow check.
         totalReserves = totalReserves - tokens;
@@ -1507,6 +1484,34 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Checks whether there is sufficient underlying tokens to handle
+    ///         a redemption/borrow of `underlyingToWithdraw` based on any
+    ///         protocol reserves held.
+    /// @param reservesToHold Protocol Reserves to hold on to, requiring
+    ///                       underlying to be held in reserve.
+    /// @param underlyingToWithdraw The amount of underlying tokens to
+    ///                             redeem/borrow against current underlying
+    ///                             held in the eToken contract.
+    function _checkUnderlyingHeld(
+        uint256 reservesToHold,
+        uint256 underlyingToWithdraw
+    ) internal view {
+        // Check if we have enough underlying held to support the redemption.
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
+        // This also acts as a protective mechanism against trying to
+        // manipulate totalBorrows above total underlying assets inside
+        // the system since there will always be at least
+        // _BASE_UNDERLYING_RESERVE excess inside the market.
+        if (
+            marketUnderlyingHeld() - convertToAssets(sharesToRedeem) <
+            amount + _BASE_UNDERLYING_RESERVE
+        ) {
+            revert EToken__InsufficientUnderlyingHeld();
         }
     }
 
