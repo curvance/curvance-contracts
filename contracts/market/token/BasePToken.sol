@@ -84,7 +84,7 @@ abstract contract BasePToken is
     /// @notice Address of the Gauge Manager.
     IGaugeManager public immutable gaugeManager;
 
-    /// @notice Underlying asset for the PToken.
+    /// @notice Underlying asset for the PToken, cannot be a fee-on-transfer token.
     IERC20 internal immutable _asset;
     /// @notice PToken decimals.
     uint8 internal immutable _decimals;

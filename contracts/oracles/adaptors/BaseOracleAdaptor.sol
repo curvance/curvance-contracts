@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 
-abstract contract BaseOracleAdaptor {
+abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// CONSTANTS ///
 
     /// @notice Curvance DAO hub.
@@ -120,7 +120,7 @@ abstract contract BaseOracleAdaptor {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
-    function adaptorType() external virtual returns (uint256);
+    function adaptorType() external virtual view returns (uint256);
 
     /// @notice Removes a supported asset from the adaptor.
     /// @dev Calls back into Oracle Manager to notify it of its removal.

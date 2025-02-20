@@ -63,7 +63,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// CONSTANTS ///
 
-    /// @notice The underlying asset for the EToken.
+    /// @notice The underlying asset for the EToken, cannot be a fee-on-transfer token.
     address public immutable underlying;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
