@@ -8,7 +8,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
+import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract PositionManagementVelodrome is PositionManagementBase {
     address public pairFactory;
@@ -61,9 +61,9 @@ contract PositionManagementVelodrome is PositionManagementBase {
         address recipient
     ) internal virtual override {
         address pool = leverageData.positionToken.underlying();
-        address token0 = IVeloPair(pool).token0();
-        address token1 = IVeloPair(pool).token1();
-
+        
+        address token0 = IVeloPool(pool).token0();
+        address token1 = IVeloPool(pool).token1();
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
         // If the token being borrowed isn't token0 or token1 we will need to swap
@@ -145,6 +145,10 @@ contract PositionManagementVelodrome is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
+        if (!IVeloPool(pool).stable()) {
+            revert PositionManagementBase__InvalidParam();
+        }
+        
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         VelodromeLib.exitVelodrome(
@@ -157,8 +161,8 @@ contract PositionManagementVelodrome is PositionManagementBase {
 
         // Check to make sure there is calldata attached to execute the swap.
         if (numSwaps > 0) {
-            address token0 = IVeloPair(pool).token0();
-            address token1 = IVeloPair(pool).token1();
+            address token0 = IVeloPool(pool).token0();
+            address token1 = IVeloPool(pool).token1();
 
             if (
                 (deleverageData.swapData[0].inputToken != token0 &&

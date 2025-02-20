@@ -17,12 +17,16 @@ contract VotingHub is QueryResponse {
     /// @notice Number of Protocol Eras, corresponds to how many different
     ///         periods there are with token emission incentives.
     /// @dev As the protocol moves from one era to another, emissions natively
-    ///      halve per epoch.
+    ///      halve per epoch, this is localized to a voting hub deployment
+    ///      meaning the number of eras can change when a new voting hub is
+    ///      deployed.
     uint256 public constant PROTOCOL_REWARD_ERAS = 6;
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
-    /// @notice Address of the Gauge Manager.
+    /// @notice Gauge Manager contract address, distributes native token
+    ///         rewards to depositors and lenders inside the Curvance
+    ///         Protocol based on decentralized governance outcomes.
     IGaugeManager public immutable gaugeManager;
     /// @notice The length of one protocol epoch, in seconds.
     uint256 public immutable epochDuration;
@@ -203,7 +207,7 @@ contract VotingHub is QueryResponse {
 
     /// @notice Returns the number of Protocol Eras, corresponds to how many
     ///         different periods there are with token emission incentives.
-    function protocolRewardEras() public view returns (uint256) {
+    function protocolRewardEras() public pure returns (uint256) {
         return PROTOCOL_REWARD_ERAS;
     }
 
