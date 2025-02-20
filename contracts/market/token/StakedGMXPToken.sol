@@ -92,19 +92,13 @@ contract StakedGMXPToken is CompoundingPToken {
 
             // If there are no pending rewards, skip swapping logic.
             if (rewardAmount > 0) {
-                // Take protocol fee for veCVE lockers and auto
-                // compounding bot.
-                uint256 protocolFee = FixedPointMathLib.mulDivUp(
-                    rewardAmount,
-                    centralRegistry.protocolHarvestFee(),
-                    1e18
-                );
-                rewardAmount -= protocolFee;
-                SafeTransferLib.safeTransfer(
-                    address(WETH),
-                    centralRegistry.feeManager(),
-                    protocolFee
-                );
+                // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
+                        rewardAmount,
+                        address(WETH),
+                        centralRegistry.protocolHarvestFee(),
+                        centralRegistry.feeManager()
+                    );
 
                 SwapperLib.Swap memory swapData = abi.decode(
                     data,

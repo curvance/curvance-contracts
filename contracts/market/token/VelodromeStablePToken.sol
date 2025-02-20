@@ -163,18 +163,12 @@ contract VelodromeStablePToken is CompoundingPToken {
                 );
                 // If there are no pending rewards, skip swapping logic.
                 if (rewardAmount > 0) {
-                    // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
-                    uint256 protocolFee = FixedPointMathLib.mulDivUp(
+                    // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
                         rewardAmount,
-                        centralRegistry.protocolHarvestFee(),
-                        1e18
-                    );
-                    rewardAmount -= protocolFee;
-                    SafeTransferLib.safeTransfer(
                         rewardToken,
-                        centralRegistry.feeManager(),
-                        protocolFee
+                        centralRegistry.protocolHarvestFee(),
+                        centralRegistry.feeManager()
                     );
 
                     // Swap from VELO to underlying tokens, if necessary.
@@ -188,7 +182,8 @@ contract VelodromeStablePToken is CompoundingPToken {
                             !isApprovedAsset[swapData.inputToken] ||
                             swapData.outputToken != sd.token0
                             ) {
-                            // this will be the same check: `swapData.inputToken != rewardToken`
+                            // This also implicitly checks:
+                            // `swapData.inputToken != rewardToken`.
                             revert CompoundingPToken__UnapprovedAssetSwap();
                         }
 

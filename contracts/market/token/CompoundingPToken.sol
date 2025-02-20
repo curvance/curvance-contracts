@@ -759,20 +759,29 @@ abstract contract CompoundingPToken is BasePToken {
     }
 
     /// @notice Applies a fee in `rewardToken` based on `strategyFee` applied
-    ///         to pending `reward`, and sending the fee to `feeManager`. 
+    ///         to pending `reward`, and sending the fee to `feeManager`.
+    /// @param reward The pending reward in `rewardToken` to take strategy
+    ///               fee from.
+    /// @param rewardToken The token that the pending reward is in and that
+    ///                    fee will be taken in.
+    /// @param strategyFee The percent fee to take from `reward`.
+    /// @param feeManager The fee manager address that will receive the fee
+    ///                   collected.
     function _applyFee(
         uint256 reward,
         address rewardToken,
         uint256 strategyFee,
         address feeManager
     ) internal returns (uint256) {
-        // Take protocol fee for token lockers and strategy bot.
+        // Calculate protocol fee for token lockers and strategy bot.
         uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, WAD);
+        // Take fee.
         SafeTransferLib.safeTransfer(
             rewardToken,
             feeManager,
             fee
         );
+        // Return remaining reward after fee was taken.
         return (reward - fee);
     }
 

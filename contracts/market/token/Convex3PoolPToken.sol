@@ -175,13 +175,12 @@ contract Convex3PoolPToken is CompoundingPToken {
             uint256 numRewardTokens = sd.rewardTokens.length;
             address rewardToken;
             uint256 rewardAmount;
-            uint256 protocolFee;
 
             {
                 // Cache DAO Central Registry values to minimize runtime
                 // gas costs.
                 address feeManager = centralRegistry.feeManager();
-                uint256 harvestFee = centralRegistry.protocolHarvestFee();
+                uint256 feePct = centralRegistry.protocolHarvestFee();
 
                 for (uint256 i; i < numRewardTokens; ++i) {
                     rewardToken = sd.rewardTokens[i];
@@ -195,18 +194,12 @@ contract Convex3PoolPToken is CompoundingPToken {
                         continue;
                     }
 
-                    // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDivUp(
+                    // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
                         rewardAmount,
-                        harvestFee,
-                        1e18
-                    );
-                    rewardAmount -= protocolFee;
-                    SafeTransferLib.safeTransfer(
                         rewardToken,
-                        feeManager,
-                        protocolFee
+                        feePct,
+                        feeManager
                     );
                 }
             }

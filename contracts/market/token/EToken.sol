@@ -1508,8 +1508,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // the system since there will always be at least
         // _BASE_UNDERLYING_RESERVE excess inside the market.
         if (
-            marketUnderlyingHeld() - convertToAssets(sharesToRedeem) <
-            amount + _BASE_UNDERLYING_RESERVE
+            marketUnderlyingHeld() - convertToAssets(reservesToHold) <
+            underlyingToWithdraw + _BASE_UNDERLYING_RESERVE
         ) {
             revert EToken__InsufficientUnderlyingHeld();
         }
