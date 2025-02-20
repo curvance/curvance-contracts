@@ -34,7 +34,7 @@ contract RedstoneCoreAdaptor is
 
     /// CONSTANTS ///
 
-    /// @notice If zero is specified for a Pyth asset heartbeat,
+    /// @notice If zero is specified for a Redstone asset heartbeat,
     ///         this value is used instead.
     /// @dev    1 days = 24 hours = 1,440 minutes = 86,400 seconds.
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
@@ -420,10 +420,15 @@ contract RedstoneCoreAdaptor is
             }
         }
 
+        // We redundantly check for feed data staleness through a heartbeat
+        // check, redstone naturally checks timestamp through its msg.data
+        // read, so we are kind of doing this twice, but better safe than
+        // sorry!
         pData.hadError = _verifyData(
             price,
             overriddenPriceUpdatedAt[asset][inUSD],
             data.max,
+            0,
             data.heartbeat
         );
 
@@ -431,41 +436,6 @@ contract RedstoneCoreAdaptor is
             pData.inUSD = inUSD;
             pData.price = uint240(price);
         }
-    }
-
-    /// @notice Validates the feed data based on various constraints.
-    /// @dev Checks if the value is within a specific range
-    ///      and if the data is not outdated.
-    /// @param value The value that is retrieved from the feed data.
-    /// @param max The maximum limit of the value.
-    /// @return A boolean indicating whether the feed data had an error
-    ///         (true = error, false = no error).
-    function _verifyData(
-        uint256 value,
-        uint256 timestamp,
-        uint256 max,
-        uint256 heartbeat
-    ) internal view returns (bool) {
-        // Validate `value` is not above the buffered maximum value allowed.
-        if (value > max) {
-            return true;
-        }
-
-        // If we got a price of 0, bubble up an error immediately.
-        if (value == 0) {
-            return true;
-        }
-
-        // Validate the price returned is not stale.
-        if (block.timestamp - timestamp > heartbeat) {
-            return true;
-        }
-
-        // We typically check for feed data staleness through a heartbeat
-        // check, but redstone naturally checks timestamp through its msg.data
-        // read, so we do not need to check again here.
-
-        return false;
     }
 
     /// @notice Extracts price stored in msg.data with the transaction,

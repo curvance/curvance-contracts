@@ -56,6 +56,43 @@ abstract contract BaseOracleAdaptor {
 
     /// INTERNAL FUNCTIONS ///
 
+    
+    /// @notice Validates the feed data based on various constraints.
+    /// @dev Checks if the value is within a specific range
+    ///      and if the data is not outdated.
+    /// @param value The value that is retrieved from the feed data.
+    /// @param timestamp The time at which the value was last updated.
+    /// @param max The maximum value allowed of `value`.
+    /// @param min The minimum value allowed of `value`.
+    /// @param heartbeat The maximum allowed time difference between
+    ///                  current time and 'timestamp'.
+    /// @return A boolean indicating whether the feed data had an error
+    ///         (true = error, false = no error).
+    function _verifyData(
+        uint256 value,
+        uint256 timestamp,
+        uint256 max,
+        uint256 min,
+        uint256 heartbeat
+    ) internal view returns (bool) {
+        // Validate `value` is not at or above the maximum value allowed.
+        if (value >= max) {
+            return true;
+        }
+
+        // Validate `value` is not at or below the min value allowed.
+        if (value <= min) {
+            return true;
+        }
+
+        // Validate the price returned is not stale.
+        if (block.timestamp - timestamp > heartbeat) {
+            return true;
+        }
+
+        return false;
+    }
+
     /// @notice Helper function to check whether `price` would overflow
     ///         based on a uint240 maximum.
     /// @param price The price to check against overflow.
