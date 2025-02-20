@@ -145,9 +145,6 @@ contract PositionManagementVelodrome is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
-        if (!IVeloPool(pool).stable()) {
-            revert PositionManagementBase__InvalidParam();
-        }
         
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
