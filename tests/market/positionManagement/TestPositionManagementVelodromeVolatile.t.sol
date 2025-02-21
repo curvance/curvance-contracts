@@ -8,7 +8,7 @@ import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { PositionManagementVelodromeVolatile } from "contracts/market/position-management/PositionManagementVelodromeVolatile.sol";
+import { PositionManagementVelodrome } from "contracts/market/position-management/PositionManagementVelodrome.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
@@ -25,7 +25,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
     VelodromeVolatilePToken public pWETHUSDC;
     VelodromeVolatileLPAdaptor public adaptor;
-    PositionManagementVelodromeVolatile public positionManagement;
+    PositionManagementVelodrome public positionManagement;
 
     address public owner;
     address public user;
@@ -154,7 +154,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
-        positionManagement = new PositionManagementVelodromeVolatile(
+        positionManagement = new PositionManagementVelodrome(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
             _WETH_ADDRESS,
@@ -211,7 +211,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             address(eDAI)
         ) * 50) / 100;
 
-        PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pWETHUSDC));
@@ -237,7 +237,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             type(uint256).max
         );
         leverageData.swapData.slippage = 2e18;
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
@@ -287,7 +287,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             1e18
         );
 
-        PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pWETHUSDC));
@@ -313,7 +313,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             type(uint256).max
         );
         leverageData.swapData.slippage = 2e18;
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
@@ -345,8 +345,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeVolatile.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
@@ -427,8 +426,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeVolatile.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);
@@ -532,7 +530,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             address(eDAI)
         ) * 50) / 100;
 
-        PositionManagementVelodromeVolatile.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pWETHUSDC));
@@ -558,7 +556,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
             type(uint256).max
         );
         leverageData.swapData.slippage = 2e18;
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
@@ -584,8 +582,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeVolatile.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pWETHUSDC.getSnapshot(user);

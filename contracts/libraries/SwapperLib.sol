@@ -11,6 +11,14 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
+/// @title Curvance Swapper Library.
+/// @notice Helper Library for performing composable swaps with varying
+///         degrees of slippage tolerance. "Unsafe" swaps perform a standard
+///         slippage check whereas "safe" swaps not only check for standard
+///         slippage but also check against the Oracle Manager's prices as
+///         well.
+///         NOTE: This library does not intend to provide support for fee on
+///               transfer tokens though support may be built in the future.
 library SwapperLib {
     /// TYPES ///
     /// @notice Contains instructions to execute a swap, which is selling one

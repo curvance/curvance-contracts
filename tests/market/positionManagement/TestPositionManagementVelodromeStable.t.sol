@@ -8,7 +8,7 @@ import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/V
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { PositionManagementVelodromeStable } from "contracts/market/position-management/PositionManagementVelodromeStable.sol";
+import { PositionManagementVelodrome } from "contracts/market/position-management/PositionManagementVelodrome.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
@@ -25,7 +25,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
 
     VelodromeStablePToken public pUSDCDAI;
     VelodromeStableLPAdaptor public adaptor;
-    PositionManagementVelodromeStable public positionManagement;
+    PositionManagementVelodrome public positionManagement;
 
     address public owner;
     address public user;
@@ -129,7 +129,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             marketManager.setPTokenCollateralCaps(tokens, caps);
         }
 
-        positionManagement = new PositionManagementVelodromeStable(
+        positionManagement = new PositionManagementVelodrome(
             ICentralRegistry(address(centralRegistry)),
             address(marketManager),
             _WETH_ADDRESS,
@@ -186,7 +186,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(eDAI)
         ) * 50) / 100;
 
-        PositionManagementVelodromeStable.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pUSDCDAI));
@@ -208,7 +208,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
@@ -258,7 +258,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             1e18
         );
 
-        PositionManagementVelodromeStable.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pUSDCDAI));
@@ -280,7 +280,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
@@ -312,8 +312,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeStable.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
@@ -376,8 +375,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeStable.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
@@ -463,7 +461,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(eDAI)
         ) * 50) / 100;
 
-        PositionManagementVelodromeStable.LeverageStruct memory leverageData;
+        PositionManagementVelodrome.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eDAI));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pUSDCDAI));
@@ -485,7 +483,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
             address(positionManagement),
             type(uint256).max
         );
-        leverageData.auxData = bytes("");
+        leverageData.auxData = abi.encode(0);
 
         positionManagement.setDelegateApproval(address(user2), true);
         vm.stopPrank();
@@ -513,8 +511,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarket {
 
         vm.startPrank(user);
 
-        PositionManagementVelodromeStable.DeleverageStruct
-            memory deleverageData;
+        PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
         (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);

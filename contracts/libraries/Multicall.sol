@@ -9,7 +9,7 @@ import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 
 /// @title Curvance Multicall helper.
 /// @notice Multicall implementation to support pull based oracles and
-///         other combined actions.
+///         other chained actions within Curvance.
 abstract contract Multicall is BaseCallDataChecker {
     /// TYPES ///
     struct MulticallData {
