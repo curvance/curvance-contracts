@@ -7,6 +7,10 @@ import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStanda
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Pendle Library.
+/// @notice Helper Library for working with Pendle LP tokens. Supports both
+///         creating and exiting LP positions for better composability across
+///         DeFi.
 library PendleLib {
     /// TYPES ///
 

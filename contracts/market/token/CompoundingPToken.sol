@@ -132,7 +132,7 @@ abstract contract CompoundingPToken is BasePToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x2735eaab);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
@@ -372,7 +372,7 @@ abstract contract CompoundingPToken is BasePToken {
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balanceOf(owner), ta)) {
             // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0x05203273);
+            _revert(0xfb0451f2);
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
@@ -450,7 +450,7 @@ abstract contract CompoundingPToken is BasePToken {
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
             // revert with "CompoundingPToken__RedeemMoreThanMax".
-            _revert(0xcc3c42c0);
+            _revert(0xd7eb44a1);
         }
 
         // Validate that `owner` can redeem `shares`.

@@ -10,7 +10,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
-contract PositionManagementVelodromeVolatile is PositionManagementBase {
+contract PositionManagementVelodrome is PositionManagementBase {
     address public pairFactory;
 
     address public router;
@@ -39,6 +39,9 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
     ///         then swapped into the underlying of a pToken that a user is
     ///         currently putting up as collateral against the eToken debt
     ///         position, creating a leveraged spot position.
+    /// @dev Slippage is checked inside enterVelodrome call to VelodromeLib
+    ///      with the slippage value being encoded in the `aux` field of
+    ///      `leverageData`.
     /// @param leverageData Struct containing information on the desired
     ///                     leverage action to execute. Containing values:
     ///                     1. Address of eToken that will be borrowed from.
@@ -58,18 +61,14 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         address recipient
     ) internal virtual override {
         address pool = leverageData.positionToken.underlying();
-        if (IVeloPool(pool).stable()) {
-            revert PositionManagementBase__InvalidParam();
-        }
-
+        
         address token0 = IVeloPool(pool).token0();
         address token1 = IVeloPool(pool).token1();
-
         address borrowUnderlying = leverageData.borrowToken.underlying();
 
-        // If the token being borrowed isn't token0 we will need to swap
+        // If the token being borrowed isn't token0 or token1 we will need to swap
         // into it.
-        if (borrowUnderlying != token0) {
+        if (borrowUnderlying != token0 && borrowUnderlying != token1) {
             SwapperLib.Swap memory swapData = leverageData.swapData;
             // Make sure there is swap instructions.
             if (swapData.call.length == 0) {
@@ -80,7 +79,8 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             if (
                 swapData.target == address(0) ||
                 swapData.inputToken != borrowUnderlying ||
-                swapData.outputToken != token0 ||
+                (swapData.outputToken != token0 &&
+                    swapData.outputToken != token1) ||
                 swapData.inputAmount != leverageData.borrowAmount
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
@@ -90,56 +90,21 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             SwapperLib.swapSafe(centralRegistry, swapData);
         }
 
-        // Validate swap was routed into token0, or borrow token was token0.
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
-        if (totalAmountA == 0) {
+        uint256 totalAmountB = IERC20(token1).balanceOf(address(this));
+        // Validate swap was routed into token0/token1, or borrow token was token0/token1.
+        if (totalAmountA == 0 && totalAmountB == 0) {
             revert PositionManagementBase__InvalidSlippage();
         }
+        uint256 minLpAmount = abi.decode(leverageData.auxData, (uint256));
 
-        uint256 decimalsA = 10 ** IERC20(token0).decimals();
-        uint256 decimalsB = 10 ** IERC20(token1).decimals();
-        // Pull reserve data so we can swap half of token0 into token1
-        // optimally.
-        (uint256 r0, uint256 r1, ) = IVeloPool(pool).getReserves();
-        (uint256 reserveA, uint256 reserveB) = token0 ==
-            IVeloPool(pool).token0()
-            ? (r0, r1)
-            : (r1, r0);
-
-        // Feed library pair factory, lpToken, and stable = false,
-        // plus calculated data.
-        uint256 swapAmount = VelodromeLib._optimalDeposit(
+        VelodromeLib.enterVelodrome(
+            router,
             pairFactory,
             pool,
             totalAmountA,
-            reserveA,
-            reserveB,
-            decimalsA,
-            decimalsB,
-            false
-        );
-        // Feed calculated data, and stable = false.
-        uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
-            router,
-            pool,
-            token0,
-            token1,
-            swapAmount,
-            false
-        );
-
-        // Decrement amount of token0 swapped into token1.
-        totalAmountA -= swapAmount;
-
-        // Add liquidity to Velodrome lp with volatile params.
-        VelodromeLib._addLiquidity(
-            router,
-            token0,
-            token1,
-            false,
-            totalAmountA,
             totalAmountB,
-            VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
+            minLpAmount
         );
 
         // We can reuse totalAmount variables to avoid stack too deep error
@@ -180,9 +145,6 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
-        if (IVeloPool(pool).stable()) {
-            revert PositionManagementBase__InvalidParam();
-        }
         
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
@@ -192,23 +154,23 @@ contract PositionManagementVelodromeVolatile is PositionManagementBase {
             deleverageData.collateralAmount
         );
 
-        uint256 length = deleverageData.swapData.length;
+        uint256 numSwaps = deleverageData.swapData.length;
 
         // Check to make sure there is calldata attached to execute the swap.
-        if (length > 0) {
+        if (numSwaps > 0) {
             address token0 = IVeloPool(pool).token0();
             address token1 = IVeloPool(pool).token1();
 
             if (
                 (deleverageData.swapData[0].inputToken != token0 &&
                     deleverageData.swapData[0].inputToken != token1) ||
-                deleverageData.swapData[length - 1].outputToken !=
+                deleverageData.swapData[numSwaps - 1].outputToken !=
                 borrowUnderlying
             ) {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
 
-            for (uint256 i; i < length; ++i) {
+            for (uint256 i; i < numSwaps; ++i) {
                 // Swap Swapper input token for borrow underlying.
                 SwapperLib.swapSafe(
                     centralRegistry,

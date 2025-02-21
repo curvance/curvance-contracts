@@ -12,6 +12,12 @@ import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
+/// @title Curvance Velodrome Library.
+/// @notice Helper Library for working with Velodrome volatile and stable LP
+///         tokens. Supports both creating and exiting LP positions for better
+///         composability across DeFi.
+///         NOTE: This library does not currently support slipstream LPs at
+///               this time, but may in the future.
 library VelodromeLib {
     /// ERRORS ///
 
@@ -31,14 +37,15 @@ library VelodromeLib {
 
     /// FUNCTIONS ///
 
-    /// @notice Enter a Velodrome position.
-    /// @param router The Velodrome router address.
+    /// @notice Enters a Velodrome position based on parameters.
+    /// @param router The Velodrome router address to enter through.
     /// @param factory The Velodrome factory address.
-    /// @param lpToken The Velodrome lp token address.
-    /// @param amount0 The amount of `token0`.
-    /// @param amount1 The amount of `token1`.
-    /// @param lpMinOutAmount The minimum output amount acceptable.
-    /// @return lpOutAmount The output amount of Velodrome lp received.
+    /// @param lpToken The Velodrome lp token address to enter.
+    /// @param amount0 The amount of `token0` to enter through.
+    /// @param amount1 The amount of `token1`to enter through.
+    /// @param lpMinOutAmount The minimum output amount of `lpToken` that is
+    ///                       acceptable for execution.
+    /// @return lpOutAmount The amount of `lpToken` received.
     function enterVelodrome(
         address router,
         address factory,
@@ -142,10 +149,10 @@ library VelodromeLib {
         }
     }
 
-    /// @notice Exit a Velodrome position.
-    /// @param router The Velodrome router address.
-    /// @param lpToken The Velodrome lp token address.
-    /// @param lpAmount The Velodrome lp amount to exit.
+    /// @notice Exits a Velodrome position based on parameters.
+    /// @param router The Velodrome router address to exit through.
+    /// @param lpToken The Velodrome lp token address to exit.
+    /// @param lpAmount The amount of `lpToken` to exit.
     function exitVelodrome(
         address router,
         address lpToken,
@@ -171,15 +178,18 @@ library VelodromeLib {
         );
     }
 
-    /// @notice Adds `token0` and `token1` into a Velodrome LP.
-    /// @param router The Velodrome router address.
-    /// @param token0 The first token of the pair.
-    /// @param token1 The second token of the pair.
+    /// @notice Adds liquidity in `token0` and `token1` into a Velodrome
+    ///         liquidity pool.
+    /// @param router The Velodrome router address to add liquidity through.
+    /// @param token0 The first token of the pair to add liquidity in.
+    /// @param token1 The second token of the pair to add liquidity in.
     /// @param stable Whether the Velodrome lp token is stable or volatile.
-    /// @param amount0 The amount of `token0`.
-    /// @param amount1 The amount of `token1`.
-    /// @param slippage The slippage percent, in `basis points`.
-    /// @return liquidity The amount of LP tokens received.
+    /// @param amount0 The amount of `token0` to add as liquidity.
+    /// @param amount1 The amount of `token1` to add as liquidity.
+    /// @param slippage The maximum percentage slippage to allow,
+    ///                 in `basis points`.
+    /// @return liquidity The amount of LP tokens received from adding
+    ///                   liquidity.
     function _addLiquidity(
         address router,
         address token0,
