@@ -90,7 +90,7 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         uint256 shares,
         uint256 balancePrior,
         IPositionManagement.DeleverageStruct memory deleverageData
-    ) external override {
+    ) internal override {
         assets = _removeExitFeeFromAssets(assets);
         deleverageData.collateralAmount = assets;
         super._processPositionManagementRedemption(

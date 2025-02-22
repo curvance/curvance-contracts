@@ -232,15 +232,17 @@ abstract contract CompoundingPToken is BasePToken {
             ta = ta + assets;
         }
 
-        // Vest rewards, if there are any, then update `_totalAssets` invariant.
+        // Vest rewards, if there are any, then update `_totalAssets`
+        // invariant.
         if (pending > 0) {
             _vestRewards(ta);
         } else {
             _totalAssets = ta;
         }
 
-        // Deposit into strategy.
-        _afterDeposit(assets, shares);
+        // Deposit into strategy, shares parameter is unused so we can just
+        // pass 0.
+        _afterDeposit(assets, 0);
     }
 
     /// @notice Updates asset values for a pending withdrawal request.
@@ -281,8 +283,9 @@ abstract contract CompoundingPToken is BasePToken {
         uint256 assets = _BASE_UNDERLYING_RESERVE;
         uint256 shares = _initialConvertToShares(assets);
 
-        // Deposit into strategy.
-        _afterDeposit(assets, shares);
+        // Deposit into strategy, shares parameter is unused so we can just
+        // pass 0.
+        _afterDeposit(assets, 0);
     }
 
     /// @notice Sets a new `_vaultData` invariant based on `yieldToVest`,

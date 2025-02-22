@@ -1027,7 +1027,7 @@ abstract contract BasePToken is
         uint256 shares,
         uint256 balancePrior,
         IPositionManagement.DeleverageStruct memory deleverageData
-    ) external virtual {
+    ) internal virtual {
         // Callback to PositionManagement that executes pToken specific logic.
         IPositionManagement(msg.sender).onRedeem(
             address(this),
