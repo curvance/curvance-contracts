@@ -445,7 +445,7 @@ abstract contract BasePToken is
         uint256 amount
     ) public override nonReentrant returns (bool) {
         // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), from, amount);
+        marketManager.canTransferPToken(address(this), msg.sender, amount);
 
         _beforeTransfer(msg.sender, to, amount);
 
@@ -698,7 +698,7 @@ abstract contract BasePToken is
         // Mint `shares` to `to`.
         _mint(to, shares);
 
-        _afterProcessDeposit(owner, shares);
+        _afterProcessDeposit(to, shares);
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -990,7 +990,7 @@ abstract contract BasePToken is
     /// @param assets The amount of the underlying asset to deposit.
     function _afterProcessDeposit(
         address to,
-        uint256 shares
+        uint256 assets
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
