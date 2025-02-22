@@ -74,7 +74,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         uint256 max,
         uint256 min,
         uint256 heartbeat
-    ) internal view returns (bool) {
+    ) internal virtual view returns (bool) {
         // Validate `value` is not at or above the maximum value allowed.
         if (value >= max) {
             return true;

@@ -77,13 +77,14 @@ contract SimplePToken is BasePToken {
         // We don't need to precheck approval since position folding will
         // always call based on msg.sender, so there is no trust system.
         // Process withdraw on behalf of `owner`.
-        _updateValuesAndProcessWithdraw(
+        _processWithdraw(
             msg.sender,
             msg.sender,
             owner,
             assets,
             shares,
-            ta
+            ta,
+            0
         );
 
         // Callback to PositionManagement that executes pToken specific logic.
@@ -146,9 +147,8 @@ contract SimplePToken is BasePToken {
         }
 
         // Execute deposit.
-        _processDeposit(msg.sender, receiver, assets, shares, ta);
-        // Update gauge pool values for `receiver`.
-        gaugeManager.deposit(address(this), receiver, shares);
+        _processDeposit(msg.sender, receiver, assets, shares, ta, 0);
+        _afterProcessDeposit(receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -176,9 +176,8 @@ contract SimplePToken is BasePToken {
         assets = _previewMint(shares, ta);
 
         // Execute deposit.
-        _processDeposit(msg.sender, receiver, assets, shares, ta);
-        // Update gauge pool values for `receiver`.
-        gaugeManager.deposit(address(this), receiver, shares);
+        _processDeposit(msg.sender, receiver, assets, shares, ta, 0);
+        _afterProcessDeposit(receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -224,13 +223,14 @@ contract SimplePToken is BasePToken {
         );
 
         // Execute withdrawal.
-        _updateValuesAndProcessWithdraw(
+        _processWithdraw(
             msg.sender,
             receiver,
             owner,
             assets,
             shares,
-            ta
+            ta,
+            0
         );
     }
 
@@ -285,119 +285,42 @@ contract SimplePToken is BasePToken {
         }
 
         // Execute withdrawal.
-        _updateValuesAndProcessWithdraw(
+        _processWithdraw(
             msg.sender,
             receiver,
             owner,
             assets,
             shares,
-            ta
+            ta,
+            0
         );
     }
 
-    /// @notice Processes a deposit of `assets` from the market and mints
-    ///         shares to `owner`, then increases `ta` by `assets`.
-    /// @dev Emits a {Deposit} event.
-    /// @param by The account that is executing the deposit.
-    /// @param to The account that should receive `shares`.
+    /// @notice Updates asset values for a pending deposit request.
     /// @param assets The amount of the underlying asset to deposit.
-    /// @param shares The amount of shares minted to `to`.
     /// @param ta The current total number of assets for assets to shares
     ///           conversion.
-    function _processDeposit(
-        address by,
-        address to,
+    function _updateAssetsForDeposit(
         uint256 assets,
-        uint256 shares,
-        uint256 ta
-    ) internal {
-        // Need to transfer before minting or ERC777s could reenter.
-        SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
-
+        uint256 ta,
+        uint256 /* pending */
+    ) internal override {
         // Document addition of `assets` to `ta` due to deposit.
         unchecked {
             _totalAssets = ta + assets;
         }
-
-        // Mint `shares` to `to`.
-        _mint(to, shares);
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
-        }
     }
 
-    /// @notice Updates gauge pool values for `owner` and processes a
-    ///         withdrawal of `shares` from the market by burning `owner`
-    ///         shares and transferring `assets` to `to`, then decreases
-    ///         `ta` by `assets`, and vests rewards if `pending` > 0.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              `assets`.
+    /// @notice Updates asset values for a pending withdrawal request.
     /// @param assets The amount of the underlying asset to withdraw.
-    /// @param shares The amount of shares redeemed from `owner`.
     /// @param ta The current total number of assets for assets to shares
     ///           conversion.
-    function _updateValuesAndProcessWithdraw(
-        address by,
-        address to,
-        address owner,
+    function _updateAssetsForWithdrawal(
         uint256 assets,
-        uint256 shares,
-        uint256 ta
-    ) internal {
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
-        _processWithdraw(by, to, owner, assets, shares, ta);
-    }
-
-    /// @notice Processes a withdrawal of `shares` from the market by burning
-    ///         `owner` shares and transferring `assets` to `to`, then
-    ///         decreases `ta` by `assets`.
-    /// @dev Emits a {Withdraw} event.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              `assets`.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param shares The amount of shares redeemed from `owner`.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    function _processWithdraw(
-        address by,
-        address to,
-        address owner,
-        uint256 assets,
-        uint256 shares,
-        uint256 ta
-    ) internal {
-        // Burn `owner` `shares`.
-        _burn(owner, shares);
+        uint256 ta,
+        uint256 /* pending */
+    ) internal override {
         // Document removal of `assets` from `ta` due to withdrawal.
         _totalAssets = ta - assets;
-        // Transfer the underlying assets to `to`.
-        SafeTransferLib.safeTransfer(asset(), to, assets);
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Withdraw} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log4(
-                0x00,
-                0x40,
-                _WITHDRAW_EVENT_SIGNATURE,
-                and(m, by),
-                and(m, to),
-                and(m, owner)
-            )
-        }
     }
 }

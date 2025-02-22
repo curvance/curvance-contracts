@@ -9,7 +9,6 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
@@ -81,8 +80,6 @@ abstract contract BasePToken is
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
 
     /// @notice Underlying asset for the PToken, cannot be a fee-on-transfer token.
     IERC20 internal immutable _asset;
@@ -124,8 +121,6 @@ abstract contract BasePToken is
 
         // Set `marketManager`.
         marketManager = IMarketManager(MarketManager_);
-        // Set `gaugeManager`.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
@@ -449,7 +444,10 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        _updateGaugeManagerValues(msg.sender, to, amount);
+        // Fails if transfer not allowed.
+        marketManager.canTransferPToken(address(this), from, amount);
+
+        _beforeTransfer(msg.sender, to, amount);
 
         // Execute transfer.
         super.transfer(to, amount);
@@ -469,7 +467,10 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        _updateGaugeManagerValues(from, to, amount);
+        // Fails if transfer not allowed.
+        marketManager.canTransferPToken(address(this), from, amount);
+
+        _beforeTransfer(from, to, amount);
 
         // Execute transfer.
         super.transferFrom(from, to, amount);
@@ -501,7 +502,9 @@ abstract contract BasePToken is
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
 
-        _processLiquidation(account, liquidator, shares);
+        _beforeProcessLiquidation(account, liquidator, shares);
+        // Efficiently transfer token balances from `account` to `liquidator`.
+        _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
     /// @notice Transfers position tokens (this market) to the liquidator.
@@ -527,7 +530,9 @@ abstract contract BasePToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _processLiquidation(account, liquidator, shares);
+        _beforeProcessLiquidation(account, liquidator, shares);
+        // Efficiently transfer token balances from `account` to `liquidator`.
+        _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
     /// @notice Returns the type of Curvance token.
@@ -663,50 +668,99 @@ abstract contract BasePToken is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Updates Gauge Manager values for `from` and `to`.
-    /// @param from The address of the account transferring `amount`
-    ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
-    /// @param amount The number of tokens to transfer from `from` to `to`.
-    function _updateGaugeManagerValues(
-        address from,
+    /// @notice Processes a deposit of `assets` from the market and mints
+    ///         shares to `owner`, then increases `ta` by `assets`,
+    ///         and vests rewards if `pending` > 0.
+    /// @dev Emits a {Deposit} event.
+    /// @param by The account that is executing the deposit.
+    /// @param to The account that should receive `shares`.
+    /// @param assets The amount of the underlying asset to deposit.
+    /// @param shares The amount of shares minted to `to`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this deposit.
+    function _processDeposit(
+        address by,
         address to,
-        uint256 amount
+        uint256 assets,
+        uint256 shares,
+        uint256 ta,
+        uint256 pending
     ) internal {
-        // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), from, amount);
+        // Need to transfer before minting or ERC777s could reenter.
+        SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
 
-        // Cache Gauge Manager, then update values for `from`.
-        gaugeManager.withdraw(address(this), from, amount);
+        // Vests any rewards,if there are any, then update `_totalAssets`
+        // invariant and prepare assets for withdrawal.
+        _updateAssetsForDeposit(assets, ta, pending);
 
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, amount);
+        // Mint `shares` to `to`.
+        _mint(to, shares);
+
+        _afterProcessDeposit(owner, shares);
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Emit the {Deposit} event.
+            mstore(0x00, assets)
+            mstore(0x20, shares)
+            let m := shr(96, not(0))
+            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
+        }
     }
 
-    /// @notice Processes liquidation of `account`'s collateral.
-    /// @param account The address of the account transferring `amount`
-    ///                shares from.
-    /// @param liquidator The address of the destination account to
-    ///                   receive `amount` shares.
-    /// @param shares The number of tokens to transfer from `account`
-    ///               to `liquidator`.
-    function _processLiquidation(
-        address account,
-        address liquidator,
-        uint256 shares
+    /// @notice Processes a withdrawal of `shares` from the market by burning
+    ///         `owner` shares and transferring `assets` to `to`, then
+    ///         decreases `ta` by `assets`, and vests rewards if
+    ///         `pending` > 0.
+    /// @dev Emits a {Withdraw} event.
+    /// @param by The account that is executing the withdrawal.
+    /// @param to The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param shares The amount of shares redeemed from `owner`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this withdrawal.
+    function _processWithdraw(
+        address by,
+        address to,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 ta,
+        uint256 pending
     ) internal {
-        // Process virtual balance updates and accrued rewards from this
-        // liquidation.
-        gaugeManager.processLiquidation(
-            address(this),
-            account,
-            liquidator,
-            shares
-        );
+        _beforeProcessWithdraw(owner, shares);
 
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
+        // Burn `owner` `shares`.
+        _burn(owner, shares);
+
+        // Vests any rewards,if there are any, then update `_totalAssets`
+        // invariant and prepare assets for withdrawal.
+        _updateAssetsForWithdrawal(assets, ta, pending);
+
+        // Transfer the underlying assets to `to`.
+        SafeTransferLib.safeTransfer(asset(), to, assets);
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Emit the {Withdraw} event.
+            mstore(0x00, assets)
+            mstore(0x20, shares)
+            let m := shr(96, not(0))
+            log4(
+                0x00,
+                0x40,
+                _WITHDRAW_EVENT_SIGNATURE,
+                and(m, by),
+                and(m, to),
+                and(m, owner)
+            )
+        }
     }
 
     /// @notice Helper function to efficiently transfers pToken balances
@@ -794,8 +848,21 @@ abstract contract BasePToken is
                 and(m, market)
             )
         }
-        // Update gauge pool values for market.
-        gaugeManager.deposit(market, market, shares);
+
+        _afterProcessDeposit(market, shares);
+    }
+
+    /// @notice Updates the allowance for the caller.
+    /// @param owner The owner of the allowance.
+    /// @param amount The spent amount of the allowance.
+    function _updateAllowance(address owner, uint256 amount) internal {
+        if (msg.sender != owner) {
+            uint256 allowed = allowance(owner, msg.sender);
+
+            if (allowed != type(uint256).max) {
+                _spendAllowance(owner, msg.sender, amount);
+            }
+        }
     }
 
     /// @dev Returns the decimals of the underlying asset.
@@ -915,6 +982,55 @@ abstract contract BasePToken is
         }
     }
 
+    /// INTERNAL CONVERSION FUNCTIONS WHICH MAY BE OVERRIDDEN ///
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a deposit of `owners`'s assets.
+    /// @param to The account that should receive `shares`.
+    /// @param assets The amount of the underlying asset to deposit.
+    function _afterProcessDeposit(
+        address to,
+        uint256 shares
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a withdrawal of `owners`'s shares.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              assets.
+    /// @param shares The amount of shares redeemed from `owner`.
+    function _beforeProcessWithdraw(
+        address owner,
+        uint256 shares
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a transfer of `from`'s shares to `to`.
+    /// @param from The address of the account transferring `amount`
+    ///             shares from.
+    /// @param to The address of the destination account to receive `amount`
+    ///           shares.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _beforeTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         liquidation of `account`'s collateral.
+    /// @param account The address of the account transferring `shares`
+    ///                shares from.
+    /// @param liquidator The address of the destination account to
+    ///                   receive `shares` shares.
+    /// @param shares The number of tokens to transfer from `account`
+    ///               to `liquidator`.
+    function _beforeProcessLiquidation(
+        address account,
+        address liquidator,
+        uint256 shares
+    ) internal virtual {}
+
+
     /// INTERNAL CONVERSION FUNCTIONS TO OVERRIDE ///
 
     /// @notice Deposits `assets` and mints shares to `receiver`.
@@ -984,16 +1100,27 @@ abstract contract BasePToken is
         return centralRegistry;
     }
 
-    /// @notice Updates the allowance for the caller.
-    /// @param owner The owner of the allowance.
-    /// @param amount The spent amount of the allowance.
-    function _updateAllowance(address owner, uint256 amount) internal {
-        if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
+    /// @notice Updates asset values for a pending deposit request.
+    /// @param assets The amount of the underlying asset to deposit.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this deposit.
+    function _updateAssetsForDeposit(
+        uint256 assets,
+        uint256 ta,
+        uint256 pending
+    ) internal virtual {}
 
-            if (allowed != type(uint256).max) {
-                _spendAllowance(owner, msg.sender, amount);
-            }
-        }
-    }
+    /// @notice Updates asset values for a pending withdrawal request.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this withdrawal.
+    function _updateAssetsForWithdrawal(
+        uint256 assets,
+        uint256 ta,
+        uint256 pending
+    ) internal virtual {}
 }

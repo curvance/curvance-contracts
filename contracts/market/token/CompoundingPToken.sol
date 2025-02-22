@@ -307,8 +307,7 @@ abstract contract CompoundingPToken is BasePToken {
 
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
-        // Update gauge pool values for `receiver`.
-        gaugeManager.deposit(address(this), receiver, shares);
+        _afterProcessDeposit(receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -338,8 +337,7 @@ abstract contract CompoundingPToken is BasePToken {
 
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
-        // Update gauge pool values for `receiver`.
-        gaugeManager.deposit(address(this), receiver, shares);
+        _afterProcessDeposit(receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -464,30 +462,17 @@ abstract contract CompoundingPToken is BasePToken {
         );
     }
 
-    /// @notice Processes a deposit of `assets` from the market and mints
-    ///         shares to `owner`, then increases `ta` by `assets`,
-    ///         and vests rewards if `pending` > 0.
-    /// @dev Emits a {Deposit} event.
-    /// @param by The account that is executing the deposit.
-    /// @param to The account that should receive `shares`.
+    /// @notice Updates asset values for a pending deposit request.
     /// @param assets The amount of the underlying asset to deposit.
-    /// @param shares The amount of shares minted to `to`.
     /// @param ta The current total number of assets for assets to shares
     ///           conversion.
     /// @param pending The current rewards that are pending and will be vested
     ///                during this deposit.
-    function _processDeposit(
-        address by,
-        address to,
+    function _updateAssetsForDeposit(
         uint256 assets,
-        uint256 shares,
         uint256 ta,
         uint256 pending
-    ) internal {
-        // Need to transfer before minting or ERC777s could reenter.
-        SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
-
-        // Document addition of `assets` to `ta` due to deposit.
+    ) internal override {
         unchecked {
             // We know that this will not overflow as rewards are partly vested,
             // and assets added and have not overflown from those operations.
@@ -501,76 +486,21 @@ abstract contract CompoundingPToken is BasePToken {
             _totalAssets = ta;
         }
 
-        // Mint `shares` to `to`.
-        _mint(to, shares);
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Deposit} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
-        }
-
         // Deposit into strategy.
         _afterDeposit(assets, shares);
     }
 
-    /// @notice Updates gauge pool values for `owner` and processes a
-    ///         withdrawal of `shares` from the market by burning `owner`
-    ///         shares and transferring `assets` to `to`, then decreases
-    ///         `ta` by `assets`, and vests rewards if `pending` > 0.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              `assets`.
+    /// @notice Updates asset values for a pending withdrawal request.
     /// @param assets The amount of the underlying asset to withdraw.
-    /// @param shares The amount of shares redeemed from `owner`.
     /// @param ta The current total number of assets for assets to shares
     ///           conversion.
     /// @param pending The current rewards that are pending and will be vested
     ///                during this withdrawal.
-    function _updateValuesAndProcessWithdraw(
-        address by,
-        address to,
-        address owner,
+    function _updateAssetsForWithdrawal(
         uint256 assets,
-        uint256 shares,
         uint256 ta,
         uint256 pending
-    ) internal {
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
-        _processWithdraw(by, to, owner, assets, shares, ta, pending);
-    }
-
-    /// @notice Processes a withdrawal of `shares` from the market by burning
-    ///         `owner` shares and transferring `assets` to `to`, then
-    ///         decreases `ta` by `assets`, and vests rewards if
-    ///         `pending` > 0.
-    /// @dev Emits a {Withdraw} event.
-    /// @param by The account that is executing the withdrawal.
-    /// @param to The account that should receive `assets`.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              `assets`.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param shares The amount of shares redeemed from `owner`.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this withdrawal.
-    function _processWithdraw(
-        address by,
-        address to,
-        address owner,
-        uint256 assets,
-        uint256 shares,
-        uint256 ta,
-        uint256 pending
-    ) internal virtual {
-        // Burn `owner` `shares`.
-        _burn(owner, shares);
+    ) internal override {
         // Document removal of `assets` from `ta` due to withdrawal.
         ta = ta - assets;
 
@@ -584,24 +514,6 @@ abstract contract CompoundingPToken is BasePToken {
 
         // Prepare underlying assets.
         _beforeWithdraw(assets, shares);
-        // Transfer the underlying assets to `to`.
-        SafeTransferLib.safeTransfer(asset(), to, assets);
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Emit the {Withdraw} event.
-            mstore(0x00, assets)
-            mstore(0x20, shares)
-            let m := shr(96, not(0))
-            log4(
-                0x00,
-                0x40,
-                _WITHDRAW_EVENT_SIGNATURE,
-                and(m, by),
-                and(m, to),
-                and(m, owner)
-            )
-        }
     }
 
     /// @notice Starts a pToken market, executed via marketManager.
