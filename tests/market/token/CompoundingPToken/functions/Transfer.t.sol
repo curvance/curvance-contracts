@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
@@ -17,7 +17,7 @@ contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
     function test_compoundingPTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(BasePToken.BasePToken__EmptyAction.selector);
         pBALRETH.transfer(user1, 0);
     }
 

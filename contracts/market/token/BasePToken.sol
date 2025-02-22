@@ -97,6 +97,7 @@ abstract contract BasePToken is
 
     /// ERRORS ///
 
+    error BasePToken__EmptyAction();
     error BasePToken__ZeroAssets();
     error BasePToken__ZeroShares();
     error BasePToken__WithdrawMoreThanMax();
@@ -163,6 +164,8 @@ abstract contract BasePToken is
         if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        _checkZeroAmount(assets);
 
         // Calculate any pending rewards and new total assets invariant.
         (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
@@ -734,9 +737,7 @@ abstract contract BasePToken is
         uint256 assets,
         address receiver
     ) internal returns (uint256 shares) {
-        if (assets == 0) {
-            revert BasePToken__ZeroAssets();
-        }
+        _checkZeroAmount(assets);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
         // check reviewing isListed and mintPaused != 2.
@@ -765,9 +766,7 @@ abstract contract BasePToken is
         uint256 shares,
         address receiver
     ) internal returns (uint256 assets) {
-        if (shares == 0) {
-            revert BasePToken__ZeroShares();
-        }
+        _checkZeroAmount(shares);
 
         // Fail if mint not allowed, this stands in for a maxMint
         // check reviewing isListed and mintPaused != 2.
@@ -802,6 +801,8 @@ abstract contract BasePToken is
         address owner,
         bool forceRedeemCollateral
     ) internal returns (uint256 shares) {
+        _checkZeroAmount(assets);
+
         // Calculate any pending rewards and new total assets invariant.
         (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
 
@@ -861,6 +862,8 @@ abstract contract BasePToken is
         bool delegatedAction,
         bool forceRedeemCollateral
     ) internal returns (uint256 assets) {
+        _checkZeroAmount(shares);
+
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`. Or whether the caller has delegated approval or not.
         if (delegatedAction) {
@@ -1251,6 +1254,13 @@ abstract contract BasePToken is
         return _convertToAssets(shares, ta);
     }
 
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal view {
+        if (amount == 0) {
+            revert BasePToken__EmptyAction();
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
@@ -1297,7 +1307,9 @@ abstract contract BasePToken is
         address from,
         address to,
         uint256 amount
-    ) internal virtual {}
+    ) internal virtual {
+        _checkZeroAmount(amount);
+    }
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.

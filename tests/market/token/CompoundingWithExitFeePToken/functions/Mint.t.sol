@@ -14,7 +14,7 @@ contract CompoundingWithExitFeePTokenMintTest is
         public
     {
         vm.expectRevert(
-            BasePToken.BasePToken__ZeroShares.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETHWithExitFee.mint(0, address(this));
     }

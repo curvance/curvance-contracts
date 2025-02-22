@@ -42,7 +42,7 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
         pBALRETH.mint(100, address(this));
 
         vm.expectRevert(
-            BasePToken.BasePToken__ZeroAssets.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETH.redeem(0, address(this), address(this));
     }

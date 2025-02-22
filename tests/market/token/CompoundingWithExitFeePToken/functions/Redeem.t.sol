@@ -21,7 +21,7 @@ contract CompoundingWithExitFeePTokenRedeemTest is
     {
         pBALRETHWithExitFee.mint(100, address(this));
         vm.expectRevert(
-            BasePToken.BasePToken__ZeroAssets.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETHWithExitFee.redeem(0, address(this), address(this));
     }
