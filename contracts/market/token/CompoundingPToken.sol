@@ -267,8 +267,9 @@ abstract contract CompoundingPToken is BasePToken {
             _totalAssets = ta;
         }
 
-        // Prepare underlying assets.
-        _beforeWithdraw(assets, shares);
+        // Prepare underlying assets, shares parameter is unused so we can
+        // just pass 0.
+        _beforeWithdraw(assets, 0);
     }
 
     /// @notice Starts a pToken market, executed via marketManager.
