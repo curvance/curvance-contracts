@@ -158,7 +158,7 @@ abstract contract BasePToken is
         address owner,
         uint256 assets,
         IPositionManagement.DeleverageStruct memory deleverageData
-    ) external virtual override nonReentrant {
+    ) external nonReentrant {
         // Validate that the position folding contract is calling.
         if (!marketManager.positionManagement(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -733,7 +733,7 @@ abstract contract BasePToken is
     function _deposit(
         uint256 assets,
         address receiver
-    ) internal override returns (uint256 shares) {
+    ) internal returns (uint256 shares) {
         if (assets == 0) {
             revert BasePToken__ZeroAssets();
         }
@@ -764,7 +764,7 @@ abstract contract BasePToken is
     function _mint(
         uint256 shares,
         address receiver
-    ) internal override returns (uint256 assets) {
+    ) internal returns (uint256 assets) {
         if (shares == 0) {
             revert BasePToken__ZeroShares();
         }
@@ -801,7 +801,7 @@ abstract contract BasePToken is
         address receiver,
         address owner,
         bool forceRedeemCollateral
-    ) internal override returns (uint256 shares) {
+    ) internal returns (uint256 shares) {
         // Calculate any pending rewards and new total assets invariant.
         (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
 
@@ -860,7 +860,7 @@ abstract contract BasePToken is
         address owner,
         bool delegatedAction,
         bool forceRedeemCollateral
-    ) internal override returns (uint256 assets) {
+    ) internal returns (uint256 assets) {
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`. Or whether the caller has delegated approval or not.
         if (delegatedAction) {
@@ -969,7 +969,7 @@ abstract contract BasePToken is
         uint256 shares,
         uint256 ta,
         uint256 pending
-    ) internal {
+    ) internal virtual {
         _beforeProcessWithdraw(owner, shares);
 
         // Burn `owner` `shares`.
@@ -1322,63 +1322,6 @@ abstract contract BasePToken is
         uint256,
         uint256
     ) {}
-
-    /// @notice Deposits `assets` and mints shares to `receiver`.
-    /// @param assets The amount of the underlying assets to supply.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
-    function _deposit(
-        uint256 assets,
-        address receiver
-    ) internal virtual returns (uint256 shares) {}
-
-    /// @notice Deposits assets and mints `shares` to `receiver`.
-    /// @param shares The amount of the underlying assets quoted in shares
-    ///               to supply.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return assets The amount of pToken shares quoted in assets received
-    ///                by `receiver`.
-    function _mint(
-        uint256 shares,
-        address receiver
-    ) internal virtual returns (uint256 assets) {}
-
-    /// @notice Withdraws `assets` to `receiver` from the market and burns
-    ///         `owner` shares.
-    /// @param assets The amount of the underlying assets to withdraw.
-    /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from `owner`'s collateralPosted.
-    /// @return shares The amount of assets, quoted in shares received
-    ///                by `receiver`.
-    function _withdraw(
-        uint256 assets,
-        address receiver,
-        address owner,
-        bool forceRedeemCollateral
-    ) internal virtual returns (uint256 shares) {}
-
-    /// @notice Withdraws assets to `receiver` from the market and burns
-    ///         `owner` `shares`.
-    /// @param shares The amount of shares to burn to withdraw assets.
-    /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
-    /// @param delegatedAction Whether the action is delegated and should
-    ///                        use delegation system instead of normal
-    ///                        approval system.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from `owner`'s collateralPosted.
-    /// @return assets The amount of assets received by `receiver`.
-    function _redeem(
-        uint256 shares,
-        address receiver,
-        address owner,
-        bool delegatedAction,
-        bool forceRedeemCollateral
-    ) internal virtual returns (uint256 assets) {}
 
     /// @dev from Multicall
     function _getCentralRegistry()

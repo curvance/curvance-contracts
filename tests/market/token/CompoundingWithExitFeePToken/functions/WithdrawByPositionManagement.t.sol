@@ -14,12 +14,6 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-// this test contract acts as a position management contract to 
-// check the withdrawByPositionManagement function in the
-// CompoundingWithExitFeePToken contract as I did not see a 
-// position management contract for Balancer & Aura LP in the codebase
-// We are checking to see if this contract can properly call 
-// the withdrawByPositionManagement function in the CompoundingWithExitFeePToken contract
 contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
     TestBaseMarket,
     IPositionManagement,

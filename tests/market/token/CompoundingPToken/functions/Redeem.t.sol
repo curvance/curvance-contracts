@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
@@ -42,7 +42,7 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
         pBALRETH.mint(100, address(this));
 
         vm.expectRevert(
-            CompoundingPToken.CompoundingPToken__ZeroAssets.selector
+            BasePToken.BasePToken__ZeroAssets.selector
         );
         pBALRETH.redeem(0, address(this), address(this));
     }
