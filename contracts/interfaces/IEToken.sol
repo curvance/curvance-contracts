@@ -32,7 +32,7 @@ interface IEToken is IMToken {
     /// @dev This excludes changes in underlying token balance by the
     ///      current transaction, if any.
     /// @return The quantity of underlying tokens held by the market.
-    function marketUnderlyingHeld() public view returns (uint256);
+    function marketUnderlyingHeld() external view returns (uint256);
 
     /// @notice Returns total amount of outstanding borrows of the
     ///         underlying in this eToken market.

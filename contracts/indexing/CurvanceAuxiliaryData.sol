@@ -234,7 +234,7 @@ contract CurvanceAuxiliaryData {
     function utilizationRate(address eToken) external view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
-            eToken.interestRateModel().utilizationRate(
+            ieToken.interestRateModel().utilizationRate(
                 ieToken.marketUnderlyingHeld(),
                 ieToken.totalBorrows(),
                 ieToken.convertToAssets(ieToken.totalReserves())
@@ -249,7 +249,7 @@ contract CurvanceAuxiliaryData {
     ) external view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
-            eToken.interestRateModel().getBorrowRatePerYear(
+            ieToken.interestRateModel().getBorrowRatePerYear(
                 ieToken.marketUnderlyingHeld(),
                 ieToken.totalBorrows(),
                 ieToken.convertToAssets(ieToken.totalReserves())
@@ -265,7 +265,7 @@ contract CurvanceAuxiliaryData {
     ) external view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
-            eToken.interestRateModel().getPredictedBorrowRatePerYear(
+            ieToken.interestRateModel().getPredictedBorrowRatePerYear(
                 ieToken.marketUnderlyingHeld(),
                 ieToken.totalBorrows(),
                 ieToken.convertToAssets(ieToken.totalReserves())
@@ -280,7 +280,7 @@ contract CurvanceAuxiliaryData {
     ) external view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
-            eToken.interestRateModel().getSupplyRatePerYear(
+            ieToken.interestRateModel().getSupplyRatePerYear(
                 ieToken.marketUnderlyingHeld(),
                 ieToken.totalBorrows(),
                 ieToken.convertToAssets(ieToken.totalReserves()),
