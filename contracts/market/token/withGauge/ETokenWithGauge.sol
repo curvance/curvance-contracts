@@ -64,10 +64,10 @@ contract ETokenWithGauge is EToken {
         address marketManager_,
         address interestRateModel_
     ) EToken(
-        ICentralRegistry centralRegistry_,
-        address underlying_,
-        address marketManager_,
-        address interestRateModel_
+        centralRegistry_,
+        underlying_,
+        marketManager_,
+        interestRateModel_
     ) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
