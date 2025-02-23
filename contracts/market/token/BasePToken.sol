@@ -1279,33 +1279,24 @@ abstract contract BasePToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `owners`'s assets.
-    /// @param to The account that should receive `shares`.
-    /// @param assets The amount of the underlying asset to deposit.
     function _afterProcessDeposit(
-        address to,
-        uint256 assets
+        address /* to */,
+        uint256 /* assets */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    /// @param owner The account that will have `shares` burned to withdraw
-    ///              assets.
-    /// @param shares The amount of shares redeemed from `owner`.
     function _beforeProcessWithdraw(
-        address owner,
-        uint256 shares
+        address /* owner */,
+        uint256 /* shares */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
-    /// @param from The address of the account transferring `amount`
-    ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
-    ///           shares.
     /// @param amount The number of tokens to transfer from `from` to `to`.
     function _beforeTransfer(
-        address from,
-        address to,
+        address /* from */,
+        address /* to */,
         uint256 amount
     ) internal virtual {
         _checkZeroAmount(amount);
@@ -1313,16 +1304,10 @@ abstract contract BasePToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.
-    /// @param account The address of the account transferring `shares`
-    ///                shares from.
-    /// @param liquidator The address of the destination account to
-    ///                   receive `shares` shares.
-    /// @param shares The number of tokens to transfer from `account`
-    ///               to `liquidator`.
     function _beforeProcessLiquidation(
-        address account,
-        address liquidator,
-        uint256 shares
+        address /* account */,
+        address /* liquidator */,
+        uint256 /* shares */
     ) internal virtual {}
 
 

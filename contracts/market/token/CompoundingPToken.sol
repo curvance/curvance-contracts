@@ -281,12 +281,9 @@ abstract contract CompoundingPToken is BasePToken {
     function _startMarket(address by) internal override {
         super._startMarket(by);
 
-        uint256 assets = _BASE_UNDERLYING_RESERVE;
-        uint256 shares = _initialConvertToShares(assets);
-
         // Deposit into strategy, shares parameter is unused so we can just
         // pass 0.
-        _afterDeposit(assets, 0);
+        _afterDeposit(_BASE_UNDERLYING_RESERVE, 0);
     }
 
     /// @notice Sets a new `_vaultData` invariant based on `yieldToVest`,

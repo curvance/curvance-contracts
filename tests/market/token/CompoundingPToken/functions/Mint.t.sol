@@ -10,7 +10,7 @@ contract CompoundingPTokenMintTest is TestBaseCompoundingPToken {
 
     function test_compoundingPTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
-            BasePToken.BasePToken__ZeroShares.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETH.mint(0, address(this));
     }
