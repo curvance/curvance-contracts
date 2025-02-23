@@ -13,7 +13,6 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
@@ -67,8 +66,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     address public immutable underlying;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
 
     /// @dev `bytes4(keccak256(bytes("EToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc7e7bc18;
@@ -145,6 +142,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// ERRORS ///
 
     error EToken__Unauthorized();
+    error EToken__EmptyAction();
     error EToken__ExcessiveValue();
     error EToken__TransferError();
     error EToken__InsufficientUnderlyingHeld();
@@ -173,8 +171,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new marketManager.
         marketManager = IMarketManager(marketManager_);
-        // Set `gaugeManager`.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Initialize timestamp and borrow index.
         marketData.lastTimestampUpdated = uint40(block.timestamp);
@@ -602,12 +598,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @notice Adds reserves by transferring from Curvance DAO
-    ///         to the market and deposits into the gauge.
+    ///         to the market.
     /// @dev Updates pending interest before executing the reserve deposit.
     /// @param amount The amount of underlying tokens to add as reserves,
     ///               in assets.
     function depositReserves(uint256 amount) external nonReentrant {
         _checkDaoPermissions();
+        _checkZeroAmount(amount);
 
         // Update pending interest.
         accrueInterest();
@@ -626,14 +623,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
 
-        // Deposit new reserves into gauge.
-        gaugeManager.deposit(address(this), daoAddress, tokens);
-
-        // Update reserves
+        _afterDeposit(daoAddress, tokens);
+        // Update reserves.
         totalReserves = totalReserves + tokens;
     }
 
-    /// @notice Reduces reserves by withdrawing from the gauge
+    /// @notice Reduces reserves by withdrawing from the market
     ///         and transfers them to Curvance DAO.
     /// @dev If daoAddress is going to be moved all reserves should be
     ///      withdrawn first. Updates pending interest before executing
@@ -652,7 +647,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         _withdrawReserves(tokens, amount);
     }
 
-    /// @notice Withdraws all reserves from the gauge and transfers them to
+    /// @notice Withdraws all reserves from the market and transfers them to
     ///         Curvance DAO.
     /// @dev If daoAddress is going to be moved all reserves should be
     ///      withdrawn first. Updates pending interest before executing
@@ -1097,13 +1092,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
-
-            // Update Gauge Manager values for new reserves.
-            gaugeManager.deposit(
-                address(this),
-                centralRegistry.daoAddress(),
-                newReserves
-            );
+            _afterDeposit(centralRegistry.daoAddress(), newReserves);
         }
 
         emit InterestAccrued(
@@ -1184,6 +1173,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         if (from == to) {
             revert EToken__TransferError();
         }
+        _checkZeroAmount(amount);
 
         // Fails if transfer not allowed.
         marketManager.canTransferEToken(address(this), from, tokens);
@@ -1195,6 +1185,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             allowance[from][spender] = allowance[from][spender] - tokens;
         }
 
+        _beforeTransfer(from, to, tokens);
+
         // Update account token balances.
         balanceOf[from] = balanceOf[from] - tokens;
         // We know that from balance wont overflow
@@ -1202,10 +1194,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         unchecked {
             balanceOf[to] = balanceOf[to] + tokens;
         }
-
-        // Cache Gauge Manager, then update values for `from` and `to`.
-        gaugeManager.withdraw(address(this), from, tokens);
-        gaugeManager.deposit(address(this), to, tokens);
 
         // We emit a Transfer event.
         emit Transfer(from, to, tokens);
@@ -1223,6 +1211,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 amount
     ) internal returns (uint256) {
+        _checkZeroAmount(amount);
+
         // Update pending interest.
         accrueInterest();
 
@@ -1248,6 +1238,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 tokens,
         uint256 amount
     ) internal returns (uint256) {
+        _checkZeroAmount(amount);
         _checkUnderlyingHeld(totalReserves, amount);
 
         // Update account balance and totalSupply.
@@ -1258,10 +1249,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             totalSupply = totalSupply - tokens;
         }
 
-        // Update Gauge Manager values for `account`, while also checking
-        // if tokens == 0, causing reversion.
-        gaugeManager.withdraw(address(this), account, tokens);
-
+        _beforeWithdraw(account, tokens);
         // Transfer underlying to `recipient`.
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
@@ -1279,6 +1267,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         address recipient
     ) internal {
+        _checkZeroAmount(amount);
         _checkUnderlyingHeld(totalReserves, amount);
 
         // Calculate current account debt then add `amount`.
@@ -1322,9 +1311,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[recipient] = balanceOf[recipient] + tokens;
         }
 
-        // Update Gauge Manager values for `recipient`.
-        gaugeManager.deposit(address(this), recipient, tokens);
-
+        _afterDeposit(recipient, tokens);
         emit Transfer(address(0), recipient, tokens);
         return tokens;
     }
@@ -1343,6 +1330,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         uint256 accountDebt
     ) internal returns (uint256) {
+        _checkZeroAmount(amount);
+
         // Validate repayment amount is not excessive.
         if (amount > accountDebt) {
             revert EToken__ExcessiveValue();
@@ -1457,11 +1446,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         );
     }
 
-    /// @notice Withdraws reserves from the gauge and transfers them to
+    /// @notice Withdraws reserves from the market and transfers them to
     ///         Curvance DAO.
     /// @param tokens Amount of reserves to withdraw, in shares.
     /// @param amount Amount of reserves to withdraw, in assets.
     function _withdrawReserves(uint256 tokens, uint256 amount) internal {
+        _checkZeroAmount(amount);
+
         // We can pass 0 reserves to hold since we are redeeming from
         // reserves here directly instead of user driven borrows/redemptions.
         _checkUnderlyingHeld(0, amount);
@@ -1472,8 +1463,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
 
-        // Withdraw reserves from gauge, in shares.
-        gaugeManager.withdraw(address(this), daoAddress, tokens);
+        // Withdraw reserves, in shares.
+        _beforeWithdraw(daoAddress, tokens);
         // Transfer underlying to DAO, in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
@@ -1537,6 +1528,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
     }
 
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        if (amount == 0) {
+            revert EToken__EmptyAction();
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
@@ -1560,4 +1558,29 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     {
         return centralRegistry;
     }
+
+    /// INTERNAL FUNCTIONS WHICH CAN BE OVERRIDDEN ///
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a deposit of `to`'s assets.
+    function _afterDeposit(
+        address /* to */,
+        uint256 /* assets */
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a withdrawal of `owners`'s shares.
+    function _beforeWithdraw(
+        address /* owner */,
+        uint256 /* shares */
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a transfer of `from`'s shares to `to`.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _beforeTransfer(
+        address /* from */,
+        address /* to */,
+        uint256 amount
+    ) internal virtual {}
 }

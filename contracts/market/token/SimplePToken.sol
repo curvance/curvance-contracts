@@ -42,7 +42,7 @@ contract SimplePToken is BasePToken {
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
-    function _calculateTotalAssetsWithRewards() internal override returns (
+    function _calculateTotalAssetsWithRewards() internal view override returns (
         uint256,
         uint256
     ) {

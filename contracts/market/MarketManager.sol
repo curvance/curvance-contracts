@@ -852,8 +852,7 @@ contract MarketManager is
                 }
 
                 // Make sure this pToken is actually being used as collateral.
-                // Usually we would lean on gauge pool amount == 0 check,
-                // but this would cause a user to be immune to bad debt
+                // Without this check a user would be immune to bad debt
                 // liquidation.
                 if (collateral > 0) {
                     // Remove `account` posted collateral,
@@ -1537,10 +1536,6 @@ contract MarketManager is
 
     /// @notice Helper function for checking if the liquidation should be
     ///         allowed to occur.
-    /// @dev Typically we would check for debtAmount > 0 in a liquidateExact
-    ///      scenario, but the gauge pool checks for amount == 0 on
-    ///      deposit/withdrawal, so that will naturally fail even without a
-    ///      preconditional check here.
     /// @param earnToken Asset which was borrowed by the borrower.
     /// @param positionToken Asset which was used as collateral and will
     ///                        be seized.

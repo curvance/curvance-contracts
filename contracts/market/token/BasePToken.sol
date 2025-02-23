@@ -1255,7 +1255,7 @@ abstract contract BasePToken is
     }
 
     /// @notice Checks to make sure an action is not an empty action.
-    function _checkZeroAmount(uint256 amount) internal view {
+    function _checkZeroAmount(uint256 amount) internal pure {
         if (amount == 0) {
             revert BasePToken__EmptyAction();
         }
@@ -1315,7 +1315,7 @@ abstract contract BasePToken is
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
-    function _calculateTotalAssetsWithRewards() internal virtual returns (
+    function _calculateTotalAssetsWithRewards() internal view virtual returns (
         uint256,
         uint256
     ) {}
