@@ -508,7 +508,7 @@ abstract contract BasePToken is
         // Fails if transfer not allowed.
         marketManager.canTransferPToken(address(this), msg.sender, amount);
 
-        _beforeTransfer(msg.sender, to, amount);
+        _beforeTransferAction(msg.sender, to, amount);
 
         // Execute transfer.
         super.transfer(to, amount);
@@ -531,7 +531,7 @@ abstract contract BasePToken is
         // Fails if transfer not allowed.
         marketManager.canTransferPToken(address(this), from, amount);
 
-        _beforeTransfer(from, to, amount);
+        _beforeTransferAction(from, to, amount);
 
         // Execute transfer.
         super.transferFrom(from, to, amount);
@@ -563,7 +563,7 @@ abstract contract BasePToken is
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
 
-        _beforeProcessLiquidation(account, liquidator, shares);
+        _beforeLiquidationAction(account, liquidator, shares);
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
     }
@@ -591,7 +591,7 @@ abstract contract BasePToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _beforeProcessLiquidation(account, liquidator, shares);
+        _beforeLiquidationAction(account, liquidator, shares);
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
     }
@@ -753,7 +753,7 @@ abstract contract BasePToken is
 
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
-        _afterProcessDeposit(receiver, shares);
+        _afterDepositAction(receiver, shares);
     }
 
     /// @notice Deposits assets and mints `shares` to `receiver`.
@@ -780,7 +780,7 @@ abstract contract BasePToken is
 
         // Execute deposit.
         _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
-        _afterProcessDeposit(receiver, shares);
+        _afterDepositAction(receiver, shares);
     }
 
     /// @notice Withdraws `assets` to `receiver` from the market and burns
@@ -937,7 +937,7 @@ abstract contract BasePToken is
         // Mint `shares` to `to`.
         _mint(to, shares);
 
-        _afterProcessDeposit(to, shares);
+        _afterDepositAction(to, shares);
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -973,7 +973,7 @@ abstract contract BasePToken is
         uint256 ta,
         uint256 pending
     ) internal virtual {
-        _beforeProcessWithdraw(owner, shares);
+        _beforeWithdrawAction(owner, shares);
 
         // Burn `owner` `shares`.
         _burn(owner, shares);
@@ -1135,7 +1135,7 @@ abstract contract BasePToken is
             )
         }
 
-        _afterProcessDeposit(market, shares);
+        _afterDepositAction(market, shares);
     }
 
     /// @notice Updates the allowance for the caller.
@@ -1279,14 +1279,14 @@ abstract contract BasePToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `owners`'s assets.
-    function _afterProcessDeposit(
+    function _afterDepositAction(
         address /* to */,
         uint256 /* assets */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    function _beforeProcessWithdraw(
+    function _beforeWithdrawAction(
         address /* owner */,
         uint256 /* shares */
     ) internal virtual {}
@@ -1294,7 +1294,7 @@ abstract contract BasePToken is
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
     /// @param amount The number of tokens to transfer from `from` to `to`.
-    function _beforeTransfer(
+    function _beforeTransferAction(
         address /* from */,
         address /* to */,
         uint256 amount
@@ -1304,7 +1304,7 @@ abstract contract BasePToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.
-    function _beforeProcessLiquidation(
+    function _beforeLiquidationAction(
         address /* account */,
         address /* liquidator */,
         uint256 /* shares */

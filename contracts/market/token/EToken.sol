@@ -623,7 +623,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
 
-        _afterDeposit(daoAddress, tokens);
+        _afterDepositAction(daoAddress, tokens);
         // Update reserves.
         totalReserves = totalReserves + tokens;
     }
@@ -1092,7 +1092,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
-            _afterDeposit(centralRegistry.daoAddress(), newReserves);
+            _afterDepositAction(centralRegistry.daoAddress(), newReserves);
         }
 
         emit InterestAccrued(
@@ -1185,7 +1185,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             allowance[from][spender] = allowance[from][spender] - tokens;
         }
 
-        _beforeTransfer(from, to, tokens);
+        _beforeTransferAction(from, to, tokens);
 
         // Update account token balances.
         balanceOf[from] = balanceOf[from] - tokens;
@@ -1249,7 +1249,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             totalSupply = totalSupply - tokens;
         }
 
-        _beforeWithdraw(account, tokens);
+        _beforeWithdrawAction(account, tokens);
         // Transfer underlying to `recipient`.
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
@@ -1311,7 +1311,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[recipient] = balanceOf[recipient] + tokens;
         }
 
-        _afterDeposit(recipient, tokens);
+        _afterDepositAction(recipient, tokens);
         emit Transfer(address(0), recipient, tokens);
         return tokens;
     }
@@ -1464,7 +1464,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address daoAddress = centralRegistry.daoAddress();
 
         // Withdraw reserves, in shares.
-        _beforeWithdraw(daoAddress, tokens);
+        _beforeWithdrawAction(daoAddress, tokens);
         // Transfer underlying to DAO, in assets.
         SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
     }
@@ -1563,14 +1563,14 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `to`'s assets.
-    function _afterDeposit(
+    function _afterDepositAction(
         address /* to */,
         uint256 /* assets */
     ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         a withdrawal of `owners`'s shares.
-    function _beforeWithdraw(
+    function _beforeWithdrawAction(
         address /* owner */,
         uint256 /* shares */
     ) internal virtual {}
@@ -1578,7 +1578,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
     /// @param amount The number of tokens to transfer from `from` to `to`.
-    function _beforeTransfer(
+    function _beforeTransferAction(
         address /* from */,
         address /* to */,
         uint256 amount

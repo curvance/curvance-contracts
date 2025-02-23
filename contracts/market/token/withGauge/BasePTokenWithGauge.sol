@@ -45,8 +45,8 @@ abstract contract BasePTokenWithGauge is BasePToken {
     /// @notice An optional set of instructions to execute before processing
     ///         a deposit of `receiver`'s shares.
     /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
-    function _afterProcessDeposit(
+    /// @param shares The amount of pToken shares received by `receiver`.
+    function _afterDepositAction(
         address receiver,
         uint256 shares
     ) internal override {
@@ -58,9 +58,9 @@ abstract contract BasePTokenWithGauge is BasePToken {
     ///         a withdrawal of `owners`'s shares.
     /// @param owner The account that will burn their shares to withdraw
     ///              assets.
-    /// @return shares The amount of assets, quoted in shares received
-    ///                by `receiver`.
-    function _beforeProcessWithdraw(
+    /// @param shares The amount of assets, quoted in shares received
+    ///               by `receiver`.
+    function _beforeWithdrawAction(
         address owner,
         uint256 shares
     ) internal override {
@@ -75,7 +75,7 @@ abstract contract BasePTokenWithGauge is BasePToken {
     /// @param to The address of the destination account to receive `amount`
     ///           shares.
     /// @param shares The number of shares to transfer from `from` to `to`.
-    function _beforeTransfer(
+    function _beforeTransferAction(
         address from,
         address to,
         uint256 shares
@@ -93,7 +93,7 @@ abstract contract BasePTokenWithGauge is BasePToken {
     /// @param account The account having collateral seized.
     /// @param liquidator The account receiving seized collateral.
     /// @param shares The total number of pTokens shares to seize.
-    function _beforeProcessLiquidation(
+    function _beforeLiquidationAction(
         address account,
         address liquidator,
         uint256 shares
