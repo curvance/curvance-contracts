@@ -1173,7 +1173,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         if (from == to) {
             revert EToken__TransferError();
         }
-        _checkZeroAmount(amount);
+        _checkZeroAmount(tokens);
 
         // Fails if transfer not allowed.
         marketManager.canTransferEToken(address(this), from, tokens);
