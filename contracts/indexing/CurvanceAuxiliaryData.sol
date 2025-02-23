@@ -133,14 +133,14 @@ contract CurvanceAuxiliaryData {
         centralRegistry = centralRegistry_;
     }
 
-    /// EXTERNAL FUNCTIONS ///
+    /// PUBLIC FUNCTIONS ///
 
     /// CHAIN-WIDE FUNCTIONS ///
 
     /// @notice Returns the current TVL inside Curvance.
     /// @return result The current TVL inside Curvance, in `WAD`.
-    function getTotalTVL() external view returns (uint256 result) {
-        address[] memory markets = this.getMarketManagers();
+    function getTotalTVL() public view returns (uint256 result) {
+        address[] memory markets = getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -150,8 +150,8 @@ contract CurvanceAuxiliaryData {
 
     /// @notice Returns the current collateral TVL inside Curvance.
     /// @return result The current collateral TVL inside Curvance, in `WAD`.
-    function getTotalCollateralTVL() external view returns (uint256 result) {
-        address[] memory markets = this.getMarketManagers();
+    function getTotalCollateralTVL() public view returns (uint256 result) {
+        address[] memory markets = getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -161,8 +161,8 @@ contract CurvanceAuxiliaryData {
 
     /// @notice Returns the current lending TVL inside Curvance.
     /// @return result The current lending TVL inside Curvance, in `WAD`.
-    function getTotalLendingTVL() external view returns (uint256 result) {
-        address[] memory markets = this.getMarketManagers();
+    function getTotalLendingTVL() public view returns (uint256 result) {
+        address[] memory markets = getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -172,8 +172,8 @@ contract CurvanceAuxiliaryData {
 
     /// @notice Returns the current outstanding borrows inside Curvance.
     /// @return result The current outstanding borrows inside Curvance, in `WAD`.
-    function getTotalBorrows() external view returns (uint256 result) {
-        address[] memory markets = this.getMarketManagers();
+    function getTotalBorrows() public view returns (uint256 result) {
+        address[] memory markets = getMarketManagers();
         uint256 numMarkets = markets.length;
 
         for (uint256 i; i < numMarkets; ) {
@@ -181,13 +181,11 @@ contract CurvanceAuxiliaryData {
         }
     }
 
-    function getMarketManagers() external view returns (address[] memory) {
+    function getMarketManagers() public view returns (address[] memory) {
         return centralRegistry.getMarketManagers();
     }
 
-    /// EXTERNAL ACCOUNT-SPECIFIC FUNCTIONS ///
-
-    /// EXTERNAL TOKEN-SPECIFIC FUNCTIONS ///
+    /// TOKEN-SPECIFIC FUNCTIONS ///
 
     /// @notice Returns if an account has an active position in `token`,
     /// @notice Returns if an account has an active position in `token`,
@@ -198,7 +196,7 @@ contract CurvanceAuxiliaryData {
         address account,
         address token
     )
-        external
+        public
         view
         returns (
             bool hasPosition,
@@ -224,14 +222,14 @@ contract CurvanceAuxiliaryData {
     function getAccountDebtData(
         address account,
         address token
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         return IEToken(token).debtBalanceCached(account);
     }
     
     /// @notice Calculates the current eToken utilization rate.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The utilization rate, in `WAD`.
-    function utilizationRate(address eToken) external view returns (uint256) {
+    function getUtilizationRate(address eToken) public view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
             ieToken.interestRateModel().utilizationRate(
@@ -244,9 +242,9 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current eToken borrow interest rate per year.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The borrow interest rate per year, in `WAD`.
-    function borrowRatePerYear(
+    function getBorrowRatePerYear(
         address eToken
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
             ieToken.interestRateModel().getBorrowRatePerYear(
@@ -260,9 +258,9 @@ contract CurvanceAuxiliaryData {
     ///         per year.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The predicted borrow interest rate per year, in `WAD`.
-    function predictedBorrowRatePerYear(
+    function getPredictedBorrowRatePerYear(
         address eToken
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
             ieToken.interestRateModel().getPredictedBorrowRatePerYear(
@@ -275,9 +273,9 @@ contract CurvanceAuxiliaryData {
     /// @notice Returns the current eToken supply interest rate per year.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The supply interest rate per year, in `WAD`.
-    function supplyRatePerYear(
+    function getSupplyRatePerYear(
         address eToken
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         IEToken ieToken = IEToken(eToken);
         return
             ieToken.interestRateModel().getSupplyRatePerYear(
@@ -288,8 +286,8 @@ contract CurvanceAuxiliaryData {
             );
     }
 
-    function getBaseRewards(address token) external view returns (uint256) {}
-    function getCVERewards(address token) external view returns (uint256) {}
+    function getBaseRewards(address token) public view returns (uint256) {}
+    function getCVERewards(address token) public view returns (uint256) {}
 
     /// Oracle Manager FUNCTIONS ///
 
@@ -297,20 +295,19 @@ contract CurvanceAuxiliaryData {
         address[] calldata assets,
         bool[] calldata inUSD,
         bool[] calldata getLower
-    ) external view returns (uint256[] memory, uint256[] memory) {
+    ) public view returns (uint256[] memory, uint256[] memory) {
         return _getOracleManager().getPrices(assets, inUSD, getLower);
     }
 
-    function hasRewards(address user) external view returns (bool) {
+    function hasRewards(address user) public view returns (bool) {
         return _getRewardManager().hasRewardsToClaim(user);
     }
 
-    /// PUBLIC FUNCTIONS ///
-
     /// MARKET-SPECIFIC FUNCTIONS ///
+
     function getAllMarketData(
         address account
-    ) external view returns (AllMarketData[] memory) {
+    ) public view returns (AllMarketData[] memory) {
         address[] memory markets = this.getMarketManagers();
         uint256 numMarkets = markets.length;
         AllMarketData[] memory results = new AllMarketData[](numMarkets);
@@ -333,7 +330,7 @@ contract CurvanceAuxiliaryData {
     function getMarketData(
         address market,
         address account
-    ) external view returns (MarketData memory result) {
+    ) public view returns (MarketData memory result) {
         if (account != address(0)) {
             try MarketManager(market).statusOf(account) returns (
                 uint256 collateral,
@@ -365,7 +362,7 @@ contract CurvanceAuxiliaryData {
         address market,
         address account
     )
-        external
+        public
         view
         returns (MarketETokenData[] memory, MarketPTokenData[] memory)
     {
@@ -387,7 +384,7 @@ contract CurvanceAuxiliaryData {
                     pTokenData.userTokenPosition.hasPosition,
                     pTokenData.userTokenPosition.shareAmount,
                     pTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = this.getAccountTokenData(account, pTokens[i]);
+                ) = getAccountTokenData(account, pTokens[i]);
 
                 pTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(pTokenData.userTokenPosition.shareAmount);
@@ -427,7 +424,7 @@ contract CurvanceAuxiliaryData {
                     eTokenData.userTokenPosition.hasPosition,
                     eTokenData.userTokenPosition.shareAmount,
                     eTokenData.userTokenPosition.collateralOrDebtAmount
-                ) = this.getAccountTokenData(account, eTokens[i]);
+                ) = getAccountTokenData(account, eTokens[i]);
 
                 eTokenData.userTokenPosition.tokenAmount = marketToken
                     .convertToAssets(eTokenData.userTokenPosition.shareAmount);
@@ -439,17 +436,17 @@ contract CurvanceAuxiliaryData {
             eTokenData.underlyingName = token.name();
             eTokenData.underlyingSymbol = token.symbol();
             eTokenData.underlyingDecimal = token.decimals();
-            eTokenData.tvl = this.getTokenTVL(eTokens[i], false);
-            eTokenData.borrows = this.getTokenBorrows(eTokens[i]);
-            eTokenData.supplyRatePerYear = this.getSupplyRatePerYear(
+            eTokenData.tvl = getTokenTVL(eTokens[i], false);
+            eTokenData.borrows = getTokenBorrows(eTokens[i]);
+            eTokenData.supplyRatePerYear = getSupplyRatePerYear(
                 eTokens[i]
             );
-            eTokenData.borrowRatePerYear = this.getBorrowRatePerYear(
+            eTokenData.borrowRatePerYear = getBorrowRatePerYear(
                 eTokens[i]
             );
             eTokenData.predictedBorrowRatePerYear = this
                 .getPredictedBorrowRatePerYear(eTokens[i]);
-            eTokenData.utilizationRate = this.getUtilizationRate(eTokens[i]);
+            eTokenData.utilizationRate = getUtilizationRate(eTokens[i]);
             eTokenData.sharePrice = _getTokenPrice(eTokens[i], false);
             eTokenData.tokenPrice = _getTokenPrice(address(token), false);
             eTokenData.config = _getTokenConfig(eTokens[i], mm);
