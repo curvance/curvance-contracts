@@ -11,7 +11,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///         This way assets can be easily liquidated when loans default.
 /// @dev Built to support assets that do not generate rewards in external,
 ///      claimable tokens. Meaning SimplePToken is built for assets such as:
-///      WETH, LSTs, LRTs, PTs, UNI, USDC, sDAI, etc.
+///      WETH, LSTs, Principal Tokens, Stablecoins, Yield-bearing stablecoins,
+///      etc.
 contract SimplePToken is BasePToken {
     /// CONSTRUCTOR ///
 

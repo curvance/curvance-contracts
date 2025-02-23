@@ -1,23 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Multicall } from "contracts/libraries/Multicall.sol";
-import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
-import { WAD } from "contracts/libraries/Constants.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
-import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { RescueLib } from "contracts/libraries/RescueLib.sol";
-import { ERC165 } from "contracts/libraries/external/ERC165.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
-
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
-import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { EToken, ICentralRegistry } from "contracts/market/token/EToken.sol";
+import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 
 /// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation
@@ -41,6 +26,10 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      additional reentry and update protection logic to minimize risks
 ///      when integrating Curvance into external protocols.
 ///
+///      All token deposits are recorded in the protocol "Gauge Manager"
+///      facilitating the distribution of native tokens both liquid and
+///      locked to users based on their contributions to the protocol over
+///      time.
 contract ETokenWithGauge is EToken {
     /// CONSTANTS ///
 

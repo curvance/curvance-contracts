@@ -9,9 +9,41 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
 ///         This way assets can be easily liquidated when loans default.
-/// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
-///      is not actually using the balances stored in the contract,
-///      rather it only uses an internal balance.
+/// @dev Curvance's pTokens are ERC4626 compliant. However, they follow their
+///      own design flow modifying underlying mechanisms such as totalAssets
+///      following a vesting mechanism in compounding vaults but a direct
+///      conversion in basic or "primitive" vaults.
+///
+///      The "pToken" employs two different methods of engaging with the
+///      Curvance protocol. Users can deposit an unlimited amount of assets,
+///      which may or may not benefit from some form of auto compounded yield.
+///
+///      Users can at any time, choose to "post" their pTokens as collateral
+///      inside the Curvance Protocol, unlocking their ability to borrow
+///      against these assets. Posting collateral carries restrictions,
+///      not all assets inside Curvance can be collateralized, and if they
+///      can, they have a "Collateral Cap" which restricts the total amount of
+///      exogeneous risk introduced by each asset into the system.
+///      Rehypothecation of collateral assets has also been removed from the
+///      system, reducing the likelihood of introducing systematic risk to the
+///      broad DeFi landscape.
+///
+///      These caps can be updated as needed by the DAO and should be
+///      configured based on "sticky" onchain liquidity in the corresponding
+///      asset.
+///
+///      The vaults can have their compounding, minting, or redemption
+///      functionality paused. Modifying the maximum mint, deposit,
+///      withdrawal, or redemptions possible.
+///
+///      "Safe" versions of functions have been added that introduce
+///      additional reentry and update protection logic to minimize risks
+///      when integrating Curvance into external protocols.
+///
+///      All token deposits are recorded in the protocol "Gauge Manager"
+///      facilitating the distribution of native tokens both liquid and
+///      locked to users based on their contributions to the protocol over
+///      time.
 abstract contract BasePTokenWithGauge is BasePToken {
     
     /// CONSTANTS ///

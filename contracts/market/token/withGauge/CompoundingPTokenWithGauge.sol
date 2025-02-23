@@ -12,6 +12,11 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 /// @dev The PToken vaults run must be a LOSSLESS position, since totalAssets
 ///      is not actually using the balances stored in the contract,
 ///      rather it only uses an internal balance.
+///
+///      All token deposits are recorded in the protocol "Gauge Manager"
+///      facilitating the distribution of native tokens both liquid and
+///      locked to users based on their contributions to the protocol over
+///      time.
 abstract contract CompoundingPTokenWithGauge is BasePTokenWithGauge {
     /// TYPES ///
 
