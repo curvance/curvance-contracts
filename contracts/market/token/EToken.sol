@@ -775,56 +775,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         );
     }
 
-    /// @notice Calculates the current eToken utilization rate.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The utilization rate, in `WAD`.
-    function utilizationRate() external view returns (uint256) {
-        return
-            interestRateModel.utilizationRate(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns the current eToken borrow interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The borrow interest rate per year, in `WAD`.
-    function borrowRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getBorrowRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns predicted upcoming eToken borrow interest rate
-    ///         per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The predicted borrow interest rate per year, in `WAD`.
-    function predictedBorrowRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getPredictedBorrowRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns the current eToken supply interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The supply interest rate per year, in `WAD`.
-    function supplyRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getSupplyRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves),
-                interestFactor
-            );
-    }
-
     /// @notice Updates pending interest and then returns the current
     ///         total borrows, safely.
     /// @dev Used for third party integrations.

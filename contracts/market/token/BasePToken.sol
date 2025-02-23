@@ -357,9 +357,19 @@ abstract contract BasePToken is
     /// EXTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Starts a pToken market, executed via marketManager.
-    /// @dev Overridden in child contract(s).
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
+    ///            ADDRESS FROM THE MARKET MANAGER.
     /// @param by The account initializing the pToken market.
-    function startMarket(address by) external virtual returns (bool) {}
+    /// @return Returns with true when successful.
+    function startMarket(
+        address by
+    ) external virtual nonReentrant returns (bool) {
+        _startMarket(by);
+        return true;
+    }
 
     /// PUBLIC FUNCTIONS ///
 
@@ -1254,6 +1264,53 @@ abstract contract BasePToken is
         return _convertToAssets(shares, ta);
     }
 
+    /// @notice Updates asset values for a pending deposit request.
+    /// @param assets The amount of the underlying asset to deposit.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    function _updateAssetsForDeposit(
+        uint256 assets,
+        uint256 ta,
+        uint256 /* pending */
+    ) internal virtual {
+        // Document addition of `assets` to `ta` due to deposit.
+        unchecked {
+            _totalAssets = ta + assets;
+        }
+    }
+
+    /// @notice Updates asset values for a pending withdrawal request.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    function _updateAssetsForWithdrawal(
+        uint256 assets,
+        uint256 ta,
+        uint256 /* pending */
+    ) internal virtual {
+        // Document removal of `assets` from `ta` due to withdrawal.
+        _totalAssets = ta - assets;
+    }
+
+    /// @notice Returns total assets invariant and any pending rewards for
+    ///         depositors.
+    function _calculateTotalAssetsWithRewards() internal virtual view returns (
+        uint256,
+        uint256
+    ) {
+        return (_totalAssets, 0);
+    }
+
+        /// @dev from Multicall
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return centralRegistry;
+    }
+
     /// @notice Checks to make sure an action is not an empty action.
     function _checkZeroAmount(uint256 amount) internal pure {
         if (amount == 0) {
@@ -1308,49 +1365,5 @@ abstract contract BasePToken is
         address /* account */,
         address /* liquidator */,
         uint256 /* shares */
-    ) internal virtual {}
-
-
-    /// INTERNAL CONVERSION FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Returns total assets invariant and any pending rewards for
-    ///         depositors.
-    function _calculateTotalAssetsWithRewards() internal view virtual returns (
-        uint256,
-        uint256
-    ) {}
-
-    /// @dev from Multicall
-    function _getCentralRegistry()
-        internal
-        view
-        override
-        returns (ICentralRegistry)
-    {
-        return centralRegistry;
-    }
-
-    /// @notice Updates asset values for a pending deposit request.
-    /// @param assets The amount of the underlying asset to deposit.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this deposit.
-    function _updateAssetsForDeposit(
-        uint256 assets,
-        uint256 ta,
-        uint256 pending
-    ) internal virtual {}
-
-    /// @notice Updates asset values for a pending withdrawal request.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this withdrawal.
-    function _updateAssetsForWithdrawal(
-        uint256 assets,
-        uint256 ta,
-        uint256 pending
     ) internal virtual {}
 }

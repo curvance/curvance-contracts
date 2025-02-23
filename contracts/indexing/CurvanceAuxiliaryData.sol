@@ -14,6 +14,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
+import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
 
@@ -226,37 +227,65 @@ contract CurvanceAuxiliaryData {
     ) external view returns (uint256) {
         return IEToken(token).debtBalanceCached(account);
     }
-
-    /// @notice Calculates `token` utilization rate.
+    
+    /// @notice Calculates the current eToken utilization rate.
+    /// @param eToken The earning token to pull interest rate data for.
     /// @return The utilization rate, in `WAD`.
-    function getUtilizationRate(
-        address token
-    ) external view returns (uint256) {
-        return IEToken(token).utilizationRate();
+    function utilizationRate(address eToken) external view returns (uint256) {
+        IEToken ieToken = IEToken(eToken);
+        return
+            eToken.interestRateModel().utilizationRate(
+                ieToken.marketUnderlyingHeld(),
+                ieToken.totalBorrows(),
+                ieToken.convertToAssets(ieToken.totalReserves())
+            );
     }
 
-    /// @notice Returns `token` borrow interest rate per year.
+    /// @notice Returns the current eToken borrow interest rate per year.
+    /// @param eToken The earning token to pull interest rate data for.
     /// @return The borrow interest rate per year, in `WAD`.
-    function getBorrowRatePerYear(
-        address token
+    function borrowRatePerYear(
+        address eToken
     ) external view returns (uint256) {
-        return IEToken(token).borrowRatePerYear();
+        IEToken ieToken = IEToken(eToken);
+        return
+            eToken.interestRateModel().getBorrowRatePerYear(
+                ieToken.marketUnderlyingHeld(),
+                ieToken.totalBorrows(),
+                ieToken.convertToAssets(ieToken.totalReserves())
+            );
     }
 
-    /// @notice Returns `token` borrow interest rate per year.
-    /// @return The borrow interest rate per year, in `WAD`.
-    function getPredictedBorrowRatePerYear(
-        address token
+    /// @notice Returns predicted upcoming eToken borrow interest rate
+    ///         per year.
+    /// @param eToken The earning token to pull interest rate data for.
+    /// @return The predicted borrow interest rate per year, in `WAD`.
+    function predictedBorrowRatePerYear(
+        address eToken
     ) external view returns (uint256) {
-        return IEToken(token).predictedBorrowRatePerYear();
+        IEToken ieToken = IEToken(eToken);
+        return
+            eToken.interestRateModel().getPredictedBorrowRatePerYear(
+                ieToken.marketUnderlyingHeld(),
+                ieToken.totalBorrows(),
+                ieToken.convertToAssets(ieToken.totalReserves())
+            );
     }
 
-    /// @notice Returns `token` supply interest rate per year.
+    /// @notice Returns the current eToken supply interest rate per year.
+    /// @param eToken The earning token to pull interest rate data for.
     /// @return The supply interest rate per year, in `WAD`.
-    function getSupplyRatePerYear(
-        address token
+    function supplyRatePerYear(
+        address eToken
     ) external view returns (uint256) {
-        return IEToken(token).supplyRatePerYear();
+        IEToken ieToken = IEToken(eToken);
+        return
+            eToken.interestRateModel().getSupplyRatePerYear(
+                ieToken.marketUnderlyingHeld(),
+                ieToken.totalBorrows(),
+                ieToken.convertToAssets(ieToken.totalReserves()),
+                ieToken.interestFactor()
+            );
     }
 
     function getBaseRewards(address token) external view returns (uint256) {}
