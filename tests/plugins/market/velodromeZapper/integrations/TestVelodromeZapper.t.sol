@@ -216,7 +216,10 @@ contract TestVelodromeZapper is TestBaseMarket {
         uint256 ethAmount = 3 ether;
         vm.deal(user1, ethAmount);
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        pToken.setDelegateApproval(address(velodromeZapper), true);
+
         velodromeZapper.enterVelodrome{ value: ethAmount }(
             address(pToken),
             VelodromeZapper.ZapperData(
@@ -233,6 +236,8 @@ contract TestVelodromeZapper is TestBaseMarket {
             true,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
         (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
