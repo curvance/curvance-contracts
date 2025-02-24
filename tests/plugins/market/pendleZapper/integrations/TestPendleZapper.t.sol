@@ -301,6 +301,11 @@ contract TestPendleZapper is TestBaseMarket {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
+        vm.warp(
+            marketManager.accountAssets(user1) +
+                marketManager.MIN_HOLD_PERIOD()
+        );
+
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);
         pendleZapper.redeemAndExitPendle(

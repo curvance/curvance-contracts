@@ -2,9 +2,12 @@
 pragma solidity ^0.8.15;
 
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract User {}
 
@@ -274,5 +277,27 @@ contract TestBoostedLock is TestBaseMarket {
             "",
             0
         );
+    }
+
+    // Deploy ETokenWithGauge
+    function _deployEToken(
+        address token
+    ) internal override initMainVariables returns (EToken) {
+        EToken eToken = EToken(
+            address(
+                new ETokenWithGauge(
+                    ICentralRegistry(address(centralRegistry)),
+                    token,
+                    address(marketManager),
+                    _deployDynamicInterestRateModel(token)
+                )
+            )
+        );
+
+        interestRateModels[block.chainid][token].setLinkedEToken(
+            address(eToken)
+        );
+
+        return eToken;
     }
 }

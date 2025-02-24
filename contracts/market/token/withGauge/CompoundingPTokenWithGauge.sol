@@ -38,9 +38,10 @@ abstract contract CompoundingPTokenWithGauge is CompoundingPToken {
         if (gaugeManagerAddress == address(0)) {
             revert CompoundingPTokenWithGauge__InvalidGaugeManager();
         }
-         // Set `gaugeManager`.
+        // Set `gaugeManager`.
         gaugeManager = IGaugeManager(gaugeManagerAddress);
     }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice An optional set of instructions to execute before processing

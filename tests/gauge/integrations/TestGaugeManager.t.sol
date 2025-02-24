@@ -2,8 +2,11 @@
 pragma solidity ^0.8.15;
 
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract User {}
@@ -978,5 +981,27 @@ contract TestGaugeManager is TestBaseMarket {
         vm.prank(users[0]);
         vm.expectRevert();
         IEToken(tokens[0]).redeem(100 ether + 1, address(this));
+    }
+
+    // Deploy ETokenWithGauge
+    function _deployEToken(
+        address token
+    ) internal override initMainVariables returns (EToken) {
+        EToken eToken = EToken(
+            address(
+                new ETokenWithGauge(
+                    ICentralRegistry(address(centralRegistry)),
+                    token,
+                    address(marketManager),
+                    _deployDynamicInterestRateModel(token)
+                )
+            )
+        );
+
+        interestRateModels[block.chainid][token].setLinkedEToken(
+            address(eToken)
+        );
+
+        return eToken;
     }
 }

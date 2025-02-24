@@ -420,7 +420,7 @@ contract TestBaseMarket is TestBase {
 
     function _deployEToken(
         address token
-    ) internal initMainVariables returns (EToken) {
+    ) internal virtual initMainVariables returns (EToken) {
         EToken eToken = new EToken(
             ICentralRegistry(address(centralRegistry)),
             token,
