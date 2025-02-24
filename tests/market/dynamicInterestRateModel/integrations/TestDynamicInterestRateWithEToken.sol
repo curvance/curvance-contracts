@@ -96,7 +96,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
         );
-        uint256 initialBorrowRate = interestRateModel.borrowRatePerYear(
+        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
             eDAI.marketUnderlyingHeld(),
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
@@ -112,7 +112,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
         );
-        uint256 newBorrowRate = interestRateModel.borrowRatePerYear(
+        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
             eDAI.marketUnderlyingHeld(),
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
@@ -173,7 +173,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
         );
-        uint256 initialBorrowRate = interestRateModel.borrowRatePerYear(
+        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
             eDAI.marketUnderlyingHeld(),
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
@@ -189,7 +189,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
         );
-        uint256 newBorrowRate = interestRateModel.borrowRatePerYear(
+        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
             eDAI.marketUnderlyingHeld(),
             eDAI.totalBorrows(),
             eDAI.convertToAssets(eDAI.totalReserves())
