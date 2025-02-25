@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -10,6 +10,8 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract PendleLPPToken is CompoundingPToken {
     /// TYPES ///

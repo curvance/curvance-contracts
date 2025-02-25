@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BasePToken, FixedPointMathLib, SafeTransferLib, WAD } from "contracts/market/token/BasePToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -45,7 +45,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 ///      locked to users based on their contributions to the protocol over
 ///      time.
 abstract contract BasePTokenWithGauge is BasePToken {
-    
     /// CONSTANTS ///
 
     /// @notice Address of the Gauge Manager.
@@ -68,7 +67,7 @@ abstract contract BasePTokenWithGauge is BasePToken {
         if (gaugeManagerAddress == address(0)) {
             revert BasePToken__InvalidGaugeManager();
         }
-         // Set `gaugeManager`.
+        // Set `gaugeManager`.
         gaugeManager = IGaugeManager(gaugeManagerAddress);
     }
 
@@ -139,5 +138,4 @@ abstract contract BasePTokenWithGauge is BasePToken {
             shares
         );
     }
-
 }

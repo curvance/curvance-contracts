@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CommonLib, IERC20 } from "contracts/libraries/CommonLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 import { ICurveSwap } from "contracts/interfaces/external/curve/ICurve.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 library CurveLib {
     /// ERRORS ///

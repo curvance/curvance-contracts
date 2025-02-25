@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BasePToken, FixedPointMathLib, SafeTransferLib, WAD } from "contracts/market/token/BasePToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -206,10 +209,12 @@ abstract contract CompoundingPToken is BasePToken {
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
-    function _calculateTotalAssetsWithRewards() internal view override returns (
-        uint256,
-        uint256
-    ) {
+    function _calculateTotalAssetsWithRewards()
+        internal
+        view
+        override
+        returns (uint256, uint256)
+    {
         // Cache _totalAssets and pendingRewards.
         uint256 pending = _calculatePendingRewards();
         return (_totalAssets + pending, pending);
@@ -442,11 +447,7 @@ abstract contract CompoundingPToken is BasePToken {
         // Calculate protocol fee for token lockers and strategy bot.
         uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, WAD);
         // Take fee.
-        SafeTransferLib.safeTransfer(
-            rewardToken,
-            feeManager,
-            fee
-        );
+        SafeTransferLib.safeTransfer(rewardToken, feeManager, fee);
         // Return remaining reward after fee was taken.
         return (reward - fee);
     }

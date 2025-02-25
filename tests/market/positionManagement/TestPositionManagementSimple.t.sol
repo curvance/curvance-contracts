@@ -2,13 +2,14 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
-import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract TestPositionManagementSimple is TestBaseMarket {
     address public owner;

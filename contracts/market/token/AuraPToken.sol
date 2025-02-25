@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -11,6 +12,8 @@ import { IRewards } from "contracts/interfaces/external/convex/IRewards.sol";
 import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancerVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IStashWrapper } from "contracts/interfaces/external/aura/IStashWrapper.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract AuraPToken is CompoundingPToken {
     /// TYPES ///
@@ -213,7 +216,7 @@ contract AuraPToken is CompoundingPToken {
                     if (
                         !isApprovedAsset[swapDataArray[i].inputToken] ||
                         !isUnderlyingToken[swapDataArray[i].outputToken]
-                        ) {
+                    ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 

@@ -12,12 +12,9 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IRewardManager } from "contracts/interfaces/IRewardManager.sol";
 import { IVeCVE } from "contracts/interfaces/IVeCVE.sol";
-
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 /// @title Curvance Auxiliary Data.
@@ -234,7 +231,7 @@ contract CurvanceAuxiliaryData {
     ) public view returns (uint256) {
         return IEToken(token).debtBalanceCached(account);
     }
-    
+
     /// @notice Calculates the current eToken utilization rate.
     /// @param eToken The earning token to pull interest rate data for.
     /// @return The utilization rate, in `WAD`.
@@ -447,12 +444,8 @@ contract CurvanceAuxiliaryData {
             eTokenData.underlyingDecimal = token.decimals();
             eTokenData.tvl = getTokenTVL(eTokens[i], false);
             eTokenData.borrows = getTokenBorrows(eTokens[i]);
-            eTokenData.supplyRatePerYear = getSupplyRatePerYear(
-                eTokens[i]
-            );
-            eTokenData.borrowRatePerYear = getBorrowRatePerYear(
-                eTokens[i]
-            );
+            eTokenData.supplyRatePerYear = getSupplyRatePerYear(eTokens[i]);
+            eTokenData.borrowRatePerYear = getBorrowRatePerYear(eTokens[i]);
             eTokenData.predictedBorrowRatePerYear = this
                 .getPredictedBorrowRatePerYear(eTokens[i]);
             eTokenData.utilizationRate = getUtilizationRate(eTokens[i]);

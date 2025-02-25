@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { LiquidityManager, IOracleManager, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -11,6 +12,8 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -673,11 +676,13 @@ contract MarketManager is
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-        
+
         _checkIsListedToken(pToken);
         _checkIsListedToken(eToken);
 
-        if (IMToken(pToken).marketManager() != IMToken(eToken).marketManager()) {
+        if (
+            IMToken(pToken).marketManager() != IMToken(eToken).marketManager()
+        ) {
             revert MarketManager__MarketManagerMismatch();
         }
     }
@@ -1425,7 +1430,7 @@ contract MarketManager is
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-        
+
         _checkIsListedToken(mToken);
 
         if (
@@ -1832,7 +1837,7 @@ contract MarketManager is
     }
 
     /// @notice Checks whether OEV is enabled or not.
-    function _checkAtlasOevAllowed() internal view override returns (bool){
+    function _checkAtlasOevAllowed() internal view override returns (bool) {
         return centralRegistry.atlasOevAllowed();
     }
 

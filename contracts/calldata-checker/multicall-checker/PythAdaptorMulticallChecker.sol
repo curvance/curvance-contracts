@@ -3,7 +3,8 @@ pragma solidity ^0.8.19;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
-import { OracleManager, IOracleAdaptor } from "contracts/oracles/OracleManager.sol";
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
 

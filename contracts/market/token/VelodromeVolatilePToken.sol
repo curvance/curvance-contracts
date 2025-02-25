@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract VelodromeVolatilePToken is CompoundingPToken {
     /// TYPES ///
@@ -167,7 +170,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                         if (
                             !isApprovedAsset[swapData.inputToken] ||
                             swapData.outputToken != sd.token0
-                            ) {
+                        ) {
                             // This also implicitly checks:
                             // `swapData.inputToken != rewardToken`.
                             revert CompoundingPToken__UnapprovedAssetSwap();

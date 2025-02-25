@@ -6,7 +6,7 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { BytesParsing } from "contracts/libraries/external/BytesParsing.sol";
-import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
+import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
@@ -18,6 +18,7 @@ import { IFeeManager } from "contracts/interfaces/IFeeManager.sol";
 import { IRewardManager, RewardsData } from "contracts/interfaces/IRewardManager.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 /// @title Curvance Messaging Hub.
 /// @notice A system for sending messages across the Curvance Protocol from

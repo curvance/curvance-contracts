@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ZapperBase, SwapperLib, CommonLib, SafeTransferLib, ICentralRegistry } from "contracts/plugins/ZapperBase.sol";
+import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 
 contract VelodromeZapper is ZapperBase {

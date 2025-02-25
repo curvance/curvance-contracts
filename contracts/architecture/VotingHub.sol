@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse, IWormhole } from "contracts/libraries/external/wormhole/QueryResponse.sol";
+import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.sol";
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
@@ -104,10 +105,10 @@ contract VotingHub is QueryResponse {
         }
 
         _ensureNonEmptyEmissionConfigParameters(
-            response, 
-            signatures, 
-            gasLimit, 
-            emissionData, 
+            response,
+            signatures,
+            gasLimit,
+            emissionData,
             remoteEmissionData
         );
 
@@ -419,22 +420,22 @@ contract VotingHub is QueryResponse {
     }
 
     /**
-     * @dev Ensures that all emission configuration parameters provided 
+     * @dev Ensures that all emission configuration parameters provided
      *      to `executeEmissionConfiguration` are non-empty and valid.
      * @param response The Wormhole query response. Must not be empty.
-     * @param signatures The Wormhole signatures corresponding to the 
+     * @param signatures The Wormhole signatures corresponding to the
      *      query response. Must not be empty.
-     * @param gasLimit An array of gas limit values for each remote 
+     * @param gasLimit An array of gas limit values for each remote
      *      chain message. Must not be empty.
-     * @param emissionData The emission configuration data for the 
-     *      current chain. Must include non-empty arrays for tokens and 
+     * @param emissionData The emission configuration data for the
+     *      current chain. Must include non-empty arrays for tokens and
      *      emissions.
-     * @param remoteEmissionData An array of emission configuration data 
+     * @param remoteEmissionData An array of emission configuration data
      *      for remote chains. Must not be empty.
-     * @notice This function reverts if any of the provided parameters 
-     *      are empty or invalid. It ensures that all required data is 
+     * @notice This function reverts if any of the provided parameters
+     *      are empty or invalid. It ensures that all required data is
      *      available for the emission configuration process.
-     *      custom error VotingHub__InvalidParameter Emitted when any of 
+     *      custom error VotingHub__InvalidParameter Emitted when any of
      *      the input parameters are empty or invalid.
      */
     function _ensureNonEmptyEmissionConfigParameters(
@@ -467,7 +468,6 @@ contract VotingHub is QueryResponse {
         if (remoteEmissionData.length == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
-
     }
 
     /// @dev Internal helper for reverting efficiently.

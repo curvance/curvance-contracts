@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
 import { IOBRouter } from "contracts/interfaces/external/ooga/IOBRouter.sol";
-import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 /// @notice WARNING: Currently built for Router V1.
 contract OogaBoogaCalldataChecker is BaseSwapChecker {

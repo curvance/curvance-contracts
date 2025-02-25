@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { PositionManagementBase } from "contracts/market/position-management/PositionManagementBase.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PositionManagementSimple is PositionManagementBase {

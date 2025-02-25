@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { RewardsData } from "contracts/interfaces/IRewardManager.sol";
-import "contracts/token/VeCVE.sol";
 
 interface IVeCVE {
     /// @notice Locks a given amount of cve tokens on behalf of another user,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { EToken, WAD } from "contracts/market/token/EToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";

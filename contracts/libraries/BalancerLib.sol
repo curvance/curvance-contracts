@@ -2,9 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { CommonLib, IERC20 } from "contracts/libraries/CommonLib.sol";
+import { CommonLib } from "contracts/libraries/CommonLib.sol";
 
 import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancerVault.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 library BalancerLib {
     /// ERRORS ///

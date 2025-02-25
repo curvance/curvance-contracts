@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
 import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.sol";
-import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
 
 /// @notice WARNING: Currently built for Router V2.
 contract OdosCalldataChecker is BaseSwapChecker {

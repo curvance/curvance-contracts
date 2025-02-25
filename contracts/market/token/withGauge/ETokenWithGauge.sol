@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { EToken, ICentralRegistry } from "contracts/market/token/EToken.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 /// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation
@@ -52,19 +54,21 @@ contract ETokenWithGauge is EToken {
         address underlying_,
         address marketManager_,
         address interestRateModel_
-    ) EToken(
-        centralRegistry_,
-        underlying_,
-        marketManager_,
-        interestRateModel_
-    ) {
+    )
+        EToken(
+            centralRegistry_,
+            underlying_,
+            marketManager_,
+            interestRateModel_
+        )
+    {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.
         if (gaugeManagerAddress == address(0)) {
             revert EToken__InvalidGaugeManager();
         }
-         // Set `gaugeManager`.
+        // Set `gaugeManager`.
         gaugeManager = IGaugeManager(gaugeManagerAddress);
     }
 

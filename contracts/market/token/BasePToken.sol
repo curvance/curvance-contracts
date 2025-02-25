@@ -4,9 +4,10 @@ pragma solidity ^0.8.19;
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ERC4626, SafeTransferLib } from "contracts/libraries/external/ERC4626.sol";
+import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
@@ -1018,7 +1019,7 @@ abstract contract BasePToken is
     /// @param assets The amount of the underlying assets to redeem.
     /// @param shares The amount of the shares to redeem.
     /// @param balancePrior The balance of shares `owner` has before this
-    ///                     redemption. 
+    ///                     redemption.
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
     ///                       1. Address of pToken that will be routed into
@@ -1294,14 +1295,16 @@ abstract contract BasePToken is
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
-    function _calculateTotalAssetsWithRewards() internal virtual view returns (
-        uint256,
-        uint256
-    ) {
+    function _calculateTotalAssetsWithRewards()
+        internal
+        view
+        virtual
+        returns (uint256, uint256)
+    {
         return (_totalAssets, 0);
     }
 
-        /// @dev from Multicall
+    /// @dev from Multicall
     function _getCentralRegistry()
         internal
         view

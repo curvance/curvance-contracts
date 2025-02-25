@@ -3,7 +3,8 @@ pragma solidity ^0.8.19;
 
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
-import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 contract VelodromeZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///
