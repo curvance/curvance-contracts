@@ -36,7 +36,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarket {
     receive() external payable {}
     fallback() external payable {}
 
-    function getRedstonePayload(
+    function getOdosSwapData(
         uint256 chainId,
         address fromToken,
         address toToken,
@@ -212,7 +212,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarket {
             1e18
         );
         uint256 swapInputAmount = amountForLeverage - leverageFee;
-        bytes memory result = getRedstonePayload(
+        bytes memory result = getOdosSwapData(
             block.chainid,
             _DAI_ADDRESS,
             _USDC_ADDRESS,
@@ -290,7 +290,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarket {
                     address(veloPairFactory),
                     collateralWithoutFee
                 );
-            bytes memory result = getRedstonePayload(
+            bytes memory result = getOdosSwapData(
                 block.chainid,
                 _USDC_ADDRESS,
                 _DAI_ADDRESS,
