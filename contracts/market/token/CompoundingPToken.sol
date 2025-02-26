@@ -195,17 +195,22 @@ abstract contract CompoundingPToken is BasePToken {
         nonReadReentrant
         returns (uint256)
     {
-        return _totalAssets + _calculatePendingRewards();
+        return _totalAssetsWithPendingRewards();
     }
 
     /// @notice Returns the total amount of the underlying asset in the vault,
     ///         including pending rewards that are vested.
     /// @return The total number of underlying assets.
     function totalAssets() public view override returns (uint256) {
-        return _totalAssets + _calculatePendingRewards();
+        return _totalAssetsWithPendingRewards();
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @notice Returns total assets invariant.
+    function _totalAssetsWithPendingRewards() internal view returns (uint256) {
+        return _totalAssets + _calculatePendingRewards();
+    }
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
@@ -465,7 +470,7 @@ abstract contract CompoundingPToken is BasePToken {
     /// @notice Vests pending rewards, and updates vault data.
     function _vestIfNeeded() internal {
         // Vest pending rewards.
-        _vestRewards(_totalAssets + _calculatePendingRewards());
+        _vestRewards(_totalAssetsWithPendingRewards());
     }
 
     /// @notice Updates the vesting period, if needed.

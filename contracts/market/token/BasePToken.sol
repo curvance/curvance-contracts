@@ -166,21 +166,12 @@ abstract contract BasePToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        _checkZeroAmount(assets);
-
-        // Calculate any pending rewards and new total assets invariant.
-        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
-        // Cache balanceOf of `owner`.
-        uint256 balancePrior = balanceOf(owner);
-
-        // We use a modified version of maxWithdraw with newly vested assets.
-        if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "BasePToken__WithdrawMoreThanMax".
-            _revert(0xf1688f19);
-        }
-
-        // No need to check for rounding error, previewWithdraw rounds up.
-        uint256 shares = _previewWithdraw(assets, ta);
+        (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        ) = _getValuesForWithdrawal(assets, owner);
 
         _processWithdraw(
             msg.sender,
@@ -811,20 +802,13 @@ abstract contract BasePToken is
         address receiver,
         address owner,
         bool forceRedeemCollateral
-    ) internal returns (uint256 shares) {
-        _checkZeroAmount(assets);
-
-        // Calculate any pending rewards and new total assets invariant.
-        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
-
-        // We use a modified version of maxWithdraw with newly vested assets.
-        if (assets > _convertToAssets(balanceOf(owner), ta)) {
-            // revert with "BasePToken__WithdrawMoreThanMax".
-            _revert(0xf1688f19);
-        }
-
-        // No need to check for rounding error, previewWithdraw rounds up.
-        shares = _previewWithdraw(assets, ta);
+    ) internal returns (uint256) {
+        (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        ) = _getValuesForWithdrawal(assets, owner);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
         // `owner`.
@@ -834,7 +818,7 @@ abstract contract BasePToken is
         marketManager.canRedeemWithCollateralRemoval(
             address(this),
             owner,
-            balanceOf(owner),
+            balancePrior,
             shares,
             forceRedeemCollateral
         );
@@ -849,6 +833,47 @@ abstract contract BasePToken is
             ta,
             pending
         );
+
+        return shares;
+    }
+
+    /// @notice Returns the total assets invariant, any pending rewards for
+    ///         depositors and other values to process a withdrawal.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return ta The total assets invariant.
+    /// @return pending The pending rewards for depositors.
+    /// @return balancePrior The balance of shares `owner`.
+    /// @return shares The amount of shares to burn to withdraw `assets`.
+    function _getValuesForWithdrawal(
+        uint256 assets,
+        address owner
+    )
+        internal
+        view
+        returns (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        )
+    {
+        _checkZeroAmount(assets);
+
+        // Calculate any pending rewards and new total assets invariant.
+        (ta, pending) = _calculateTotalAssetsWithRewards();
+        // Cache balanceOf of `owner`.
+        balancePrior = balanceOf(owner);
+
+        // We use a modified version of maxWithdraw with newly vested assets.
+        if (assets > _convertToAssets(balancePrior, ta)) {
+            // revert with "BasePToken__WithdrawMoreThanMax".
+            _revert(0xf1688f19);
+        }
+
+        // No need to check for rounding error, previewWithdraw rounds up.
+        shares = _previewWithdraw(assets, ta);
     }
 
     /// @notice Redeems assets to `receiver` from the market and burns
