@@ -45,12 +45,18 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
     function getRedstonePayload(
         // dataFeedId:value:decimals
-        string memory priceFeed
+        string memory priceFeed,
+        bytes32[] memory redstoneSignerKeys
     ) public returns (bytes memory) {
-        string[] memory args = new string[](3);
+        uint256 privateKeysLength = redstoneSignerKeys.length;
+        string[] memory args = new string[](4 + privateKeysLength);
         args[0] = "node";
         args[1] = "getRedstonePayload.js";
         args[2] = priceFeed;
+        args[3] = vm.toString(privateKeysLength);
+        for (uint256 i = 0; i < privateKeysLength; i++) {
+            args[4 + i] = vm.toString(redstoneSignerKeys[i]);
+        }
 
         return vm.ffi(args);
     }
@@ -93,7 +99,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
         oracleManager.addApprovedAdaptor(address(adapter));
 
-        bytes memory redstonePayload = getRedstonePayload("WBTC:60000:8");
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:60000:8",
+            redstoneSignerKeys
+        );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
             _WBTC_ADDRESS,
@@ -227,7 +236,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             2
         );
         calls[0].target = address(adapter);
-        bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:61000:8",
+            redstoneSignerKeys
+        );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
             _WBTC_ADDRESS,
@@ -270,7 +282,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             2
         );
         calls[0].target = address(adapter);
-        bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:61000:8",
+            redstoneSignerKeys
+        );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
             _WBTC_ADDRESS,
@@ -346,7 +361,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
             2
         );
         calls[0].target = address(adapter);
-        bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+        bytes memory redstonePayload = getRedstonePayload(
+            "WBTC:61000:8",
+            redstoneSignerKeys
+        );
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
             _WBTC_ADDRESS,
@@ -372,7 +390,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
 
     function testCheckCalldata() public {
         {
-            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory redstonePayload = getRedstonePayload(
+                "WBTC:61000:8",
+                redstoneSignerKeys
+            );
             bytes memory encodedFunction = abi.encodeWithSignature(
                 "writePrice(address,bool)",
                 _WBTC_ADDRESS,
@@ -394,7 +415,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         }
 
         {
-            bytes memory redstonePayload = getRedstonePayload("WBTC:61000:8");
+            bytes memory redstonePayload = getRedstonePayload(
+                "WBTC:61000:8",
+                redstoneSignerKeys
+            );
             bytes memory encodedFunction = abi.encodeWithSignature(
                 "writePriceSimple(address,bool)",
                 _WBTC_ADDRESS,
