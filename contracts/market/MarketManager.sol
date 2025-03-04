@@ -15,7 +15,7 @@ import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
-import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
+import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
@@ -1434,7 +1434,7 @@ contract MarketManager is
         _checkIsListedToken(mToken);
 
         if (
-            ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
+            IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
                 account
             )
         ) {
@@ -1529,7 +1529,7 @@ contract MarketManager is
             _checkIsListedToken(pToken);
 
             if (
-                ILockableRegistry(address(centralRegistry))
+                IActionRegistry(address(centralRegistry))
                     .checkTransfersDisabled(account)
             ) {
                 _revert(_UNAUTHORIZED_SELECTOR);

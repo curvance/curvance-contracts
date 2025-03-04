@@ -12,7 +12,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
+import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
 /// @title Curvance Universal Balance.
@@ -498,7 +498,7 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
         }
 
         if (
-            ILockableRegistry(address(centralRegistry)).checkTransfersDisabled(
+            IActionRegistry(address(centralRegistry)).checkTransfersDisabled(
                 owner
             )
         ) {

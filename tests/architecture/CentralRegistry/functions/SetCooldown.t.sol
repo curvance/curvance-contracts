@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
+import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 contract SetCooldownTest is TestBaseMarket {
     event CooldownSet(address indexed user, uint256 cooldown);
@@ -12,7 +12,7 @@ contract SetCooldownTest is TestBaseMarket {
         uint256 maximumCooldown = centralRegistry.COOLDOWN_MAXIMUM();
 
         vm.expectRevert(
-            LockableRegistry.LockableRegistry__UnsafeCooldown.selector
+            ActionRegistry.ActionRegistry__UnsafeCooldown.selector
         );
         centralRegistry.setCooldown(maximumCooldown + 1);
     }

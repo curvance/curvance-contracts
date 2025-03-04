@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
+import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 contract SetTransferLockStatusTest is TestBaseMarket {
     event LockStatusChanged(
@@ -14,14 +14,14 @@ contract SetTransferLockStatusTest is TestBaseMarket {
 
     function test_setTransferLockStatus_fail_whenStatusIsNotFlipping() public {
         vm.expectRevert(
-            LockableRegistry.LockableRegistry__InvalidParams.selector
+            ActionRegistry.ActionRegistry__InvalidParams.selector
         );
         centralRegistry.setTransferLockStatus(false);
 
         centralRegistry.setTransferLockStatus(true);
 
         vm.expectRevert(
-            LockableRegistry.LockableRegistry__InvalidParams.selector
+            ActionRegistry.ActionRegistry__InvalidParams.selector
         );
         centralRegistry.setTransferLockStatus(true);
     }
@@ -33,7 +33,7 @@ contract SetTransferLockStatusTest is TestBaseMarket {
         centralRegistry.setCooldown(5 days);
 
         vm.expectRevert(
-            LockableRegistry.LockableRegistry__InvalidParams.selector
+            ActionRegistry.ActionRegistry__InvalidParams.selector
         );
         centralRegistry.setTransferLockStatus(false);
     }

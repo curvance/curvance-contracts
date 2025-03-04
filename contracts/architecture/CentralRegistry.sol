@@ -6,7 +6,7 @@ import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
-import { LockableRegistry } from "contracts/libraries/LockableRegistry.sol";
+import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
@@ -44,15 +44,22 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 ///      As a result, you will see multiplier values stored in 1e4 form,
 ///      and fees stored in 1e18 form.
 ///
-///      The Central Registry also manages the delegation system, creating
-///      a new primitive as an alternative to the standard approval system.
-///      Users can "delegate" specific actions or contracts to any address.
-///      Providing that address authority on behalf of the user in the
-///      contract. Approvals can also be mass revoked via the "approval index"
-///      system. By incrementing one's approval index, a user can revoke all
-///      approved address' delegation privileges at the same time.
+///      The Central Registry manages the plugin system, creating a new
+///      primitive allowing for "delegation" of specific actions to any
+///      address, providing that address authority on behalf of the user in
+///      the smart contract. Approvals can also be mass revoked via the
+///      "approval index" system. By incrementing one's approval index, a user
+///      can revoke all approved address' delegation privileges at the same
+///      time. This facilitates better management of approvals inside
+///      Curvance versus conventional implementations on top of the EVM.
 ///
-contract CentralRegistry is ERC165, LockableRegistry {
+///      The Central Registry also manages the locking system,
+///      which operates as an optional 2FA setting to reduce the potential of
+///      a successful phishing attempt on a user. A cooldown can be set for
+///      token transfers and plugin delegation that activates after an action
+///      lock is enabled.
+///
+contract CentralRegistry is ERC165, ActionRegistry {
     /// CONSTANTS ///
 
     /// @notice The length of one protocol epoch, in seconds.
