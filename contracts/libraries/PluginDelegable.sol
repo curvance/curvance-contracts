@@ -12,10 +12,10 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 ///      features such as limit orders, crosschain actions, reward auto
 ///      compounding, chained (multiple sequential) actions, etc.
 abstract contract PluginDelegable {
-    /// STORAGE ///
-
     /// @notice Curvance DAO Hub.
     ICentralRegistry public immutable centralRegistry;
+
+    /// STORAGE ///
 
     /// @notice Status of whether a user or contract has the ability to act
     ///         on behalf of an account.
@@ -121,13 +121,12 @@ abstract contract PluginDelegable {
     /// @param user The address to check whether `delegate` has delegation
     ///             permissions for.
     /// @param delegate The address to check delegation permissions of `user`.
-    function _checkDelegate(
-        address user,
-        address delegate
-    ) internal view {
-        if (!_isDelegate[user][
-                centralRegistry.getUserApprovalIndex(user)
-            ][delegate]) {
+    function _checkDelegate(address user, address delegate) internal view {
+        if (
+            !_isDelegate[user][centralRegistry.getUserApprovalIndex(user)][
+                delegate
+            ]
+        ) {
             /// @solidity memory-safe-assembly
             assembly {
                 mstore(0x00, 0xcfdc5602) // bytes4(keccak256(bytes("PluginDelegable__Unauthorized()")))

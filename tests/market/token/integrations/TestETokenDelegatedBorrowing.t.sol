@@ -2,7 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import "tests/market/TestBaseMarket.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
+import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract TestETokenDelegatedBorrowing is TestBaseMarket {
     address public owner;
@@ -230,5 +233,27 @@ contract TestETokenDelegatedBorrowing is TestBaseMarket {
                 daoGaugeBalanceBefore + (debt * marketInterestFactor) / 10000
             );
         }
+    }
+
+    // Deploy ETokenWithGauge
+    function _deployEToken(
+        address token
+    ) internal override initMainVariables returns (EToken) {
+        EToken eToken = EToken(
+            address(
+                new ETokenWithGauge(
+                    ICentralRegistry(address(centralRegistry)),
+                    token,
+                    address(marketManager),
+                    _deployDynamicInterestRateModel(token)
+                )
+            )
+        );
+
+        interestRateModels[block.chainid][token].setLinkedEToken(
+            address(eToken)
+        );
+
+        return eToken;
     }
 }

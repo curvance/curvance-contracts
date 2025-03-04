@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggregationRouterV5.sol";
 import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Pool.sol";
-import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
+import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggregationRouterV5.sol";
 
 /// @notice WARNING: Currently built for Aggregation Router V5.
 contract OneInchCalldataChecker is BaseSwapChecker {

@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract TestBaseMarketManager is TestBaseMarket {
     MockDataFeed public mockUsdcFeed;

@@ -13,7 +13,6 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
@@ -67,8 +66,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     address public immutable underlying;
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
 
     /// @dev `bytes4(keccak256(bytes("EToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc7e7bc18;
@@ -145,6 +142,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// ERRORS ///
 
     error EToken__Unauthorized();
+    error EToken__EmptyAction();
     error EToken__ExcessiveValue();
     error EToken__TransferError();
     error EToken__InsufficientUnderlyingHeld();
@@ -173,8 +171,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new marketManager.
         marketManager = IMarketManager(marketManager_);
-        // Set `gaugeManager`.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Initialize timestamp and borrow index.
         marketData.lastTimestampUpdated = uint40(block.timestamp);
@@ -445,19 +441,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param pToken The position token to be liquidated from
     ///               `account`.
     function queueLiquidation(address account, address pToken) external {
-        // Fail if account = liquidator.
-        assembly {
-            if eq(account, caller()) {
-                // revert with EToken__Unauthorized().
-                mstore(0x00, 0xc7e7bc18)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // The MToken must be a position token.
-        if (!IPToken(pToken).isPToken()) {
-            revert EToken__ValidationFailed();
-        }
+        _checkAccountAndToken(account, pToken);
 
         // Update pending interest.
         accrueInterest();
@@ -614,12 +598,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @notice Adds reserves by transferring from Curvance DAO
-    ///         to the market and deposits into the gauge.
+    ///         to the market.
     /// @dev Updates pending interest before executing the reserve deposit.
     /// @param amount The amount of underlying tokens to add as reserves,
     ///               in assets.
     function depositReserves(uint256 amount) external nonReentrant {
         _checkDaoPermissions();
+        _checkZeroAmount(amount);
 
         // Update pending interest.
         accrueInterest();
@@ -638,14 +623,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Query current DAO operating address.
         address daoAddress = centralRegistry.daoAddress();
 
-        // Deposit new reserves into gauge.
-        gaugeManager.deposit(address(this), daoAddress, tokens);
-
-        // Update reserves
+        _afterDepositAction(daoAddress, tokens);
+        // Update reserves.
         totalReserves = totalReserves + tokens;
     }
 
-    /// @notice Reduces reserves by withdrawing from the gauge
+    /// @notice Reduces reserves by withdrawing from the market
     ///         and transfers them to Curvance DAO.
     /// @dev If daoAddress is going to be moved all reserves should be
     ///      withdrawn first. Updates pending interest before executing
@@ -657,28 +640,14 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
-
         // Convert `amount` assets to shares to match totalReserves
         // denomination.
         uint256 tokens = convertToShares(amount);
 
-        // Update reserves with underflow check.
-        totalReserves = totalReserves - tokens;
-
-        // Query current DAO operating address.
-        address daoAddress = centralRegistry.daoAddress();
-
-        // Withdraw reserves from gauge, in shares.
-        gaugeManager.withdraw(address(this), daoAddress, tokens);
-        // Transfer underlying to DAO, in assets.
-        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+        _withdrawReserves(tokens, amount);
     }
 
-    /// @notice Withdraws all reserves from the gauge and transfers them to
+    /// @notice Withdraws all reserves from the market and transfers them to
     ///         Curvance DAO.
     /// @dev If daoAddress is going to be moved all reserves should be
     ///      withdrawn first. Updates pending interest before executing
@@ -692,24 +661,10 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        uint256 totalReservesCached = totalReserves;
-        uint256 amount = convertToAssets(totalReservesCached);
+        uint256 tokens = totalReserves;
+        uint256 amount = convertToAssets(tokens);
 
-        // Make sure we have enough underlying held to cover withdrawal.
-        if (marketUnderlyingHeld() < amount + _BASE_UNDERLYING_RESERVE) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
-
-        // Update reserves to 0 and receive a gas refund.
-        delete totalReserves;
-
-        // Query current DAO operating address.
-        address daoAddress = centralRegistry.daoAddress();
-        // Withdraw reserves from gauge.
-        gaugeManager.withdraw(address(this), daoAddress, totalReservesCached);
-
-        // Transfer underlying to DAO, measured in assets.
-        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+        _withdrawReserves(tokens, amount);
     }
 
     /// @notice Sets `amount` as the allowance of `spender` over the
@@ -818,56 +773,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
                 exchangeRate: 0 // Unused in marketManager.
             })
         );
-    }
-
-    /// @notice Calculates the current eToken utilization rate.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The utilization rate, in `WAD`.
-    function utilizationRate() external view returns (uint256) {
-        return
-            interestRateModel.utilizationRate(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns the current eToken borrow interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The borrow interest rate per year, in `WAD`.
-    function borrowRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getBorrowRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns predicted upcoming eToken borrow interest rate
-    ///         per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The predicted borrow interest rate per year, in `WAD`.
-    function predictedBorrowRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getPredictedBorrowRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves)
-            );
-    }
-
-    /// @notice Returns the current eToken supply interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The supply interest rate per year, in `WAD`.
-    function supplyRatePerYear() external view returns (uint256) {
-        return
-            interestRateModel.getSupplyRatePerYear(
-                marketUnderlyingHeld(),
-                totalBorrows,
-                convertToAssets(totalReserves),
-                interestFactor
-            );
     }
 
     /// @notice Updates pending interest and then returns the current
@@ -1137,13 +1042,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         totalBorrows = totalBorrowsNew;
         if (newReserves > 0) {
             totalReserves = newReserves + reservesPrior;
-
-            // Update Gauge Manager values for new reserves.
-            gaugeManager.deposit(
-                address(this),
-                centralRegistry.daoAddress(),
-                newReserves
-            );
+            _afterDepositAction(centralRegistry.daoAddress(), newReserves);
         }
 
         emit InterestAccrued(
@@ -1224,6 +1123,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         if (from == to) {
             revert EToken__TransferError();
         }
+        _checkZeroAmount(tokens);
 
         // Fails if transfer not allowed.
         marketManager.canTransferEToken(address(this), from, tokens);
@@ -1235,6 +1135,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             allowance[from][spender] = allowance[from][spender] - tokens;
         }
 
+        _beforeTransferAction(from, to, tokens);
+
         // Update account token balances.
         balanceOf[from] = balanceOf[from] - tokens;
         // We know that from balance wont overflow
@@ -1242,10 +1144,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         unchecked {
             balanceOf[to] = balanceOf[to] + tokens;
         }
-
-        // Cache Gauge Manager, then update values for `from` and `to`.
-        gaugeManager.withdraw(address(this), from, tokens);
-        gaugeManager.deposit(address(this), to, tokens);
 
         // We emit a Transfer event.
         emit Transfer(from, to, tokens);
@@ -1263,6 +1161,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address recipient,
         uint256 amount
     ) internal returns (uint256) {
+        _checkZeroAmount(amount);
+
         // Update pending interest.
         accrueInterest();
 
@@ -1288,16 +1188,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 tokens,
         uint256 amount
     ) internal returns (uint256) {
-        // Check if we have enough underlying held to support the redemption.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        if (
-            marketUnderlyingHeld() - convertToAssets(totalReserves) <
-            amount + _BASE_UNDERLYING_RESERVE
-        ) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
+        _checkZeroAmount(amount);
+        _checkUnderlyingHeld(totalReserves, amount);
 
         // Update account balance and totalSupply.
         balanceOf[account] = balanceOf[account] - tokens;
@@ -1307,10 +1199,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             totalSupply = totalSupply - tokens;
         }
 
-        // Update Gauge Manager values for `account`, while also checking
-        // if tokens == 0, causing reversion.
-        gaugeManager.withdraw(address(this), account, tokens);
-
+        _beforeWithdrawAction(account, tokens);
         // Transfer underlying to `recipient`.
         SafeTransferLib.safeTransfer(underlying, recipient, amount);
 
@@ -1328,20 +1217,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         address recipient
     ) internal {
-        // Check if we have enough underlying held to support the borrow.
-        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
-        // the market never actually runs out of assets and may introduce
-        // invariant manipulation.
-        // This also acts as a protective mechanism against trying to
-        // manipulate totalBorrows above total underlying assets inside
-        // the system since there will always be at least
-        // _BASE_UNDERLYING_RESERVE excess inside the market.
-        if (
-            marketUnderlyingHeld() - convertToAssets(totalReserves) <
-            amount + _BASE_UNDERLYING_RESERVE
-        ) {
-            revert EToken__InsufficientUnderlyingHeld();
-        }
+        _checkZeroAmount(amount);
+        _checkUnderlyingHeld(totalReserves, amount);
 
         // Calculate current account debt then add `amount`.
         // Then update account exchange rate, and total borrow balances.
@@ -1384,9 +1261,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             balanceOf[recipient] = balanceOf[recipient] + tokens;
         }
 
-        // Update Gauge Manager values for `recipient`.
-        gaugeManager.deposit(address(this), recipient, tokens);
-
+        _afterDepositAction(recipient, tokens);
         emit Transfer(address(0), recipient, tokens);
         return tokens;
     }
@@ -1405,6 +1280,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 amount,
         uint256 accountDebt
     ) internal returns (uint256) {
+        _checkZeroAmount(amount);
+
         // Validate repayment amount is not excessive.
         if (amount > accountDebt) {
             revert EToken__ExcessiveValue();
@@ -1483,33 +1360,20 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Update pending interest.
         accrueInterest();
 
-        // Fail if account = liquidator.
-        assembly {
-            if eq(account, caller()) {
-                // revert with EToken__Unauthorized().
-                mstore(0x00, 0xc7e7bc18)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // The MToken must be a position token.
-        if (!IPToken(pToken).isPToken()) {
-            revert EToken__ValidationFailed();
-        }
+        _checkAccountAndToken(account, pToken);
 
         uint256 liquidatedTokens;
 
         // Fail if liquidate not allowed,
         // trying to pay too much debt with excessive `amount` will revert.
-        (amount, liquidatedTokens) = marketManager
-            .canLiquidateWithExecution(
-                address(this),
-                pToken,
-                liquidator,
-                account,
-                amount,
-                exactAmount
-            );
+        (amount, liquidatedTokens) = marketManager.canLiquidateWithExecution(
+            address(this),
+            pToken,
+            liquidator,
+            account,
+            amount,
+            exactAmount
+        );
 
         // Validate that the token is listed inside the market.
         if (!marketManager.isListed(address(this))) {
@@ -1521,11 +1385,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        IPToken(pToken).seize(
-            liquidator,
-            account,
-            liquidatedTokens
-        );
+        IPToken(pToken).seize(liquidator, account, liquidatedTokens);
 
         emit Liquidated(
             liquidator,
@@ -1536,12 +1396,92 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         );
     }
 
+    /// @notice Withdraws reserves from the market and transfers them to
+    ///         Curvance DAO.
+    /// @param tokens Amount of reserves to withdraw, in shares.
+    /// @param amount Amount of reserves to withdraw, in assets.
+    function _withdrawReserves(uint256 tokens, uint256 amount) internal {
+        _checkZeroAmount(amount);
+
+        // We can pass 0 reserves to hold since we are redeeming from
+        // reserves here directly instead of user driven borrows/redemptions.
+        _checkUnderlyingHeld(0, amount);
+
+        // Update reserves with underflow check.
+        totalReserves = totalReserves - tokens;
+
+        // Query current DAO operating address.
+        address daoAddress = centralRegistry.daoAddress();
+
+        // Withdraw reserves, in shares.
+        _beforeWithdrawAction(daoAddress, tokens);
+        // Transfer underlying to DAO, in assets.
+        SafeTransferLib.safeTransfer(underlying, daoAddress, amount);
+    }
+
     /// @dev Helper function for reverting efficiently.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)
+        }
+    }
+
+    /// @notice Checks whether there is sufficient underlying tokens to handle
+    ///         a redemption/borrow of `underlyingToWithdraw` based on any
+    ///         protocol reserves held.
+    /// @param reservesToHold Protocol Reserves to hold on to, requiring
+    ///                       underlying to be held in reserve.
+    /// @param underlyingToWithdraw The amount of underlying tokens to
+    ///                             redeem/borrow against current underlying
+    ///                             held in the eToken contract.
+    function _checkUnderlyingHeld(
+        uint256 reservesToHold,
+        uint256 underlyingToWithdraw
+    ) internal view {
+        // Check if we have enough underlying held to support the redemption.
+        // We add _BASE_UNDERLYING_RESERVE to the calculation to ensure that
+        // the market never actually runs out of assets and may introduce
+        // invariant manipulation.
+        // This also acts as a protective mechanism against trying to
+        // manipulate totalBorrows above total underlying assets inside
+        // the system since there will always be at least
+        // _BASE_UNDERLYING_RESERVE excess inside the market.
+        if (
+            marketUnderlyingHeld() - convertToAssets(reservesToHold) <
+            underlyingToWithdraw + _BASE_UNDERLYING_RESERVE
+        ) {
+            revert EToken__InsufficientUnderlyingHeld();
+        }
+    }
+
+    /// @notice Check whether the account and token are valid.
+    /// @param account The account to check.
+    /// @param token The token to check.
+    function _checkAccountAndToken(
+        address account,
+        address token
+    ) internal view {
+        // Fail if account = liquidator.
+        assembly {
+            if eq(account, caller()) {
+                // revert with EToken__Unauthorized().
+                mstore(0x00, 0xc7e7bc18)
+                revert(0x1c, 0x04)
+            }
+        }
+
+        // The MToken must be a position token.
+        if (!IPToken(token).isPToken()) {
+            revert EToken__ValidationFailed();
+        }
+    }
+
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        if (amount == 0) {
+            revert EToken__EmptyAction();
         }
     }
 
@@ -1568,4 +1508,29 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     {
         return centralRegistry;
     }
+
+    /// INTERNAL FUNCTIONS WHICH CAN BE OVERRIDDEN ///
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a deposit of `to`'s assets.
+    function _afterDepositAction(
+        address /* to */,
+        uint256 /* assets */
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a withdrawal of `owners`'s shares.
+    function _beforeWithdrawAction(
+        address /* owner */,
+        uint256 /* shares */
+    ) internal virtual {}
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         a transfer of `from`'s shares to `to`.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _beforeTransferAction(
+        address /* from */,
+        address /* to */,
+        uint256 amount
+    ) internal virtual {}
 }

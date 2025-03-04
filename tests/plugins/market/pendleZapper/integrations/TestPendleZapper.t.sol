@@ -208,7 +208,10 @@ contract TestPendleZapper is TestBaseMarket {
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+
+        pSTETH.setDelegateApproval(address(pendleZapper), true);
+
         pendleZapper.enterPendle{ value: ethAmount }(
             address(pSTETH),
             PendleZapper.ZapperData(
@@ -226,6 +229,8 @@ contract TestPendleZapper is TestBaseMarket {
             true,
             user1
         );
+
+        vm.stopPrank();
 
         assertEq(user1.balance, 0);
 
@@ -295,6 +300,11 @@ contract TestPendleZapper is TestBaseMarket {
         data.approx.guessOffchain = 0;
         data.approx.maxIteration = 200;
         data.approx.eps = 1e18;
+
+        vm.warp(
+            marketManager.accountAssets(user1) +
+                marketManager.MIN_HOLD_PERIOD()
+        );
 
         vm.startPrank(user1);
         IERC20(_PENDLE_LP_STETH).approve(address(pendleZapper), 3 ether);

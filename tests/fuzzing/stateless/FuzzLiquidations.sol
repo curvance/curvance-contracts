@@ -123,7 +123,7 @@ contract FuzzLiquidations is StatefulBaseMarket {
             uint256 lFactor,
             uint256 earnTokenPrice,
             uint256 positionTokenPrice
-        ) = marketManager.LiquidationStatusOf(
+        ) = marketManager.liquidationStatusOf(
                 address(this),
                 earnToken,
                 positionToken

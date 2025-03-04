@@ -60,10 +60,15 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         _setExitFee(newExitFee);
     }
 
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
+    /// @param shares The amount of the shares to redeem.
+    /// @param balancePrior The balance of shares `owner` has before this
+    ///                     redemption. 
     /// @param deleverageData Struct containing information on the desired
     ///                       deleverage action to execute. Containing values:
     ///                       1. Address of pToken that will be routed into
@@ -79,67 +84,23 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
     ///                          repaid to the eToken lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
-    function withdrawByPositionManagement(
+    function _processPositionManagementRedemption(
         address owner,
         uint256 assets,
+        uint256 shares,
+        uint256 balancePrior,
         IPositionManagement.DeleverageStruct memory deleverageData
-    ) external override nonReentrant {
-        // Validate that the position folding contract is calling.
-        if (!marketManager.positionManagement(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Cache pendingRewards, _totalAssets, balanceOf.
-        uint256 pending = _calculatePendingRewards();
-        uint256 ta = _totalAssets + pending;
-        uint256 balancePrior = balanceOf(owner);
-
-        // We use a modified version of maxWithdraw with newly vested assets.
-        if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "CompoundingPToken__WithdrawMoreThanMax".
-            _revert(0xfb0451f2);
-        }
-
-        // No need to check for rounding error, previewWithdraw rounds up.
-        uint256 shares = _previewWithdraw(assets, ta);
-
-        // Update gauge pool values for `owner`.
-        gaugeManager.withdraw(address(this), owner, shares);
-        // We don't need to precheck approval since position folding will
-        // always call based on msg.sender, so there is no trust system.
-        // Process withdraw on behalf of `owner`.
-        _processWithdraw(
-            msg.sender,
-            msg.sender,
-            owner,
-            assets,
-            shares,
-            ta,
-            pending
-        );
-
+    ) internal override {
         assets = _removeExitFeeFromAssets(assets);
         deleverageData.collateralAmount = assets;
-
-        // Callback to PositionManagement that executes pToken specific logic.
-        IPositionManagement(msg.sender).onRedeem(
-            address(this),
+        super._processPositionManagementRedemption(
             owner,
             assets,
+            shares,
+            balancePrior,
             deleverageData
         );
-
-        // Fails if redemption not allowed.
-        marketManager.canRedeemWithCollateralRemoval(
-            address(this),
-            owner,
-            balancePrior,
-            shares,
-            false
-        );
     }
-
-    /// INTERNAL FUNCTIONS ///
 
     /// @notice Efficient internal calculation of `assets`
     ///         with corresponding exit fee removed.

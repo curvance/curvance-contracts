@@ -61,7 +61,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
         address recipient
     ) internal virtual override {
         address pool = leverageData.positionToken.underlying();
-        
+
         address token0 = IVeloPool(pool).token0();
         address token1 = IVeloPool(pool).token1();
         address borrowUnderlying = leverageData.borrowToken.underlying();
@@ -145,7 +145,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
         DeleverageStruct memory deleverageData
     ) internal virtual override {
         address pool = deleverageData.positionToken.underlying();
-        
+
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
         VelodromeLib.exitVelodrome(

@@ -6,6 +6,7 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { WAD } from "contracts/libraries/Constants.sol";
 import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+
 // new DynamicInterestRateModel(
 //             ICentralRegistry(address(centralRegistry)),
 //             1000, // baseRatePerYear
@@ -90,16 +91,32 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         pUSDC.depositAsCollateral(100000e6, user);
 
         // Initial state checks
-        uint256 initialUtilization = eDAI.utilizationRate();
-        uint256 initialBorrowRate = eDAI.borrowRatePerYear();
+        uint256 initialUtilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
+        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
 
         // when
         // Borrow amount that keeps utilization below vertex point
         eDAI.borrow(BORROW_AMOUNT_BELOW_VERTEX);
 
         // then
-        uint256 newUtilization = eDAI.utilizationRate();
-        uint256 newBorrowRate = eDAI.borrowRatePerYear();
+        uint256 newUtilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
+        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
 
@@ -151,16 +168,32 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         pUSDC.depositAsCollateral(1000000e6, user);
 
         // Initial state checks
-        uint256 initialUtilization = eDAI.utilizationRate();
-        uint256 initialBorrowRate = eDAI.borrowRatePerYear();
+        uint256 initialUtilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
+        uint256 initialBorrowRate = interestRateModel.getBorrowRatePerYear(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
 
         // when
         // Borrow amount that pushes utilization above vertex point
         eDAI.borrow(BORROW_AMOUNT_ABOVE_VERTEX);
 
         // then
-        uint256 newUtilization = eDAI.utilizationRate();
-        uint256 newBorrowRate = eDAI.borrowRatePerYear();
+        uint256 newUtilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
+        uint256 newBorrowRate = interestRateModel.getBorrowRatePerYear(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
         (, , uint256 vertexPoint, , , , , , , , ) = interestRateModel
             .ratesConfig();
 
@@ -254,7 +287,11 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
 
         // then
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
-        uint256 utilization = eDAI.utilizationRate();
+        uint256 utilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
 
         assertGt(
             utilization,
@@ -304,7 +341,11 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         eDAI.accrueInterest();
 
         uint256 newMultiplier = interestRateModel.vertexMultiplier();
-        uint256 utilization = eDAI.utilizationRate();
+        uint256 utilization = interestRateModel.utilizationRate(
+            eDAI.marketUnderlyingHeld(),
+            eDAI.totalBorrows(),
+            eDAI.convertToAssets(eDAI.totalReserves())
+        );
 
         assertLt(
             utilization,

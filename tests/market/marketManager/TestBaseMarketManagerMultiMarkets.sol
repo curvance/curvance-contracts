@@ -9,7 +9,6 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 import { WAD } from "contracts/libraries/Constants.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 import "forge-std/console2.sol";
 

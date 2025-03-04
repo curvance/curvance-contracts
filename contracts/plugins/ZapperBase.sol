@@ -113,30 +113,22 @@ abstract contract ZapperBase is ReentrancyGuard {
             // as well.
             if (collateralize) {
                 // Enter Curvance pToken position and collateralize.
-                if (msg.sender == recipient) {
-                    // User wants to enter and collateralize a position for
-                    // themselves.
-                    shares = IPToken(mToken).depositAsCollateral(
-                        assets,
+                // This requires plugin approval for this zapper, and
+                // if its a different user calling on behalf of `receiver`
+                // we make sure that user also has delegation approved.
+                if (
+                    msg.sender == recipient ||
+                    IPluginDelegable(mToken).isDelegate(
+                        recipient,
                         msg.sender
+                    )
+                ) {
+                    shares = IPToken(mToken).depositAsCollateralFor(
+                        assets,
+                        recipient
                     );
                 } else {
-                    // User wants to enter and collateralize a position for
-                    // someone else, so we need to validate they have plugin
-                    // authority.
-                    if (
-                        IPluginDelegable(mToken).isDelegate(
-                            recipient,
-                            msg.sender
-                        )
-                    ) {
-                        shares = IPToken(mToken).depositAsCollateralFor(
-                            assets,
-                            recipient
-                        );
-                    } else {
-                        _revert(_UNAUTHORIZED_SELECTOR);
-                    }
+                    _revert(_UNAUTHORIZED_SELECTOR);
                 }
             } else {
                 // User wants to enter an uncollateralized a position so we dont

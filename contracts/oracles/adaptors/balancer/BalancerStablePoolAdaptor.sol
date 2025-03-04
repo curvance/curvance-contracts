@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { BalancerBaseAdaptor, IVault } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
+import { BalancerBaseAdaptor } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 
+import { IVault } from "contracts/interfaces/external/balancer/IVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IRateProvider } from "contracts/interfaces/external/balancer/IRateProvider.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";

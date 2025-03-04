@@ -4,12 +4,12 @@ pragma solidity ^0.8.19;
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { ERC4626, SafeTransferLib } from "contracts/libraries/external/ERC4626.sol";
+import { ERC4626 } from "contracts/libraries/external/ERC4626.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
@@ -81,8 +81,6 @@ abstract contract BasePToken is
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
-    /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
 
     /// @notice Underlying asset for the PToken, cannot be a fee-on-transfer token.
     IERC20 internal immutable _asset;
@@ -100,6 +98,11 @@ abstract contract BasePToken is
 
     /// ERRORS ///
 
+    error BasePToken__EmptyAction();
+    error BasePToken__ZeroAssets();
+    error BasePToken__ZeroShares();
+    error BasePToken__WithdrawMoreThanMax();
+    error BasePToken__RedeemMoreThanMax();
     error BasePToken__Unauthorized();
     error BasePToken__InvalidMarketManager();
     error BasePToken__UnsupportedChain();
@@ -124,8 +127,6 @@ abstract contract BasePToken is
 
         // Set `marketManager`.
         marketManager = IMarketManager(MarketManager_);
-        // Set `gaugeManager`.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
 
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
@@ -136,12 +137,66 @@ abstract contract BasePToken is
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Helper function for Position Management contract to
+    ///         redeem assets.
+    /// @param owner The owner address of assets to redeem.
+    /// @param assets The amount of the underlying assets to redeem.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
+    function withdrawByPositionManagement(
+        address owner,
+        uint256 assets,
+        IPositionManagement.DeleverageStruct memory deleverageData
+    ) external nonReentrant {
+        // Validate that the position folding contract is calling.
+        if (!marketManager.positionManagement(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        ) = _getValuesForWithdrawal(assets, owner);
+
+        _processWithdraw(
+            msg.sender,
+            msg.sender,
+            owner,
+            assets,
+            shares,
+            ta,
+            pending
+        );
+
+        // Process the Position Management redemption leg.
+        _processPositionManagementRedemption(
+            owner,
+            assets,
+            shares,
+            balancePrior,
+            deleverageData
+        );
+    }
+
     /// @notice Caller deposits assets into the market, `receiver` receives
     ///         shares, and turns on collateralization of the assets.
     /// @dev The caller must be depositing for themselves, or be managing
     ///      their position through the position folding contract.
-    ///      If the caller is not approved to collateralize the function will
-    ///      simply deposit assets on behalf of `receiver`.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the pToken shares.
     /// @return shares The amount of pToken shares received by `receiver`.
@@ -149,14 +204,15 @@ abstract contract BasePToken is
         uint256 assets,
         address receiver
     ) external nonReentrant returns (uint256 shares) {
-        shares = _deposit(assets, receiver);
-
         if (
-            msg.sender == receiver ||
-            marketManager.positionManagement(msg.sender)
+            msg.sender != receiver &&
+            !marketManager.positionManagement(msg.sender)
         ) {
-            marketManager.postCollateral(receiver, address(this), shares);
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
+
+        shares = _deposit(assets, receiver);
+        marketManager.postCollateral(receiver, address(this), shares);
     }
 
     /// @notice Caller deposits assets into the market, `receivier` receives
@@ -290,21 +346,22 @@ abstract contract BasePToken is
         );
     }
 
-    /// PToken MARKET START LOGIC TO OVERRIDE
-
-    /// @notice Helper function for Position Management contract to
-    ///         redeem assets.
-    /// @dev Overridden in child contract(s).
-    function withdrawByPositionManagement(
-        address owner,
-        uint256 assets,
-        IPositionManagement.DeleverageStruct memory
-    ) external virtual {}
+    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
 
     /// @notice Starts a pToken market, executed via marketManager.
-    /// @dev Overridden in child contract(s).
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
+    ///            ADDRESS FROM THE MARKET MANAGER.
     /// @param by The account initializing the pToken market.
-    function startMarket(address by) external virtual returns (bool) {}
+    /// @return Returns with true when successful.
+    function startMarket(
+        address by
+    ) external virtual nonReentrant returns (bool) {
+        _startMarket(by);
+        return true;
+    }
 
     /// PUBLIC FUNCTIONS ///
 
@@ -453,13 +510,10 @@ abstract contract BasePToken is
         // Fails if transfer not allowed.
         marketManager.canTransferPToken(address(this), msg.sender, amount);
 
-        // Cache Gauge Manager, then update values for caller.
-        gaugeManager.withdraw(address(this), msg.sender, amount);
+        _beforeTransferAction(msg.sender, to, amount);
 
         // Execute transfer.
         super.transfer(to, amount);
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -479,13 +533,10 @@ abstract contract BasePToken is
         // Fails if transfer not allowed.
         marketManager.canTransferPToken(address(this), from, amount);
 
-        // Cache Gauge Manager, then update values for `from`.
-        gaugeManager.withdraw(address(this), from, amount);
+        _beforeTransferAction(from, to, amount);
 
         // Execute transfer.
         super.transferFrom(from, to, amount);
-        // Update Gauge Manager values for `to`.
-        gaugeManager.deposit(address(this), to, amount);
 
         return true;
     }
@@ -513,15 +564,8 @@ abstract contract BasePToken is
 
         // Fails if seize not allowed.
         marketManager.canSeize(address(this), msg.sender);
-        // Process virtual balance updates and accrued rewards from this
-        // liquidation.
-        gaugeManager.processLiquidation(
-            address(this),
-            account,
-            liquidator,
-            shares
-        );
 
+        _beforeLiquidationAction(account, liquidator, shares);
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
     }
@@ -549,15 +593,7 @@ abstract contract BasePToken is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // Process virtual balance updates and accrued rewards from this
-        // liquidation.
-        gaugeManager.processLiquidation(
-            address(this),
-            account,
-            liquidator,
-            shares
-        );
-
+        _beforeLiquidationAction(account, liquidator, shares);
         // Efficiently transfer token balances from `account` to `liquidator`.
         _transferFromWithoutAllowance(account, liquidator, shares);
     }
@@ -695,6 +731,360 @@ abstract contract BasePToken is
 
     /// INTERNAL FUNCTIONS ///
 
+    /// @notice Deposits `assets` and mints shares to `receiver`.
+    /// @param assets The amount of the underlying asset to supply.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return shares The amount of pToken shares received by `receiver`.
+    function _deposit(
+        uint256 assets,
+        address receiver
+    ) internal returns (uint256 shares) {
+        _checkZeroAmount(assets);
+
+        // Fails if deposit not allowed, this stands in for a maxDeposit
+        // check reviewing isListed and mintPaused != 2.
+        marketManager.canMint(address(this));
+
+        // Calculate any pending rewards and new total assets invariant.
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+
+        // Check for rounding error, since we round down in previewDeposit.
+        if ((shares = _previewDeposit(assets, ta)) == 0) {
+            revert BasePToken__ZeroShares();
+        }
+
+        // Execute deposit.
+        _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
+        _afterDepositAction(receiver, shares);
+    }
+
+    /// @notice Deposits assets and mints `shares` to `receiver`.
+    /// @param shares The amount of the underlying assets quoted in shares
+    ///               to supply.
+    /// @param receiver The account that should receive the pToken shares.
+    /// @return assets The amount of pToken shares quoted in assets received
+    ///                by `receiver`.
+    function _mint(
+        uint256 shares,
+        address receiver
+    ) internal returns (uint256 assets) {
+        _checkZeroAmount(shares);
+
+        // Fail if mint not allowed, this stands in for a maxMint
+        // check reviewing isListed and mintPaused != 2.
+        marketManager.canMint(address(this));
+
+        // Calculate any pending rewards and new total assets invariant.
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+
+        // No need to check for rounding error, previewMint rounds up.
+        assets = _previewMint(shares, ta);
+
+        // Execute deposit.
+        _processDeposit(msg.sender, receiver, assets, shares, ta, pending);
+        _afterDepositAction(receiver, shares);
+    }
+
+    /// @notice Withdraws `assets` to `receiver` from the market and burns
+    ///         `owner` shares.
+    /// @dev Withdraw calls do not support the delegation system intentionally
+    ///      to minimize code attack surface.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced from `owner`'s collateralPosted.
+    /// @return shares The amount of assets, quoted in shares received
+    ///                by `receiver`.
+    function _withdraw(
+        uint256 assets,
+        address receiver,
+        address owner,
+        bool forceRedeemCollateral
+    ) internal returns (uint256) {
+        (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        ) = _getValuesForWithdrawal(assets, owner);
+
+        // Validate caller is allowed to withdraw `shares` on behalf of
+        // `owner`.
+        _updateAllowance(owner, shares);
+
+        // Validate that `owner` can redeem `shares`.
+        marketManager.canRedeemWithCollateralRemoval(
+            address(this),
+            owner,
+            balancePrior,
+            shares,
+            forceRedeemCollateral
+        );
+
+        // Execute withdrawal.
+        _processWithdraw(
+            msg.sender,
+            receiver,
+            owner,
+            assets,
+            shares,
+            ta,
+            pending
+        );
+
+        return shares;
+    }
+
+    /// @notice Returns the total assets invariant, any pending rewards for
+    ///         depositors and other values to process a withdrawal.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @return ta The total assets invariant.
+    /// @return pending The pending rewards for depositors.
+    /// @return balancePrior The balance of shares `owner`.
+    /// @return shares The amount of shares to burn to withdraw `assets`.
+    function _getValuesForWithdrawal(
+        uint256 assets,
+        address owner
+    )
+        internal
+        view
+        returns (
+            uint256 ta,
+            uint256 pending,
+            uint256 balancePrior,
+            uint256 shares
+        )
+    {
+        _checkZeroAmount(assets);
+
+        // Calculate any pending rewards and new total assets invariant.
+        (ta, pending) = _calculateTotalAssetsWithRewards();
+        // Cache balanceOf of `owner`.
+        balancePrior = balanceOf(owner);
+
+        // We use a modified version of maxWithdraw with newly vested assets.
+        if (assets > _convertToAssets(balancePrior, ta)) {
+            // revert with "BasePToken__WithdrawMoreThanMax".
+            _revert(0xf1688f19);
+        }
+
+        // No need to check for rounding error, previewWithdraw rounds up.
+        shares = _previewWithdraw(assets, ta);
+    }
+
+    /// @notice Redeems assets to `receiver` from the market and burns
+    ///         `owner` `shares`.
+    /// @dev Redemption calls support the delegation system, allowing
+    ///      an alternative approval system in parallel with the native
+    ///      erc20 system.
+    /// @param shares The amount of shares to burn to withdraw assets.
+    /// @param receiver The account that should receive the assets.
+    /// @param owner The account that will burn their shares to withdraw
+    ///              assets.
+    /// @param delegatedAction Whether the action is delegated and should
+    ///                        use delegation system instead of normal
+    ///                        approval system.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced from `owner`'s collateralPosted.
+    /// @return assets The amount of assets received by `receiver`.
+    function _redeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        bool delegatedAction,
+        bool forceRedeemCollateral
+    ) internal returns (uint256 assets) {
+        _checkZeroAmount(shares);
+
+        // Validate caller is allowed to withdraw `shares` on behalf of
+        // `owner`. Or whether the caller has delegated approval or not.
+        if (delegatedAction) {
+            _checkDelegate(owner, msg.sender);
+        } else {
+            _updateAllowance(owner, shares);
+        }
+
+        // Check whether `shares` is above max allowed redemption.
+        if (shares > maxRedeem(owner)) {
+            // revert with "BasePToken__RedeemMoreThanMax".
+            _revert(0xdfe9efae);
+        }
+
+        // Validate that `owner` can redeem `shares`.
+        marketManager.canRedeemWithCollateralRemoval(
+            address(this),
+            owner,
+            balanceOf(owner),
+            shares,
+            forceRedeemCollateral
+        );
+
+        // Calculate any pending rewards and new total assets invariant.
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+
+        // Check for rounding error, since we round down in previewRedeem.
+        if ((assets = _previewRedeem(shares, ta)) == 0) {
+            revert BasePToken__ZeroAssets();
+        }
+
+        // Execute withdrawal.
+        _processWithdraw(
+            msg.sender,
+            receiver,
+            owner,
+            assets,
+            shares,
+            ta,
+            pending
+        );
+    }
+
+    /// @notice Processes a deposit of `assets` from the market and mints
+    ///         shares to `owner`, then increases `ta` by `assets`,
+    ///         and vests rewards if `pending` > 0.
+    /// @dev Emits a {Deposit} event.
+    /// @param by The account that is executing the deposit.
+    /// @param to The account that should receive `shares`.
+    /// @param assets The amount of the underlying asset to deposit.
+    /// @param shares The amount of shares minted to `to`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this deposit.
+    function _processDeposit(
+        address by,
+        address to,
+        uint256 assets,
+        uint256 shares,
+        uint256 ta,
+        uint256 pending
+    ) internal {
+        // Need to transfer before minting or ERC777s could reenter.
+        SafeTransferLib.safeTransferFrom(asset(), by, address(this), assets);
+
+        // Vests any rewards,if there are any, then update `_totalAssets`
+        // invariant and prepare assets for withdrawal.
+        _updateAssetsForDeposit(assets, ta, pending);
+
+        // Mint `shares` to `to`.
+        _mint(to, shares);
+
+        _afterDepositAction(to, shares);
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Emit the {Deposit} event.
+            mstore(0x00, assets)
+            mstore(0x20, shares)
+            let m := shr(96, not(0))
+            log3(0x00, 0x40, _DEPOSIT_EVENT_SIGNATURE, and(m, by), and(m, to))
+        }
+    }
+
+    /// @notice Processes a withdrawal of `shares` from the market by burning
+    ///         `owner` shares and transferring `assets` to `to`, then
+    ///         decreases `ta` by `assets`, and vests rewards if
+    ///         `pending` > 0.
+    /// @dev Emits a {Withdraw} event.
+    /// @param by The account that is executing the withdrawal.
+    /// @param to The account that should receive `assets`.
+    /// @param owner The account that will have `shares` burned to withdraw
+    ///              `assets`.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param shares The amount of shares redeemed from `owner`.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    /// @param pending The current rewards that are pending and will be vested
+    ///                during this withdrawal.
+    function _processWithdraw(
+        address by,
+        address to,
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 ta,
+        uint256 pending
+    ) internal virtual {
+        _beforeWithdrawAction(owner, shares);
+
+        // Burn `owner` `shares`.
+        _burn(owner, shares);
+
+        // Vests any rewards,if there are any, then update `_totalAssets`
+        // invariant and prepare assets for withdrawal.
+        _updateAssetsForWithdrawal(assets, ta, pending);
+
+        // Transfer the underlying assets to `to`.
+        SafeTransferLib.safeTransfer(asset(), to, assets);
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Emit the {Withdraw} event.
+            mstore(0x00, assets)
+            mstore(0x20, shares)
+            let m := shr(96, not(0))
+            log4(
+                0x00,
+                0x40,
+                _WITHDRAW_EVENT_SIGNATURE,
+                and(m, by),
+                and(m, to),
+                and(m, owner)
+            )
+        }
+    }
+
+    /// @notice Helper function for Position Management contract to
+    ///         redeem assets.
+    /// @param owner The owner address of assets to redeem.
+    /// @param assets The amount of the underlying assets to redeem.
+    /// @param shares The amount of the shares to redeem.
+    /// @param balancePrior The balance of shares `owner` has before this
+    ///                     redemption.
+    /// @param deleverageData Struct containing information on the desired
+    ///                       deleverage action to execute. Containing values:
+    ///                       1. Address of pToken that will be routed into
+    ///                          eToken underlying to repay outstanding debt.
+    ///                       2. The amount of pTokens that will be
+    ///                          deleveraged.
+    ///                       3. Address of eToken that will have its underlying
+    ///                          token debt repaid.
+    ///                       4. Optional struct containing instructions on how
+    ///                          to handle swapping into eToken underlying to
+    ///                          facilitate deleveraging.
+    ///                       5. The amount of underlying tokens that will be
+    ///                          repaid to the eToken lenders.
+    ///                       6. Optional auxiliary data for execution of a
+    ///                          deleverage action.
+    function _processPositionManagementRedemption(
+        address owner,
+        uint256 assets,
+        uint256 shares,
+        uint256 balancePrior,
+        IPositionManagement.DeleverageStruct memory deleverageData
+    ) internal virtual {
+        // Callback to PositionManagement that executes pToken specific logic.
+        IPositionManagement(msg.sender).onRedeem(
+            address(this),
+            owner,
+            assets,
+            deleverageData
+        );
+
+        // Fails if redemption not allowed.
+        marketManager.canRedeemWithCollateralRemoval(
+            address(this),
+            owner,
+            balancePrior,
+            shares,
+            false
+        );
+    }
+
     /// @notice Helper function to efficiently transfers pToken balances
     ///         without checking approvals.
     /// @dev This is only used in liquidations where maximal gas
@@ -780,8 +1170,21 @@ abstract contract BasePToken is
                 and(m, market)
             )
         }
-        // Update gauge pool values for market.
-        gaugeManager.deposit(market, market, shares);
+
+        _afterDepositAction(market, shares);
+    }
+
+    /// @notice Updates the allowance for the caller.
+    /// @param owner The owner of the allowance.
+    /// @param amount The spent amount of the allowance.
+    function _updateAllowance(address owner, uint256 amount) internal {
+        if (msg.sender != owner) {
+            uint256 allowed = allowance(owner, msg.sender);
+
+            if (allowed != type(uint256).max) {
+                _spendAllowance(owner, msg.sender, amount);
+            }
+        }
     }
 
     /// @dev Returns the decimals of the underlying asset.
@@ -887,6 +1290,62 @@ abstract contract BasePToken is
         return _convertToAssets(shares, ta);
     }
 
+    /// @notice Updates asset values for a pending deposit request.
+    /// @param assets The amount of the underlying asset to deposit.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    function _updateAssetsForDeposit(
+        uint256 assets,
+        uint256 ta,
+        uint256 /* pending */
+    ) internal virtual {
+        // Document addition of `assets` to `ta` due to deposit.
+        unchecked {
+            _totalAssets = ta + assets;
+        }
+    }
+
+    /// @notice Updates asset values for a pending withdrawal request.
+    /// @param assets The amount of the underlying asset to withdraw.
+    /// @param ta The current total number of assets for assets to shares
+    ///           conversion.
+    function _updateAssetsForWithdrawal(
+        uint256 assets,
+        uint256 ta,
+        uint256 /* pending */
+    ) internal virtual {
+        // Document removal of `assets` from `ta` due to withdrawal.
+        _totalAssets = ta - assets;
+    }
+
+    /// @notice Returns total assets invariant and any pending rewards for
+    ///         depositors.
+    function _calculateTotalAssetsWithRewards()
+        internal
+        view
+        virtual
+        returns (uint256, uint256)
+    {
+        return (_totalAssets, 0);
+    }
+
+    /// @dev from Multicall
+    function _getCentralRegistry()
+        internal
+        view
+        override
+        returns (ICentralRegistry)
+    {
+        return centralRegistry;
+    }
+
+    /// @notice Checks to make sure an action is not an empty action.
+    function _checkZeroAmount(uint256 amount) internal pure {
+        if (amount == 0) {
+            revert BasePToken__EmptyAction();
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissioning.
     function _checkDaoPermissions() internal view {
         if (!centralRegistry.hasDaoPermissions(msg.sender)) {
@@ -901,72 +1360,38 @@ abstract contract BasePToken is
         }
     }
 
-    /// INTERNAL CONVERSION FUNCTIONS TO OVERRIDE ///
+    /// INTERNAL CONVERSION FUNCTIONS WHICH MAY BE OVERRIDDEN ///
 
-    /// @notice Deposits `assets` and mints shares to `receiver`.
-    /// @param assets The amount of the underlying assets to supply.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return shares The amount of pToken shares received by `receiver`.
-    function _deposit(
-        uint256 assets,
-        address receiver
-    ) internal virtual returns (uint256 shares) {}
+    /// @notice An optional set of instructions to execute before processing
+    ///         a deposit of `owners`'s assets.
+    function _afterDepositAction(
+        address /* to */,
+        uint256 /* assets */
+    ) internal virtual {}
 
-    /// @notice Deposits assets and mints `shares` to `receiver`.
-    /// @param shares The amount of the underlying assets quoted in shares
-    ///               to supply.
-    /// @param receiver The account that should receive the pToken shares.
-    /// @return assets The amount of pToken shares quoted in assets received
-    ///                by `receiver`.
-    function _mint(
-        uint256 shares,
-        address receiver
-    ) internal virtual returns (uint256 assets) {}
+    /// @notice An optional set of instructions to execute before processing
+    ///         a withdrawal of `owners`'s shares.
+    function _beforeWithdrawAction(
+        address /* owner */,
+        uint256 /* shares */
+    ) internal virtual {}
 
-    /// @notice Withdraws `assets` to `receiver` from the market and burns
-    ///         `owner` shares.
-    /// @param assets The amount of the underlying assets to withdraw.
-    /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from `owner`'s collateralPosted.
-    /// @return shares The amount of assets, quoted in shares received
-    ///                by `receiver`.
-    function _withdraw(
-        uint256 assets,
-        address receiver,
-        address owner,
-        bool forceRedeemCollateral
-    ) internal virtual returns (uint256 shares) {}
-
-    /// @notice Withdraws assets to `receiver` from the market and burns
-    ///         `owner` `shares`.
-    /// @param shares The amount of shares to burn to withdraw assets.
-    /// @param receiver The account that should receive the assets.
-    /// @param owner The account that will burn their shares to withdraw
-    ///              assets.
-    /// @param delegatedAction Whether the action is delegated and should
-    ///                        use delegation system instead of normal
-    ///                        approval system.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced from `owner`'s collateralPosted.
-    /// @return assets The amount of assets received by `receiver`.
-    function _redeem(
-        uint256 shares,
-        address receiver,
-        address owner,
-        bool delegatedAction,
-        bool forceRedeemCollateral
-    ) internal virtual returns (uint256 assets) {}
-
-    /// @dev from Multicall
-    function _getCentralRegistry()
-        internal
-        view
-        override
-        returns (ICentralRegistry)
-    {
-        return centralRegistry;
+    /// @notice An optional set of instructions to execute before processing
+    ///         a transfer of `from`'s shares to `to`.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _beforeTransferAction(
+        address /* from */,
+        address /* to */,
+        uint256 amount
+    ) internal virtual {
+        _checkZeroAmount(amount);
     }
+
+    /// @notice An optional set of instructions to execute before processing
+    ///         liquidation of `account`'s collateral.
+    function _beforeLiquidationAction(
+        address /* account */,
+        address /* liquidator */,
+        uint256 /* shares */
+    ) internal virtual {}
 }

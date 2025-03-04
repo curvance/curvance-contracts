@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CompoundingPToken, SafeTransferLib, IERC20, FixedPointMathLib, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
 import { IRewardRouter } from "contracts/interfaces/external/gmx/IRewardRouter.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract StakedGMXPToken is CompoundingPToken {
     /// CONSTANTS ///
@@ -92,18 +96,12 @@ contract StakedGMXPToken is CompoundingPToken {
 
             // If there are no pending rewards, skip swapping logic.
             if (rewardAmount > 0) {
-                // Take protocol fee for veCVE lockers and auto
-                // compounding bot.
-                uint256 protocolFee = FixedPointMathLib.mulDivUp(
+                // Take protocol fee for token lockers and strategy bot.
+                rewardAmount = _applyFee(
                     rewardAmount,
-                    centralRegistry.protocolHarvestFee(),
-                    1e18
-                );
-                rewardAmount -= protocolFee;
-                SafeTransferLib.safeTransfer(
                     address(WETH),
-                    centralRegistry.feeManager(),
-                    protocolFee
+                    centralRegistry.protocolHarvestFee(),
+                    centralRegistry.feeManager()
                 );
 
                 SwapperLib.Swap memory swapData = abi.decode(

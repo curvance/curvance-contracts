@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
 import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+
+import { IExternalCalldataChecker } from "contracts/interfaces/IExternalCalldataChecker.sol";
 
 abstract contract BaseSwapChecker is
     IExternalCalldataChecker,

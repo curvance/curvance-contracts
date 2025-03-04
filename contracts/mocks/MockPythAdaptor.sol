@@ -6,7 +6,7 @@ import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 
 contract MockPythAdaptor is PythAdaptor {
     bool skipHeartBeatCheck = true;
-
+    
     constructor(
         ICentralRegistry centralRegistry_,
         address universalBalance_,

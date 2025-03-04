@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { PendleLib } from "contracts/libraries/PendleLib.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
-import { BaseSwapChecker, SwapperLib } from "./BaseSwapChecker.sol";
+import { BaseSwapChecker } from "./BaseSwapChecker.sol";
+import { PendleLib } from "contracts/libraries/PendleLib.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
 contract PendleZapperCalldataChecker is BaseSwapChecker {
     /// CONSTRUCTOR ///

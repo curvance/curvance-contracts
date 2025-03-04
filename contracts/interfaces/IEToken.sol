@@ -4,9 +4,13 @@ pragma solidity ^0.8.19;
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IMToken } from "./IMToken.sol";
 import { IPositionManagement } from "./IPositionManagement.sol";
+
 interface IEToken is IMToken {
     /// @notice Address of the current Interest Rate Model.
     function interestRateModel() external view returns (IInterestRateModel);
+
+    /// @notice Interest rate reserve factor.
+    function interestFactor() external view returns (uint256);
 
     /// @notice Applies pending interest to all holders, updating
     ///         `totalBorrows` and `totalReserves`.
@@ -15,6 +19,35 @@ interface IEToken is IMToken {
     ///      seconds has passed.
     ///      Emits a {InterestAccrued} event.
     function accrueInterest() external;
+
+    /// @notice Returns the amount of underlying that would be exchanged
+    ///         by the vault for `tokens` provided.
+    /// @param tokens The number of tokens to theoretically use
+    ///               for conversion to underlying.
+    /// @return The number of underlying a user would receive for converting
+    ///         `tokens`.
+    function convertToAssets(uint256 tokens) external view returns (uint256);
+
+    /// @notice Gets balance of this contract, in terms of the underlying.
+    /// @dev This excludes changes in underlying token balance by the
+    ///      current transaction, if any.
+    /// @return The quantity of underlying tokens held by the market.
+    function marketUnderlyingHeld() external view returns (uint256);
+
+    /// @notice Returns total amount of outstanding borrows of the
+    ///         underlying in this eToken market.
+    function totalBorrows() external view returns (uint256);
+
+    /// @notice Total protocol reserves of underlying.
+    function totalReserves() external view returns (uint256);
+
+    /// @notice Returns the current debt balance for `account`.
+    /// @dev Note: Pending interest is not applied in this calculation.
+    /// @param account The address whose balance should be calculated.
+    /// @return The current balance index of `account`.
+    function debtBalanceCached(
+        address account
+    ) external view returns (uint256);
 
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the eToken.
@@ -105,37 +138,4 @@ interface IEToken is IMToken {
     ///      withdrawn first. Updates pending interest before executing
     ///      the reserve withdrawal.
     function processWithdrawReserves() external;
-
-    /// @notice Returns total amount of outstanding borrows of the
-    ///         underlying in this eToken market.
-    function totalBorrows() external view returns (uint256);
-
-    /// @notice Returns the current debt balance for `account`.
-    /// @dev Note: Pending interest is not applied in this calculation.
-    /// @param account The address whose balance should be calculated.
-    /// @return The current balance index of `account`.
-    function debtBalanceCached(
-        address account
-    ) external view returns (uint256);
-
-    /// @notice Calculates the current eToken utilization rate.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The utilization rate, in `WAD`.
-    function utilizationRate() external view returns (uint256);
-
-    /// @notice Returns the current eToken borrow interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The borrow interest rate per year, in `WAD`.
-    function borrowRatePerYear() external view returns (uint256);
-
-    /// @notice Returns predicted upcoming eToken borrow interest rate
-    ///         per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The predicted borrow interest rate per year, in `WAD`.
-    function predictedBorrowRatePerYear() external view returns (uint256);
-
-    /// @notice Returns the current eToken supply interest rate per year.
-    /// @dev Used for third party integrations, and frontends.
-    /// @return The supply interest rate per year, in `WAD`.
-    function supplyRatePerYear() external view returns (uint256);
 }

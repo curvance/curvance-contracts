@@ -4,12 +4,18 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 contract LiquidateAccountTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
         _prepareLiquidation();
+    }
+
+    function test_liquidateAccount_fail_whenLiquidationIsPaused() public {
+        marketManager.setLiquidationPaused(true);
+
+        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        marketManager.liquidateAccount(user1);
     }
 
     function test_liquidateAccount_fail_whenCallerIsAccount() public {

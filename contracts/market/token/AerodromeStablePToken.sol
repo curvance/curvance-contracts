@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { VelodromeStablePToken, ICentralRegistry, IERC20, IVeloGauge, IVeloPairFactory, IVeloRouter } from "contracts/market/token/VelodromeStablePToken.sol";
+import { VelodromeStablePToken } from "contracts/market/token/VelodromeStablePToken.sol";
+
+import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
+import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
+import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract AerodromeStablePToken is VelodromeStablePToken {
     /// CONSTRUCTOR ///

@@ -3,14 +3,14 @@ pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 
 contract CompoundingPTokenMintTest is TestBaseCompoundingPToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_compoundingPTokenMint_fail_whenTransferZeroAmount() public {
         vm.expectRevert(
-            CompoundingPToken.CompoundingPToken__ZeroShares.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETH.mint(0, address(this));
     }

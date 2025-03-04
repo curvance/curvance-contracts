@@ -2,14 +2,14 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract ETokenMintForTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     function test_eTokenMintFor_fail_whenTransferZeroAmount() public {
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(EToken.EToken__EmptyAction.selector);
         eUSDC.mintFor(0, user1);
     }
 

@@ -473,4 +473,57 @@ contract TestVotingHub is TestBaseVotingHub {
         assertEq(totalWeights, _ONE * 3);
         assertEq(poolWeight, _ONE * 3);
     }
+
+    function test_executeEmissionConfiguration_remintForPreviousEpoch_fail()
+        public
+    {
+        gasLimit.push(250_000);
+
+        _emissionData.tokens = new address[](1);
+        _emissionData.emissions = new uint256[](1);
+
+        _emissionData.tokens[0] = _USDC_ADDRESSES[42161];
+        _remoteEmissionData.push(_emissionData);
+
+        _emissionData.emissionTotal = _ONE;
+        _emissionData.emissions[0] = _ONE;
+        _emissionData.tokens[0] = _USDC_ADDRESS;
+
+        _skipEpochDuration(1);
+
+        centralRegistry.setEraTargetEmissions(_ONE * 3);
+
+        PerChainData[] memory perChainData = new PerChainData[](1);
+        perChainData[0] = PerChainData(
+            23,
+            block.number,
+            uint64(block.timestamp * 1000000),
+            address(votingHubs[42161]),
+            abi.encode(0)
+        );
+
+        _prepareResponseAndSignatures(
+            perChainData,
+            abi.encodeWithSignature("queryEmissionsAllocated()")
+        );
+
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+
+        skip(votingHub.epochDuration());
+
+        vm.expectRevert(bytes4(keccak256("StaleBlockTime()")));
+        votingHub.executeEmissionConfiguration(
+            response,
+            signatures,
+            gasLimit,
+            _emissionData,
+            _remoteEmissionData
+        );
+    }
 }

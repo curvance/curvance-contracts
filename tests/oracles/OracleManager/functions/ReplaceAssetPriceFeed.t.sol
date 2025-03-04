@@ -26,7 +26,7 @@ contract ReplaceAssetPriceFeedTest is TestBaseOracleManager {
         _addSinglePriceFeed();
 
         vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
+            OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
         oracleManager.replaceAssetPriceFeed(
             _USDC_ADDRESS,

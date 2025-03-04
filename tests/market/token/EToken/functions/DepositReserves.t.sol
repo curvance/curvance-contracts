@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 
 contract ETokenDepositReservesTest is TestBaseEToken {
@@ -14,7 +13,7 @@ contract ETokenDepositReservesTest is TestBaseEToken {
     }
 
     function test_eTokenDepositReserves_fail_whenAmountIsZero() public {
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(EToken.EToken__EmptyAction.selector);
         eUSDC.depositReserves(0);
     }
 

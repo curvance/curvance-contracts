@@ -248,8 +248,9 @@ library VelodromeLib {
 
         // sAMM deposit calculation.
         if (stable) {
-            a = (((amount0 * DENOMINATOR) / (DENOMINATOR - swapFee)
-            ) * WAD) / decimals0;
+            a =
+                (((amount0 * DENOMINATOR) / (DENOMINATOR - swapFee)) * WAD) /
+                decimals0;
 
             uint256 x = (reserve0 * WAD) / decimals0;
             uint256 y = (reserve1 * WAD) / decimals1;

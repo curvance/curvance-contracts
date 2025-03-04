@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
-import { OracleManager, IOracleAdaptor } from "contracts/oracles/OracleManager.sol";
-
+import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { BaseMulticallChecker } from "./BaseMulticallChecker.sol";
+
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IOracleAdaptor } from "contracts/interfaces/IOracleAdaptor.sol";
 
 contract RedstoneAdaptorMulticallChecker is BaseMulticallChecker {
     /// CONSTRUCTOR ///

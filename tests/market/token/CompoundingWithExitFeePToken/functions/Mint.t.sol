@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
-import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 
 contract CompoundingWithExitFeePTokenMintTest is
     TestBaseCompoundingWithExitFeePToken
@@ -14,7 +14,7 @@ contract CompoundingWithExitFeePTokenMintTest is
         public
     {
         vm.expectRevert(
-            CompoundingPToken.CompoundingPToken__ZeroShares.selector
+            BasePToken.BasePToken__EmptyAction.selector
         );
         pBALRETHWithExitFee.mint(0, address(this));
     }

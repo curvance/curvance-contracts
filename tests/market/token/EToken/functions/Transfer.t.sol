@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
@@ -15,15 +14,16 @@ contract ETokenTransferTest is TestBaseEToken {
     }
 
     function test_eTokenTransfer_fail_whenTransferZeroAmount() public {
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(EToken.EToken__EmptyAction.selector);
         eUSDC.transfer(user1, 0);
     }
 
     function test_eTokenTransfer_fail_whenTransferIsNotAllowed() public {
+        deal(address(eUSDC), address(this), 100e6);
         marketManager.setTransferPaused(true);
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        eUSDC.transfer(user1, 0);
+        eUSDC.transfer(user1, 10e6);
     }
 
     function test_eTokenTransfer_success() public {

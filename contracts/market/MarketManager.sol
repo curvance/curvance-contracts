@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { LiquidityManager, IOracleManager, IMToken, FixedPointMathLib } from "contracts/market/LiquidityManager.sol";
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -11,6 +12,8 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { ILockableRegistry } from "contracts/interfaces/ILockableRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
@@ -135,6 +138,9 @@ contract MarketManager is
     mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
+    /// @notice Whether liquidations are paused.
+    /// @dev 1 = unpaused; 2 = paused.
+    uint256 public liquidationPaused = 1;
     /// @notice Whether mToken transfers are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public transferPaused = 1;
@@ -305,7 +311,7 @@ contract MarketManager is
     ///                 1e18 (WAD) indicating a hard liquidation.
     /// @return earnTokenPrice Current price for `earnToken`.
     /// @return positionTokenPrice Current price for `positionToken`.
-    function LiquidationStatusOf(
+    function liquidationStatusOf(
         address account,
         address earnToken,
         address positionToken
@@ -535,16 +541,7 @@ contract MarketManager is
     ) external {
         _checkIsToken(eToken);
 
-        (
-            uint256 positionClosureNeeded,
-            bool[] memory positionsToClose
-        ) = _canBorrow(eToken, account, amount);
-
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            account,
-            positionsToClose
-        );
+        _canBorrow(eToken, account, amount);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -562,16 +559,7 @@ contract MarketManager is
         _checkIsToken(eToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
 
-        (
-            uint256 positionClosureNeeded,
-            bool[] memory positionsToClose
-        ) = _canBorrow(eToken, account, amount);
-
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            account,
-            positionsToClose
-        );
+        _canBorrow(eToken, account, amount);
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -592,15 +580,7 @@ contract MarketManager is
     function canRepay(address mToken, address account) external view {
         _checkIsListedToken(mToken);
 
-        // We require a `minimumHoldPeriod` to break flashloan
-        // and multi-block price manipulations if the dynamic dual oracle
-        // fails to protect the market somehow.
-        if (
-            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-            block.timestamp
-        ) {
-            revert MarketManager__MinimumHoldPeriod();
-        }
+        _checkHoldPeriod(account);
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
@@ -696,11 +676,13 @@ contract MarketManager is
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-        
+
         _checkIsListedToken(pToken);
         _checkIsListedToken(eToken);
 
-        if (IMToken(pToken).marketManager() != IMToken(eToken).marketManager()) {
+        if (
+            IMToken(pToken).marketManager() != IMToken(eToken).marketManager()
+        ) {
             revert MarketManager__MarketManagerMismatch();
         }
     }
@@ -802,6 +784,10 @@ contract MarketManager is
     ///      Emits a {CollateralRemoved} event.
     /// @param account The address to liquidate completely.
     function liquidateAccount(address account) external {
+        if (liquidationPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
         // Validate that the OEV queue is disabled or the liquidator is valid
         _validateLiquidation(msg.sender, account, false);
 
@@ -871,8 +857,7 @@ contract MarketManager is
                 }
 
                 // Make sure this pToken is actually being used as collateral.
-                // Usually we would lean on gauge pool amount == 0 check,
-                // but this would cause a user to be immune to bad debt
+                // Without this check a user would be immune to bad debt
                 // liquidation.
                 if (collateral > 0) {
                     // Remove `account` posted collateral,
@@ -1118,9 +1103,7 @@ contract MarketManager is
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkDaoPermissions();
 
         uint256 numTokens = pTokens.length;
 
@@ -1150,6 +1133,17 @@ contract MarketManager is
             collateralCaps[pTokens[i]] = newCollateralCaps[i];
             emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
         }
+    }
+
+    /// @notice Admin function to set market-wide liquidation status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits an {ActionPaused} event.
+    /// @param state Whether the desired action is pausing or unpausing.
+    function setLiquidationPaused(bool state) external {
+        _checkAuthorizedPermissions(state);
+
+        liquidationPaused = state ? 2 : 1;
+        emit ActionPaused("Liquidation Paused", state);
     }
 
     /// @notice Admin function to set market token mint status.
@@ -1305,7 +1299,8 @@ contract MarketManager is
 
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
-    /// @dev Emits {CollateralPosted} and, potentially, {TokenPositionCreated} events.
+    /// @dev Emits {CollateralPosted} and, potentially,
+    ///      {TokenPositionCreated} events.
     /// @param account The account posting collateral.
     /// @param accountPositions Cached account metadata of `account.`
     /// @param pToken The address of the pToken to post collateral for.
@@ -1375,7 +1370,7 @@ contract MarketManager is
         address eToken,
         address account,
         uint256 amount
-    ) internal returns (uint256, bool[] memory) {
+    ) internal {
         if (borrowPaused[eToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -1414,7 +1409,11 @@ contract MarketManager is
             revert MarketManager__InsufficientCollateral();
         }
 
-        return (result.positionClosureNeeded, positionsToClose);
+        _closePositionsIfNeeded(
+            result.positionClosureNeeded,
+            account,
+            positionsToClose
+        );
     }
 
     /// @notice Helper function for checking if the account should be allowed
@@ -1431,7 +1430,7 @@ contract MarketManager is
         if (redeemPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-        
+
         _checkIsListedToken(mToken);
 
         if (
@@ -1442,15 +1441,7 @@ contract MarketManager is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        // We require a `minimumHoldPeriod` to break flashloan
-        // and multi-block price manipulations if the dynamic dual oracle
-        // fails to protect the market somehow.
-        if (
-            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-            block.timestamp
-        ) {
-            revert MarketManager__MinimumHoldPeriod();
-        }
+        _checkHoldPeriod(account);
 
         // If the account does not have an active position in the token,
         // then we can bypass the liquidity check.
@@ -1544,24 +1535,12 @@ contract MarketManager is
                 _revert(_UNAUTHORIZED_SELECTOR);
             }
 
-            // We require a `minimumHoldPeriod` to break flashloan
-            // and multi-block price manipulations if the dynamic dual oracle
-            // fails to protect the market somehow.
-            if (
-                accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
-                block.timestamp
-            ) {
-                revert MarketManager__MinimumHoldPeriod();
-            }
+            _checkHoldPeriod(account);
         }
     }
 
     /// @notice Helper function for checking if the liquidation should be
     ///         allowed to occur.
-    /// @dev Typically we would check for debtAmount > 0 in a liquidateExact
-    ///      scenario, but the gauge pool checks for amount == 0 on
-    ///      deposit/withdrawal, so that will naturally fail even without a
-    ///      preconditional check here.
     /// @param earnToken Asset which was borrowed by the borrower.
     /// @param positionToken Asset which was used as collateral and will
     ///                        be seized.
@@ -1781,7 +1760,21 @@ contract MarketManager is
         return (reductionAmount, accountPositions);
     }
 
-    /// @notice Check whether token is listed.
+    /// @notice Check whether the hold period is met.
+    /// @param account The account to check the hold period for.
+    function _checkHoldPeriod(address account) internal view {
+        // We require a `minimumHoldPeriod` to break flashloan
+        // and multi-block price manipulations if the dynamic dual oracle
+        // fails to protect the market somehow.
+        if (
+            accountAssets[account].cooldownTimestamp + MIN_HOLD_PERIOD >
+            block.timestamp
+        ) {
+            revert MarketManager__MinimumHoldPeriod();
+        }
+    }
+
+    /// @notice Checks whether `token` is listed in this Market Manager.
     /// @param token The token to check whether it's listed or not.
     function _checkIsListedToken(address token) internal view {
         if (!tokenData[token].isListed) {
@@ -1804,6 +1797,13 @@ contract MarketManager is
         return value * 1e14;
     }
 
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissions.
     function _checkElevatedPermissions() internal view {
         if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
@@ -1816,21 +1816,11 @@ contract MarketManager is
     /// so `state` = true has reduced permissioning compared to `state` = false.
     function _checkAuthorizedPermissions(bool state) internal view {
         if (state) {
-            if (!centralRegistry.hasDaoPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-        } else {
-            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
+            _checkDaoPermissions();
+            return;
         }
-    }
 
-    /// @dev Checks whether `mToken` is listed in this Market Manager.
-    function _checkIsListed(address mToken) internal view {
-        if (!tokenData[mToken].isListed) {
-            _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
+        _checkElevatedPermissions();
     }
 
     /// @dev Checks whether the caller is the desired mToken contract.
@@ -1847,7 +1837,7 @@ contract MarketManager is
     }
 
     /// @notice Checks whether OEV is enabled or not.
-    function _checkAtlasOevAllowed() internal view override returns (bool){
+    function _checkAtlasOevAllowed() internal view override returns (bool) {
         return centralRegistry.atlasOevAllowed();
     }
 

@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { VelodromeLib } from "contracts/libraries/VelodromeLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPair } from "contracts/interfaces/external/velodrome/IVeloPair.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract VelodromeStablePToken is CompoundingPToken {
     /// TYPES ///
@@ -163,18 +166,12 @@ contract VelodromeStablePToken is CompoundingPToken {
                 );
                 // If there are no pending rewards, skip swapping logic.
                 if (rewardAmount > 0) {
-                    // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
-                    uint256 protocolFee = FixedPointMathLib.mulDivUp(
+                    // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
                         rewardAmount,
-                        centralRegistry.protocolHarvestFee(),
-                        1e18
-                    );
-                    rewardAmount -= protocolFee;
-                    SafeTransferLib.safeTransfer(
                         rewardToken,
-                        centralRegistry.feeManager(),
-                        protocolFee
+                        centralRegistry.protocolHarvestFee(),
+                        centralRegistry.feeManager()
                     );
 
                     // Swap from VELO to underlying tokens, if necessary.
@@ -187,8 +184,9 @@ contract VelodromeStablePToken is CompoundingPToken {
                         if (
                             !isApprovedAsset[swapData.inputToken] ||
                             swapData.outputToken != sd.token0
-                            ) {
-                            // this will be the same check: `swapData.inputToken != rewardToken`
+                        ) {
+                            // This also implicitly checks:
+                            // `swapData.inputToken != rewardToken`.
                             revert CompoundingPToken__UnapprovedAssetSwap();
                         }
 

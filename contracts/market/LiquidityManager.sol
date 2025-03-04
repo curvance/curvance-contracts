@@ -588,46 +588,44 @@ abstract contract LiquidityManager {
         ) = _assetDataOf(account, 2);
         uint256[] memory assetBalances = new uint256[](numAssets);
 
-        {
-            AccountSnapshot memory snapshot;
-            uint256 posted;
+        AccountSnapshot memory snapshot;
+        uint256 posted;
 
-            for (uint256 i; i < numAssets; ++i) {
-                snapshot = snapshots[i];
+        for (uint256 i; i < numAssets; ++i) {
+            snapshot = snapshots[i];
 
-                if (snapshot.isPToken) {
-                    // If the pToken has a Collateralization Ratio,
-                    // increment their collateral and debt to pay.
-                    if (tokenData[snapshot.asset].collRatio != 0) {
-                        // Cache collateral posted.
-                        posted = tokenData[snapshot.asset]
-                            .accountPositions[account]
-                            .collateralPosted;
+            if (snapshot.isPToken) {
+                // If the pToken has a Collateralization Ratio,
+                // increment their collateral and debt to pay.
+                if (tokenData[snapshot.asset].collRatio != 0) {
+                    // Cache collateral posted.
+                    posted = tokenData[snapshot.asset]
+                        .accountPositions[account]
+                        .collateralPosted;
 
-                        assetBalances[i] = posted;
-                        uint256 collateralValue = _assetValue(
-                            ((posted * snapshot.exchangeRate) / WAD),
-                            underlyingPrices[i],
-                            snapshot.decimals,
-                            true
-                        );
-                        result.collateral += collateralValue;
-                        result.debtToPay +=
-                            (collateralValue * WAD) /
-                            tokenData[snapshot.asset].liqBaseIncentive;
-                    }
-                } else {
-                    // If they have a debt balance, increment their debt.
-                    uint256 currentDebtBalance = snapshot.debtBalance;
-                    if (currentDebtBalance > 0) {
-                        assetBalances[i] = currentDebtBalance;
-                        result.debt += _assetValue(
-                            currentDebtBalance,
-                            underlyingPrices[i],
-                            snapshot.decimals,
-                            false
-                        );
-                    }
+                    assetBalances[i] = posted;
+                    uint256 collateralValue = _assetValue(
+                        ((posted * snapshot.exchangeRate) / WAD),
+                        underlyingPrices[i],
+                        snapshot.decimals,
+                        true
+                    );
+                    result.collateral += collateralValue;
+                    result.debtToPay +=
+                        (collateralValue * WAD) /
+                        tokenData[snapshot.asset].liqBaseIncentive;
+                }
+            } else {
+                // If they have a debt balance, increment their debt.
+                uint256 currentDebtBalance = snapshot.debtBalance;
+                if (currentDebtBalance > 0) {
+                    assetBalances[i] = currentDebtBalance;
+                    result.debt += _assetValue(
+                        currentDebtBalance,
+                        underlyingPrices[i],
+                        snapshot.decimals,
+                        false
+                    );
                 }
             }
         }

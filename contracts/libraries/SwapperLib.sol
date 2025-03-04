@@ -107,39 +107,17 @@ library SwapperLib {
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
         );
-        (uint256 inputTokenPrice, uint256 errorCode) = oracleManager.getPrice(
+
+        uint256 inputValue = _getTokenValue(
+            oracleManager,
             swapData.inputToken,
-            true,
-            true
+            swapData.inputAmount
         );
-        if (errorCode != NO_ERROR) {
-            revert SwapperLib__TokenPrice(swapData.inputToken);
-        }
-
-        uint256 outputTokenPrice;
-        (outputTokenPrice, errorCode) = oracleManager.getPrice(
+        uint256 outputValue = _getTokenValue(
+            oracleManager,
             swapData.outputToken,
-            true,
-            true
+            outAmount
         );
-        if (errorCode != NO_ERROR) {
-            revert SwapperLib__TokenPrice(swapData.outputToken);
-        }
-
-        uint256 inputValue = (inputTokenPrice * swapData.inputAmount) /
-            (10 **
-                (
-                    CommonLib.isETH(swapData.inputToken)
-                        ? 18
-                        : IERC20(swapData.inputToken).decimals()
-                ));
-        uint256 outputValue = (outputTokenPrice * outAmount) /
-            (10 **
-                (
-                    CommonLib.isETH(swapData.outputToken)
-                        ? 18
-                        : IERC20(swapData.outputToken).decimals()
-                ));
 
         // Check if swap received positive slippage.
         if (outputValue > inputValue) {
@@ -154,6 +132,30 @@ library SwapperLib {
         ) {
             revert SwapperLib__Slippage(slippage);
         }
+    }
+
+    /// @notice Get the value of a token amount.
+    /// @notice Approves `token` spending allowance, if needed.
+    /// @param token The token address.
+    /// @param amount The amount.
+    function _getTokenValue(
+        IOracleManager oracleManager,
+        address token,
+        uint256 amount
+    ) internal view returns (uint256) {
+        (uint256 price, uint256 errorCode) = oracleManager.getPrice(
+            token,
+            true,
+            true
+        );
+        if (errorCode != NO_ERROR) {
+            revert SwapperLib__TokenPrice(token);
+        }
+
+        uint256 value = (price * amount) /
+            (10 ** (CommonLib.isETH(token) ? 18 : IERC20(token).decimals()));
+
+        return value;
     }
 
     /// @notice Approves `token` spending allowance, if needed.

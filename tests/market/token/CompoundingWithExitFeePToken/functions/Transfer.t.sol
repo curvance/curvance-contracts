@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CompoundingWithExitFeePTokenTransferTest is
@@ -19,7 +19,7 @@ contract CompoundingWithExitFeePTokenTransferTest is
     function test_compoundingWithExitFeePTokenTransfer_fail_whenTransferZeroAmount()
         public
     {
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(BasePToken.BasePToken__EmptyAction.selector);
         pBALRETHWithExitFee.transfer(user1, 0);
     }
 

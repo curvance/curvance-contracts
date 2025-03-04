@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 
@@ -10,6 +10,8 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IPPrincipalToken } from "contracts/interfaces/external/pendle/IPPrincipalToken.sol";
 import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 contract PendleLPPToken is CompoundingPToken {
     /// TYPES ///
@@ -157,11 +159,10 @@ contract PendleLPPToken is CompoundingPToken {
                 uint256 numRewardTokens = sd.rewardTokens.length;
                 address rewardToken;
                 uint256 rewardAmount;
-                uint256 protocolFee;
                 // Cache DAO Central Registry values to minimize runtime
                 // gas costs.
                 address feeManager = centralRegistry.feeManager();
-                uint256 harvestFee = centralRegistry.protocolHarvestFee();
+                uint256 feePct = centralRegistry.protocolHarvestFee();
 
                 for (uint256 i; i < numRewardTokens; ++i) {
                     rewardToken = sd.rewardTokens[i];
@@ -175,18 +176,12 @@ contract PendleLPPToken is CompoundingPToken {
                         continue;
                     }
 
-                    // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDivUp(
+                    // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
                         rewardAmount,
-                        harvestFee,
-                        1e18
-                    );
-                    rewardAmount -= protocolFee;
-                    SafeTransferLib.safeTransfer(
                         rewardToken,
-                        feeManager,
-                        protocolFee
+                        feePct,
+                        feeManager
                     );
                 }
             }
@@ -197,7 +192,7 @@ contract PendleLPPToken is CompoundingPToken {
                     if (
                         !isApprovedAsset[swapDataArray[i].inputToken] ||
                         !isUnderlyingToken[swapDataArray[i].outputToken]
-                        ) {
+                    ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
@@ -277,12 +272,13 @@ contract PendleLPPToken is CompoundingPToken {
         // Query and populate reward token data fields.
 
         // Query Reward tokens from lp contract.
-        strategyData.rewardTokens = strategyData.lp.getRewardTokens();
-        uint256 numTokens = strategyData.rewardTokens.length;
+        address[] memory currentTokens = strategyData.lp.getRewardTokens();
+        strategyData.rewardTokens = currentTokens;
+        uint256 numTokens = currentTokens.length;
 
         // Approve reward tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            address rewardToken = strategyData.rewardTokens[i++];
+            address rewardToken = currentTokens[i++];
             if (rewardToken != asset()) {
                 isApprovedAsset[rewardToken] = true;
             }
@@ -291,11 +287,12 @@ contract PendleLPPToken is CompoundingPToken {
         // Query and populate underlying token data fields.
 
         // Query LPs underlying tokens from the standardized yield contract.
-        strategyData.underlyingTokens = strategyData.sy.getTokensIn();
-        numTokens = strategyData.underlyingTokens.length;
+        currentTokens = strategyData.sy.getTokensIn();
+        strategyData.underlyingTokens = currentTokens;
+        numTokens = currentTokens.length;
 
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[strategyData.underlyingTokens[i++]] = true;
+            isUnderlyingToken[currentTokens[i++]] = true;
         }
     }
 }

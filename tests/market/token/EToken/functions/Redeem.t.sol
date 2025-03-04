@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
+import { EToken } from "contracts/market/token/EToken.sol";
 
 contract ETokenRedeemTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -17,7 +17,7 @@ contract ETokenRedeemTest is TestBaseEToken {
     function test_eTokenRedeem_fail_whenAmountIsZero() public {
         eUSDC.mint(100e6);
 
-        vm.expectRevert(GaugeManager.GaugeManager__InvalidAmount.selector);
+        vm.expectRevert(EToken.EToken__EmptyAction.selector);
         eUSDC.redeem(0, address(this));
     }
 

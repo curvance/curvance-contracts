@@ -2,16 +2,21 @@
 pragma solidity ^0.8.19;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { VelodromeStablePToken, FixedPointMathLib, IVeloGauge, IVeloRouter, IVeloPairFactory, IERC20 } from "contracts/market/token/VelodromeStablePToken.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { VelodromeStablePToken } from "contracts/market/token/VelodromeStablePToken.sol";
 import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeStableLPAdaptor.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { PositionManagementVelodrome } from "contracts/market/position-management/PositionManagementVelodrome.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
+import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
+import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
 contract TestPositionManagementVelodromeStable is TestBaseMarket {
     address internal _VELODROME_DAI_USDC =

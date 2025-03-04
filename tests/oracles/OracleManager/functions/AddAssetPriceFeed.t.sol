@@ -17,7 +17,7 @@ contract AddAssetPriceFeedTest is TestBaseOracleManager {
 
     function test_addAssetPriceFeed_fail_whenAdaptorIsNotApproved() public {
         vm.expectRevert(
-            OracleManager.OracleManager__InvalidParameter.selector
+            OracleManager.OracleManager__AdaptorIsNotApproved.selector
         );
         oracleManager.addAssetPriceFeed(
             _USDC_ADDRESS,

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import { CompoundingPToken, FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
+import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
@@ -11,6 +12,8 @@ import { IRewards } from "contracts/interfaces/external/convex/IRewards.sol";
 import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancerVault.sol";
 import { IBalancerPool } from "contracts/interfaces/external/balancer/IBalancerPool.sol";
 import { IStashWrapper } from "contracts/interfaces/external/aura/IStashWrapper.sol";
+import { IERC20 } from "contracts/interfaces/IERC20.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract AuraPToken is CompoundingPToken {
     /// TYPES ///
@@ -178,11 +181,10 @@ contract AuraPToken is CompoundingPToken {
                 uint256 numRewardTokens = sd.rewardTokens.length;
                 address rewardToken;
                 uint256 rewardAmount;
-                uint256 protocolFee;
                 // Cache DAO Central Registry values to minimize runtime
                 // gas costs.
                 address feeManager = centralRegistry.feeManager();
-                uint256 harvestFee = centralRegistry.protocolHarvestFee();
+                uint256 feePct = centralRegistry.protocolHarvestFee();
 
                 for (uint256 i; i < numRewardTokens; ++i) {
                     rewardToken = sd.rewardTokens[i];
@@ -196,18 +198,12 @@ contract AuraPToken is CompoundingPToken {
                         continue;
                     }
 
-                    // Take protocol fee for veCVE lockers and auto
-                    // compounding bot.
-                    protocolFee = FixedPointMathLib.mulDivUp(
+                    // Take protocol fee for token lockers and strategy bot.
+                    rewardAmount = _applyFee(
                         rewardAmount,
-                        harvestFee,
-                        1e18
-                    );
-                    rewardAmount -= protocolFee;
-                    SafeTransferLib.safeTransfer(
                         rewardToken,
-                        feeManager,
-                        protocolFee
+                        feePct,
+                        feeManager
                     );
                 }
             }
@@ -220,7 +216,7 @@ contract AuraPToken is CompoundingPToken {
                     if (
                         !isApprovedAsset[swapDataArray[i].inputToken] ||
                         !isUnderlyingToken[swapDataArray[i].outputToken]
-                        ) {
+                    ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
