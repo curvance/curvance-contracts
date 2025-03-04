@@ -118,6 +118,7 @@ contract TestVariables {
     MockV3Aggregator public chainlinkDaiEth;
 
     address[] public redstoneSigners;
+    bytes32[] public redstoneSignerKeys;
 
     MockToken public rewardToken;
     GaugeManager public gaugeManager;

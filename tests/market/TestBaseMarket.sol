@@ -529,6 +529,19 @@ contract TestBaseMarket is TestBase {
         redstoneSigners.push(0x47fCB422783DC56BC61FaeFC48DC2287F6Bce8A5);
         redstoneSigners.push(0x53C875cB2f8Bfab574FD91047B5893F5ACcC9381);
         redstoneSigners.push(0xfb5009a8573762f98E9E99304195197a6f188de1);
+
+        redstoneSignerKeys.push(
+            0x56938289786ae24fdb687a2a740e755d6ed7e72a1f82f8f9c3ed6eac5b38ba23
+        );
+        redstoneSignerKeys.push(
+            0x4022f8e215d01e76d90987d7f56a09513fe76f97add10db250215bdbfab3e9c1
+        );
+        redstoneSignerKeys.push(
+            0x00b2ff109fc6421974dff44f7e2f95a0ebbba51acb43b6975b77615c6cba12b2
+        );
+        redstoneSignerKeys.push(
+            0x7058697b9c2cd9dc583f9c44577ba4867e4b0c3fa5924a34db983c7b031266b4
+        );
     }
 
     function _prepareWETH(
