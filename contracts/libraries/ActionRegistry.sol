@@ -167,7 +167,7 @@ abstract contract ActionRegistry {
         // by calling this function, it helps to validate for human error.
         if (transferDisabled == userConfig.transferDisabled) {
             // revert with ActionRegistry__InvalidParams()
-            _revert(0x5c82b22a);
+            _revert(0x51b33a31);
         }
 
         uint256 enableTimestamp;
@@ -176,13 +176,9 @@ abstract contract ActionRegistry {
         // add their cooldown period, an added layer against phishing
         // attempts.
         if (!transferDisabled) {
-            // Validate the user did not recently reduce their cooldown,
-            // triggering their transfer cooldown.
-            if (userConfig.transferEnabledTimestamp > block.timestamp) {
-                // revert with ActionRegistry__InvalidParams()
-                _revert(0x5c82b22a);
-            }
-            enableTimestamp = userConfig.lockCooldown + block.timestamp;
+            enableTimestamp = _calculateActionEnableTimestamp(
+                userConfig.transferEnabledTimestamp
+            );
             userConfig.transferEnabledTimestamp = uint40(enableTimestamp);
         }
 
@@ -218,7 +214,7 @@ abstract contract ActionRegistry {
         // by calling this function, it helps to validate for human error.
         if (delegationDisabled == userConfig.delegationDisabled) {
             // revert with ActionRegistry__InvalidParams()
-            _revert(0x5c82b22a);
+            _revert(0x51b33a31);
         }
 
         uint256 enableTimestamp;
@@ -227,16 +223,9 @@ abstract contract ActionRegistry {
         // add their cooldown period, an added layer against phishing
         // attempts.
         if (!delegationDisabled) {
-            // Validate the user did not recently reduce their cooldown,
-            // triggering their transfer cooldown.
-            if (userConfig.delegationEnabledTimestamp > block.timestamp) {
-                // revert with ActionRegistry__InvalidParams()
-                _revert(0x5c82b22a);
-            }
-
-            enableTimestamp =
-                _userConfig[msg.sender].lockCooldown +
-                block.timestamp;
+            enableTimestamp = _calculateActionEnableTimestamp(
+                userConfig.delegationEnabledTimestamp
+            );
             userConfig.delegationEnabledTimestamp = uint40(enableTimestamp);
         }
 
@@ -250,6 +239,23 @@ abstract contract ActionRegistry {
     }
 
     /// INTERNAL FUNCTIONS ///
+
+    /// @dev Checks that action timestamp was not recently updated and
+    ///      calculates the timestamp that the desired action will be
+    ///      enabled.
+    function _calculateActionEnableTimestamp(
+        uint256 enabledTimestamp
+    ) internal view returns (uint256) {
+        // Validate the user did not recently reduce their action cooldown
+        // period, triggering their action cooldown.
+        if (enabledTimestamp > block.timestamp) {
+            // revert with ActionRegistry__InvalidParams()
+            _revert(0x51b33a31);
+        }
+
+        return (_userConfig[msg.sender].lockCooldown + block.timestamp);
+    }
+
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
