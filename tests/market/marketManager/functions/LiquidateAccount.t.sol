@@ -230,7 +230,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         vm.prank(user3, user3);
         marketManager.queueAccountLiquidation(user1);
 
-        skip(2);
+        skip(3);
 
         vm.startPrank(user2, user2);
 
@@ -267,7 +267,7 @@ contract LiquidateAccountTest is TestBaseMarketManager {
         );
         marketManager.liquidateAccount(user1);
 
-        skip(1);
+        skip(2);
 
         marketManager.liquidateAccount(user1);
 

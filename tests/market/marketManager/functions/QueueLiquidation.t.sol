@@ -156,7 +156,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
             .regularQueue(queueKey);
 
         assertEq(priorityStartline, block.timestamp + 1);
-        assertEq(regularStartline, block.timestamp + 2);
+        assertEq(regularStartline, block.timestamp + 3);
         assertEq(endLine, block.timestamp + 30);
         assertEq(nonce, 1);
         assertEq(
@@ -185,7 +185,7 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManager {
             .regularQueue(queueKey);
 
         assertEq(priorityStartline, block.timestamp + 1);
-        assertEq(regularStartline, block.timestamp + 2);
+        assertEq(regularStartline, block.timestamp + 3);
         assertEq(endLine, block.timestamp + 30);
         assertEq(nonce, 2);
         assertEq(

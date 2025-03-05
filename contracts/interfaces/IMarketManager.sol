@@ -217,6 +217,15 @@ interface IMarketManager {
     ///         `sequencingActive`.
     function setSequencingStatus(bool sequencingActive) external;
 
+    /// @notice Updates regular duration. 
+    function setRegularDuration(uint256 _duration) external;
+
+    /// @notice Updates priority duration. 
+    function setPriorityDuration(uint256 _duration) external;
+
+    /// @notice Updates end duration. 
+    function setEndDuration(uint256 _duration) external;
+
     /// @notice Locks Atlas OEV liquidations
     /// @dev This function must be called by an authorized Atlas DApp Control
     function lockAtlasOev() external;

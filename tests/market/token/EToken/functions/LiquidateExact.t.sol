@@ -122,7 +122,7 @@ contract LiquidateExactTest is TestBaseEToken {
         vm.prank(user3, user3);
         eUSDC.queueLiquidation(user1, address(pBALRETH));
 
-        skip(2);
+        skip(3);
 
         vm.startPrank(user2, user2);
 
@@ -227,7 +227,7 @@ contract LiquidateExactTest is TestBaseEToken {
         );
         eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
-        skip(1);
+        skip(2);
 
         eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 

@@ -246,7 +246,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
 
         // Skip to regular duration
-        skip(1 seconds);
+        skip(2 seconds);
 
         // User3's liquidation should succeed because it is past regular duration
         vm.startPrank(user3, user3);
@@ -476,7 +476,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.stopPrank();
 
         // Skip regular duration for second nonce
-        skip(1 seconds);
+        skip(2 seconds);
 
         // test multiple different liquidators queuing over multiple block
         vm.startPrank(user4, user4);
@@ -717,7 +717,7 @@ contract TestLiquidationSequencing is TestBaseMarket {
         vm.stopPrank();
 
         // Skip regular duration for second nonce
-        skip(1 seconds);
+        skip(2 seconds);
 
         // test multiple different liquidators queuing over multiple blocks
         vm.startPrank(user4, user4);

@@ -1237,6 +1237,33 @@ contract MarketManager is
 
         _setSequencingStatus(sequencingActive);
     }
+
+    /// @notice Updates regular duration. 
+    function setRegularDuration(uint256 _duration) external {
+        if (msg.sender != address(centralRegistry)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _setRegularDuration(_duration);
+    }
+
+    /// @notice Updates priority duration. 
+    function setPriorityDuration(uint256 _duration) external {
+        if (msg.sender != address(centralRegistry)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _setPriorityDuration(_duration);
+    }
+
+    /// @notice Updates end duration. 
+    function setEndDuration(uint256 _duration) external {
+        if (msg.sender != address(centralRegistry)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _setEndDuration(_duration);
+    }
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165

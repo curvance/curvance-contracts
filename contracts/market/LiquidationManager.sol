@@ -26,19 +26,18 @@ abstract contract LiquidationManager {
         uint64 nonce;
     }
 
-    /// CONSTANTS ///
+    /// STORAGE ///
+
     /// @notice Duration that a normal liquidation must wait for auction end.
     /// @dev 2 = 2 seconds.
-    uint256 public constant REGULAR_HOLD_DURATION = 2;
+    uint256 public regularDuration = 3;
     /// @notice Duration that a queued liquidation must wait for auction end.
     /// @dev 1 = 1 second.
-    uint256 public constant PRIORITY_HOLD_DURATION = 1;
+    uint256 public priorityDuration = 1;
     /// @notice Duration that a new auction must wait after a prior auction
     ///         concluded.
     /// @dev 30 = 30 seconds.
-    uint256 public constant END_DURATION = 30;
-
-    /// STORAGE ///
+    uint256 public endDuration = 30;
 
     // Indicates whether specific sequencing is active in the
     // liquidation system.
@@ -61,6 +60,8 @@ abstract contract LiquidationManager {
         address indexed liquidator,
         address indexed eToken
     );
+
+    event DurationUpdated(string durationType, uint256 newValue);
 
     /// ERRORS ///
     error LiquidationManager__InvalidLiquidator();
@@ -97,12 +98,12 @@ abstract contract LiquidationManager {
                 ++liqQueue.nonce;
             }
             liqQueue.priorityStartline = uint64(
-                block.timestamp + PRIORITY_HOLD_DURATION
+                block.timestamp + priorityDuration
             );
             liqQueue.regularStartline = uint64(
-                block.timestamp + REGULAR_HOLD_DURATION
+                block.timestamp + regularDuration
             );
-            liqQueue.endLine = uint64(block.timestamp + END_DURATION);
+            liqQueue.endLine = uint64(block.timestamp + endDuration);
             regularQueue[
                 keccak256(abi.encodePacked(account, liquidationTarget))
             ] = liqQueue;
@@ -118,7 +119,7 @@ abstract contract LiquidationManager {
                     liquidationTarget
                 )
             )
-        ] = block.timestamp + PRIORITY_HOLD_DURATION;
+        ] = block.timestamp + priorityDuration;
 
         // If the liquidation is token specific, make sure we emit the
         // LiquidationQueued event, otherwise emit AccountLiquidationQueued.
@@ -196,6 +197,49 @@ abstract contract LiquidationManager {
         specificSequencingActive = sequencingActive;
 
         emit SpecificSequencingStatusChanged(sequencingActive);
+    }
+
+    /// @notice Updates regular duration.
+    /// @dev NOTE: This function MUST be called inside an external or public
+    ///            function triggered by a call from the Central Registry.
+    function _setRegularDuration(uint256 _duration) internal {
+        require(
+            priorityDuration < _duration,
+            "Regular duration must be greater than priority duration"
+        );
+        require(
+            _duration < endDuration,
+            "Regular duration must be less than end duration"
+        );
+
+        regularDuration = _duration;
+        emit DurationUpdated("RegularDuration", _duration);
+    }
+
+    /// @notice Updates priority duration.
+    /// @dev NOTE: This function MUST be called inside an external or public
+    ///            function triggered by a call from the Central Registry.
+    function _setPriorityDuration(uint256 _duration) internal {
+        require(
+            _duration < regularDuration,
+            "Priority duration must be less than regular duration"
+        );
+
+        priorityDuration = _duration;
+        emit DurationUpdated("PriorityDuration", _duration);
+    }
+
+    /// @notice Updates end duration.
+    /// @dev NOTE: This function MUST be called inside an external or public
+    ///            function triggered by a call from the Central Registry.
+    function _setEndDuration(uint256 _duration) internal {
+        require(
+            regularDuration < _duration,
+            "End duration must be greater than regular duration"
+        );
+
+        endDuration = _duration;
+        emit DurationUpdated("EndDuration", _duration);
     }
 
     /// @notice Checks whether OEV is enabled or not.

@@ -1160,6 +1160,45 @@ contract CentralRegistry is ERC165, ActionRegistry {
             );
         }
     }
+    
+    function setRegularDuration(uint256 _duration) external {
+        _checkElevatedPermissions();
+
+        // Cache market list.
+        uint256 numMarkets = marketManagers.length;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            IMarketManager(marketManagers[i]).setRegularDuration(
+                _duration
+            );
+        }
+    }
+
+    function setPriorityDuration(uint256 _duration) external {
+        _checkElevatedPermissions();
+
+        // Cache market list.
+        uint256 numMarkets = marketManagers.length;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            IMarketManager(marketManagers[i]).setPriorityDuration(
+                _duration
+            );
+        }
+    }
+
+    function setEndDuration(uint256 _duration) external {
+        _checkElevatedPermissions();
+
+        // Cache market list.
+        uint256 numMarkets = marketManagers.length;
+
+        for (uint256 i; i < numMarkets; ++i) {
+            IMarketManager(marketManagers[i]).setEndDuration(
+                _duration
+            );
+        }
+    }
 
     /// @notice Called from the Atlas DappControl as a pre hook
     ///         before liquidations are tried.
