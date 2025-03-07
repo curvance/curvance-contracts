@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.19;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 /// @dev A fixed key to use in transient storage for the dynamic penalty.
 bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
 
 /// @title PenaltyFeed using transient storage for dynamic penalty updates
-contract PenaltyFeed is Ownable {
+contract PenaltyFeed {
+    /// @notice Curvance DAO hub.
+    ICentralRegistry public immutable centralRegistry;
+
     // --- Persistent parameters ---
     uint256 public defaultPenalty = 10000;
     uint256 public minPenalty = 10;
@@ -17,13 +21,25 @@ contract PenaltyFeed is Ownable {
     // When address(0) that would produce a static penalty
     address public dAppControl;
 
+    /// ERRORS ///
+    error PenaltyFeed__Unauthorized();
     error PenaltyOutOfRange();
     error OnlyDAppControl();
 
-    constructor() {}
+    /// @dev `bytes4(keccak256(bytes("PenaltyFeed__InvalidParameter()")))`.
+    uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xd6f8c48a;
 
-    function setDAppControl(address newDAppControl) external onlyOwner {
-        dAppControl = newDAppControl;
+    constructor(ICentralRegistry centralRegistry_) {
+        if (
+            !ERC165Checker.supportsInterface(
+                address(centralRegistry_),
+                type(ICentralRegistry).interfaceId
+            )
+        ) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        centralRegistry = centralRegistry_;
     }
 
     modifier onlyDAppControl() {
@@ -33,14 +49,21 @@ contract PenaltyFeed is Ownable {
         _;
     }
 
-    function setDefaultPenalty(uint256 newDefaultPenalty) external onlyOwner {
+    function setDAppControl(address newDAppControl) external {
+        _checkElevatedPermissions();
+        dAppControl = newDAppControl;
+    }
+
+    function setDefaultPenalty(uint256 newDefaultPenalty) external {
+        _checkElevatedPermissions();
         if (newDefaultPenalty < minPenalty || newDefaultPenalty > maxPenalty) {
             revert PenaltyOutOfRange();
         }
         defaultPenalty = newDefaultPenalty;
     }
 
-    function setMinPenalty(uint256 newMinPenalty) external onlyOwner {
+    function setMinPenalty(uint256 newMinPenalty) external {
+        _checkElevatedPermissions();
         if (newMinPenalty > maxPenalty || defaultPenalty < newMinPenalty) {
             revert PenaltyOutOfRange();
         }
@@ -48,7 +71,8 @@ contract PenaltyFeed is Ownable {
     }
 
 
-    function setMaxPenalty(uint256 newMaxPenalty) external onlyOwner {
+    function setMaxPenalty(uint256 newMaxPenalty) external {
+        _checkElevatedPermissions();
         if (newMaxPenalty < minPenalty || defaultPenalty > newMaxPenalty) {
             revert PenaltyOutOfRange();
         }
@@ -95,5 +119,22 @@ contract PenaltyFeed is Ownable {
             return defaultPenalty;
         }
         return result;
+    }
+
+    /// @notice Internal helper for reverting efficiently.
+    /// @param s Selector to revert with.
+    function _revert(uint256 s) internal pure {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, s)
+            revert(0x1c, 0x04)
+        }
+    }
+
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkElevatedPermissions() internal view {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+            revert PenaltyFeed__Unauthorized();
+        }
     }
 }
