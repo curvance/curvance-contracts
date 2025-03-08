@@ -42,7 +42,9 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      Market Tokens, or mTokens. All pTokens and eTokens are mTokens but,
 ///      not all pTokens are eTokens, and vice versa. Listing of pTokens and
 ///      eTokens also restrict token collision, meaning a pToken and eToken
-///      cannot have the same underlying token in the same market.
+///      cannot have the same underlying token in the same market. Each market
+///      has a maximum number of supportable assets, this is to minimize
+///      systemic risk and gas costs on liquidity checks.
 ///
 ///      Curvance offers the ability to store unlimited collateral inside
 ///      pToken contracts while restricting the scale of exogenous risk.
@@ -65,7 +67,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      Additionally, a new "Dynamic Liquidation Engine" or DLE
 ///      allows for more nuanced position management inside the system.
 ///      The DLE facilitates aggressive asset support and elevated
-///      collateralization ratios paired with reduced base liquidation
+///      collateralization ratios paired with reduced minimum liquidation
 ///      penalties. In periods of low volatility, users will experience soft
 ///      liquidations. But, when volatility is elevated, users may experience
 ///      more aggressive or complete liquidation of positions.
