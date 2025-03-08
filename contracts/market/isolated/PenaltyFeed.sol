@@ -8,7 +8,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
 
 /// @title PenaltyFeed using transient storage for dynamic penalty updates
-contract PenaltyFeed {
+abstract contract PenaltyFeed {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
@@ -23,8 +23,7 @@ contract PenaltyFeed {
 
     /// ERRORS ///
     error PenaltyFeed__Unauthorized();
-    error PenaltyOutOfRange();
-    error OnlyDAppControl();
+    error PenaltyFeed__PenaltyOutOfRange();
 
     /// @dev `bytes4(keccak256(bytes("PenaltyFeed__InvalidParameter()")))`.
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0xd6f8c48a;
@@ -42,13 +41,6 @@ contract PenaltyFeed {
         centralRegistry = centralRegistry_;
     }
 
-    modifier onlyDAppControl() {
-        if (msg.sender != dAppControl) {
-            revert OnlyDAppControl();
-        }
-        _;
-    }
-
     function setDAppControl(address newDAppControl) external {
         _checkElevatedPermissions();
         dAppControl = newDAppControl;
@@ -57,7 +49,7 @@ contract PenaltyFeed {
     function setDefaultPenalty(uint256 newDefaultPenalty) external {
         _checkElevatedPermissions();
         if (newDefaultPenalty < minPenalty || newDefaultPenalty > maxPenalty) {
-            revert PenaltyOutOfRange();
+            revert PenaltyFeed__PenaltyOutOfRange();
         }
         defaultPenalty = newDefaultPenalty;
     }
@@ -65,7 +57,7 @@ contract PenaltyFeed {
     function setMinPenalty(uint256 newMinPenalty) external {
         _checkElevatedPermissions();
         if (newMinPenalty > maxPenalty || defaultPenalty < newMinPenalty) {
-            revert PenaltyOutOfRange();
+            revert PenaltyFeed__PenaltyOutOfRange();
         }
         minPenalty = newMinPenalty;
     }
@@ -74,7 +66,7 @@ contract PenaltyFeed {
     function setMaxPenalty(uint256 newMaxPenalty) external {
         _checkElevatedPermissions();
         if (newMaxPenalty < minPenalty || defaultPenalty > newMaxPenalty) {
-            revert PenaltyOutOfRange();
+            revert PenaltyFeed__PenaltyOutOfRange();
         }
         maxPenalty = newMaxPenalty;
     }
@@ -83,10 +75,11 @@ contract PenaltyFeed {
     /// @notice Sets a new dynamic penalty value in transient storage.
     /// Transient storage enforces any liquidator not using dappcontrol/auction uses the default penalty.
     /// @param newPenalty The new penalty value.
-    function setPenalty(uint256 newPenalty) external onlyDAppControl {
+    function setPenalty(uint256 newPenalty) external {
+        _checkDappControl();
         // make sure new penalty is within configured allowed penalty
         if (newPenalty < minPenalty || newPenalty > maxPenalty) {
-            revert PenaltyOutOfRange();
+            revert PenaltyFeed__PenaltyOutOfRange();
         }
 
         // Write newPenalty to transient storage.
@@ -98,7 +91,8 @@ contract PenaltyFeed {
     }
 
     /// @notice Resets the dynamic penalty value in transient storage to zero.
-    function resetPenalty() external onlyDAppControl {
+    function resetPenalty() external {
+        _checkDappControl();
         assembly {
             // Clear the transient storage slot by writing zero. 
             tstore(TRANSIENT_PENALTY_KEY, 0)
@@ -132,9 +126,19 @@ contract PenaltyFeed {
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+    function _checkDappControl() internal view {
+        if (msg.sender != dAppControl) {
             revert PenaltyFeed__Unauthorized();
         }
     }
+
+    /// @notice Returns the Protocol Central Registry contract in interface
+    ///         form.
+    /// @dev MUST be overridden in every multicallable contract's
+    ///      implementation.
+    function _getCentralRegistry()
+        internal
+        view
+        virtual
+        returns (ICentralRegistry);
 }
