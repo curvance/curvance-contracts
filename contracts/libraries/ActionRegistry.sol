@@ -56,16 +56,16 @@ abstract contract ActionRegistry {
     /// EVENTS ///
 
     event CooldownSet(address indexed user, uint256 userLockCooldown);
+    event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
+    event DelegableStatusChanged(
+        address indexed user,
+        bool delegable,
+        uint256 delegationEnabledTimestamp
+    );
     event LockStatusChanged(
         address indexed user,
         bool isLocked,
         uint256 transferEnabledTimestamp
-    );
-    event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
-    event DelegableStatusSet(
-        address indexed user,
-        bool delegable,
-        uint256 delegationEnabledTimestamp
     );
 
     /// ERRORS ///
@@ -78,31 +78,6 @@ abstract contract ActionRegistry {
     constructor() {}
 
     /// EXTERNAL FUNCTIONS ///
-
-    /// @notice Returns `user`'s approval index.
-    /// @dev The approval index is a way to revoke approval on all tokens,
-    ///      and features at once if a malicious delegation was allowed by
-    ///      `user`.
-    /// @param user The user to check delegated approval index for.
-    /// @return `User`'s approval index.
-    function getUserApprovalIndex(
-        address user
-    ) external view returns (uint256) {
-        return _userConfig[user].approvalIndex;
-    }
-
-    /// @notice Increments a caller's approval index.
-    /// @dev By incrementing their approval index, a user's delegates will all
-    ///      have their delegation authority revoked across all Curvance
-    ///      contracts.
-    ///      Emits an {ApprovalIndexIncremented} event.
-    function incrementApprovalIndex() external {
-        UserConfig storage userConfig = _userConfig[msg.sender];
-        uint256 newIndex = userConfig.approvalIndex + 1;
-        userConfig.approvalIndex = uint208(newIndex);
-
-        emit ApprovalIndexIncremented(msg.sender, newIndex);
-    }
 
     /// @notice Sets token transferability unlock cooldown.
     /// @dev Emits a {CooldownSet} event. If a user is decreasing their
@@ -190,6 +165,31 @@ abstract contract ActionRegistry {
 
     /// DELEGATION PLUGIN MANAGEMENT ///
 
+    /// @notice Returns `user`'s approval index.
+    /// @dev The approval index is a way to revoke approval on all tokens,
+    ///      and features at once if a malicious delegation was allowed by
+    ///      `user`.
+    /// @param user The user to check delegated approval index for.
+    /// @return `User`'s approval index.
+    function getUserApprovalIndex(
+        address user
+    ) external view returns (uint256) {
+        return _userConfig[user].approvalIndex;
+    }
+
+    /// @notice Increments a caller's approval index.
+    /// @dev By incrementing their approval index, a user's delegates will all
+    ///      have their delegation authority revoked across all Curvance
+    ///      contracts.
+    ///      Emits an {ApprovalIndexIncremented} event.
+    function incrementApprovalIndex() external {
+        UserConfig storage userConfig = _userConfig[msg.sender];
+        uint256 newIndex = userConfig.approvalIndex + 1;
+        userConfig.approvalIndex = uint208(newIndex);
+
+        emit ApprovalIndexIncremented(msg.sender, newIndex);
+    }
+
     /// @notice Checks whether `user` has delegation enabled or disabled
     ///         for user actions inside Curvance.
     /// @return Returns true if the user has delegation disabled.
@@ -205,7 +205,7 @@ abstract contract ActionRegistry {
     ///         or not.
     /// @param delegationDisabled Whether caller wants to allow new delegation
     ///                           or not.
-    ///      Emits a {DelegableStatusSet} event.
+    ///      Emits a {DelegableStatusChanged} event.
     function setDelegable(bool delegationDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
@@ -231,7 +231,7 @@ abstract contract ActionRegistry {
 
         userConfig.delegationDisabled = delegationDisabled;
 
-        emit DelegableStatusSet(
+        emit DelegableStatusChanged(
             msg.sender,
             delegationDisabled,
             enableTimestamp
@@ -255,7 +255,6 @@ abstract contract ActionRegistry {
 
         return (_userConfig[msg.sender].lockCooldown + block.timestamp);
     }
-
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {

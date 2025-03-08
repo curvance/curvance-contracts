@@ -6,7 +6,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
 contract SetDelegableTest is TestBaseMarket {
-    event DelegableStatusSet(
+    event DelegableStatusChanged(
         address indexed user,
         bool delegable,
         uint256 delegationEnabledTimestamp
@@ -45,14 +45,14 @@ contract SetDelegableTest is TestBaseMarket {
         assertFalse(centralRegistry.checkDelegationDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
-        emit DelegableStatusSet(user1, true, 0);
+        emit DelegableStatusChanged(user1, true, 0);
 
         centralRegistry.setDelegable(true);
 
         assertTrue(centralRegistry.checkDelegationDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
-        emit DelegableStatusSet(user1, false, block.timestamp);
+        emit DelegableStatusChanged(user1, false, block.timestamp);
 
         centralRegistry.setDelegable(false);
 
