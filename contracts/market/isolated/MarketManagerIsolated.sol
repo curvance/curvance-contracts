@@ -85,6 +85,8 @@ contract MarketManager is
 {
     /// CONSTANTS ///
 
+    /// @dev A fixed key to use in transient storage for the dynamic penalty.
+    bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
     /// @notice Maximum number of listed assets allowed inside a market.
     /// @dev This restriction is to force the market into isolated form.
     uint256 public constant MAX_LISTED_ASSETS = 2;
@@ -218,6 +220,44 @@ contract MarketManager is
 
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
+    }
+
+    /// @notice Sets a new dynamic penalty value in transient storage.
+    /// Transient storage enforces any liquidator not using dappcontrol/auction uses the default penalty.
+    /// @param newPenalty The new penalty value.
+    function setPenalty(uint256 newPenalty) external {
+        _checkDappControl();
+        // make sure new penalty is within configured allowed penalty
+        if (newPenalty < minPenalty || newPenalty > maxPenalty) {
+            revert PenaltyFeed__PenaltyOutOfRange();
+        }
+
+        // Write newPenalty to transient storage.
+        // Note: This inline assembly uses pseudocode for the new transient
+        ///      storage opcodes.
+        assembly {
+            // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
+        }
+    }
+
+    /// @notice Resets the dynamic penalty value in transient storage to zero.
+    function resetPenalty() external {
+        _checkDappControl();
+        assembly {
+            // Clear the transient storage slot by writing zero. 
+            tstore(TRANSIENT_PENALTY_KEY, 0)
+        }
+    }
+
+    /// @notice Returns the current penalty.
+    /// If a dynamic penalty is set in transient storage, that value is returned;
+    /// otherwise, the default penalty is returned.
+    function getLatestPenalty() external view returns (uint256 result) {
+        assembly {
+            // Load dynamic penalty from transient storage.
+            result := tload(TRANSIENT_PENALTY_KEY)
+        }
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -1802,6 +1842,13 @@ contract MarketManager is
     function _checkIsPToken(address token) internal view {
         if (!IMToken(token).isPToken()) {
             _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+    }
+    
+    /// @dev Checks whether the caller has Atlas permissioning.
+    function _checkDappControl() internal view {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 

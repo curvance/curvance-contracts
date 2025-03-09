@@ -43,6 +43,9 @@ interface ICentralRegistry {
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
 
+    /// @notice Returns whether the caller has Atlas permissions or not.
+    function hasAtlasPermissions(address _address) external view returns (bool);
+
     /// @notice Returns whether the caller has dao permissions or not.
     function hasDaoPermissions(address _address) external view returns (bool);
 
