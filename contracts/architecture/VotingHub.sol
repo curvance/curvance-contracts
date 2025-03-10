@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
@@ -8,6 +8,19 @@ import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+/// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
+/// @notice Manages token emission allocation and distribution across multiple chains 
+///       based on governance outcomes. Serves as the central coordination point 
+///       for validating, allocating, and distributing token emissions to 
+///       Gauge Managers across the Curvance ecosystem. Uses Wormhole for 
+///       secure cross-chain querying and verification.
+/// @dev Implements a halving emission schedule across multiple protocol eras. 
+///      Validates the total emissions allocated through cross-chain queries 
+///      to prevent manipulation. Sends validated emission configurations to 
+///      Gauge Managers locally and to remote chains via the MessagingHub. 
+///      The emission schedule is designed to decrease emissions over time, 
+///      with each era (26 epochs, ~1 year) cutting emissions in half, 
+///      controlling the token supply growth rate.
 
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///

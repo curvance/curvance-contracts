@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
@@ -12,7 +12,13 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 /// @title Curvance Universal Balance for a chain's native gas token.
 /// @notice A system for managing a Universal Balance within the Curvance
-///         Protocol.
+///         Protocol. This is a specialized version of the Universal Balance
+///         system that is used for managing a user's balance of a chain's
+///         native gas token.
+///
+///         This system is used to manage a user's balance of a chain's
+///         native gas token, either sitting or lent out.
+///
 contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {

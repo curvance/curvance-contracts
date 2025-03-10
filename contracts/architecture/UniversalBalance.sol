@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -18,9 +18,17 @@ import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 /// @title Curvance Universal Balance.
 /// @notice A system for managing a Universal Balance within the Curvance
 ///         Protocol.
+/// @dev A Universal Balance is a system for managing a user's balance of
+///      a token, either sitting or lent out.
+///
+///      A user can deposit a token into their Universal Balance, and then
+///      either lend it out to Curvance Protocol or hold it in their balance.
+///      They can also shift their balance between sitting and lent out.
+///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
+    /// @title User Balance
     /// @notice Stores user-specific balance information within the 
     /// @notice             Universal Balance system.
     /// @param sittingBalance The amount of tokens currently held in 
