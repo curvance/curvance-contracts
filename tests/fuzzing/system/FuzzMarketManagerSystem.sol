@@ -1,4 +1,4 @@
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";

@@ -1,4 +1,4 @@
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";

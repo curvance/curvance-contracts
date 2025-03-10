@@ -1,4 +1,4 @@
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 import { StatefulBaseMarket } from "tests/fuzzing/StatefulBaseMarket.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { FixedPointMathLib, SafeTransferLib, IERC20, ICentralRegistry } from "contracts/market/token/CompoundingPToken.sol";
 import { CompoundingWithExitFeePToken } from "contracts/market/token/CompoundingWithExitFeePToken.sol";
