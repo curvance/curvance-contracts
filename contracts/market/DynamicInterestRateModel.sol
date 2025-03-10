@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
@@ -89,6 +89,7 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 contract DynamicInterestRateModel is ERC165 {
     /// TYPES ///
 
+    /// @title Rates Configuration
     /// @notice Stores configuration data for current Dynamic Interest
     ///         Rate Model.
     /// @param baseInterestRate Base rate at which interest is accumulated,

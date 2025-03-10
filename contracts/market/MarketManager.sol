@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";

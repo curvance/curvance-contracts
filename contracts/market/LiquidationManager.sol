@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 /// @title Curvance Liquidation Manager.
 /// @notice Triages and configures uniquely sequenced market liquidations.
@@ -8,6 +8,7 @@ pragma solidity ^0.8.19;
 abstract contract LiquidationManager {
     /// TYPES ///
 
+    /// @title Liquidation Queue
     /// @notice Liquidation queue struct for a specific liquidation target when
     ///                     liquidation auction is disabled or passed.
     /// @param prioritStartLine The timestamp where liquidators with 
