@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BalancerBaseAdaptor } from "contracts/oracles/adaptors/balancer/BalancerBaseAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -14,6 +14,7 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 contract BalancerStablePoolAdaptor is BalancerBaseAdaptor {
     /// TYPES ///
 
+    /// @title Balancer Stable Pool Adaptor Data
     /// @notice Stores configuration data for Balance BPT pricing.
     /// @dev Only use the underlying asset, if the underlying is correlated
     ///      to the pools virtual base.

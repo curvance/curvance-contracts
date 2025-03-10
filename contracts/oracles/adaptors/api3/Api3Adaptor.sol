@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { Bytes32Helper } from "contracts/libraries/Bytes32Helper.sol";
@@ -12,6 +12,7 @@ import { IProxy } from "contracts/interfaces/external/api3/IProxy.sol";
 contract Api3Adaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Api3 Adaptor Data
     /// @notice Stores configuration data for API3 price sources.
     /// @param proxyFeed The current proxy's feed address.
     /// @param dapiNameHash The bytes32 encoded name hash of the price feed.

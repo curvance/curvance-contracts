@@ -71,7 +71,7 @@ contract OracleManager {
     /// TYPES ///
 
     /// @title Oracle Feed Data
-    /// @notice Data for a price feed
+    /// @notice Data retrieved from a price feed.
     /// @dev The price is stored as a uint240 to avoid precision loss.
     ///      The hadError flag is used to indicate if the price feed
     ///      had an error.
@@ -85,7 +85,7 @@ contract OracleManager {
     }
 
     /// @title mToken Data
-    /// @notice Data for an MToken
+    /// @notice Stored data for an mToken.
     /// @dev The isMToken flag is used to indicate if the provided address is an MToken or not.
     ///      The underlying address is the address of the underlying asset for the MToken.
     struct MTokenData {

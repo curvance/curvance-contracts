@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { CurveBaseAdaptor } from "contracts/oracles/adaptors/curve/CurveBaseAdaptor.sol";
 
@@ -14,6 +14,7 @@ import { ICurvePool } from "contracts/interfaces/external/curve/ICurvePool.sol";
 contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     /// TYPES ///
 
+    /// @title Curve 2 Pool LP Adaptor Data
     /// @notice Stores configuration data for Curve LP price sources.
     /// @param pool The address of the LP token/Curve pool.
     /// @param underlying0 The address of first underlying asset.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -16,6 +16,7 @@ contract RedstoneCoreAdaptor is
 {
     /// TYPES ///
 
+    /// @title Redstone Adaptor Data
     /// @notice Stores configuration data for Redstone price sources.
     /// @param isConfigured Whether the asset is configured or not.
     ///                     false = unconfigured; true = configured.

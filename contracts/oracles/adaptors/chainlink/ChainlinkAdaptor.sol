@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -12,6 +12,7 @@ import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.s
 contract ChainlinkAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Chainlink Adaptor Data
     /// @notice Stores configuration data for Chainlink price sources.
     /// @param aggregator The current phase's aggregator address.
     /// @param isConfigured Whether the asset is configured or not.
