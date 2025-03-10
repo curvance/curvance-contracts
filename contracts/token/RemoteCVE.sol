@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { CVEBase } from "contracts/token/CVEBase.sol";

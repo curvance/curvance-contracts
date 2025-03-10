@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 
@@ -13,6 +13,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract PendleZapper is ZapperBase {
     /// TYPES ///
 
+    /// @title Pendle Zapper Data
     /// @param inputToken Address of input token to Zap from.
     /// @param inputAmount The amount of `inputToken` to Zap.
     /// @param outputToken Address of token Zapped into.

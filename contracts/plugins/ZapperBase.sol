@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -17,6 +17,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 abstract contract ZapperBase is ReentrancyGuard {
     /// TYPES ///
 
+    /// @title Zapper Base Data
     /// @param mToken The address of the mToken corresponding to the proposed
     ///               redemption.
     /// @param shares The amount of shares to redeemed.
