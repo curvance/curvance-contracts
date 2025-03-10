@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { WAD, DENOMINATOR, NO_ERROR, CAUTION, BAD_SOURCE } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -70,6 +70,12 @@ import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAda
 contract OracleManager {
     /// TYPES ///
 
+    /// @title Oracle Feed Data
+    /// @notice Data for a price feed
+    /// @dev The price is stored as a uint240 to avoid precision loss.
+    ///      The hadError flag is used to indicate if the price feed
+    ///      had an error.
+    /// @dev The FeedData struct is used to store the price and hadError flag for a price feed.
     struct FeedData {
         /// @notice price of the asset in some asset, either the chain's
         ///         native token or USD.
@@ -78,6 +84,10 @@ contract OracleManager {
         bool hadError;
     }
 
+    /// @title mToken Data
+    /// @notice Data for an MToken
+    /// @dev The isMToken flag is used to indicate if the provided address is an MToken or not.
+    ///      The underlying address is the address of the underlying asset for the MToken.
     struct MTokenData {
         /// @notice Whether the provided address is an MToken or not.
         bool isMToken;
@@ -476,16 +486,12 @@ contract OracleManager {
         uint256[] memory prices = new uint256[](numAssets);
         uint256[] memory hadError = new uint256[](numAssets);
 
-        for (uint256 i; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ++i) {
             (prices[i], hadError[i]) = getPrice(
                 assets[i],
                 inUSD[i],
                 getLower[i]
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         return (prices, hadError);
@@ -515,7 +521,7 @@ contract OracleManager {
         uint256[] memory underlyingPrices = new uint256[](numAssets);
         uint256 hadError;
 
-        for (uint256 i; i < numAssets; ) {
+        for (uint256 i; i < numAssets; ++i) {
             snapshots[i] = assets[i].getSnapshotPacked(account);
             (underlyingPrices[i], hadError) = getPrice(
                 assets[i].underlying(),
@@ -525,10 +531,6 @@ contract OracleManager {
 
             if (hadError >= errorCodeBreakpoint) {
                 _revert(_ERROR_CODE_FLAGGED_SELECTOR);
-            }
-
-            unchecked {
-                ++i;
             }
         }
 

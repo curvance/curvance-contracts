@@ -691,7 +691,7 @@ contract MessagingHub is QueryResponse {
 
         // We temporary cache this chains lock points inside the currentChainId
         // variable since it will be overridden before it is ever called again.
-        // We do this to avoid having to reserve another storage slot which will
+        // We do this to avoid having to reserve another memory slot which will
         // create a stack too deep error and reduces runtime gas costs.
         uint256 currentChainId = queryLockPoints();
 
