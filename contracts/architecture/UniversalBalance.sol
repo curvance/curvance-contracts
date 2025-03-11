@@ -15,15 +15,29 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
-/// @title Curvance Universal Balance.
-/// @notice A system for managing a Universal Balance within the Curvance
-///         Protocol.
-/// @dev A Universal Balance is a system for managing a user's balance of
-///      a token, either sitting or lent out.
-///
-///      A user can deposit a token into their Universal Balance, and then
-///      either lend it out to Curvance Protocol or hold it in their balance.
-///      They can also shift their balance between sitting and lent out.
+/// @title Curvance Universal Balance
+/// @notice A user-facing system for flexible token management within the Curvance Protocol
+/// @dev Universal Balance provides a comprehensive solution for users to manage their token
+///      positions with multiple options for utilization:
+///      
+///      1. Asset Management:
+///         - Front-facing contract for users to deposit and withdraw tokens (e.g., USDC)
+///         - Maintains two balance types per user: sitting (held) and lent (deployed)
+///         - Token-specific implementation linked to corresponding EToken contract
+///      
+///      2. Position Flexibility:
+///         - Users can freely shift balances between sitting and lent states
+///         - Lent balances earn yield through Curvance's lending protocols
+///         - Sitting balances remain liquid and immediately available
+///      
+///      3. Social Features:
+///         - Users can transfer portions of their balance to other users
+///         - Supports delegated account operations with permission system
+///         - Multi-user batch operations for efficient management
+///      
+///      Implementation uses a non-custodial design where users maintain full control
+///      of their assets while benefiting from integrated position management.
+///      Lent balances are represented as shares/tokens of the underlying EToken.
 ///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///

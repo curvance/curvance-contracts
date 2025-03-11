@@ -9,6 +9,24 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
+///
+/// @title Curvance DAO Timelock
+/// @notice A timelock controller for the Curvance DAO that enforces a delay period 
+///         before administrative operations can be executed.
+/// @dev This contract extends OpenZeppelin's TimelockController with Curvance-specific 
+///      functionality. It enforces a minimum delay of 7 days for all timelock transaction 
+///      proposals.
+///
+/// The timelock serves as a security mechanism that:
+/// - Creates transparency by making governance actions visible before execution
+/// - Provides a window for token holders to exit if they disagree with proposed changes
+/// - Protects the protocol from immediate execution of potentially malicious proposals
+///
+/// This implementation:
+/// - Stays in sync with DAO address changes through the CentralRegistry
+/// - Grants the DAO address both proposer and executor roles
+/// - Supports interface detection via ERC165
+///
 contract Timelock is TimelockController, ERC165 {
     /// CONSTANTS ///
 
