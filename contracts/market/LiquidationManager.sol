@@ -5,6 +5,40 @@ pragma solidity ^0.8.26;
 /// @notice Triages and configures uniquely sequenced market liquidations.
 /// @dev NOTE: Only use this as an abstract contract as no account or market
 ///            data is written here.
+///
+/// This contract manages Curvance's liquidation queue system, enabling efficient
+/// capture of Optimal Extractable Value (OEV) while ensuring liquidations
+/// always proceed in a timely manner.
+///
+/// Key features:
+///  - Implements a multi-phase liquidation queue with configurable durations:
+///    1. Priority phase (priority liquidators only): priorityDuration seconds
+///    2. Regular phase (any liquidator): regularDuration seconds
+///    3. End phase (queue reset period): endDuration seconds
+///  
+///  - Supports Atlas OEV integration allowing:
+///    - Approved bundlers to bypass the queue system entirely
+///    - Immediate execution of winning liquidation bids from auctions
+///    - Fallback to normal queue-based liquidations when OEV fails
+///
+///  - Differentiates between two liquidation types:
+///    - Token-specific liquidations (for individual collateral positions)
+///    - Full account liquidations (for accounts with bad debt)
+///  
+///  - Uses a nonce system to:
+///    - Uniquely identify each liquidation cycle for an account
+///    - Prevent exploitation of old liquidation permissions
+///    - Enable sequential liquidations of the same account
+///  
+///  - Provides granular control via:
+///    - specificSequencingActive toggle to enable/disable the entire OEV system
+///    - Configurable time windows for each liquidation phase
+///    - Priority access mapping for liquidators who queued liquidations
+///
+/// The contract's functions coordinate with MarketManager to ensure
+/// all liquidations are properly validated, sequenced, and executed
+/// according to protocol rules.
+/// 
 abstract contract LiquidationManager {
     /// TYPES ///
 

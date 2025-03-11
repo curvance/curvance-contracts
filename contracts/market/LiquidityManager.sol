@@ -13,6 +13,49 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 /// @notice Calculates liquidity of an account in various positions.
 /// @dev NOTE: Only use this as an abstract contract as no account
 ///            data is written here.
+///
+/// This contract provides comprehensive liquidity assessment and risk management 
+/// functionality to the Curvance protocol:
+///
+/// Core Functionality:
+///  - Evaluates account status via _statusOf(), determining collateral value, 
+///    maximum debt capacity, and current debt obligations
+///  - Simulates hypothetical actions through _hypotheticalLiquidityOf() to predict
+///    liquidity after potential borrows or redemptions
+///  - Calculates liquidation eligibility with _liquidationStatusOf(), determining 
+///    whether accounts should undergo soft, hard, or bad debt liquidations
+///  - Computes precise asset values with _assetValue(), normalizing different token
+///    decimals and prices into consistent USD-denominated values
+///  - Tracks detailed account positions across markets in the tokenData and
+///    accountAssets mappings
+///
+/// Risk Assessment System:
+///  - Implements a three-tiered liquidation threshold system:
+///    1. Soft liquidation threshold (collReqSoft) - initiates partial liquidations
+///       with base liquidation incentives
+///    2. Hard liquidation threshold (collReqHard) - permits complete position 
+///       liquidation with maximum incentives
+///    3. Bad debt threshold - when collateral value falls below total debt,
+///       triggering protocol-level bad debt recognition
+///  - Calculates liquidation factors (lFactor) on a sliding scale between soft
+///    and hard thresholds, determining maximum repayment amounts and incentives
+///  - Applies collateralization ratios (collRatio) to different asset types to
+///    determine their borrowing power
+///  - Uses precision-focused math to prevent rounding errors in critical financial
+///    calculations through strategic rounding up or down based on operation type
+///
+/// The contract tracks detailed market and account data through structured types:
+///  - AccountData: Stores asset arrays and cooldown timestamps
+///  - AccountPosition: Tracks position status and collateral posted
+///  - MarketToken: Defines market parameters like collateralization ratios and
+///    liquidation incentives
+///  - Various calculation-specific structures for hypothetical actions,
+///    liquidation data, and bad debt assessment
+///
+/// LiquidityManager serves as the mathematical and logical core of Curvance's
+/// risk engine, providing the essential calculations that determine when and how
+/// positions can be modified, liquidated, or deemed insolvent.
+///
 abstract contract LiquidityManager {
     /// TYPES ///
 
