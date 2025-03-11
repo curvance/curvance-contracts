@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";

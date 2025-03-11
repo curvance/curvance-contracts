@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IRateProvider {
     /// @dev Returns an 18 decimal fixed point number that is the exchange rate of the token to some other underlying

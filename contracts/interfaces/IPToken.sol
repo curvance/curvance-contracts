@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { IMToken } from "./IMToken.sol";
 import { IPositionManagement } from "./IPositionManagement.sol";

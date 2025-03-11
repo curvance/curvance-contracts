@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IPluginDelegable {
     /// @notice Returns whether a user or contract has the ability to act

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.26;
 
 contract PythStructs {
     // A price with a degree of uncertainty, represented as a price +- a confidence interval.
