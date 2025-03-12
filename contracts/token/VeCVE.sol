@@ -1176,7 +1176,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
         uint256 aux
     ) internal {
         IRewardManager rewardManager = _getRewardManager();
-        uint256 epochs = rewardManager.epochsToClaim(user);
+        uint256 epochs = userLocks[msg.sender] > 0
+            ? rewardManager.epochsToClaim(user)
+            : 0;
 
         if (epochs > 0) {
             rewardManager.claimRewardsFor(
