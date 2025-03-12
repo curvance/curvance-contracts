@@ -409,4 +409,112 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         vm.stopPrank();
     }
+
+    function testFail_InvalidSwapParams() public {
+        // Setup a user position similar to testLeverage
+        vm.startPrank(user);
+
+        _preparePT(user, 1 ether);
+        pendlePT.approve(address(pPendlePT), 1 ether);
+
+        // mint
+        assertGt(pPendlePT.deposit(1 ether, user), 0);
+        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        // Create leverage data with valid Pendle settings
+        PositionManagementPendlePT.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pPendlePT));
+        
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 5e17;
+        data.approx.guessMax = 1.2e18;
+        data.approx.guessOffchain = 1.2e18;
+        data.approx.maxIteration = 30;
+        data.approx.eps = 1e15;
+        data.input.tokenIn = _DAI_ADDRESS;
+        data.input.netTokenIn = amountForLeverage;
+        data.input.tokenMintSy = _WSTETH;
+        data.input.pendleSwap = _PENDLE_SWAP;
+        data.input.swapData.swapType = SwapType.KYBERSWAP;
+        data.input.swapData.extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        data.input.swapData.needScale = false;
+        
+        // Invalid swap configuration 
+        leverageData.swapData.call = new bytes(1); // Non-empty call to trigger validation
+        leverageData.swapData.target = address(0); // Invalid target
+        leverageData.swapData.inputToken = address(69); // Invalid input token
+        leverageData.swapData.inputAmount = 1 ether;
+        leverageData.swapData.outputToken = address(420); // Invalid output token
+        leverageData.auxData = abi.encode(_LP_STETH, 1, data);
+        
+        // Expect the call to revert with PositionManagementBase__InvalidSwapperParam
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testFail_InvalidPendlePT() public {
+        vm.startPrank(user);
+
+        _preparePT(user, 1 ether);
+        pendlePT.approve(address(pPendlePT), 1 ether);
+
+        // mint
+        assertGt(pPendlePT.deposit(1 ether, user), 0);
+        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        // Calculate leverage amount
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        // Create leverage data
+        PositionManagementPendlePT.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pPendlePT));
+        
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 5e17;
+        data.approx.guessMax = 1.2e18;
+        data.approx.guessOffchain = 1.2e18;
+        data.approx.maxIteration = 30;
+        data.approx.eps = 1e15;
+        data.input.tokenIn = _DAI_ADDRESS;
+        data.input.netTokenIn = amountForLeverage;
+        data.input.tokenMintSy = _WSTETH;
+        data.input.pendleSwap = _PENDLE_SWAP;
+        data.input.swapData.swapType = SwapType.KYBERSWAP;
+        data.input.swapData.extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        data.input.swapData.needScale = false;
+        
+        // ETHx (Stader) 25 Dec 2024 market
+        // Valid LP market at the same address as PT-stETH-26DEC24
+        address differentLpMarket = 0xFf262396f2A35Cd7Aa24b7255E7d3f45f057Cdba;
+        
+        // Encode with the different LP market 
+        leverageData.auxData = abi.encode(differentLpMarket, 1, data);
+        
+        // This call should revert with PositionManagementBase__InvalidSwapperParam
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+        
+        vm.stopPrank();
+    }
+
+
 }
