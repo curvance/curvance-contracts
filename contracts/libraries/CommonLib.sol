@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Common Library
+/// @notice A utility library for common functions used throughout the Curvance Protocol
 library CommonLib {
     /// @notice Returns whether `token` is referring to network gas token
     ///         or not.

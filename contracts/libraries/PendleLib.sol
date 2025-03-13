@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IPendleRouter, ApproxParams, TokenInput, TokenOutput, LimitOrderData } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
@@ -14,6 +14,18 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 library PendleLib {
     /// TYPES ///
 
+    /// @title Pendle Data
+    /// @notice Struct containing information on the desired
+    ///         Pendle swap and mint/exit execution data.
+    /// @param approx The approximate price parameters for the Pendle swap.
+    /// @param input Represents the input parameters for token operations within the Pendle protocol.
+    ///         Users start with `netTokenIn` amount of `tokenIn`. If `tokenIn` differs from `tokenMintSy`,
+    ///         a swap is performed using the specified aggregator to convert `tokenIn` to `tokenMintSy`,
+    ///         which is then used to mint SY tokens.
+    /// @param output Represents the output parameters for token operations within the Pendle protocol.
+    ///         Users receive SY tokens, redeem them to `tokenRedeemSy`, and may use an aggregator to swap
+    ///         `tokenRedeemSy` to the desired `tokenOut`.
+    /// @param limit Contains parameters for executing limit orders within the Pendle protocol.
     struct PendleData {
         ApproxParams approx;
         TokenInput input;

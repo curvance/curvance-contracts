@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Bytes32 Helper
+/// @notice A utility library for converting between strings and bytes32 values
+/// @dev Provides functions to convert strings to bytes32 and to create standardized 
+///      bytes32 representations of token symbols with optional suffixes
 library Bytes32Helper {
     /// ERRORS ///
 

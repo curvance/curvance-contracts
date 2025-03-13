@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Rescue Library
+/// @notice A utility library for rescuing tokens sent by mistake.
 library RescueLib {
     /// @notice Rescue any token sent by mistake.
     /// @dev Contracts implementing RescueLib.rescueToken should NOT support

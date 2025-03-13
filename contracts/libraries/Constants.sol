@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 /// @dev Scalar for math. `WAD` * `WAD`.
 uint256 constant WAD_SQUARED = 1e36;

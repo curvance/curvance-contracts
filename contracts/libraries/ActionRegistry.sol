@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 /// @title Curvance Action Registry.
 /// @notice Facilitates locking a users token transferability or plugin
@@ -26,6 +26,21 @@ pragma solidity ^0.8.19;
 abstract contract ActionRegistry {
     /// TYPES ///
 
+    /// @title User Configuration
+    /// @notice Struct containing information on a user's configuration values
+    ///         for transfers and delegation inside Curvance.
+    /// @param lockCooldown The cooldown period for the user's transfers and
+    ///                     delegations.
+    /// @param transferEnabledTimestamp The timestamp that the user's
+    ///                                 transfers have been enabled.
+    /// @param transferDisabled Whether the user intends on enabling or
+    ///                         disabling transferability
+    /// @param approvalIndex The approval index for the user's delegates. Revokes
+    ///                     all delegates at once if incremented.
+    /// @param delegationEnabledTimestamp The timestamp that the user's
+    ///                                  delegations have been enabled.
+    /// @param delegationDisabled Whether the user intends on enabling or
+    ///                          disabling delegation.
     struct UserConfig {
         uint208 lockCooldown;
         uint40 transferEnabledTimestamp;
