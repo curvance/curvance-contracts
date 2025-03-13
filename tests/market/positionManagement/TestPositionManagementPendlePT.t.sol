@@ -14,6 +14,8 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
+import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 contract TestPositionManagementPendlePT is TestBaseMarket {
     address internal _CHAINLINK_STETH_USD =
@@ -61,6 +63,11 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         centralRegistry.addHarvester(address(this));
         centralRegistry.setFeeManager(address(this));
+
+        centralRegistry.setExternalCalldataChecker(
+            _UNISWAP_V2_ROUTER,
+            address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))
+        );
 
         adaptor = new PendlePrincipalTokenAdaptor(
             ICentralRegistry(address(centralRegistry)),
@@ -410,7 +417,144 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function testFail_InvalidSwapParams() public {
+
+    // This test is to improve coverage when doing the first swap leg to leverage the position
+    // The first swap leg successfully completes, but the second swap fails because of the transaction calldata 
+    // for Pendle needed to swap USDC -> WSTETH is difficult to generate:
+    // 1. If I try to warp to the latest block, then get a valid swap calldata from the Pendle API
+    //       the acheived PT will have a different expiration date than the one currently used in this test file.
+    // 2. I cannot retrieve a valid swap calldata for old blocks because the API does not permit it.
+    // 
+    // Note: In order to generate the first swap, I have to comment out the slippage check in the Swapper Lib.
+    //       I can come back to this test and try to use a PT from the latest block
+    function testLeverageWithPreSwap() public {
+
+        vm.startPrank(user);
+
+        _preparePT(user, 1 ether);
+        pendlePT.approve(address(pPendlePT), 1 ether);
+
+        // mint
+        assertGt(pPendlePT.deposit(1 ether, user), 0);
+        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        assertEq(pPendlePT.balanceOf(user), 1 ether);
+
+        uint256 balanceBeforeBorrow = dai.balanceOf(user);
+        // borrow
+        eDAI.borrow(100 ether);
+        assertEq(balanceBeforeBorrow + 100 ether, dai.balanceOf(user));
+
+        // try leverage with 50% of max
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+
+        address[] memory path = new address[](2);
+        path[0] = _DAI_ADDRESS;
+        path[1] = _USDC_ADDRESS;
+        
+        // amount to receive from uniswap when swapping DAI -> USDC
+        uint256 estimatedUniswapOutputAmount = 9971924;
+
+        // vm.stopPrank();
+
+        // // test output amount from uniswap
+
+        // deal(_DAI_ADDRESS, address(this), amountForLeverage);
+
+        // address uniswapV2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+        // IERC20(_DAI_ADDRESS).approve(uniswapV2Router, UINT256_MAX);
+
+        // emit debugUint256("trying to swap", amountForLeverage);
+
+        // (bool success, bytes memory uniswapOutputAmount) = uniswapV2Router.call(abi.encodeWithSignature(
+        //     "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+        //     amountForLeverage,
+        //     0,
+        //     path,
+        //     address(this),
+        //     block.timestamp + 30
+        // ));
+
+        // uint256[] memory outputAmount = abi.decode(uniswapOutputAmount, (uint256[]));
+
+        // emit debugUint256("Uniswap output amount", outputAmount[outputAmount.length - 1]);
+        // vm.startPrank(user);
+
+        // vm.stopPrank();
+
+        // vm.prank(centralRegistry.emergencyCouncil());
+        // centralRegistry.transferEmergencyCouncil(address(this));
+
+        // centralRegistry.setSlippageLimit(100000);
+
+        // vm.stopPrank(); 
+
+        // vm.startPrank(user);
+
+        // create SwapData
+        SwapperLib.Swap memory swapData;
+        swapData.inputToken = _DAI_ADDRESS;
+        swapData.inputAmount = amountForLeverage;
+        swapData.outputToken = _USDC_ADDRESS;
+        swapData.target = address(_UNISWAP_V2_ROUTER);
+        swapData.call = abi.encodeWithSignature(
+                        "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+                        10e18,
+                        0,
+                        path,
+                        address(positionManagement),
+                        block.timestamp + 30
+        );
+
+        PositionManagementPendlePT.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pPendlePT));
+        PendleLib.PendleData memory data;
+        data.approx.guessMin = 5e17;
+        data.approx.guessMax = 1.2e18;
+        data.approx.guessOffchain = 1.2e18;
+        data.approx.maxIteration = 30;
+        data.approx.eps = 1e15;
+        data.input.tokenIn = _USDC_ADDRESS;
+        data.input.netTokenIn = estimatedUniswapOutputAmount;
+        data.input.tokenMintSy = _WSTETH;
+        data.input.pendleSwap = _PENDLE_SWAP;
+        data.input.swapData.swapType = SwapType.KYBERSWAP;
+        data
+            .input
+            .swapData
+            .extRouter = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
+        data
+            .input
+            .swapData
+            .extCalldata = hex"8af033fb000000000000000000000000f081470f5c6fbccf48cc4e5b82dd926409dcdd670000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000028000000000000000000000000000000000000000000000000000000000000007600000000000000000000000006b175474e89094c44da98b954eedeac495271d0f0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca00000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000888888888889758f76e7103c6cbf23abbf58f9460000000000000000000000000000000000000000000000bd4f3762c29d0b80560000000000000000000000000000000000000000000000000cd21ab41da73736000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000001e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004c0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000007fffffff00000000000000000000000000000000000000000000000000000000000004600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000a478c2975ab1ea89e8196811f51a7b7ade33eb1100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000bd4f3762c29d0b80560000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002e000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000000000000000000000000000000000000000004059361199000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000100000000000000000000000000a478c2975ab1ea89e8196811f51a7b7ade33eb110000000000000000000000006b175474e89094c44da98b954eedeac495271d0f000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000f081470f5c6fbccf48cc4e5b82dd926409dcdd670000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000003e8000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000000000408cc7a56b0000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000ba12222222228d8ba445958a75a0704d566bf2c893d199263632a4ef4bb438f1feb99e57b4b5f0bd0000000000000000000005c2000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca00000000000000000000000000000000000000000000000000f35a0e408a8273700000000000000000000000000000000000000000000000000000000000000200000000000000000000000d786ec3cd500000000000000000cd8ae8233427c12000000000000000000000000000000000000000000000000000000000000022d7b22536f75726365223a2250656e646c65222c22416d6f756e74496e555344223a22333438382e363935393534363937383535222c22416d6f756e744f7574555344223a22333438372e323339383532373931363538222c22526566657272616c223a22222c22466c616773223a302c22416d6f756e744f7574223a22393235363831353937363533363133353836222c2254696d657374616d70223a313733313331393638302c22496e74656772697479496e666f223a7b224b65794944223a2231222c225369676e6174757265223a224a716d6f69783866726a704a6a5246725364634f5a4d546a576150365563533144335732754f63384a58444c4d5453384c5230354e554639574b7837434f495a616b58756f7847747545474c57324430565a742b576476672f30796742692f777a4349332b5756496e4e7254654b4c61574e614b764a56592b6c65426252756f51564d63763671724e45394836346f6e4d383933646876726f5876485535437649706e46483175746f424a6a3931536c2f4d4e464c517a57393138316a78327965486e4862573738312b7a683841747a4373324556496e615230316d736739384733497851342b4d5879303378744843707a7577663052706b4f4738386f313757416e2b666573444d36394e546b34546a4b62746756336a427664644f42566a4670757a545570455247657354715972694b524d5032583745614964505547584c4a76586a2b6a5055486f416c534c75706b387a36513d3d227d7d00000000000000000000000000000000000000";
+
+        data.input.swapData.needScale = false;
+        leverageData.auxData = abi.encode(_LP_STETH, 1, data);
+
+        leverageData.swapData = swapData;
+
+        vm.expectRevert();
+
+        positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
+
+        // (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        // assertEq(eDAIBalance, 0);
+        // assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+
+        // (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
+        //     .getSnapshot(user);
+        // assertGt(pPendlePTBalance, 2 ether);
+        // assertEq(pPendlePTBorrowed, 0 ether);
+
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageInvalidSwapParams() public {
         // Setup a user position similar to testLeverage
         vm.startPrank(user);
 
@@ -457,14 +601,14 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         leverageData.swapData.inputAmount = 1 ether;
         leverageData.swapData.outputToken = address(420); // Invalid output token
         leverageData.auxData = abi.encode(_LP_STETH, 1, data);
-        
         // Expect the call to revert with PositionManagementBase__InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
         positionManagement.leverage(leverageData, 0.05e18);
         
         vm.stopPrank();
     }
 
-    function testFail_InvalidPendlePT() public {
+    function testRevert_InvalidPendlePT() public {
         vm.startPrank(user);
 
         _preparePT(user, 1 ether);
@@ -504,17 +648,20 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
         data.input.swapData.needScale = false;
         
         // ETHx (Stader) 25 Dec 2024 market
-        // Valid LP market at the same address as PT-stETH-26DEC24
-        address differentLpMarket = 0xFf262396f2A35Cd7Aa24b7255E7d3f45f057Cdba;
+        // Valid PT market at the same block height as PT-stETH-26DEC24
+        address differentPTMarket = 0xFf262396f2A35Cd7Aa24b7255E7d3f45f057Cdba;
         
-        // Encode with the different LP market 
-        leverageData.auxData = abi.encode(differentLpMarket, 1, data);
+        // Encode with the different PT market 
+        leverageData.auxData = abi.encode(differentPTMarket, 1, data);
         
         // This call should revert with PositionManagementBase__InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
         
         vm.stopPrank();
     }
+
+    
 
 
 }
