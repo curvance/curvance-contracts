@@ -4,6 +4,32 @@ pragma solidity ^0.8.26;
 import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
 
+/// @title BaseMulticallChecker
+/// @notice A base contract for validating multicall operations related to oracle price updates
+/// @dev This abstract contract serves as the foundation for protocol-specific oracle 
+///      validation. It inherits from IMulticallChecker and BaseCallDataChecker to provide:
+///      
+///      1. A standardized interface for all multicall checkers
+///      2. Access to core calldata examination utilities
+///      3. A reference to the central registry for protocol-wide verification
+///      
+///      The primary purpose of multicall checkers is to secure oracle price updates by:
+///      - Verifying the target contract is an approved oracle adaptor
+///      - Validating the function signature being called is appropriate
+///      - Ensuring all parameters match expected values
+///      
+///      This security layer prevents:
+///      - Malicious price manipulations through unauthorized oracle adaptors
+///      - Calls to unintended functions within oracle adaptors
+///      - Improperly formatted calldata
+///      
+///      Specific implementations like RedstoneAdaptorMulticallChecker and 
+///      PythAdaptorMulticallChecker extend this base contract to provide 
+///      oracle-specific validation logic.
+///      
+///      The Multicall library uses these checkers when processing price updates
+///      before liquidity-dependent actions.
+///
 abstract contract BaseMulticallChecker is
     IMulticallChecker,
     BaseCallDataChecker

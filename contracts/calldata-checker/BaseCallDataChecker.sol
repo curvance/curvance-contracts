@@ -1,6 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+/// @title BaseCallDataChecker
+/// @notice A base contract that provides utility functions for parsing and examining calldata
+/// @dev This abstract contract serves as the foundation for all calldata verification contracts
+///    in the Curvance protocol. It provides essential low-level utilities to:
+///     1. Extract function signatures from calldata
+///     2. Extract function parameters from calldata
+///     3. Safely slice bytes arrays
+///
+///    These utilities are used by child contracts in the calldata-checker directory:
+///      - swap-checker/: Contains BaseSwapChecker and specific DEX implementation checkers
+///                      (OneInch, OogaBooga, Odos, etc.) that verify swap calls are safe
+///      - multicall-checker/: Contains BaseMulticallChecker and specific oracle adaptor
+///                           checkers that verify oracle calls are from approved sources
+///
+///    The primary purpose of these checkers is to provide security when interacting with
+///    external protocols by validating calldata before execution. This protects against:
+///      - Sending tokens to unauthorized recipients
+///      - Using incorrect tokens or amounts in swaps
+///      - Calling unauthorized functions or contracts
+///      - Malicious oracle price manipulation
+///
+///    The system consults the Central Registry to find the correct calldata checker
+///    for the target contract and function signature.
+///
 abstract contract BaseCallDataChecker {
     /// INTERNAL FUNCTIONS ///
 
