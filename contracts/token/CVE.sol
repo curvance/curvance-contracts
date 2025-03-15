@@ -5,7 +5,25 @@ import { CVEBase } from "contracts/token/CVEBase.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-/// @notice Curvance DAO's Canonical CVE Contract.
+/// @title CVE - Curvance Collective Token
+/// @notice The canonical implementation of the Curvance governance and utility token.
+/// @dev This contract extends CVEBase to implement the canonical CVE token with:
+///      1. Token allocation management for different stakeholders
+///      2. Vesting schedules for contributor allocations
+///      3. Minting controls for various token allocations
+///      4. Role-based permissions for allocation management
+///
+///      The allocation system includes:
+///      - DAO Treasury: 14.5% (60,900,010 tokens) mintable as needed
+///      - Initial Community: 3.75% (15,750,002.59 tokens) mintable after LBP
+///      - Contributor: 13.5% (44,100,007.245 tokens) vested over 4 years
+///      - Initial Mint: 12% (50,400,008.285 tokens) for early backers, contributor 
+///        veCVE, and LBP allocation
+///
+///      All token amounts and allocations use 18 decimals. The canonical CVE contract
+///      is deployed on the primary chain of the Curvance ecosystem, while RemoteCVE 
+///      instances are deployed on secondary chains.
+///
 contract CVE is CVEBase {
     /// CONSTANTS ///
 

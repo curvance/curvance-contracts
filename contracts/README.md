@@ -1,9 +1,18 @@
-# Curvance Contracts
+<h1> <img style="text-align: center; height: 18px" src="https://user-images.githubusercontent.com/77558763/148961492-99d86d51-41a3-45a8-9af6-bdc1a85c722b.png"/> curvance contracts</h1>
 
 ## Overview
 
-This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.29. 
+This directory contains the core contracts for the Curvance protocol. All contracts are written using Solidity 0.8.29.
 
+Curvance is a cross-chain, thesis-driven DeFi lending protocol designed to support diverse asset types while minimizing systemic risk. Key features include:
+
+- **Dynamic Liquidation Engine (DLE)**: A multi-tiered liquidation system that efficiently balances risk management with capital efficiency.
+- **Cross-Chain Architecture**: Native multi-chain support through a hub-and-spoke model powered by secure messaging protocols.
+- **Thesis-Driven Markets**: Specialized markets with tailored risk parameters for different asset classes and investment theses.
+- **Governance-Optimized Tokenomics**: A sophisticated CVE/veCVE system enabling protocol governance across multiple chains.
+- **Security-First Design**: Comprehensive validation systems for external interactions, including dedicated calldata checkers for oracle updates and DEX operations.
+
+The protocol implements isolated risk environments for exotic assets while providing deep liquidity for blue-chip collateral, all governed by a decentralized voting mechanism that directs token emissions based on community decisions.
 ## Directory Structure
 
 ```
@@ -24,7 +33,7 @@ contracts/
 ## Subdirectories
 
 ### 📁 architecture
-**Purpose**: Core architecture contracts for the protocol, including a registry for the protocol's contracts, delegation, cross-chain communication, rewards, gauges, and more.
+**Purpose**: Foundational contracts that establish the core governance and operational infrastructure for the Curvance protocol. These contracts manage protocol-wide permissions, cross-chain communication, reward distribution, and token emissions governance, forming the secure backbone that enables all other protocol components to function cohesively across multiple chains.
 
 **Contents**:
 - 📄 `CentralRegistry.sol`: Manages permissions and protocol contract registration within the Curvance Protocol.
@@ -42,7 +51,7 @@ contracts/
 ---
 
 ### 📁 calldata-checker
-**Purpose**: Tools for checking arbitrary calldata of transactions to ensure they are valid.
+**Purpose**: Security infrastructure that validates external transaction calldata for critical protocol operations, protecting against malicious inputs and ensuring transaction integrity. These contracts enable secure oracle updates and DEX interactions by validating calldata structures, parameters, and execution paths before allowing external data or swap operations to affect the protocol.
 
 **Contents**:
 - 📁 `multicall-checker/`: Contracts for validating multicall operations related to oracle price updates
@@ -78,7 +87,7 @@ contracts/
 ---
 
 ### 📁 market
-**Purpose**: Contracts that contain logic for the Curvance market.
+Core lending infrastructure that implements Curvance's unique Dynamic Liquidation Engine (DLE) and thesis-driven market approach. This directory contains the MarketManager contract which manages risk between collateral (pTokens) and debt (eTokens), with specialized components for liquidity management, position leveraging, and isolated markets - all designed to support diverse asset types while minimizing systemic risk.
 
 **Contents**
 - 📁 `isolated/`: Contracts for isolated markets.
@@ -117,7 +126,7 @@ contracts/
 ---
 ### 📁 token
 
-**Purpose**: Contains the core token contracts that power the Curvance protocol's economic system. 
+**Purpose**: Implements Curvance's sophisticated tokenomics framework through a system of cross-chain compatible governance tokens (CVE) and vote-escrowed mechanics (veCVE). These contracts power the protocol's economic incentives, governance mechanisms, and multichain operations while managing token allocations, vesting schedules, and reward distribution - establishing both the protocol's ownership structure and its value accrual mechanisms.
 
 **Contents**:
 - 📄 `CVE.sol`: The main Curvance governance token contract that manages token allocations, implements vesting schedules, and handles controlled token minting for different stakeholders including treasury, community, and contributors.
