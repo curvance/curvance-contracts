@@ -127,6 +127,9 @@ contract MarketManager is
 
     /// STORAGE ///
 
+    /// @notice The supported position token inside this isolated market.
+    address public positionToken;
+
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
     address[] public tokensListed;
@@ -225,16 +228,17 @@ contract MarketManager is
     /// @param newPenalty The new penalty value.
     function setPenalty(uint256 newPenalty) external {
         _checkDappControl();
-        // make sure new penalty is within configured allowed penalty
-        if (newPenalty < minPenalty || newPenalty > maxPenalty) {
+        MarketToken memory pToken = tokenData[positionToken];
+        // Validate new penalty is within configured allowed penalty.
+        if (
+            newPenalty < pToken.liqMinIncentive ||
+            newPenalty > pToken.liqMaxIncentive
+            ) {
             revert PenaltyFeed__PenaltyOutOfRange();
         }
 
-        // Write newPenalty to transient storage.
-        // Note: This inline assembly uses pseudocode for the new transient
-        ///      storage opcodes.
+        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
         assembly {
-            // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
             tstore(TRANSIENT_PENALTY_KEY, newPenalty)
         }
     }
@@ -256,6 +260,13 @@ contract MarketManager is
         assembly {
             // Load dynamic penalty from transient storage.
             result := tload(TRANSIENT_PENALTY_KEY)
+        }
+
+        // If no dynamic penalty is set (assumed to be zero), return the
+        // liqBaseIncentive.
+        // Note that this renders 0 as an invalid dynamic penalty value.
+        if (result == 0) {
+            return tokenData[positionToken].liqBaseIncentive;
         }
     }
 
@@ -973,6 +984,10 @@ contract MarketManager is
         if (!IMToken(eToken).startMarket(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
+
+        // Redundantly store position token address for dynamic penalty
+        // checks.
+        positionToken = pToken;
 
         // No need to check whether tokens were listed before since this
         // function can only be called once due to numTokens == 0 check.
