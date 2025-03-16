@@ -40,7 +40,7 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///      This process is optimized by the introduction of a decay mechanism.
 ///      When the Vertex Multiplier is elevated, the decay rate naturally
 ///      reduces the excess skew overtime. This has the effect of creating a
-///     "downward sloping" interest rate model. From a mathematical sense,
+///      "downward sloping" interest rate model. From a mathematical sense,
 ///      this means when the multiplier value is elevated, a constant negative
 ///      velocity is applied to it, regardless of positive or negative
 ///      acceleration applied due to liquidity utilization. By having a

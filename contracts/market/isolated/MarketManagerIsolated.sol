@@ -87,9 +87,6 @@ contract MarketManager is
 
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @notice Maximum number of listed assets allowed inside a market.
-    /// @dev This restriction is to force the market into isolated form.
-    uint256 public constant MAX_LISTED_ASSETS = 2;
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -223,7 +220,8 @@ contract MarketManager is
     }
 
     /// @notice Sets a new dynamic penalty value in transient storage.
-    /// Transient storage enforces any liquidator not using dappcontrol/auction uses the default penalty.
+    /// @dev Transient storage enforces any liquidator not using
+    ///      dappcontrol/auction uses the default penalty.
     /// @param newPenalty The new penalty value.
     function setPenalty(uint256 newPenalty) external {
         _checkDappControl();
@@ -251,8 +249,9 @@ contract MarketManager is
     }
 
     /// @notice Returns the current penalty.
-    /// If a dynamic penalty is set in transient storage, that value is returned;
-    /// otherwise, the default penalty is returned.
+    /// @dev If a dynamic penalty is set in transient storage, 
+    ///      that value is returned; otherwise, the default penalty
+    ///      is returned.
     function getLatestPenalty() external view returns (uint256 result) {
         assembly {
             // Load dynamic penalty from transient storage.
@@ -943,46 +942,46 @@ contract MarketManager is
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
-    /// @notice Add the market token to the market and set it as listed.
-    /// @dev Admin function to set isListed and add support for the market.
-    ///      Emits a {TokenListed} event.
-    /// @param mToken The address of the market token to list.
-    function listToken(address mToken) external {
-        _checkElevatedPermissions();
-
-        if (tokenData[mToken].isListed) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Sanity check to make sure its really a mToken.
-        IMToken(mToken).isPToken();
+    /// @notice Add isolated market token pair to the market and set it as
+    ///         listed.
+    /// @dev Admin function to set isListed for token pair and add support
+    ///      for the market. Only callable once due to isolated market design.
+    ///      Emits two {TokenListed} events.
+    /// @param pToken The address of the market position token to list.
+    /// @param eToken The address of the market earn token to list.
+    function listTokens(address pToken, address eToken) external {
+        _checkDaoPermissions();
 
         uint256 numTokens = tokensListed.length;
-        if (numTokens == MAX_LISTED_ASSETS) {
+        if (numTokens != 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // List the token and set collateralization to 0%.
-        MarketToken storage token = tokenData[mToken];
-        token.collRatio = 0;
-        token.isListed = true;
+        if (!IMToken(pToken).isPToken() ||  IMToken(eToken).isPToken()) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // List the tokens.
+        tokenData[pToken].isListed = true;
+        tokenData[eToken].isListed = true;
 
         // Immediately deposit into the market to prevent any rounding
         // exploits.
-        if (!IMToken(mToken).startMarket(msg.sender)) {
+        if (!IMToken(pToken).startMarket(msg.sender)) {
+            _revert(_INVARIANT_ERROR_SELECTOR);
+        }
+        if (!IMToken(eToken).startMarket(msg.sender)) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
 
-        for (uint256 i; i < numTokens; ) {
-            unchecked {
-                if (tokensListed[i++] == mToken) {
-                    _revert(_INVALID_PARAMETER_SELECTOR);
-                }
-            }
-        }
+        // No need to check whether tokens were listed before since this
+        // function can only be called once due to numTokens == 0 check.
 
-        tokensListed.push(mToken);
-        emit TokenListed(mToken);
+        // Update frontend array/emit events.
+        tokensListed.push(pToken);
+        emit TokenListed(pToken);
+        tokensListed.push(eToken);
+        emit TokenListed(eToken);
     }
 
     /// @notice Sets market liquidity configuration values for a position
