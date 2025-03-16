@@ -181,8 +181,9 @@ contract MarketManager is
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
-        uint256 liqIncSoft,
-        uint256 liqIncHard,
+        uint256 liqIncBase,
+        uint256 liqIncMin,
+        uint256 liqIncMax,
         uint256 baseCFactor
     );
     event ActionPaused(string action, bool pauseState);
@@ -234,7 +235,7 @@ contract MarketManager is
             newPenalty < pToken.liqMinIncentive ||
             newPenalty > pToken.liqMaxIncentive
             ) {
-            revert PenaltyFeed__PenaltyOutOfRange();
+            revert MarketManager__InvalidParameter();
         }
 
         // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
@@ -353,8 +354,8 @@ contract MarketManager is
     ///         by calculating their lFactor, based on their
     ///         collateral versus outstanding debt.
     /// @param account The account to check liquidation status for.
-    /// @param earnToken The eToken to be repaid during potential liquidation.
-    /// @param positionToken The pToken to be seized during potential
+    /// @param eToken The eToken to be repaid during potential liquidation.
+    /// @param pToken The pToken to be seized during potential
     ///                        liquidation.
     /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
     ///                 indicates a soft liquidation, with a value of
@@ -363,8 +364,8 @@ contract MarketManager is
     /// @return positionTokenPrice Current price for `positionToken`.
     function liquidationStatusOf(
         address account,
-        address earnToken,
-        address positionToken
+        address eToken,
+        address pToken
     )
         public
         view
@@ -376,8 +377,8 @@ contract MarketManager is
     {
         LiqData memory result = _liquidationStatusOf(
             account,
-            earnToken,
-            positionToken
+            eToken,
+            pToken
         );
         return (
             result.lFactor,
@@ -1002,31 +1003,28 @@ contract MarketManager is
     /// @notice Sets market liquidity configuration values for a position
     ///         token inside this market.
     /// @dev Emits a {PositionTokenUpdated} event.
-    /// @param pToken The address of the position token to set the
-    ///               collateralization ratio for.
     /// @param collRatio The ratio at which $1 of collateral can be borrowed
     ///                  against, for `pToken`, in basis points.
     /// @param collReqSoft The premium of excess collateral required to
     ///                    avoid soft liquidation, in basis points.
     /// @param collReqHard The premium of excess collateral required to
     ///                    avoid hard liquidation, in basis points.
-    /// @param liqIncSoft The soft liquidation incentive for `pToken`,
-    ///                   in basis points.
-    /// @param liqIncHard The hard liquidation incentive for `pToken`,
-    ///                   in basis points.
+    /// @param liqIncBase The default liquidation incentive for
+    ///                   `positionToken`, in basis points.
+    /// @param liqIncMin The minimum possible liquidation incentive for
+    ///                  `positionToken`, in basis points.
+    /// @param liqIncMax The maximum possible liquidation incentive for
+    ///                  `positionToken`, in basis points.
     function updatePositionToken(
-        address pToken,
         uint256 collRatio,
         uint256 collReqSoft,
         uint256 collReqHard,
-        uint256 liqIncSoft,
-        uint256 liqIncHard,
+        uint256 liqIncBase,
+        uint256 liqIncMin,
+        uint256 liqIncMax,
         uint256 baseCFactor
     ) external {
         _checkElevatedPermissions();
-
-        _checkIsListedToken(pToken);
-        _checkIsPToken(pToken);
 
         // Convert the parameters from basis points to `WAD` format.
         // While inefficient, we want to minimize potential human error
@@ -1034,8 +1032,9 @@ contract MarketManager is
         collRatio = _bpToWad(collRatio);
         collReqSoft = _bpToWad(collReqSoft);
         collReqHard = _bpToWad(collReqHard);
-        liqIncSoft = _bpToWad(liqIncSoft);
-        liqIncHard = _bpToWad(liqIncHard);
+        liqIncBase = _bpToWad(liqIncBase);
+        liqIncMin = _bpToWad(liqIncMin);
+        liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
 
         // Validate collateralization ratio is not above the maximum allowed.
@@ -1049,12 +1048,6 @@ contract MarketManager is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate hard liquidation incentive is
-        // not above the maximum allowed.
-        if (liqIncHard > MAX_LIQUIDATION_INCENTIVE) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // Validate hard liquidation collateral requirement is not above
         // the soft liquidation requirement. Liquidations occur when
         // collateral dries up so hard liquidation should be less collateral
@@ -1063,10 +1056,22 @@ contract MarketManager is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Make sure the maximum dynamic penalty is not greater than the base
+        // liquidation incentive and that the minimum dynamic penalty is not
+        // less than the base liquidation incentive.
+        if (liqIncBase > liqIncMax || liqIncBase < liqIncMin) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Validate hard liquidation incentive is
-        // higher than the soft liquidation incentive. Give heavier incentives
-        // when collateral is running out to reduce delta exposure.
-        if (liqIncSoft >= liqIncHard) {
+        // not above the maximum allowed.
+        if (liqIncMax > MAX_LIQUIDATION_INCENTIVE) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Validate maximum liquidation incentive and default is
+        // equal or higher than the minimum liquidation incentive.
+        if (liqIncMin >= liqIncMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1074,13 +1079,13 @@ contract MarketManager is
         // than the hard liquidation incentive. We cannot give more incentives
         // than are available. We do not need to check soft liquidation as the
         // restrictions are thinner than this case.
-        if (liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
+        if (liqIncMax + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // We need to make sure that the liquidation incentive is sufficient
         // for the users.
-        if (liqIncSoft < MIN_LIQUIDATION_INCENTIVE) {
+        if (liqIncMin < MIN_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1095,7 +1100,7 @@ contract MarketManager is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        MarketToken storage marketToken = tokenData[pToken];
+        MarketToken storage marketToken = tokenData[positionToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
@@ -1123,12 +1128,11 @@ contract MarketManager is
         marketToken.collReqSoft = collReqSoft + WAD;
         marketToken.collReqHard = collReqHard + WAD;
 
-        // Store the distance between liquidation incentive A & B,
-        // so we can quickly scale between [base, 100%] based on lFactor.
-        marketToken.liqCurve = liqIncHard - liqIncSoft;
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
-        marketToken.liqBaseIncentive = WAD + liqIncSoft;
+        marketToken.liqBaseIncentive = WAD + liqIncBase;
+        marketToken.liqMinIncentive = WAD + liqIncMin;
+        marketToken.liqMaxIncentive = WAD + liqIncMax;
 
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
@@ -1137,12 +1141,13 @@ contract MarketManager is
         marketToken.cFactorCurve = WAD - baseCFactor;
 
         emit PositionTokenUpdated(
-            pToken,
+            positionToken,
             collRatio,
             collReqSoft,
             collReqHard,
-            liqIncSoft,
-            liqIncHard,
+            liqIncBase,
+            liqIncMin,
+            liqIncMax,
             baseCFactor
         );
     }
@@ -1610,32 +1615,32 @@ contract MarketManager is
 
     /// @notice Helper function for checking if the liquidation should be
     ///         allowed to occur.
-    /// @param earnToken Asset which was borrowed by the borrower.
-    /// @param positionToken Asset which was used as collateral and will
+    /// @param eToken Asset which was borrowed by the borrower.
+    /// @param pToken Asset which was used as collateral and will
     ///                        be seized.
     /// @param account The address of the account to be liquidated.
-    /// @param debtAmount The amount of `earnToken` desired to liquidate.
+    /// @param debtAmount The amount of `eToken` desired to liquidate.
     ///                   When `liquidateExact` is false, this value is
     ///                   replaced with the maximum executable liquidation
     ///                   amount.
     /// @param liquidateExact Whether the liquidator wants to liquidate a
     ///                       specific amount of debt, used in conjunction
     ///                       with `debtAmount`.
-    /// @return The amount of `earnToken` underlying to be repaid on
+    /// @return The amount of `eToken` underlying to be repaid on
     ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
+    /// @return The number of `pToken` tokens to be seized in a
     ///         liquidation.
     function _canLiquidate(
-        address earnToken,
-        address positionToken,
+        address eToken,
+        address pToken,
         address account,
         uint256 debtAmount,
         bool liquidateExact
     ) internal view returns (uint256, uint256) {
-        _checkIsListedToken(earnToken);
-        _checkIsListedToken(positionToken);
+        _checkIsListedToken(eToken);
+        _checkIsListedToken(pToken);
 
-        MarketToken storage pToken = tokenData[positionToken];
+        MarketToken storage pToken = tokenData[pToken];
 
         // Do not let people liquidate 0 collateralization ratio assets.
         if (pToken.collRatio == 0) {
@@ -1645,8 +1650,8 @@ contract MarketManager is
         // Calculate the users lFactor.
         LiqData memory data = _liquidationStatusOf(
             account,
-            earnToken,
-            positionToken
+            eToken,
+            pToken
         );
 
         // Validate that `account` has a liquidation available.
@@ -1662,7 +1667,7 @@ contract MarketManager is
             uint256 incentive = pToken.liqBaseIncentive +
                 ((pToken.liqCurve * data.lFactor) / WAD);
             maxAmount =
-                (cFactor * IEToken(earnToken).debtBalanceCached(account)) /
+                (cFactor * IEToken(eToken).debtBalanceCached(account)) /
                 WAD;
 
             // Get the exchange rate, and calculate the number of
@@ -1670,7 +1675,7 @@ contract MarketManager is
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
-                    IPToken(positionToken).exchangeRateCached());
+                    IPToken(pToken).exchangeRateCached());
         }
 
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
@@ -1681,13 +1686,13 @@ contract MarketManager is
 
         // Adjust decimals if necessary.
         uint256 amountAdjusted = (debtAmount *
-            (10 ** IERC20(positionToken).decimals())) /
-            (10 ** IERC20(earnToken).decimals());
+            (10 ** IERC20(pToken).decimals())) /
+            (10 ** IERC20(eToken).decimals());
         // Calculate how many pTokens should be liquidated.
         uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) /
             WAD;
 
-        // Cache `account`'s collateral posted of `positionToken`.
+        // Cache `account`'s collateral posted of `pToken`.
         uint256 collateralAvailable = pToken
             .accountPositions[account]
             .collateralPosted;
