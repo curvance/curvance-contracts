@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
-import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
+import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidationManager } from "contracts/market/isolated/LiquidationManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -77,7 +77,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
 ///
-contract MarketManager is
+contract MarketManagerIsolated is
     LiquidityManager,
     LiquidationManager,
     ERC165,
@@ -229,7 +229,7 @@ contract MarketManager is
     /// @param newPenalty The new penalty value.
     function setPenalty(uint256 newPenalty) external {
         _checkDappControl();
-        MarketToken memory pToken = tokenData[positionToken];
+        MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
         if (
             newPenalty < pToken.liqMinIncentive ||
@@ -691,7 +691,7 @@ contract MarketManager is
         );
 
         // Validate that the OEV queue is disabled or the liquidator is valid.
-        _validateLiquidation(liquidator, account, true);
+        _validateLiquidation(liquidator, account);
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
@@ -810,7 +810,7 @@ contract MarketManager is
         _canLiquidate(eToken, pToken, account, 0, false);
 
         // Queue the liquidation for execution.
-        _queueLiquidation(liquidator, account, true);
+        _queueLiquidation(liquidator, account);
     }
 
     /// @notice Queues an account liquidation for `account` liquidating
@@ -823,7 +823,7 @@ contract MarketManager is
         _getUpdatedLiquidationStatusOf(account);
 
         // Queue the liquidation for execution.
-        _queueLiquidation(msg.sender, account, false);
+        _queueLiquidation(msg.sender, account);
     }
 
     /// @notice Liquidates an entire account by partially paying down debts,
@@ -840,7 +840,7 @@ contract MarketManager is
         }
 
         // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account, false);
+        _validateLiquidation(msg.sender, account);
 
         (
             BadDebtData memory data,
@@ -1135,6 +1135,10 @@ contract MarketManager is
         marketToken.liqBaseIncentive = WAD + liqIncBase;
         marketToken.liqMinIncentive = WAD + liqIncMin;
         marketToken.liqMaxIncentive = WAD + liqIncMax;
+
+        // Store the distance between max and base liquidation incentives
+        marketToken.liqCurve = marketToken.liqMaxIncentive - 
+        marketToken.liqBaseIncentive;
 
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
@@ -1653,7 +1657,7 @@ contract MarketManager is
         LiqData memory data = _liquidationStatusOf(
             account,
             eToken,
-            pTokenData
+            pToken
         );
 
         // Validate that `account` has a liquidation available.
@@ -1677,7 +1681,7 @@ contract MarketManager is
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
-                    IPToken(pTokenData).exchangeRateCached());
+                    IPToken(pToken).exchangeRateCached());
         }
 
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
@@ -1688,7 +1692,7 @@ contract MarketManager is
 
         // Adjust decimals if necessary.
         uint256 amountAdjusted = (debtAmount *
-            (10 ** IERC20(pTokenData).decimals())) /
+            (10 ** IERC20(pToken).decimals())) /
             (10 ** IERC20(eToken).decimals());
         // Calculate how many pTokens should be liquidated.
         uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) /
