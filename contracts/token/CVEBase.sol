@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -8,7 +8,22 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMessagingHub } from "contracts/interfaces/IMessagingHub.sol";
 
 /// @title CVEBase
-/// @notice Base contract to be inherited by Child CVE, and CVE contracts.
+/// @notice Base contract to be inherited by Curvance Collective Token (CVE) implementations.
+/// @dev This abstract contract provides core functionality for the Curvance ecosystem token:
+///      1. Cross-chain bridging capabilities via the MessagingHub
+///      2. Gauge emission minting for protocol incentives
+///      3. Lock boost token minting for veCVE staking rewards
+///      4. Security controls for authorized operations
+///
+///      The contract is meant to be extended by:
+///      - CVE.sol: The canonical implementation with vesting and allocation logic
+///      - RemoteCVE.sol: Simplified implementation for non-canonical chains
+///
+///      All CVE implementations interact with the following key components:
+///      - CentralRegistry: Central authority for permissions and protocol configuration
+///      - MessagingHub: Handles cross-chain messaging for bridging operations
+///      - VeCVE: Vote-escrow contract for locking CVE tokens
+///
 abstract contract CVEBase is ERC20 {
     /// CONSTANTS ///
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -15,6 +15,7 @@ import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol
 abstract contract BaseStableLPAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Stable LP Adaptor Data
     /// @notice Stores configuration data for stableSwap style
     ///         Twap price sources.
     /// @param token0 Underlying token0 address.

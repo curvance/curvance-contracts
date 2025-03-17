@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
@@ -16,6 +16,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract PendleLPPToken is CompoundingPToken {
     /// TYPES ///
 
+    /// @title Strategy Data
+    /// @dev Data for a Pendle LP token.
     /// @param router Address of Pendle Router.
     /// @param lp Address of PToken underlying Pendle lp token.
     /// @param sy Address of Standardized Yield for minting pt/yt.

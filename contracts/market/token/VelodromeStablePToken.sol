@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
@@ -18,6 +18,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract VelodromeStablePToken is CompoundingPToken {
     /// TYPES ///
 
+    /// @title Strategy Data
+    /// @dev Data for a Velodrome Stable LP token.
     /// @param gauge Address of Velodrome Gauge.
     /// @param pairFactory Address of Velodrome Pair Factory.
     /// @param router Address of Velodrome Router.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -13,6 +13,7 @@ import { IReader } from "contracts/interfaces/external/gmx/IReader.sol";
 contract GMAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Synthetic Asset
     /// @notice Holds information regarding synthetic asset data
     ///         for synthetic-asset denominated GM tokens.
     /// @param asset The address of synthetic asset for native token.

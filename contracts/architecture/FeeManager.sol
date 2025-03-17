@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -42,6 +42,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 contract FeeManager is ReentrancyGuard {
     /// TYPES ///
 
+    /// @title Reward Token Data
+    /// @notice Manages and tracks reward tokens, including their eligibility
+    ///         for DAO OTC transactions.
     /// @param isRewardToken Whether an address is the reward token or not.
     ///                      2 = yes; 0 or 1 = no.
     /// @param forOTC Whether a token should be held back for DAO OTC or not.
@@ -357,7 +360,7 @@ contract FeeManager is ReentrancyGuard {
         uint256 tokenBalance;
 
         // Send remaining fee tokens to new fee manager, if any.
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             tokenBalance = IERC20(currentRewardTokens[i]).balanceOf(
                 address(this)
             );
@@ -368,11 +371,7 @@ contract FeeManager is ReentrancyGuard {
                     newFeeManager,
                     tokenBalance
                 );
-            }
-
-            unchecked {
-                ++i;
-            }
+            }   
         }
 
         address feeToken = _getFeeToken();
@@ -439,14 +438,11 @@ contract FeeManager is ReentrancyGuard {
         uint256 numTokens = currentTokens.length;
         uint256 tokenIndex = numTokens;
 
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             if (currentTokens[i] == rewardTokenToRemove) {
                 // We found the token so break out of the loop.
                 tokenIndex = i;
                 break;
-            }
-            unchecked {
-                ++i;
             }
         }
 
@@ -481,14 +477,10 @@ contract FeeManager is ReentrancyGuard {
         uint256 numTokens = currentTokens.length;
         uint256[] memory tokenBalances = new uint256[](numTokens);
 
-        for (uint256 i; i < numTokens; ) {
+        for (uint256 i; i < numTokens; ++i) {
             tokenBalances[i] = IERC20(currentTokens[i]).balanceOf(
                 address(this)
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         return tokenBalances;

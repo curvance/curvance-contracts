@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";

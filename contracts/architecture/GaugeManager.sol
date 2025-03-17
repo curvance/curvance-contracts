@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { DENOMINATOR, RAY } from "contracts/libraries/Constants.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
@@ -61,6 +61,9 @@ contract GaugeManager is
 {
     /// TYPES ///
 
+    /// @title Epoch Information
+    /// @notice Manages and tracks epoch information, including their
+    ///         total weights and token weights.
     /// @param totalWeights The total weight value of all tokens, inside
     ///                     the pool, for this epoch.
     /// @param tokenWeight The weight value of a token, inside the pool,

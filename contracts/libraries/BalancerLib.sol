@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
@@ -7,6 +7,10 @@ import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { IBalancerVault } from "contracts/interfaces/external/balancer/IBalancerVault.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Balancer Library.
+/// @notice Helper Library for working with Balancer LP (BPT) tokens. Supports both
+///         creating and exiting LP positions for better composability across
+///         DeFi.
 library BalancerLib {
     /// ERRORS ///
 

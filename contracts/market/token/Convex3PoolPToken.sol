@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 
@@ -17,6 +17,8 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract Convex3PoolPToken is CompoundingPToken {
     /// TYPES ///
 
+    /// @title Strategy Data
+    /// @dev Data for a Convex 3Pool.
     /// @param curvePool Address of Curve Pool.
     /// @param pid Convex pool id value.
     /// @param rewarder Address of Convex Rewarder.

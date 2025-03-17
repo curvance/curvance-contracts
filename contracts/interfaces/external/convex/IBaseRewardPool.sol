@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IBaseRewardPool {
     function getReward(address _account, bool _claimExtra) external;

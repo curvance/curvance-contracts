@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";

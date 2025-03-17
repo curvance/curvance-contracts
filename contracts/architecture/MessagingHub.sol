@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { WAD, WAD_SQUARED } from "contracts/libraries/Constants.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -20,20 +20,32 @@ import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormho
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
-/// @title Curvance Messaging Hub.
-/// @notice A system for sending messages across the Curvance Protocol from
-///         chain to chain.
-/// @dev The Messaging Hub acts as a unified hub for sending messages
-///      crosschain. Various actions can be taken such as managing Gauge
-///      Emissions offchain -> onchain porting, veCVE token locking data,
-///      moving protocol fees, bridging CVE, moving a veCVE lock crosschain,
-///      etc.
-///
-///      Native gas tokens are stored inside the contract to pay for all
-///      crosschain actions. Locked token data actions are intended to be
-///      moved over to Wormhole's CCQ prior to mainnet deployment.
-///      At this time, payload/MessageType configuration + encoding/decoding
-///      are not production ready.
+/// @title Curvance Messaging Hub
+/// @notice A comprehensive system for cross-chain communication within the Curvance Protocol ecosystem
+/// @dev The Messaging Hub serves as the unified communication layer connecting all chains in the 
+///      Curvance Protocol. It enables critical cross-chain functionality including:
+///      
+///      1. Epoch Management:
+///         - Aggregates veCVE points across all chains using Wormhole's CCQ
+///         - Coordinates epoch transitions and reward distribution protocol-wide
+///      
+///      2. Fee Management:
+///         - Pulls fees from local FeeManager for distribution
+///         - Sends protocol fees to other chains via CCTP
+///         - Receives fees from other chains and routes to RewardManager (or DAO if offline)
+///      
+///      3. Token Operations:
+///         - Bridges CVE tokens between chains
+///         - Migrates veCVE locks cross-chain, preserving user positions
+///         - Distributes gauge emissions based on voting
+///      
+///      4. Governance:
+///         - Transmits emission configurations between chains
+///         - Handles protocol-wide administrative functions
+///      
+///      Implementation uses Wormhole for messaging and Circle's CCTP for token transfers.
+///      Native gas tokens are stored inside the contract to pay for all cross-chain actions.
+///      Contract status can be configured to restrict message creation and/or execution.
 ///
 contract MessagingHub is QueryResponse {
     using BytesParsing for bytes;
@@ -691,7 +703,7 @@ contract MessagingHub is QueryResponse {
 
         // We temporary cache this chains lock points inside the currentChainId
         // variable since it will be overridden before it is ever called again.
-        // We do this to avoid having to reserve another storage slot which will
+        // We do this to avoid having to reserve another memory slot which will
         // create a stack too deep error and reduces runtime gas costs.
         uint256 currentChainId = queryLockPoints();
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.26;
 
 /// @title IPythEvents contains the events that Pyth contract emits.
 /// @dev This interface can be used for listening to the updates for off-chain and testing purposes.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
@@ -17,6 +17,7 @@ import { IWETH } from "contracts/interfaces/IWETH.sol";
 contract PythAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Pyth Adaptor Data
     /// @notice Stores configuration data for Pyth price sources.
     /// @param priceId The price id
     /// @param isConfigured Whether the asset is configured or not.

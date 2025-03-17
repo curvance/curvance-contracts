@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
@@ -10,9 +10,30 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 
-/// @title Curvance Universal Balance for a chain's native gas token.
-/// @notice A system for managing a Universal Balance within the Curvance
-///         Protocol.
+/// @title Curvance Universal Balance for Native Gas Tokens
+/// @notice A specialized system for managing native gas tokens within the Curvance Protocol
+/// @dev UniversalBalanceNative extends the Universal Balance system to provide native 
+///      gas token support (ETH, MATIC, etc.) with automatic wrapping/unwrapping:
+///      
+///      1. Native Token Operations:
+///         - Seamlessly handles deposits of native gas tokens with auto-wrapping
+///         - Provides native withdrawal functionality with automatic unwrapping
+///         - Supports receiving native tokens directly via the receive() function
+///      
+///      2. Enhanced Functionality:
+///         - All core Universal Balance features (sitting/lent balances)
+///         - Specialized native token deposit/withdraw methods with recipient specification
+///         - Multi-user batch operations for gas-efficient management
+///      
+///      3. Integration Points:
+///         - Coordinates with wrapped native token contracts (WETH, WMATIC, etc.)
+///         - Supports Oracle Manager for on-demand funding of oracle updates
+///         - Validates that EToken underlying matches the wrapped native token
+///      
+///      Implementation carefully handles the wrapping/unwrapping of native tokens while
+///      maintaining the full feature set of the standard Universal Balance system.
+///      Refunds unused deposit amounts when processing batch operations.
+///
 contract UniversalBalanceNative is UniversalBalance {
     receive() external payable {
         if (msg.sender != underlying) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
@@ -9,6 +9,8 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 
 /// TYPES ///
 
+/// @title Chain Data
+/// @notice Struct containing information on a chain's data.
 /// @param isSupported Whether the chain is supported or not.
 ///                    2 = yes
 ///                    0 or 1 = no

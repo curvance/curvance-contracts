@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 interface IDelegateRegistry {
     function setDelegate(bytes32 id, address delegate) external;

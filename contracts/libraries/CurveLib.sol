@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { CommonLib } from "contracts/libraries/CommonLib.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
@@ -7,6 +7,10 @@ import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { ICurveSwap } from "contracts/interfaces/external/curve/ICurve.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
+/// @title Curvance Curve Finance Library
+/// @notice A utility library for working with Curve LP tokens. Supports both
+///         creating and exiting LP positions for better composability across
+///         DeFi.
 library CurveLib {
     /// ERRORS ///
 

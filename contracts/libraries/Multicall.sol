@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
@@ -12,6 +12,13 @@ import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 ///         other chained actions within Curvance.
 abstract contract Multicall is BaseCallDataChecker {
     /// TYPES ///
+
+    /// @title Multicall Data
+    /// @notice Struct containing information on the desired
+    ///         multicall action to execute. 
+    /// @param target The address of the target contract to execute the call at.
+    /// @param isPriceUpdate Boolean indicating if the call is a price update.
+    /// @param data The data to attach to the call.
     struct MulticallData {
         address target;
         bool isPriceUpdate;

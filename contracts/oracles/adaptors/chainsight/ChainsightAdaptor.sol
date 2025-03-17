@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -12,6 +12,7 @@ import { IManagementOracle } from "contracts/interfaces/external/chainsight/IMan
 contract ChainsightAdaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Chainsight Adaptor Data
     /// @notice Stores configuration data for Chainsight price sources.
     /// @param sender The sender address corresponding to `asset`'s feed
     ///               inside Management Oracle.

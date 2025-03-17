@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 import { ERC20 } from "contracts/libraries/external/ERC20.sol";
@@ -13,6 +13,7 @@ import { UniswapV3Pool } from "contracts/interfaces/external/uniswap/UniswapV3Po
 contract UniswapV3Adaptor is BaseOracleAdaptor {
     /// TYPES ///
 
+    /// @title Uniswap V3 Adaptor Data
     /// @notice Stores configuration data for Uniswap V3 twap price sources.
     /// @param priceSource The address location where you query
     ///                    the associated assets twap price.

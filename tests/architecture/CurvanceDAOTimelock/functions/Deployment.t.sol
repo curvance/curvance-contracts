@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.26;
 
 import { TestBaseTimelock } from "../TestBaseTimelock.sol";
 import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";

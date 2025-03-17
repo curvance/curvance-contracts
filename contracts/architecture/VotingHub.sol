@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { EthCallQueryResponse, ParsedQueryResponse, QueryResponse } from "contracts/libraries/external/wormhole/QueryResponse.sol";
 
@@ -8,7 +8,30 @@ import { IMessagingHub, EmissionData } from "contracts/interfaces/IMessagingHub.
 import { ICVE } from "contracts/interfaces/ICVE.sol";
 import { IGaugeManager } from "contracts/interfaces/IGaugeManager.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-
+/// @title Curvance Protocol Cross-Chain Voting and Emissions Hub
+/// @notice Coordinates protocol-wide token emission allocation based on governance decisions
+/// @dev VotingHub serves as the central coordinator for the Curvance tokenomics system by:
+///      
+///      1. Emission Management:
+///         - Sets token emission values in GaugeManager for the local chain
+///         - Coordinates emission distribution to other chains via MessagingHub
+///         - Enforces the protocol's deflationary emission schedule across all chains
+///      
+///      2. Cross-Chain Validation:
+///         - Uses Wormhole Cross-Chain Queries (CCQ) to verify emission data
+///         - Validates that total emissions across all chains don't exceed protocol limits
+///         - Ensures emission configurations are properly synchronized network-wide
+///      
+///      3. Tokenomics Implementation:
+///         - Manages the halving emission schedule (26 epochs ≈ 1 year per era)
+///         - Tracks emissions across multiple protocol eras (6 total eras)
+///         - Enforces supply control by reducing emissions by 50% each era
+///      
+///      The contract implements strict verification of cross-chain data to prevent
+///      manipulation, requiring Wormhole Guardian signatures. This ensures that
+///      token emissions are correctly balanced across the entire Curvance ecosystem,
+///      regardless of which chains users interact with.
+///
 contract VotingHub is QueryResponse {
     /// CONSTANTS ///
 

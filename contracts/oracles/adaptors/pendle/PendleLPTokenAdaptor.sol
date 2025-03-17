@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
 
@@ -19,6 +19,7 @@ contract PendleLPTokenAdaptor is BaseOracleAdaptor {
 
     /// TYPES ///
 
+    /// @title Pendle LP Token Adaptor Data
     /// @notice Stores configuration data for Pendle LP price sources.
     /// @param pt The address of the Pendle PT associated with LP.
     /// @param twapDuration The twap duration to use when pricing.

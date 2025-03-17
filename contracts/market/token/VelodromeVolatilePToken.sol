@@ -18,12 +18,19 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 contract VelodromeVolatilePToken is CompoundingPToken {
     /// TYPES ///
 
+    /// @title Strategy Data
+    /// @notice Data for a Velodrome Volatile LP token.
+    /// @param gauge Address of Velodrome Gauge.
+    /// @param pairFactory Address of Velodrome Pair Factory.
+    /// @param router Address of Velodrome Router.
+    /// @param token0 Address of first underlying token.
+    /// @param token1 Address of second underlying token.
     struct StrategyData {
-        IVeloGauge gauge; // Velodrome Gauge contract
-        IVeloPairFactory pairFactory; // Velodrome Pair Factory contract
-        IVeloRouter router; // Velodrome Router contract
-        address token0; // LP first token address
-        address token1; // LP second token address
+        IVeloGauge gauge; 
+        IVeloPairFactory pairFactory;
+        IVeloRouter router;
+        address token0; 
+        address token1;
     }
 
     /// CONSTANTS ///

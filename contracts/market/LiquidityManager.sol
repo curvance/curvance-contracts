@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -13,9 +13,53 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 /// @notice Calculates liquidity of an account in various positions.
 /// @dev NOTE: Only use this as an abstract contract as no account
 ///            data is written here.
+///
+/// This contract provides comprehensive liquidity assessment and risk management 
+/// functionality to the Curvance protocol:
+///
+/// Core Functionality:
+///  - Evaluates account status via _statusOf(), determining collateral value, 
+///    maximum debt capacity, and current debt obligations
+///  - Simulates hypothetical actions through _hypotheticalLiquidityOf() to predict
+///    liquidity after potential borrows or redemptions
+///  - Calculates liquidation eligibility with _liquidationStatusOf(), determining 
+///    whether accounts should undergo soft, hard, or bad debt liquidations
+///  - Computes precise asset values with _assetValue(), normalizing different token
+///    decimals and prices into consistent USD-denominated values
+///  - Tracks detailed account positions across markets in the tokenData and
+///    accountAssets mappings
+///
+/// Risk Assessment System:
+///  - Implements a three-tiered liquidation threshold system:
+///    1. Soft liquidation threshold (collReqSoft) - initiates partial liquidations
+///       with base liquidation incentives
+///    2. Hard liquidation threshold (collReqHard) - permits complete position 
+///       liquidation with maximum incentives
+///    3. Bad debt threshold - when collateral value falls below total debt,
+///       triggering protocol-level bad debt recognition
+///  - Calculates liquidation factors (lFactor) on a sliding scale between soft
+///    and hard thresholds, determining maximum repayment amounts and incentives
+///  - Applies collateralization ratios (collRatio) to different asset types to
+///    determine their borrowing power
+///  - Uses precision-focused math to prevent rounding errors in critical financial
+///    calculations through strategic rounding up or down based on operation type
+///
+/// The contract tracks detailed market and account data through structured types:
+///  - AccountData: Stores asset arrays and cooldown timestamps
+///  - AccountPosition: Tracks position status and collateral posted
+///  - MarketToken: Defines market parameters like collateralization ratios and
+///    liquidation incentives
+///  - Various calculation-specific structures for hypothetical actions,
+///    liquidation data, and bad debt assessment
+///
+/// LiquidityManager serves as the mathematical and logical core of Curvance's
+/// risk engine, providing the essential calculations that determine when and how
+/// positions can be modified, liquidated, or deemed insolvent.
+///
 abstract contract LiquidityManager {
     /// TYPES ///
 
+    /// @title Account Data
     /// @notice Storage structure for Account data involving liquidity
     ///         positions, and pending redemption cooldown.
     /// @param assets Array of account assets.
@@ -27,6 +71,8 @@ abstract contract LiquidityManager {
         uint256 cooldownTimestamp;
     }
 
+    /// @title Account Position
+    /// @notice Data for a user's position in a market token.
     /// @param activePosition Value that indicates whether an account has
     ///                       an active position in the token.
     ///                       0 or 1 for no; 2 for yes.
@@ -38,6 +84,7 @@ abstract contract LiquidityManager {
         uint256 collateralPosted;
     }
 
+    /// @title Market Token
     /// @notice Storage configuration for how a market token should behave
     ///         in the liquidity manager.
     /// @param isListed Whether or not this market token is listed.
@@ -82,6 +129,7 @@ abstract contract LiquidityManager {
         mapping(address => AccountPosition) accountPositions;
     }
 
+    /// @title Hypothetical Action
     /// @notice Data structure containing information on hypothetical action
     ///         to execute.
     /// @param mTokenModified The mToken to hypothetically redeem/borrow.
@@ -101,6 +149,7 @@ abstract contract LiquidityManager {
         uint256 errorCodeBreakpoint;
     }
 
+    /// @title Hypothetical Data
     /// @notice Data structure returned on hypothetical calculation containing
     ///         whether there was a collateral surplus or a liquidity deficit,
     ///         and whether account positions need to be updated.
@@ -116,6 +165,7 @@ abstract contract LiquidityManager {
         uint256 positionClosureNeeded;
     }
 
+    /// @title Liquidation Data
     /// @notice Data structure returned on liquidation calculation containing
     ///         lFactor, and c/d token prices for efficient liquidation processing.
     /// @param lFactor The liquidation factor value corresponding to a users
@@ -131,6 +181,7 @@ abstract contract LiquidityManager {
         uint256 earnTokenPrice;
     }
 
+    /// @title Bad Debt Data
     /// @notice Data structure returned on Bad Debt calculation containing
     ///         account collateral, amount of debt to repay, total account
     ///         debt.

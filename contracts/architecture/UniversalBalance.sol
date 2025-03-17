@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
@@ -15,12 +15,34 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IPluginDelegable } from "contracts/interfaces/IPluginDelegable.sol";
 
-/// @title Curvance Universal Balance.
-/// @notice A system for managing a Universal Balance within the Curvance
-///         Protocol.
+/// @title Curvance Universal Balance
+/// @notice A user-facing system for flexible token management within the Curvance Protocol
+/// @dev Universal Balance provides a comprehensive solution for users to manage their token
+///      positions with multiple options for utilization:
+///      
+///      1. Asset Management:
+///         - Front-facing contract for users to deposit and withdraw tokens (e.g., USDC)
+///         - Maintains two balance types per user: sitting (held) and lent (deployed)
+///         - Token-specific implementation linked to corresponding EToken contract
+///      
+///      2. Position Flexibility:
+///         - Users can freely shift balances between sitting and lent states
+///         - Lent balances earn yield through Curvance's lending protocols
+///         - Sitting balances remain liquid and immediately available
+///      
+///      3. Social Features:
+///         - Users can transfer portions of their balance to other users
+///         - Supports delegated account operations with permission system
+///         - Multi-user batch operations for efficient management
+///      
+///      Implementation uses a non-custodial design where users maintain full control
+///      of their assets while benefiting from integrated position management.
+///      Lent balances are represented as shares/tokens of the underlying EToken.
+///
 contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// TYPES ///
 
+    /// @title User Balance
     /// @notice Stores user-specific balance information within the 
     /// @notice             Universal Balance system.
     /// @param sittingBalance The amount of tokens currently held in 

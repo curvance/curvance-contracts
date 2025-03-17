@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
@@ -44,6 +44,8 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// TYPES ///
 
+    /// @title Debt Data
+    /// @dev Data for a user's debt. 
     /// @param principal Principal total balance (with accrued interest).
     /// @param accountExchangeRate Current exchange rate for account.
     struct DebtData {
@@ -51,6 +53,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256 accountExchangeRate;
     }
 
+    /// @title Market Data
+    /// @dev Data for a market. 
     /// @param lastTimestampUpdated Timestamp interest was last update.
     /// @param exchangeRate Borrow exchange rate at `lastTimestampUpdated`.
     /// @param compoundRate Rate at which interest compounds, in seconds.
