@@ -1100,7 +1100,9 @@ contract MarketManager is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        MarketToken storage marketToken = tokenData[positionToken];
+        // Cache positionToken storage address.
+        address pToken = positionToken;
+        MarketToken storage marketToken = tokenData[pToken];
 
         // If this token already has collateralization enabled,
         // we cannot turn collateralization off completely as this
@@ -1141,7 +1143,7 @@ contract MarketManager is
         marketToken.cFactorCurve = WAD - baseCFactor;
 
         emit PositionTokenUpdated(
-            positionToken,
+            pToken,
             collRatio,
             collReqSoft,
             collReqHard,
@@ -1640,10 +1642,10 @@ contract MarketManager is
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
-        MarketToken storage pToken = tokenData[pToken];
+        MarketToken storage pTokenData = tokenData[pToken];
 
         // Do not let people liquidate 0 collateralization ratio assets.
-        if (pToken.collRatio == 0) {
+        if (pTokenData.collRatio == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1651,7 +1653,7 @@ contract MarketManager is
         LiqData memory data = _liquidationStatusOf(
             account,
             eToken,
-            pToken
+            pTokenData
         );
 
         // Validate that `account` has a liquidation available.
@@ -1662,10 +1664,10 @@ contract MarketManager is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            uint256 cFactor = pToken.baseCFactor +
-                ((pToken.cFactorCurve * data.lFactor) / WAD);
-            uint256 incentive = pToken.liqBaseIncentive +
-                ((pToken.liqCurve * data.lFactor) / WAD);
+            uint256 cFactor = pTokenData.baseCFactor +
+                ((pTokenData.cFactorCurve * data.lFactor) / WAD);
+            uint256 incentive = pTokenData.liqBaseIncentive +
+                ((pTokenData.liqCurve * data.lFactor) / WAD);
             maxAmount =
                 (cFactor * IEToken(eToken).debtBalanceCached(account)) /
                 WAD;
@@ -1675,7 +1677,7 @@ contract MarketManager is
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
-                    IPToken(pToken).exchangeRateCached());
+                    IPToken(pTokenData).exchangeRateCached());
         }
 
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
@@ -1686,14 +1688,14 @@ contract MarketManager is
 
         // Adjust decimals if necessary.
         uint256 amountAdjusted = (debtAmount *
-            (10 ** IERC20(pToken).decimals())) /
+            (10 ** IERC20(pTokenData).decimals())) /
             (10 ** IERC20(eToken).decimals());
         // Calculate how many pTokens should be liquidated.
         uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) /
             WAD;
 
         // Cache `account`'s collateral posted of `pToken`.
-        uint256 collateralAvailable = pToken
+        uint256 collateralAvailable = pTokenData
             .accountPositions[account]
             .collateralPosted;
         // If the user wants to liquidate an exact amount, make sure theres
