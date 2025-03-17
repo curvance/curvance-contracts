@@ -13,9 +13,9 @@ abstract contract PenaltyFeed {
     ICentralRegistry public immutable centralRegistry;
 
     // --- Persistent parameters ---
-    uint256 public defaultPenalty = 10000;
-    uint256 public minPenalty = 10;
-    uint256 public maxPenalty = 10000;
+    uint256 public defaultPenalty = 105e16; // 5%
+    uint256 public minPenalty = 100e16; // 0%
+    uint256 public maxPenalty = 110e16; // 10%
 
     // Whitelisted updater of penalties only for duration of a transaction.
     // When address(0) that would produce a static penalty
@@ -38,6 +38,10 @@ abstract contract PenaltyFeed {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        if (defaultPenalty < minPenalty || defaultPenalty > maxPenalty || minPenalty < 1e18) {
+            revert PenaltyFeed__PenaltyOutOfRange();
+        }
+
         centralRegistry = centralRegistry_;
     }
 
@@ -48,7 +52,7 @@ abstract contract PenaltyFeed {
 
     function setDefaultPenalty(uint256 newDefaultPenalty) external {
         _checkElevatedPermissions();
-        if (newDefaultPenalty < minPenalty || newDefaultPenalty > maxPenalty) {
+        if (newDefaultPenalty < minPenalty || newDefaultPenalty > maxPenalty || newDefaultPenalty < 1e18) {
             revert PenaltyFeed__PenaltyOutOfRange();
         }
         defaultPenalty = newDefaultPenalty;
@@ -56,7 +60,7 @@ abstract contract PenaltyFeed {
 
     function setMinPenalty(uint256 newMinPenalty) external {
         _checkElevatedPermissions();
-        if (newMinPenalty > maxPenalty || defaultPenalty < newMinPenalty) {
+        if (newMinPenalty > maxPenalty || defaultPenalty < newMinPenalty || newMinPenalty < 1e18) {
             revert PenaltyFeed__PenaltyOutOfRange();
         }
         minPenalty = newMinPenalty;
@@ -65,7 +69,7 @@ abstract contract PenaltyFeed {
 
     function setMaxPenalty(uint256 newMaxPenalty) external {
         _checkElevatedPermissions();
-        if (newMaxPenalty < minPenalty || defaultPenalty > newMaxPenalty) {
+        if (newMaxPenalty < minPenalty || defaultPenalty > newMaxPenalty || newMaxPenalty < 1e18) {
             revert PenaltyFeed__PenaltyOutOfRange();
         }
         maxPenalty = newMaxPenalty;

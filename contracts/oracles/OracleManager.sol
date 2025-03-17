@@ -60,7 +60,7 @@ import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAda
 ///      will be used behind the scenes if you want to impose heavier
 ///      restrictions on minimum/maximum price.
 ///
-///      Oracle Adaptors also can cbe used to introduce dynamic information
+///      Oracle Adaptors also can be used to introduce realtime information
 ///      based on offchain logic such as dynamic liquidation penalties.
 ///
 ///      The Oracle Manager was built to minimize Oracle trust by introducing
