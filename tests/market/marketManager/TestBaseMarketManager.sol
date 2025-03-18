@@ -140,4 +140,64 @@ contract TestBaseMarketManager is TestBaseMarket {
 
         _prepareUSDC(user2, 1000e6);
     }
+
+    function _prepareLiquidationIsolated() internal {
+        mockUsdcFeed = new MockDataFeed(_CHAINLINK_USDC_USD);
+        chainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+
+        dualChainlinkAdaptor.addAsset(
+            _USDC_ADDRESS,
+            address(mockUsdcFeed),
+            0,
+            true
+        );
+
+        // use mock pricing for testing
+        vm.warp(gaugeManager.gaugeStartTime());
+        vm.roll(block.number + 1000);
+
+        chainlinkEthUsd.updateAnswer(1500e8);
+        mockUsdcFeed.setMockUpdatedAt(block.timestamp);
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
+        _prepareBALRETH(user1, _ONE);
+
+        vm.startPrank(user1);
+
+        balRETH.approve(address(pBALRETHIsolated), _ONE);
+        pBALRETHIsolated.deposit(_ONE, user1);
+
+        marketManagerIsolated.postCollateral(user1, address(pBALRETHIsolated), _ONE - 1);
+
+        _prepareUSDC(address(this), 1000e6);   
+
+        vm.stopPrank();
+
+        // Create a lender with USDC
+        deal(address(_USDC_ADDRESS), user2, 10_000e6);
+
+        vm.startPrank(user2);
+
+        usdc.approve(address(eUSDCIsolated), 10_000e6);
+
+        // Deposit USDC to get eTokens
+
+        eUSDCIsolated.mint(10_000e6);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        eUSDCIsolated.borrow(1000e6);
+        vm.stopPrank();
+        
+        skip(20 minutes);
+
+        mockUsdcFeed.setMockAnswer(2e8);
+    }
 }
