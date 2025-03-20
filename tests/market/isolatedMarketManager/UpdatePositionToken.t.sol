@@ -249,11 +249,58 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManager {
         );
     }
 
-    // Validate the soft liquidation collateral premium
-    // is not more strict than the asset's CR.
     function testUpdatePositionToken_SoftLiquidationCollateralPremium() public {
-    // TODO
+        // if (collRatio > (WAD_SQUARED / (WAD + collReqSoft))) {
+        //     _revert(_INVALID_PARAMETER_SELECTOR);
+        // }
+
+        // (1e36 / (1e18 + (4000 * 1e14))) = 71.4 % max collRatio
+        // 7200 > 71.4%
+        vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
+        marketManagerIsolated.updatePositionToken(
+            7200,    // collRatio 72% 
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 30%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
+        );
     }
+
+    function testUpdatePositionToken_TurnOffCollateralization() public {
+        // if (marketToken.collRatio != 0 && collRatio == 0) {
+        //     _revert(_INVALID_PARAMETER_SELECTOR);
+        // }
+
+        // set up normally
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
+        );
+        
+        // turn off collateralization
+        // will revert with MarketManager__InvalidParameter()
+        vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
+        marketManagerIsolated.updatePositionToken(
+            0,    // collRatio 0%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
+        );
+        
+        
+    }
+
+
 
 
 }
