@@ -75,6 +75,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
     uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
 
+    /// @dev A fixed key to use in transient storage for Atlas OEV status
+    bytes32 internal constant TRANSIENT_ATLAS_OEV_KEY = 0x1234567890123456789012345678901234567890123456789012345678901234;
+
     /// STORAGE ///
 
     /// @notice Genesis Epoch timestamp.
@@ -1205,7 +1208,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        atlasOevAllowed = false;
+        //assembly {
+        //    tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
+        //}
+        assembly {
+            sstore(TRANSIENT_ATLAS_OEV_KEY, 0)
+        }
     }
 
     /// @notice Called from the Atlas DappControl as a post hook
@@ -1215,7 +1223,24 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        atlasOevAllowed = true;
+        //assembly {
+        //    tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
+        //}
+        assembly {
+            sstore(TRANSIENT_ATLAS_OEV_KEY, 1)
+        }
+    }
+
+    /// @notice Returns whether Atlas OEV is currently allowed
+    function isAtlasOevAllowed() public view returns (bool) {
+        uint256 result;
+        //assembly {
+        //    result := tload(TRANSIENT_ATLAS_OEV_KEY)
+        //}
+        assembly {
+            result := sload(TRANSIENT_ATLAS_OEV_KEY)
+        }
+        return result == 1;
     }
 
     /// @notice Authorizes an address to lock and unlock Atlas OEV.
