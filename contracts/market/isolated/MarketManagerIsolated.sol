@@ -257,7 +257,7 @@ contract MarketManagerIsolated is
     /// @dev If a dynamic penalty is set in transient storage, 
     ///      that value is returned; otherwise, the default penalty
     ///      is returned.
-    function getLatestPenalty() external view returns (uint256 result) {
+    function getLatestPenalty() public view returns (uint256 result) {
         assembly {
             // Load dynamic penalty from transient storage.
             result := tload(TRANSIENT_PENALTY_KEY)
@@ -1670,11 +1670,19 @@ contract MarketManagerIsolated is
         {
             uint256 cFactor = pTokenData.baseCFactor +
                 ((pTokenData.cFactorCurve * data.lFactor) / WAD);
-            uint256 incentive = pTokenData.liqBaseIncentive +
-                ((pTokenData.liqCurve * data.lFactor) / WAD);
+
+            // check for dynamic penalty in transient storage
+            uint256 incentive = getLatestPenalty();
+
+            // if no dynamic penalty, use base incentive
+            if (incentive == 0) {
+                incentive = pTokenData.liqBaseIncentive +
+                    ((pTokenData.liqCurve * data.lFactor) / WAD);
+            }
+            
             maxAmount =
-                (cFactor * IEToken(eToken).debtBalanceCached(account)) /
-                WAD;
+            (cFactor * IEToken(eToken).debtBalanceCached(account)) /
+                 WAD;
 
             // Get the exchange rate, and calculate the number of
             // position tokens to seize.

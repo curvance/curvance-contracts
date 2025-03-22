@@ -51,7 +51,7 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
         vm.startPrank(dappControlUser);
         
         // Set a valid penalty (WAD + 15%)
-        uint256 validPenalty = 1.15e18;
+        uint256 validPenalty = 1.20e18;
         marketManagerIsolated.setPenalty(validPenalty);
         
         // Verify the penalty was set correctly
@@ -121,6 +121,36 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
         vm.stopPrank();
     }
 
+    // in _canLiquidate:
+    // cFactor = 200000000000000000 (baseCFactor) + 
+    // ((800000000000000000 (cFactorCurve) * 1000000000000000000 (lFactor)) / WAD)
+    // pass incentive == 0
+    // maxAmount = 1000000762
+    // debtToCollateralRatio =
+    // (1.20e18 (incentive 20%) *  2000000000000000000 (data.earnTokenPrice) * WAD) /
+    // (1677420866257185401796 (data.positionTokenPrice) * 1000000000000000000 (data.exchangeRate))
+
+    // amountAdjusted = 250000000 (debtamount) * 1e18 / 1e6  // convert from USDC 6 decimals to 18 decimals
+    
+    // liquidatedTokens = amountAdjusted * debtToCollateralRatio / WAD
+    function calculateExpectedLiquidatedTokens() public view returns (uint256) {
+        uint256 WAD = 1e18;
+
+        uint256 incentive = 1.20e18; 
+        uint256 earnTokenPrice = 2e18; 
+        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 exchangeRate = 1e18;  
+        
+        uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
+            (pTokenPrice * exchangeRate);
+        
+        uint256 amountAdjusted = (250000000 * 10**18) / 10**6;
+        
+        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
+        
+        return liquidatedTokens;
+    }
+
     function testLiquidationWithDynamicPenalty() public {
         _prepareLiquidationIsolated();
 
@@ -128,9 +158,21 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
 
         _prepareUSDC(user3, 250e6);
 
+        vm.startPrank(user3);
+
         usdc.approve(address(eUSDCIsolated), 250e6);
         eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
         vm.stopPrank();
 
+        uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+        assertEq(liquidatorpTokenBalance, calculateExpectedLiquidatedTokens());
+
+        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        assertEq(liquidatorUSDCBalance, 0);
+
+
+
     }
+
+
 }
