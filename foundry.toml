@@ -22,7 +22,7 @@ ignored_warnings_from = ["tests", "script", "lib", "node_modules"]
 # Sets the concrete solc version to use
 # This overrides the `auto_detect_solc` value
 solc_version = '0.8.26'
-evm_version = 'shanghai'
+evm_version = 'cancun'
 auto_detect_solc = false
 
 optimizer = true
