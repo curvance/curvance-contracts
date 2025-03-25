@@ -1867,7 +1867,7 @@ contract MarketManager is
 
     /// @notice Checks whether OEV is enabled or not.
     function _checkAtlasOevAllowed() internal view override returns (bool) {
-        return centralRegistry.atlasOevAllowed();
+        return centralRegistry.isAtlasOevAllowed();
     }
 
     /// @dev Returns the Protocol Central Registry contract in interface

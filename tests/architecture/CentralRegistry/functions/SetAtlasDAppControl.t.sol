@@ -57,17 +57,17 @@ contract CentralRegistrySetAtlasDAppControlTest is TestBaseMarket {
     function test_centralRegistryLockUnlockAtlasOev_success() public {
         centralRegistry.addAuthorizedAtlasDAppControl(address(5));
 
-        assertEq(centralRegistry.atlasOevAllowed(), false);
+        assertEq(centralRegistry.isAtlasOevAllowed(), false);
 
         vm.prank(address(5));
         centralRegistry.unlockAtlasOev();
 
-        assertEq(centralRegistry.atlasOevAllowed(), true);
+        assertEq(centralRegistry.isAtlasOevAllowed(), true);
 
         vm.prank(address(5));
         centralRegistry.lockAtlasOev();
 
-        assertEq(centralRegistry.atlasOevAllowed(), false);
+        assertEq(centralRegistry.isAtlasOevAllowed(), false);
 
     }
 }
