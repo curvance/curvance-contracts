@@ -1208,11 +1208,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        //assembly {
-        //    tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
-        //}
         assembly {
-            sstore(TRANSIENT_ATLAS_OEV_KEY, 0)
+            tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
         }
     }
 
@@ -1223,22 +1220,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        //assembly {
-        //    tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
-        //}
         assembly {
-            sstore(TRANSIENT_ATLAS_OEV_KEY, 1)
+            tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
         }
     }
 
     /// @notice Returns whether Atlas OEV is currently allowed
     function isAtlasOevAllowed() public view returns (bool) {
         uint256 result;
-        //assembly {
-        //    result := tload(TRANSIENT_ATLAS_OEV_KEY)
-        //}
         assembly {
-            result := sload(TRANSIENT_ATLAS_OEV_KEY)
+            result := tload(TRANSIENT_ATLAS_OEV_KEY)
         }
         return result == 1;
     }
