@@ -101,9 +101,6 @@ contract MarketManagerIsolated is
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
-    /// @notice The minimum liquidation incentive.
-    /// @dev .01e18 = 1%.
-    uint256 public constant MIN_LIQUIDATION_INCENTIVE = .01e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -385,23 +382,6 @@ contract MarketManagerIsolated is
             result.earnTokenPrice,
             result.positionTokenPrice
         );
-    }
-
-    /// @notice Determine whether `account` can currently be liquidated
-    ///         in this market.
-    /// @param account The account to check for liquidation flag.
-    /// @dev Note: Liquidation flag uses cached exchange rates for each mToken.
-    ///            Thus, accumulated but unrecognized interest is not included.
-    /// @return Whether `account` can be liquidated currently.
-    function flaggedForLiquidation(
-        address account
-    ) external view returns (bool) {
-        LiqData memory data = _liquidationStatusOf(
-            account,
-            address(0),
-            address(0)
-        );
-        return data.lFactor > 0;
     }
 
     /// @notice Determine what the account liquidity would be if
@@ -1083,12 +1063,6 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // We need to make sure that the liquidation incentive is sufficient
-        // for the users.
-        if (liqIncMin < MIN_LIQUIDATION_INCENTIVE) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
         // Validate that soft liquidation is within acceptable bounds.
         if (baseCFactor > MAX_BASE_CFACTOR || baseCFactor < MIN_BASE_CFACTOR) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -1135,10 +1109,6 @@ contract MarketManagerIsolated is
         marketToken.liqBaseIncentive = WAD + liqIncBase;
         marketToken.liqMinIncentive = WAD + liqIncMin;
         marketToken.liqMaxIncentive = WAD + liqIncMax;
-
-        // Store the distance between max and base liquidation incentives
-        marketToken.liqCurve = marketToken.liqMaxIncentive - 
-        marketToken.liqBaseIncentive;
 
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
@@ -1676,8 +1646,7 @@ contract MarketManagerIsolated is
 
             // if no dynamic penalty, use base incentive
             if (incentive == 0) {
-                incentive = pTokenData.liqBaseIncentive +
-                    ((pTokenData.liqCurve * data.lFactor) / WAD);
+                incentive = pTokenData.liqBaseIncentive;
             }
             
             maxAmount =
