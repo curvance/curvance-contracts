@@ -169,10 +169,13 @@ contract MarketManagerIsolated is
     /// EVENTS ///
 
     event TokenListed(address mToken);
-    event CollateralPosted(address account, address pToken, uint256 amount);
-    event CollateralRemoved(address account, address pToken, uint256 amount);
-    event TokenPositionCreated(address mToken, address account);
-    event TokenPositionClosed(address mToken, address account);
+    event CollateralAdjusted(
+        address account,
+        address pToken,
+        uint256 amount,
+        bool increase
+    );
+    event PositionAdjusted(address mToken, address account, bool open);
     event PositionTokenUpdated(
         address mToken,
         uint256 collRatio,
@@ -186,7 +189,7 @@ contract MarketManagerIsolated is
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
-    event NewPositionManagementContract(address newPF);
+    event NewPositionManagementContract(address newPositionManager);
 
     /// ERRORS ///
 
@@ -899,10 +902,11 @@ contract MarketManagerIsolated is
                     collateralPosted[address(mToken)] =
                         collateralPosted[address(mToken)] -
                         collateral;
-                    emit CollateralRemoved(
+                    emit CollateralAdjusted(
                         account,
                         address(mToken),
-                        collateral
+                        collateral,
+                        false
                     );
                     // Seize `account`'s collateral and give to caller.
                     IPToken(address(mToken)).seizeAccountLiquidation(
@@ -1270,23 +1274,16 @@ contract MarketManagerIsolated is
         _setSequencingStatus(sequencingActive);
     }
 
-    /// @notice Updates regular duration. 
-    function setRegularDuration(uint256 _duration) external {
+    /// @notice Updates OEV liquidation duration delays.
+    function setDelays(
+        uint256 newPriorityDelay,
+        uint256 newRegularDelay,
+        uint256 newEndDelay
+    ) external {
         _checkIsCentralRegistry();
-        _setRegularDuration(_duration);
+        _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
     }
 
-    /// @notice Updates priority duration. 
-    function setPriorityDuration(uint256 _duration) external {
-        _checkIsCentralRegistry();
-        _setPriorityDuration(_duration);
-    }
-
-    /// @notice Updates end duration. 
-    function setEndDuration(uint256 _duration) external {
-        _checkIsCentralRegistry();
-        _setEndDuration(_duration);
-    }
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165
@@ -1375,14 +1372,14 @@ contract MarketManagerIsolated is
         accountPositions.collateralPosted =
             accountPositions.collateralPosted +
             tokens;
-        emit CollateralPosted(account, pToken, tokens);
+        emit CollateralAdjusted(account, pToken, tokens, true);
 
         // If `account` does not have a position in `pToken`, open one.
         if (accountPositions.activePosition != 2) {
             accountPositions.activePosition = 2;
             accountAssets[account].assets.push(IMToken(pToken));
 
-            emit TokenPositionCreated(pToken, account);
+            emit PositionAdjusted(pToken, account, true);
         }
     }
 
@@ -1405,7 +1402,7 @@ contract MarketManagerIsolated is
             accountPositions.collateralPosted -
             tokens;
         collateralPosted[pToken] = collateralPosted[pToken] - tokens;
-        emit CollateralRemoved(account, pToken, tokens);
+        emit CollateralAdjusted(account, pToken, tokens, false);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -1435,7 +1432,7 @@ contract MarketManagerIsolated is
             tokenData[eToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(eToken));
 
-            emit TokenPositionCreated(eToken, account);
+            emit PositionAdjusted(eToken, account, true);
         }
 
         // Check if the user has sufficient liquidity to borrow,
@@ -1769,7 +1766,7 @@ contract MarketManagerIsolated is
                 tokenData[cachedToken]
                     .accountPositions[account]
                     .activePosition = 1;
-                emit TokenPositionClosed(cachedToken, account);
+                emit PositionAdjusted(cachedToken, account, false);
             }
         }
     }

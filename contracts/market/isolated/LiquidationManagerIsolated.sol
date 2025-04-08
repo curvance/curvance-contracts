@@ -8,9 +8,9 @@ pragma solidity ^0.8.26;
 abstract contract LiquidationManager {
     /// TYPES ///
 
-    /// @notice Liquidation queue struct for a specific liquidation target when
-    ///                     liquidation auction is disabled or passed.
-    /// @param prioritStartLine The timestamp where liquidators with 
+    /// @notice Liquidation queue struct for a specific liquidation target
+    ///         when liquidation auction is disabled or passed.
+    /// @param priorityStartLine The timestamp where liquidators with 
     ///                     priority access can start liquidation.
     /// @param regularStartLine The timestamp where any liquidator can 
     ///                     start liquidation.
@@ -28,16 +28,16 @@ abstract contract LiquidationManager {
 
     /// STORAGE ///
 
-    /// @notice Duration that a normal liquidation must wait for auction end.
-    /// @dev 2 = 2 seconds.
-    uint256 public regularDuration = 3;
-    /// @notice Duration that a queued liquidation must wait for auction end.
+    /// @notice Delay that a queued liquidation must wait for auction end.
     /// @dev 1 = 1 second.
-    uint256 public priorityDuration = 1;
-    /// @notice Duration that a new auction must wait after a prior auction
+    uint256 public priorityDelay = 1;
+    /// @notice Delay that a normal liquidation must wait for auction end.
+    /// @dev 3 = 3 seconds.
+    uint256 public regularDelay = 3;
+    /// @notice Delay that a new auction must wait after a prior auction
     ///         concluded.
     /// @dev 30 = 30 seconds.
-    uint256 public endDuration = 30;
+    uint256 public endDelay = 30;
 
     // Indicates whether specific sequencing is active in the
     // liquidation system.
@@ -49,21 +49,19 @@ abstract contract LiquidationManager {
     /// EVENTS ///
 
     event SpecificSequencingStatusChanged(bool sequencingActive);
-
-    event AccountLiquidationQueued(
-        address indexed account,
-        address indexed liquidator
-    );
-
     event LiquidationQueued(
         address indexed account,
-        address indexed liquidator,
-        address indexed eToken
+        address liquidator,
+        address eToken
+    );
+    event DelaysUpdated(
+        uint256 newPriorityDelay,
+        uint256 newRegularDelay,
+        uint256 newEndDelay
     );
 
-    event DurationUpdated(string durationType, uint256 newValue);
-
     /// ERRORS ///
+    error LiquidationManager__InvalidParameter();
     error LiquidationManager__InvalidLiquidator();
 
     /// CONSTRUCTOR ///
@@ -92,12 +90,12 @@ abstract contract LiquidationManager {
                 ++liqQueue.nonce;
             }
             liqQueue.priorityStartline = uint64(
-                block.timestamp + priorityDuration
+                block.timestamp + priorityDelay
             );
             liqQueue.regularStartline = uint64(
-                block.timestamp + regularDuration
+                block.timestamp + regularDelay
             );
-            liqQueue.endLine = uint64(block.timestamp + endDuration);
+            liqQueue.endLine = uint64(block.timestamp + endDelay);
             regularQueue[
                 keccak256(abi.encodePacked(account, msg.sender))
             ] = liqQueue;
@@ -113,7 +111,7 @@ abstract contract LiquidationManager {
                     msg.sender
                 )
             )
-        ] = block.timestamp + priorityDuration;
+        ] = block.timestamp + priorityDelay;
 
         emit LiquidationQueued(account, liquidator, msg.sender);
     }
@@ -181,47 +179,25 @@ abstract contract LiquidationManager {
         emit SpecificSequencingStatusChanged(sequencingActive);
     }
 
-    /// @notice Updates regular duration.
+    /// @notice Updates OEV liquidation duration delays.
     /// @dev NOTE: This function MUST be called inside an external or public
     ///            function triggered by a call from the Central Registry.
-    function _setRegularDuration(uint256 _duration) internal {
-        require(
-            priorityDuration < _duration,
-            "Regular duration must be greater than priority duration"
-        );
-        require(
-            _duration < endDuration,
-            "Regular duration must be less than end duration"
-        );
+    function _setDelays(
+        uint256 newPriorityDelay,
+        uint256 newRegularDelay,
+        uint256 newEndDelay
+    ) internal {
+        if (
+            newPriorityDelay >= newRegularDelay ||
+            newRegularDelay >= newEndDelay
+            ) {
+                revert LiquidationManager__InvalidParameter();
+            }
 
-        regularDuration = _duration;
-        emit DurationUpdated("RegularDuration", _duration);
-    }
-
-    /// @notice Updates priority duration.
-    /// @dev NOTE: This function MUST be called inside an external or public
-    ///            function triggered by a call from the Central Registry.
-    function _setPriorityDuration(uint256 _duration) internal {
-        require(
-            _duration < regularDuration,
-            "Priority duration must be less than regular duration"
-        );
-
-        priorityDuration = _duration;
-        emit DurationUpdated("PriorityDuration", _duration);
-    }
-
-    /// @notice Updates end duration.
-    /// @dev NOTE: This function MUST be called inside an external or public
-    ///            function triggered by a call from the Central Registry.
-    function _setEndDuration(uint256 _duration) internal {
-        require(
-            regularDuration < _duration,
-            "End duration must be greater than regular duration"
-        );
-
-        endDuration = _duration;
-        emit DurationUpdated("EndDuration", _duration);
+        regularDelay = newRegularDelay;
+        priorityDelay = newPriorityDelay;
+        endDelay = newEndDelay;
+        emit DelaysUpdated(newPriorityDelay, newRegularDelay, newEndDelay);
     }
 
     /// @notice Checks whether OEV is enabled or not.
