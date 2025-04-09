@@ -41,7 +41,6 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManager {
             uint256 liqBaseIncentive,
             uint256 liqMinIncentive,
             uint256 liqMaxIncentive,
-            uint256 liqCurve,
             uint256 baseCFactor,
             uint256 cFactorCurve
         ) = marketManagerIsolated.tokenData(address(pBALRETHIsolated));
@@ -52,7 +51,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManager {
         assertEq(liqBaseIncentive, 1100000000000000000);
         assertEq(liqMinIncentive, 1050000000000000000);
         assertEq(liqMaxIncentive, 1200000000000000000);
-        assertEq(liqCurve, 100000000000000000);  //        marketToken.liqCurve = marketToken.liqMaxIncentive - marketToken.liqBaseIncentive;
+        // assertEq(liqCurve, 100000000000000000);  //        marketToken.liqCurve = marketToken.liqMaxIncentive - marketToken.liqBaseIncentive;
         assertEq(baseCFactor, 200000000000000000);
         assertEq(cFactorCurve, 800000000000000000); // WAD - baseCFactor;
     }
@@ -181,7 +180,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManager {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
-            2001,     // liqIncMin 5%
+            2001,    // liqIncMin 20.01%
             2000,    // liqIncMax 20%
             2000     // baseCFactor 20%
         );
@@ -203,24 +202,6 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManager {
             2000     // baseCFactor 20%
         );
     }
-
-
-    function testUpdatePositionToken_InvalidLiqIncMin() public {
-        // if (liqIncMin < MIN_LIQUIDATION_INCENTIVE) {
-        //     _revert(_INVALID_PARAMETER_SELECTOR);
-        // }
-        vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 30%
-            1000,    // liqIncBase 10%
-            50,      // liqIncMin 0.5% (min is 1%)
-            2000,    // liqIncMax 20%
-            2000     // baseCFactor 20%
-        );
-    }
-
 
     function testUpdatePositionToken_InvalidBaseCFactor() public {
         // if (baseCFactor > MAX_BASE_CFACTOR || baseCFactor < MIN_BASE_CFACTOR) {

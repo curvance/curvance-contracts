@@ -13,6 +13,7 @@ contract CentralRegistrySetDurationsTest is TestBaseMarket {
         super.setUp();
 
         centralRegistry.removeMarketManager(address(marketManager));
+        centralRegistry.removeMarketManager(address(marketManagerIsolated));  // remove isolated market manager for this test
 
         for (uint256 i = 0; i < 10; i++) {
             _marketManagers.push(

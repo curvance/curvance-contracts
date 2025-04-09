@@ -32,6 +32,7 @@ import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
 
 contract TestBaseMarket is TestBase {
     struct PerChainData {
@@ -184,6 +185,12 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setFeeManager(address(feeManager));
+    }
+
+    function _deployCurvanceAuxiliaryData() internal initMainVariables {
+        curvanceAuxiliaryData = curvanceAuxiliaryDatas[block.chainid] = new CurvanceAuxiliaryData(
+            ICentralRegistry(address(centralRegistry))
+        );
     }
 
     function _deployChainlinkAdaptors() internal initMainVariables {

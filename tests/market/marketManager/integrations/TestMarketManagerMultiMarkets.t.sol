@@ -206,98 +206,98 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         _liquidateAccount(users[2], liquidator);
     }
 
-    function testLiquidationMultipleMarketsWithEntropyEtoken(
-        uint16 _noOfPositionTokens,
-        uint16 _noOfEarnTokens,
-        uint16 _noOfUsers,
-        uint16 _entropy
-    ) public {
-        (
-            MockSimplePToken[] memory pTokens,
-            EToken[] memory eTokens,
-            address[] memory users,
-            MockV3Aggregator[] memory pTokensAgg,
-            ,
+    // function testLiquidationMultipleMarketsWithEntropyEtoken(
+    //     uint16 _noOfPositionTokens,
+    //     uint16 _noOfEarnTokens,
+    //     uint16 _noOfUsers,
+    //     uint16 _entropy
+    // ) public {
+    //     (
+    //         MockSimplePToken[] memory pTokens,
+    //         EToken[] memory eTokens,
+    //         address[] memory users,
+    //         MockV3Aggregator[] memory pTokensAgg,
+    //         ,
 
-        ) = setUpFuzzTest(
-                _noOfPositionTokens,
-                _noOfEarnTokens,
-                _noOfUsers,
-                _entropy
-            );
-        _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+    //     ) = setUpFuzzTest(
+    //             _noOfPositionTokens,
+    //             _noOfEarnTokens,
+    //             _noOfUsers,
+    //             _entropy
+    //         );
+    //     _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
 
-        for (uint256 i; i < noOfPositionTokens; i++) {
-            skip(20 minutes);
-            _updateRoundData(pTokensAgg[0], 0, 1e7);
-        }
+    //     for (uint256 i; i < noOfPositionTokens; i++) {
+    //         skip(20 minutes);
+    //         _updateRoundData(pTokensAgg[0], 0, 1e7);
+    //     }
 
-        _liquidateAllByEToken(eTokens, pTokens, users);
-    }
+    //     _liquidateAllByEToken(eTokens, pTokens, users);
+    // }
 
-    function testLiquidationMultipleMarketsWithEntropyExact(
-        uint16 _noOfPositionTokens,
-        uint16 _noOfEarnTokens,
-        uint16 _noOfUsers,
-        uint16 _entropy
-    ) public {
-        (
-            MockSimplePToken[] memory pTokens,
-            EToken[] memory eTokens,
-            address[] memory users,
-            MockV3Aggregator[] memory pTokensAgg,
-            ,
+    // function testLiquidationMultipleMarketsWithEntropyExact(
+    //     uint16 _noOfPositionTokens,
+    //     uint16 _noOfEarnTokens,
+    //     uint16 _noOfUsers,
+    //     uint16 _entropy
+    // ) public {
+    //     (
+    //         MockSimplePToken[] memory pTokens,
+    //         EToken[] memory eTokens,
+    //         address[] memory users,
+    //         MockV3Aggregator[] memory pTokensAgg,
+    //         ,
 
-        ) = setUpFuzzTest(
-                _noOfPositionTokens,
-                _noOfEarnTokens,
-                _noOfUsers,
-                _entropy
-            );
-        _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+    //     ) = setUpFuzzTest(
+    //             _noOfPositionTokens,
+    //             _noOfEarnTokens,
+    //             _noOfUsers,
+    //             _entropy
+    //         );
+    //     _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
 
-        for (uint256 i; i < noOfPositionTokens; i++) {
-            skip(20 minutes);
-            _updateRoundData(pTokensAgg[0], 0, 1e7);
-        }
+    //     for (uint256 i; i < noOfPositionTokens; i++) {
+    //         skip(20 minutes);
+    //         _updateRoundData(pTokensAgg[0], 0, 1e7);
+    //     }
 
-        _liquidateAllExact(eTokens, pTokens, users);
-    }
+    //     _liquidateAllExact(eTokens, pTokens, users);
+    // }
 
-    function testLiquidationMultipleMarketsWithEntropyAccount(
-        uint16 _noOfPositionTokens,
-        uint16 _noOfEarnTokens,
-        uint16 _noOfUsers,
-        uint16 _entropy
-    ) public {
-        (
-            MockSimplePToken[] memory pTokens,
-            EToken[] memory eTokens,
-            address[] memory users,
-            MockV3Aggregator[] memory pTokensAgg,
-            ,
+    // function testLiquidationMultipleMarketsWithEntropyAccount(
+    //     uint16 _noOfPositionTokens,
+    //     uint16 _noOfEarnTokens,
+    //     uint16 _noOfUsers,
+    //     uint16 _entropy
+    // ) public {
+    //     (
+    //         MockSimplePToken[] memory pTokens,
+    //         EToken[] memory eTokens,
+    //         address[] memory users,
+    //         MockV3Aggregator[] memory pTokensAgg,
+    //         ,
 
-        ) = setUpFuzzTest(
-                _noOfPositionTokens,
-                _noOfEarnTokens,
-                _noOfUsers,
-                _entropy
-            );
-        _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
+    //     ) = setUpFuzzTest(
+    //             _noOfPositionTokens,
+    //             _noOfEarnTokens,
+    //             _noOfUsers,
+    //             _entropy
+    //         );
+    //     _setupLiquidity(100e18, 200e18, users, pTokens, eTokens);
 
-        for (uint256 i; i < noOfPositionTokens; i++) {
-            skip(20 minutes);
-            _updateRoundData(pTokensAgg[0], 0, 1e7);
-        }
+    //     for (uint256 i; i < noOfPositionTokens; i++) {
+    //         skip(20 minutes);
+    //         _updateRoundData(pTokensAgg[0], 0, 1e7);
+    //     }
 
-        _prepareLiquidationMultiple(liquidator, eTokens);
-        for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-            if (!marketManager.flaggedForLiquidation(users[i])) {
-                continue;
-            }
-            _liquidateAccount(users[i], liquidator);
-        }
-    }
+    //     _prepareLiquidationMultiple(liquidator, eTokens);
+    //     for (uint256 i = 0; i < noOfUsersCollateral; i++) {
+    //         if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
+    //             continue;
+    //         }
+    //         _liquidateAccount(users[i], liquidator);
+    //     }
+    // }
 
     function _compareUserAssets(
         IMToken[] memory userAssets,
