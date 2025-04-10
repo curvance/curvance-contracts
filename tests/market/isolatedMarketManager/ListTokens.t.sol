@@ -29,7 +29,12 @@ contract ListTokens is TestBaseMarketManager {
             marketManagerIsolated.isListed(address(pBALRETHIsolated)));
         assertTrue(
             marketManagerIsolated.isListed(address(eUSDCIsolated)));
-        
+
+        address [] memory tokens = marketManagerIsolated.queryTokensListed();
+        assertEq(tokens.length, 2);
+        assertEq(tokens[0], address(pBALRETHIsolated));
+        assertEq(tokens[1], address(eUSDCIsolated));
+
     }
 }
 
