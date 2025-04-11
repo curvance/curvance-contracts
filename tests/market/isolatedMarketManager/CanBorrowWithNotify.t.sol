@@ -177,6 +177,18 @@ contract CanBorrowWithNotifyIsolatedMarketManager is TestBaseMarketManager {
 
         // minimum loan size is 50e6
         marketManagerIsolated.canBorrowWithNotify(address(eUSDCIsolated), user1, 50e6);
+    
+        uint256 cooldownTimestamp = marketManagerIsolated.accountAssets(user1);
+        uint256 expectedCooldownTimestamp;
+        assertEq(cooldownTimestamp, block.timestamp);
+
+        vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);
+        marketManagerIsolated.canRepay(address(eUSDCIsolated), user1);
+
+        vm.warp(block.timestamp + 20 minutes);
+
+        marketManagerIsolated.canRepay(address(eUSDCIsolated), user1);
+   
     }
 
 
