@@ -31,6 +31,8 @@ import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExi
 import { QueryTest } from "tests/utils/QueryTest.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
 
 contract TestBaseMarket is TestBase {
     struct PerChainData {
@@ -56,10 +58,13 @@ contract TestBaseMarket is TestBase {
         _deployChainlinkAdaptors();
 
         _deployMarketManager();
+        _deployMarketManagerIsolated();
         _deployEUSDC();
         _deployEDAI();
+        _deployEUSDCIsolated();
         _deployPBALRETH();
         _deployPBALRETHWithExitFee();
+        _deployPBALRETHIsolated();
 
         _deployPendleZapper();
         _deployVelodromeZapper();
@@ -69,6 +74,8 @@ contract TestBaseMarket is TestBase {
         oracleManagers[chainId].addMTokenSupport(address(eUSDC));
         oracleManagers[chainId].addMTokenSupport(address(pBALRETH));
         oracleManagers[chainId].addMTokenSupport(address(pBALRETHWithExitFee));
+        oracleManagers[chainId].addMTokenSupport(address(pBALRETHIsolated));
+        oracleManagers[chainId].addMTokenSupport(address(eUSDCIsolated));
     }
 
     function _deployBaseContracts() internal {
@@ -178,6 +185,12 @@ contract TestBaseMarket is TestBase {
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.setFeeManager(address(feeManager));
+    }
+
+    function _deployCurvanceAuxiliaryData() internal initMainVariables {
+        curvanceAuxiliaryData = curvanceAuxiliaryDatas[block.chainid] = new CurvanceAuxiliaryData(
+            ICentralRegistry(address(centralRegistry))
+        );
     }
 
     function _deployChainlinkAdaptors() internal initMainVariables {
@@ -389,6 +402,15 @@ contract TestBaseMarket is TestBase {
         );
     }
 
+    function _deployMarketManagerIsolated() internal initMainVariables {
+        marketManagerIsolated = marketManagersIsolated[block.chainid] = new MarketManagerIsolated(
+            ICentralRegistry(address(centralRegistry))
+        );
+        centralRegistry.addMarketManager(
+            address(marketManagerIsolated),
+            marketInterestFactor);
+    }
+
     function _deployDynamicInterestRateModel(
         address underlyingToken
     ) internal returns (address) {
@@ -408,6 +430,24 @@ contract TestBaseMarket is TestBase {
         return address(interestRateModels[block.chainid][underlyingToken]);
     }
 
+    function _deployIsolatedDynamicInterestRateModel(
+        address underlyingToken
+        ) internal returns (address) {
+            isolatedInterestRateModels[block.chainid][underlyingToken] =
+            new DynamicInterestRateModel(
+                ICentralRegistry(address(centralRegistry)),
+                1000, // baseRatePerYear
+                1000, // vertexRatePerYear
+                5000, // vertexUtilizationStart
+                4 hours, // adjustmentRate
+                5000, // adjustmentVelocity
+                100000000, // 1000x maximum vertex multiplier
+                100 // decayRate
+            );
+
+        return address(isolatedInterestRateModels[block.chainid][underlyingToken]);
+    }
+
     function _deployEUSDC() internal initMainVariables returns (EToken) {
         eUSDC = eUSDCs[block.chainid] = _deployEToken(_USDC_ADDRESS);
         return eUSDC;
@@ -416,6 +456,19 @@ contract TestBaseMarket is TestBase {
     function _deployEDAI() internal initMainVariables returns (EToken) {
         eDAI = eDAIs[block.chainid] = _deployEToken(_DAI_ADDRESS);
         return eDAI;
+    }
+
+    function _deployEUSDCIsolated() internal initMainVariables returns (EToken) {
+        eUSDCIsolated = eUSDCIsolateds[block.chainid] = new EToken(
+            ICentralRegistry(address(centralRegistry)),
+            _USDC_ADDRESS,
+            address(marketManagerIsolated),
+            _deployIsolatedDynamicInterestRateModel(_USDC_ADDRESS)
+        );
+        isolatedInterestRateModels[block.chainid][_USDC_ADDRESS].setLinkedEToken(
+            address(eUSDCIsolated)
+        );
+        return eUSDCIsolated;
     }
 
     function _deployEToken(
@@ -468,6 +521,22 @@ contract TestBaseMarket is TestBase {
             200
         );
         return pBALRETHWithExitFee;
+    }
+
+    function _deployPBALRETHIsolated()
+        internal
+        initMainVariables
+        returns (AuraPToken)
+    {
+        pBALRETHIsolated = pBALRETHsIsolated[block.chainid] = new AuraPToken(
+            ICentralRegistry(address(centralRegistry)),
+            balRETH,
+            address(marketManagerIsolated),
+            109,
+            _REWARDER,
+            _AURA_BOOSTER
+        );
+        return pBALRETHIsolated;
     }
 
     function _deployPendleZapper()

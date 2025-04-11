@@ -17,6 +17,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
@@ -25,6 +26,8 @@ import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExitFee.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
+
+import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -99,11 +102,15 @@ contract TestVariables {
     ChainlinkAdaptor public chainlinkAdaptor;
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManager public marketManager;
+    MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
+    CurvanceAuxiliaryData public curvanceAuxiliaryData;
     EToken public eUSDC;
     EToken public eDAI;
+    EToken public eUSDCIsolated;
     AuraPToken public pBALRETH;
     MockAuraPTokenWithExitFee public pBALRETHWithExitFee;
+    AuraPToken public pBALRETHIsolated;
     IERC20 public usdc;
     IERC20 public dai;
     IERC20 public weth;
@@ -138,11 +145,15 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManager) public marketManagers;
+    mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
+    mapping(uint256 => CurvanceAuxiliaryData) public curvanceAuxiliaryDatas;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
     mapping(uint256 => EToken) public eDAIs;
+    mapping(uint256 => EToken) public eUSDCIsolateds;
     mapping(uint256 => AuraPToken) public pBALRETHs;
     mapping(uint256 => MockAuraPTokenWithExitFee) public pBALRETHWithExitFees;
+    mapping(uint256 => AuraPToken) public pBALRETHsIsolated;
 
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcUsds;
     mapping(uint256 => MockV3Aggregator) public chainlinkUsdcEths;
@@ -153,6 +164,8 @@ contract TestVariables {
 
     mapping(uint256 => mapping(address => DynamicInterestRateModel))
         public interestRateModels;
+
+    mapping(uint256 => mapping(address => DynamicInterestRateModel)) public isolatedInterestRateModels;
 
     mapping(uint256 => MockToken) public rewardTokens;
     mapping(uint256 => GaugeManager) public gaugeManagers;
@@ -368,11 +381,15 @@ contract TestVariables {
         chainlinkAdaptor = chainlinkAdaptors[chainId];
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManager = marketManagers[chainId];
+        marketManagerIsolated = marketManagersIsolated[chainId];   
         oracleManager = oracleManagers[chainId];
+        curvanceAuxiliaryData = curvanceAuxiliaryDatas[chainId];
         eUSDC = eUSDCs[chainId];
         eDAI = eDAIs[chainId];
+        eUSDCIsolated = eUSDCIsolateds[chainId];
         pBALRETH = pBALRETHs[chainId];
         pBALRETHWithExitFee = pBALRETHWithExitFees[chainId];
+        pBALRETHIsolated = pBALRETHsIsolated[chainId];
 
         chainlinkUsdcUsd = chainlinkUsdcUsds[chainId];
         chainlinkUsdcEth = chainlinkUsdcEths[chainId];

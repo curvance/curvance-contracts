@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.26;
 
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
-import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
+import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidationManager } from "contracts/market/isolated/LiquidationManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -77,7 +77,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      the entire user's account can be liquidated with lenders paying any
 ///      collateral shortfall.
 ///
-contract MarketManager is
+contract MarketManagerIsolated is
     LiquidityManager,
     LiquidationManager,
     ERC165,
@@ -101,9 +101,6 @@ contract MarketManager is
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
-    /// @notice The minimum liquidation incentive.
-    /// @dev .01e18 = 1%.
-    uint256 public constant MIN_LIQUIDATION_INCENTIVE = .01e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -172,10 +169,13 @@ contract MarketManager is
     /// EVENTS ///
 
     event TokenListed(address mToken);
-    event CollateralPosted(address account, address pToken, uint256 amount);
-    event CollateralRemoved(address account, address pToken, uint256 amount);
-    event TokenPositionCreated(address mToken, address account);
-    event TokenPositionClosed(address mToken, address account);
+    event CollateralAdjusted(
+        address account,
+        address pToken,
+        uint256 amount,
+        bool increase
+    );
+    event PositionAdjusted(address mToken, address account, bool open);
     event PositionTokenUpdated(
         address mToken,
         uint256 collRatio,
@@ -189,7 +189,7 @@ contract MarketManager is
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
-    event NewPositionManagementContract(address newPF);
+    event NewPositionManagementContract(address newPositionManager);
 
     /// ERRORS ///
 
@@ -229,7 +229,7 @@ contract MarketManager is
     /// @param newPenalty The new penalty value.
     function setPenalty(uint256 newPenalty) external {
         _checkDappControl();
-        MarketToken memory pToken = tokenData[positionToken];
+        MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
         if (
             newPenalty < pToken.liqMinIncentive ||
@@ -257,7 +257,7 @@ contract MarketManager is
     /// @dev If a dynamic penalty is set in transient storage, 
     ///      that value is returned; otherwise, the default penalty
     ///      is returned.
-    function getLatestPenalty() external view returns (uint256 result) {
+    function getLatestPenalty() public view returns (uint256 result) {
         assembly {
             // Load dynamic penalty from transient storage.
             result := tload(TRANSIENT_PENALTY_KEY)
@@ -385,23 +385,6 @@ contract MarketManager is
             result.earnTokenPrice,
             result.positionTokenPrice
         );
-    }
-
-    /// @notice Determine whether `account` can currently be liquidated
-    ///         in this market.
-    /// @param account The account to check for liquidation flag.
-    /// @dev Note: Liquidation flag uses cached exchange rates for each mToken.
-    ///            Thus, accumulated but unrecognized interest is not included.
-    /// @return Whether `account` can be liquidated currently.
-    function flaggedForLiquidation(
-        address account
-    ) external view returns (bool) {
-        LiqData memory data = _liquidationStatusOf(
-            account,
-            address(0),
-            address(0)
-        );
-        return data.lFactor > 0;
     }
 
     /// @notice Determine what the account liquidity would be if
@@ -691,7 +674,7 @@ contract MarketManager is
         );
 
         // Validate that the OEV queue is disabled or the liquidator is valid.
-        _validateLiquidation(liquidator, account, true);
+        _validateLiquidation(liquidator, account);
 
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
@@ -810,7 +793,7 @@ contract MarketManager is
         _canLiquidate(eToken, pToken, account, 0, false);
 
         // Queue the liquidation for execution.
-        _queueLiquidation(liquidator, account, true);
+        _queueLiquidation(liquidator, account);
     }
 
     /// @notice Queues an account liquidation for `account` liquidating
@@ -823,7 +806,7 @@ contract MarketManager is
         _getUpdatedLiquidationStatusOf(account);
 
         // Queue the liquidation for execution.
-        _queueLiquidation(msg.sender, account, false);
+        _queueLiquidation(msg.sender, account);
     }
 
     /// @notice Liquidates an entire account by partially paying down debts,
@@ -840,7 +823,7 @@ contract MarketManager is
         }
 
         // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account, false);
+        _validateLiquidation(msg.sender, account);
 
         (
             BadDebtData memory data,
@@ -919,10 +902,11 @@ contract MarketManager is
                     collateralPosted[address(mToken)] =
                         collateralPosted[address(mToken)] -
                         collateral;
-                    emit CollateralRemoved(
+                    emit CollateralAdjusted(
                         account,
                         address(mToken),
-                        collateral
+                        collateral,
+                        false
                     );
                     // Seize `account`'s collateral and give to caller.
                     IPToken(address(mToken)).seizeAccountLiquidation(
@@ -1080,12 +1064,6 @@ contract MarketManager is
         // than are available. We do not need to check soft liquidation as the
         // restrictions are thinner than this case.
         if (liqIncMax + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // We need to make sure that the liquidation incentive is sufficient
-        // for the users.
-        if (liqIncMin < MIN_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1296,23 +1274,16 @@ contract MarketManager is
         _setSequencingStatus(sequencingActive);
     }
 
-    /// @notice Updates regular duration. 
-    function setRegularDuration(uint256 _duration) external {
+    /// @notice Updates OEV liquidation duration delays.
+    function setDelays(
+        uint256 newPriorityDelay,
+        uint256 newRegularDelay,
+        uint256 newEndDelay
+    ) external {
         _checkIsCentralRegistry();
-        _setRegularDuration(_duration);
+        _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
     }
 
-    /// @notice Updates priority duration. 
-    function setPriorityDuration(uint256 _duration) external {
-        _checkIsCentralRegistry();
-        _setPriorityDuration(_duration);
-    }
-
-    /// @notice Updates end duration. 
-    function setEndDuration(uint256 _duration) external {
-        _checkIsCentralRegistry();
-        _setEndDuration(_duration);
-    }
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165
@@ -1401,14 +1372,14 @@ contract MarketManager is
         accountPositions.collateralPosted =
             accountPositions.collateralPosted +
             tokens;
-        emit CollateralPosted(account, pToken, tokens);
+        emit CollateralAdjusted(account, pToken, tokens, true);
 
         // If `account` does not have a position in `pToken`, open one.
         if (accountPositions.activePosition != 2) {
             accountPositions.activePosition = 2;
             accountAssets[account].assets.push(IMToken(pToken));
 
-            emit TokenPositionCreated(pToken, account);
+            emit PositionAdjusted(pToken, account, true);
         }
     }
 
@@ -1431,7 +1402,7 @@ contract MarketManager is
             accountPositions.collateralPosted -
             tokens;
         collateralPosted[pToken] = collateralPosted[pToken] - tokens;
-        emit CollateralRemoved(account, pToken, tokens);
+        emit CollateralAdjusted(account, pToken, tokens, false);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -1461,7 +1432,7 @@ contract MarketManager is
             tokenData[eToken].accountPositions[account].activePosition = 2;
             accountAssets[account].assets.push(IMToken(eToken));
 
-            emit TokenPositionCreated(eToken, account);
+            emit PositionAdjusted(eToken, account, true);
         }
 
         // Check if the user has sufficient liquidity to borrow,
@@ -1653,7 +1624,7 @@ contract MarketManager is
         LiqData memory data = _liquidationStatusOf(
             account,
             eToken,
-            pTokenData
+            pToken
         );
 
         // Validate that `account` has a liquidation available.
@@ -1666,18 +1637,25 @@ contract MarketManager is
         {
             uint256 cFactor = pTokenData.baseCFactor +
                 ((pTokenData.cFactorCurve * data.lFactor) / WAD);
-            uint256 incentive = pTokenData.liqBaseIncentive +
-                ((pTokenData.liqCurve * data.lFactor) / WAD);
+
+            // check for dynamic penalty in transient storage
+            uint256 incentive = getLatestPenalty();
+
+            // if no dynamic penalty, use base incentive
+            if (incentive == 0) {
+                incentive = pTokenData.liqBaseIncentive;
+            }
+            
             maxAmount =
-                (cFactor * IEToken(eToken).debtBalanceCached(account)) /
-                WAD;
+            (cFactor * IEToken(eToken).debtBalanceCached(account)) /
+                 WAD;
 
             // Get the exchange rate, and calculate the number of
             // position tokens to seize.
             debtToCollateralRatio =
                 (incentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
-                    IPToken(pTokenData).exchangeRateCached());
+                    IPToken(pToken).exchangeRateCached());
         }
 
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
@@ -1688,7 +1666,7 @@ contract MarketManager is
 
         // Adjust decimals if necessary.
         uint256 amountAdjusted = (debtAmount *
-            (10 ** IERC20(pTokenData).decimals())) /
+            (10 ** IERC20(pToken).decimals())) /
             (10 ** IERC20(eToken).decimals());
         // Calculate how many pTokens should be liquidated.
         uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) /
@@ -1788,7 +1766,7 @@ contract MarketManager is
                 tokenData[cachedToken]
                     .accountPositions[account]
                     .activePosition = 1;
-                emit TokenPositionClosed(cachedToken, account);
+                emit PositionAdjusted(cachedToken, account, false);
             }
         }
     }

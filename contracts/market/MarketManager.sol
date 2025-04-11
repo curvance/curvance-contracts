@@ -104,9 +104,6 @@ contract MarketManager is
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
-    /// @notice The minimum liquidation incentive.
-    /// @dev .01e18 = 1%.
-    uint256 public constant MIN_LIQUIDATION_INCENTIVE = .01e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -336,23 +333,6 @@ contract MarketManager is
             result.earnTokenPrice,
             result.positionTokenPrice
         );
-    }
-
-    /// @notice Determine whether `account` can currently be liquidated
-    ///         in this market.
-    /// @param account The account to check for liquidation flag.
-    /// @dev Note: Liquidation flag uses cached exchange rates for each mToken.
-    ///            Thus, accumulated but unrecognized interest is not included.
-    /// @return Whether `account` can be liquidated currently.
-    function flaggedForLiquidation(
-        address account
-    ) external view returns (bool) {
-        LiqData memory data = _liquidationStatusOf(
-            account,
-            address(0),
-            address(0)
-        );
-        return data.lFactor > 0;
     }
 
     /// @notice Determine what the account liquidity would be if
@@ -1023,12 +1003,6 @@ contract MarketManager is
         // than are available. We do not need to check soft liquidation as the
         // restrictions are thinner than this case.
         if (liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // We need to make sure that the liquidation incentive is sufficient
-        // for the users.
-        if (liqIncSoft < MIN_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 

@@ -467,6 +467,30 @@ contract CurvanceAuxiliaryData {
         return (eTokenMarketData, pTokenMarketData);
     }
 
+    /// @notice Determine whether `account` can currently be liquidated
+    ///         in `market` for `eToken` and `pToken`.
+    /// @param market The market to check `account` for liquidation flag.
+    /// @param account The account to check for liquidation flag.
+    /// @param eToken The eToken to be repaid during potential liquidation.
+    /// @param pToken The pToken to be seized during potential
+    ///                        liquidation.
+    /// @dev Note: Liquidation flag uses cached exchange rates for each mToken.
+    ///            Thus, accumulated but unrecognized interest is not included.
+    /// @return Whether `account` can be liquidated currently.
+    function flaggedForLiquidation(
+        address market,
+        address account,
+        address eToken,
+        address pToken
+    ) external view returns (bool) {
+        (uint256 lFactor,,) = MarketManager(market).liquidationStatusOf(
+            account,
+            eToken,
+            pToken
+        );
+        return lFactor > 0;
+    }
+
     /// @notice Returns the current TVL inside a Curvance market.
     /// @param market The market to query TVL for.
     /// @return result The current TVL inside `market`, in `WAD`.
