@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract MarketManagerQueueLiquidationTest is TestBaseMarketManagerIsolated {
+contract MarketManagerIsolatedQueueLiquidationTest is TestBaseMarketManagerIsolated {
     event LiquidationQueued(
         address indexed account,
         address indexed liquidator,
@@ -40,7 +40,13 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManagerIsolated {
     function test_marketManagerQueueLiquidation_fail_whenPTokenIsNotListed()
         public
     {
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(eUSDC));
 
@@ -56,8 +62,13 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManagerIsolated {
     function test_marketManagerQueueLiquidation_fail_whenCallateralRatioIsZero()
         public
     {
-        marketManager.listToken(address(eUSDC));
-        marketManager.listToken(address(pBALRETH));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(eUSDC));
 
@@ -75,17 +86,22 @@ contract MarketManagerQueueLiquidationTest is TestBaseMarketManagerIsolated {
     function test_marketManagerQueueLiquidation_fail_whenNoLiquidationAvailable()
         public
     {
-        marketManager.listToken(address(eUSDC));
-        marketManager.listToken(address(pBALRETH));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         marketManager.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000, // liquidate at 71%
-            3000,
-            200, // 2% liq incentive
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
         );
 
         vm.prank(address(eUSDC));

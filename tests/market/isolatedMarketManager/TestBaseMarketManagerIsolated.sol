@@ -82,14 +82,14 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE);
+        _prepareBALRETH(user1, _ONE + 42069);
         _prepareUSDC(address(this), _ONE); // possibly not needed
 
         vm.prank(user1);
         usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE);
+        balRETH.approve(address(pBALRETH), _ONE + 42069);
 
-        marketManager.listTokens(address(eUSDC), address(pBALRETH));
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
         // _prepareBALRETH(address(this), 10e18);
@@ -111,7 +111,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
-        pBALRETH.mint(_ONE, address(this));
+        // pBALRETH.mint(_ONE, address(this));
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

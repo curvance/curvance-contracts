@@ -5,7 +5,7 @@ import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
 
-contract LiquidateAccountTest is TestBaseMarketManagerIsolated {
+contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
         _prepareLiquidation();

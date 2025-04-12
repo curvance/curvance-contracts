@@ -64,15 +64,21 @@ contract SetPTokenCollateralCapsTest is TestBaseMarketManagerIsolated {
     function test_setPTokenCollateralCaps_success() public {
         _prepareBALRETH(address(this), 1 ether);
         balRETH.approve(address(pBALRETH), 1 ether);
-        marketManager.listToken(address(pBALRETH));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
         marketManager.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
         );
 
         address[] memory validMTokens = new address[](2);

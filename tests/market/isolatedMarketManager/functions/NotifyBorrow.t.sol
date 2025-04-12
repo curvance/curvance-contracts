@@ -8,7 +8,13 @@ contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_notifyBorrow_fail_whenCallerIsNotMToken() public {

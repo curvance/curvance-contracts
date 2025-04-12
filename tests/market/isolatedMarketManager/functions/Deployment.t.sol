@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -13,11 +13,11 @@ contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             LiquidityManager.LiquidityManager__InvalidParameter.selector
         );
-        new MarketManager(ICentralRegistry(address(0)));
+        new MarketManagerIsolated(ICentralRegistry(address(0)));
     }
 
     function test_marketManagerDeployment_success() public {
-        marketManager = new MarketManager(
+        marketManager = new MarketManagerIsolated(
             ICentralRegistry(address(centralRegistry))
         );
 

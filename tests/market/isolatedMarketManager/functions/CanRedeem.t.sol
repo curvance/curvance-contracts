@@ -8,12 +8,18 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-        marketManager.canRedeem(address(pBALRETH), user1, 100e6);
+        marketManager.canRedeem(address(eDAI), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenTransferIsDisabled() public {
@@ -69,7 +75,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
             block.timestamp,
             block.timestamp
         );
-        marketManager.listToken(address(pBALRETH));
+        // marketManager.listToken(address(pBALRETH));
         _setPBALRETHCollateralCaps(100_000e18);
 
         assertTrue(pBALRETH.isPToken());

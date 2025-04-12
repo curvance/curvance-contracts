@@ -11,7 +11,14 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canRepay_fail_withinMinimumHoldPeriod() public {
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+
         vm.prank(address(eUSDC));
         marketManager.notifyBorrow(address(eUSDC), user1);
 
@@ -22,7 +29,14 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canRepay_success_whenPastMinimumHoldPeriod() public {
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+
         vm.prank(address(eUSDC));
         marketManager.notifyBorrow(address(eUSDC), user1);
 
@@ -31,7 +45,13 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canRepay_success() public {
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
         marketManager.canRepay(address(eUSDC), user1);
     }
 }

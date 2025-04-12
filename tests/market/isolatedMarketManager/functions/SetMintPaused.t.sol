@@ -23,7 +23,13 @@ contract SetMintPausedTest is TestBaseMarketManagerIsolated {
     }
 
     function test_setMintPaused_success() public {
-        marketManager.listToken(address(eUSDC));
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         marketManager.canMint(address(eUSDC));
 

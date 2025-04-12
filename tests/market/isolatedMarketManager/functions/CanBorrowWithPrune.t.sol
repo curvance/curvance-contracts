@@ -15,6 +15,14 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
+
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
+
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_canBorrowWithPrune_fail_whenBorrowPaused() public {
@@ -141,15 +149,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManager.listToken(address(pBALRETH));
+        // marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
@@ -174,9 +182,9 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
-            address(pBALRETH)
-        );
+        (, uint256 collRatio, , , , , , , ) = marketManager
+            .tokenData(address(pBALRETH));
+            
         uint256 assetValue = (price *
             ((999e18 * snapshot.exchangeRate) / 1e18)) /
             10 ** pBALRETH.decimals();
@@ -241,15 +249,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManager.listToken(address(pBALRETH));
+        // marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000     // baseCFactor 20%
         );
 
         address[] memory tokens = new address[](1);
