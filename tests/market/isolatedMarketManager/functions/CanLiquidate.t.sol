@@ -7,7 +7,7 @@ import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
-contract CanLiquidateTest is TestBaseMarketManagerIsolated {
+contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenETokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
@@ -269,32 +269,24 @@ contract CanLiquidateTest is TestBaseMarketManagerIsolated {
         uint256 collateralAvailable = 1e18 - 1;
         uint256 expectedLiqAmount;
         {
-
-                // struct MarketToken {
-                //     bool isListed;
-                //     uint256 collRatio;
-                //     uint256 collReqSoft;
-                //     uint256 collReqHard;
-                //     uint256 liqBaseIncentive;
-                //     uint256 liqMinIncentive;
-                //     uint256 liqMaxIncentive;
-                //     uint256 baseCFactor;
-                //     uint256 cFactorCurve;
-                //     mapping(address => AccountPosition) accountPositions;
-                // }
             (
                 ,
                 ,
                 ,
                 ,
                 uint256 liqBaseIncentive,
-                uint256 liqCurve,
-                ,
-
+                uint256 liqMinIncentive,
+                uint256 liqMaxIncentive,
+                uint256 baseCFactor,
+                uint256 cFactorCurve
             ) = marketManager.tokenData(address(pBALRETH));
 
             uint256 earnTokenPrice = 1e18; // USDC price
-            uint256 incentive = liqBaseIncentive + liqCurve;
+            
+            uint256 lFactor = 1e18; 
+            
+            uint256 incentive = liqBaseIncentive;
+            
             uint256 debtToCollateralRatio = (incentive *
                 earnTokenPrice *
                 WAD) / (data.price * pBALRETH.exchangeRateCached());

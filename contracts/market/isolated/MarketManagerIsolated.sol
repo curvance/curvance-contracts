@@ -1640,11 +1640,6 @@ contract MarketManagerIsolated is
 
             // check for dynamic penalty in transient storage
             uint256 incentive = getLatestPenalty();
-
-            // if no dynamic penalty, use base incentive
-            if (incentive == 0) {
-                incentive = pTokenData.liqBaseIncentive;
-            }
             
             maxAmount =
             (cFactor * IEToken(eToken).debtBalanceCached(account)) /
