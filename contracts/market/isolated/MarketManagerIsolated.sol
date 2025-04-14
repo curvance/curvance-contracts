@@ -87,6 +87,12 @@ contract MarketManagerIsolated is
 
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    /// @dev A fixed key to use in transient storage for Atlas OEV status
+    bytes32 internal constant TRANSIENT_ATLAS_OEV_KEY = 0x1234567890123456789012345678901234567890123456789012345678901234;
+    /// @dev A fixed key to use in transient storage for dynamic close factor
+    bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
+    /// @dev A fixed key to use in transient storage for collateral tracking
+    bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -166,6 +172,9 @@ contract MarketManagerIsolated is
     /// @dev Token => Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
+    // Atlas OEV DAppControl
+    mapping(address => bool) public hasAtlasPermissions;
+
     /// EVENTS ///
 
     event TokenListed(address mToken);
@@ -227,7 +236,7 @@ contract MarketManagerIsolated is
     /// @dev Transient storage enforces any liquidator not using
     ///      dappcontrol/auction uses the default penalty.
     /// @param newPenalty The new penalty value.
-    function setPenalty(uint256 newPenalty) external {
+    function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
         _checkDappControl();
         MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
@@ -238,14 +247,21 @@ contract MarketManagerIsolated is
             revert MarketManager__InvalidParameter();
         }
 
+        // TODO: validate close factors also with a max and min same as penalties
+
         // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
         assembly {
             tstore(TRANSIENT_PENALTY_KEY, newPenalty)
         }
+
+        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
+        }
     }
 
     /// @notice Resets the dynamic penalty value in transient storage to zero.
-    function resetPenalty() external {
+    function resetAtlasParameters() external {
         _checkDappControl();
         assembly {
             // Clear the transient storage slot by writing zero. 
@@ -269,6 +285,19 @@ contract MarketManagerIsolated is
         if (result == 0) {
             return tokenData[positionToken].liqBaseIncentive;
         }
+    }
+
+    /// @notice Returns the current close factor.
+    /// @dev If a dynamic close factor is set in transient storage, 
+    ///      that value is returned; otherwise, the default close factor
+    ///      is returned.
+    function getLatestCloseFactor() public view returns (uint256 result) {
+        assembly {
+            // Load dynamic close factor from transient storage.
+            result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
+        }
+
+        // TODO: fallback to returning default close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -1838,13 +1867,6 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }
-    
-    /// @dev Checks whether the caller has Atlas permissioning.
-    function _checkDappControl() internal view {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
 
     /// @dev Checks whether the caller is the Central Registry.
     function _checkIsCentralRegistry() internal view {
@@ -1899,11 +1921,6 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Checks whether OEV is enabled or not.
-    function _checkAtlasOevAllowed() internal view override returns (bool) {
-        return centralRegistry.isAtlasOevAllowed();
-    }
-
     /// @dev Returns the Protocol Central Registry contract in interface
     ///      form.
     function _getCentralRegistry()
@@ -1913,5 +1930,109 @@ contract MarketManagerIsolated is
         returns (ICentralRegistry)
     {
         return centralRegistry;
+    }
+
+    ////////// Atlas functionality //////////////
+
+    /// @notice Authorizes an address to lock and unlock Atlas OEV.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param newAtlasController The new address to allow control of Atlas
+    ///                           support for use in Curvance.
+    function addAuthorizedAtlasDAppControl(
+        address newAtlasController
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `newAtlasController` is not currently supported.
+        if (hasAtlasPermissions[newAtlasController]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        hasAtlasPermissions[newAtlasController] = true;
+
+        emit NewCurvanceContract("Atlas", newAtlasController);
+    }
+
+    /// @notice Deauthorizes an address to lock and unlock Atlas OEV.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param currentAtlasController The address to remove control of Atlas
+    ///                           support from inside Curvance.
+    function removeAuthorizedAtlasDAppControl(
+        address currentAtlasController
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `currentAtlasController` is currently supported.
+        if (!hasAtlasPermissions[currentAtlasController]) {
+            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+        }
+
+        delete hasAtlasPermissions[currentAtlasController];
+
+        emit RemovedCurvanceContract("Atlas", currentAtlasController);
+    }
+
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried.
+    function lockAtlasOev() external {
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
+        }
+
+        assembly {
+            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
+        }
+    }
+
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried.
+    function unlockAtlasOev(uint256 collateralToUnlock) external {
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
+        }
+
+        assembly {
+            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlock)
+        }
+    }
+
+    /// @notice Whether current transaction is from Atlas DappControl.
+    function _checkdappcontrol() internal view override returns (bool) {
+        uint256 result;
+        assembly {
+            result := tload(TRANSIENT_ATLAS_OEV_KEY)
+        }
+        return result == 1;
+    }
+
+    /// @notice Whether current transaction is from Atlas DappControl.
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view override returns (bool) {
+        uint256 result;
+        assembly {
+            result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
+        }
+        
+        // TODO: properly implement below pseudo code. 
+
+        // Default value should be 0 so outside of Atlas so anyone can liquidate any collateral
+        // Atlas can also call unlockAtlasOev with a value of 0 to allow any collateral to be liquidated
+        // in Atlas. 
+        // if (result == 0) {
+            return true;
+        }
+        // unlockedCollateral = listedTokens[result - 1];
+        // return unlockedCollateral == eTokenToLiquidate;
     }
 }

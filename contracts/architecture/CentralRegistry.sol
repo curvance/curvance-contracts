@@ -237,12 +237,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice Target contract for external calldata => Multi call checker
     mapping(address => address) public multicallChecker;
 
-    // Atlas OEV DAppControl
-    mapping(address => bool) public hasAtlasPermissions;
-
-    // Atlas OEV allowed
-    bool public atlasOevAllowed;
-
     /// EVENTS ///
 
     event GenesisEpochSet(uint256 newGenesisEpoch);
