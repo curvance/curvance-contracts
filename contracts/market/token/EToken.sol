@@ -125,9 +125,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     event Liquidated(
         address liquidator,
         address account,
-        uint256 amount,
-        address pTokenCollateral,
-        uint256 seizeTokens
+        uint256 repaidAmount,
+        address collateralToken,
+        uint256 liquidatedAmount
     );
     event BadDebtRecognized(
         address liquidator,
@@ -151,7 +151,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     error EToken__TransferError();
     error EToken__InsufficientUnderlyingHeld();
     error EToken__ValidationFailed();
-    error EToken__UnderlyingAssetTotalSupplyExceedsMaximum();
     error EToken__MarketManagerIsNotLendingMarket();
 
     /// CONSTRUCTOR ///
@@ -201,7 +200,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
         if (IERC20(underlying).totalSupply() >= type(uint232).max) {
-            revert EToken__UnderlyingAssetTotalSupplyExceedsMaximum();
+            revert EToken__ValidationFailed();
         }
     }
 

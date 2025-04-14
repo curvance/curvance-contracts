@@ -497,6 +497,42 @@ contract OracleManager {
         return (prices, hadError);
     }
 
+    /// @notice Retrieves the prices of a eToken underlying and pToken.
+    /// @param eToken The earning token to price the underlying of.
+    /// @param pToken The position token to price.
+    /// @param errorCodeBreakpoint The error code that will cause liquidity
+    ///                            operations to revert.
+    /// @return eTokenUnderlyingPrice Contains the price of `eToken` underlying.
+    /// @return pTokenPrice Contains the price of `pToken`.
+    function getPriceIsolatedPair(
+        address eToken,
+        address pToken,
+        uint256 errorCodeBreakpoint
+    )
+        external
+        view
+        returns (uint256 eTokenUnderlyingPrice, uint256 pTokenPrice)
+    {
+        uint256 errorCode;
+
+        // We get the eToken's underlying price here as getPriceIsolatedPair
+        // is for getting prices needed for an isolated market which is a
+        // pToken and eToken debt.
+        (eTokenUnderlyingPrice, errorCode) = getPrice(
+            mTokenAssets[eToken].underlying,
+            true,
+            false
+        );
+        if (errorCode >= errorCodeBreakpoint) {
+            _revert(_ERROR_CODE_FLAGGED_SELECTOR);
+        }
+
+        (pTokenPrice, errorCode) = getPrice(pToken, true, true);
+        if (errorCode >= errorCodeBreakpoint) {
+            _revert(_ERROR_CODE_FLAGGED_SELECTOR);
+        }
+    }
+
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
     /// @param account The account to retrieve data for.
@@ -519,17 +555,17 @@ contract OracleManager {
 
         AccountSnapshot[] memory snapshots = new AccountSnapshot[](numAssets);
         uint256[] memory underlyingPrices = new uint256[](numAssets);
-        uint256 hadError;
+        uint256 errorCode;
 
         for (uint256 i; i < numAssets; ++i) {
             snapshots[i] = assets[i].getSnapshotPacked(account);
-            (underlyingPrices[i], hadError) = getPrice(
+            (underlyingPrices[i], errorCode) = getPrice(
                 assets[i].underlying(),
                 true,
                 snapshots[i].isPToken
             );
 
-            if (hadError >= errorCodeBreakpoint) {
+            if (errorCode >= errorCodeBreakpoint) {
                 _revert(_ERROR_CODE_FLAGGED_SELECTOR);
             }
         }
