@@ -240,7 +240,7 @@ contract MarketManagerIsolated is
         if (!hasAtlasPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-        
+
         MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
         if (
@@ -273,6 +273,12 @@ contract MarketManagerIsolated is
             // Clear the transient storage slot by writing zero. 
             tstore(TRANSIENT_PENALTY_KEY, 0)
         }
+
+        // Clear the transient storage slot by writing zero.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
+        }
+        
     }
 
     /// @notice Returns the current penalty.
