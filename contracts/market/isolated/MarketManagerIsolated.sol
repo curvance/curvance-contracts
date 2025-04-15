@@ -237,7 +237,10 @@ contract MarketManagerIsolated is
     ///      dappcontrol/auction uses the default penalty.
     /// @param newPenalty The new penalty value.
     function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
-        _checkDappControl();
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+        
         MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
         if (
@@ -262,7 +265,10 @@ contract MarketManagerIsolated is
 
     /// @notice Resets the dynamic penalty value in transient storage to zero.
     function resetAtlasParameters() external {
-        _checkDappControl();
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
         assembly {
             // Clear the transient storage slot by writing zero. 
             tstore(TRANSIENT_PENALTY_KEY, 0)
@@ -2006,15 +2012,6 @@ contract MarketManagerIsolated is
         assembly {
             tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlock)
         }
-    }
-
-    /// @notice Whether current transaction is from Atlas DappControl.
-    function _checkdappcontrol() internal view override returns (bool) {
-        uint256 result;
-        assembly {
-            result := tload(TRANSIENT_ATLAS_OEV_KEY)
-        }
-        return result == 1;
     }
 
     /// @notice Whether current transaction is from Atlas DappControl.
