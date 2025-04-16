@@ -75,9 +75,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
     uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
 
-    /// @dev A fixed key to use in transient storage for Atlas OEV status
-    bytes32 internal constant TRANSIENT_ATLAS_OEV_KEY = 0x1234567890123456789012345678901234567890123456789012345678901234;
-
     /// STORAGE ///
 
     /// @notice Genesis Epoch timestamp.
@@ -1194,7 +1191,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             );
         }
     }
-    
+
     /// @notice Adds a Harvester contract for use in Curvance.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
     ///      Cannot be a supported Harvester contract prior.
