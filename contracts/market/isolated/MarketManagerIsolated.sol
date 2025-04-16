@@ -2022,17 +2022,14 @@ contract MarketManagerIsolated is
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
-        
-        // TODO: properly implement below pseudo code. 
 
-        // Default value should be 0 so outside of Atlas so anyone can liquidate any collateral
-        // Atlas can also call unlockAtlasOev with a value of 0 to allow any collateral to be liquidated
-        // in Atlas. 
-        // if (result == 0) {
-        //     return true;
-        // }
-        // unlockedCollateral = listedTokens[result - 1];
-        // return unlockedCollateral == eTokenToLiquidate;
+        if (result == 0) {
+            return true;
+        }
+
+        address unlockedCollateral = address(uint160(result));
+
+        return unlockedCollateral == eTokenToLiquidate;
     }
 
     function _checkAtlasOevAllowed() internal view returns (bool) {
