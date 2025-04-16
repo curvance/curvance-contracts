@@ -1649,6 +1649,8 @@ contract MarketManagerIsolated is
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
+        _checkCollateralUnlocked(eToken);
+
         MarketToken storage pTokenData = tokenData[pToken];
 
         // Do not let people liquidate 0 collateralization ratio assets.
@@ -2017,19 +2019,21 @@ contract MarketManagerIsolated is
 
     /// @notice Whether current transaction is from Atlas DappControl.
     /// TODO: override was removed, maybe it should be in a lower level contract?
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (bool) {
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
         if (result == 0) {
-            return true;
+            return;
         }
 
         address unlockedCollateral = address(uint160(result));
 
-        return unlockedCollateral == eTokenToLiquidate;
+        if (unlockedCollateral != eTokenToLiquidate) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
     }
 
     function _checkAtlasOevAllowed() internal view returns (bool) {
