@@ -200,6 +200,8 @@ contract MarketManagerIsolated is
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
     event NewPositionManagementContract(address newPositionManager);
 
+    event AtlasDappControlUpdated(address atlasDappControlAddress, bool isAdded);
+
     /// ERRORS ///
 
     error MarketManager__Unauthorized();
@@ -1959,12 +1961,12 @@ contract MarketManagerIsolated is
 
         // Validate `newAtlasController` is not currently supported.
         if (hasAtlasPermissions[newAtlasController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         hasAtlasPermissions[newAtlasController] = true;
 
-        emit NewCurvanceContract("Atlas", newAtlasController);
+        emit AtlasDappControlUpdated(newAtlasController, true);
     }
 
     /// @notice Deauthorizes an address to lock and unlock Atlas OEV.
@@ -1980,12 +1982,12 @@ contract MarketManagerIsolated is
 
         // Validate `currentAtlasController` is currently supported.
         if (!hasAtlasPermissions[currentAtlasController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
+            _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         delete hasAtlasPermissions[currentAtlasController];
 
-        emit RemovedCurvanceContract("Atlas", currentAtlasController);
+        emit AtlasDappControlUpdated(currentAtlasController, false);
     }
 
     /// @notice Called from the Atlas DappControl as a pre hook
@@ -2021,7 +2023,8 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Whether current transaction is from Atlas DappControl.
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view override returns (bool) {
+    /// TODO: override was removed, maybe it should be in a lower level contract?
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (bool) {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
@@ -2033,9 +2036,17 @@ contract MarketManagerIsolated is
         // Atlas can also call unlockAtlasOev with a value of 0 to allow any collateral to be liquidated
         // in Atlas. 
         // if (result == 0) {
-            return true;
-        }
+        //     return true;
+        // }
         // unlockedCollateral = listedTokens[result - 1];
         // return unlockedCollateral == eTokenToLiquidate;
+    }
+
+    function _checkAtlasOevAllowed() internal view override returns (bool) {
+        uint256 result;
+        assembly {
+            result := tload(TRANSIENT_ATLAS_OEV_KEY)
+        }
+        return result == 1;
     }
 }

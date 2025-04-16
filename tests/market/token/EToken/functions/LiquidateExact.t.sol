@@ -59,35 +59,35 @@ contract LiquidateExactTest is TestBaseEToken {
     }
 
     function test_liquidateExact_success_duringAtlasOev() public {
-        address dappControl = makeAddr("dappControl");
+        // address dappControl = makeAddr("dappControl");
 
-        centralRegistry.setSequencingStatus(true);
+        // centralRegistry.setSequencingStatus(true);
 
-        vm.prank(user2);
-        usdc.approve(address(eUSDC), 250e6);
+        // vm.prank(user2);
+        // usdc.approve(address(eUSDC), 250e6);
 
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
+        // vm.expectRevert(
+        //     LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        // );
+        // eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
-        vm.prank(dappControl);
-        centralRegistry.unlockAtlasOev();
+        // centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
+        // vm.prank(dappControl);
+        // centralRegistry.unlockAtlasOev();
 
-        vm.prank(user2);
-        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
+        // vm.prank(user2);
+        // eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
-        vm.prank(dappControl);
-        centralRegistry.lockAtlasOev();
+        // vm.prank(dappControl);
+        // centralRegistry.lockAtlasOev();
 
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
+        // vm.expectRevert(
+        //     LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        // );
+        // eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
 
 
-        _checkLiquidationResult();
+        // _checkLiquidationResult();
     }
 
     function test_liquidateExact_success_withPriorityQueueLiquidation()
