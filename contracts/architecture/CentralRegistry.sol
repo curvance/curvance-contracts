@@ -1140,18 +1140,18 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// @notice Updates status of unique liquidation sequencing to
     ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external {
-        _checkElevatedPermissions();
+    // function setSequencingStatus(bool sequencingActive) external {
+    //     _checkElevatedPermissions();
 
-        // Cache market list.
-        uint256 numMarkets = marketManagers.length;
+    //     // Cache market list.
+    //     uint256 numMarkets = marketManagers.length;
 
-        for (uint256 i; i < numMarkets; ++i) {
-            IMarketManager(marketManagers[i]).setSequencingStatus(
-                sequencingActive
-            );
-        }
-    }
+    //     for (uint256 i; i < numMarkets; ++i) {
+    //         IMarketManager(marketManagers[i]).setSequencingStatus(
+    //             sequencingActive
+    //         );
+    //     }
+    // }
     
     function setRegularDuration(uint256 _duration) external {
         _checkElevatedPermissions();

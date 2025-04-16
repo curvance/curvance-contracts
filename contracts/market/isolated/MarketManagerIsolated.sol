@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
-import { LiquidationManager } from "contracts/market/isolated/LiquidationManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -79,7 +78,6 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///
 contract MarketManagerIsolated is
     LiquidityManager,
-    LiquidationManager,
     ERC165,
     Multicall
 {
@@ -220,7 +218,7 @@ contract MarketManagerIsolated is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) LiquidationManager() {}
+    ) LiquidityManager(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -716,9 +714,6 @@ contract MarketManagerIsolated is
             liquidateExact
         );
 
-        // Validate that the OEV queue is disabled or the liquidator is valid.
-        _validateLiquidation(liquidator, account);
-
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
         (
@@ -812,45 +807,45 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in `eToken`.
-    /// @dev Called by the eToken itself to validate that liquidation is
-    ///      allowed based on `account`'s current liquidity.
-    /// @param eToken The earning token debt position to be from
-    ///               `account`.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    /// @param liquidator The account to execute the liquidation once queued.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueLiquidation(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account
-    ) external {
-        // Verify caller is actually the eToken.
-        _checkIsToken(eToken);
+    // /// @notice Queues a token specific liquidation for `account` liquidating
+    // ///         `pToken` by repaying active debt in `eToken`.
+    // /// @dev Called by the eToken itself to validate that liquidation is
+    // ///      allowed based on `account`'s current liquidity.
+    // /// @param eToken The earning token debt position to be from
+    // ///               `account`.
+    // /// @param pToken The position token to be liquidated from
+    // ///               `account`.
+    // /// @param liquidator The account to execute the liquidation once queued.
+    // /// @param account The account being liquidated and debt repaid on behalf
+    // ///                of.
+    // function queueLiquidation(
+    //     address eToken,
+    //     address pToken,
+    //     address liquidator,
+    //     address account
+    // ) external {
+    //     // Verify caller is actually the eToken.
+    //     _checkIsToken(eToken);
 
-        // Verify the liquidation is valid.
-        _canLiquidate(eToken, pToken, account, 0, false);
+    //     // Verify the liquidation is valid.
+    //     _canLiquidate(eToken, pToken, account, 0, false);
 
-        // Queue the liquidation for execution.
-        _queueLiquidation(liquidator, account);
-    }
+    //     // Queue the liquidation for execution.
+    //     _queueLiquidation(liquidator, account);
+    // }
 
-    /// @notice Queues an account liquidation for `account` liquidating
-    ///         `pToken` by repaying a portion of `account`'s active debt.
-    /// @dev Called by the liquidator themselves to queue up a different
-    ///      account's liquidation.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueAccountLiquidation(address account) external {
-        _getUpdatedLiquidationStatusOf(account);
+    // /// @notice Queues an account liquidation for `account` liquidating
+    // ///         `pToken` by repaying a portion of `account`'s active debt.
+    // /// @dev Called by the liquidator themselves to queue up a different
+    // ///      account's liquidation.
+    // /// @param account The account being liquidated and debt repaid on behalf
+    // ///                of.
+    // function queueAccountLiquidation(address account) external {
+    //     _getUpdatedLiquidationStatusOf(account);
 
-        // Queue the liquidation for execution.
-        _queueLiquidation(msg.sender, account);
-    }
+    //     // Queue the liquidation for execution.
+    //     _queueLiquidation(msg.sender, account);
+    // }
 
     /// @notice Liquidates an entire account by partially paying down debts,
     ///         distributing all `account` collateral and recognize remaining
@@ -865,8 +860,6 @@ contract MarketManagerIsolated is
             _revert(_PAUSED_SELECTOR);
         }
 
-        // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account);
 
         (
             BadDebtData memory data,
@@ -1310,22 +1303,22 @@ contract MarketManagerIsolated is
         emit NewPositionManagementContract(newPositionManagement);
     }
 
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external {
-        _checkIsCentralRegistry();
-        _setSequencingStatus(sequencingActive);
-    }
+    // /// @notice Updates status of unique liquidation sequencing to
+    // ///         `sequencingActive`.
+    // function setSequencingStatus(bool sequencingActive) external {
+    //     _checkIsCentralRegistry();
+    //     _setSequencingStatus(sequencingActive);
+    // }
 
-    /// @notice Updates OEV liquidation duration delays.
-    function setDelays(
-        uint256 newPriorityDelay,
-        uint256 newRegularDelay,
-        uint256 newEndDelay
-    ) external {
-        _checkIsCentralRegistry();
-        _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
-    }
+    // /// @notice Updates OEV liquidation duration delays.
+    // function setDelays(
+    //     uint256 newPriorityDelay,
+    //     uint256 newRegularDelay,
+    //     uint256 newEndDelay
+    // ) external {
+    //     _checkIsCentralRegistry();
+    //     _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
+    // }
 
     /// PUBLIC FUNCTIONS ///
 
@@ -2042,7 +2035,7 @@ contract MarketManagerIsolated is
         // return unlockedCollateral == eTokenToLiquidate;
     }
 
-    function _checkAtlasOevAllowed() internal view override returns (bool) {
+    function _checkAtlasOevAllowed() internal view returns (bool) {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_ATLAS_OEV_KEY)

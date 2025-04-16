@@ -136,9 +136,3 @@ This function must be called before Curvance allows a liquidation to be processe
 ### `liquidateAccount()`
 
 This liquidation function will work exactly as the changes to `canLiquidateWithExecution()`, although it will use its own unique queue distinguished by the liquidationTarget. This allows for OEV to be captured in the case that an account takes on bad debt within the `END_DURATION` from when it was previously liquidated using `canLiquidateWithExecution()`.  
-
----
-
-### `specificSequencingActive` Switch
-
-`specificSequencingActive` is a `bool` that provides the ability for governance/owner to set OEV to off which would bypass all of the checks in `validateLiquidation()`. Bypassing any of the checks in `validateLiquidation()` would mean that liquidations occur normally according to the current Curvance code without any value capture from OEV.

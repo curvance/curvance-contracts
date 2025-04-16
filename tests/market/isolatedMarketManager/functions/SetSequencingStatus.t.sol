@@ -7,32 +7,32 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 contract SetSequencingStatusTest is TestBaseMarketManagerIsolated {
     event SpecificSequencingStatusChanged(bool sequencingActive);
 
-    function test_setSequencingStatus_fail_whenCallerIsNotCentralRegistry()
-        public
-    {
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.setSequencingStatus(true);
-    }
+    // function test_setSequencingStatus_fail_whenCallerIsNotCentralRegistry()
+    //     public
+    // {
+    //     vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+    //     marketManager.setSequencingStatus(true);
+    // }
 
-    function test_setSequencingStatus_success() public {
-        vm.startPrank(address(centralRegistry));
+    // function test_setSequencingStatus_success() public {
+    //     vm.startPrank(address(centralRegistry));
 
-        assertFalse(marketManager.specificSequencingActive());
+    //     assertFalse(marketManager.specificSequencingActive());
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
-        emit SpecificSequencingStatusChanged(true);
+    //     vm.expectEmit(true, true, true, true, address(marketManager));
+    //     emit SpecificSequencingStatusChanged(true);
 
-        marketManager.setSequencingStatus(true);
+    //     marketManager.setSequencingStatus(true);
 
-        assertTrue(marketManager.specificSequencingActive());
+    //     assertTrue(marketManager.specificSequencingActive());
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
-        emit SpecificSequencingStatusChanged(false);
+    //     vm.expectEmit(true, true, true, true, address(marketManager));
+    //     emit SpecificSequencingStatusChanged(false);
 
-        marketManager.setSequencingStatus(false);
+    //     marketManager.setSequencingStatus(false);
 
-        assertFalse(marketManager.specificSequencingActive());
+    //     assertFalse(marketManager.specificSequencingActive());
 
-        vm.stopPrank();
-    }
+    //     vm.stopPrank();
+    // }
 }
