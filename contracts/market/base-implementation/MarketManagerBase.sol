@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
-import { LiquidationManager } from "contracts/market/LiquidationManager.sol";
+import { LiquidityManagerBase } from "contracts/market/base-implementation/LiquidityManagerBase.sol";
+import { LiquidationManagerBase } from "contracts/market/base-implementation/LiquidationManagerBase.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -24,8 +24,8 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 // maybe add setDelays etc. to this contract since we will possibly implement dynamic penalties in both markets
 
 abstract contract MarketManagerBase is
-    LiquidityManager,
-    LiquidationManager,
+    LiquidityManagerBase,
+    LiquidationManagerBase,
     ERC165,
     Multicall
 {
@@ -175,7 +175,7 @@ abstract contract MarketManagerBase is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) LiquidationManager() {} 
+    ) LiquidityManagerBase(centralRegistry_) LiquidationManagerBase() {} 
 
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
@@ -268,42 +268,31 @@ abstract contract MarketManagerBase is
         ) = _liquidationValuesOf(account, address(0), address(0));
     }
 
-    /// @notice Determine whether `account` can be liquidated,
-    ///         by calculating their lFactor, based on their
-    ///         collateral versus outstanding debt.
-    /// @param account The account to check liquidation status for.
-    /// @param eToken The eToken to be repaid during potential liquidation.
-    /// @param pToken The pToken to be seized during potential
-    ///                        liquidation.
-    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
-    ///                 indicates a soft liquidation, with a value of
-    ///                 1e18 (WAD) indicating a hard liquidation.
-    /// @return earnTokenPrice Current price for `earnToken`.
-    /// @return positionTokenPrice Current price for `positionToken`.
-    function liquidationStatusOf(
-        address account,
-        address eToken,
-        address pToken
-    )
-        public
-        view
-        returns (
-            uint256 lfactor,
-            uint256 earnTokenPrice,
-            uint256 positionTokenPrice
-        )
-    {
-        LiqData memory result = _liquidationStatusOf(
-            account,
-            eToken,
-            pToken
-        );
-        return (
-            result.lFactor,
-            result.earnTokenPrice,
-            result.positionTokenPrice
-        );
-    }
+    // <---------------------------------- replace with batch processing version
+    // function liquidationStatusOf(
+    //     address account,
+    //     address eToken,
+    //     address pToken
+    // )
+    //     public
+    //     view
+    //     returns (
+    //         uint256 lfactor,
+    //         uint256 earnTokenPrice,
+    //         uint256 positionTokenPrice
+    //     )
+    // {
+    //     LiqData memory result = _liquidationStatusOf(
+    //         account,
+    //         eToken,
+    //         pToken
+    //     );
+    //     return (
+    //         result.lFactor,
+    //         result.earnTokenPrice,
+    //         result.positionTokenPrice
+    //     );
+    // }
 
     /// @notice Determine what the account liquidity would be if
     ///         the given amounts were redeemed/borrowed.
@@ -517,88 +506,26 @@ abstract contract MarketManagerBase is
         _checkHoldPeriod(account);
     }
 
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many position tokens should be seized
-    ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token collateralized by `account` and will
-    ///               be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
-    function canLiquidate(
-        address eToken,
-        address pToken,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external view returns (uint256, uint256) {
-        return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
-    }
+// <---------------------------------- refactor to support multiple accounts at once or remove
+    // function canLiquidate(
+    //     address eToken,
+    //     address pToken,
+    //     address account,
+    //     uint256 amount,
+    //     bool liquidateExact
+    // ) external view returns (uint256, uint256) {
+    //     return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+    // }
 
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many position tokens should be seized
-    ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token which was used as collateral and will
-    ///        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
-    function canLiquidateWithExecution(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external returns (uint256, uint256) {
-        _checkIsToken(eToken);
-
-        (uint256 eTokenRepaid, uint256 pTokenLiquidated) = _canLiquidate(
-            eToken,
-            pToken,
-            account,
-            amount,
-            liquidateExact
-        );
-
-        // Validate that the OEV queue is disabled or the liquidator is valid.
-        _validateLiquidation(liquidator, account, true);
-
-        // We can pass balance = 0 here since we are forcing collateral closure
-        // and balance will never be lower than collateral posted.
-        (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
-                account,
-                pToken,
-                0,
-                pTokenLiquidated,
-                true
-            );
-        if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                pToken,
-                collateralToRemove
-            );
-        }
-
-        return (eTokenRepaid, pTokenLiquidated);
-    }
+    // <---------------------------------- replace with batch processing version
+    // function canLiquidateWithExecution(
+    //     address eToken,
+    //     address pToken,
+    //     address liquidator,
+    //     address account,
+    //     uint256 amount,
+    //     bool liquidateExact
+    // ) external returns (uint256, uint256) {}
 
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `earnToken` should be allowed.
@@ -669,171 +596,20 @@ abstract contract MarketManagerBase is
         );
     }
 
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in `eToken`.
-    /// @dev Called by the eToken itself to validate that liquidation is
-    ///      allowed based on `account`'s current liquidity.
-    /// @param eToken The earning token debt position to be from
-    ///               `account`.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    /// @param liquidator The account to execute the liquidation once queued.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
+    // <---------------------------------- replace with batch processing version
     function queueLiquidation(
         address eToken,
         address pToken,
         address liquidator,
         address account
-    ) external {
-        // Verify caller is actually the eToken.
-        _checkIsToken(eToken);
+    ) external {}
 
-        // Verify the liquidation is valid.
-        _canLiquidate(eToken, pToken, account, 0, false);
-
-        // Queue the liquidation for execution.
-        _queueLiquidation(liquidator, account, true);
-    }
-
-    /// @notice Queues an account liquidation for `account` liquidating
-    ///         `pToken` by repaying a portion of `account`'s active debt.
-    /// @dev Called by the liquidator themselves to queue up a different
-    ///      account's liquidation.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
+    // <---------------------------------- replace with batch processing version
     function queueAccountLiquidation(address account) external {
-        _getUpdatedLiquidationStatusOf(account);
-
-        // Queue the liquidation for execution.
-        _queueLiquidation(msg.sender, account, false);
     }
 
-    /// @notice Liquidates an entire account by partially paying down debts,
-    ///         distributing all `account` collateral and recognize remaining
-    ///         debt as bad debt.
-    /// @dev Updates `account` EToken interest before solvency is checked.
-    ///      Extensive run invariant checks are made to prevent potential
-    ///      asset callback exploits.
-    ///      Emits a {CollateralRemoved} event.
-    /// @param account The address to liquidate completely.
-    function liquidateAccount(address account) external {
-        if (liquidationPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account, false);
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _getUpdatedLiquidationStatusOf(account);
-
-        uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
-        uint256 debt;
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Repay `account`'s debt and recognize bad debt.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (!mToken.isPToken()) {
-                debt = IEToken(address(mToken)).debtBalanceCached(account);
-
-                // If the debt balance now does not match initial
-                // debt balance, there has been an attempt at
-                // invariant manipulation, revert.
-                if (debt != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this eToken actually has outstanding debt.
-                if (debt > 0) {
-                    // Repay `account`'s debt where:
-                    // debtToPay = totalCollateral / (1 - liquidationPenalty).
-                    // badDebt = totalDebt - debtToPay.
-                    // Thus:
-                    // totalDebt = debtToPay + badDebt.
-                    // Where debtToPay is what caller repays to receive collateral,
-                    // badDebt is loss to lenders by offsetting
-                    // totalBorrows (total estimated outstanding debt).
-                    IEToken(address(mToken)).repayWithBadDebt(
-                        msg.sender,
-                        account,
-                        repayRatio
-                    );
-                }
-            }
-        }
-
-        uint256 collateral;
-
-        // Seize `account`'s collateral and remove posted collateral.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (mToken.isPToken()) {
-                AccountPosition storage collateralData = tokenData[
-                    address(mToken)
-                ].accountPositions[account];
-                // Cache `account` collateral posted.
-                collateral = collateralData.collateralPosted;
-
-                // If the collateral posted now does not match initial
-                // collateral posted, there has been an attempt at
-                // invariant manipulation, revert.
-                if (collateral != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this pToken is actually being used as collateral.
-                // Without this check a user would be immune to bad debt
-                // liquidation.
-                if (collateral > 0) {
-                    // Remove `account` posted collateral,
-                    // as their account is completely closed out.
-                    delete collateralData.collateralPosted;
-
-                    // Update collateralPosted invariant.
-                    collateralPosted[address(mToken)] =
-                        collateralPosted[address(mToken)] -
-                        collateral;
-                    emit CollateralRemoved(
-                        account,
-                        address(mToken),
-                        collateral
-                    );
-                    // Seize `account`'s collateral and give to caller.
-                    IPToken(address(mToken)).seizeAccountLiquidation(
-                        msg.sender,
-                        account,
-                        collateral
-                    );
-                }
-            }
-        }
-
-        IMToken[] memory accountAssetsPost = accountAssets[account].assets;
-        uint256 numAssetsPost = accountAssetsPost.length;
-
-        // If a user somehow manipulated their assets via ERC777 or some
-        // other callbacks we can validate that no changes occurred to
-        // user assets, as we've already validated collateral posted/debt
-        // balances above.
-        if (numAssetsPost != numAssetsPrior) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
-
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            if (accountAssetsPost[i] != accountAssetsPrior[i]) {
-                _revert(_INVARIANT_ERROR_SELECTOR);
-            }
-        }
-    }
+    // <---------------------------------- integrate into unified liquidation function
+    // function liquidateAccount(address account) external {}
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
@@ -1271,24 +1047,7 @@ abstract contract MarketManagerBase is
         }
     }
 
-    // <---------------------------------------------------------------------- may function differently between different markets idk
-    /// @notice Helper function for checking if the liquidation should be
-    ///         allowed to occur.
-    /// @param eToken Asset which was borrowed by the borrower.
-    /// @param pToken Asset which was used as collateral and will
-    ///                        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param debtAmount The amount of `eToken` desired to liquidate.
-    ///                   When `liquidateExact` is false, this value is
-    ///                   replaced with the maximum executable liquidation
-    ///                   amount.
-    /// @param liquidateExact Whether the liquidator wants to liquidate a
-    ///                       specific amount of debt, used in conjunction
-    ///                       with `debtAmount`.
-    /// @return The amount of `eToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `pToken` tokens to be seized in a
-    ///         liquidation.
+    // <---------------------------------------------------------------------- refactor to support multiple accounts at once
     function _canLiquidate(
         address eToken,
         address pToken,
@@ -1296,6 +1055,40 @@ abstract contract MarketManagerBase is
         uint256 debtAmount,
         bool liquidateExact
     ) virtual internal view returns (uint256, uint256) {}
+
+    // Process multiple liquidations in a single call
+    function _canLiquidateMany(
+        address[] memory eTokens,
+        address[] memory pTokens,
+        address[] memory accounts,
+        uint256[] memory amounts,
+        bool[] memory liquidateExact
+    ) virtual internal view returns (uint256[] memory, uint256[] memory);
+
+    // Process liquidation status for multiple accounts at once
+    // function _liquidationStatusOfManyCached(
+    //     address[] memory accounts,
+    //     address[] memory eTokens, 
+    //     address[] memory pTokens
+    // ) internal view returns  !! struct to hold multiple LiqData !!
+
+    // Process repayments for multiple accounts
+    function _processRepay(
+        address[] memory eTokens,
+        address[] memory pTokens,
+        address[] memory accounts,
+        uint256[] memory repayAmounts,
+        uint256[] memory seizeAmounts,
+        bool[] memory hasBadDebt
+    ) virtual internal;
+
+    // Handle batch seizing of collateral
+    function multiSeize(
+        address[] memory eTokens,
+        address[] memory pTokens,
+        address[] memory accounts,
+        uint256[] memory seizeAmounts
+    ) virtual external;
 
     /// @notice Helper function for closing user positions after liquidity
     ///         checks have been passed.
