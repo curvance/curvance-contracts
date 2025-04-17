@@ -85,8 +85,6 @@ contract MarketManagerIsolated is
 
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @dev A fixed key to use in transient storage for Atlas OEV status
-    bytes32 internal constant TRANSIENT_ATLAS_OEV_KEY = 0x1234567890123456789012345678901234567890123456789012345678901234;
     /// @dev A fixed key to use in transient storage for dynamic close factor
     bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
     /// @dev A fixed key to use in transient storage for collateral tracking
@@ -1987,13 +1985,9 @@ contract MarketManagerIsolated is
 
     /// @notice Called from the Atlas DappControl as a pre hook
     ///         before liquidations are tried.
-    function lockAtlasOev() external {
+    function lockAtlasCollateral() external {
         if (!hasAtlasPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
         }
 
         assembly {
@@ -2003,17 +1997,14 @@ contract MarketManagerIsolated is
 
     /// @notice Called from the Atlas DappControl as a post hook
     ///         after liquidations are tried.
-    function unlockAtlasOev(uint256 collateralToUnlock) external {
+    function unlockAtlasCollateral(address collateralToUnlock) external {
+        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         if (!hasAtlasPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
         assembly {
-            tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
-        }
-
-        assembly {
-            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlock)
+            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
         }
     }
 
@@ -2034,13 +2025,5 @@ contract MarketManagerIsolated is
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
-    }
-
-    function _checkAtlasOevAllowed() internal view returns (bool) {
-        uint256 result;
-        assembly {
-            result := tload(TRANSIENT_ATLAS_OEV_KEY)
-        }
-        return result == 1;
     }
 }
