@@ -189,6 +189,8 @@ contract MarketManagerIsolated is
         uint256 liqIncBase,
         uint256 liqIncMin,
         uint256 liqIncMax,
+        uint256 minEffectiveCFactor,
+        uint256 maxEffectiveCFactor,
         uint256 baseCFactor
     );
     event ActionPaused(string action, bool pauseState);
@@ -248,7 +250,9 @@ contract MarketManagerIsolated is
             revert MarketManager__InvalidParameter();
         }
 
-        // TODO: validate close factors also with a max and min same as penalties
+        if (newCloseFactor < pToken.minEffectiveCFactor || newCloseFactor > pToken.maxEffectiveCFactor) {
+            revert MarketManager__InvalidParameter();
+        }
 
         // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
         assembly {
@@ -301,13 +305,12 @@ contract MarketManagerIsolated is
     /// @dev If a dynamic close factor is set in transient storage, 
     ///      that value is returned; otherwise, the default close factor
     ///      is returned.
+    /// @dev Note: must handle the case where TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
     function getLatestCloseFactor() public view returns (uint256 result) {
         assembly {
             // Load dynamic close factor from transient storage.
             result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
         }
-
-        // TODO: fallback to returning default close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -1040,6 +1043,8 @@ contract MarketManagerIsolated is
         uint256 liqIncBase,
         uint256 liqIncMin,
         uint256 liqIncMax,
+        uint256 minEffectiveCFactor,
+        uint256 maxEffectiveCFactor,
         uint256 baseCFactor
     ) external {
         _checkElevatedPermissions();
@@ -1054,6 +1059,8 @@ contract MarketManagerIsolated is
         liqIncMin = _bpToWad(liqIncMin);
         liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
+        minEffectiveCFactor = _bpToWad(minEffectiveCFactor);
+        maxEffectiveCFactor = _bpToWad(maxEffectiveCFactor);
 
         // Validate collateralization ratio is not above the maximum allowed.
         if (collRatio > MAX_COLLATERALIZATION_RATIO) {
@@ -1162,6 +1169,8 @@ contract MarketManagerIsolated is
             liqIncBase,
             liqIncMin,
             liqIncMax,
+            minEffectiveCFactor,
+            maxEffectiveCFactor,
             baseCFactor
         );
     }
@@ -1671,8 +1680,12 @@ contract MarketManagerIsolated is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            uint256 cFactor = pTokenData.baseCFactor +
-                ((pTokenData.cFactorCurve * data.lFactor) / WAD);
+            uint256 cFactor = getLatestCloseFactor();
+            if (cFactor == 0) {
+                // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
+                cFactor = pTokenData.baseCFactor +
+                    ((pTokenData.cFactorCurve * data.lFactor) / WAD);
+            }
 
             // check for dynamic penalty in transient storage
             uint256 incentive = getLatestPenalty();

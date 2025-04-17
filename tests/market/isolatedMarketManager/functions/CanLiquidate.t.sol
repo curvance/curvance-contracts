@@ -66,7 +66,9 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
             500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
+            2000,    // liqIncMax 20%,
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
 
@@ -99,6 +101,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             1000,    // liqIncBase 10%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
 
@@ -151,6 +155,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             1000,    // liqIncBase 10%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
 
@@ -194,6 +200,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             1000,    // liqIncBase 10%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
         address[] memory tokens = new address[](1);
@@ -254,7 +262,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 false
             );
 
-        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve, ) = marketManager
+        (, , , , , , , , uint256 baseCFactor, uint256 cFactorCurve, ) = marketManager
             .tokenData(address(pBALRETH));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
@@ -277,6 +285,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 uint256 liqBaseIncentive,
                 uint256 liqMinIncentive,
                 uint256 liqMaxIncentive,
+                ,
+                ,
                 uint256 baseCFactor,
                 uint256 cFactorCurve
             ) = marketManager.tokenData(address(pBALRETH));
