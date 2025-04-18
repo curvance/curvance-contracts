@@ -76,6 +76,7 @@ abstract contract LiquidityManagerBase {
         uint256 collReqSoft;
         uint256 collReqHard;
         uint256 liqBaseIncentive;
+        uint256 liqCurve; // not present in cross-market, but present in isolated
         uint256 liqMinIncentive;
         uint256 liqMaxIncentive;
         uint256 baseCFactor;
