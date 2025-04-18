@@ -20,7 +20,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
-// maybe have MarketToken struct in this contract instead of liquidityManager
+// maybe have MarketToken have an extra member for liqCurve, but unused in isolated implementation
 // maybe add setDelays etc. to this contract since we will possibly implement dynamic penalties in both markets
 
 abstract contract MarketManagerBase is
