@@ -21,7 +21,29 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 // maybe have MarketToken have an extra member for liqCurve, but unused in isolated implementation
-// maybe add setDelays etc. to this contract since we will possibly implement dynamic penalties in both markets
+// maybeyuse setDelays to consolidate multiple delay functions into one and reduce code size
+// I did not implement liquidation functions because they will be refactored soon
+
+/* Main differences between isolated and cross:
+Liquidation Manager:
+    - Duration/Delay naming, will probably use "delay" convention in both market managers
+    - _queueLiquidation() function in cross has a boolean for "token liquidation or account liquidation", while in isolated is token liquidation only
+    - _validateLiquidation() function has the same differences above
+    - small error and event differences
+
+Liquidity Manager:
+    - Identical functions and variables for both market managers
+    - MarketToken struct has extra member for liqCurve, but not present in isolated implementation
+
+MarketManager:
+    - isolated has a dedicated position token, while cross does not
+    - isolated has TRANSIENT_PENALTY_KEY, while cross does not
+    - cross has MAX_LISTED_ASSETS, while isolated does not
+    - isolated has dynamic penalty functionalities, while cross does not (transient penalty functions, atlas OEV validation
+    - isolated has _checkIsCentralRegistry() function, while cross does not
+    - small event differences
+
+*/
 
 abstract contract MarketManagerBase is
     LiquidityManagerBase,
