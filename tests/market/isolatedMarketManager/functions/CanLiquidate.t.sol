@@ -283,17 +283,14 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 ,
                 ,
                 uint256 liqBaseIncentive,
-                uint256 liqMinIncentive,
-                uint256 liqMaxIncentive,
                 ,
                 ,
-                uint256 baseCFactor,
-                uint256 cFactorCurve
+                ,
+                ,
+                ,
             ) = marketManager.tokenData(address(pBALRETH));
 
             uint256 earnTokenPrice = 1e18; // USDC price
-            
-            uint256 lFactor = 1e18; 
             
             uint256 incentive = liqBaseIncentive;
             
