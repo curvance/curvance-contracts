@@ -20,9 +20,17 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
-// maybe have MarketToken have an extra member for liqCurve, but unused in isolated implementation
-// maybeyuse setDelays to consolidate multiple delay functions into one and reduce code size
-// I did not implement liquidation functions because they will be refactored soon
+
+/*
+#####################################################################
+
+IMPLEMENTATION INSTRUCTIONS:
+1. LIST TOKEN(S) FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+2. setPTokenCollateralCaps() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+3. updatePositionToken() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+
+#####################################################################
+/*
 
 /* Main differences between isolated and cross:
 Liquidation Manager:
@@ -53,8 +61,8 @@ abstract contract MarketManagerBase is
 {
     // CONSTANTS ///
 
-    /// @dev A fixed key to use in transient storage for the dynamic penalty.  <---- present in isolated 
-    // bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    /// @dev A fixed key to use in transient storage for the dynamic penalty. 
+    bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
 
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
@@ -81,6 +89,7 @@ abstract contract MarketManagerBase is
     uint256 public constant MIN_HOLD_PERIOD = 20 minutes;
 
     /// ERROR CONSTANTS ///
+
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvalidParameter()")))`
     uint256 internal constant _INVALID_PARAMETER_SELECTOR = 0x65513fc1;
     /// @dev `bytes4(keccak256(bytes("MarketManager__Unauthorized()")))`
@@ -94,8 +103,6 @@ abstract contract MarketManagerBase is
 
     /// STORAGE ///
 
-    /// Position Token - for isolated market
-
     /// @notice A list of all tokens inside this market for
     ///         offchain querying.
     address[] public tokensListed;
@@ -106,6 +113,7 @@ abstract contract MarketManagerBase is
     mapping(address => bool) public positionManagement;
 
     /// MARKET STATE
+
     /// @notice Whether liquidations are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public liquidationPaused = 1;
@@ -124,9 +132,6 @@ abstract contract MarketManagerBase is
     /// @notice Whether eToken borrowing is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public borrowPaused;
-
-
-
 
     /// COLLATERAL POSTING INVARIANTS
 
@@ -197,7 +202,9 @@ abstract contract MarketManagerBase is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManagerBase(centralRegistry_) LiquidationManagerBase() {} 
+    ) LiquidityManagerBase(centralRegistry_) LiquidationManagerBase() {}
+
+    /// TOKEN QUERY FUNCTIONS ///
 
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
@@ -209,7 +216,55 @@ abstract contract MarketManagerBase is
         return tokensListed;
     }
 
-    /// dynamic penalty functions would go here
+    /// DYNAMIC PENALTY FUNCTIONS ///
+
+    // /// @notice Sets a new dynamic penalty value in transient storage.
+    // /// @dev Transient storage enforces any liquidator not using
+    // ///      dappcontrol/auction uses the default penalty.
+    // /// @param newPenalty The new penalty value.
+    // function setPenalty(uint256 newPenalty) external {
+    //     _checkDappControl();
+    //     MarketToken storage pToken = tokenData[positionToken];
+    //     // Validate new penalty is within configured allowed penalty.
+    //     if (
+    //         newPenalty < pToken.liqMinIncentive ||
+    //         newPenalty > pToken.liqMaxIncentive
+    //         ) {
+    //         revert MarketManager__InvalidParameter();
+    //     }
+
+    //     // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+    //     assembly {
+    //         tstore(TRANSIENT_PENALTY_KEY, newPenalty)
+    //     }
+    // }
+
+    // /// @notice Resets the dynamic penalty value in transient storage to zero.
+    // function resetPenalty() external {
+    //     _checkDappControl();
+    //     assembly {
+    //         // Clear the transient storage slot by writing zero. 
+    //         tstore(TRANSIENT_PENALTY_KEY, 0)
+    //     }
+    // }
+
+    // /// @notice Returns the current penalty.
+    // /// @dev If a dynamic penalty is set in transient storage, 
+    // ///      that value is returned; otherwise, the default penalty
+    // ///      is returned.
+    // function getLatestPenalty() public view returns (uint256 result) {
+    //     assembly {
+    //         // Load dynamic penalty from transient storage.
+    //         result := tload(TRANSIENT_PENALTY_KEY)
+    //     }
+
+    //     // If no dynamic penalty is set (assumed to be zero), return the
+    //     // liqBaseIncentive.
+    //     // Note that this renders 0 as an invalid dynamic penalty value.
+    //     if (result == 0) {
+    //         return tokenData[positionToken].liqBaseIncentive;
+    //     }
+    // }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
 
@@ -289,32 +344,6 @@ abstract contract MarketManagerBase is
 
         ) = _liquidationValuesOf(account, address(0), address(0));
     }
-
-    // <---------------------------------- replace with batch processing version
-    // function liquidationStatusOf(
-    //     address account,
-    //     address eToken,
-    //     address pToken
-    // )
-    //     public
-    //     view
-    //     returns (
-    //         uint256 lfactor,
-    //         uint256 earnTokenPrice,
-    //         uint256 positionTokenPrice
-    //     )
-    // {
-    //     LiqData memory result = _liquidationStatusOf(
-    //         account,
-    //         eToken,
-    //         pToken
-    //     );
-    //     return (
-    //         result.lFactor,
-    //         result.earnTokenPrice,
-    //         result.positionTokenPrice
-    //     );
-    // }
 
     /// @notice Determine what the account liquidity would be if
     ///         the given amounts were redeemed/borrowed.
@@ -528,27 +557,6 @@ abstract contract MarketManagerBase is
         _checkHoldPeriod(account);
     }
 
-// <---------------------------------- refactor to support multiple accounts at once or remove
-    // function canLiquidate(
-    //     address eToken,
-    //     address pToken,
-    //     address account,
-    //     uint256 amount,
-    //     bool liquidateExact
-    // ) external view returns (uint256, uint256) {
-    //     return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
-    // }
-
-    // <---------------------------------- replace with batch processing version
-    // function canLiquidateWithExecution(
-    //     address eToken,
-    //     address pToken,
-    //     address liquidator,
-    //     address account,
-    //     uint256 amount,
-    //     bool liquidateExact
-    // ) external returns (uint256, uint256) {}
-
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `earnToken` should be allowed.
     /// @param pToken pToken which was used as collateral
@@ -618,42 +626,7 @@ abstract contract MarketManagerBase is
         );
     }
 
-    // <---------------------------------- replace with batch processing version
-    function queueLiquidation(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account
-    ) external {}
-
-    // <---------------------------------- replace with batch processing version
-    function queueAccountLiquidation(address account) external {
-    }
-
-    // <---------------------------------- integrate into unified liquidation function
-    // function liquidateAccount(address account) external {}
-
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
-
-    // <---------------------------------------------------------- List token functions would go here
-    // maybe use bytes memory data to pass in the token addresses
-    // instead of using actual addresses and make it virtual
-
-    function listTokens(bytes memory data) virtual external {} 
-
-
-    // <---------------------------------------------------------- Update position token functions would go here
-    // maybe use bytes memory data to pass in the struct members
-
-    function updatePositionToken(bytes memory data) virtual external {}
-
-
-    // <---------------------------------------------------------- Set collateral cap functions would go here
-    // maybe in isolated markets only read the first element of the arrays
-    function setPTokenCollateralCaps(
-        address[] calldata pTokens,
-        uint256[] calldata newCollateralCaps
-    ) virtual external {}
 
     /// @notice Admin function to set market-wide liquidation status.
     /// @dev Requires timelock authority if unpausing.
@@ -748,16 +721,7 @@ abstract contract MarketManagerBase is
         emit NewPositionManagementContract(newPositionManagement);
     }
 
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`. 
-    // <---- having _checkIsCenteralRegistry() seems to be the cleaner version
-    function setSequencingStatus(bool sequencingActive) external {
-        _checkIsCentralRegistry();
-        _setSequencingStatus(sequencingActive);
-    }
-
     /// @notice Updates OEV liquidation duration delays.
-    // <---------------- isolated version consolidates all delay/duration functions into one
     function setDelays(
         uint256 newPriorityDelay,
         uint256 newRegularDelay,
@@ -1069,49 +1033,6 @@ abstract contract MarketManagerBase is
         }
     }
 
-    // <---------------------------------------------------------------------- refactor to support multiple accounts at once
-    function _canLiquidate(
-        address eToken,
-        address pToken,
-        address account,
-        uint256 debtAmount,
-        bool liquidateExact
-    ) virtual internal view returns (uint256, uint256) {}
-
-    // Process multiple liquidations in a single call
-    function _canLiquidateMany(
-        address[] memory eTokens,
-        address[] memory pTokens,
-        address[] memory accounts,
-        uint256[] memory amounts,
-        bool[] memory liquidateExact
-    ) virtual internal view returns (uint256[] memory, uint256[] memory);
-
-    // Process liquidation status for multiple accounts at once
-    // function _liquidationStatusOfManyCached(
-    //     address[] memory accounts,
-    //     address[] memory eTokens, 
-    //     address[] memory pTokens
-    // ) internal view returns  !! struct to hold multiple LiqData !!
-
-    // Process repayments for multiple accounts
-    function _processRepay(
-        address[] memory eTokens,
-        address[] memory pTokens,
-        address[] memory accounts,
-        uint256[] memory repayAmounts,
-        uint256[] memory seizeAmounts,
-        bool[] memory hasBadDebt
-    ) virtual internal;
-
-    // Handle batch seizing of collateral
-    function multiSeize(
-        address[] memory eTokens,
-        address[] memory pTokens,
-        address[] memory accounts,
-        uint256[] memory seizeAmounts
-    ) virtual external;
-
     /// @notice Helper function for closing user positions after liquidity
     ///         checks have been passed.
     /// @dev Used as sort of a garbage collection system for any user positions
@@ -1257,6 +1178,11 @@ abstract contract MarketManagerBase is
         if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
+    }
+
+    /// @notice Checks whether OEV is enabled or not.
+    function _checkAtlasOevAllowed() internal view override returns (bool) {
+        return centralRegistry.isAtlasOevAllowed();
     }
 
     /// @dev Checks whether the caller is the Central Registry.
