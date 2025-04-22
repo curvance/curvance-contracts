@@ -78,8 +78,8 @@ abstract contract LiquidityManager {
         uint256 liqBaseIncentive;
         uint256 liqMinIncentive;
         uint256 liqMaxIncentive;
-        uint256 minEffectiveCFactor;
-        uint256 maxEffectiveCFactor;
+        uint256 minEffectiveCloseFactor;
+        uint256 maxEffectiveCloseFactor;
         uint256 baseCFactor;
         uint256 cFactorCurve;
         mapping(address => AccountPosition) accountPositions;

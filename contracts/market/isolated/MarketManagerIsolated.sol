@@ -241,16 +241,14 @@ contract MarketManagerIsolated is
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
+
         MarketToken storage pToken = tokenData[positionToken];
         // Validate new penalty is within configured allowed penalty.
-        if (
-            newPenalty < pToken.liqMinIncentive ||
-            newPenalty > pToken.liqMaxIncentive
-            ) {
+        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
             revert MarketManager__InvalidParameter();
         }
 
-        if (newCloseFactor < pToken.minEffectiveCFactor || newCloseFactor > pToken.maxEffectiveCFactor) {
+        if (newCloseFactor < pToken.minEffectiveCloseFactor || newCloseFactor > pToken.maxEffectiveCloseFactor) {
             revert MarketManager__InvalidParameter();
         }
 
@@ -1043,8 +1041,8 @@ contract MarketManagerIsolated is
         uint256 liqIncBase,
         uint256 liqIncMin,
         uint256 liqIncMax,
-        uint256 minEffectiveCFactor,
-        uint256 maxEffectiveCFactor,
+        uint256 minEffectiveCloseFactor,
+        uint256 maxEffectiveCloseFactor,
         uint256 baseCFactor
     ) external {
         _checkElevatedPermissions();
@@ -1059,8 +1057,8 @@ contract MarketManagerIsolated is
         liqIncMin = _bpToWad(liqIncMin);
         liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
-        minEffectiveCFactor = _bpToWad(minEffectiveCFactor);
-        maxEffectiveCFactor = _bpToWad(maxEffectiveCFactor);
+        minEffectiveCloseFactor = _bpToWad(minEffectiveCloseFactor);
+        maxEffectiveCloseFactor = _bpToWad(maxEffectiveCloseFactor);
 
         // Validate collateralization ratio is not above the maximum allowed.
         if (collRatio > MAX_COLLATERALIZATION_RATIO) {
@@ -1161,6 +1159,10 @@ contract MarketManagerIsolated is
         // that way we can quickly scale between [base, 100%] based on lFactor.
         marketToken.cFactorCurve = WAD - baseCFactor;
 
+        // Assign the min and max effective closeFactor
+        marketToken.minEffectiveCloseFactor = minEffectiveCloseFactor;
+        marketToken.maxEffectiveCloseFactor = maxEffectiveCloseFactor;
+
         emit PositionTokenUpdated(
             pToken,
             collRatio,
@@ -1169,8 +1171,8 @@ contract MarketManagerIsolated is
             liqIncBase,
             liqIncMin,
             liqIncMax,
-            minEffectiveCFactor,
-            maxEffectiveCFactor,
+            minEffectiveCloseFactor,
+            maxEffectiveCloseFactor,
             baseCFactor
         );
     }

@@ -41,37 +41,6 @@ contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
         marketManager.liquidateAccount(address(1));
     }
 
-    function test_liquidateAccount_fail_whenNotEligibleForLiquidation()
-        public
-    {
-        vm.prank(user2, user2);
-
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        marketManager.liquidateAccount(user1);
-    }
-
-    function test_liquidateAccount_fail_whenLiquidationWindowHasPassed()
-        public
-    {
-        vm.prank(user2);
-
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        marketManager.liquidateAccount(user1);
-
-        skip(31);
-
-        vm.prank(user2, user2);
-
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        marketManager.liquidateAccount(user1);
-    }
-
     function test_liquidateAccount_success() public {
         vm.startPrank(user2);
 

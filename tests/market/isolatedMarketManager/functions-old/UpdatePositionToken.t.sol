@@ -43,8 +43,8 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             uint256 liqBaseIncentive,
             uint256 liqMinIncentive,
             uint256 liqMaxIncentive,
-            uint256 minEffectiveCFactor,
-            uint256 maxEffectiveCFactor,
+            uint256 minEffectiveCloseFactor,
+            uint256 maxEffectiveCloseFactor,
             uint256 baseCFactor,
             uint256 cFactorCurve
         ) = marketManager.tokenData(address(pBALRETH));
@@ -55,8 +55,8 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         assertEq(liqBaseIncentive, 1100000000000000000);
         assertEq(liqMinIncentive, 1050000000000000000);
         assertEq(liqMaxIncentive, 1200000000000000000);
-        assertEq(minEffectiveCFactor, 100000000000000000);
-        assertEq(maxEffectiveCFactor, 500000000000000000);
+        assertEq(minEffectiveCloseFactor, 200000000000000000);
+        assertEq(maxEffectiveCloseFactor, 500000000000000000);
         // assertEq(liqCurve, 100000000000000000);  //        marketToken.liqCurve = marketToken.liqMaxIncentive - marketToken.liqBaseIncentive;
         assertEq(baseCFactor, 200000000000000000);
         assertEq(cFactorCurve, 800000000000000000); // WAD - baseCFactor;
