@@ -48,64 +48,65 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
 
     }
 
-    function testSetPenalty() public {
-        // // Only dapp control can set penalty
-        // vm.startPrank(dappControlUser);
+    function testSetAtlasParameters() public {
+        // Only dapp control can set penalty
+        vm.startPrank(dappControlUser);
         
-        // // Set a valid penalty (WAD + 15%)
-        // uint256 validPenalty = 1.20e18;
-        // marketManagerIsolated.setPenalty(validPenalty);
+        // Set a valid penalty (WAD + 15%)
+        uint256 validPenalty = 1.20e18;
+        uint256 closeFactor = 1.15e18;
+        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
         
-        // // Verify the penalty was set correctly
-        // assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
-        
-        // vm.stopPrank();
+        // Verify the penalty was set correctly
+        assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
+        assertEq(marketManagerIsolated.getLatestCloseFactor(), closeFactor);
+        vm.stopPrank();
     }
     
     function testSetPenaltyUnauthorized() public {
         // // Non-dapp control user should not be able to set penalty
-        // vm.startPrank(user1);
+        vm.startPrank(user1);
         
-        // vm.expectRevert();
-        // marketManagerIsolated.setPenalty(1.15e18);
+        vm.expectRevert();
+        marketManagerIsolated.setAtlasParameters(1.15e18, 1.15e18);
         
-        // vm.stopPrank();
+        vm.stopPrank();
     }
     
     function testSetPenaltyInvalidValue() public {
-        // vm.startPrank(dappControlUser);
+        vm.startPrank(dappControlUser);
         
-        // // penalty below minimum
-        // uint256 tooLowPenalty = 1.01e18;
-        // // should revert with MarketManager__InvalidParameter()
-        // vm.expectRevert(bytes4(0x65513fc1)); 
-        // marketManagerIsolated.setPenalty(tooLowPenalty);
+        // penalty below minimum
+        uint256 tooLowPenalty = 1.01e18;
+        // should revert with MarketManager__InvalidParameter()
+        vm.expectRevert(bytes4(0x65513fc1)); 
+        marketManagerIsolated.setAtlasParameters(tooLowPenalty, 1.15e18);
         
-        // // penalty above maximum
-        // uint256 tooHighPenalty = 1.25e18; 
-        // // should revert with MarketManager__InvalidParameter()
-        // vm.expectRevert(bytes4(0x65513fc1)); 
-        // marketManagerIsolated.setPenalty(tooHighPenalty);
+        // penalty above maximum
+        uint256 tooHighPenalty = 1.25e18; 
+        // should revert with MarketManager__InvalidParameter()
+        vm.expectRevert(bytes4(0x65513fc1)); 
+        marketManagerIsolated.setAtlasParameters(tooHighPenalty, 1.15e18);
         
-        // vm.stopPrank();
+        vm.stopPrank();
     }
     
     function testResetPenalty() public {
-        // vm.startPrank(dappControlUser);
+        vm.startPrank(dappControlUser);
         
-        // // Set a penalty
-        // uint256 validPenalty = 1.15e18;
-        // marketManagerIsolated.setPenalty(validPenalty);
-        // assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
+        // Set a penalty
+        uint256 validPenalty = 1.15e18;
+        marketManagerIsolated.setAtlasParameters(validPenalty, 1.15e18);
+        assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
         
-        // // Reset the penalty
-        // marketManagerIsolated.resetPenalty();
+        // Reset the penalty
+        marketManagerIsolated.resetAtlasParameters();
         
-        // // Check that the penalty was reset to the default
-        // uint256 defaultPenalty = 1.10e18; // 10% as set in setUp
-        // assertEq(marketManagerIsolated.getLatestPenalty(), defaultPenalty);
+        // Check that the penalty was reset to the default
+        uint256 defaultPenalty = 1.10e18; // 10% as set in setUp
+        assertEq(marketManagerIsolated.getLatestPenalty(), defaultPenalty);
         
-        // vm.stopPrank();
+        vm.stopPrank();
     }
     
     function testGetLatestPenaltyDefault() public {
@@ -115,12 +116,12 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
     }
 
     function testResetPenaltyUnauthorized() public {
-        // vm.startPrank(user1);
+        vm.startPrank(user1);
         
-        // vm.expectRevert();
-        // marketManagerIsolated.resetPenalty();
+        vm.expectRevert();
+        marketManagerIsolated.resetAtlasParameters();
         
-        // vm.stopPrank();
+        vm.stopPrank();
     }
 
     // in _canLiquidate:
@@ -156,7 +157,7 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
     function testLiquidationWithDynamicPenalty() public {
         _prepareLiquidationIsolated();
 
-        testSetPenalty();
+        testSetAtlasParameters();
 
         _prepareUSDC(user3, 250e6);
 
@@ -174,7 +175,7 @@ contract DynamicPenaltyTest is TestBaseMarketManager {
 
     }
 
-    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() public view returns (uint256) {
+    function _calculateExpectedLiquidatedTokensWithDefaultPenalty() public pure returns (uint256) {
         uint256 WAD = 1e18;
 
         uint256 incentive = 1.10e18; // Default 10% penalty
