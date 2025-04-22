@@ -81,14 +81,17 @@ contract MarketManagerIsolated is
     ERC165,
     Multicall
 {
-    /// CONSTANTS ///
+    /// ATLAS RELATED CONSTANTS ///
 
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
     /// @dev A fixed key to use in transient storage for dynamic close factor
     bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
-    /// @dev A fixed key to use in transient storage for collateral tracking
+    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
     bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
+
+    /// CONSTANTS ///
+
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -123,6 +126,9 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
+
+    /// ATLAS RELATED ERRORS ///
+
     /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
     uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
 
@@ -200,6 +206,8 @@ contract MarketManagerIsolated is
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
     event NewPositionManagementContract(address newPositionManager);
 
+    /// ATLAS RELATED EVENTS ///
+
     event AtlasDappControlUpdated(address atlasDappControlAddress, bool isAdded);
 
     /// ERRORS ///
@@ -233,85 +241,6 @@ contract MarketManagerIsolated is
 
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
-    }
-
-    /// @notice Sets a new dynamic penalty value in transient storage.
-    /// @dev Transient storage enforces any liquidator not using
-    ///      dappcontrol/auction uses the default penalty.
-    /// @param newPenalty The new penalty value.
-    function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
-        if (!hasAtlasPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-
-        MarketToken storage pToken = tokenData[positionToken];
-        // Validate new penalty is within configured allowed penalty.
-        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
-            revert MarketManager__InvalidParameter();
-        }
-
-        if (newCloseFactor < pToken.minEffectiveCloseFactor || newCloseFactor > pToken.maxEffectiveCloseFactor) {
-            revert MarketManager__InvalidParameter();
-        }
-
-        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
-        assembly {
-            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
-        }
-
-        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
-        assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
-        }
-    }
-
-    /// @notice Resets the dynamic penalty value in transient storage to zero.
-    function resetAtlasParameters() external {
-        if (!hasAtlasPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            // Clear the transient storage slot by writing zero. 
-            tstore(TRANSIENT_PENALTY_KEY, 0)
-        }
-
-        // Clear the transient storage slot by writing zero.
-        assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
-        }
-        
-    }
-
-    /// @notice Returns the current penalty.
-    /// @dev If a dynamic penalty is set in transient storage, 
-    ///      that value is returned; otherwise, the default penalty
-    ///      is returned.
-    function getLatestPenalty() public view returns (uint256 result) {
-        assembly {
-            // Load dynamic penalty from transient storage.
-            result := tload(TRANSIENT_PENALTY_KEY)
-        }
-
-        // If no dynamic penalty is set (assumed to be zero), return the
-        // liqBaseIncentive.
-        // Note that this renders 0 as an invalid dynamic penalty value.
-        if (result == 0) {
-            return tokenData[positionToken].liqBaseIncentive;
-        }
-    }
-
-    /// @notice Returns the current close factor.
-    /// @dev If a dynamic close factor is set in transient storage, 
-    ///      that value is returned; otherwise, the default close factor
-    ///      is returned.
-    /// @dev Note: must handle the case where TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
-    function getLatestCloseFactor() public view returns (uint256 result) {
-        assembly {
-            // Load dynamic close factor from transient storage.
-            result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
-        }
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -1619,6 +1548,7 @@ contract MarketManagerIsolated is
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
+        // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral
         _checkCollateralUnlocked(eToken);
 
         MarketToken storage pTokenData = tokenData[pToken];
@@ -1915,7 +1845,7 @@ contract MarketManagerIsolated is
         return centralRegistry;
     }
 
-    ////////// Atlas functionality //////////////
+    ////////// ATLAS FUNCTIONALITY //////////////
 
     /// @notice Authorizes an address to lock and unlock Atlas OEV.
     /// @dev Only callable on a 7 day delay or by the Emergency Council.
@@ -1959,8 +1889,9 @@ contract MarketManagerIsolated is
         emit AtlasDappControlUpdated(currentAtlasController, false);
     }
 
-    /// @notice Called from the Atlas DappControl as a pre hook
-    ///         before liquidations are tried.
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried to enable all 
+    ///         collateral to be liquidated outside Atlas tx.
     function lockAtlasCollateral() external {
         if (!hasAtlasPermissions[msg.sender]) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -1971,8 +1902,9 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Called from the Atlas DappControl as a post hook
-    ///         after liquidations are tried.
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried to enforce that 
+    ///         only a specific collateral can be liquidated.
     function unlockAtlasCollateral(address collateralToUnlock) external {
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         if (!hasAtlasPermissions[msg.sender]) {
@@ -1984,13 +1916,100 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Whether current transaction is from Atlas DappControl.
+    /// @notice Sets new dynamic close factor and liquidation penalty
+    ///         values in transient storage.
+    /// @dev Transient storage enforces any liquidator outside Atlas
+    ///      uses the default risk parameters.
+    /// @param newPenalty The new penalty value.
+    function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate new Liquidation Penalty value. 
+        MarketToken storage pToken = tokenData[positionToken];
+        // Validate new penalty is within configured allowed penalty.
+        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Validate new Close Factor value.
+        if (newCloseFactor < pToken.minEffectiveCloseFactor || newCloseFactor > pToken.maxEffectiveCloseFactor) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Set new Risk Parameters in transient storage. 
+        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+        assembly {
+            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
+        }
+
+        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
+        }
+    }
+
+    /// @notice Resets the Atlas risk parameters in transient storage to zero.
+    ///         This is redundant since the transient values will be reset 
+    ///         after an Atlas tx, but helps to ensure expected behaviour. 
+    function resetAtlasParameters() external {
+        if (!hasAtlasPermissions[msg.sender]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            // Clear the transient storage slot by writing zero. 
+            tstore(TRANSIENT_PENALTY_KEY, 0)
+        }
+
+        // Clear the transient storage slot by writing zero.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
+        }
+        
+    }
+
+    /// @notice Returns the current penalty.
+    /// @dev If a dynamic penalty is set in transient storage, 
+    ///      that value is returned; otherwise, the default penalty
+    ///      is returned.
+    function getLatestPenalty() public view returns (uint256 result) {
+        assembly {
+            // Load dynamic penalty from transient storage.
+            result := tload(TRANSIENT_PENALTY_KEY)
+        }
+
+        // If no dynamic penalty is set (assumed to be zero), return the
+        // liqBaseIncentive.
+        // Note that this renders 0 as an invalid dynamic penalty value.
+        if (result == 0) {
+            return tokenData[positionToken].liqBaseIncentive;
+        }
+    }
+
+    /// @notice Returns the current close factor.
+    /// @dev If a dynamic close factor is set in transient storage, 
+    ///      that value is returned; otherwise, the default close factor
+    ///      is returned.
+    /// @dev Note: canLiquidate() must handle the case where TRANSIENT_CLOSE_FACTOR_KEY 
+    ///            is empty, and zero is returned.
+    function getLatestCloseFactor() public view returns (uint256 result) {
+        assembly {
+            // Load dynamic close factor from transient storage.
+            result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
+        }
+    }
+
+    /// @notice Will revert and block liquidations of collateral that are not 
+    ///         currently allowed by Atlas.
     function _checkCollateralUnlocked(address eTokenToLiquidate) internal view {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
+        // CASE: Either this is not an Atlas tx, or Atlas has purposefully allowed all collaterals.
         if (result == 0) {
             return;
         }
