@@ -665,21 +665,25 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE contract.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
 
     /// @notice Returns the current VeCVE address to call.
+    /// @return The current VeCVE contract.
     function _getVeCVE() internal view returns (IVeCVE) {
         return IVeCVE(centralRegistry.veCVE());
     }
 
-    /// @notice Returns the current fee token address.
+    /// @notice Returns the current fee token address
+    /// @return The current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
     }
 
     /// @dev Internal helper for reverting efficiently.
+    /// @param s The error selector (bytes4 cast to uint256).
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {
@@ -689,15 +693,16 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+    /// @param sender The address of the caller.
+    function _checkDaoPermissions(address sender) internal view {
+        if (!centralRegistry.hasDaoPermissions(sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
     /// @dev Checks whether the caller is the veCVE contract.
-    function _checkIsVeCVE() internal view {
-        address _veCVE = address(_getVeCVE());
+    /// @param _veCVE The address of the veCVE contract.
+    function _checkIsVeCVE(address _veCVE) internal view {
         assembly {
             if iszero(eq(caller(), _veCVE)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)

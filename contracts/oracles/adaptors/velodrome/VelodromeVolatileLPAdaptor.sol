@@ -51,6 +51,16 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
         emit VelodromeVolatileLPAssetAdded(asset, data, isUpdate);
     }
 
+    /// @notice Returns the adaptor's type.
+    /// @dev Used by frontends to determine how to properly interact
+    ///      with a supported asset.
+    /// @return The adaptor's type.
+    function adaptorType() external pure override returns (uint256) {
+        return 9;
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
     /// @notice Removes a supported asset from the adaptor.
     /// @dev Calls back into Oracle Manager to notify it of its removal.
     ///      Requires that `asset` is currently supported.
@@ -63,10 +73,5 @@ contract VelodromeVolatileLPAdaptor is BaseVolatileLPAdaptor {
         emit VelodromeVolatileLPAssetRemoved(asset);
     }
 
-    /// @notice Returns the adaptor's type.
-    /// @dev Used by frontends to determine how to properly interact
-    ///      with a supported asset.
-    function adaptorType() external pure override returns (uint256) {
-        return 9;
-    }
+
 }

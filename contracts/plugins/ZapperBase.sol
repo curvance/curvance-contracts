@@ -47,9 +47,10 @@ abstract contract ZapperBase is ReentrancyGuard {
     error ZapperBase__InsufficientToRepay();
     error ZapperBase__InvalidCentralRegistry();
 
-    /// CONSTRUCTOR ///
-
+    /// @notice Receive function to allow contract to receive ETH
     receive() external payable {}
+
+    /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
         if (

@@ -860,6 +860,8 @@ contract OracleManager {
 
     /// @notice Checks whether `asset` has supported adaptor feeds or not.
     ///         Reverts if `asset` is no approved feeds.
+    /// @param asset The address of the asset to check.
+    /// @return numFeeds The number of supported feeds for `asset`.
     function _checkHasSupportedFeeds(
         address asset
     ) internal view returns (uint256 numFeeds) {
@@ -872,6 +874,7 @@ contract OracleManager {
 
     /// @notice Checks whether `adaptor` is an approved adaptor or not.
     ///         Reverts if `adaptor` is not approved.
+    /// @param adaptor The address of the adaptor to check.
     function _checkIsApprovedAdaptor(address adaptor) internal view {
         if (!isApprovedAdaptor[adaptor]) {
             revert OracleManager__AdaptorIsNotApproved();

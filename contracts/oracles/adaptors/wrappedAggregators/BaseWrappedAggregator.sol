@@ -14,11 +14,13 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns the current phase's aggregator address.
+    /// @return The current phase's aggregator address.
     function aggregator() external view returns (address) {
         return address(this);
     }
 
     /// @notice Returns the maximum value that the aggregator can return.
+    /// @return The maximum value that the aggregator can return.
     function maxAnswer() external view returns (int192) {
         uint256 max = uint256(
             uint192(
@@ -41,6 +43,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     }
 
     /// @notice Returns the minimum value that the aggregator can returned.
+    /// @return The minimum value that the aggregator can returned.
     function minAnswer() external view returns (int192) {
         uint256 min = uint256(
             uint192(
@@ -64,6 +67,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     }
 
     /// @notice Returns the number of decimals the aggregator responds with.
+    /// @return The number of decimals the aggregator responds with.
     function decimals() external view returns (uint8) {
         return IChainlink(underlyingAssetAggregator()).decimals();
     }
@@ -101,6 +105,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external pure returns (uint256) {
         return 5;
     }
@@ -109,6 +114,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// @notice Returns the underlying aggregator address.
     /// @dev Overridden in implemented wrapped oracle aggregators.
+    /// @return The underlying aggregator address.
     function underlyingAssetAggregator()
         public
         view
@@ -119,6 +125,8 @@ abstract contract BaseWrappedAggregator is IChainlink {
     /// @notice Returns the current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     /// @dev Overridden in implemented wrapped oracle aggregators.
+    /// @return The current exchange rate between the wrapped asset
+    ///         and the underlying aggregator, in `WAD`.
     function getWrappedAssetWeight() public view virtual returns (uint256) {}
 
     /// INTERNAl FUNCTIONS ///
@@ -127,6 +135,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
     ///         overflow (when the input is less than smallest int192 or
     ///         greater than largest int192).
     /// @param value The int256 value to convert to int192.
+    /// @return downcasted The downcasted int192 value.
     function _toInt192(
         int256 value
     ) internal pure returns (int192 downcasted) {
@@ -138,6 +147,7 @@ abstract contract BaseWrappedAggregator is IChainlink {
 
     /// @notice Converts an unsigned uint256 into a signed int256.
     /// @param value The uint256 value to convert to int256.
+    /// @return The converted int256 value.
     function _toInt256(uint256 value) internal pure returns (int256) {
         // Note: Unsafe cast below is okay because `type(int256).max`
         //       is guaranteed to be positive

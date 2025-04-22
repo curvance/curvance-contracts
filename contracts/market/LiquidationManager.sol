@@ -279,5 +279,6 @@ abstract contract LiquidationManager {
 
     /// @notice Checks whether OEV is enabled or not.
     /// @dev MUST be overridden in `MarketManager`.
+    /// @return Whether OEV is enabled.
     function _checkAtlasOevAllowed() internal view virtual returns (bool);
 }

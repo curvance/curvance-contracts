@@ -107,16 +107,16 @@ contract PendleLPPToken is CompoundingPToken {
     }
 
     /// @notice Returns this strategies reward tokens.
+    /// @return An array of reward token addresses.
     function rewardTokens() external view returns (address[] memory) {
         return strategyData.rewardTokens;
     }
 
     /// @notice Returns this strategies base assets underlying tokens.
+    /// @return An array of underlying token addresses.
     function underlyingTokens() external view returns (address[] memory) {
         return strategyData.underlyingTokens;
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     // REWARD AND HARVESTING LOGIC
 
@@ -267,6 +267,8 @@ contract PendleLPPToken is CompoundingPToken {
             emit Harvest(yield);
         }
     }
+
+    /// INTERNAL FUNCTIONS ///
 
     /// @notice Queries reward and underlying tokens directly from
     ///         Pendle's smart contracts, then populates storage values.

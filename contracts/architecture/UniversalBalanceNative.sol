@@ -137,6 +137,9 @@ contract UniversalBalanceNative is UniversalBalance {
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawNative(
         uint256 amount,
         bool forceLentRedemption,
@@ -176,6 +179,9 @@ contract UniversalBalanceNative is UniversalBalance {
     /// @param recipient The account who will receive the native token.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of native token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawNativeFor(
         uint256 amount,
         bool forceLentRedemption,

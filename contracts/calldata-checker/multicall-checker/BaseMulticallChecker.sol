@@ -40,6 +40,7 @@ abstract contract BaseMulticallChecker is
     error MulticallChecker__InvalidCalldata();
 
     /// STORAGE ///
+    /// @notice The address of the central registry
     address public centralRegistry;
 
     /// CONSTRUCTOR ///

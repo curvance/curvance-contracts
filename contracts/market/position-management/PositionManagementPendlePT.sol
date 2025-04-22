@@ -13,6 +13,10 @@ import { IPYieldToken } from "contracts/interfaces/external/pendle/IPYieldToken.
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
 contract PositionManagementPendlePT is PositionManagementBase {
+    
+    /// STORAGE /// 
+
+    /// @notice The address of the Pendle router
     IPendleRouter public router;
 
     /// CONSTRUCTOR ///

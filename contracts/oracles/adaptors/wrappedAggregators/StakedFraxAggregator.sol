@@ -8,8 +8,11 @@ import { IStakedFrax } from "contracts/interfaces/external/frax/IStakedFrax.sol"
 contract StakedFraxAggregator is BaseWrappedAggregator {
     /// STORAGE ///
 
+    /// @notice The address of the sFrax token
     address public sFrax;
+    /// @notice The address of the frax token
     address public frax;
+    /// @notice The address of the frax aggregator
     address public fraxAggregator;
 
     constructor(address _sFrax, address _frax, address _fraxAggregator) {
@@ -18,7 +21,10 @@ contract StakedFraxAggregator is BaseWrappedAggregator {
         fraxAggregator = _fraxAggregator;
     }
 
+    /// PUBLIC FUNCTIONS ///
+
     /// @notice Returns the underlying aggregator address.
+    /// @return The underlying aggregator address.
     function underlyingAssetAggregator()
         public
         view
@@ -28,7 +34,11 @@ contract StakedFraxAggregator is BaseWrappedAggregator {
         return fraxAggregator;
     }
 
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Returns the current exchange rate between the wrapped asset
+    ///         and the underlying aggregator, in `WAD`.
+    /// @return The current exchange rate between the wrapped asset
     ///         and the underlying aggregator, in `WAD`.
     function getWrappedAssetWeight() public view override returns (uint256) {
         // Staked Frax contract returns naturally in `WAD` format,

@@ -461,6 +461,7 @@ contract MessagingHub is QueryResponse {
     ///                    whereas CVE has no payload type because its
     ///                    a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
+    /// @return nonce The nonce of the message.
     function bridgeToken(
         uint256 dstChainId,
         address recipient,
@@ -560,6 +561,9 @@ contract MessagingHub is QueryResponse {
 
     /// PUBLIC FUNCTIONS ///
 
+    /// @notice Calculates effective veCVE lock points on this chain for fee distribution.
+    /// @dev Returns total chain points minus points scheduled to unlock in the next epoch.
+    /// @return The active lock points used for cross-chain proportional fee allocation.
     function queryLockPoints() public view returns (uint256) {
         IVeCVE veCVE = _getVeCVE();
         uint256 epoch = _getNextEpochToDeliver(_getRewardManager());
@@ -796,6 +800,8 @@ contract MessagingHub is QueryResponse {
 
     /// @dev Pulls `amount` fee tokens from the fee manager to
     ///      aggregate fees.
+    /// @param amount The amount of fee tokens to pull.
+    /// @return The amount of fee tokens pulled.
     function _pullFees(uint256 amount) internal returns (uint256) {
         return IFeeManager(centralRegistry.feeManager()).pullFees(amount);
     }
@@ -884,41 +890,52 @@ contract MessagingHub is QueryResponse {
         SwapperLib._approveTokenIfNeeded(token, spender, amount);
     }
 
+    /// @notice Converts an address to a bytes32 value.
+    /// @param addr The address to convert.
+    /// @return The bytes32 value of the address.
     function _addressToBytes32(address addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(addr)));
     }
 
     /// @notice Returns the current CVE address to call.
+    /// @return The current CVE contract.
     function _getCVE() internal view returns (ICVE) {
         return ICVE(centralRegistry.cve());
     }
 
     /// @notice Returns the current VeCVE address to call.
+    /// @return The current VeCVE contract.
     function _getVeCVE() internal view returns (IVeCVE) {
         return IVeCVE(centralRegistry.veCVE());
     }
 
     /// @notice Returns the current fee token address.
+    /// @return The current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
     }
 
     /// @dev Returns the current Reward Manager address to call.
+    /// @return The current Reward Manager contract.
     function _getRewardManager() internal view returns (IRewardManager) {
         return IRewardManager(centralRegistry.rewardManager());
     }
 
     /// @dev Returns the current Wormhole Relayer address to call.
+    /// @return The current Wormhole Relayer contract.
     function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
         return centralRegistry.wormholeRelayer();
     }
 
     /// @dev Returns the current Wormhole Core address to call.
+    /// @return The current Wormhole Core contract.
     function _getWormholeCore() internal view returns (IWormhole) {
         return centralRegistry.wormholeCore();
     }
 
     /// @dev Returns ChainData struct for `chainId`.
+    /// @param chainId The chain ID to get ChainData for.
+    /// @return chainData The ChainData struct for the given chain ID.
     function _getChainData(
         uint256 chainId
     ) internal view returns (ChainData memory chainData) {
@@ -930,17 +947,21 @@ contract MessagingHub is QueryResponse {
     }
 
     /// @dev Returns the current Curvance DAO address.
+    /// @return The current Curvance DAO address.
     function _getDaoAddress() internal view returns (address) {
         return centralRegistry.daoAddress();
     }
 
     /// @dev Returns the amount of fee tokens currently held in this
     ///      Messaging Hub.
+    /// @return The amount of fee tokens currently held in this Messaging Hub.
     function _getFeeTokenHeld() internal view returns (uint256) {
         return IERC20(_getFeeToken()).balanceOf(address(this));
     }
 
     /// @dev Returns the next protocol epoch to deliver rewards for.
+    /// @param rewardManager The Reward Manager contract to query.
+    /// @return The next protocol epoch to deliver rewards for.
     function _getNextEpochToDeliver(
         IRewardManager rewardManager
     ) internal view returns (uint256) {
@@ -949,6 +970,8 @@ contract MessagingHub is QueryResponse {
 
     /// @dev Returns the proper gas limit to use based on parameter input.
     ///      Fallsback to `_DEFAULT_GAS_LIMIT` if the input is less than default.
+    /// @param gasLimit The gas limit to use.
+    /// @return The proper gas limit to use based on parameter input.
     function _getGasLimit(uint256 gasLimit) internal pure returns (uint256) {
         return gasLimit < _DEFAULT_GAS_LIMIT ? _DEFAULT_GAS_LIMIT : gasLimit;
     }

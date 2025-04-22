@@ -129,7 +129,7 @@ contract VelodromeStablePToken is CompoundingPToken {
         }
     }
 
-    /// PUBLIC FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     // REWARD AND HARVESTING LOGIC
 

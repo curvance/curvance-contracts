@@ -9,7 +9,9 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 /// @notice WARNING: Currently built for Router V2.
 contract OdosCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
+    /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
+    /// @notice The mask for the reverse flag
     uint256 private constant _REVERSE_MASK =
         0x8000000000000000000000000000000000000000000000000000000000000000;
 
@@ -17,6 +19,10 @@ contract OdosCalldataChecker is BaseSwapChecker {
     // than reading from calldata. addressListStart is the storage slot of the first dynamic array element
     uint256 private constant addressListStart =
         80084422859880547211683076133703299733277748156566366325829078699459944778998;
+
+    /// STORAGE ///
+
+    /// @notice List of cached addresses used for validating Odos swaps
     address[] public addressList;
 
     /// CONSTRUCTOR ///

@@ -274,6 +274,7 @@ contract GMAdaptor is BaseOracleAdaptor {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
         return 16;
     }

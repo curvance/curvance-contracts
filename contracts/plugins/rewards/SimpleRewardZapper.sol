@@ -267,6 +267,7 @@ contract SimpleRewardZapper is ZapperBase {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Returns the current fee token address.
+    /// @return The current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
     }

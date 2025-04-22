@@ -114,7 +114,7 @@ contract CVE is CVEBase {
     ///               The number of tokens to mint cannot not exceed
     ///               the available call option allocation.
     function mintCommunityAllocation(uint256 amount) external {
-        _checkDaoPermissions();
+        _checkDaoPermissions(msg.sender);
 
         uint256 _initialCommunityMinted = initialCommunityMinted;
         if (initialCommunityAllocation < _initialCommunityMinted + amount) {

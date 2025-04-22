@@ -475,6 +475,7 @@ contract DynamicInterestRateModel is ERC165 {
     }
 
     /// @notice Returns the rate at which interest compounds, in seconds.
+    /// @return The rate at which interest compounds, in seconds.
     function compoundRate() external pure returns (uint256) {
         return INTEREST_COMPOUND_RATE;
     }
@@ -609,17 +610,22 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Returns the multiplier applied to the vertex interest rate,
     ///         in `WAD`.
+    /// @return The multiplier applied to the vertex interest rate, in `WAD`.
     function vertexMultiplier() public view returns (uint256) {
         return _currentRates & _BITMASK_VERTEX_MULTIPLIER;
     }
 
     /// @notice Returns the next timestamp when `vertexMultiplier`
     ///         will be updated, in unix time.
+    /// @return The next timestamp when `vertexMultiplier` will be updated,
+    ///         in unix time.
     function updateTimestamp() public view returns (uint256) {
         return uint64(_currentRates >> _BITPOS_UPDATE_TIMESTAMP);
     }
 
     /// @inheritdoc ERC165
+    /// @param interfaceId The interface ID to check.
+    /// @return Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
     ) public view override returns (bool) {
@@ -995,6 +1001,7 @@ contract DynamicInterestRateModel is ERC165 {
     ///                            is multiplied, in `WAD`.
     /// @param newTimestamp The new timestamp when the vertex multiplier
     ///                     will be updated.
+    /// @return result The new packed rates data value.
     function _packRatesData(
         uint256 newVertexMultiplier,
         uint256 newTimestamp
@@ -1043,6 +1050,8 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.
     /// @dev Internal helper function for easily converting between scalars.
+    /// @param value The value to convert from basis points to WAD.
+    /// @return The value in WAD.
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
     }

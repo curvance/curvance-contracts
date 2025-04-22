@@ -110,45 +110,6 @@ contract Convex3PoolPToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Requeries reward and underlying tokens directly from
-    ///         Convex's smart contracts.
-    /// @dev This can be permissionless since this data is 1:1 with dependent
-    ///      contracts and takes no parameter values.
-    function reQueryTokens() public {
-        // Cache current reward tokens.
-        address[] memory rewardTokens = strategyData.rewardTokens;
-        uint256 numTokens = rewardTokens.length;
-
-        // Clear reward token data fields.
-
-        // Remove approved tokens for harvester compounding.
-        for (uint256 i; i < numTokens; ) {
-            isApprovedAsset[rewardTokens[i++]] = false;
-        }
-
-        // Wipe current reward tokens data.
-        delete strategyData.rewardTokens;
-
-        // Cache current underlying tokens.
-        address[] memory currentTokens = strategyData.underlyingTokens;
-        numTokens = currentTokens.length;
-
-        // Clear underlying token data fields.
-
-        // Remove `isUnderlyingToken` mapping value from current
-        // flagged underlying tokens.
-        for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[currentTokens[i++]] = false;
-        }
-
-        // Wipe current underlying tokens data.
-        delete strategyData.underlyingTokens;
-
-        _queryTokens();
-    }
-
-    /// PUBLIC FUNCTIONS ///
-
     // REWARD AND HARVESTING LOGIC
 
     /// @notice Harvests and compounds outstanding vault rewards
@@ -255,6 +216,45 @@ contract Convex3PoolPToken is CompoundingPToken {
 
             emit Harvest(yield);
         }
+    }
+
+    /// PUBLIC FUNCTIONS ///
+
+    /// @notice Requeries reward and underlying tokens directly from
+    ///         Convex's smart contracts.
+    /// @dev This can be permissionless since this data is 1:1 with dependent
+    ///      contracts and takes no parameter values.
+    function reQueryTokens() public {
+        // Cache current reward tokens.
+        address[] memory rewardTokens = strategyData.rewardTokens;
+        uint256 numTokens = rewardTokens.length;
+
+        // Clear reward token data fields.
+
+        // Remove approved tokens for harvester compounding.
+        for (uint256 i; i < numTokens; ) {
+            isApprovedAsset[rewardTokens[i++]] = false;
+        }
+
+        // Wipe current reward tokens data.
+        delete strategyData.rewardTokens;
+
+        // Cache current underlying tokens.
+        address[] memory currentTokens = strategyData.underlyingTokens;
+        numTokens = currentTokens.length;
+
+        // Clear underlying token data fields.
+
+        // Remove `isUnderlyingToken` mapping value from current
+        // flagged underlying tokens.
+        for (uint256 i; i < numTokens; ) {
+            isUnderlyingToken[currentTokens[i++]] = false;
+        }
+
+        // Wipe current underlying tokens data.
+        delete strategyData.underlyingTokens;
+
+        _queryTokens();
     }
 
     /// INTERNAL FUNCTIONS ///

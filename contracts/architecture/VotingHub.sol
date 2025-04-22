@@ -231,32 +231,38 @@ contract VotingHub is QueryResponse {
 
     /// @notice Returns the number of Protocol Eras, corresponds to how many
     ///         different periods there are with token emission incentives.
+    /// @return The number of Protocol Eras.
     function protocolRewardEras() public pure returns (uint256) {
         return PROTOCOL_REWARD_ERAS;
     }
 
     /// @notice Returns current token emissions allocated, for this epoch.
+    /// @return The current token emissions allocated.
     function queryEmissionsAllocated() public view returns (uint256) {
         return centralRegistry.emissionsAllocatedByEpoch(currentEpoch());
     }
 
     /// @notice Returns current target token emissions, for this epoch.
+    /// @return The current target token emissions.
     function currentTargetEmissions() public view returns (uint256) {
         return centralRegistry.targetEmissionAllocationByEra(currentEra());
     }
 
     /// @notice Returns current era number.
+    /// @return The current era number.
     function currentEra() public view returns (uint256) {
         return currentEpoch() / REWARD_HALVENING_RATE;
     }
 
     /// @notice Returns current epoch number.
+    /// @return The current epoch number.
     function currentEpoch() public view returns (uint256) {
         return epochOfTimestamp(block.timestamp);
     }
 
     /// @notice Returns epoch number of `timestamp`.
     /// @param timestamp Timestamp in seconds.
+    /// @return The epoch number of the timestamp.
     function epochOfTimestamp(
         uint256 timestamp
     ) public view returns (uint256) {
@@ -272,6 +278,8 @@ contract VotingHub is QueryResponse {
     /// INTERNAL FUNCTIONS ///
 
     /// @dev Returns ChainData struct for `chainId`.
+    /// @param chainId The chain ID to get ChainData for.
+    /// @return chainData The ChainData struct for the given chain ID.
     function _getChainData(
         uint256 chainId
     ) internal view returns (ChainData memory chainData) {
@@ -309,6 +317,10 @@ contract VotingHub is QueryResponse {
     ///                                 for the epoch being validated.
     /// @param totalEmissionsAllocated The total emissions allocated, for the
     ///                                epoch being validated.
+    /// @return cachedEmissionsAllocated The emissions currently allocated,
+    ///                                 for the epoch being validated.
+    /// @return emissionData The emission data for the current chain.
+    /// @return remoteEmissionData The emission data for the remote chains.
     function _validateEmissionValues(
         EmissionData memory emissionData,
         EmissionData[] memory remoteEmissionData,

@@ -48,6 +48,7 @@ abstract contract BaseSwapChecker is
     error CalldataChecker__InvalidFuncSig();
 
     /// STORAGE ///
+    /// @notice The address of the target swap contract
     address public target;
 
     /// CONSTRUCTOR ///

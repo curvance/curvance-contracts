@@ -64,6 +64,7 @@ contract Convex2PoolPToken is CompoundingPToken {
 
     /// CONSTRUCTOR ///
 
+    /// @notice Allows the contract to receive native gas tokens for cross-chain operations and fee collection
     receive() external payable {}
 
     constructor(

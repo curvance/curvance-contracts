@@ -11,6 +11,10 @@ import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
 import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStandardizedYield.sol";
 
 contract PositionManagementPendleLP is PositionManagementBase {
+
+    /// STORAGE ///
+    
+    /// @notice The address of the Pendle router
     IPendleRouter public router;
 
     /// CONSTRUCTOR ///
