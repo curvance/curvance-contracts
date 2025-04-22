@@ -123,6 +123,8 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
+    /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
+    uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
 
     /// STORAGE ///
 
@@ -213,6 +215,7 @@ contract MarketManagerIsolated is
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
     error MarketManager__InvariantError();
+    error MarketManager__UnauthorizedCollateral();
 
     /// CONSTRUCTOR ///
 
@@ -698,7 +701,6 @@ contract MarketManagerIsolated is
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
-        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact
@@ -806,46 +808,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    // /// @notice Queues a token specific liquidation for `account` liquidating
-    // ///         `pToken` by repaying active debt in `eToken`.
-    // /// @dev Called by the eToken itself to validate that liquidation is
-    // ///      allowed based on `account`'s current liquidity.
-    // /// @param eToken The earning token debt position to be from
-    // ///               `account`.
-    // /// @param pToken The position token to be liquidated from
-    // ///               `account`.
-    // /// @param liquidator The account to execute the liquidation once queued.
-    // /// @param account The account being liquidated and debt repaid on behalf
-    // ///                of.
-    // function queueLiquidation(
-    //     address eToken,
-    //     address pToken,
-    //     address liquidator,
-    //     address account
-    // ) external {
-    //     // Verify caller is actually the eToken.
-    //     _checkIsToken(eToken);
-
-    //     // Verify the liquidation is valid.
-    //     _canLiquidate(eToken, pToken, account, 0, false);
-
-    //     // Queue the liquidation for execution.
-    //     _queueLiquidation(liquidator, account);
-    // }
-
-    // /// @notice Queues an account liquidation for `account` liquidating
-    // ///         `pToken` by repaying a portion of `account`'s active debt.
-    // /// @dev Called by the liquidator themselves to queue up a different
-    // ///      account's liquidation.
-    // /// @param account The account being liquidated and debt repaid on behalf
-    // ///                of.
-    // function queueAccountLiquidation(address account) external {
-    //     _getUpdatedLiquidationStatusOf(account);
-
-    //     // Queue the liquidation for execution.
-    //     _queueLiquidation(msg.sender, account);
-    // }
-
     /// @notice Liquidates an entire account by partially paying down debts,
     ///         distributing all `account` collateral and recognize remaining
     ///         debt as bad debt.
@@ -858,7 +820,6 @@ contract MarketManagerIsolated is
         if (liquidationPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-
 
         (
             BadDebtData memory data,
@@ -1682,10 +1643,10 @@ contract MarketManagerIsolated is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            uint256 cFactor = getLatestCloseFactor();
-            if (cFactor == 0) {
+            uint256 closeFactor = getLatestCloseFactor();
+            if (closeFactor == 0) {
                 // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
-                cFactor = pTokenData.baseCFactor +
+                closeFactor = pTokenData.baseCFactor +
                     ((pTokenData.cFactorCurve * data.lFactor) / WAD);
             }
 
@@ -1693,7 +1654,7 @@ contract MarketManagerIsolated is
             uint256 incentive = getLatestPenalty();
             
             maxAmount =
-            (cFactor * IEToken(eToken).debtBalanceCached(account)) /
+            (closeFactor * IEToken(eToken).debtBalanceCached(account)) /
                  WAD;
 
             // Get the exchange rate, and calculate the number of
@@ -2024,7 +1985,6 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Whether current transaction is from Atlas DappControl.
-    /// TODO: override was removed, maybe it should be in a lower level contract?
     function _checkCollateralUnlocked(address eTokenToLiquidate) internal view {
         uint256 result;
         assembly {
@@ -2038,7 +1998,7 @@ contract MarketManagerIsolated is
         address unlockedCollateral = address(uint160(result));
 
         if (unlockedCollateral != eTokenToLiquidate) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+            _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
     }
 }

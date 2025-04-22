@@ -36,7 +36,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         );
 
         (
-            bool isListed,
+            ,
             uint256 collRatio,
             uint256 collReqSoft,
             uint256 collReqHard,

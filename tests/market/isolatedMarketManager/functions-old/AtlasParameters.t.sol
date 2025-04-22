@@ -197,8 +197,6 @@ contract AtlasParametersTest is TestBaseMarketManager {
     function testLiquidationWithDefaultPenalty() public {
         _prepareLiquidationIsolated();
 
-        // No call to setPenalty() here
-
         _prepareUSDC(user3, 250e6);
 
         vm.startPrank(user3);

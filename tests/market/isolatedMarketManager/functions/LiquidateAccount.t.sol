@@ -55,8 +55,6 @@ contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
     function test_liquidateAccount_success_duringAtlasOev() public {
         address dappControl = makeAddr("dappControl");
 
-        // centralRegistry.setSequencingStatus(true);
-
         vm.prank(user2);
         usdc.approve(address(eUSDC), 1000e6);
 
@@ -74,12 +72,6 @@ contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
 
         vm.prank(dappControl);
         marketManager.lockAtlasCollateral();
-
-        vm.prank(user2);
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        marketManager.liquidateAccount(user1);
 
         _checkLiquidationResult();
     }
