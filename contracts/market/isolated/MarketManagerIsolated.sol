@@ -1201,23 +1201,6 @@ contract MarketManagerIsolated is
         emit NewPositionManagementContract(newPositionManagement);
     }
 
-    // /// @notice Updates status of unique liquidation sequencing to
-    // ///         `sequencingActive`.
-    // function setSequencingStatus(bool sequencingActive) external {
-    //     _checkIsCentralRegistry();
-    //     _setSequencingStatus(sequencingActive);
-    // }
-
-    // /// @notice Updates OEV liquidation duration delays.
-    // function setDelays(
-    //     uint256 newPriorityDelay,
-    //     uint256 newRegularDelay,
-    //     uint256 newEndDelay
-    // ) external {
-    //     _checkIsCentralRegistry();
-    //     _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
-    // }
-
     /// PUBLIC FUNCTIONS ///
 
     /// @inheritdoc ERC165
@@ -1579,7 +1562,9 @@ contract MarketManagerIsolated is
                     ((pTokenData.cFactorCurve * data.lFactor) / WAD);
             }
 
-            // check for dynamic penalty in transient storage
+            // Read the dynamic penalty in transient storage
+            // getLatestPenalty() internally handles returning the default penalty if 
+            // TRANSIENT_PENALTY_KEY is empty. 
             uint256 incentive = getLatestPenalty();
             
             maxAmount =
@@ -1998,6 +1983,9 @@ contract MarketManagerIsolated is
             // Load dynamic close factor from transient storage.
             result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
         }
+
+        // Note: We do not handle returning a fallback close factor here so that
+        // the original dynamic close factor logic can remain in _canLiquidate. 
     }
 
     /// @notice Will revert and block liquidations of collateral that are not 
