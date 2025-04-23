@@ -33,7 +33,7 @@ import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChec
 abstract contract BaseMulticallChecker is
     IMulticallChecker,
     BaseCallDataChecker
-{
+{  
     /// ERRORS ///
     error MulticallChecker__TargetError();
     error MulticallChecker__InvalidFuncSig();

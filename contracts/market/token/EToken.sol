@@ -42,7 +42,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      when integrating Curvance into external protocols.
 ///
 contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
-    /// TYPES ///
+    // TYPES ///
 
     /// @title Debt Data
     /// @dev Data for a user's debt. 
@@ -205,7 +205,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         }
     }
 
-    /// ADMIN FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     /// @notice Rescue any token sent by mistake.
     /// @dev Restricts the ability to rescue underlying tokens inside the
@@ -248,8 +248,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         _setInterestFactor(newInterestFactor);
     }
-
-    /// EXTERNAL FUNCTIONS ///
 
     //// @notice Starts a eToken market, executed via marketManager.
     /// @dev This initial mint is a failsafe against rounding exploits,

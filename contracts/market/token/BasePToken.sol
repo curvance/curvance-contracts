@@ -137,6 +137,21 @@ abstract contract BasePToken is
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Starts a pToken market, executed via marketManager.
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
+    ///            ADDRESS FROM THE MARKET MANAGER.
+    /// @param by The account initializing the pToken market.
+    /// @return Returns with true when successful.
+    function startMarket(
+        address by
+    ) external virtual nonReentrant returns (bool) {
+        _startMarket(by);
+        return true;
+    }
+
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
@@ -406,26 +421,7 @@ abstract contract BasePToken is
         _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
-    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
-
-    /// @notice Starts a pToken market, executed via marketManager.
-    /// @dev This initial mint is a failsafe against rounding exploits,
-    ///      although, we protect against them in many ways,
-    ///      better safe than sorry.
-    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
-    ///            ADDRESS FROM THE MARKET MANAGER.
-    /// @param by The account initializing the pToken market.
-    /// @return Returns with true when successful.
-    function startMarket(
-        address by
-    ) external virtual nonReentrant returns (bool) {
-        _startMarket(by);
-        return true;
-    }
-
     /// PUBLIC FUNCTIONS ///
-
-    // VAULT DATA FUNCTIONS
 
     /// @notice Returns the name of the token.
     /// @return The name of the token.

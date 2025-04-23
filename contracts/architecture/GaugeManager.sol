@@ -148,6 +148,8 @@ contract GaugeManager is
     event Withdraw(address user, address token, uint256 amount);
     event Claim(address user, address token);
 
+    /// CONSTRUCTOR ///
+
     constructor(
         ICentralRegistry centralRegistry_
     ) PluginDelegable(centralRegistry_) {
@@ -156,7 +158,7 @@ contract GaugeManager is
         epochDuration = centralRegistry.EPOCH_DURATION();
     }
 
-    /// ADMIN FUNCTIONS ///
+    /// EXTERNAL FUNCTIONS ///
 
     /// @notice Sets emission rates of tokens of current epoch.
     /// @dev Only the Messaging Hub and Voting Hub can call this.
@@ -243,8 +245,6 @@ contract GaugeManager is
             }
         }
     }
-
-    /// EXTERNAL FUNCTIONS ///
 
     /// @notice Returns gauge weight of given epoch and token.
     /// @param epoch The epoch to pull weights for.

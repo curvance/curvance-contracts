@@ -30,6 +30,8 @@ contract AerodromeVolatilePToken is VelodromeVolatilePToken {
         )
     {}
 
+    /// INTERNAL FUNCTIONS ///
+
     /// @notice Validates whether a contract can be deployed based on
     ///         the current chainid.
     /// @dev This check is so incompatible deployments never occur, such as

@@ -93,6 +93,10 @@ abstract contract CompoundingPToken is BasePToken {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Virtual function to harvest yield from the vault.
+    /// @return yield The yield harvested from the vault.
+    function harvest(bytes calldata) external virtual returns (uint256 yield);
+
     /// @notice Returns the current pToken yield status information.
     /// @return rewardRate: Yield per second in underlying asset.
     ///         vestingPeriodEnd: When the current vesting period ends and
@@ -155,15 +159,7 @@ abstract contract CompoundingPToken is BasePToken {
         emit CompoundingPaused(state);
     }
 
-    // EXTERNAL POSITION LOGIC TO OVERRIDE
-
-    /// Virtual function to harvest yield from the vault.
-    /// @return yield The yield harvested from the vault.
-    function harvest(bytes calldata) external virtual returns (uint256 yield);
-
     /// PUBLIC FUNCTIONS ///
-
-    // ACCOUNTING LOGIC
 
     /// @notice Returns the current per second yield of the vault.
     /// @return The yield received per second in this vault,
@@ -390,8 +386,6 @@ abstract contract CompoundingPToken is BasePToken {
         // Update `_vaultData` invariant.
         _vaultData = packedVaultData;
     }
-
-    // REWARD AND HARVESTING LOGIC
 
     /// @notice Calculates pending rewards that have been vested.
     /// @dev If there are no pending rewards or the vesting period has ended,

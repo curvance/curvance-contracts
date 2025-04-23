@@ -60,8 +60,6 @@ contract StakedGMXPToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
-    // REWARD AND HARVESTING LOGIC
-
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
     /// @dev Only callable by Offchain bots.
@@ -150,8 +148,6 @@ contract StakedGMXPToken is CompoundingPToken {
 
         rewardRouter = IRewardRouter(newRouter);
     }
-
-    // INTERNAL POSITION LOGIC
 
     /// @notice Deposits specified amount of assets into Staked GMX contract.
     /// @param assets The amount of assets to deposit.

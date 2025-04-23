@@ -66,8 +66,6 @@ contract Convex3PoolPToken is CompoundingPToken {
 
     /// CONSTRUCTOR ///
 
-    receive() external payable {}
-
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -109,8 +107,6 @@ contract Convex3PoolPToken is CompoundingPToken {
     }
 
     /// EXTERNAL FUNCTIONS ///
-
-    // REWARD AND HARVESTING LOGIC
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
@@ -217,6 +213,9 @@ contract Convex3PoolPToken is CompoundingPToken {
             emit Harvest(yield);
         }
     }
+
+    /// @notice Receive function to allow for ETH deposits.
+    receive() external payable {}
 
     /// PUBLIC FUNCTIONS ///
 

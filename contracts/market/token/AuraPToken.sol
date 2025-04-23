@@ -150,8 +150,6 @@ contract AuraPToken is CompoundingPToken {
 
     /// PUBLIC FUNCTIONS ///
 
-    // REWARD AND HARVESTING LOGIC
-
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
     /// @dev Only callable by Offchain bots.

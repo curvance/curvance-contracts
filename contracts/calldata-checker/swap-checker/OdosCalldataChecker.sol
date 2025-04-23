@@ -9,6 +9,7 @@ import { IOdosRouterV2 } from "contracts/interfaces/external/odos/IOdosRouterV2.
 /// @notice WARNING: Currently built for Router V2.
 contract OdosCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
+    
     /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
     /// @notice The mask for the reverse flag

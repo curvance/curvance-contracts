@@ -122,8 +122,6 @@ contract VelodromeVolatilePToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
-    // REWARD AND HARVESTING LOGIC
-
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
     /// @dev Only callable by Offchain bots. Passes a block.timestamp

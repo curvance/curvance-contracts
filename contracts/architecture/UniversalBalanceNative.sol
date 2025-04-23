@@ -35,15 +35,6 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 ///      Refunds unused deposit amounts when processing batch operations.
 ///
 contract UniversalBalanceNative is UniversalBalance {
-    receive() external payable {
-        if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value }();
-            // We default to a sitting balance deposit due to small gas
-            // allowance on .transfer calls.
-            _deposit(msg.value, false, msg.sender);
-        }
-    }
-
     /// ERRORS ///
 
     error UniversalBalanceNative__UnderlyingTokenMismatch();
@@ -269,5 +260,15 @@ contract UniversalBalanceNative is UniversalBalance {
 
         // Transfer the withdrawn tokens to the oracle adaptor.
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
+    }
+
+    /// @notice Receive function for native tokens.
+    receive() external payable {
+        if (msg.sender != underlying) {
+            IWETH(underlying).deposit{ value: msg.value }();
+            // We default to a sitting balance deposit due to small gas
+            // allowance on .transfer calls.
+            _deposit(msg.value, false, msg.sender);
+        }
     }
 }

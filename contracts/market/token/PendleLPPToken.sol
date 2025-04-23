@@ -53,8 +53,6 @@ contract PendleLPPToken is CompoundingPToken {
 
     /// CONSTRUCTOR ///
 
-    receive() external payable {}
-
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -117,8 +115,6 @@ contract PendleLPPToken is CompoundingPToken {
     function underlyingTokens() external view returns (address[] memory) {
         return strategyData.underlyingTokens;
     }
-
-    // REWARD AND HARVESTING LOGIC
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
@@ -267,6 +263,9 @@ contract PendleLPPToken is CompoundingPToken {
             emit Harvest(yield);
         }
     }
+
+    /// @notice Receive function to allow for ETH deposits.
+    receive() external payable {}
 
     /// INTERNAL FUNCTIONS ///
 

@@ -70,6 +70,8 @@ contract Timelock is TimelockController, ERC165 {
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
     }
 
+    /// EXTERNAL FUNCTIONS ///
+
     /// @notice Permissionlessly update DAO address if it has been changed
     ///         through the Curvance Central Registry.
     function updateDaoAddress() external {

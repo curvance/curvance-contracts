@@ -114,7 +114,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///      once the time buffer has passed without rewards being delivered
     ///      properly.
     function overrideRecordEpochRewards() external {
-        _checkDaoPermissions();
+        _checkDaoPermissions(msg.sender);
 
         // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
@@ -137,6 +137,47 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         // expected event and increment the `nextEpochToDeliver` invariant.
 
         emit EpochRewardsSet(nextEpochToDeliver++, 0, 0);
+    }
+
+    /// @notice Starts the Reward Manager, called by the DAO after setting up
+    ///         both RewardManager and veCVE contracts.
+    /// @dev Only callable on by an entity with DAO permissions or higher.
+    function startRewardManager() external {
+        _checkDaoPermissions(msg.sender);
+
+        if (rewardManagerStarted == 2) {
+            revert RewardManager__RewardManagerIsAlreadyStarted();
+        }
+
+        nextEpochToDeliver = _getVeCVE().currentEpoch(block.timestamp);
+        rewardManagerStarted = 2;
+    }
+
+    /// @notice Rescue any token sent by mistake.
+    /// @param token token to rescue.
+    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions(msg.sender);
+
+        if (token == _getFeeToken()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
+    }
+
+    /// @notice Shuts down the RewardManager and prevents future reward
+    /// distributions.
+    /// @dev Should only be used to facilitate migration to a new system.
+    function notifyShutdown() external {
+        if (
+            msg.sender != address(_getVeCVE()) &&
+            !centralRegistry.hasElevatedPermissions(msg.sender)
+        ) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        isShutdown = 2;
     }
 
     /// @notice Called by the Messaging Hub to record rewards allocated to
@@ -172,47 +213,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             rewardsPerPoint,
             rewardsPerPoint * veCVE.chainPoints()
         );
-    }
-
-    /// @notice Starts the Reward Manager, called by the DAO after setting up
-    ///         both RewardManager and veCVE contracts.
-    /// @dev Only callable on by an entity with DAO permissions or higher.
-    function startRewardManager() external {
-        _checkDaoPermissions();
-
-        if (rewardManagerStarted == 2) {
-            revert RewardManager__RewardManagerIsAlreadyStarted();
-        }
-
-        nextEpochToDeliver = _getVeCVE().currentEpoch(block.timestamp);
-        rewardManagerStarted = 2;
-    }
-
-    /// @notice Rescue any token sent by mistake.
-    /// @param token token to rescue.
-    /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions();
-
-        if (token == _getFeeToken()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        RescueLib.rescueToken(centralRegistry, token, amount);
-    }
-
-    /// @notice Shuts down the RewardManager and prevents future reward
-    /// distributions.
-    /// @dev Should only be used to facilitate migration to a new system.
-    function notifyShutdown() external {
-        if (
-            msg.sender != address(_getVeCVE()) &&
-            !centralRegistry.hasElevatedPermissions(msg.sender)
-        ) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        isShutdown = 2;
     }
 
     /// @notice Returns the current epoch for the given time.
@@ -293,15 +293,13 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         return rewards / WAD;
     }
 
-    /// CLAIM INDEX FUNCTIONS ///
-
     /// @notice Updates `user`'s claim index.
     /// @dev Updates the claim index of a user.
     ///      Can only be called by the VeCVE contract.
     /// @param user The address of the user.
     /// @param index The new claim index.
     function updateUserClaimIndex(address user, uint256 index) external {
-        _checkIsVeCVE();
+        _checkIsVeCVE(msg.sender);
         userNextClaimIndex[user] = index;
     }
 
@@ -310,11 +308,9 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///      Can only be called by the VeCVE contract.
     /// @param user The address of the user.
     function resetUserClaimIndex(address user) external {
-        _checkIsVeCVE();
+        _checkIsVeCVE(msg.sender);
         delete userNextClaimIndex[user];
     }
-
-    /// REWARD FUNCTIONS ///
 
     /// @notice Claims rewards for multiple epochs.
     /// @param rewardsData Rewards data for desired Reward Manager action.
@@ -361,7 +357,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkIsVeCVE();
+        _checkIsVeCVE(msg.sender);
 
         // We check whether there are epochs to claim in veCVE
         // so we do not need to check here like in claimRewards.

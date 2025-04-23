@@ -11,8 +11,8 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IVeloPool } from "contracts/interfaces/external/velodrome/IVeloPool.sol";
 
 contract PositionManagementVelodrome is PositionManagementBase {
-
     /// STORAGE ///
+    
     /// @notice The address of the Velodrome pair factory
     address public pairFactory;
     /// @notice The address of the Velodrome router

@@ -91,34 +91,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Pyth oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
-    function getPrice(
-        address asset,
-        bool inUSD,
-        bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert PythAdaptor__AssetIsNotSupported();
-        }
-
-        // Check whether we want the pricing in USD first,
-        // otherwise price in terms of the gas token.
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
-    }
-
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
@@ -194,6 +166,34 @@ contract PythAdaptor is BaseOracleAdaptor {
             asset
         );
         emit PythAssetRemoved(asset);
+    }
+
+    /// @notice Retrieves the price of a given asset.
+    /// @dev Uses Pyth oracles to fetch the price data.
+    ///      Price is returned in USD or a chain's native token depending on
+    ///      'inUSD' parameter.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
+    /// @return A structure containing the price, error status,
+    ///         and the quote format of the price.
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool /* getLower */
+    ) external view override returns (PriceReturnData memory) {
+        // Validate we support pricing `asset`.
+        if (!isSupportedAsset[asset]) {
+            revert PythAdaptor__AssetIsNotSupported();
+        }
+
+        // Check whether we want the pricing in USD first,
+        // otherwise price in terms of the gas token.
+        if (inUSD) {
+            return _getPriceInUSD(asset);
+        }
+
+        return _getPriceInNative(asset);
     }
 
     /// @notice Returns the adaptor's type.

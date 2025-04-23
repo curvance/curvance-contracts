@@ -47,7 +47,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 ///      Native gas tokens are stored inside the contract to pay for all cross-chain actions.
 ///      Contract status can be configured to restrict message creation and/or execution.
 ///
-contract MessagingHub is QueryResponse {
+contract MessagingHub is QueryResponse {   
     using BytesParsing for bytes;
 
     /// CONSTANTS ///
@@ -112,6 +112,49 @@ contract MessagingHub is QueryResponse {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Permissioned function that flips the pause status of the
+    ///         Messaging Hub.
+    function setMessagingHubStatus(uint256 newMessagingStatus) external {
+        if (newMessagingStatus == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // It is more dangerous to unpause the protocol than to pause it,
+        // so turning message creation back on requires elevated permissions.
+        if (newMessagingStatus == 1) {
+            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+        } else {
+            _checkDaoPermissions();
+        }
+
+        messagingStatus = newMessagingStatus > 2 ? 3 : newMessagingStatus;
+    }
+
+    /// @notice Withdraws gas tokens and fee tokens from the
+    ///         Messaging Hub to the DAO address in order to
+    ///         depreciate or rebalance the Messaging Hub.
+    /// @dev This does not allow any loss of funds as authorized perms are
+    ///      required to change the Messaging Hub, meaning in order
+    ///      to steal funds a malicious actor would have had to compromise
+    ///      the whole system already. Thus, we only need to check for DAO
+    ///      permissions here.
+    function withdrawDeposited() external {
+        _checkDaoPermissions();
+
+        uint256 gasTokenBalance = address(this).balance;
+        uint256 feeTokenBalance = _getFeeTokenHeld();
+
+        if (gasTokenBalance > 0) {
+            SafeTransferLib.safeTransferETH(_getDaoAddress(), gasTokenBalance);
+        }
+
+        if (feeTokenBalance > 0) {
+            _transferFeeTokens(feeTokenBalance, _getDaoAddress());
+        }
+    }
 
     /// @notice Executes a protocol epoch via CCQ by querying
     ///         `queryLockPoints` on all other chains, stores the results for
@@ -512,51 +555,6 @@ contract MessagingHub is QueryResponse {
                 gasLimit,
                 msg.value
             );
-    }
-
-    /// PERMISSIONED EXTERNAL FUNCTIONS ///
-
-    /// @notice Permissioned function that flips the pause status of the
-    ///         Messaging Hub.
-    function setMessagingHubStatus(uint256 newMessagingStatus) external {
-        if (newMessagingStatus == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // It is more dangerous to unpause the protocol than to pause it,
-        // so turning message creation back on requires elevated permissions.
-        if (newMessagingStatus == 1) {
-            if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-        } else {
-            _checkDaoPermissions();
-        }
-
-        messagingStatus = newMessagingStatus > 2 ? 3 : newMessagingStatus;
-    }
-
-    /// @notice Withdraws gas tokens and fee tokens from the
-    ///         Messaging Hub to the DAO address in order to
-    ///         depreciate or rebalance the Messaging Hub.
-    /// @dev This does not allow any loss of funds as authorized perms are
-    ///      required to change the Messaging Hub, meaning in order
-    ///      to steal funds a malicious actor would have had to compromise
-    ///      the whole system already. Thus, we only need to check for DAO
-    ///      permissions here.
-    function withdrawDeposited() external {
-        _checkDaoPermissions();
-
-        uint256 gasTokenBalance = address(this).balance;
-        uint256 feeTokenBalance = _getFeeTokenHeld();
-
-        if (gasTokenBalance > 0) {
-            SafeTransferLib.safeTransferETH(_getDaoAddress(), gasTokenBalance);
-        }
-
-        if (feeTokenBalance > 0) {
-            _transferFeeTokens(feeTokenBalance, _getDaoAddress());
-        }
     }
 
     /// PUBLIC FUNCTIONS ///
