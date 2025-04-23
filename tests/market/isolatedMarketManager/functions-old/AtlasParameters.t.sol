@@ -5,7 +5,6 @@ import { TestBaseMarketManager } from "tests/market/marketManager/TestBaseMarket
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import "forge-std/console.sol";
 contract AtlasParametersTest is TestBaseMarketManager {
     address dappControlUser = makeAddr("dappControlUser");
 
@@ -118,7 +117,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.stopPrank();
     }
 
-    function testResetPenaltyUnauthorized() public {
+    function testResetAtlasParametersUnauthorized() public {
         vm.startPrank(user1);
         
         vm.expectRevert();
@@ -254,7 +253,9 @@ contract AtlasParametersTest is TestBaseMarketManager {
 
         testSetAtlasParameters();
 
-        uint256 debtBalance = 1000000762;
+        eUSDCIsolated.accrueInterest();                 // pull interest forward
+        uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
+
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 
         _prepareUSDC(user3, debtBalance);
