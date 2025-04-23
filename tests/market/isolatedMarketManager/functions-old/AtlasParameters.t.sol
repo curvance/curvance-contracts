@@ -140,7 +140,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
     function _calculateExpectedLiquidatedTokensWithDynamicPenalty() public pure returns (uint256) {
         uint256 WAD = 1e18;
 
-        uint256 incentive = 1.20e18; 
+        uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
         uint256 pTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;  
@@ -161,7 +161,6 @@ contract AtlasParametersTest is TestBaseMarketManager {
         testSetAtlasParameters();
 
         _prepareUSDC(user3, 250e6);
-
         vm.startPrank(user3);
 
         usdc.approve(address(eUSDCIsolated), 250e6);

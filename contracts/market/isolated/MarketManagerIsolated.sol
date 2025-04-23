@@ -18,7 +18,6 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
 /// @dev Curvance Market Managers are built as "thesis driven" micro
@@ -630,6 +629,7 @@ contract MarketManagerIsolated is
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
+        address liquidator,
         address account,
         uint256 amount,
         bool liquidateExact
