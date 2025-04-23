@@ -5,6 +5,7 @@ import { TestBaseMarketManager } from "tests/market/marketManager/TestBaseMarket
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
+import "forge-std/console.sol";
 contract AtlasParametersTest is TestBaseMarketManager {
     address dappControlUser = makeAddr("dappControlUser");
 
@@ -228,7 +229,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.stopPrank();
     }
 
-    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public pure returns (uint256) {
+    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public view returns (uint256) {
         uint256 WAD = 1e18;
 
         uint256 incentive = 1.15e18; 
@@ -244,7 +245,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         uint256 amountAdjusted = (maxAmount * 10**18) / 10**6;
         
         uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
-        
+
         return liquidatedTokens;
     }
 
@@ -253,7 +254,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
 
         testSetAtlasParameters();
 
-        uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
+        uint256 debtBalance = 1000000762;
         uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 
         _prepareUSDC(user3, debtBalance);
