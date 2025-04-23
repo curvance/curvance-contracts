@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import { TestBaseMarketManager } from "tests/market/marketManager/TestBaseMarketManager.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { IEToken } from "contracts/interfaces/IEToken.sol";
 contract AtlasParametersTest is TestBaseMarketManager {
     address dappControlUser = makeAddr("dappControlUser");
 
@@ -68,7 +69,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setAtlasParameters(1.15e18, 1.30e18);
+        marketManagerIsolated.setAtlasParameters(1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
@@ -81,7 +82,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         uint256 validPenalty = 1.15e18;
         uint256 tooHighCloseFactor = 1.51e18;
         uint256 tooLowCloseFactor = 1.09e18;
-        uint256 validCloseFactor = 1.30e18;
+        uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
         marketManagerIsolated.setAtlasParameters(tooLowPenalty, validCloseFactor);
@@ -225,5 +226,47 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
         eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
         vm.stopPrank();
+    }
+
+    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public pure returns (uint256) {
+        uint256 WAD = 1e18;
+
+        uint256 incentive = 1.15e18; 
+        uint256 earnTokenPrice = 2e18; 
+        uint256 pTokenPrice = 1677420866257185401796; 
+        uint256 exchangeRate = 1e18;
+        uint256 closeFactor = 0.30e18;
+        
+        uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
+            (pTokenPrice * exchangeRate);
+        
+        uint256 maxAmount = (closeFactor * debtBalance) / WAD;
+        uint256 amountAdjusted = (maxAmount * 10**18) / 10**6;
+        
+        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) / WAD;
+        
+        return liquidatedTokens;
+    }
+
+    function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
+        _prepareLiquidationIsolated();
+
+        testSetAtlasParameters();
+
+        uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
+        uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
+
+        _prepareUSDC(user3, debtBalance);
+        vm.startPrank(user3);
+
+        usdc.approve(address(eUSDCIsolated), debtBalance);
+        eUSDCIsolated.liquidate(user1, address(pBALRETHIsolated));
+        vm.stopPrank();
+
+        uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+        assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+
+        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
     }
 }
