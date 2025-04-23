@@ -210,4 +210,20 @@ contract AtlasParametersTest is TestBaseMarketManager {
         uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
         assertEq(liquidatorUSDCBalance, 0);
     }
+
+    function testLiquidationFailureWithDifferentUnlockedCollateral() public {
+        _prepareLiquidationIsolated();
+
+        _prepareUSDC(user3, 250e6);
+
+        vm.prank(dappControlUser);
+        marketManagerIsolated.unlockAtlasCollateral(address(1));
+
+        vm.startPrank(user3);
+
+        usdc.approve(address(eUSDCIsolated), 250e6);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
+        eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
+        vm.stopPrank();
+    }
 }
