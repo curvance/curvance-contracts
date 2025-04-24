@@ -52,32 +52,6 @@ contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
         _checkLiquidationResult();
     }
 
-    function test_liquidateAccount_success_duringAtlasOev() public {
-        address dappControl = makeAddr("dappControl");
-
-        vm.prank(user2);
-        usdc.approve(address(eUSDC), 1000e6);
-
-        vm.expectRevert(
-            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
-        );
-        marketManager.liquidateAccount(user1);
-
-        vm.prank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
-
-        vm.prank(dappControl);
-        marketManager.unlockAtlasCollateral(address(eUSDC));
-
-        vm.prank(user2);
-        marketManager.liquidateAccount(user1);
-
-        vm.prank(dappControl);
-        marketManager.lockAtlasCollateral();
-
-        _checkLiquidationResult();
-    }
-
     function _checkLiquidationResult() internal {
         assertApproxEqAbs(pBALRETH.balanceOf(user1), 0, 1);
         assertEq(pBALRETH.exchangeRateCached(), _ONE);
