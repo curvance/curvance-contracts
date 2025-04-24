@@ -487,8 +487,6 @@ abstract contract BasePToken is
         maxShares = super.maxMint(to);
     }
 
-    /// TOKEN ACTION FUNCTIONS ///
-
     /// @notice Caller deposits assets into the market and receives shares.
     /// @param assets The amount of the underlying assets to deposit.
     /// @param receiver The account that should receive the pToken shares.
@@ -621,8 +619,6 @@ abstract contract BasePToken is
             interfaceId == type(IMToken).interfaceId ||
             interfaceId == type(ERC4626).interfaceId;
     }
-
-    // ACCOUNTING LOGIC
 
     /// @notice Returns the total number of assets backing shares, safely.
     /// @dev Has added re-entry lock for protocols building ontop of Curvance

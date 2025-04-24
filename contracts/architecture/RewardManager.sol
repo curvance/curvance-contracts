@@ -114,7 +114,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///      once the time buffer has passed without rewards being delivered
     ///      properly.
     function overrideRecordEpochRewards() external {
-        _checkDaoPermissions(msg.sender);
+        _checkDaoPermissions();
 
         // Cache next epoch to deliver value to save on storage reads.
         uint256 epoch = nextEpochToDeliver;
@@ -143,7 +143,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///         both RewardManager and veCVE contracts.
     /// @dev Only callable on by an entity with DAO permissions or higher.
     function startRewardManager() external {
-        _checkDaoPermissions(msg.sender);
+        _checkDaoPermissions();
 
         if (rewardManagerStarted == 2) {
             revert RewardManager__RewardManagerIsAlreadyStarted();
@@ -157,7 +157,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param token token to rescue.
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
     function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions(msg.sender);
+        _checkDaoPermissions();
 
         if (token == _getFeeToken()) {
             _revert(_UNAUTHORIZED_SELECTOR);
@@ -299,7 +299,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     /// @param user The address of the user.
     /// @param index The new claim index.
     function updateUserClaimIndex(address user, uint256 index) external {
-        _checkIsVeCVE(msg.sender);
+        _checkIsVeCVE();
         userNextClaimIndex[user] = index;
     }
 
@@ -308,7 +308,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     ///      Can only be called by the VeCVE contract.
     /// @param user The address of the user.
     function resetUserClaimIndex(address user) external {
-        _checkIsVeCVE(msg.sender);
+        _checkIsVeCVE();
         delete userNextClaimIndex[user];
     }
 
@@ -357,7 +357,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         bytes calldata params,
         uint256 aux
     ) external nonReentrant {
-        _checkIsVeCVE(msg.sender);
+        _checkIsVeCVE();
 
         // We check whether there are epochs to claim in veCVE
         // so we do not need to check here like in claimRewards.
@@ -689,16 +689,15 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    /// @param sender The address of the caller.
-    function _checkDaoPermissions(address sender) internal view {
-        if (!centralRegistry.hasDaoPermissions(sender)) {
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
     /// @dev Checks whether the caller is the veCVE contract.
-    /// @param _veCVE The address of the veCVE contract.
-    function _checkIsVeCVE(address _veCVE) internal view {
+    function _checkIsVeCVE() internal view {
+        address _veCVE = address(_getVeCVE());
         assembly {
             if iszero(eq(caller(), _veCVE)) {
                 mstore(0x00, _UNAUTHORIZED_SELECTOR)

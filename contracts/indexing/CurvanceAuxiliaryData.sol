@@ -311,6 +311,9 @@ contract CurvanceAuxiliaryData {
 
     /// MARKET-SPECIFIC FUNCTIONS ///
 
+    /// @notice Returns all market data for all markets.
+    /// @param account The account to get market data for.
+    /// @return results An array of AllMarketData structs containing market data for all markets.
     function getAllMarketData(
         address account
     ) public view returns (AllMarketData[] memory) {
@@ -333,6 +336,10 @@ contract CurvanceAuxiliaryData {
         return results;
     }
 
+    /// @notice Returns market data for a specific market.
+    /// @param market The market to get data for.
+    /// @param account The account to get market data for.
+    /// @return result A MarketData struct containing market data.
     function getMarketData(
         address market,
         address account
@@ -364,6 +371,11 @@ contract CurvanceAuxiliaryData {
         }
     }
 
+    /// @notice Returns market asset data for a specific market.
+    /// @param market The market to get asset data for.
+    /// @param account The account to get asset data for.
+    /// @return eTokenData An array of MarketETokenData structs containing asset data for all eTokens.
+    /// @return pTokenData An array of MarketPTokenData structs containing asset data for all pTokens.
     function getMarketAssetData(
         address market,
         address account

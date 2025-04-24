@@ -101,7 +101,7 @@ contract GaugeManager is
     /// @dev Epoch Number => Epoch information.
     mapping(uint256 => Epoch) internal _epochInfo;
 
-    /// @dev mToken => rewardToken => last epoch
+    /// @dev mToken => rewardToken => last epoch.
     mapping(address => mapping(address => uint256)) public lastEpochOf;
 
     /// @notice The total supply of a token deposited.
@@ -586,7 +586,7 @@ contract GaugeManager is
         address token,
         address user
     ) public view returns (uint256) {
-        // Cache storage values
+        // Cache storage values.
         uint256 accRewardPerShare = poolAccRewardPerShare[token];
         uint256 lastRewardTimestamp = poolLastRewardTimestamp[token];
         uint256 totalDeposited = totalSupply[token];
@@ -668,12 +668,12 @@ contract GaugeManager is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Calculates accumulated rewards per share across multiple epochs
-    /// @param token Protocol supported mToken address to check rewards for
-    /// @param accRewardPerShare Current accumulated reward per share
-    /// @param lastRewardTimestamp Timestamp when rewards were last calculated
-    /// @param totalDeposited Total amount of token deposited in the pool
-    /// @return Updated accumulated reward per share value
+    /// @notice Calculates accumulated rewards per share across multiple epochs.
+    /// @param token Protocol supported mToken address to check rewards for.
+    /// @param accRewardPerShare Current accumulated reward per share.
+    /// @param lastRewardTimestamp Timestamp when rewards were last calculated.
+    /// @param totalDeposited Total amount of token deposited in the pool.
+    /// @return Updated accumulated reward per share value.
     function _calcAccRewardPerShare(
         address token,
         uint256 accRewardPerShare,
@@ -823,7 +823,7 @@ contract GaugeManager is
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly
+        /// @solidity memory-safe-assembly.
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)

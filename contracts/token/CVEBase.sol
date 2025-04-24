@@ -232,9 +232,8 @@ abstract contract CVEBase is ERC20 {
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    /// @param sender The address of the caller.
-    function _checkDaoPermissions(address sender) internal view {
-        if (!centralRegistry.hasDaoPermissions(sender)) {
+    function _checkDaoPermissions() internal view {
+        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }

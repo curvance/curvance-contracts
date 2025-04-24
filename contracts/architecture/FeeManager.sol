@@ -62,7 +62,7 @@ contract FeeManager is ReentrancyGuard {
     /// STORAGE ///
 
     /// @notice Used for offchain bots to check what tokens to swap.
-    /// @dev    We store token data semi redundantly to save gas
+    /// @dev    We store token data semi redundantly to save gas.
     ///         on daily operations and to help with offchain bot structure.
     address[] public rewardTokens;
 
@@ -99,7 +99,8 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__RemovalTokenDoesNotExist();
     error FeeManager__OTCExecutionTermsFailed();
 
-    /// @notice Allows the contract to receive native gas tokens for cross-chain operations and fee collection
+    /// @notice Allows the contract to receive native gas tokens for
+    ///         cross-chain operations and fee collection.
     receive() external payable {}
 
     /// CONSTRUCTOR ///
