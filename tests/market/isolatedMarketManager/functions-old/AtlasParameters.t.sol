@@ -38,7 +38,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
         // Create a dapp control user
         dappControlUser = makeAddr("dappControlUser");
         vm.startPrank(centralRegistry.daoAddress());
-        marketManagerIsolated.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
         vm.stopPrank();
 
         address[] memory tokens = new address[](1);

@@ -174,9 +174,6 @@ contract MarketManagerIsolated is
     /// @dev Token => Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
-    // Atlas OEV DAppControl
-    mapping(address => bool) public hasAtlasPermissions;
-
     /// EVENTS ///
 
     event TokenListed(address mToken);
@@ -203,10 +200,6 @@ contract MarketManagerIsolated is
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
     event NewPositionManagementContract(address newPositionManager);
-
-    /// ATLAS RELATED EVENTS ///
-
-    event AtlasDappControlUpdated(address atlasDappControlAddress, bool isAdded);
 
     /// ERRORS ///
 
@@ -1829,55 +1822,11 @@ contract MarketManagerIsolated is
         return centralRegistry;
     }
 
-    ////////// ATLAS FUNCTIONALITY //////////////
-
-    /// @notice Authorizes an address to lock and unlock Atlas OEV.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Atlas controller address prior.
-    ///      Emits a {AtlasControlAuthorized} event.
-    /// @param newAtlasController The new address to allow control of Atlas
-    ///                           support for use in Curvance.
-    function addAuthorizedAtlasDAppControl(
-        address newAtlasController
-    ) external {
-        _checkElevatedPermissions();
-
-        // Validate `newAtlasController` is not currently supported.
-        if (hasAtlasPermissions[newAtlasController]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        hasAtlasPermissions[newAtlasController] = true;
-
-        emit AtlasDappControlUpdated(newAtlasController, true);
-    }
-
-    /// @notice Deauthorizes an address to lock and unlock Atlas OEV.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Atlas controller address prior.
-    ///      Emits a {AtlasControlAuthorized} event.
-    /// @param currentAtlasController The address to remove control of Atlas
-    ///                           support from inside Curvance.
-    function removeAuthorizedAtlasDAppControl(
-        address currentAtlasController
-    ) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentAtlasController` is currently supported.
-        if (!hasAtlasPermissions[currentAtlasController]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        delete hasAtlasPermissions[currentAtlasController];
-
-        emit AtlasDappControlUpdated(currentAtlasController, false);
-    }
-
     /// @notice Called from the Atlas DappControl as a post hook
     ///         after liquidations are tried to enable all 
     ///         collateral to be liquidated outside Atlas tx.
     function lockAtlasCollateral() external {
-        if (!hasAtlasPermissions[msg.sender]) {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1891,7 +1840,7 @@ contract MarketManagerIsolated is
     ///         only a specific collateral can be liquidated.
     function unlockAtlasCollateral(address collateralToUnlock) external {
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
-        if (!hasAtlasPermissions[msg.sender]) {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1906,7 +1855,7 @@ contract MarketManagerIsolated is
     ///      uses the default risk parameters.
     /// @param newPenalty The new penalty value.
     function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
-        if (!hasAtlasPermissions[msg.sender]) {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -1938,7 +1887,7 @@ contract MarketManagerIsolated is
     ///         This is redundant since the transient values will be reset 
     ///         after an Atlas tx, but helps to ensure expected behaviour. 
     function resetAtlasParameters() external {
-        if (!hasAtlasPermissions[msg.sender]) {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

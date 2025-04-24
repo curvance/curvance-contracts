@@ -58,7 +58,14 @@ contract LiquidateAccountTestIsolated is TestBaseMarketManagerIsolated {
         vm.prank(user2);
         usdc.approve(address(eUSDC), 1000e6);
 
-        marketManager.addAuthorizedAtlasDAppControl(dappControl);
+        vm.expectRevert(
+            LiquidationManager.LiquidationManager__InvalidLiquidator.selector
+        );
+        marketManager.liquidateAccount(user1);
+
+        vm.prank(centralRegistry.daoAddress());
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControl);
+
         vm.prank(dappControl);
         marketManager.unlockAtlasCollateral(address(eUSDC));
 
