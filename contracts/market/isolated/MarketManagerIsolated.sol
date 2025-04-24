@@ -1902,8 +1902,8 @@ contract MarketManagerIsolated is
     /// @dev If a dynamic penalty or close factor is set in transient storage, 
     ///      that value is returned; otherwise, the default penalty or close factor
     ///      is returned.
-    /// @dev Note: canLiquidate() must handle the case where TRANSIENT_PENALTY_KEY 
-    ///            or TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
+    /// @dev Note: caller must handle the case where the
+    ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
     function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
         assembly {
             penalty := tload(TRANSIENT_PENALTY_KEY)
@@ -1912,6 +1912,8 @@ contract MarketManagerIsolated is
         if (penalty == 0) {
             penalty = tokenData[positionToken].liqBaseIncentive;
         }
+        // if closeFactor is not set, 0 is returned. (caller must handle this)
+        // can't handle this here because lFactor is not available in this function
     }
 
     /// @notice Will revert and block liquidations of collateral that are not 
