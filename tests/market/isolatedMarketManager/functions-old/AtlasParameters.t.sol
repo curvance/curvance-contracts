@@ -59,8 +59,9 @@ contract AtlasParametersTest is TestBaseMarketManager {
         marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
-        assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
-        assertEq(marketManagerIsolated.getLatestCloseFactor(), closeFactor);
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        assertEq(currentPenalty, validPenalty);
+        assertEq(currentCloseFactor, closeFactor);
         vm.stopPrank();
     }
     
@@ -105,14 +106,17 @@ contract AtlasParametersTest is TestBaseMarketManager {
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
         marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
-        assertEq(marketManagerIsolated.getLatestPenalty(), validPenalty);
-        assertEq(marketManagerIsolated.getLatestCloseFactor(), validCloseFactor);
+
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        assertEq(currentPenalty, validPenalty);
+        assertEq(currentCloseFactor, validCloseFactor);
         
         marketManagerIsolated.resetAtlasParameters();
         
         uint256 defaultPenalty = 1.10e18; // 10% as set in setUp
-        assertEq(marketManagerIsolated.getLatestPenalty(), defaultPenalty);
-        assertEq(marketManagerIsolated.getLatestCloseFactor(), 0);
+        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        assertEq(currentPenalty, defaultPenalty);
+        assertEq(currentCloseFactor, 0);
         
         vm.stopPrank();
     }

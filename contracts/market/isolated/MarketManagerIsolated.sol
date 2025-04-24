@@ -1548,17 +1548,12 @@ contract MarketManagerIsolated is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            uint256 closeFactor = getLatestCloseFactor();
+            (uint256 incentive, uint256 closeFactor) = getLatestAtlasParameters();
             if (closeFactor == 0) {
                 // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
                 closeFactor = pTokenData.baseCFactor +
                     ((pTokenData.cFactorCurve * data.lFactor) / WAD);
             }
-
-            // Read the dynamic penalty in transient storage
-            // getLatestPenalty() internally handles returning the default penalty if 
-            // TRANSIENT_PENALTY_KEY is empty. 
-            uint256 incentive = getLatestPenalty();
             
             maxAmount =
             (closeFactor * IEToken(eToken).debtBalanceCached(account)) /
@@ -1903,38 +1898,20 @@ contract MarketManagerIsolated is
         
     }
 
-    /// @notice Returns the current penalty.
-    /// @dev If a dynamic penalty is set in transient storage, 
-    ///      that value is returned; otherwise, the default penalty
+    /// @notice Returns the current Atlas parameters.
+    /// @dev If a dynamic penalty or close factor is set in transient storage, 
+    ///      that value is returned; otherwise, the default penalty or close factor
     ///      is returned.
-    function getLatestPenalty() public view returns (uint256 result) {
+    /// @dev Note: canLiquidate() must handle the case where TRANSIENT_PENALTY_KEY 
+    ///            or TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
+    function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
         assembly {
-            // Load dynamic penalty from transient storage.
-            result := tload(TRANSIENT_PENALTY_KEY)
+            penalty := tload(TRANSIENT_PENALTY_KEY)
+            closeFactor := tload(TRANSIENT_CLOSE_FACTOR_KEY)
         }
-
-        // If no dynamic penalty is set (assumed to be zero), return the
-        // liqBaseIncentive.
-        // Note that this renders 0 as an invalid dynamic penalty value.
-        if (result == 0) {
-            return tokenData[positionToken].liqBaseIncentive;
+        if (penalty == 0) {
+            penalty = tokenData[positionToken].liqBaseIncentive;
         }
-    }
-
-    /// @notice Returns the current close factor.
-    /// @dev If a dynamic close factor is set in transient storage, 
-    ///      that value is returned; otherwise, the default close factor
-    ///      is returned.
-    /// @dev Note: canLiquidate() must handle the case where TRANSIENT_CLOSE_FACTOR_KEY 
-    ///            is empty, and zero is returned.
-    function getLatestCloseFactor() public view returns (uint256 result) {
-        assembly {
-            // Load dynamic close factor from transient storage.
-            result := tload(TRANSIENT_CLOSE_FACTOR_KEY)
-        }
-
-        // Note: We do not handle returning a fallback close factor here so that
-        // the original dynamic close factor logic can remain in _canLiquidate. 
     }
 
     /// @notice Will revert and block liquidations of collateral that are not 
