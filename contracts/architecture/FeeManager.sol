@@ -99,10 +99,6 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__RemovalTokenDoesNotExist();
     error FeeManager__OTCExecutionTermsFailed();
 
-    /// @notice Allows the contract to receive native gas tokens for
-    ///         cross-chain operations and fee collection.
-    receive() external payable {}
-
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
@@ -119,6 +115,10 @@ contract FeeManager is ReentrancyGuard {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows the contract to receive native gas tokens for
+    ///         cross-chain operations and fee collection.
+    receive() external payable {}
 
     /// @notice Performs multiple token swaps in a single transaction, converting
     ///      the provided tokens to fee token on behalf of Curvance DAO.

@@ -8,11 +8,11 @@ import { IStakedFrax } from "contracts/interfaces/external/frax/IStakedFrax.sol"
 contract StakedFraxAggregator is BaseWrappedAggregator {
     /// STORAGE ///
 
-    /// @notice The address of the sFrax token
+    /// @notice The address of the sFrax token.
     address public sFrax;
-    /// @notice The address of the frax token
+    /// @notice The address of the frax token.
     address public frax;
-    /// @notice The address of the frax aggregator
+    /// @notice The address of the frax aggregator.
     address public fraxAggregator;
 
     constructor(address _sFrax, address _frax, address _fraxAggregator) {

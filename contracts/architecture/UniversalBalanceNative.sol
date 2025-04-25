@@ -55,6 +55,16 @@ contract UniversalBalanceNative is UniversalBalance {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {
+        if (msg.sender != underlying) {
+            IWETH(underlying).deposit{ value: msg.value }();
+            // We default to a sitting balance deposit due to small gas
+            // allowance on .transfer calls.
+            _deposit(msg.value, false, msg.sender);
+        }
+    }
+
     /// @notice Deposits native gas token into user's Universal Balance
     ///         account, either to be held or lent out.
     /// @dev Emits { Deposit } event. The amount of native token to be
@@ -260,15 +270,5 @@ contract UniversalBalanceNative is UniversalBalance {
 
         // Transfer the withdrawn tokens to the oracle adaptor.
         SafeTransferLib.safeTransfer(underlying, msg.sender, amount);
-    }
-
-    /// @notice Receive function for native tokens.
-    receive() external payable {
-        if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value }();
-            // We default to a sitting balance deposit due to small gas
-            // allowance on .transfer calls.
-            _deposit(msg.value, false, msg.sender);
-        }
     }
 }

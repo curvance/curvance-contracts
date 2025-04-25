@@ -23,7 +23,7 @@ Main dependencies:
 
 ### Smart contract order
 
-1. Types at the top of the contract
+1. Types; At the top of the contract
 2. Constants
 3. Storage
 4. Events
@@ -32,7 +32,7 @@ Main dependencies:
 7. External Functions
 8. Public Functions
 9. Internal Functions
-10. Private Functions as the end of the contract
+10. Private Functions; At the end of the contract
 
 ### A/B state variables
 

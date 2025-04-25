@@ -64,9 +64,6 @@ contract Convex2PoolPToken is CompoundingPToken {
 
     /// CONSTRUCTOR ///
 
-    /// @notice Allows the contract to receive native gas tokens for cross-chain operations and fee collection
-    receive() external payable {}
-
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -108,6 +105,9 @@ contract Convex2PoolPToken is CompoundingPToken {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
 
     /// @notice Requeries reward and underlying tokens directly from
     ///         Convex's smart contracts.

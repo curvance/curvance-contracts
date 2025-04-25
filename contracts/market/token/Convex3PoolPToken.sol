@@ -108,6 +108,9 @@ contract Convex3PoolPToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
+
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
     /// @dev Only callable by Offchain bots.
@@ -213,9 +216,6 @@ contract Convex3PoolPToken is CompoundingPToken {
             emit Harvest(yield);
         }
     }
-
-    /// @notice Receive function to allow for ETH deposits.
-    receive() external payable {}
 
     /// PUBLIC FUNCTIONS ///
 

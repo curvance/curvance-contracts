@@ -71,6 +71,9 @@ contract PendleLPPToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
+
     /// @notice Requeries reward and underlying tokens directly from
     ///         Pendle's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
@@ -263,9 +266,6 @@ contract PendleLPPToken is CompoundingPToken {
             emit Harvest(yield);
         }
     }
-
-    /// @notice Receive function to allow for ETH deposits.
-    receive() external payable {}
 
     /// INTERNAL FUNCTIONS ///
 

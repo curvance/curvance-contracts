@@ -15,7 +15,7 @@ import { IStandardizedYield } from "contracts/interfaces/external/pendle/IStanda
 contract PositionManagementPendlePT is PositionManagementBase {
     /// STORAGE /// 
 
-    /// @notice The address of the Pendle router
+    /// @notice The address of the Pendle router.
     IPendleRouter public router;
 
     /// CONSTRUCTOR ///

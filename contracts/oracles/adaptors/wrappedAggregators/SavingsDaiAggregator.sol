@@ -8,11 +8,11 @@ import { ISavingsDai } from "contracts/interfaces/external/maker/ISavingsDai.sol
 contract SavingsDaiAggregator is BaseWrappedAggregator {
     /// STORAGE ///
 
-    /// @notice The address of the savings dai token
+    /// @notice The address of the savings dai token.
     address public sDai;
-    /// @notice The address of the dai token
+    /// @notice The address of the dai token.
     address public dai;
-    /// @notice The address of the dai aggregator
+    /// @notice The address of the dai aggregator.
     address public daiAggregator;
 
     constructor(address _sDai, address _dai, address _daiAggregator) {

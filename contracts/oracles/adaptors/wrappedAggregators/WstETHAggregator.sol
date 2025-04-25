@@ -8,11 +8,11 @@ import { IWstETH } from "contracts/interfaces/external/wsteth/IWstETH.sol";
 contract WstETHAggregator is BaseWrappedAggregator {
     /// STORAGE ///
 
-    /// @notice The address of the wstETH token
+    /// @notice The address of the wstETH token.
     address public wstETH;
-    /// @notice The address of the stETH token
+    /// @notice The address of the stETH token.
     address public stETH;
-    /// @notice The address of the stETH aggregator
+    /// @notice The address of the stETH aggregator.
     address public stETHAggregator;
 
     /// CONSTRUCTOR ///

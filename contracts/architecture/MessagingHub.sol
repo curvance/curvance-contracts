@@ -88,8 +88,6 @@ contract MessagingHub is QueryResponse {
     error MessagingHub__MessageHashIsAlreadyDelivered(bytes32 messageHash);
     error MessagingHub__InsufficientGasToken();
 
-    receive() external payable {}
-
     /// CONSTRUCTOR ///
 
     constructor(
@@ -112,6 +110,10 @@ contract MessagingHub is QueryResponse {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows the contract to receive native gas tokens for
+    ///         cross-chain operations and fee collection.
+    receive() external payable {}
 
     /// @notice Permissioned function that flips the pause status of the
     ///         Messaging Hub.
