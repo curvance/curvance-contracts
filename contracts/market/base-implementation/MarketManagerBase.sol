@@ -20,38 +20,15 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
+//#####################################################################
+//
+// IMPLEMENTATION INSTRUCTIONS:
+// 1. LIST TOKEN(S) FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+// 2. setPTokenCollateralCaps() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+// 3. updatePositionToken() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
+//
+//#####################################################################
 
-/*
-#####################################################################
-
-IMPLEMENTATION INSTRUCTIONS:
-1. LIST TOKEN(S) FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
-2. setPTokenCollateralCaps() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
-3. updatePositionToken() FUNCTION MUST BE IMPLEMENTED IN THE INHERITED CONTRACT
-
-#####################################################################
-/*
-
-/* Main differences between isolated and cross:
-Liquidation Manager:
-    - Duration/Delay naming, will probably use "delay" convention in both market managers
-    - _queueLiquidation() function in cross has a boolean for "token liquidation or account liquidation", while in isolated is token liquidation only
-    - _validateLiquidation() function has the same differences above
-    - small error and event differences
-
-Liquidity Manager:
-    - Identical functions and variables for both market managers
-    - MarketToken struct has extra member for liqCurve, but not present in isolated implementation
-
-MarketManager:
-    - isolated has a dedicated position token, while cross does not
-    - isolated has TRANSIENT_PENALTY_KEY, while cross does not
-    - cross has MAX_LISTED_ASSETS, while isolated does not
-    - isolated has dynamic penalty functionalities, while cross does not (transient penalty functions, atlas OEV validation
-    - isolated has _checkIsCentralRegistry() function, while cross does not
-    - small event differences
-
-*/
 
 abstract contract MarketManagerBase is
     LiquidityManagerBase,
@@ -141,42 +118,20 @@ abstract contract MarketManagerBase is
     mapping(address => uint256) public collateralPosted;
     /// @notice Amount of pToken that can be posted of collateral, in shares.
     /// @dev Token => Collateral Cap, in shares.
-    mapping(address => uint256) public collateralCaps; // <--------- maybe change or make updatePositionToken only loop once in the isolated marketManager
+    mapping(address => uint256) public collateralCaps;
 
     /// EVENTS ///
 
     event TokenListed(address mToken);
-    // event CollateralAdjusted(  <---- present in isolated but not in cross
-    //     address account,
-    //     address pToken,
-    //     uint256 amount,
-    //     bool increase
-    // );
-
-    // event PositionAdjusted(address mToken, address account, bool open);   <---- present in isolated but not in cross
-
     event CollateralPosted(address account, address pToken, uint256 amount);
     event CollateralRemoved(address account, address pToken, uint256 amount);
     event TokenPositionCreated(address mToken, address account);
     event TokenPositionClosed(address mToken, address account);
-    // event PositionTokenUpdated(   <---- different implementation in each marketManager
-    //     address mToken,
-    //     uint256 collRatio,
-    //     uint256 collReqSoft,
-    //     uint256 collReqHard,
-    //     uint256 liqIncSoft,
-    //     uint256 liqIncHard,
-    //     uint256 baseCFactor
-    // );
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
     event NewCollateralCap(address mToken, uint256 newCollateralCap);
     event NewPositionManagementContract(address newPF);
-
-    // <---------------------------------------- present in isolated but not in cross
     event PositionAdjusted(address mToken, address account, bool open); 
-
-    // <---------------------------------------- present in isolated but not in cross
     event CollateralAdjusted(
         address account,
         address pToken,
@@ -215,56 +170,6 @@ abstract contract MarketManagerBase is
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
     }
-
-    /// DYNAMIC PENALTY FUNCTIONS ///
-
-    // /// @notice Sets a new dynamic penalty value in transient storage.
-    // /// @dev Transient storage enforces any liquidator not using
-    // ///      dappcontrol/auction uses the default penalty.
-    // /// @param newPenalty The new penalty value.
-    // function setPenalty(uint256 newPenalty) external {
-    //     _checkDappControl();
-    //     MarketToken storage pToken = tokenData[positionToken];
-    //     // Validate new penalty is within configured allowed penalty.
-    //     if (
-    //         newPenalty < pToken.liqMinIncentive ||
-    //         newPenalty > pToken.liqMaxIncentive
-    //         ) {
-    //         revert MarketManager__InvalidParameter();
-    //     }
-
-    //     // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
-    //     assembly {
-    //         tstore(TRANSIENT_PENALTY_KEY, newPenalty)
-    //     }
-    // }
-
-    // /// @notice Resets the dynamic penalty value in transient storage to zero.
-    // function resetPenalty() external {
-    //     _checkDappControl();
-    //     assembly {
-    //         // Clear the transient storage slot by writing zero. 
-    //         tstore(TRANSIENT_PENALTY_KEY, 0)
-    //     }
-    // }
-
-    // /// @notice Returns the current penalty.
-    // /// @dev If a dynamic penalty is set in transient storage, 
-    // ///      that value is returned; otherwise, the default penalty
-    // ///      is returned.
-    // function getLatestPenalty() public view returns (uint256 result) {
-    //     assembly {
-    //         // Load dynamic penalty from transient storage.
-    //         result := tload(TRANSIENT_PENALTY_KEY)
-    //     }
-
-    //     // If no dynamic penalty is set (assumed to be zero), return the
-    //     // liqBaseIncentive.
-    //     // Note that this renders 0 as an invalid dynamic penalty value.
-    //     if (result == 0) {
-    //         return tokenData[positionToken].liqBaseIncentive;
-    //     }
-    // }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
 
