@@ -399,4 +399,572 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         vm.stopPrank();
     }
+
+    function testRevert_LeverageInvalidSwapTarget() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(0); // Invalid target
+        
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_DeleverageInvalidSwapTarget() public {
+        testLeverage();
+        
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+        
+        vm.startPrank(user);
+        
+        PositionManagementSimple.DeleverageStruct memory deleverageData;
+        deleverageData.positionToken = IPToken(address(pUSDC));
+        deleverageData.collateralAmount = 900e6;
+        deleverageData.borrowToken = IEToken(address(eDAI));
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = address(usdc);
+        deleverageData.swapData[0].inputAmount = 900e6;
+        deleverageData.swapData[0].outputToken = address(dai);
+        deleverageData.swapData[0].target = address(0); // Invalid target
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            900e6,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.repayAmount = 890 ether;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.deleverage(deleverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageInvalidInputToken() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(usdc); // incorrect input token
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // This should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_DeleverageInvalidInputToken() public {
+        testLeverage();
+        
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+        
+        vm.startPrank(user);
+        
+        PositionManagementSimple.DeleverageStruct memory deleverageData;
+        deleverageData.positionToken = IPToken(address(pUSDC));
+        deleverageData.collateralAmount = 900e6;
+        deleverageData.borrowToken = IEToken(address(eDAI));
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = address(dai); // Incorrect input token (should be USDC)
+        deleverageData.swapData[0].inputAmount = 900e6;
+        deleverageData.swapData[0].outputToken = address(dai);
+        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            900e6,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.repayAmount = 890 ether;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.deleverage(deleverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageInvalidOutputToken() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(dai); // incorrect output token
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageInvalidInputAmount() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage - 1; // incorrect input amount
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_DeleverageInvalidInputAmount() public {
+        testLeverage();
+        
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+        
+        vm.startPrank(user);
+        
+        PositionManagementSimple.DeleverageStruct memory deleverageData;
+        deleverageData.positionToken = IPToken(address(pUSDC));
+        deleverageData.collateralAmount = 900e6;
+        deleverageData.borrowToken = IEToken(address(eDAI));
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = address(usdc);
+        deleverageData.swapData[0].inputAmount = 800e6; // Incorrect amount (should match collateralAmount)
+        deleverageData.swapData[0].outputToken = address(dai);
+        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            800e6,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.repayAmount = 890 ether;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.deleverage(deleverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageInvalidSwapDataLength() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        leverageData.swapData.call = bytes(""); // Empty call data
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.leverage(leverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_DeleverageInvalidSwapDataLength() public {
+        testLeverage();
+        
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+        
+        vm.startPrank(user);
+        
+        PositionManagementSimple.DeleverageStruct memory deleverageData;
+        deleverageData.positionToken = IPToken(address(pUSDC));
+        deleverageData.collateralAmount = 900e6;
+        deleverageData.borrowToken = IEToken(address(eDAI));
+        deleverageData.swapData = new SwapperLib.Swap[](0); // Empty array
+        deleverageData.repayAmount = 890 ether;
+        
+        // Should revert with InvalidSwapperParam
+        vm.expectRevert(bytes4(keccak256("PositionManagementBase__InvalidSwapperParam()")));
+        positionManagement.deleverage(deleverageData, 0.05e18);
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageExcessiveSlippage() public {
+        vm.startPrank(user);
+        
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        
+        // mint
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        
+        // borrow
+        eDAI.borrow(100 ether);
+        
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            amountForLeverage * 1e12, // Very high min amount out, which will fail
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // We use a tiny slippage tolerance to revert
+        vm.expectRevert();
+        positionManagement.leverage(leverageData, 0.00001e18); // Very low slippage tolerance
+        
+        vm.stopPrank();
+    }
+
+    function testRevert_LeverageForWithoutPermission() public {
+        vm.startPrank(user);
+        
+        // Set up the collateral and position
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        eDAI.borrow(100 ether);
+        
+        // Do not set delegate approval for user2
+
+        vm.stopPrank();
+        
+        // Set up leverage data
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+        
+        // user2 tries to leverage for user without permission
+        vm.startPrank(user2);
+        vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
+        positionManagement.leverageFor(leverageData, user, 0.05e18);
+        vm.stopPrank();
+    }
+
+
+    function testRevert_DeleverageForWithoutPermission() public {
+        testLeverage();
+        
+        // Warp until collateral posting wait time ends
+        vm.warp(block.timestamp + 20 minutes);
+        eDAI.accrueInterest();
+        
+        vm.startPrank(user);
+        
+        // Deleverage data
+        PositionManagementSimple.DeleverageStruct memory deleverageData;
+        deleverageData.positionToken = IPToken(address(pUSDC));
+        deleverageData.collateralAmount = 900e6;
+        deleverageData.borrowToken = IEToken(address(eDAI));
+        deleverageData.swapData = new SwapperLib.Swap[](1);
+        deleverageData.swapData[0].inputToken = address(usdc);
+        deleverageData.swapData[0].inputAmount = 900e6;
+        deleverageData.swapData[0].outputToken = address(dai);
+        deleverageData.swapData[0].target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(dai);
+        deleverageData.swapData[0].call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            900e6,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        deleverageData.swapData[0].slippage = 0.3e18;
+        deleverageData.repayAmount = 890 ether;
+        pUSDC.approve(address(positionManagement), type(uint256).max);
+        
+        // Do not set delegate approval for user2
+        vm.stopPrank();
+        
+        // user2 tries to deleverage for user without permission
+        vm.startPrank(user2);
+        vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
+        positionManagement.deleverageFor(deleverageData, user, 0.05e18);
+        vm.stopPrank();
+    }
+
+    function testSetAndRevokeDelegate() public {
+        vm.startPrank(user);
+
+        // At this point, user2 should not have delegation
+        assertFalse(positionManagement.isDelegate(user, address(user2)));
+
+        positionManagement.setDelegateApproval(address(user2), true);
+        
+        // Verify delegation was set
+        assertTrue(positionManagement.isDelegate(user, address(user2)));
+        
+        // Set up leverage operation
+        deal(address(usdc), user, 1000e6);
+        usdc.approve(address(pUSDC), 1000e6);
+        pUSDC.mint(1000e6, user);
+        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        eDAI.borrow(100 ether);
+        
+        vm.stopPrank();
+
+        uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(
+            user,
+            address(eDAI)
+        ) * 50) / 100;
+        
+        PositionManagementSimple.LeverageStruct memory leverageData;
+        leverageData.borrowToken = IEToken(address(eDAI));
+        leverageData.borrowAmount = amountForLeverage;
+        leverageData.positionToken = IPToken(address(pUSDC));
+        leverageData.swapData.inputToken = address(dai);
+        leverageData.swapData.inputAmount = amountForLeverage;
+        leverageData.swapData.outputToken = address(usdc);
+        leverageData.swapData.target = address(_UNISWAP_V2_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(dai);
+        path[1] = address(usdc);
+        leverageData.swapData.call = abi.encodeWithSignature(
+            "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+            amountForLeverage,
+            0,
+            path,
+            address(positionManagement),
+            block.timestamp
+        );
+        leverageData.swapData.slippage = 0.3e18;
+
+        
+        // user2 is able to leverage on behalf of user
+        vm.startPrank(user2);
+        positionManagement.leverageFor(leverageData, user, 0.05e18);
+        vm.stopPrank();
+        
+        // Revoke the delegation
+        vm.startPrank(user);
+        positionManagement.setDelegateApproval(address(user2), false);
+        
+        // Verify delegation was revoked
+        assertFalse(positionManagement.isDelegate(user, address(user2)));
+        vm.stopPrank();
+        
+        // user2 is not able to leverage on behalf of user anymore
+        vm.startPrank(user2);
+        vm.expectRevert(bytes4(keccak256("PluginDelegable__Unauthorized()")));
+        positionManagement.leverageFor(leverageData, user, 0.05e18);
+        vm.stopPrank();
+    }
+
+
 }
