@@ -40,6 +40,7 @@ abstract contract BaseSwapChecker is
     BaseCallDataChecker
 {
     /// ERRORS ///
+
     error CalldataChecker__TargetError();
     error CalldataChecker__RecipientError();
     error CalldataChecker__InputTokenError();
@@ -48,6 +49,8 @@ abstract contract BaseSwapChecker is
     error CalldataChecker__InvalidFuncSig();
 
     /// STORAGE ///
+    
+    /// @notice The address of the target swap contract
     address public target;
 
     /// CONSTRUCTOR ///

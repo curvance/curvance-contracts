@@ -395,6 +395,7 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
         return 13;
     }
@@ -421,6 +422,8 @@ contract Curve2PoolLPAdaptor is CurveBaseAdaptor {
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.
     /// @dev Internal helper function for easily converting between scalars.
+    /// @param value The value to convert from basis points to WAD.
+    /// @return The value in WAD.
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
     }

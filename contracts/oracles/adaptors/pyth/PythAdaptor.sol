@@ -91,82 +91,6 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// EXTERNAL FUNCTIONS ///
 
-    function updateFeedsFromUniversalBalance(
-        bytes[] calldata priceUpdateData,
-        address user
-    ) public {
-        if (!centralRegistry.isMulticallProvider(msg.sender)) {
-            revert PythAdaptor__Unauthorized();
-        }
-        
-        // Update the prices to the latest available values and pay the
-        // required fee for it. The `priceUpdateData` data should be retrieved
-        // from our off-chain Price Service API using the `pyth-evm-js`
-        // package. See section "How Pyth Works on EVM Chains" below for more
-        // information.
-        uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
-
-        // Receive oracle update fee from universal balance contract.
-        UniversalBalanceNative(payable(universalBalanceNative)).useBalanceForOracleUpdate(
-            user,
-            fee
-        );
-
-        uint256 balanceBefore = address(this).balance;
-        IWETH(wrappedNative).withdraw(fee);
-        IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
-
-        // Refund remaining native token paid.
-        uint256 remaining = address(this).balance - balanceBefore;
-        if (remaining > 0) {
-            SafeTransferLib.safeTransferETH(user, remaining);
-        }
-    }
-
-    function updateFeedsWithNative(
-        bytes[] calldata priceUpdateData
-    ) public payable {
-        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
-        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
-        // See section "How Pyth Works on EVM Chains" below for more information.
-        uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
-        IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
-
-        // Refund remaining native token paid.
-        uint256 remaining = msg.value - fee;
-        if (remaining > 0) {
-            SafeTransferLib.safeTransferETH(msg.sender, remaining);
-        }
-    }
-
-    /// @notice Retrieves the price of a given asset.
-    /// @dev Uses Pyth oracles to fetch the price data.
-    ///      Price is returned in USD or a chain's native token depending on
-    ///      'inUSD' parameter.
-    /// @param asset The address of the asset for which the price is needed.
-    /// @param inUSD Specifies whether the price format should be in USD (true)
-    ///              or a chain's native token (false).
-    /// @return A structure containing the price, error status,
-    ///         and the quote format of the price.
-    function getPrice(
-        address asset,
-        bool inUSD,
-        bool /* getLower */
-    ) external view override returns (PriceReturnData memory) {
-        // Validate we support pricing `asset`.
-        if (!isSupportedAsset[asset]) {
-            revert PythAdaptor__AssetIsNotSupported();
-        }
-
-        // Check whether we want the pricing in USD first,
-        // otherwise price in terms of the gas token.
-        if (inUSD) {
-            return _getPriceInUSD(asset);
-        }
-
-        return _getPriceInNative(asset);
-    }
-
     /// @notice Adds pricing support for `asset` via a new Pyth feed.
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
@@ -244,11 +168,88 @@ contract PythAdaptor is BaseOracleAdaptor {
         emit PythAssetRemoved(asset);
     }
 
+    /// @notice Retrieves the price of a given asset.
+    /// @dev Uses Pyth oracles to fetch the price data.
+    ///      Price is returned in USD or a chain's native token depending on
+    ///      'inUSD' parameter.
+    /// @param asset The address of the asset for which the price is needed.
+    /// @param inUSD Specifies whether the price format should be in USD (true)
+    ///              or a chain's native token (false).
+    /// @return A structure containing the price, error status,
+    ///         and the quote format of the price.
+    function getPrice(
+        address asset,
+        bool inUSD,
+        bool /* getLower */
+    ) external view override returns (PriceReturnData memory) {
+        // Validate we support pricing `asset`.
+        if (!isSupportedAsset[asset]) {
+            revert PythAdaptor__AssetIsNotSupported();
+        }
+
+        // Check whether we want the pricing in USD first,
+        // otherwise price in terms of the gas token.
+        if (inUSD) {
+            return _getPriceInUSD(asset);
+        }
+
+        return _getPriceInNative(asset);
+    }
+
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external pure override returns (uint256) {
         return 2;
+    }
+
+    function updateFeedsFromUniversalBalance(
+        bytes[] calldata priceUpdateData,
+        address user
+    ) public {
+        if (!centralRegistry.isMulticallProvider(msg.sender)) {
+            revert PythAdaptor__Unauthorized();
+        }
+        
+        // Update the prices to the latest available values and pay the
+        // required fee for it. The `priceUpdateData` data should be retrieved
+        // from our off-chain Price Service API using the `pyth-evm-js`
+        // package. See section "How Pyth Works on EVM Chains" below for more
+        // information.
+        uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
+
+        // Receive oracle update fee from universal balance contract.
+        UniversalBalanceNative(payable(universalBalanceNative)).useBalanceForOracleUpdate(
+            user,
+            fee
+        );
+
+        uint256 balanceBefore = address(this).balance;
+        IWETH(wrappedNative).withdraw(fee);
+        IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
+
+        // Refund remaining native token paid.
+        uint256 remaining = address(this).balance - balanceBefore;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(user, remaining);
+        }
+    }
+
+    function updateFeedsWithNative(
+        bytes[] calldata priceUpdateData
+    ) public payable {
+        // Update the prices to the latest available values and pay the required fee for it. The `priceUpdateData` data
+        // should be retrieved from our off-chain Price Service API using the `pyth-evm-js` package.
+        // See section "How Pyth Works on EVM Chains" below for more information.
+        uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
+        IPyth(pyth).updatePriceFeeds{ value: fee }(priceUpdateData);
+
+        // Refund remaining native token paid.
+        uint256 remaining = msg.value - fee;
+        if (remaining > 0) {
+            SafeTransferLib.safeTransferETH(msg.sender, remaining);
+        }
     }
 
     /// INTERNAL FUNCTIONS ///

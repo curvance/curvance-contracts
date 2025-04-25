@@ -129,9 +129,7 @@ contract VelodromeStablePToken is CompoundingPToken {
         }
     }
 
-    /// PUBLIC FUNCTIONS ///
-
-    // REWARD AND HARVESTING LOGIC
+    /// EXTERNAL FUNCTIONS ///
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.
@@ -259,8 +257,6 @@ contract VelodromeStablePToken is CompoundingPToken {
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    // INTERNAL POSITION LOGIC
 
     /// @notice Deposits specified amount of assets into velodrome gauge pool.
     /// @param assets The amount of assets to deposit.

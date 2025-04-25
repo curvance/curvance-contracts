@@ -18,14 +18,14 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 ///      proposals.
 ///
 /// The timelock serves as a security mechanism that:
-/// - Creates transparency by making governance actions visible before execution
-/// - Provides a window for token holders to exit if they disagree with proposed changes
-/// - Protects the protocol from immediate execution of potentially malicious proposals
+/// - Creates transparency by making governance actions visible before execution.
+/// - Provides a window for token holders to exit if they disagree with proposed changes.
+/// - Protects the protocol from immediate execution of potentially malicious proposals.
 ///
 /// This implementation:
-/// - Stays in sync with DAO address changes through the CentralRegistry
-/// - Grants the DAO address both proposer and executor roles
-/// - Supports interface detection via ERC165
+/// - Stays in sync with DAO address changes through the CentralRegistry.
+/// - Grants the DAO address both proposer and executor roles.
+/// - Supports interface detection via ERC165.
 ///
 contract Timelock is TimelockController, ERC165 {
     /// CONSTANTS ///
@@ -70,7 +70,9 @@ contract Timelock is TimelockController, ERC165 {
         _grantRole(EXECUTOR_ROLE, _DAO_ADDRESS);
     }
 
-    /// @notice Permissionlessly update DAO address if it has been changed
+    /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Permissionlessly update DAO address if it has been changed.
     ///         through the Curvance Central Registry.
     function updateDaoAddress() external {
         address daoAddress = centralRegistry.daoAddress();

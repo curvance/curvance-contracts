@@ -139,41 +139,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         emit EpochRewardsSet(nextEpochToDeliver++, 0, 0);
     }
 
-    /// @notice Called by the Messaging Hub to record rewards allocated to
-    ///         an epoch.
-    /// @dev Only callable on by the Messaging Hub.
-    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
-    ///                        the next reward epoch delivered, in WAD.
-    function recordEpochRewards(uint256 rewardsPerPoint) external {
-        // Validate the caller reporting epoch data is the messaging hub,
-        // or messaging hub.
-        if (msg.sender != centralRegistry.messagingHub()) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        IVeCVE veCVE = _getVeCVE();
-
-        // Cache next epoch to deliver value to save on storage reads.
-        uint256 epoch = nextEpochToDeliver;
-
-        if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
-            // If the chain has tokens unlocking this epoch we need to
-            // decrease chainPoints.
-            veCVE.updateChainPoints(epoch);
-        }
-
-        // Record rewards per token for the epoch.
-        epochRewardsPerPoint[epoch] = rewardsPerPoint;
-
-        // Emit an event indicating rewards were set, then update
-        // `nextEpochToDeliver` invariant.
-        emit EpochRewardsSet(
-            nextEpochToDeliver++,
-            rewardsPerPoint,
-            rewardsPerPoint * veCVE.chainPoints()
-        );
-    }
-
     /// @notice Starts the Reward Manager, called by the DAO after setting up
     ///         both RewardManager and veCVE contracts.
     /// @dev Only callable on by an entity with DAO permissions or higher.
@@ -213,6 +178,41 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         }
 
         isShutdown = 2;
+    }
+
+    /// @notice Called by the Messaging Hub to record rewards allocated to
+    ///         an epoch.
+    /// @dev Only callable on by the Messaging Hub.
+    /// @param rewardsPerPoint The rewards allocated to 1 veCVE point for
+    ///                        the next reward epoch delivered, in WAD.
+    function recordEpochRewards(uint256 rewardsPerPoint) external {
+        // Validate the caller reporting epoch data is the messaging hub,
+        // or messaging hub.
+        if (msg.sender != centralRegistry.messagingHub()) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        IVeCVE veCVE = _getVeCVE();
+
+        // Cache next epoch to deliver value to save on storage reads.
+        uint256 epoch = nextEpochToDeliver;
+
+        if (veCVE.chainUnlocksByEpoch(epoch) > 0) {
+            // If the chain has tokens unlocking this epoch we need to
+            // decrease chainPoints.
+            veCVE.updateChainPoints(epoch);
+        }
+
+        // Record rewards per token for the epoch.
+        epochRewardsPerPoint[epoch] = rewardsPerPoint;
+
+        // Emit an event indicating rewards were set, then update
+        // `nextEpochToDeliver` invariant.
+        emit EpochRewardsSet(
+            nextEpochToDeliver++,
+            rewardsPerPoint,
+            rewardsPerPoint * veCVE.chainPoints()
+        );
     }
 
     /// @notice Returns the current epoch for the given time.
@@ -293,8 +293,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         return rewards / WAD;
     }
 
-    /// CLAIM INDEX FUNCTIONS ///
-
     /// @notice Updates `user`'s claim index.
     /// @dev Updates the claim index of a user.
     ///      Can only be called by the VeCVE contract.
@@ -313,8 +311,6 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
         _checkIsVeCVE();
         delete userNextClaimIndex[user];
     }
-
-    /// REWARD FUNCTIONS ///
 
     /// @notice Claims rewards for multiple epochs.
     /// @param rewardsData Rewards data for desired Reward Manager action.
@@ -665,21 +661,25 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE contract.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }
 
     /// @notice Returns the current VeCVE address to call.
+    /// @return The current VeCVE contract.
     function _getVeCVE() internal view returns (IVeCVE) {
         return IVeCVE(centralRegistry.veCVE());
     }
 
-    /// @notice Returns the current fee token address.
+    /// @notice Returns the current fee token address
+    /// @return The current fee token address.
     function _getFeeToken() internal view returns (address) {
         return centralRegistry.feeToken();
     }
 
     /// @dev Internal helper for reverting efficiently.
+    /// @param s The error selector (bytes4 cast to uint256).
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {

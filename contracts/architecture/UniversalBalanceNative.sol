@@ -35,15 +35,6 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 ///      Refunds unused deposit amounts when processing batch operations.
 ///
 contract UniversalBalanceNative is UniversalBalance {
-    receive() external payable {
-        if (msg.sender != underlying) {
-            IWETH(underlying).deposit{ value: msg.value }();
-            // We default to a sitting balance deposit due to small gas
-            // allowance on .transfer calls.
-            _deposit(msg.value, false, msg.sender);
-        }
-    }
-
     /// ERRORS ///
 
     error UniversalBalanceNative__UnderlyingTokenMismatch();
@@ -63,6 +54,16 @@ contract UniversalBalanceNative is UniversalBalance {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {
+        if (msg.sender != underlying) {
+            IWETH(underlying).deposit{ value: msg.value }();
+            // We default to a sitting balance deposit due to small gas
+            // allowance on .transfer calls.
+            _deposit(msg.value, false, msg.sender);
+        }
+    }
 
     /// @notice Deposits native gas token into user's Universal Balance
     ///         account, either to be held or lent out.
@@ -137,6 +138,9 @@ contract UniversalBalanceNative is UniversalBalance {
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawNative(
         uint256 amount,
         bool forceLentRedemption,
@@ -176,6 +180,9 @@ contract UniversalBalanceNative is UniversalBalance {
     /// @param recipient The account who will receive the native token.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of native token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawNativeFor(
         uint256 amount,
         bool forceLentRedemption,

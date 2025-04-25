@@ -196,11 +196,13 @@ abstract contract CVEBase is ERC20 {
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
+    /// @return The name of the token.
     function name() public pure override returns (string memory) {
         return "Curvance Collective";
     }
 
     /// @dev Returns the symbol of the token.
+    /// @return The symbol of the token.
     function symbol() public pure override returns (string memory) {
         return "CVE";
     }
@@ -208,16 +210,19 @@ abstract contract CVEBase is ERC20 {
     /// INTERNAL FUNCTIONS ///
 
     /// @dev Returns the current Messaging Hub address.
+    /// @return The current Messaging Hub address.
     function _getMessagingHub() internal view returns (address) {
         return centralRegistry.messagingHub();
     }
 
     /// @dev Returns the current Voting Hub address.
+    /// @return The current Voting Hub address.
     function _getVotingHub() internal view returns (address) {
         return centralRegistry.votingHub();
     }
 
     /// @dev Internal helper for reverting efficiently.
+    /// @param s The selector to revert with.
     function _revert(uint256 s) internal pure {
         /// @solidity memory-safe-assembly
         assembly {

@@ -55,7 +55,6 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     ) external view virtual returns (PriceReturnData memory);
 
     /// INTERNAL FUNCTIONS ///
-
     
     /// @notice Validates the feed data based on various constraints.
     /// @dev Checks if the value is within a specific range
@@ -120,6 +119,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     /// @notice Returns the adaptor's type.
     /// @dev Used by frontends to determine how to properly interact
     ///      with a supported asset.
+    /// @return The adaptor's type.
     function adaptorType() external virtual view returns (uint256);
 
     /// @notice Removes a supported asset from the adaptor.

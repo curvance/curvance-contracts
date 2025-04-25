@@ -10,7 +10,10 @@ import { IAggregationRouterV5 } from "contracts/interfaces/external/1inch/IAggre
 /// @notice WARNING: Currently built for Aggregation Router V5.
 contract OneInchCalldataChecker is BaseSwapChecker {
     /// CONSTANTS ///
+
+    /// @notice The mask for the one for zero flag
     uint256 private constant _ONE_FOR_ZERO_MASK = 1 << 255;
+    /// @notice The mask for the reverse flag
     uint256 private constant _REVERSE_MASK =
         0x8000000000000000000000000000000000000000000000000000000000000000;
 

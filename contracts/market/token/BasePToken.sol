@@ -137,6 +137,21 @@ abstract contract BasePToken is
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Starts a pToken market, executed via marketManager.
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
+    ///            ADDRESS FROM THE MARKET MANAGER.
+    /// @param by The account initializing the pToken market.
+    /// @return Returns with true when successful.
+    function startMarket(
+        address by
+    ) external virtual nonReentrant returns (bool) {
+        _startMarket(by);
+        return true;
+    }
+
     /// @notice Helper function for Position Management contract to
     ///         redeem assets.
     /// @param owner The owner address of assets to redeem.
@@ -304,12 +319,14 @@ abstract contract BasePToken is
     /// @dev Has added re-entry lock for protocols building ontop of Curvance
     ///      Protocol to have confidence in data quality.
     ///      Oracle Manager calculates pToken value from this exchange rate.
+    /// @return The share -> asset exchange rate, in `WAD`.
     function exchangeRateSafe() external view returns (uint256) {
         return convertToAssetsSafe(WAD);
     }
 
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates pToken value from this exchange rate.
+    /// @return The share -> asset exchange rate, in `WAD`.
     function exchangeRateCached() external view returns (uint256) {
         return convertToAssets(WAD);
     }
@@ -332,6 +349,7 @@ abstract contract BasePToken is
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
     ///       since it is unused.
+    /// @return The snapshot of the pToken and `account` data.
     function getSnapshotPacked(
         address
     ) external view returns (AccountSnapshot memory) {
@@ -346,45 +364,87 @@ abstract contract BasePToken is
         );
     }
 
-    /// EXTERNAL FUNCTIONS TO OVERRIDE ///
+    /// @notice Transfers position tokens (this pToken) from `account`
+    ///         to `liquidator`.
+    /// @dev Will fail unless called by a eToken during the process
+    ///      of liquidation.
+    /// @param liquidator The account receiving seized collateral.
+    /// @param account The account having collateral seized.
+    /// @param shares The total number of pTokens shares to seize.
+    function seize(
+        address liquidator,
+        address account,
+        uint256 shares
+    ) external nonReentrant {
+        // Fails if borrower = liquidator.
+        assembly {
+            if eq(liquidator, account) {
+                // revert with "BasePToken__Unauthorized".
+                mstore(0x00, _UNAUTHORIZED_SELECTOR)
+                revert(0x1c, 0x04)
+            }
+        }
 
-    /// @notice Starts a pToken market, executed via marketManager.
-    /// @dev This initial mint is a failsafe against rounding exploits,
-    ///      although, we protect against them in many ways,
-    ///      better safe than sorry.
-    ///      NOTE: ONLY CALLED ONCE DURING TOKEN LISTING BY DAO AUTHORIZED
-    ///            ADDRESS FROM THE MARKET MANAGER.
-    /// @param by The account initializing the pToken market.
-    /// @return Returns with true when successful.
-    function startMarket(
-        address by
-    ) external virtual nonReentrant returns (bool) {
-        _startMarket(by);
-        return true;
+        // Fails if seize not allowed.
+        marketManager.canSeize(address(this), msg.sender);
+
+        _beforeLiquidationAction(account, liquidator, shares);
+        // Efficiently transfer token balances from `account` to `liquidator`.
+        _transferFromWithoutAllowance(account, liquidator, shares);
+    }
+
+    /// @notice Transfers position tokens (this market) to the liquidator.
+    /// @dev Will fail unless called by the MarketManager itself during
+    ///      the process of liquidation.
+    ///      NOTE: The protocol never takes a fee on account liquidation
+    ///            as lenders already are bearing a burden.
+    /// @param liquidator The account receiving seized collateral.
+    /// @param account The account having collateral seized.
+    /// @param shares The total number of pTokens shares to seize.
+    function seizeAccountLiquidation(
+        address liquidator,
+        address account,
+        uint256 shares
+    ) external nonReentrant {
+        // We check self liquidation in MarketManager before
+        // this call so we do not need to check here.
+
+        // Make sure the MarketManager itself is calling since
+        // then we know all liquidity checks have passed. This check also
+        // means we do not need to check `canSeize`.
+        if (msg.sender != address(marketManager)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        _beforeLiquidationAction(account, liquidator, shares);
+        // Efficiently transfer token balances from `account` to `liquidator`.
+        _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
     /// PUBLIC FUNCTIONS ///
 
-    // VAULT DATA FUNCTIONS
-
     /// @notice Returns the name of the token.
+    /// @return The name of the token.
     function name() public view override returns (string memory) {
         return _name;
     }
 
     /// @notice Returns the symbol of the token.
+    /// @return The symbol of the token.
     function symbol() public view override returns (string memory) {
         return _symbol;
     }
 
     /// @notice Returns the address of the underlying asset.
     /// @dev We have both asset() and underlying() for composability.
+    /// @return The address of the underlying asset.
     function asset() public view override returns (address) {
         return address(_asset);
     }
 
     /// @notice Returns the address of the underlying asset.
     /// @dev We have both asset() and underlying() for composability.
+    /// @return The address of the underlying asset.
     function underlying() external view returns (address) {
         return address(_asset);
     }
@@ -393,6 +453,7 @@ abstract contract BasePToken is
     /// @dev If depositing is disabled maxAssets should be equal to 0,
     ///      according to ERC4626 spec.
     /// @param to The address who would receive minted shares.
+    /// @return maxAssets The maximum assets that can be deposited at a time.
     function maxDeposit(
         address to
     ) public view override returns (uint256 maxAssets) {
@@ -411,6 +472,7 @@ abstract contract BasePToken is
     /// @dev If depositing is disabled minMint should be equal to 0,
     ///      according to ERC4626 spec.
     /// @param to The address who would receive minted shares.
+    /// @return maxShares The maximum shares that can be minted at a time.
     function maxMint(
         address to
     ) public view override returns (uint256 maxShares) {
@@ -424,8 +486,6 @@ abstract contract BasePToken is
         }
         maxShares = super.maxMint(to);
     }
-
-    /// TOKEN ACTION FUNCTIONS ///
 
     /// @notice Caller deposits assets into the market and receives shares.
     /// @param assets The amount of the underlying assets to deposit.
@@ -541,63 +601,6 @@ abstract contract BasePToken is
         return true;
     }
 
-    /// @notice Transfers position tokens (this pToken) from `account`
-    ///         to `liquidator`.
-    /// @dev Will fail unless called by a eToken during the process
-    ///      of liquidation.
-    /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param shares The total number of pTokens shares to seize.
-    function seize(
-        address liquidator,
-        address account,
-        uint256 shares
-    ) external nonReentrant {
-        // Fails if borrower = liquidator.
-        assembly {
-            if eq(liquidator, account) {
-                // revert with "BasePToken__Unauthorized".
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // Fails if seize not allowed.
-        marketManager.canSeize(address(this), msg.sender);
-
-        _beforeLiquidationAction(account, liquidator, shares);
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
-    }
-
-    /// @notice Transfers position tokens (this market) to the liquidator.
-    /// @dev Will fail unless called by the MarketManager itself during
-    ///      the process of liquidation.
-    ///      NOTE: The protocol never takes a fee on account liquidation
-    ///            as lenders already are bearing a burden.
-    /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param shares The total number of pTokens shares to seize.
-    function seizeAccountLiquidation(
-        address liquidator,
-        address account,
-        uint256 shares
-    ) external nonReentrant {
-        // We check self liquidation in MarketManager before
-        // this call so we do not need to check here.
-
-        // Make sure the MarketManager itself is calling since
-        // then we know all liquidity checks have passed. This check also
-        // means we do not need to check `canSeize`.
-        if (msg.sender != address(marketManager)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        _beforeLiquidationAction(account, liquidator, shares);
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
-    }
-
     /// @notice Returns the type of Curvance token.
     /// @dev true = Position token; false = Debt token.
     /// @return Whether this token is a pToken or not.
@@ -607,6 +610,8 @@ abstract contract BasePToken is
 
     /// @dev Returns true that this contract implements both ERC4626
     ///      and IMToken interfaces.
+    /// @param interfaceId The interface ID to check.
+    /// @return Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
     ) public pure virtual returns (bool) {
@@ -615,11 +620,10 @@ abstract contract BasePToken is
             interfaceId == type(ERC4626).interfaceId;
     }
 
-    // ACCOUNTING LOGIC
-
     /// @notice Returns the total number of assets backing shares, safely.
     /// @dev Has added re-entry lock for protocols building ontop of Curvance
     ///      Protocol to have confidence in data quality.
+    /// @return The total number of assets backing shares.
     function totalAssetsSafe()
         public
         view
@@ -631,6 +635,7 @@ abstract contract BasePToken is
     }
 
     /// @notice Returns the total number of assets backing shares.
+    /// @return The total number of assets backing shares.
     function totalAssets() public view virtual override returns (uint256) {
         return _totalAssets;
     }
@@ -1320,6 +1325,7 @@ abstract contract BasePToken is
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
+    /// @return The total assets and pending rewards.
     function _calculateTotalAssetsWithRewards()
         internal
         view
@@ -1330,6 +1336,7 @@ abstract contract BasePToken is
     }
 
     /// @dev from Multicall
+    /// @return The central registry.
     function _getCentralRegistry()
         internal
         view

@@ -109,8 +109,6 @@ abstract contract PositionManagementBase is
         }
     }
 
-    receive() external payable {}
-
     /// CONSTRUCTOR ///
 
     constructor(
@@ -134,6 +132,9 @@ abstract contract PositionManagementBase is
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
 
     /// @notice Deposits into a Curvance position and then leverages in favor
     ///         of increasing both collateral and debt inside the system.

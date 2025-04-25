@@ -93,6 +93,10 @@ abstract contract CompoundingPToken is BasePToken {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Virtual function to harvest yield from the vault.
+    /// @return yield The yield harvested from the vault.
+    function harvest(bytes calldata) external virtual returns (uint256 yield);
+
     /// @notice Returns the current pToken yield status information.
     /// @return rewardRate: Yield per second in underlying asset.
     ///         vestingPeriodEnd: When the current vesting period ends and
@@ -155,13 +159,7 @@ abstract contract CompoundingPToken is BasePToken {
         emit CompoundingPaused(state);
     }
 
-    // EXTERNAL POSITION LOGIC TO OVERRIDE
-
-    function harvest(bytes calldata) external virtual returns (uint256 yield);
-
     /// PUBLIC FUNCTIONS ///
-
-    // ACCOUNTING LOGIC
 
     /// @notice Returns the current per second yield of the vault.
     /// @return The yield received per second in this vault,
@@ -208,12 +206,15 @@ abstract contract CompoundingPToken is BasePToken {
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Returns total assets invariant.
+    /// @return The total assets and pending rewards.
     function _totalAssetsWithPendingRewards() internal view returns (uint256) {
         return _totalAssets + _calculatePendingRewards();
     }
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
+    /// @return The total assets and pending rewards.
+    /// @return pending The pending rewards for depositors.
     function _calculateTotalAssetsWithRewards()
         internal
         view
@@ -320,6 +321,7 @@ abstract contract CompoundingPToken is BasePToken {
     ///                      fresh rewards.
     /// @param newVestPeriod The timestamp of when the new vesting period
     ///                      ends, which is block.timestamp + `vestPeriod`.
+    /// @return result The new packed vault data value.
     function _packVaultData(
         uint256 newRewardRate,
         uint256 newVestPeriod
@@ -385,8 +387,6 @@ abstract contract CompoundingPToken is BasePToken {
         _vaultData = packedVaultData;
     }
 
-    // REWARD AND HARVESTING LOGIC
-
     /// @notice Calculates pending rewards that have been vested.
     /// @dev If there are no pending rewards or the vesting period has ended,
     ///      it returns 0.
@@ -443,6 +443,7 @@ abstract contract CompoundingPToken is BasePToken {
     /// @param strategyFee The percent fee to take from `reward`.
     /// @param feeManager The fee manager address that will receive the fee
     ///                   collected.
+    /// @return The remaining reward after the fee was taken.
     function _applyFee(
         uint256 reward,
         address rewardToken,

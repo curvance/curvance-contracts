@@ -177,6 +177,7 @@ abstract contract BaseVolatileLPAdaptor is BaseOracleAdaptor {
     /// @dev Should be called before `OracleManager:addAssetPriceFeed`
     ///      is called.
     /// @param asset The address of the lp token to add pricing support for.
+    /// @return data The adaptor data for `asset`, returning the underlying tokens and decimals.
     function _addAsset(
         address asset
     ) internal returns (AdaptorData memory data) {

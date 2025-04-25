@@ -62,7 +62,7 @@ contract FeeManager is ReentrancyGuard {
     /// STORAGE ///
 
     /// @notice Used for offchain bots to check what tokens to swap.
-    /// @dev    We store token data semi redundantly to save gas
+    /// @dev    We store token data semi redundantly to save gas.
     ///         on daily operations and to help with offchain bot structure.
     address[] public rewardTokens;
 
@@ -99,8 +99,6 @@ contract FeeManager is ReentrancyGuard {
     error FeeManager__RemovalTokenDoesNotExist();
     error FeeManager__OTCExecutionTermsFailed();
 
-    receive() external payable {}
-
     /// CONSTRUCTOR ///
 
     constructor(ICentralRegistry centralRegistry_) {
@@ -117,6 +115,10 @@ contract FeeManager is ReentrancyGuard {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows the contract to receive native gas tokens for
+    ///         cross-chain operations and fee collection.
+    receive() external payable {}
 
     /// @notice Performs multiple token swaps in a single transaction, converting
     ///      the provided tokens to fee token on behalf of Curvance DAO.
@@ -466,6 +468,7 @@ contract FeeManager is ReentrancyGuard {
 
     /// @notice Retrieves the balances of all reward tokens currently held by
     ///         the Fee Manager.
+    /// @dev Used by bots and governance; cost scales with token count.
     /// @return tokenBalances An array of uint256 values,
     ///         representing the current balances of each reward token.
     function getRewardTokenBalances()
@@ -497,6 +500,7 @@ contract FeeManager is ReentrancyGuard {
     /// @notice Vault compound fee represented in basis point form (100 = 1%).
     /// @dev Returns the vaults current amount of yield used
     ///      for compounding rewards.
+    /// @return The vault's current compound fee.
     function vaultCompoundFee() public view returns (uint256) {
         return centralRegistry.protocolCompoundFee();
     }
@@ -505,6 +509,7 @@ contract FeeManager is ReentrancyGuard {
     /// @dev Returns the vaults current protocol fee for yield generated
     ///      inside the Curvance Protocol. This is equal to
     ///      Protocol Compounding Fee + Protocol Yield Fee.
+    /// @return The vault's current harvest fee.
     function vaultHarvestFee() public view returns (uint256) {
         return centralRegistry.protocolHarvestFee();
     }

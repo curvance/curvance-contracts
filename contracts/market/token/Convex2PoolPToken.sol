@@ -64,8 +64,6 @@ contract Convex2PoolPToken is CompoundingPToken {
 
     /// CONSTRUCTOR ///
 
-    receive() external payable {}
-
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
@@ -108,6 +106,9 @@ contract Convex2PoolPToken is CompoundingPToken {
 
     /// EXTERNAL FUNCTIONS ///
 
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
+
     /// @notice Requeries reward and underlying tokens directly from
     ///         Convex's smart contracts.
     /// @dev This can be permissionless since this data is 1:1 with dependent
@@ -146,8 +147,6 @@ contract Convex2PoolPToken is CompoundingPToken {
     }
 
     /// PUBLIC FUNCTIONS ///
-
-    // REWARD AND HARVESTING LOGIC
 
     /// @notice Harvests and compounds outstanding vault rewards
     ///         and vests pending rewards.

@@ -934,9 +934,9 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @notice Updates chain points by reducing the amount that gets unlocked
     ///         in a specific epoch.
-    /// @param epoch The epoch from which the unlock amount will be reduced.
     /// @dev This function is only called when chainUnlocksByEpoch[epoch] > 0
     ///      so we do not need for equal 0 here.
+    /// @param epoch The epoch from which the unlock amount will be reduced.
     function updateChainPoints(uint256 epoch) external {
         _validateCallbackFromRewardManager();
 
@@ -947,6 +947,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
 
     /// @notice Returns whether state changes are allowed or not based on epoch
     ///         status.
+    /// @return Whether state changes are allowed.
     function canModifyState() external view returns (bool) {
         uint256 nextEpochTimestamp = nextEpochStartTime();
         uint256 currentEpochTimestamp = nextEpochTimestamp - epochDuration;
@@ -1019,11 +1020,13 @@ contract VeCVE is ERC20, ReentrancyGuard {
     /// PUBLIC FUNCTIONS ///
 
     /// @dev Returns the name of the token.
+    /// @return The name of the token.
     function name() public pure override returns (string memory) {
         return "Vote Escrowed CVE";
     }
 
     /// @dev Returns the symbol of the token.
+    /// @return The symbol of the token.
     function symbol() public pure override returns (string memory) {
         return "veCVE";
     }
@@ -1479,6 +1482,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
     }
 
     /// @notice Returns the current CVE address.
+    /// @return The current CVE address.
     function _getCVE() internal view returns (address) {
         return centralRegistry.cve();
     }

@@ -42,7 +42,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      when integrating Curvance into external protocols.
 ///
 contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
-    /// TYPES ///
+    // TYPES ///
 
     /// @title Debt Data
     /// @dev Data for a user's debt. 
@@ -206,6 +206,48 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Rescue any token sent by mistake.
+    /// @dev Restricts the ability to rescue underlying tokens inside the
+    ///      market since Curvance is non-custodial.
+    /// @param token The token to rescue.
+    /// @param amount The amount of `token` to rescue, 0 indicates to
+    ///               rescue all.
+    function rescueToken(address token, uint256 amount) external {
+        _checkDaoPermissions();
+
+        if (token == underlying) {
+            revert EToken__TransferError();
+        }
+
+        RescueLib.rescueToken(centralRegistry, token, amount);
+    }
+
+    /// @notice Accrues pending interest and updates the interest rate model.
+    /// @dev Admin function to update the interest rate model.
+    /// @param newInterestRateModel The new interest rate model for this
+    ///                             eToken to use.
+    function setInterestRateModel(address newInterestRateModel) external {
+        _checkElevatedPermissions();
+
+        // Update pending interest.
+        accrueInterest();
+
+        _setInterestRateModel(IInterestRateModel(newInterestRateModel));
+    }
+
+    /// @notice Accrues pending interest and updates the interest factor.
+    /// @dev Admin function to update the interest factor value.
+    /// @param newInterestFactor The new interest factor for this
+    ///                          eToken to use.
+    function setInterestFactor(uint256 newInterestFactor) external {
+        _checkElevatedPermissions();
+
+        // Update pending interest.
+        accrueInterest();
+
+        _setInterestFactor(newInterestFactor);
+    }
 
     //// @notice Starts a eToken market, executed via marketManager.
     /// @dev This initial mint is a failsafe against rounding exploits,
@@ -686,50 +728,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return true;
     }
 
-    /// Admin Functions
-
-    /// @notice Rescue any token sent by mistake.
-    /// @dev Restricts the ability to rescue underlying tokens inside the
-    ///      market since Curvance is non-custodial.
-    /// @param token The token to rescue.
-    /// @param amount The amount of `token` to rescue, 0 indicates to
-    ///               rescue all.
-    function rescueToken(address token, uint256 amount) external {
-        _checkDaoPermissions();
-
-        if (token == underlying) {
-            revert EToken__TransferError();
-        }
-
-        RescueLib.rescueToken(centralRegistry, token, amount);
-    }
-
-    /// @notice Accrues pending interest and updates the interest rate model.
-    /// @dev Admin function to update the interest rate model.
-    /// @param newInterestRateModel The new interest rate model for this
-    ///                             eToken to use.
-    function setInterestRateModel(address newInterestRateModel) external {
-        _checkElevatedPermissions();
-
-        // Update pending interest.
-        accrueInterest();
-
-        _setInterestRateModel(IInterestRateModel(newInterestRateModel));
-    }
-
-    /// @notice Accrues pending interest and updates the interest factor.
-    /// @dev Admin function to update the interest factor value.
-    /// @param newInterestFactor The new interest factor for this
-    ///                          eToken to use.
-    function setInterestFactor(uint256 newInterestFactor) external {
-        _checkElevatedPermissions();
-
-        // Update pending interest.
-        accrueInterest();
-
-        _setInterestFactor(newInterestFactor);
-    }
-
     /// @notice Updates pending interest and returns the up-to-date balance
     ///         of `account`, in underlying assets, safely.
     /// @param account The account address to have their balance measured.
@@ -808,11 +806,14 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return debtBalanceCached(account);
     }
 
+    /// PUBLIC FUNCTIONS ///
+
     /// @notice Returns the future debt balance for `account` assuming
     ///         interest rates do not change.
     /// @param account The address whose debt balance should be calculated.
     /// @param timestamp The unix timestamp to calculate `account` debt
     ///                  balance with.
+    /// @return The debt balance at the given timestamp.
     function debtBalanceAtTimestamp(
         address account,
         uint256 timestamp
@@ -869,8 +870,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
                 accountDebt.accountExchangeRate
             );
     }
-
-    /// PUBLIC FUNCTIONS ///
 
     /// @notice Returns the current debt balance for `account`.
     /// @dev Note: Pending interest is not applied in this calculation.
@@ -980,6 +979,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @inheritdoc ERC165
+    /// @param interfaceId The interface ID to check.
+    /// @return Whether the contract implements the interface.
     function supportsInterface(
         bytes4 interfaceId
     ) public view override returns (bool) {
@@ -1160,6 +1161,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param minter The address of the account which is supplying the assets.
     /// @param recipient The address of the account which will receive eToken.
     /// @param amount The amount of the underlying asset to supply.
+    /// @return tokens The number of eTokens minted.
     function _mint(
         address minter,
         address recipient,
@@ -1186,6 +1188,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///                  underlying tokens.
     /// @param tokens The number of eTokens to redeem for underlying tokens.
     /// @param amount The number of underlying tokens to distribute to `recipient`.
+    /// @return The number of underlying tokens distributed to `recipient`.
     function _redeem(
         address account,
         address recipient,
@@ -1244,6 +1247,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param recipient The address of the account which will receive eToken.
     /// @param amount The amount of the eTokens to be minted.
     /// @param amount The amount of the underlying asset to supply.
+    /// @return The number of eTokens minted.
     function _processMint(
         address minter,
         address recipient,
@@ -1278,6 +1282,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param amount The amount the payer wishes to repay,
     ///               or 0 for the full outstanding amount.
     /// @param accountDebt the current debt balance for `account`.
+    /// @return The amount of underlying token debt repaid for `account`.
     function _processRepay(
         address payer,
         address account,
@@ -1504,6 +1509,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     }
 
     /// @dev from Multicall
+    /// @return The central registry.
     function _getCentralRegistry()
         internal
         view

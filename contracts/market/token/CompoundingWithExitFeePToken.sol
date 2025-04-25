@@ -60,6 +60,24 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         _setExitFee(newExitFee);
     }
 
+    /// PUBLIC FUNCTIONS ///
+
+    function previewWithdraw(
+        uint256 assets
+    ) public view override returns (uint256 shares) {
+        // Exit fee is base WAD so we can substract apples to apples to get
+        // how many shares need to be withdrawn to receive `assets`.
+        assets = FixedPointMathLib.mulDivUp(assets, WAD, WAD - exitFee);
+        shares = super.previewWithdraw(assets);
+    }
+
+    function previewRedeem(
+        uint256 shares
+    ) public view override returns (uint256 assets) {
+        assets = super.previewRedeem(shares);
+        assets = _removeExitFeeFromAssets(assets);
+    }
+
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Helper function for Position Management contract to
@@ -168,23 +186,9 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
     /// @notice Multiplies `value` by 1e14 to convert it from `basis points`
     ///         to WAD.
     /// @dev Internal helper function for easily converting between scalars.
+    /// @param value The value to convert from basis points to WAD.
+    /// @return The value in WAD.
     function _bpToWad(uint256 value) internal pure returns (uint256) {
         return value * 1e14;
-    }
-
-    function previewWithdraw(
-        uint256 assets
-    ) public view override returns (uint256 shares) {
-        // Exit fee is base WAD so we can substract apples to apples to get
-        // how many shares need to be withdrawn to receive `assets`.
-        assets = FixedPointMathLib.mulDivUp(assets, WAD, WAD - exitFee);
-        shares = super.previewWithdraw(assets);
-    }
-
-    function previewRedeem(
-        uint256 shares
-    ) public view override returns (uint256 assets) {
-        assets = super.previewRedeem(shares);
-        assets = _removeExitFeeFromAssets(assets);
     }
 }

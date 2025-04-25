@@ -212,6 +212,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///                            should be pulled only from `owner`'s lent
     ///                            position or the full account.
     /// @param recipient The account who will receive the underlying assets.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdraw(
         uint256 amount,
         bool forceLentRedemption,
@@ -247,6 +250,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function withdrawFor(
         uint256 amount,
         bool forceLentRedemption,
@@ -310,6 +316,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param amount The amount of underlying token to be shifted.
     /// @param fromLent Whether the shifted underlying tokens should be pulled
     ///                 from the user's lent balance or the full balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function shiftBalance(
         uint256 amount,
         bool fromLent
@@ -344,6 +353,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param willLend Whether the deposited underlying tokens should be lent
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the transferred balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function transfer(
         uint256 amount,
         bool forceLentRedemption,
@@ -378,6 +390,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function transferFor(
         uint256 amount,
         bool forceLentRedemption,
@@ -507,6 +522,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///                            position or the full account.
     /// @param owner The account that will redeem from their universal
     ///              balance.
+    /// @return amountWithdrawn The amount of underlying token withdrawn.
+    /// @return lendingBalanceUsed Whether the withdrawn underlying tokens
+    ///                            were pulled from the lent balance.
     function _withdraw(
         uint256 amount,
         bool forceLentRedemption,
@@ -664,6 +682,9 @@ contract UniversalBalance is PluginDelegable, ReentrancyGuard {
     ///                 out inside Curvance Protocol.
     /// @param recipient The account who will receive the underlying assets.
     /// @param owner The account that will redeem from their universal balance.
+    /// @return amountTransferred The amount of underlying token transferred.
+    /// @return lendingBalanceUsed Whether the transferred underlying tokens
+    ///                            were pulled from the lent balance.
     function _transfer(
         uint256 amount,
         bool forceLentRedemption,

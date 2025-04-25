@@ -49,8 +49,6 @@ abstract contract ZapperBase is ReentrancyGuard {
 
     /// CONSTRUCTOR ///
 
-    receive() external payable {}
-
     constructor(ICentralRegistry centralRegistry_, address wrappedNative_) {
         if (
             !ERC165Checker.supportsInterface(
@@ -64,6 +62,11 @@ abstract contract ZapperBase is ReentrancyGuard {
         centralRegistry = centralRegistry_;
         wrappedNative = wrappedNative_;
     }
+
+    /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Allows contract to receive native gas tokens.
+    receive() external payable {}
 
     /// INTERNAL FUNCTIONS ///
 

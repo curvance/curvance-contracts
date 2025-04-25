@@ -50,6 +50,10 @@ abstract contract BaseCallDataChecker {
 
     /// @notice Modifies `_bytes` into desired form based on
     ///         `_start` starting point,and `_length` length.
+    /// @param _bytes The bytes array to slice.
+    /// @param _start The starting point of the slice.
+    /// @param _length The length of the slice.
+    /// @return The sliced bytes array.
     function _slice(
         bytes memory _bytes,
         uint256 _start,

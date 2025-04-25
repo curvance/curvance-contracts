@@ -49,6 +49,7 @@ abstract contract CurveBaseAdaptor is BaseOracleAdaptor {
     ///         are manipulating the virtual price.
     /// @param curvePool The address of the Curve pool to check for Reentry.
     /// @param coinsLength The number of underlying tokens inside `pool`.
+    /// @return Whether the pool is locked.
     function isLocked(
         address curvePool,
         uint256 coinsLength
