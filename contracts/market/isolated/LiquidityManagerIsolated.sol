@@ -538,6 +538,9 @@ abstract contract LiquidityManager {
         result.positionTokenPrice = positionTokenPrice;
         result.earnTokenPrice = earnTokenPrice;
 
+        // Atlas-specific buffer logic (returns 0 for non-Atlas txs)
+        uint256 atlasBuffer = _getAtlasBuffer();
+
         // Indicates bad debt has accumulated and liquidation by
         // account should be used.
         if (accountCollateral < accountDebt) {
@@ -786,5 +789,10 @@ abstract contract LiquidityManager {
             mstore(0x00, s)
             revert(0x1c, 0x04)
         }
+    }
+
+    /// @notice Returns Atlas-specific buffer when relevant.
+    function _getAtlasBuffer() public view virtual returns (uint256) {
+        return 0;
     }
 }

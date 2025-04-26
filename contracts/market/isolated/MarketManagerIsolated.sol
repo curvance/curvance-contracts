@@ -87,6 +87,10 @@ contract MarketManagerIsolated is
     bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
     /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
     bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
+    /// @dev A fixed key to use in transient storage for indicating wether this is an Atlas tx. 
+    bytes32 internal constant TRANSIENT_IS_ATLAS_KEY = 0x4567890123456789012345678901234567890123456789012345678901234567;
+    /// @dev buffer to ensure Atlas can do interest triggered liquidations
+    uint256 public constant ATLAS_BUFFER = 1000;
 
     /// CONSTANTS ///
 
@@ -1828,6 +1832,10 @@ contract MarketManagerIsolated is
         assembly {
             tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
         }
+
+        assembly {
+            tstore(TRANSIENT_IS_ATLAS_KEY, 0)
+        }
     }
 
     /// @notice Called from the Atlas DappControl as a pre hook
@@ -1837,6 +1845,10 @@ contract MarketManagerIsolated is
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            tstore(TRANSIENT_IS_ATLAS_KEY, 1)
         }
 
         assembly {
@@ -1933,6 +1945,22 @@ contract MarketManagerIsolated is
 
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
+        }
+    }
+
+    /// @notice Returns the ATLAS_BUFFER if this is an Atlas tx, 
+    ///         returns 0 if not. 
+    function _getAtlasBuffer() public view override returns (uint256) {
+        uint256 result;
+        assembly {
+            result := tload(TRANSIENT_IS_ATLAS_KEY)
+        }
+
+        if (result == 1) {
+            return ATLAS_BUFFER;
+        }
+        else {
+            return 0;
         }
     }
 }
