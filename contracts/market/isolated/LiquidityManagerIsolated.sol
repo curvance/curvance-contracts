@@ -509,6 +509,14 @@ abstract contract LiquidityManager {
                 }
             }
         }
+
+        // Atlas-specific buffer logic returned by MarketManager override of _checkCollateralUnlocked.
+        uint256 atlasBuffer = _checkCollateralUnlocked(earnToken);
+
+        if (atlasBuffer > 0) {
+            accountCollateralSoft += atlasBuffer;
+            accountCollateralHard += atlasBuffer;
+        }
     }
 
     /// @notice Determine whether `account` can be liquidated,
@@ -537,9 +545,6 @@ abstract contract LiquidityManager {
         ) = _liquidationValuesOf(account, earnToken, positionToken);
         result.positionTokenPrice = positionTokenPrice;
         result.earnTokenPrice = earnTokenPrice;
-
-        // Atlas-specific buffer logic (returns 0 for non-Atlas txs)
-        uint256 atlasBuffer = _getAtlasBuffer();
 
         // Indicates bad debt has accumulated and liquidation by
         // account should be used.
@@ -791,8 +796,10 @@ abstract contract LiquidityManager {
         }
     }
 
-    /// @notice Returns Atlas-specific buffer when relevant.
-    function _getAtlasBuffer() public view virtual returns (uint256) {
+    /// @notice Guard/helper for Atlas liquidations. Base returns 0 (no buffer).
+    /// @dev Derived MarketManager overrides to enforce collateral restrictions
+    ///      and to return `ATLAS_BUFFER` when this is an Atlas tx.
+    function _checkCollateralUnlocked(address /*eToken*/) internal view virtual returns (uint256) {
         return 0;
     }
 }

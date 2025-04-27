@@ -1528,7 +1528,7 @@ contract MarketManagerIsolated is
         _checkIsListedToken(pToken);
 
         // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral
-        _checkCollateralUnlocked(eToken);
+        uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
 
         MarketToken storage pTokenData = tokenData[pToken];
 
@@ -1929,16 +1929,16 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Will revert and block liquidations of collateral that are not 
-    ///         currently allowed by Atlas.
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view {
+    ///         currently allowed by Atlas, only if this is an Atlas tx.
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view override returns (uint256) {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
-        // CASE: Either this is not an Atlas tx, or Atlas has purposefully allowed all collaterals.
+        // CASE: This is not an Atlas tx, so allow all collaterals, and return no buffer. 
         if (result == 0) {
-            return;
+            return 0;
         }
 
         address unlockedCollateral = address(uint160(result));
@@ -1946,21 +1946,8 @@ contract MarketManagerIsolated is
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
-    }
 
-    /// @notice Returns the ATLAS_BUFFER if this is an Atlas tx, 
-    ///         returns 0 if not. 
-    function _getAtlasBuffer() public view override returns (uint256) {
-        uint256 result;
-        assembly {
-            result := tload(TRANSIENT_IS_ATLAS_KEY)
-        }
-
-        if (result == 1) {
-            return ATLAS_BUFFER;
-        }
-        else {
-            return 0;
-        }
+        // if we reach this point this is an Atlas tx, so return the buffer. 
+        return ATLAS_BUFFER;
     }
 }
