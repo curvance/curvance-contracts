@@ -509,14 +509,6 @@ abstract contract LiquidityManager {
                 }
             }
         }
-
-        // Atlas-specific buffer logic returned by MarketManager override of _checkCollateralUnlocked.
-        uint256 atlasBuffer = _checkCollateralUnlocked(earnToken);
-
-        if (atlasBuffer > 0) {
-            accountCollateralSoft += atlasBuffer;
-            accountCollateralHard += atlasBuffer;
-        }
     }
 
     /// @notice Determine whether `account` can be liquidated,
@@ -794,12 +786,5 @@ abstract contract LiquidityManager {
             mstore(0x00, s)
             revert(0x1c, 0x04)
         }
-    }
-
-    /// @notice Guard/helper for Atlas liquidations. Base returns 0 (no buffer).
-    /// @dev Derived MarketManager overrides to enforce collateral restrictions
-    ///      and to return `ATLAS_BUFFER` when this is an Atlas tx.
-    function _checkCollateralUnlocked(address /*eToken*/) internal view virtual returns (uint256) {
-        return 0;
     }
 }

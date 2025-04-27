@@ -1527,7 +1527,7 @@ contract MarketManagerIsolated is
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
-        // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral
+        // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral.
         uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
 
         MarketToken storage pTokenData = tokenData[pToken];
