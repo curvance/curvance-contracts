@@ -87,8 +87,6 @@ contract MarketManagerIsolated is
     bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
     /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
     bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
-    /// @dev A fixed key to use in transient storage for indicating wether this is an Atlas tx. 
-    bytes32 internal constant TRANSIENT_IS_ATLAS_KEY = 0x4567890123456789012345678901234567890123456789012345678901234567;
     /// @dev buffer to ensure Atlas can do interest triggered liquidations
     uint256 public constant ATLAS_BUFFER = 1000;
 
@@ -1528,6 +1526,7 @@ contract MarketManagerIsolated is
         _checkIsListedToken(pToken);
 
         // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral.
+        // Intended to be passed into new _liquidationStatusOf() function.
         uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
 
         MarketToken storage pTokenData = tokenData[pToken];
@@ -1832,10 +1831,6 @@ contract MarketManagerIsolated is
         assembly {
             tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
         }
-
-        assembly {
-            tstore(TRANSIENT_IS_ATLAS_KEY, 0)
-        }
     }
 
     /// @notice Called from the Atlas DappControl as a pre hook
@@ -1845,10 +1840,6 @@ contract MarketManagerIsolated is
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_IS_ATLAS_KEY, 1)
         }
 
         assembly {
@@ -1930,7 +1921,7 @@ contract MarketManagerIsolated is
 
     /// @notice Will revert and block liquidations of collateral that are not 
     ///         currently allowed by Atlas, only if this is an Atlas tx.
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view override returns (uint256) {
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (uint256) {
         uint256 result;
         assembly {
             result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
@@ -1943,11 +1934,13 @@ contract MarketManagerIsolated is
 
         address unlockedCollateral = address(uint160(result));
 
+        // This is an Atlas tx, and Atlas liquidator attempted wrong collateral so revert.
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
 
-        // if we reach this point this is an Atlas tx, so return the buffer. 
+        // if we reach this point this is an Atlas tx and collateral is valid, so return 
+        // the atlas buffer. 
         return ATLAS_BUFFER;
     }
 }
