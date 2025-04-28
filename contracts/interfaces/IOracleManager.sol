@@ -40,6 +40,22 @@ interface IOracleManager {
         bool[] calldata getLower
     ) external view returns (uint256[] memory, uint256[] memory);
 
+    /// @notice Retrieves the prices of a eToken underlying and pToken.
+    /// @param eToken The earning token to price the underlying of.
+    /// @param pToken The position token to price.
+    /// @param errorCodeBreakpoint The error code that will cause liquidity
+    ///                            operations to revert.
+    /// @return eTokenUnderlyingPrice Contains the price of `eToken` underlying.
+    /// @return pTokenPrice Contains the price of `pToken`.
+    function getPriceIsolatedPair(
+        address eToken,
+        address pToken,
+        uint256 errorCodeBreakpoint
+    )
+        external
+        view
+        returns (uint256 eTokenUnderlyingPrice, uint256 pTokenPrice);
+
     /// @notice Retrieves the prices and account data of multiple assets
     ///         inside a Curvance Market.
     /// @param account The account to retrieve data for.
