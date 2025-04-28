@@ -18,7 +18,6 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-
 /// @title Curvance's Earn Token Contract.
 /// @dev Curvance's eTokens are ERC20 compliant with a close relation
 ///      to ERC4626. However, they follow their own design flow, without an

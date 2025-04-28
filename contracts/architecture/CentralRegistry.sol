@@ -75,9 +75,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @dev bytes4(keccak256(bytes("CentralRegistry__EpochHasStarted()")))
     uint256 internal constant _EPOCH_HAS_STARTED_SELECTOR = 0xffb4e740;
 
-    /// @dev A fixed key to use in transient storage for Atlas OEV status
-    bytes32 internal constant TRANSIENT_ATLAS_OEV_KEY = 0x1234567890123456789012345678901234567890123456789012345678901234;
-
     /// STORAGE ///
 
     /// @notice Genesis Epoch timestamp.
@@ -236,12 +233,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
     mapping(address => bool) public isMulticallProvider;
     /// @notice Target contract for external calldata => Multi call checker
     mapping(address => address) public multicallChecker;
-
-    // Atlas OEV DAppControl
+    /// @notice Specifies if an address has Atlas permissions or not.
     mapping(address => bool) public hasAtlasPermissions;
-
-    // Atlas OEV allowed
-    bool public atlasOevAllowed;
 
     /// EVENTS ///
 
@@ -288,6 +281,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     );
     event MulticallProviderSet(address provider, bool supportedStatus);
     event EraEmissionsAllotmentSet(uint256 epochEmissionAllotment);
+    event AtlasDappControlUpdated(address atlasDappControlAddress, bool isAdded);
 
     /// ERRORS ///
 
@@ -1146,21 +1140,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
             emit MulticallProviderSet(provider, supported);
         }
     }
-
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external {
-        _checkElevatedPermissions();
-
-        // Cache market list.
-        uint256 numMarkets = marketManagers.length;
-
-        for (uint256 i; i < numMarkets; ++i) {
-            IMarketManager(marketManagers[i]).setSequencingStatus(
-                sequencingActive
-            );
-        }
-    }
     
     function setRegularDuration(uint256 _duration) external {
         _checkElevatedPermissions();
@@ -1199,81 +1178,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
                 _duration
             );
         }
-    }
-
-    /// @notice Called from the Atlas DappControl as a pre hook
-    ///         before liquidations are tried.
-    function lockAtlasOev() external {
-        if (!hasAtlasPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_ATLAS_OEV_KEY, 0)
-        }
-    }
-
-    /// @notice Called from the Atlas DappControl as a post hook
-    ///         after liquidations are tried.
-    function unlockAtlasOev() external {
-        if (!hasAtlasPermissions[msg.sender]) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_ATLAS_OEV_KEY, 1)
-        }
-    }
-
-    /// @notice Returns whether Atlas OEV is currently allowed
-    function isAtlasOevAllowed() public view returns (bool) {
-        uint256 result;
-        assembly {
-            result := tload(TRANSIENT_ATLAS_OEV_KEY)
-        }
-        return result == 1;
-    }
-
-    /// @notice Authorizes an address to lock and unlock Atlas OEV.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Atlas controller address prior.
-    ///      Emits a {AtlasControlAuthorized} event.
-    /// @param newAtlasController The new address to allow control of Atlas
-    ///                           support for use in Curvance.
-    function addAuthorizedAtlasDAppControl(
-        address newAtlasController
-    ) external {
-        _checkElevatedPermissions();
-
-        // Validate `newAtlasController` is not currently supported.
-        if (hasAtlasPermissions[newAtlasController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        hasAtlasPermissions[newAtlasController] = true;
-
-        emit NewCurvanceContract("Atlas", newAtlasController);
-    }
-
-    /// @notice Deauthorizes an address to lock and unlock Atlas OEV.
-    /// @dev Only callable on a 7 day delay or by the Emergency Council.
-    ///      Cannot be a supported Atlas controller address prior.
-    ///      Emits a {AtlasControlAuthorized} event.
-    /// @param currentAtlasController The address to remove control of Atlas
-    ///                           support from inside Curvance.
-    function removeAuthorizedAtlasDAppControl(
-        address currentAtlasController
-    ) external {
-        _checkElevatedPermissions();
-
-        // Validate `currentAtlasController` is currently supported.
-        if (!hasAtlasPermissions[currentAtlasController]) {
-            _revert(_PARAMETERS_MISCONFIGURED_SELECTOR);
-        }
-
-        delete hasAtlasPermissions[currentAtlasController];
-
-        emit RemovedCurvanceContract("Atlas", currentAtlasController);
     }
 
     /// @notice Adds a Harvester contract for use in Curvance.
@@ -1489,5 +1393,49 @@ contract CentralRegistry is ERC165, ActionRegistry {
         if (genesisEpoch <= block.timestamp) {
             _revert(_EPOCH_HAS_STARTED_SELECTOR);
         }
+    }
+
+    ////////// ATLAS FUNCTIONALITY //////////////
+
+    /// @notice Authorizes an address to lock and unlock Atlas OEV.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param newAtlasController The new address to allow control of Atlas
+    ///                           support for use in Curvance.
+    function addAuthorizedAtlasDAppControl(
+        address newAtlasController
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `newAtlasController` is not currently supported.
+        if (hasAtlasPermissions[newAtlasController]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        hasAtlasPermissions[newAtlasController] = true;
+
+        emit AtlasDappControlUpdated(newAtlasController, true);
+    }
+
+    /// @notice Deauthorizes an address to lock and unlock Atlas OEV.
+    /// @dev Only callable on a 7 day delay or by the Emergency Council.
+    ///      Cannot be a supported Atlas controller address prior.
+    ///      Emits a {AtlasControlAuthorized} event.
+    /// @param currentAtlasController The address to remove control of Atlas
+    ///                           support from inside Curvance.
+    function removeAuthorizedAtlasDAppControl(
+        address currentAtlasController
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `currentAtlasController` is currently supported.
+        if (!hasAtlasPermissions[currentAtlasController]) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        delete hasAtlasPermissions[currentAtlasController];
+
+        emit AtlasDappControlUpdated(currentAtlasController, false);
     }
 }

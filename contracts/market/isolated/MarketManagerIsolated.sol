@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-
 import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
-import { LiquidationManager } from "contracts/market/isolated/LiquidationManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -19,7 +17,6 @@ import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
-
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
 /// @dev Curvance Market Managers are built as "thesis driven" micro
@@ -79,14 +76,22 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///
 contract MarketManagerIsolated is
     LiquidityManager,
-    LiquidationManager,
     ERC165,
     Multicall
 {
-    /// CONSTANTS ///
+    /// ATLAS RELATED CONSTANTS ///
 
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    /// @dev A fixed key to use in transient storage for dynamic close factor
+    bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
+    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
+    bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
+    /// @dev buffer to ensure Atlas can do interest triggered liquidations
+    uint256 public constant ATLAS_BUFFER = 1000;
+
+    /// CONSTANTS ///
+
     /// @notice Maximum collateral requirement to avoid liquidation.
     ///         2.34e18 = 234%. Resulting in 1 / (WAD + 2.34 WAD),
     ///         or ~30% maximum LTV soft liquidation level.
@@ -121,6 +126,11 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
+
+    /// ATLAS RELATED ERRORS ///
+
+    /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
+    uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
 
     /// STORAGE ///
 
@@ -184,6 +194,8 @@ contract MarketManagerIsolated is
         uint256 liqIncBase,
         uint256 liqIncMin,
         uint256 liqIncMax,
+        uint256 minEffectiveCFactor,
+        uint256 maxEffectiveCFactor,
         uint256 baseCFactor
     );
     event ActionPaused(string action, bool pauseState);
@@ -204,12 +216,13 @@ contract MarketManagerIsolated is
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
     error MarketManager__InvariantError();
+    error MarketManager__UnauthorizedCollateral();
 
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) LiquidationManager() {}
+    ) LiquidityManager(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -221,54 +234,6 @@ contract MarketManagerIsolated is
 
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
-    }
-
-    /// @notice Sets a new dynamic penalty value in transient storage.
-    /// @dev Transient storage enforces any liquidator not using
-    ///      dappcontrol/auction uses the default penalty.
-    /// @param newPenalty The new penalty value.
-    function setPenalty(uint256 newPenalty) external {
-        _checkDappControl();
-        MarketToken storage pToken = tokenData[positionToken];
-        // Validate new penalty is within configured allowed penalty.
-        if (
-            newPenalty < pToken.liqMinIncentive ||
-            newPenalty > pToken.liqMaxIncentive
-            ) {
-            revert MarketManager__InvalidParameter();
-        }
-
-        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
-        assembly {
-            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
-        }
-    }
-
-    /// @notice Resets the dynamic penalty value in transient storage to zero.
-    function resetPenalty() external {
-        _checkDappControl();
-        assembly {
-            // Clear the transient storage slot by writing zero. 
-            tstore(TRANSIENT_PENALTY_KEY, 0)
-        }
-    }
-
-    /// @notice Returns the current penalty.
-    /// @dev If a dynamic penalty is set in transient storage, 
-    ///      that value is returned; otherwise, the default penalty
-    ///      is returned.
-    function getLatestPenalty() public view returns (uint256 result) {
-        assembly {
-            // Load dynamic penalty from transient storage.
-            result := tload(TRANSIENT_PENALTY_KEY)
-        }
-
-        // If no dynamic penalty is set (assumed to be zero), return the
-        // liqBaseIncentive.
-        // Note that this renders 0 as an invalid dynamic penalty value.
-        if (result == 0) {
-            return tokenData[positionToken].liqBaseIncentive;
-        }
     }
 
     /// ACCOUNT SPECIFIC FUNCTIONS ///
@@ -673,9 +638,6 @@ contract MarketManagerIsolated is
             liquidateExact
         );
 
-        // Validate that the OEV queue is disabled or the liquidator is valid.
-        _validateLiquidation(liquidator, account);
-
         // We can pass balance = 0 here since we are forcing collateral closure
         // and balance will never be lower than collateral posted.
         (
@@ -769,46 +731,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in `eToken`.
-    /// @dev Called by the eToken itself to validate that liquidation is
-    ///      allowed based on `account`'s current liquidity.
-    /// @param eToken The earning token debt position to be from
-    ///               `account`.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    /// @param liquidator The account to execute the liquidation once queued.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueLiquidation(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account
-    ) external {
-        // Verify caller is actually the eToken.
-        _checkIsToken(eToken);
-
-        // Verify the liquidation is valid.
-        _canLiquidate(eToken, pToken, account, 0, false);
-
-        // Queue the liquidation for execution.
-        _queueLiquidation(liquidator, account);
-    }
-
-    /// @notice Queues an account liquidation for `account` liquidating
-    ///         `pToken` by repaying a portion of `account`'s active debt.
-    /// @dev Called by the liquidator themselves to queue up a different
-    ///      account's liquidation.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueAccountLiquidation(address account) external {
-        _getUpdatedLiquidationStatusOf(account);
-
-        // Queue the liquidation for execution.
-        _queueLiquidation(msg.sender, account);
-    }
-
     /// @notice Liquidates an entire account by partially paying down debts,
     ///         distributing all `account` collateral and recognize remaining
     ///         debt as bad debt.
@@ -821,9 +743,6 @@ contract MarketManagerIsolated is
         if (liquidationPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
-
-        // Validate that the OEV queue is disabled or the liquidator is valid
-        _validateLiquidation(msg.sender, account);
 
         (
             BadDebtData memory data,
@@ -1006,6 +925,8 @@ contract MarketManagerIsolated is
         uint256 liqIncBase,
         uint256 liqIncMin,
         uint256 liqIncMax,
+        uint256 minEffectiveCloseFactor,
+        uint256 maxEffectiveCloseFactor,
         uint256 baseCFactor
     ) external {
         _checkElevatedPermissions();
@@ -1020,6 +941,8 @@ contract MarketManagerIsolated is
         liqIncMin = _bpToWad(liqIncMin);
         liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
+        minEffectiveCloseFactor = _bpToWad(minEffectiveCloseFactor);
+        maxEffectiveCloseFactor = _bpToWad(maxEffectiveCloseFactor);
 
         // Validate collateralization ratio is not above the maximum allowed.
         if (collRatio > MAX_COLLATERALIZATION_RATIO) {
@@ -1120,6 +1043,10 @@ contract MarketManagerIsolated is
         // that way we can quickly scale between [base, 100%] based on lFactor.
         marketToken.cFactorCurve = WAD - baseCFactor;
 
+        // Assign the min and max effective closeFactor
+        marketToken.minEffectiveCloseFactor = minEffectiveCloseFactor;
+        marketToken.maxEffectiveCloseFactor = maxEffectiveCloseFactor;
+
         emit PositionTokenUpdated(
             pToken,
             collRatio,
@@ -1128,6 +1055,8 @@ contract MarketManagerIsolated is
             liqIncBase,
             liqIncMin,
             liqIncMax,
+            minEffectiveCloseFactor,
+            maxEffectiveCloseFactor,
             baseCFactor
         );
     }
@@ -1265,23 +1194,6 @@ contract MarketManagerIsolated is
         positionManagement[newPositionManagement] = true;
 
         emit NewPositionManagementContract(newPositionManagement);
-    }
-
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external {
-        _checkIsCentralRegistry();
-        _setSequencingStatus(sequencingActive);
-    }
-
-    /// @notice Updates OEV liquidation duration delays.
-    function setDelays(
-        uint256 newPriorityDelay,
-        uint256 newRegularDelay,
-        uint256 newEndDelay
-    ) external {
-        _checkIsCentralRegistry();
-        _setDelays(newPriorityDelay, newRegularDelay, newEndDelay);
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -1613,6 +1525,10 @@ contract MarketManagerIsolated is
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
+        // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral.
+        // Intended to be passed into new _liquidationStatusOf() function.
+        uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
+
         MarketToken storage pTokenData = tokenData[pToken];
 
         // Do not let people liquidate 0 collateralization ratio assets.
@@ -1635,14 +1551,15 @@ contract MarketManagerIsolated is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            uint256 cFactor = pTokenData.baseCFactor +
-                ((pTokenData.cFactorCurve * data.lFactor) / WAD);
-
-            // check for dynamic penalty in transient storage
-            uint256 incentive = getLatestPenalty();
+            (uint256 incentive, uint256 closeFactor) = getLatestAtlasParameters();
+            if (closeFactor == 0) {
+                // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
+                closeFactor = pTokenData.baseCFactor +
+                    ((pTokenData.cFactorCurve * data.lFactor) / WAD);
+            }
             
             maxAmount =
-            (cFactor * IEToken(eToken).debtBalanceCached(account)) /
+            (closeFactor * IEToken(eToken).debtBalanceCached(account)) /
                  WAD;
 
             // Get the exchange rate, and calculate the number of
@@ -1838,13 +1755,6 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }
-    
-    /// @dev Checks whether the caller has Atlas permissioning.
-    function _checkDappControl() internal view {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-    }
 
     /// @dev Checks whether the caller is the Central Registry.
     function _checkIsCentralRegistry() internal view {
@@ -1899,11 +1809,6 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Checks whether OEV is enabled or not.
-    function _checkAtlasOevAllowed() internal view override returns (bool) {
-        return centralRegistry.isAtlasOevAllowed();
-    }
-
     /// @dev Returns the Protocol Central Registry contract in interface
     ///      form.
     function _getCentralRegistry()
@@ -1913,5 +1818,129 @@ contract MarketManagerIsolated is
         returns (ICentralRegistry)
     {
         return centralRegistry;
+    }
+
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried to enable all 
+    ///         collateral to be liquidated outside Atlas tx.
+    function lockAtlasCollateral() external {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
+        }
+    }
+
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried to enforce that 
+    ///         only a specific collateral can be liquidated.
+    function unlockAtlasCollateral(address collateralToUnlock) external {
+        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
+        }
+    }
+
+    /// @notice Sets new dynamic close factor and liquidation penalty
+    ///         values in transient storage.
+    /// @dev Transient storage enforces any liquidator outside Atlas
+    ///      uses the default risk parameters.
+    /// @param newPenalty The new penalty value.
+    function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        // Validate new Liquidation Penalty value. 
+        MarketToken storage pToken = tokenData[positionToken];
+        // Validate new penalty is within configured allowed penalty.
+        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Validate new Close Factor value.
+        if (newCloseFactor < pToken.minEffectiveCloseFactor || newCloseFactor > pToken.maxEffectiveCloseFactor) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Set new Risk Parameters in transient storage. 
+        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+        assembly {
+            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
+        }
+
+        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
+        }
+    }
+
+    /// @notice Resets the Atlas risk parameters in transient storage to zero.
+    ///         This is redundant since the transient values will be reset 
+    ///         after an Atlas tx, but helps to ensure expected behaviour. 
+    function resetAtlasParameters() external {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        assembly {
+            // Clear the transient storage slot by writing zero. 
+            tstore(TRANSIENT_PENALTY_KEY, 0)
+        }
+
+        // Clear the transient storage slot by writing zero.
+        assembly {
+            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
+        }
+        
+    }
+
+    /// @notice Returns the current Atlas parameters.
+    /// @dev If a dynamic penalty or close factor is set in transient storage, 
+    ///      that value is returned; otherwise, the default penalty or close factor
+    ///      is returned.
+    /// @dev Note: caller must handle the case where the
+    ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
+    function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
+        assembly {
+            penalty := tload(TRANSIENT_PENALTY_KEY)
+            closeFactor := tload(TRANSIENT_CLOSE_FACTOR_KEY)
+        }
+        if (penalty == 0) {
+            penalty = tokenData[positionToken].liqBaseIncentive;
+        }
+        // if closeFactor is not set, 0 is returned. (caller must handle this)
+        // can't handle this here because lFactor is not available in this function
+    }
+
+    /// @notice Will revert and block liquidations of collateral that are not 
+    ///         currently allowed by Atlas, only if this is an Atlas tx.
+    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (uint256) {
+        uint256 result;
+        assembly {
+            result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
+        }
+
+        // CASE: This is not an Atlas tx, so allow all collaterals, and return no buffer. 
+        if (result == 0) {
+            return 0;
+        }
+
+        address unlockedCollateral = address(uint160(result));
+
+        // This is an Atlas tx, and Atlas liquidator attempted wrong collateral so revert.
+        if (unlockedCollateral != eTokenToLiquidate) {
+            _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
+        }
+
+        // if we reach this point this is an Atlas tx and collateral is valid, so return 
+        // the atlas buffer. 
+        return ATLAS_BUFFER;
     }
 }
