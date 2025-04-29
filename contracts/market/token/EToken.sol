@@ -72,6 +72,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @dev `bytes4(keccak256(bytes("EToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc7e7bc18;
+    /// @dev `bytes4(keccak256(bytes("EToken__ValidationFailed()")))`.
+    uint256 internal constant _VALIDATION_FAILED_SELECTOR = 0xdb8f0ad;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 42069;
@@ -128,11 +130,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address collateralToken,
         uint256 liquidatedAmount
     );
-    event BadDebtRecognized(
-        address liquidator,
-        address account,
-        uint256 amount
-    );
+    event BadDebtRecognized(address liquidator, uint256 amount);
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
         address newInterestRateModel,
@@ -199,7 +197,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Sanity check underlying so that we know users will not need to
         // mint anywhere close to exchange rate, in `WAD`.
         if (IERC20(underlying).totalSupply() >= type(uint232).max) {
-            revert EToken__ValidationFailed();
+            _revert(_VALIDATION_FAILED_SELECTOR);
         }
     }
 
@@ -413,116 +411,37 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         _repay(msg.sender, account, amount);
     }
 
-    /// @notice Used by the market manager contract to repay a portion
-    ///         of underlying token debt to lenders, remaining debt shortfall
-    ///        is recognized equally by lenders due to `account` default.
-    /// @dev Only market manager contract can call this function.
-    ///      Updates pending interest prior to execution of the repay,
-    ///      inside the market manager contract.
-    /// @param liquidator The account liquidating `account`'s collateral,
-    ///                   and repaying a portion of `account`'s debt.
-    /// @param account The account being liquidated and repaid on behalf of.
-    /// @param repayRatio The ratio of outstanding debt that `liquidator`
-    ///                   will repay from `account`'s obligations,
-    ///                   out of 100%, in `WAD`.
-    function repayWithBadDebt(
-        address liquidator,
-        address account,
-        uint256 repayRatio
-    ) external nonReentrant {
-        // We check self liquidation in marketManager before
-        // this call, so we do not need to check here.
-
-        // Make sure the marketManager itself is calling since
-        // then we know all liquidity checks have passed.
-        if (msg.sender != address(marketManager)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // We do not need to check for interest accrual here since its done
-        // at the top of liquidateAccount, inside market manager contract,
-        // that calls this function.
-
-        // Cache account debt balance to save gas.
-        uint256 accountDebt = debtBalanceCached(account);
-        uint256 repayAmount = (accountDebt * repayRatio) / WAD;
-
-        // We do not need to check for listing here as we are
-        // coming directly from the marketManager itself,
-        // so we know it is listed.
-
-        // Process a partial repay directly by transferring underlying tokens
-        // back to the eToken contract.
-        SafeTransferLib.safeTransferFrom(
-            underlying,
-            liquidator,
-            address(this),
-            repayAmount
-        );
-
-        // Wipe out the accounts debt since we are recognizing
-        // unpaid debt as bad debt.
-        delete _debtOf[account].principal;
-        // We round user debt in favor of the protocol to prevent exchange
-        // rate manipulation, as a result in some cases the last user cannot
-        // fully repay their debt.
-        if (totalBorrows < accountDebt) {
-            totalBorrows = 0;
-        } else {
-            totalBorrows -= accountDebt;
-        }
-
-        emit Repay(liquidator, account, repayAmount);
-        emit BadDebtRecognized(liquidator, account, accountDebt - repayAmount);
-    }
-
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in this eToken.
-    /// @dev Only market manager contract can call this function.
-    ///      Updates pending interest prior to execution of the repay,
-    ///      inside the market manager contract.
-    /// @param account The account being liquidated and repaid on behalf of.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    function queueLiquidation(address account, address pToken) external {
-        _checkAccountAndToken(account, pToken);
-
-        // Update pending interest.
-        accrueInterest();
-
-        marketManager.queueLiquidation(
-            address(this),
-            pToken,
-            msg.sender,
-            account
-        );
-    }
-
     /// @notice Liquidates `account`'s collateral by repaying `amount` debt
     ///         and transferring the liquidated collateral to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of underlying asset the liquidator wishes to repay.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param amounts The amounts of underlying asset the liquidator
+    ///                wishes to repay.
     /// @param pToken The market in which to seize collateral from `account`.
     function liquidateExact(
-        address account,
-        uint256 amount,
+        address[] calldata accounts,
+        uint256[] calldata amounts,
         address pToken
     ) external nonReentrant {
-        _liquidate(msg.sender, account, amount, pToken, true);
+        if (accounts.length != amounts.length) {
+            _revert(_VALIDATION_FAILED_SELECTOR);
+        }
+
+        _liquidate(msg.sender, accounts, amounts, pToken, true);
     }
 
     /// @notice Liquidates `account`'s as much collateral as possible by
     ///         repaying debt and transferring the liquidated collateral
     ///         to the liquidator.
     /// @dev Updates pending interest before executing the liquidation.
-    /// @param account The address of the account to be liquidated.
+    /// @param accounts The addresses of the accounts to be liquidated.
     /// @param pToken The market in which to seize collateral from `account`.
-    function liquidate(address account, address pToken) external nonReentrant {
+    function liquidate(address[] calldata accounts, address pToken) external nonReentrant {
+        uint256[] memory amounts;
         _liquidate(
             msg.sender,
-            account,
-            0, // Amount = 0 is passed since the max amount possible will be liquidated.
+            accounts,
+            amounts, // Amounts array is empty since the max amount possible will be liquidated.
             pToken,
             false
         );
@@ -1071,7 +990,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
                 type(IInterestRateModel).interfaceId
             )
         ) {
-            revert EToken__ValidationFailed();
+            _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
         // Cache the current interest rate model to save gas.
@@ -1279,14 +1198,20 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account with the debt being paid down.
     /// @param amount The amount the payer wishes to repay,
     ///               or 0 for the full outstanding amount.
-    /// @param accountDebt the current debt balance for `account`.
     /// @return The amount of underlying token debt repaid for `account`.
-    function _processRepay(
+    function _repay(
         address payer,
         address account,
-        uint256 amount,
-        uint256 accountDebt
+        uint256 amount
     ) internal returns (uint256) {
+        // Validate that the payer is allowed to repay the loan.
+        marketManager.canRepay(address(this), account);
+
+        // Cache how much the account has to save gas.
+        uint256 accountDebt = debtBalanceCached(account);
+
+        // If amount == 0, repay max; amount = accountDebt.
+        amount = amount == 0 ? accountDebt : amount;
         _checkZeroAmount(amount);
 
         // Validate repayment amount is not excessive.
@@ -1321,37 +1246,15 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return amount;
     }
 
-    /// @notice Repays an outstanding loan of `account` through repayment
-    ///         by `payer`, who usually is themselves.
-    /// @dev Emits a {Repay} event.
-    /// @param payer The address paying down the account debt.
-    /// @param account The account with the debt being paid down.
-    /// @param amount The amount the payer wishes to repay,
-    ///               or 0 for the full outstanding amount.
-    /// @return The amount of underlying token debt repaid for `account`.
-    function _repay(
-        address payer,
-        address account,
-        uint256 amount
-    ) internal returns (uint256) {
-        // Validate that the payer is allowed to repay the loan.
-        marketManager.canRepay(address(this), account);
-
-        // Cache how much the account has to save gas.
-        uint256 accountDebt = debtBalanceCached(account);
-
-        // If amount == 0, repay max; amount = accountDebt.
-        amount = amount == 0 ? accountDebt : amount;
-
-        return _processRepay(payer, account, amount, accountDebt);
-    }
-
-    /// @notice The liquidator liquidates the borrowers collateral.
-    ///  The collateral seized is transferred to the liquidator.
+    /// @notice Facilitates a liquidator liquidating the borrowers collateral
+    ///         by repaying a portion of their debt. The collateral seized
+    ///         is transferred to the liquidator.
     /// @dev Emits {Repay} and {Liquidated} events.
     /// @param liquidator The address repaying the borrow and seizing collateral.
-    /// @param account The account of this eToken to be liquidated.
-    /// @param amount The amount of the underlying borrowed asset to repay.
+    /// @param accounts The accounts to be liquidated.
+    /// @param amounts The amounts of the underlying borrowed asset to repay,
+    ///                if exact liquidation, otherwise an empty array to
+    ///                populate real liquidation amounts after calculations.
     /// @param pToken The market in which to seize collateral from
     ///               the account.
     /// @param exactAmount Whether a specific amount of debt token assets
@@ -1359,48 +1262,112 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///                    to liquidate the maximum amount possible.
     function _liquidate(
         address liquidator,
-        address account,
-        uint256 amount,
+        address[] memory accounts,
+        uint256[] memory amounts,
         address pToken,
         bool exactAmount
     ) internal {
         // Update pending interest.
         accrueInterest();
 
-        _checkAccountAndToken(account, pToken);
-
-        uint256 liquidatedTokens;
-
-        // Fail if liquidate not allowed,
-        // trying to pay too much debt with excessive `amount` will revert.
-        (amount, liquidatedTokens) = marketManager.canLiquidateWithExecution(
-            address(this),
-            pToken,
-            liquidator,
-            account,
-            amount,
-            exactAmount
-        );
+        // The MToken must be a position token.
+        if (!IPToken(pToken).isPToken()) {
+            _revert(_VALIDATION_FAILED_SELECTOR);
+        }
 
         // Validate that the token is listed inside the market.
         if (!marketManager.isListed(address(this))) {
-            revert EToken__ValidationFailed();
+            _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
-        _processRepay(liquidator, account, amount, debtBalanceCached(account));
+        uint256[] memory liquidatedAmounts;
+        uint256 debtRepaid;
+        uint256 badDebtRealized;
+
+        // Fail if liquidate not allowed,
+        // trying to pay too much debt with excessive `amount` will revert.
+        (amounts, liquidatedAmounts, debtRepaid, badDebtRealized) = marketManager.canLiquidateWithExecution(
+            address(this),
+            pToken,
+            liquidator,
+            accounts,
+            amounts,
+            exactAmount
+        );
+
+        SafeTransferLib.safeTransferFrom(
+            underlying,
+            liquidator,
+            address(this),
+            debtRepaid
+        );
+
+        uint256 numAccounts = accounts.length;
+        uint256 currentExchangeRate = marketData.exchangeRate;
+        uint256 cachedAmount;
+        address cachedAccount;
+        // Self liquidation check moved to Market Manager
+
+        for (uint256 i; i < numAccounts; ++i) {
+            cachedAmount = amounts[i];
+            // If theres no debt to repay for this user can
+            // skip them.
+            if (cachedAmount == 0) {
+                continue;
+            }
+
+            cachedAmount = amounts[i];
+            cachedAccount = accounts[i];
+
+            uint256 accountDebt = debtBalanceCached(accounts[i]);
+            // Validate repayment amount is not excessive.
+            // TO-DO check if this is redundant with canLiquidateWithExecution
+            // canLiquidateWithExecution check.
+            if (cachedAmount > accountDebt) {
+                revert EToken__ExcessiveValue();
+            }
+
+            // We calculate the new account and total borrow balances,
+            // we check that amount is <= accountDebt so we can skip
+            // underflow check here.
+            unchecked {
+                _debtOf[cachedAccount].principal = accountDebt - cachedAmount;
+            }
+
+            // Update the account specific exchange rate.
+            _debtOf[cachedAccount].accountExchangeRate = currentExchangeRate;
+            emit Repay(liquidator, cachedAccount, cachedAmount);
+            emit Liquidated(
+                liquidator,
+                cachedAccount,
+                cachedAmount,
+                address(pToken),
+                liquidatedAmounts[i]
+            );
+        }
+
+        // We need to update totalBorrows for the total debt repaid by the
+        // liquidator, plus the bad debt being realized. We can reuse
+        // debtRepaid variable since the original debt repayment value
+        // was already used earlier.
+        debtRepaid = debtRepaid + badDebtRealized;
+        if (totalBorrows < debtRepaid) {
+            // We round user debt in favor of the protocol to prevent exchange
+            // rate manipulation, as a result in some cases the last user cannot
+            // fully repay their debt.
+            totalBorrows = 0;
+        } else {
+            totalBorrows -= debtRepaid;
+        }
 
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        IPToken(pToken).seize(liquidator, account, liquidatedTokens);
+        IPToken(pToken).seize(liquidator, accounts, liquidatedAmounts);
 
-        emit Liquidated(
-            liquidator,
-            account,
-            amount,
-            address(pToken),
-            liquidatedTokens
-        );
+        if (badDebtRealized > 0) {
+            emit BadDebtRecognized(liquidator, badDebtRealized);
+        }
     }
 
     /// @notice Withdraws reserves from the market and transfers them to
@@ -1481,7 +1448,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // The MToken must be a position token.
         if (!IPToken(token).isPToken()) {
-            revert EToken__ValidationFailed();
+            _revert(_VALIDATION_FAILED_SELECTOR);
         }
     }
 
