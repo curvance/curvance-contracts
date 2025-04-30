@@ -96,6 +96,15 @@ abstract contract BasePToken is
     /// @notice Total PToken underlying token assets, minus pending vesting.
     uint256 internal _totalAssets;
 
+    /// EVENTS ///
+
+    event Liquidated(
+        address liquidator,
+        address account,
+        uint256 liquidatedAmount,
+        address debtToken
+    );
+
     /// ERRORS ///
 
     error BasePToken__EmptyAction();
@@ -369,56 +378,50 @@ abstract contract BasePToken is
     /// @dev Will fail unless called by a eToken during the process
     ///      of liquidation.
     /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param shares The total number of pTokens shares to seize.
+    /// @param accounts An array containing the accounts having
+    ///                 collateral seized.
+    /// @param shares An array containing the number of pTokens
+    ///               shares to seize.
+    /// @param debtToken The market in which debt was repaid for
+    ///                  the accounts.
     function seize(
         address liquidator,
-        address account,
-        uint256 shares
+        address[] calldata accounts,
+        uint256[] calldata shares,
+        address debtToken
     ) external nonReentrant {
-        // Fails if borrower = liquidator.
-        assembly {
-            if eq(liquidator, account) {
-                // revert with "BasePToken__Unauthorized".
-                mstore(0x00, _UNAUTHORIZED_SELECTOR)
-                revert(0x1c, 0x04)
-            }
-        }
-
-        // Fails if seize not allowed.
+        // Fails if seizure not allowed.
         marketManager.canSeize(address(this), msg.sender);
 
-        _beforeLiquidationAction(account, liquidator, shares);
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
-    }
+        // We know that accounts and shares arrays are the same length since
+        // its validated inside the eToken getting debt repaid within.
 
-    /// @notice Transfers position tokens (this market) to the liquidator.
-    /// @dev Will fail unless called by the MarketManager itself during
-    ///      the process of liquidation.
-    ///      NOTE: The protocol never takes a fee on account liquidation
-    ///            as lenders already are bearing a burden.
-    /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param shares The total number of pTokens shares to seize.
-    function seizeAccountLiquidation(
-        address liquidator,
-        address account,
-        uint256 shares
-    ) external nonReentrant {
-        // We check self liquidation in MarketManager before
-        // this call so we do not need to check here.
+        uint256 numAccounts = accounts.length;
+        uint256 cachedAmount;
+        address cachedAccount;
+        // Self liquidation check moved to Market Manager
 
-        // Make sure the MarketManager itself is calling since
-        // then we know all liquidity checks have passed. This check also
-        // means we do not need to check `canSeize`.
-        if (msg.sender != address(marketManager)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
+        for (uint256 i; i < numAccounts; ++i) {
+            cachedAmount = shares[i];
+            // If theres no debt to repay for this user can
+            // skip them.
+            if (cachedAmount == 0) {
+                continue;
+            }
+
+            cachedAccount = accounts[i];
+
+            _beforeLiquidationAction(cachedAccount, liquidator, cachedAmount);
+            // Efficiently transfer token balances from `cachedAccount`
+            // to `liquidator`.
+            _transferFromWithoutAllowance(cachedAccount, liquidator, cachedAmount);
+            emit Liquidated(
+                liquidator,
+                cachedAccount,
+                cachedAmount,
+                debtToken
+            );
         }
-
-        _beforeLiquidationAction(account, liquidator, shares);
-        // Efficiently transfer token balances from `account` to `liquidator`.
-        _transferFromWithoutAllowance(account, liquidator, shares);
     }
 
     /// PUBLIC FUNCTIONS ///

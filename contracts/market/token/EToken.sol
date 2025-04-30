@@ -123,13 +123,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     );
     event Borrow(address account, uint256 amount);
     event Repay(address payer, address account, uint256 amount);
-    event Liquidated(
-        address liquidator,
-        address account,
-        uint256 repaidAmount,
-        address collateralToken,
-        uint256 liquidatedAmount
-    );
     event BadDebtRecognized(address liquidator, uint256 amount);
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
@@ -1316,7 +1309,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
                 continue;
             }
 
-            cachedAmount = amounts[i];
             cachedAccount = accounts[i];
 
             uint256 accountDebt = debtBalanceCached(accounts[i]);
@@ -1337,13 +1329,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             // Update the account specific exchange rate.
             _debtOf[cachedAccount].accountExchangeRate = currentExchangeRate;
             emit Repay(liquidator, cachedAccount, cachedAmount);
-            emit Liquidated(
-                liquidator,
-                cachedAccount,
-                cachedAmount,
-                address(pToken),
-                liquidatedAmounts[i]
-            );
         }
 
         // We need to update totalBorrows for the total debt repaid by the

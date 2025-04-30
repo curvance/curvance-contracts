@@ -80,31 +80,22 @@ interface IPToken is IMToken {
         IPositionManagement.DeleverageStruct memory deleverageData
     ) external;
 
-    /// @notice Transfers collateral tokens (this pToken) from `account`
+    /// @notice Transfers position tokens (this pToken) from `account`
     ///         to `liquidator`.
-    /// @dev Will fail unless called by an eToken during the process
+    /// @dev Will fail unless called by a eToken during the process
     ///      of liquidation.
     /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param liquidatedTokens The total number of pTokens to seize.
+    /// @param accounts An array containing the accounts having
+    ///                 collateral seized.
+    /// @param shares An array containing the number of pTokens
+    ///               shares to seize.
+    /// @param debtToken The market in which debt was repaid for
+    ///                  the accounts.
     function seize(
         address liquidator,
-        address account,
-        uint256 liquidatedTokens
-    ) external;
-
-    /// @notice Transfers collateral tokens (this market) to the liquidator.
-    /// @dev Will fail unless called by the MarketManager itself during
-    ///      the process of liquidation.
-    ///      NOTE: The protocol never takes a fee on account liquidation
-    ///            as lenders already are bearing a burden.
-    /// @param liquidator The account receiving seized collateral.
-    /// @param account The account having collateral seized.
-    /// @param shares The total number of pTokens shares to seize.
-    function seizeAccountLiquidation(
-        address liquidator,
-        address account,
-        uint256 shares
+        address[] calldata accounts,
+        uint256[] calldata shares,
+        address debtToken
     ) external;
 
     /// @notice Allows users to simulate the effects of their deposit at
