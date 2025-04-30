@@ -201,10 +201,6 @@ interface IMarketManager {
         address positionContract
     ) external view returns (bool);
 
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external;
-
     /// @notice Locks Atlas OEV liquidations
     /// @dev This function must be called by an authorized Atlas DApp Control
     function lockAtlasOev() external;

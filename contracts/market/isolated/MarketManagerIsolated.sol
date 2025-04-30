@@ -79,17 +79,6 @@ contract MarketManagerIsolated is
     ERC165,
     Multicall
 {
-    /// ATLAS RELATED CONSTANTS ///
-
-    /// @dev A fixed key to use in transient storage for the dynamic penalty.
-    bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @dev A fixed key to use in transient storage for dynamic close factor
-    bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
-    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
-    bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
-    /// @dev buffer to ensure Atlas can do interest triggered liquidations
-    uint256 public constant ATLAS_BUFFER = 1000;
-
     /// CONSTANTS ///
 
     /// @notice Maximum collateral requirement to avoid liquidation.
@@ -106,6 +95,11 @@ contract MarketManagerIsolated is
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
+    /// @notice Buffer to ensure Orderflow auction can do
+    ///      interest-triggered liquidations.
+    /// @dev 0.999e18 = 99.9%. multiplied then divided
+    ///      by WAD = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 0.999e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -126,11 +120,14 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-
-    /// ATLAS RELATED ERRORS ///
-
     /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
     uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
+    /// @dev A fixed key to use in transient storage for the dynamic penalty.
+    bytes32 internal constant _TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    /// @dev A fixed key to use in transient storage for dynamic close factor
+    bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
+    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
+    bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
 
     /// STORAGE ///
 
@@ -731,130 +728,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Liquidates an entire account by partially paying down debts,
-    ///         distributing all `account` collateral and recognize remaining
-    ///         debt as bad debt.
-    /// @dev Updates `account` EToken interest before solvency is checked.
-    ///      Extensive run invariant checks are made to prevent potential
-    ///      asset callback exploits.
-    ///      Emits a {CollateralRemoved} event.
-    /// @param account The address to liquidate completely.
-    function liquidateAccount(address account) external {
-        if (liquidationPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _getUpdatedLiquidationStatusOf(account);
-
-        uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
-        uint256 debt;
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Repay `account`'s debt and recognize bad debt.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (!mToken.isPToken()) {
-                debt = IEToken(address(mToken)).debtBalanceCached(account);
-
-                // If the debt balance now does not match initial
-                // debt balance, there has been an attempt at
-                // invariant manipulation, revert.
-                if (debt != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this eToken actually has outstanding debt.
-                if (debt > 0) {
-                    // Repay `account`'s debt where:
-                    // debtToPay = totalCollateral / (1 - liquidationPenalty).
-                    // badDebt = totalDebt - debtToPay.
-                    // Thus:
-                    // totalDebt = debtToPay + badDebt.
-                    // Where debtToPay is what caller repays to receive collateral,
-                    // badDebt is loss to lenders by offsetting
-                    // totalBorrows (total estimated outstanding debt).
-                    IEToken(address(mToken)).repayWithBadDebt(
-                        msg.sender,
-                        account,
-                        repayRatio
-                    );
-                }
-            }
-        }
-
-        uint256 collateral;
-
-        // Seize `account`'s collateral and remove posted collateral.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (mToken.isPToken()) {
-                AccountPosition storage collateralData = tokenData[
-                    address(mToken)
-                ].accountPositions[account];
-                // Cache `account` collateral posted.
-                collateral = collateralData.collateralPosted;
-
-                // If the collateral posted now does not match initial
-                // collateral posted, there has been an attempt at
-                // invariant manipulation, revert.
-                if (collateral != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this pToken is actually being used as collateral.
-                // Without this check a user would be immune to bad debt
-                // liquidation.
-                if (collateral > 0) {
-                    // Remove `account` posted collateral,
-                    // as their account is completely closed out.
-                    delete collateralData.collateralPosted;
-
-                    // Update collateralPosted invariant.
-                    collateralPosted[address(mToken)] =
-                        collateralPosted[address(mToken)] -
-                        collateral;
-                    emit CollateralAdjusted(
-                        account,
-                        address(mToken),
-                        collateral,
-                        false
-                    );
-                    // Seize `account`'s collateral and give to caller.
-                    IPToken(address(mToken)).seizeAccountLiquidation(
-                        msg.sender,
-                        account,
-                        collateral
-                    );
-                }
-            }
-        }
-
-        IMToken[] memory accountAssetsPost = accountAssets[account].assets;
-        uint256 numAssetsPost = accountAssetsPost.length;
-
-        // If a user somehow manipulated their assets via ERC777 or some
-        // other callbacks we can validate that no changes occurred to
-        // user assets, as we've already validated collateral posted/debt
-        // balances above.
-        if (numAssetsPost != numAssetsPrior) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
-
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            if (accountAssetsPost[i] != accountAssetsPrior[i]) {
-                _revert(_INVARIANT_ERROR_SELECTOR);
-            }
-        }
-    }
-
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
     /// @notice Add isolated market token pair to the market and set it as
@@ -1208,53 +1081,6 @@ contract MarketManagerIsolated is
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Update pending interest in markts and determine `account`'s
-    ///         current status between collateral, debt, and additional
-    ///         liquidity and whether theres associated bad debt available
-    ///         warranting an account liquidation.
-    /// @param account The account to determine bad debt status.
-    /// @return Array of the amount of collateral posted and debt balances for
-    ///         each user position.
-    function _getUpdatedLiquidationStatusOf(
-        address account
-    ) internal returns (BadDebtData memory, uint256[] memory) {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _accountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
-
-        return (data, assetBalances);
-    }
 
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
@@ -1784,6 +1610,13 @@ contract MarketManagerIsolated is
         }
     }
 
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkAtlasPermissions() internal view {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissions based on `state`,
     /// turning something off is less "risky" than enabling something,
     /// so `state` = true has reduced permissioning compared to `state` = false.
@@ -1824,12 +1657,10 @@ contract MarketManagerIsolated is
     ///         after liquidations are tried to enable all 
     ///         collateral to be liquidated outside Atlas tx.
     function lockAtlasCollateral() external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkAtlasPermissions();
 
         assembly {
-            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
+            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
         }
     }
 
@@ -1838,12 +1669,10 @@ contract MarketManagerIsolated is
     ///         only a specific collateral can be liquidated.
     function unlockAtlasCollateral(address collateralToUnlock) external {
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkAtlasPermissions();
 
         assembly {
-            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
+            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
         }
     }
 
@@ -1853,9 +1682,7 @@ contract MarketManagerIsolated is
     ///      uses the default risk parameters.
     /// @param newPenalty The new penalty value.
     function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkAtlasPermissions();
 
         // Validate new Liquidation Penalty value. 
         MarketToken storage pToken = tokenData[positionToken];
@@ -1872,12 +1699,12 @@ contract MarketManagerIsolated is
         // Set new Risk Parameters in transient storage. 
         // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
         assembly {
-            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
+            tstore(_TRANSIENT_PENALTY_KEY, newPenalty)
         }
 
         // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
         assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
+            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
         }
     }
 
@@ -1885,18 +1712,16 @@ contract MarketManagerIsolated is
     ///         This is redundant since the transient values will be reset 
     ///         after an Atlas tx, but helps to ensure expected behaviour. 
     function resetAtlasParameters() external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
+        _checkAtlasPermissions();
 
         assembly {
             // Clear the transient storage slot by writing zero. 
-            tstore(TRANSIENT_PENALTY_KEY, 0)
+            tstore(_TRANSIENT_PENALTY_KEY, 0)
         }
 
         // Clear the transient storage slot by writing zero.
         assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
+            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, 0)
         }
         
     }
@@ -1909,8 +1734,8 @@ contract MarketManagerIsolated is
     ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
     function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
         assembly {
-            penalty := tload(TRANSIENT_PENALTY_KEY)
-            closeFactor := tload(TRANSIENT_CLOSE_FACTOR_KEY)
+            penalty := tload(_TRANSIENT_PENALTY_KEY)
+            closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
         }
         if (penalty == 0) {
             penalty = tokenData[positionToken].liqBaseIncentive;
@@ -1924,7 +1749,7 @@ contract MarketManagerIsolated is
     function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (uint256) {
         uint256 result;
         assembly {
-            result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
+            result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
         // CASE: This is not an Atlas tx, so allow all collaterals, and return no buffer. 
@@ -1941,6 +1766,6 @@ contract MarketManagerIsolated is
 
         // if we reach this point this is an Atlas tx and collateral is valid, so return 
         // the atlas buffer. 
-        return ATLAS_BUFFER;
+        return AUCTION_BUFFER;
     }
 }
