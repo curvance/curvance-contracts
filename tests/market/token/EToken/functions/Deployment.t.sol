@@ -68,10 +68,10 @@ contract ETokenDeploymentTest is TestBaseEToken {
             .sig(IERC20.totalSupply.selector)
             .checked_write(type(uint232).max);
 
-        // TODO
-        //vm.expectRevert(
-        //    EToken.EToken__UnderlyingAssetTotalSupplyExceedsMaximum.selector
-        //);
+
+        vm.expectRevert(
+           EToken.EToken__ValidationFailed.selector
+        );
         new EToken(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
