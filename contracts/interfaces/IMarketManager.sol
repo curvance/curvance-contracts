@@ -91,20 +91,26 @@ interface IMarketManager {
     /// @param eToken Debt token to repay which is borrowed by `account`.
     /// @param pToken Position token which was used as collateral and will
     ///        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
+    /// @param accounts The accounts to be liquidated.
+    /// @param amounts The amounts of the underlying borrowed asset to repay,
+    ///                if exact liquidation, otherwise an empty array to
+    ///                populate real liquidation amounts after calculations.
     /// @param liquidateExact Whether the liquidator desires a specific
     ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on liquidation.
-    /// @return The number of `pToken` tokens to be seized in a liquidation.
+    /// @return An array containing the amounts of underlying tokens repaid
+    ///         on liquidation.
+    /// @return An array containing the amounts of pTokens to be seized in
+    ///         a liquidation.
+    /// @return The total amount of debt to repay lenders.
+    /// @return The total amount of bad debt to be recognized by lenders.
     function canLiquidateWithExecution(
         address eToken,
         address pToken,
         address liquidator,
-        address account,
-        uint256 amount,
+        address[] memory accounts,
+        uint256[] memory amounts,
         bool liquidateExact
-    ) external returns (uint256, uint256);
+    ) external returns (uint256[] memory, uint256[] memory, uint256, uint256);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
     /// @param pToken Asset which was used as collateral and will be seized.
@@ -131,24 +137,6 @@ interface IMarketManager {
         address mToken,
         address from,
         uint256 amount
-    ) external;
-
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in `eToken`.
-    /// @dev Called by the eToken itself to validate that liquidation is
-    ///      allowed based on `account`'s current liquidity.
-    /// @param eToken The earning token debt position to be from
-    ///               `account`.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    /// @param liquidator The account to execute the liquidation once queued.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueLiquidation(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account
     ) external;
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -216,15 +204,6 @@ interface IMarketManager {
     /// @notice Updates status of unique liquidation sequencing to
     ///         `sequencingActive`.
     function setSequencingStatus(bool sequencingActive) external;
-
-    /// @notice Updates regular duration. 
-    function setRegularDuration(uint256 _duration) external;
-
-    /// @notice Updates priority duration. 
-    function setPriorityDuration(uint256 _duration) external;
-
-    /// @notice Updates end duration. 
-    function setEndDuration(uint256 _duration) external;
 
     /// @notice Locks Atlas OEV liquidations
     /// @dev This function must be called by an authorized Atlas DApp Control

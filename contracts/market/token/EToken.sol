@@ -1279,7 +1279,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Fail if liquidate not allowed,
         // trying to pay too much debt with excessive `amount` will revert.
-        (amounts, liquidatedAmounts, debtRepaid, badDebtRealized) = marketManager.canLiquidateWithExecution(
+        (
+            amounts,
+            liquidatedAmounts,
+            debtRepaid,
+            badDebtRealized
+        ) = marketManager.canLiquidateWithExecution(
             address(this),
             pToken,
             liquidator,
@@ -1348,7 +1353,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
-        IPToken(pToken).seize(liquidator, accounts, liquidatedAmounts);
+        IPToken(pToken).seize(
+            liquidator, accounts,
+            liquidatedAmounts,
+            address(this)
+        );
 
         if (badDebtRealized > 0) {
             emit BadDebtRecognized(liquidator, badDebtRealized);
