@@ -87,11 +87,11 @@ contract MarketManagerIsolated is
     uint256 public constant MAX_COLLATERAL_REQUIREMENT = 2.34e18;
     /// @notice Minimum excess collateral requirement
     ///         on top of liquidation incentive.
-    /// @dev .015e18 = 1.5%.
-    uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .015e18;
+    /// @dev .01e18 = 1.0%.
+    uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .01e18;
     /// @notice Maximum collateralization ratio.
-    /// @dev .91e18 = 91%.
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = .91e18;
+    /// @dev .975e18 = 97.5%.
+    uint256 public constant MAX_COLLATERALIZATION_RATIO = .975e18;
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
@@ -189,6 +189,7 @@ contract MarketManagerIsolated is
         uint256 collReqSoft,
         uint256 collReqHard,
         uint256 liqIncBase,
+        uint256 liqIncHard,
         uint256 liqIncMin,
         uint256 liqIncMax,
         uint256 minEffectiveCFactor,
@@ -787,6 +788,8 @@ contract MarketManagerIsolated is
     ///                    avoid hard liquidation, in basis points.
     /// @param liqIncBase The default liquidation incentive for
     ///                   `positionToken`, in basis points.
+    /// @param liqIncHard The hard liquidation incentive for `pToken`,
+    ///                   in basis points.
     /// @param liqIncMin The minimum possible liquidation incentive for
     ///                  `positionToken`, in basis points.
     /// @param liqIncMax The maximum possible liquidation incentive for
@@ -796,6 +799,7 @@ contract MarketManagerIsolated is
         uint256 collReqSoft,
         uint256 collReqHard,
         uint256 liqIncBase,
+        uint256 liqIncHard,
         uint256 liqIncMin,
         uint256 liqIncMax,
         uint256 minEffectiveCloseFactor,
@@ -811,6 +815,7 @@ contract MarketManagerIsolated is
         collReqSoft = _bpToWad(collReqSoft);
         collReqHard = _bpToWad(collReqHard);
         liqIncBase = _bpToWad(liqIncBase);
+        liqIncHard = _bpToWad(liqIncHard);
         liqIncMin = _bpToWad(liqIncMin);
         liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
@@ -836,6 +841,13 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Validate hard liquidation incentive is
+        // higher than the soft liquidation incentive. Give heavier incentives
+        // when collateral is running out to reduce delta exposure.
+        if (liqIncBase >= liqIncHard) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Make sure the maximum dynamic penalty is not greater than the base
         // liquidation incentive and that the minimum dynamic penalty is not
         // less than the base liquidation incentive.
@@ -852,6 +864,14 @@ contract MarketManagerIsolated is
         // Validate maximum liquidation incentive and default is
         // equal or higher than the minimum liquidation incentive.
         if (liqIncMin >= liqIncMax) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Validate hard liquidation collateral requirement is larger
+        // than the hard liquidation incentive. We cannot give more incentives
+        // than are available. We do not need to check soft liquidation as the
+        // restrictions are thinner than this case.
+        if (liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -910,6 +930,10 @@ contract MarketManagerIsolated is
         marketToken.liqMinIncentive = WAD + liqIncMin;
         marketToken.liqMaxIncentive = WAD + liqIncMax;
 
+        // Store the distance between liquidation incentive A & B,
+        // so we can quickly scale between [base, 100%] based on lFactor.
+        marketToken.liqCurve = liqIncHard - liqIncBase;
+
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
         // Store the distance between base cFactor and 100%,
@@ -926,6 +950,7 @@ contract MarketManagerIsolated is
             collReqSoft,
             collReqHard,
             liqIncBase,
+            liqIncHard,
             liqIncMin,
             liqIncMax,
             minEffectiveCloseFactor,
@@ -1377,21 +1402,29 @@ contract MarketManagerIsolated is
         uint256 maxAmount;
         uint256 debtToCollateralRatio;
         {
-            (uint256 incentive, uint256 closeFactor) = getLatestAtlasParameters();
-            if (closeFactor == 0) {
-                // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
-                closeFactor = pTokenData.baseCFactor +
+            (uint256 liqIncentive, uint256 cFactor) = getLatestAtlasParameters();
+            if (cFactor == 0) {
+                // Fallback to using the base close factor when
+                // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
+                cFactor = pTokenData.baseCFactor +
                     ((pTokenData.cFactorCurve * data.lFactor) / WAD);
+            }
+
+            if (liqIncentive == 0) {
+                // Fallback to using the base liquidation incentive when
+                // _TRANSIENT_PENALTY_KEY is empty.
+                liqIncentive = pToken.liqBaseIncentive +
+                    ((pToken.liqCurve * data.lFactor) / WAD);
             }
             
             maxAmount =
-            (closeFactor * IEToken(eToken).debtBalanceCached(account)) /
-                 WAD;
+                (cFactor * IEToken(eToken).debtBalanceCached(account)) /
+                WAD;
 
             // Get the exchange rate, and calculate the number of
             // position tokens to seize.
             debtToCollateralRatio =
-                (incentive * data.earnTokenPrice * WAD) /
+                (liqIncentive * data.earnTokenPrice * WAD) /
                 (data.positionTokenPrice *
                     IPToken(pToken).exchangeRateCached());
         }
@@ -1732,40 +1765,44 @@ contract MarketManagerIsolated is
     ///      is returned.
     /// @dev Note: caller must handle the case where the
     ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
-    function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
+    function getLatestAtlasParameters() public view returns (
+        uint256 penalty,
+        uint256 closeFactor
+    ) {
         assembly {
             penalty := tload(_TRANSIENT_PENALTY_KEY)
             closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
         }
-        if (penalty == 0) {
-            penalty = tokenData[positionToken].liqBaseIncentive;
-        }
-        // if closeFactor is not set, 0 is returned. (caller must handle this)
-        // can't handle this here because lFactor is not available in this function
+        // Fallback scenarios where a parameter(s) MUST based handled
+        // separately based on lFactor
     }
 
-    /// @notice Will revert and block liquidations of collateral that are not 
+    /// @notice Will revert and block liquidations of collateral that are not
     ///         currently allowed by Atlas, only if this is an Atlas tx.
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (uint256) {
+    function _checkCollateralUnlocked(
+        address eTokenToLiquidate
+    ) internal view returns (uint256) {
         uint256 result;
         assembly {
             result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
-        // CASE: This is not an Atlas tx, so allow all collaterals, and return no buffer. 
+        // CASE: This is not an Atlas tx, so allow all collaterals,
+        // and return no buffer. 
         if (result == 0) {
             return 0;
         }
 
         address unlockedCollateral = address(uint160(result));
 
-        // This is an Atlas tx, and Atlas liquidator attempted wrong collateral so revert.
+        // This is an Atlas tx, and Atlas liquidator attempted wrong
+        // collateral so revert.
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
 
-        // if we reach this point this is an Atlas tx and collateral is valid, so return 
-        // the atlas buffer. 
+        // if we reach this point this is an Atlas tx and collateral is valid,
+        // so return the atlas buffer. 
         return AUCTION_BUFFER;
     }
 }
