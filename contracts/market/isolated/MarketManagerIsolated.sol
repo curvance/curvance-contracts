@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, IMToken, IEToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -10,12 +10,9 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
@@ -75,7 +72,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      collateral shortfall.
 ///
 contract MarketManagerIsolated is
-    LiquidityManager,
+    LiquidityManagerIsolated,
     ERC165,
     Multicall
 {
@@ -220,7 +217,7 @@ contract MarketManagerIsolated is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) {}
+    ) LiquidityManagerIsolated(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -282,8 +279,6 @@ contract MarketManagerIsolated is
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to check bad debt status for.
-    /// @return accountCollateral The total market value of `account`'s
-    ///                           collateral.
     /// @return accountCollateralSoft The total market value of `account`'s
     ///                               collateral offset by soft liquidation
     ///                               requirements.
@@ -297,19 +292,15 @@ contract MarketManagerIsolated is
         external
         view
         returns (
-            uint256 accountCollateral,
             uint256 accountCollateralSoft,
             uint256 accountCollateralHard,
             uint256 accountDebt
         )
     {
         (
-            accountCollateral,
             accountCollateralSoft,
             accountCollateralHard,
             accountDebt,
-            ,
-
         ) = _liquidationValuesOf(account, address(0), address(0));
     }
 
@@ -338,7 +329,7 @@ contract MarketManagerIsolated is
             uint256 positionTokenPrice
         )
     {
-        LiqData memory result = _liquidationStatusOf(
+        (, , , LiqData memory result) = _liquidationValuesOf(
             account,
             eToken,
             pToken
@@ -1379,7 +1370,6 @@ contract MarketManagerIsolated is
         // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral.
         // Intended to be passed into new _liquidationStatusOf() function.
         uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
-
         MarketToken storage pTokenData = tokenData[pToken];
 
         // Do not let people liquidate 0 collateralization ratio assets.
@@ -1413,8 +1403,8 @@ contract MarketManagerIsolated is
             if (liqIncentive == 0) {
                 // Fallback to using the base liquidation incentive when
                 // _TRANSIENT_PENALTY_KEY is empty.
-                liqIncentive = pToken.liqBaseIncentive +
-                    ((pToken.liqCurve * data.lFactor) / WAD);
+                liqIncentive = pTokenData.liqBaseIncentive +
+                    ((pTokenData.liqCurve * data.lFactor) / WAD);
             }
             
             maxAmount =
