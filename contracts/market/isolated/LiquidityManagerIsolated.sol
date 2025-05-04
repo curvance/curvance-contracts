@@ -121,19 +121,30 @@ abstract contract LiquidityManagerIsolated {
         uint256 positionClosureNeeded;
     }
 
-    /// @notice Data structure returned on liquidation calculation containing
-    ///         lFactor, and c/d token prices for efficient liquidation processing.
-    /// @param lFactor The liquidation factor value corresponding to a users
-    ///                posted collateral vs outstanding debt. A lFactor of 0
-    ///                corresponds to no liquidation available, an lFactor of
-    ///                100% corresponds to a full hard liquidation.
-    /// @param positionTokenPrice The current price of the pToken
-    ///                           to be liquidated.
-    /// @param earnTokenPrice The current price of the eToken to be repaid.
-    struct LiqData {
+    struct AccountLiqData {
+        uint256 accountCollateralSoft;
+        uint256 accountCollateralHard;
+        uint256 accountDebt;
+    }
+
+    struct AuctionLiqData {
         uint256 lFactor;
-        uint256 positionTokenPrice;
-        uint256 earnTokenPrice;
+        uint256 debtBalance;
+        uint256 auctionCFactor;
+        uint256 auctionLiqIncentive;
+    }
+
+    struct CachedLiqData {
+        address pToken;
+        address eToken;
+        uint256 pTokenExchangeRate;
+        uint256 pTokenCollReqSoft;
+        uint256 pTokenCollReqHard;
+        uint256 pTokenUnderlyingPrice;
+        uint256 pTokenDecimals;
+        uint256 eTokenDecimals;
+        uint256 eTokenUnderlyingPrice;
+        uint256 auctionBuffer;
     }
 
     /// CONSTANTS ///
@@ -246,8 +257,8 @@ abstract contract LiquidityManagerIsolated {
     /// @param account The address of the account being evaluated for with a
     ///                hypothetical action.
     /// @param action A HypotheticalAction struct containing:
-    ///               - mTokenModified: The address of the token being modified
-    ///                                 by the action.
+    ///               mTokenModified: The address of the token being modified
+    ///                               by the action.
     ///               redeemTokens The amount of tokens to hypothetically redeem,
     ///                            in `shares`.
     ///               borrowAmount The amount of underlying to hypothetically borrow,
@@ -319,7 +330,7 @@ abstract contract LiquidityManagerIsolated {
                                 posted,
                                 snapshot.exchangeRate,
                                 underlyingPrices[i],
-                                snapshot.decimals,
+                                10 ** snapshot.decimals,
                                 cr
                             );
                         }
@@ -372,7 +383,7 @@ abstract contract LiquidityManagerIsolated {
                                 action.redeemTokens,
                                 snapshot.exchangeRate,
                                 underlyingPrices[i],
-                                snapshot.decimals,
+                                10 ** snapshot.decimals,
                                 cr
                             );
                         }
@@ -430,20 +441,17 @@ abstract contract LiquidityManagerIsolated {
     ///               debt positions.
     /// @param pToken The address of the position token (pToken) representing
     ///               collateral positions.
-    /// @return accountCollateralSoft The account's soft collateral value
-    ///                               (collateral adjusted by soft
-    ///                               requirements).
-    /// @return accountCollateralHard The account's hard collateral value
-    ///                               (collateral adjusted by hard
-    ///                               requirements).
-    /// @return accountDebt The account's total debt value.
-    /// @return result A LiqData struct containing:
-    ///                - lFactor: The liquidation factor determining
-    ///                           liquidation severity.
-    ///                - earnTokenPrice: The price of the underlying asset
-    ///                                  for the eToken.
-    ///                - positionTokenPrice: The price of the underlying asset
-    ///                                      for the pToken.
+    /// @return accountData An AccountLiqData struct containing:
+    ///                     accountCollateralSoft The account's soft collateral value
+    ///                                           (collateral adjusted by soft
+    ///                                           requirements).
+    ///                     accountCollateralHard The account's hard collateral value
+    ///                                           (collateral adjusted by hard
+    ///                                           requirements).
+    ///                     accountDebt The account's total debt value.
+    /// @return lFactor The liquidation factor determining liquidation severity.
+    /// @return earnTokenPrice The price of the underlying asset for the eToken.
+    /// @return positionTokenPrice The price of the underlying asset for the pToken.
     function _liquidationValuesOf(
         address account,
         address eToken,
@@ -452,10 +460,10 @@ abstract contract LiquidityManagerIsolated {
         internal
         view
         returns (
-            uint256 accountCollateralSoft,
-            uint256 accountCollateralHard,
-            uint256 accountDebt,
-            LiqData memory result
+            AccountLiqData memory accountData,
+            uint256 lFactor,
+            uint256 earnTokenPrice,
+            uint256 positionTokenPrice
             )
     {
         (
@@ -470,33 +478,33 @@ abstract contract LiquidityManagerIsolated {
 
             if (snapshot.isPToken) {
                 if (snapshot.asset == pToken) {
-                    result.positionTokenPrice = underlyingPrices[i];
+                    positionTokenPrice = underlyingPrices[i];
                 }
 
                 // If the asset has a CR increment their collateral.
                 if (tokenData[snapshot.asset].collRatio != 0) {
                     {
                         (
-                            accountCollateralSoft,
-                            accountCollateralHard
+                            accountData.accountCollateralSoft,
+                            accountData.accountCollateralHard
                         ) = _addLiquidationValues(
                             snapshot,
                             account,
                             underlyingPrices[i],
-                            accountCollateralSoft,
-                            accountCollateralHard
+                            accountData.accountCollateralSoft,
+                            accountData.accountCollateralHard
                         );
                     }
                 }
             } else {
                 if (snapshot.asset == eToken) {
-                    result.earnTokenPrice = underlyingPrices[i];
+                    earnTokenPrice = underlyingPrices[i];
                 }
 
                 // If they have a debt balance,
                 // we need to document collateral requirements.
                 if (snapshot.debtBalance > 0) {
-                    accountDebt += _assetValue(
+                    accountData.accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
                         snapshot.decimals,
@@ -506,114 +514,103 @@ abstract contract LiquidityManagerIsolated {
             }
         }
 
-        result.lFactor = _getLFactor(
-            accountCollateralSoft,
-            accountCollateralHard,
-            accountDebt
+        lFactor = _getLFactor(
+            accountData.accountCollateralSoft,
+            accountData.accountCollateralHard,
+            accountData.accountDebt
         );
     }
 
-    ///  @notice Evaluates an account's collateral and debt positions to
-    ///          determine liquidation factor using cached data.
-    ///  @param account The address of the account being evaluated for
+    /// @notice Evaluates an account's collateral and debt positions to
+    ///         determine liquidation factor using cached data.
+    /// @param account The address of the account being evaluated for
     ///                 liquidation.
-    ///  @param pToken The address of the collateral token (pToken).
-    ///  @param pTokenCollRatio The collateralization ratio for the pToken.
-    ///  @param pTokenExchangeRate The exchange rate for the pToken.
-    ///  @param pTokenDecimals The number of decimals for the pToken.
-    ///  @param pTokenCollReqSoft The soft collateral requirement for the
-    ///                           pToken.
-    ///  @param pTokenCollReqHard The hard collateral requirement for the
-    ///                           pToken.
-    ///  @param pTokenUnderlyingPrice The price of the underlying asset for
-    ///                               the pToken.
-    ///  @param eToken The address of the debt token (eToken).
-    ///  @param eTokenDecimals The number of decimals for the eToken.
-    ///  @param eTokenUnderlyingPrice The price of the underlying asset for
-    ///                               the eToken.
-    ///  @param buffer An optional buffer multiplier applied to soft
-    ///                collateral (WAD-scaled, use 0 for no buffer).
-    ///  @return uint256 The liquidation factor for `account`.
+    /// @param action A CachedLiqData struct containing:
+    ///               pToken The address of the collateral token (pToken).
+    ///               eToken The address of the debt token (eToken).
+    ///               pTokenExchangeRate The exchange rate for the pToken.
+    ///               pTokenDecimals The number of decimals for the pToken.
+    ///               pTokenCollReqSoft The soft collateral requirement for the
+    ///                                 pToken.
+    ///               pTokenCollReqHard The hard collateral requirement for the
+    ///                                 pToken.
+    ///               pTokenUnderlyingPrice The price of the underlying asset for
+    ///                                     the pToken.
+    
+    ///               eTokenDecimals The number of decimals for the eToken.
+    ///               eTokenUnderlyingPrice The price of the underlying asset for
+    ///                                     the eToken.
+    ///               auctionBuffer An optional buffer multiplier applied to soft
+    ///                             collateral (WAD-scaled, use 0 for no buffer).
+    ///  @return lFactor The liquidation factor for `account`.
+    ///  @return debt The current debt position in `eToken` for `account`.
     function _liquidationValuesOfCached(
         address account,
-        address pToken,
-        uint256 pTokenCollRatio,
-        uint256 pTokenExchangeRate,
-        uint256 pTokenDecimals,
-        uint256 pTokenCollReqSoft,
-        uint256 pTokenCollReqHard,
-        uint256 pTokenUnderlyingPrice,
-        address eToken,
-        uint256 eTokenDecimals,
-        uint256 eTokenUnderlyingPrice,
-        uint256 buffer
+        CachedLiqData memory cachedData
     )
         internal
         view
-        returns (uint256)
+        returns (uint256 lFactor, uint256 debt)
     {
-        uint256 accountCollateralSoft;
-        uint256 accountCollateralHard;
-        uint256 accountDebt;
+        AccountLiqData memory accountData;
         IMToken[] memory assets = accountAssets[account].assets;
-        uint256 numAssets = assets.length;
-        address cachedAsset;
-
-        for (uint256 i; i < numAssets;) {
-            cachedAsset = address(assets[i++]);
-
-            if (cachedAsset == pToken) {
-                // If the asset has a CR increment their collateral.
-                // NOTE: We'd never expect collRatio to be equal to 0
-                // here since this function is only called during
-                // liquidation workflow but we leave this check in
-                // for invariant validation.
-                if (pTokenCollRatio != 0) {
+        
+        {
+            address cachedAsset;
+            // We cannot cache assets.length as we'd run into a
+            // stack too deep compiler error here.
+            for (uint256 i; i < assets.length;) {
+                cachedAsset = address(assets[i++]);
+                if (cachedAsset == cachedData.pToken) {
+                    // NOTE: We already check collRatio in _canLiquidate and
+                    // theres one pToken in an isolated non-rehypothecated market
+                    // so we do not need to check again.
                     (
-                        accountCollateralSoft,
-                        accountCollateralHard
+                        accountData.accountCollateralSoft,
+                        accountData.accountCollateralHard
                     ) = _addLiquidationValuesCached(
-                            pTokenExchangeRate,
-                            pTokenDecimals,
-                            pTokenCollReqSoft,
-                            pTokenCollReqHard,
-                            pTokenUnderlyingPrice,
+                            cachedData.pTokenExchangeRate,
+                            cachedData.pTokenDecimals,
+                            cachedData.pTokenCollReqSoft,
+                            cachedData.pTokenCollReqHard,
+                            cachedData.pTokenUnderlyingPrice,
                             tokenData[cachedAsset]
                                 .accountPositions[account].collateralPosted,
-                            accountCollateralSoft,
-                            accountCollateralHard
+                            accountData.accountCollateralSoft,
+                            accountData.accountCollateralHard
                     );
-                }
-            } else {
-                // If the asset is not the pToken, the asset must be an eToken
-                // debt position because this market is limited to one
-                // pToken and one eToken.
-                
-                uint256 debt = IEToken(eToken).debtBalanceCached(account);
-                // If they have a debt balance,
-                // we need to document collateral requirements.
-                if (debt > 0) {
-                    accountDebt += _assetValue(
-                        debt,
-                        eTokenUnderlyingPrice,
-                        eTokenDecimals,
-                        false
-                    );
+                } else {
+                    // If the asset is not the pToken, the asset must be an `eToken`
+                    // debt position because this market is limited to one
+                    // pToken and one eToken.
+                    debt = IEToken(cachedData.eToken).debtBalanceCached(account);
+                    // If they have a debt balance,
+                    // we need to document collateral requirements.
+                    if (debt > 0) {
+                        accountData.accountDebt += _assetValue(
+                            debt,
+                            cachedData.eTokenUnderlyingPrice,
+                            cachedData.eTokenDecimals,
+                            false
+                        );
+                    }
                 }
             }
         }
 
         // If this is a potential liquidation from an auction, apply the
         // auction buffer to collateral values, discounting collateral values.
-        if (buffer != 0) {
-            accountCollateralSoft = (accountCollateralSoft * buffer) / WAD;
-            accountCollateralHard = (accountCollateralHard * buffer) / WAD;
+        if (cachedData.auctionBuffer != 0) {
+            accountData.accountCollateralSoft =
+                (accountData.accountCollateralSoft * cachedData.auctionBuffer) / WAD;
+            accountData.accountCollateralHard =
+                (accountData.accountCollateralHard * cachedData.auctionBuffer) / WAD;
         }
 
-        return _getLFactor(
-            accountCollateralSoft,
-            accountCollateralHard,
-            accountDebt
+        lFactor = _getLFactor(
+            accountData.accountCollateralSoft,
+            accountData.accountCollateralHard,
+            accountData.accountDebt
         );
     }
 
@@ -704,10 +701,10 @@ abstract contract LiquidityManagerIsolated {
         bool increasesCollateral
     ) internal pure returns (uint256) {
         if (increasesCollateral) {
-            return FixedPointMathLib.mulDiv(amount, price, 10 ** decimals);
+            return FixedPointMathLib.mulDiv(amount, price, decimals);
         }
 
-        return FixedPointMathLib.mulDivUp(amount, price, 10 ** decimals);
+        return FixedPointMathLib.mulDivUp(amount, price, decimals);
     }
 
     /// @notice Calculates a redemption's value based on its `amount`,
@@ -787,7 +784,7 @@ abstract contract LiquidityManagerIsolated {
         address asset = snapshot.asset;
         return _addLiquidationValuesCached(
             snapshot.exchangeRate,
-            snapshot.decimals,
+            10 ** snapshot.decimals,
             tokenData[asset].collReqSoft,
             tokenData[asset].collReqHard,
             price,
