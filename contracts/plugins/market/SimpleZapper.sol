@@ -223,15 +223,12 @@ contract SimpleZapper is ZapperBase {
         // new mToken underlying.
         uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
 
-        // Check whether new deposit is for a PToken or EToken.
-        bool isPToken = IMToken(mToken).isPToken();
-
         // Enter new Curvance mToken position.
         return
             _enterCurvance(
                 mToken,
                 swapData.outputToken,
-                isPToken,
+                IMToken(mToken).isPToken(), // Check whether new deposit is for a PToken or EToken.
                 outAmount,
                 expectedShares,
                 collateralize,

@@ -14,6 +14,7 @@ import { IPositionManagement } from "contracts/interfaces/IPositionManagement.so
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
 /// @dev Curvance Market Managers are built as "thesis driven" micro
@@ -121,9 +122,10 @@ contract MarketManagerIsolated is
     uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
     bytes32 internal constant _TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @dev A fixed key to use in transient storage for dynamic close factor
+    /// @dev A fixed key to use in transient storage for dynamic close factor.
     bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
-    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
+    /// @dev A fixed key to use in transient storage for enforcing a single
+    ///      collateral which can be liquidated during Atlas tx.
     bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
 
     /// STORAGE ///
@@ -164,10 +166,11 @@ contract MarketManagerIsolated is
 
     /// @notice Amount of pToken that has been posted as collateral,
     ///         in shares.
-    /// @dev Token => Collateral Posted.
+    /// @dev Token => User Collateral Posted, in shares.
     mapping(address => uint256) public collateralPosted;
-    /// @notice Amount of pToken that can be posted of collateral, in shares.
-    /// @dev Token => Collateral Cap, in shares.
+    /// @notice Amount of pToken that can be posted of collateral,
+    ///         in shares.
+    /// @dev Token => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
     /// EVENTS ///
@@ -565,81 +568,206 @@ contract MarketManagerIsolated is
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token collateralized by `account` and will
-    ///               be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
     function canLiquidate(
-        address eToken,
-        address pToken,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external view returns (uint256, uint256) {
-        return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+        address liquidator,
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory liqInstructions
+    ) external view returns (
+        IMarketManager.LiqResults memory liqResults,
+        uint256[] memory
+    ) {
+        (
+            CachedLiqData memory cachedData,
+            AuctionLiqData memory auctionData,
+            MarketToken storage pTokenData  
+        ) =_getLiquidationConfig(liqInstructions.eToken, liqInstructions.pToken);
+
+        uint256 numAccounts = accounts.length;
+        address cachedAccount;
+        // Amounts array is empty since the max amount possible
+        // will be liquidated.
+        liqResults.liquidatedAmounts = new uint256[](numAccounts);
+        for (uint256 i; i < numAccounts; ++i) {
+            cachedAccount = accounts[i];
+            if (liquidator == cachedAccount) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            (
+                liqInstructions.eTokenRepaid,
+                liqInstructions.pTokenLiquidated,
+                liqInstructions.badDebt
+                ) = _canLiquidate(
+                cachedAccount,
+                debtAmounts[i],
+                cachedData,
+                auctionData,
+                pTokenData,
+                liqInstructions.liquidateExact
+            );
+
+            // If the user is being liquidated update relevant values.
+            if (liqInstructions.pTokenLiquidated > 0) {
+                liqResults.debtRepaid += liqInstructions.eTokenRepaid;
+                liqResults.liquidatedAmounts[i] = liqInstructions.pTokenLiquidated;
+
+                if (liqInstructions.badDebt > 0) {
+                    liqResults.badDebtRealized += liqInstructions.badDebt;
+                    // Add the bad debt to debt to remove from the liquidated
+                    // account.
+                    liqInstructions.eTokenRepaid += liqInstructions.badDebt;
+                }
+
+                // If its an exact liquidation this will be a redundant setter
+                // but anticipation is majority of liquidators will use non-exact
+                // so checking for liquidateExact each time is a waste.
+                debtAmounts[i] = liqInstructions.eTokenRepaid;
+            }
+        }
+
+        return (liqResults, debtAmounts);
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token which was used as collateral and will
-    ///        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param debtAmounts The amounts of underlying asset the liquidator
+    ///                    wishes to repay, empty if desired to max liquidate.
+    /// @param liqInstructions A LiqInstructions struct containing:
+    ///               eToken Debt token to repay which is borrowed by
+    ///                      `account`.
+    ///               pToken Position token which was used as collateral
+    ///                      and will be seized.
+    ///               numAccounts The number of accounts to be potentially
+    ///                           liquidated.
+    ///               liquidateExact Whether the liquidator desires a
+    ///                              specific liquidation amount.
     function canLiquidateWithExecution(
-        address eToken,
-        address pToken,
         address liquidator,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external returns (uint256, uint256) {
-        _checkIsToken(eToken);
-
-        (uint256 eTokenRepaid, uint256 pTokenLiquidated) = _canLiquidate(
-            eToken,
-            pToken,
-            account,
-            amount,
-            liquidateExact
-        );
-
-        // We can pass balance = 0 here since we are forcing collateral closure
-        // and balance will never be lower than collateral posted.
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory liqInstructions
+    ) external returns (
+        IMarketManager.LiqResults memory liqResults,
+        uint256[] memory
+    ) {
+        _checkIsToken(liqInstructions.eToken);
         (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
-                account,
-                pToken,
-                0,
-                pTokenLiquidated,
-                true
+            CachedLiqData memory cachedData,
+            AuctionLiqData memory auctionData,
+            MarketToken storage pTokenData  
+        ) =_getLiquidationConfig(liqInstructions.eToken, liqInstructions.pToken);
+
+        address cachedAccount;
+        // Amounts array is empty since the max amount possible
+        // will be liquidated.
+        liqResults.liquidatedAmounts = new uint256[](liqInstructions.numAccounts);
+        for (uint256 i; i < liqInstructions.numAccounts; ++i) {
+            cachedAccount = accounts[i];
+            if (liquidator == cachedAccount) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            (
+                liqInstructions.eTokenRepaid,
+                liqInstructions.pTokenLiquidated,
+                liqInstructions.badDebt
+                ) = _canLiquidate(
+                cachedAccount,
+                debtAmounts[i],
+                cachedData,
+                auctionData,
+                pTokenData,
+                liqInstructions.liquidateExact
             );
-        if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                pToken,
-                collateralToRemove
-            );
+
+            // If the user is being liquidated update relevant values.
+            if (liqInstructions.pTokenLiquidated > 0) {
+                liqResults.debtRepaid += liqInstructions.eTokenRepaid;
+                liqResults.liquidatedAmounts[i] = liqInstructions.pTokenLiquidated;
+
+                if (liqInstructions.badDebt > 0) {
+                    liqResults.badDebtRealized += liqInstructions.badDebt;
+                    // Add the bad debt to debt to remove from the liquidated
+                    // account.
+                    liqInstructions.eTokenRepaid += liqInstructions.badDebt;
+                }
+
+                // If its an exact liquidation this will be a redundant setter
+                // but anticipation is majority of liquidators will use non-exact
+                // so checking for liquidateExact each time is a waste.
+                debtAmounts[i] = liqInstructions.eTokenRepaid;
+
+                _removeCollateral(
+                    cachedAccount,
+                    pTokenData.accountPositions[cachedAccount],
+                    liqInstructions.pToken,
+                    liqInstructions.pTokenLiquidated
+                );
+            }
         }
 
-        return (eTokenRepaid, pTokenLiquidated);
+        return (liqResults, debtAmounts);
+    }
+
+    function _getLiquidationConfig(
+        address eToken,
+        address pToken
+    ) internal view returns (
+        CachedLiqData memory cachedData,
+        AuctionLiqData memory auctionData,
+        MarketToken storage pTokenData
+    ) {
+        _checkIsListedToken(eToken);
+        _checkIsListedToken(pToken);
+
+        pTokenData = tokenData[pToken];
+        // Do not let people liquidate 0 collateralization ratio assets.
+        if (pTokenData.collRatio == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
+        // is calculated.
+        (
+            cachedData.pTokenUnderlyingPrice,
+            cachedData.eTokenUnderlyingPrice
+        ) = IOracleManager(
+            centralRegistry.oracleManager()
+        ).getPriceIsolatedPair(eToken, pToken, 2);
+
+        // Cache all variables needed for computing liquidation levels and compress
+        // into one struct for stack too deep limits.
+        cachedData.pToken = pToken;
+        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRateCached();
+        cachedData.pTokenCollReqSoft = tokenData[pToken].collReqSoft;
+        cachedData.pTokenCollReqHard = tokenData[pToken].collReqHard;
+        cachedData.pTokenDecimals = 10 ** IERC20(pToken).decimals();
+        cachedData.eToken = eToken;
+        cachedData.eTokenDecimals = 10 ** IERC20(eToken).decimals();
+
+        // Will revert if during auction transaction and liquidator has chosen
+        // incorrect collateral.
+        cachedData.auctionBuffer = _checkCollateralUnlocked(eToken);
+        // Pull transient storage variables from auctioneer updates.
+        (
+            auctionData.auctionLiqIncentive,
+            auctionData.auctionCFactor
+        ) = getLatestAtlasParameters();
+
+        // We only need to read storage and cache these variables if we did not
+        // receive cFactor/liqIncentive from Atlas.
+        if (auctionData.auctionCFactor == 0) {
+            auctionData.baseCFactor = pTokenData.baseCFactor;
+            auctionData.cFactorCurve = pTokenData.cFactorCurve;
+        }
+
+        if (auctionData.auctionLiqIncentive == 0) {
+            auctionData.liqBaseIncentive = pTokenData.liqBaseIncentive;
+            auctionData.liqCurve = pTokenData.liqCurve;
+        }
     }
 
     /// @notice Checks if the seizing of `collateral` by repayment of
@@ -1333,96 +1461,45 @@ contract MarketManagerIsolated is
 
     /// @notice Helper function for checking if the liquidation should be
     ///         allowed to occur.
-    /// @param eToken Asset which was borrowed by the borrower.
-    /// @param pToken Asset which was used as collateral and will
-    ///                        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param debtAmount The amount of `eToken` desired to liquidate.
-    ///                   When `liquidateExact` is false, this value is
-    ///                   replaced with the maximum executable liquidation
-    ///                   amount.
-    /// @param liquidateExact Whether the liquidator wants to liquidate a
-    ///                       specific amount of debt, used in conjunction
-    ///                       with `debtAmount`.
-    /// @return The amount of `eToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `pToken` tokens to be seized in a
-    ///         liquidation.
     function _canLiquidate(
-        address eToken,
-        address pToken,
         address account,
         uint256 debtAmount,
+        CachedLiqData memory cachedData,
+        AuctionLiqData memory auctionData,
+        MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal view returns (uint256, uint256) {
-        _checkIsListedToken(eToken);
-        _checkIsListedToken(pToken);
-
-        MarketToken storage pTokenData = tokenData[pToken];
-        // Do not let people liquidate 0 collateralization ratio assets.
-        if (pTokenData.collRatio == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        CachedLiqData memory cachedData;
-        AuctionLiqData memory auctionData;
-        // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
-        // is calculated.
-        (
-            cachedData.pTokenUnderlyingPrice,
-            cachedData.eTokenUnderlyingPrice
-        ) = IOracleManager(
-            centralRegistry.oracleManager()
-        ).getPriceIsolatedPair(eToken, pToken, 2);
-
-        (auctionData.auctionLiqIncentive, auctionData.auctionCFactor) = getLatestAtlasParameters();
-        // Cache all variables needed for computing liquidation levels and compress
-        // into one struct for stack too deep limits.
-        cachedData.pToken = pToken;
-        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRateCached();
-        cachedData.pTokenCollReqSoft = tokenData[pToken].collReqSoft;
-        cachedData.pTokenCollReqHard = tokenData[pToken].collReqHard;
-        cachedData.pTokenDecimals = 10 ** IERC20(pToken).decimals();
-        cachedData.eToken = eToken;
-        cachedData.eTokenDecimals = 10 ** IERC20(eToken).decimals();
-
-        // Will revert if during auction transaction and liquidator has chosen
-        // incorrect collateral.
-        cachedData.auctionBuffer = _checkCollateralUnlocked(eToken);
-        uint256 accountLiqIncentive;
-        uint256 accountCFactor;
-
+    ) internal view returns (uint256, uint256, uint256 badDebt) {
         // Calculate the users lFactor and bubble up their active debt.
         (auctionData.lFactor, auctionData.debtBalance) = _liquidationValuesOfCached(
             account,
             cachedData
         );
 
+        if (auctionData.lFactor == 0) {
+            return (0, 0, 0);
+        }
+
         if (auctionData.auctionCFactor == 0) {
             // Fallback to using the base close factor when
             // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
-            accountCFactor = pTokenData.baseCFactor +
-                ((pTokenData.cFactorCurve * auctionData.lFactor) / WAD);
-        } else {
-            accountCFactor = auctionData.auctionCFactor;
+            auctionData.auctionCFactor = auctionData.baseCFactor +
+                ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
         }
 
         if (auctionData.auctionLiqIncentive == 0) {
             // Fallback to using the base liquidation incentive when
             // _TRANSIENT_PENALTY_KEY is empty.
-            accountLiqIncentive = pTokenData.liqBaseIncentive +
-                ((pTokenData.liqCurve * auctionData.lFactor) / WAD);
-        } else {
-            accountLiqIncentive = auctionData.auctionLiqIncentive;
+            auctionData.auctionLiqIncentive = auctionData.liqBaseIncentive +
+                ((auctionData.liqCurve * auctionData.lFactor) / WAD);
         }
 
         // Get the exchange rate, and calculate the number of
         // position tokens to seize.
         uint256 debtToCollateralMultiplier =
-            (accountLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
+            (auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
             (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate);
-
-        uint256 maxAmount = (accountCFactor * auctionData.debtBalance) / WAD;
+      
+        uint256 maxAmount = (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
@@ -1461,13 +1538,37 @@ contract MarketManagerIsolated is
             }
         }
 
-        
-        //_____________________________________
-        //TO-DO update logic to iterate through accounts and roll up data
+        // If the necessary amount of collateral to liquidate `account`'s
+        // overall debt is above their collateral balance, theres bad debt
+        // that should be socialized.
+        uint256 collateralRequired = 
+            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD;
+        if (collateralRequired > collateralAvailable) {
+            badDebt = liquidatedPTokens * WAD;
+            // Get the dollar conversion between debtCollateralRatio by
+            // undoing the liquidation incentive premium, in WAD.
+            // Then divide by the collateral the account has.
+            uint256 shortfallRatio =
+                ((auctionData.debtBalance * debtToCollateralMultiplier * WAD) /
+                auctionData.auctionLiqIncentive) / collateralAvailable;
+
+            // Get prior ratio between debt/collateral before any
+            // liquidation = Shortfall Ratio
+            // Bad Debt = End debt - (end collateral * shortfall ratio)
+            // NOTE: We round UP on expected user outstanding debt meaning
+            // we round down bad debt and thus are in favor of the protocol.
+            badDebt = (auctionData.debtBalance - debtAmount) - 
+                FixedPointMathLib.mulDivUp(
+                    collateralAvailable - liquidatedPTokens,
+                    shortfallRatio,
+                    WAD
+                );
+        }
 
         // Calculate the maximum amount of debt that can be liquidated
-        // and what collateral will be received.
-        return (debtAmount, liquidatedPTokens);
+        // and what collateral will be received. As well as any bad debt
+        // to recognize.
+        return (debtAmount, liquidatedPTokens, badDebt);
     }
 
     /// @notice Helper function for closing user positions after liquidity

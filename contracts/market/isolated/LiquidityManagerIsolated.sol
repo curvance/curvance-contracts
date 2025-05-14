@@ -97,8 +97,8 @@ abstract contract LiquidityManagerIsolated {
     /// @param errorCodeBreakpoint The error code that will cause liquidity
     ///                            operations to revert. We reuse
     ///                            `errorCodeBreakpoint` as a return variable
-    ///                            as a garbage collection flag to minimize local
-    ///                            variables.
+    ///                            as a garbage collection flag to minimize
+    ///                            local variables.
     struct HypotheticalAction {
         address mTokenModified;
         uint256 redeemTokens;
@@ -132,6 +132,10 @@ abstract contract LiquidityManagerIsolated {
         uint256 debtBalance;
         uint256 auctionCFactor;
         uint256 auctionLiqIncentive;
+        uint256 baseCFactor;
+        uint256 cFactorCurve;
+        uint256 liqBaseIncentive;
+        uint256 liqCurve;
     }
 
     struct CachedLiqData {
@@ -554,7 +558,7 @@ abstract contract LiquidityManagerIsolated {
     {
         AccountLiqData memory accountData;
         IMToken[] memory assets = accountAssets[account].assets;
-        
+
         {
             address cachedAsset;
             // We cannot cache assets.length as we'd run into a

@@ -416,11 +416,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         uint256[] calldata amounts,
         address pToken
     ) external nonReentrant {
-        if (accounts.length != amounts.length) {
+        uint256 numAccounts = accounts.length;
+        if (numAccounts != amounts.length) {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
-        _liquidate(msg.sender, accounts, amounts, pToken, true);
+        _liquidate(msg.sender, accounts, amounts, pToken, numAccounts, true);
     }
 
     /// @notice Liquidates `account`'s as much collateral as possible by
@@ -429,13 +430,21 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Updates pending interest before executing the liquidation.
     /// @param accounts The addresses of the accounts to be liquidated.
     /// @param pToken The market in which to seize collateral from `account`.
-    function liquidate(address[] calldata accounts, address pToken) external nonReentrant {
-        uint256[] memory amounts;
+    function liquidate(
+        address[] calldata accounts,
+        address pToken
+    ) external nonReentrant {
+        uint256 numAccounts = accounts.length;
+        // Amounts array is empty since the max amount possible
+        // will be liquidated.
+        uint256[] memory amounts = new uint256[](numAccounts);
+        
         _liquidate(
             msg.sender,
             accounts,
-            amounts, // Amounts array is empty since the max amount possible will be liquidated.
+            amounts,
             pToken,
+            numAccounts,
             false
         );
     }
@@ -1250,6 +1259,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///                populate real liquidation amounts after calculations.
     /// @param pToken The market in which to seize collateral from
     ///               the account.
+    /// @param numAccounts The number of accounts to be potentially
+    ///                    liquidated.
     /// @param exactAmount Whether a specific amount of debt token assets
     ///                    should be liquidated inputting false will attempt
     ///                    to liquidate the maximum amount possible.
@@ -1258,6 +1269,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         address[] memory accounts,
         uint256[] memory amounts,
         address pToken,
+        uint256 numAccounts,
         bool exactAmount
     ) internal {
         // Update pending interest.
@@ -1273,34 +1285,35 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             _revert(_VALIDATION_FAILED_SELECTOR);
         }
 
-        uint256[] memory liquidatedAmounts;
-        uint256 debtRepaid;
-        uint256 badDebtRealized;
+        IMarketManager.LiqResults memory liqResults;
 
         // Fail if liquidate not allowed,
         // trying to pay too much debt with excessive `amount` will revert.
         (
-            amounts,
-            liquidatedAmounts,
-            debtRepaid,
-            badDebtRealized
+            liqResults,
+            amounts
         ) = marketManager.canLiquidateWithExecution(
-            address(this),
-            pToken,
             liquidator,
             accounts,
             amounts,
-            exactAmount
+            IMarketManager.LiqInstructions({
+                eToken: address(this),
+                pToken: pToken,
+                numAccounts: numAccounts,
+                liquidateExact: exactAmount,
+                eTokenRepaid: 0,
+                pTokenLiquidated: 0,
+                badDebt: 0
+            })
         );
 
         SafeTransferLib.safeTransferFrom(
             underlying,
             liquidator,
             address(this),
-            debtRepaid
+            liqResults.debtRepaid
         );
 
-        uint256 numAccounts = accounts.length;
         uint256 currentExchangeRate = marketData.exchangeRate;
         uint256 cachedAmount;
         address cachedAccount;
@@ -1317,19 +1330,15 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             cachedAccount = accounts[i];
 
             uint256 accountDebt = debtBalanceCached(accounts[i]);
-            // Validate repayment amount is not excessive.
-            // TO-DO check if this is redundant with canLiquidateWithExecution
-            // canLiquidateWithExecution check.
-            if (cachedAmount > accountDebt) {
-                revert EToken__ExcessiveValue();
-            }
+            // We do not need to check `amounts[i]` against `accountDebt`
+            // because amounts are already sanitized inside
+            // canLiquidateWithExecution.
 
             // We calculate the new account and total borrow balances,
-            // we check that amount is <= accountDebt so we can skip
-            // underflow check here.
-            unchecked {
-                _debtOf[cachedAccount].principal = accountDebt - cachedAmount;
-            }
+            // we check that amount is <= accountDebt inside
+            // canLiquidateWithExecution but we redundantly leave in
+            // underflow check incase invariants are broken.
+            _debtOf[cachedAccount].principal = accountDebt - cachedAmount;
 
             // Update the account specific exchange rate.
             _debtOf[cachedAccount].accountExchangeRate = currentExchangeRate;
@@ -1340,14 +1349,14 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // liquidator, plus the bad debt being realized. We can reuse
         // debtRepaid variable since the original debt repayment value
         // was already used earlier.
-        debtRepaid = debtRepaid + badDebtRealized;
-        if (totalBorrows < debtRepaid) {
+        liqResults.debtRepaid += liqResults.badDebtRealized;
+        if (totalBorrows < liqResults.debtRepaid) {
             // We round user debt in favor of the protocol to prevent exchange
             // rate manipulation, as a result in some cases the last user cannot
             // fully repay their debt.
             totalBorrows = 0;
         } else {
-            totalBorrows -= debtRepaid;
+            totalBorrows -= liqResults.debtRepaid;
         }
 
         // We check above that the mToken must be a position token,
@@ -1355,12 +1364,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // so there is no reEntry risk.
         IPToken(pToken).seize(
             liquidator, accounts,
-            liquidatedAmounts,
+            liqResults.liquidatedAmounts,
             address(this)
         );
 
-        if (badDebtRealized > 0) {
-            emit BadDebtRecognized(liquidator, badDebtRealized);
+        if (liqResults.badDebtRealized > 0) {
+            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
         }
     }
 

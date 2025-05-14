@@ -4,6 +4,24 @@ pragma solidity ^0.8.26;
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 interface IMarketManager {
+    /// TYPES ///
+
+    struct LiqInstructions {
+        address eToken;
+        address pToken;
+        uint256 numAccounts;
+        bool liquidateExact;
+        uint256 eTokenRepaid;
+        uint256 pTokenLiquidated;
+        uint256 badDebt;
+    }
+
+    struct LiqResults {
+        uint256[] liquidatedAmounts;
+        uint256 debtRepaid;
+        uint256 badDebtRealized;
+    }
+
     /// @notice Whether mToken minting is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function mintPaused(address mToken) external view returns (uint256);
@@ -85,32 +103,13 @@ interface IMarketManager {
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external;
 
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many position tokens should be seized
-    ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token which was used as collateral and will
-    ///        be seized.
-    /// @param accounts The accounts to be liquidated.
-    /// @param amounts The amounts of the underlying borrowed asset to repay,
-    ///                if exact liquidation, otherwise an empty array to
-    ///                populate real liquidation amounts after calculations.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return An array containing the amounts of underlying tokens repaid
-    ///         on liquidation.
-    /// @return An array containing the amounts of pTokens to be seized in
-    ///         a liquidation.
-    /// @return The total amount of debt to repay lenders.
-    /// @return The total amount of bad debt to be recognized by lenders.
+    /// @notice Checks if the liquidation should be allowed to occur
     function canLiquidateWithExecution(
-        address eToken,
-        address pToken,
         address liquidator,
-        address[] memory accounts,
-        uint256[] memory amounts,
-        bool liquidateExact
-    ) external returns (uint256[] memory, uint256[] memory, uint256, uint256);
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory liqInstructions
+    ) external returns (LiqResults memory, uint256[] memory);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
     /// @param pToken Asset which was used as collateral and will be seized.
@@ -163,10 +162,21 @@ interface IMarketManager {
         uint256 collReqHard,
         uint256 liqBaseIncentive,
         uint256 liqCurve,
-        uint256 liqFee,
+        uint256 liqMinIncentive,
+        uint256 liqMaxIncentive,
+        uint256 minEffectiveCloseFactor,
+        uint256 maxEffectiveCloseFactor,
         uint256 baseCFactor,
         uint256 cFactorCurve
     );
+
+    /// @notice Amount of pToken that has been posted as collateral,
+    ///         in shares.
+    function collateralPosted(address pToken) external view returns (uint256);
+
+    /// @notice Amount of pToken that can be posted of collateral,
+    ///         in shares.
+    function collateralCaps(address pToken) external view returns (uint256);
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
@@ -191,6 +201,24 @@ interface IMarketManager {
     /// @return accountDebt total borrow amount of account.
     function statusOf(
         address account
+    ) external view returns (uint256, uint256, uint256);
+
+    /// @notice Determine whether `account` can be liquidated,
+    ///         by calculating their lFactor, based on their
+    ///         collateral versus outstanding debt.
+    /// @param account The account to check liquidation status for.
+    /// @param eToken The eToken to be repaid during potential liquidation.
+    /// @param pToken The pToken to be seized during potential
+    ///                        liquidation.
+    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
+    ///                 indicates a soft liquidation, with a value of
+    ///                 1e18 (WAD) indicating a hard liquidation.
+    /// @return earnTokenPrice Current price for `earnToken`.
+    /// @return positionTokenPrice Current price for `positionToken`.
+    function liquidationStatusOf(
+        address account,
+        address eToken,
+        address pToken
     ) external view returns (uint256, uint256, uint256);
 
     /// @notice Returns whether `positionContract` is an approved position
