@@ -11,9 +11,18 @@ contract LiquidateExactTest is TestBaseEToken {
     }
 
     function test_liquidateExact_success() public {
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250e6;
+        
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 250e6);
-        eUSDC.liquidateExact(user1, 250e6, address(pBALRETH));
+        eUSDC.liquidateExact(
+            accounts,
+            debtAmounts,
+            address(pBALRETH)
+        );
         vm.stopPrank();
 
         _checkLiquidationResult();

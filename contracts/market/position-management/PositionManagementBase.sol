@@ -565,7 +565,7 @@ abstract contract PositionManagementBase is
             10 ** IPToken(positionToken).decimals()
         );
 
-        (, uint256 collRatio, , , , , , , ) = marketManager.tokenData(
+        (, uint256 collRatio, , , , , , , , , ,) = marketManager.tokenData(
             positionToken
         );
 

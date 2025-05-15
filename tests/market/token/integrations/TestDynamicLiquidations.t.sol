@@ -150,7 +150,16 @@ contract TestDynamicLiquidations is TestBaseMarket {
         vm.expectRevert(
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
-        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250 ether;
+
+        eDAI.liquidateExact(
+            accounts,
+            debtAmounts, 
+            address(pBALRETH));
     }
 
     function testLiquidateWorksWhenAboveColReqA() public {
@@ -181,7 +190,17 @@ contract TestDynamicLiquidations is TestBaseMarket {
         _prepareDAI(user2, 250 ether);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 250 ether);
-        eDAI.liquidateExact(user1, 250 ether, address(pBALRETH));
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250 ether;
+        
+        eDAI.liquidateExact(
+            accounts,
+            debtAmounts,
+            address(pBALRETH)
+        );
         vm.stopPrank();
 
         assertApproxEqRel(

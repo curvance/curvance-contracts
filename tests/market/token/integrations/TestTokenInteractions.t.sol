@@ -395,7 +395,14 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 250e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 250e18);
-        eDAI.liquidateExact(user1, 250e18, address(pBALRETH));
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250e18;
+        eDAI.liquidateExact(
+            accounts,
+            debtAmounts,
+            address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -438,7 +445,13 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 10_000e18);
-        eDAI.liquidate(user1, address(pBALRETH));
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+
+        eDAI.liquidate(
+            accounts,
+            address(pBALRETH));
+    
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -475,7 +488,11 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 10_000e18);
-        eDAI.liquidate(user1, address(pBALRETH));
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        eDAI.liquidate(
+            accounts,
+            address(pBALRETH));
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 0);
@@ -520,7 +537,13 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 1000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 1000e18);
-        eDAI.liquidate(user1, address(pBALRETH));
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+
+        eDAI.liquidate(
+            accounts,
+            address(pBALRETH));
         vm.stopPrank();
 
         assertApproxEqRel(
@@ -582,10 +605,16 @@ contract TestTokenInteractions is TestBaseMarket {
         _prepareDAI(user2, 10_000e18);
         vm.startPrank(user2);
         dai.approve(address(eDAI), 10_000e18);
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        eDAI.liquidate(user1, address(pBALRETH));
+        eDAI.liquidate(
+            accounts,
+            address(pBALRETH));
         vm.stopPrank();
 
         vm.prank(user1);

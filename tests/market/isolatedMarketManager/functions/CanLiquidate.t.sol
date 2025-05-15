@@ -6,29 +6,44 @@ import { MarketManager } from "contracts/market/MarketManager.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 
 contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
+    
+    address[] accounts = new address[](1);
+    uint256[] debtAmounts = new uint256[](1);
+    IMarketManager.LiqInstructions liqInstructions = IMarketManager.LiqInstructions({
+        eToken: address(eUSDC),
+        pToken: address(pBALRETH),
+        numAccounts: 1,
+        liquidateExact: false,
+        eTokenRepaid: 0,
+        pTokenLiquidated: 0,
+        badDebt: 0
+    });
+
+    constructor() {
+        accounts[0] = user1;
+        debtAmounts[0] = 1000e6;
+    }
+    
     function test_canLiquidate_fail_whenETokenNotListed() public {
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_fail_whenPTokenNotListed() public {
         // marketManager.listToken(address(eUSDC));
         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
@@ -44,12 +59,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             MarketManager.MarketManager__InvalidParameter.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
@@ -65,8 +78,9 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%,
+            2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
@@ -76,12 +90,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_fail_whenAccountHasNoBorrowsAndCollateralPosted()
@@ -99,6 +111,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -110,12 +123,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_fail_whenShortfallInsufficient() public {
@@ -153,6 +164,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -177,12 +189,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
     }
 
     function test_canLiquidate_success() public {
@@ -198,8 +208,9 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
+            2000,    // liqIncMax 20%,
             2000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
@@ -240,12 +251,10 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             MarketManager.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
-            address(eUSDC),
-            address(pBALRETH),
-            user1,
-            1000e6,
-            false
-        );
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
 
         // Price of ETH drops and balRETH collateral goes below required collateral ratio
         // and can now liquidate
@@ -253,16 +262,16 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1000e8);
 
         // =================== RESULTS ==================
-        (uint256 liqAmount, uint256 liquidatedTokens) = marketManager
-            .canLiquidate(
-                address(eUSDC),
-                address(pBALRETH),
-                user1,
-                1000e6,
-                false
-            );
+        (
+            IMarketManager.LiqResults memory liqResults,
+            uint256[] memory debtAmountsReturned
+        ) = marketManager.canLiquidate(
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
 
-        (, , , , , , , , uint256 baseCFactor, uint256 cFactorCurve, ) = marketManager
+        (, , , , , , , , uint256 baseCFactor, uint256 cFactorCurve, , ) = marketManager
             .tokenData(address(pBALRETH));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
@@ -283,6 +292,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 ,
                 ,
                 uint256 liqBaseIncentive,
+                ,
                 ,
                 ,
                 ,
@@ -309,13 +319,14 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         }
 
         assertEq(
-            liqAmount,
+            liqResults.liquidatedAmounts[0],
             expectedLiqAmount,
             "canLiquidate() returns the max liquidation amount based on close factor"
         );
 
+        // TODO: update this assert, will fail.
         assertEq(
-            liquidatedTokens,
+            liqResults.liquidatedAmounts[0],
             collateralAvailable,
             "canLiquidate() returns the amount of PTokens to be seized in liquidation"
         );

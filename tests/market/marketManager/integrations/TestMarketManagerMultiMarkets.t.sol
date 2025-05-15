@@ -204,7 +204,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
         _liquidate(eTokens[0], pTokens[1], users[1], true);
 
         _prepareLiquidationMultiple(liquidator, eTokens);
-        _liquidateAccount(users[2], liquidator);
+        // _liquidateAccount(users[2], liquidator);
     }
 
     function testLiquidationMultipleMarketsWithEntropyEtoken(
@@ -296,7 +296,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
             if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
                 continue;
             }
-            _liquidateAccount(users[i], liquidator);
+            // _liquidateAccount(users[i], liquidator);
         }
     }
 

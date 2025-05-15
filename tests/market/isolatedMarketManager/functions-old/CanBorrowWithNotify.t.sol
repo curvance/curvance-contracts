@@ -98,6 +98,7 @@ contract CanBorrowWithNotifyIsolatedMarketManager is TestBaseMarketManager {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -156,6 +157,7 @@ contract CanBorrowWithNotifyIsolatedMarketManager is TestBaseMarketManager {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%

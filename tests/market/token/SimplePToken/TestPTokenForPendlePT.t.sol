@@ -448,7 +448,17 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         _prepareUSDC(user2, 250e6);
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 250e6);
-        eUSDC.liquidateExact(user1, 250e6, address(cPendlePT));
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 250e6;
+
+        eUSDC.liquidateExact(
+            accounts,
+            debtAmounts,
+            address(cPendlePT)
+        );
         vm.stopPrank();
 
         uint256 liquidatedAmount = 250e6;
@@ -493,7 +503,13 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         _prepareUSDC(user2, 1000e6);
         vm.startPrank(user2);
         usdc.approve(address(eUSDC), 1000e6);
-        eUSDC.liquidate(user1, address(cPendlePT));
+        address[] memory accounts = new address[](1);
+        accounts[0] = user1;
+
+        eUSDC.liquidate(
+            accounts,
+            address(cPendlePT)
+        );
         vm.stopPrank();
 
         uint256 liquidatedAmount = 590e6;

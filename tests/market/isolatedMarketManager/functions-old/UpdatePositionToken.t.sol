@@ -28,6 +28,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -41,6 +42,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             uint256 collReqSoft,
             uint256 collReqHard,
             uint256 liqBaseIncentive,
+            uint256 liqHardIncentive,
             uint256 liqMinIncentive,
             uint256 liqMaxIncentive,
             uint256 minEffectiveCloseFactor,
@@ -69,7 +71,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         // Should revert with MarketManager__Unauthorized()
         vm.expectRevert(abi.encodeWithSignature("MarketManager__Unauthorized()"));
         marketManager.updatePositionToken(
-            7000, 4000, 3000, 1000, 500, 2000, 2000, 5000, 2000
+            7000, 4000, 3000, 1000, 1500, 500, 2000, 2000, 5000, 2000
         );
     }
 
@@ -83,6 +85,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -101,6 +104,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             23500,   // collReqSoft 235% (above max)
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -119,6 +123,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             5000,    // collReqHard 50% (should be < collReqSoft)
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -132,6 +137,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             5000,    // collReqHard 40% (should be < collReqSoft not equal)
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -150,6 +156,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1500,    // liqIncBase 15%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             1400,    // liqIncMax 14% (should be >= liqIncBase)
             2000,    // minEffectiveCFactor 20%
@@ -163,6 +170,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10% (should be >= liqIncMin)
+            1500,    // liqIncHard 15%
             1500,    // liqIncMin 15% 
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -182,6 +190,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             3100,    // liqIncMax 31% (max is 30%)
             2000,    // minEffectiveCFactor 20%
@@ -200,6 +209,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             2001,    // liqIncMin 20.01%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -219,6 +229,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             1000,    // collReqHard 10% (too low)
             700,     // liqIncBase 7%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             900,     // liqIncMax 9% ((9 + 1.5% buffer) = 10.5%) > 10%
             2000,    // minEffectiveCFactor 20%
@@ -237,6 +248,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -250,6 +262,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -271,6 +284,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -290,6 +304,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -305,6 +320,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
