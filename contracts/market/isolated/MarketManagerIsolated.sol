@@ -572,7 +572,8 @@ contract MarketManagerIsolated is
         address liquidator,
         address[] calldata accounts,
         uint256[] memory debtAmounts,
-        IMarketManager.LiqInstructions memory liqInstructions
+        IMarketManager.LiqInstructions memory liqInstructions,
+        bool revertIfNoLiquidations
     ) external view returns (
         IMarketManager.LiqResults memory liqResults,
         uint256[] memory
@@ -624,6 +625,10 @@ contract MarketManagerIsolated is
                 // so checking for liquidateExact each time is a waste.
                 debtAmounts[i] = liqInstructions.eTokenRepaid;
             }
+        }
+
+        if (revertIfNoLiquidations && liqResults.debtRepaid == 0) {
+            revert MarketManager__NoLiquidationAvailable();
         }
 
         return (liqResults, debtAmounts);
@@ -707,6 +712,11 @@ contract MarketManagerIsolated is
                     liqInstructions.pTokenLiquidated
                 );
             }
+        }
+
+        // If theres no debt to repay then there were no liquidations.
+        if (liqResults.debtRepaid == 0) {
+            revert MarketManager__NoLiquidationAvailable();
         }
 
         return (liqResults, debtAmounts);
