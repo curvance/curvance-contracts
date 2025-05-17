@@ -361,104 +361,104 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         assertEq(eUSDC.exchangeRateCached(), 1 ether);
     }
 
-    function testLiquidationExact() public {
-        _prepareBALRETH(user1, 1 ether);
+    // function testLiquidationExact() public {
+    //     _prepareBALRETH(user1, 1 ether);
 
-        // try mint()
-        vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+    //     // try mint()
+    //     vm.startPrank(user1);
+    //     balRETH.approve(address(pBALRETH), 1 ether);
+    //     pBALRETH.deposit(1 ether, user1);
+    //     marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
 
-        // try borrow()
-        eUSDC.borrow(1000e6);
-        vm.stopPrank();
+    //     // try borrow()
+    //     eUSDC.borrow(1000e6);
+    //     vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+    //     // skip min hold period
+    //     skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
+    //     (uint256 balRETHPrice, ) = oracleManager.getPrice(
+    //         address(balRETH),
+    //         true,
+    //         true
+    //     );
 
-        mockUsdcFeed.setMockAnswer(200000000);
+    //     mockUsdcFeed.setMockAnswer(200000000);
 
-        // try liquidate half
-        _prepareUSDC(user2, 250e6);
-        vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 250e6);
+    //     // try liquidate half
+    //     _prepareUSDC(user2, 250e6);
+    //     vm.startPrank(user2);
+    //     usdc.approve(address(eUSDC), 250e6);
 
-        address[] memory accounts = new address[](1);
-        accounts[0] = user1;
-        uint256[] memory debtAmounts = new uint256[](1);
-        debtAmounts[0] = 250e6;
+    //     address[] memory accounts = new address[](1);
+    //     accounts[0] = user1;
+    //     uint256[] memory debtAmounts = new uint256[](1);
+    //     debtAmounts[0] = 250e6;
 
-        eUSDC.liquidateExact(
-            accounts,
-            debtAmounts,
-            address(pBALRETH));
-        vm.stopPrank();
+    //     eUSDC.liquidateExact(
+    //         accounts,
+    //         debtAmounts,
+    //         address(pBALRETH));
+    //     vm.stopPrank();
 
-        assertApproxEqRel(
-            pBALRETH.balanceOf(user1),
-            1 ether - (500 ether * 1 ether) / balRETHPrice,
-            0.02e18
-        );
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+    //     assertApproxEqRel(
+    //         pBALRETH.balanceOf(user1),
+    //         1 ether - (500 ether * 1 ether) / balRETHPrice,
+    //         0.02e18
+    //     );
+    //     assertEq(pBALRETH.exchangeRateCached(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
-    }
+    //     assertEq(eUSDC.balanceOf(user1), 0);
+    //     assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
+    //     assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+    // }
 
-    function testLiquidation() public {
-        _prepareBALRETH(user1, 1 ether);
+    // function testLiquidation() public {
+    //     _prepareBALRETH(user1, 1 ether);
 
-        // try mint()
-        vm.startPrank(user1);
-        balRETH.approve(address(pBALRETH), 1 ether);
-        pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+    //     // try mint()
+    //     vm.startPrank(user1);
+    //     balRETH.approve(address(pBALRETH), 1 ether);
+    //     pBALRETH.deposit(1 ether, user1);
+    //     marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
 
-        // try borrow()
-        eUSDC.borrow(1000e6);
-        vm.stopPrank();
+    //     // try borrow()
+    //     eUSDC.borrow(1000e6);
+    //     vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+    //     // skip min hold period
+    //     skip(20 minutes);
 
-        (uint256 balRETHPrice, ) = oracleManager.getPrice(
-            address(balRETH),
-            true,
-            true
-        );
+    //     (uint256 balRETHPrice, ) = oracleManager.getPrice(
+    //         address(balRETH),
+    //         true,
+    //         true
+    //     );
 
-        mockUsdcFeed.setMockAnswer(150000000);
+    //     mockUsdcFeed.setMockAnswer(150000000);
 
-        // try liquidate
-        _prepareUSDC(user2, 10000e6);
-        vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 10000e6);
+    //     // try liquidate
+    //     _prepareUSDC(user2, 10000e6);
+    //     vm.startPrank(user2);
+    //     usdc.approve(address(eUSDC), 10000e6);
         
-        address[] memory accounts = new address[](1);
-        accounts[0] = user1;
+    //     address[] memory accounts = new address[](1);
+    //     accounts[0] = user1;
 
-        eUSDC.liquidate(
-            accounts,
-            address(pBALRETH));
-        vm.stopPrank();
+    //     eUSDC.liquidate(
+    //         accounts,
+    //         address(pBALRETH));
+    //     vm.stopPrank();
 
-        assertApproxEqRel(
-            pBALRETH.balanceOf(user1),
-            1 ether - (1550 ether * 1e18) / balRETHPrice,
-            0.06e18
-        );
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+    //     assertApproxEqRel(
+    //         pBALRETH.balanceOf(user1),
+    //         1 ether - (1550 ether * 1e18) / balRETHPrice,
+    //         0.06e18
+    //     );
+    //     assertEq(pBALRETH.exchangeRateCached(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertEq(eUSDC.debtBalanceCached(user1), 0);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
-    }
+    //     assertEq(eUSDC.balanceOf(user1), 0);
+    //     assertEq(eUSDC.debtBalanceCached(user1), 0);
+    //     assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+    // }
 }

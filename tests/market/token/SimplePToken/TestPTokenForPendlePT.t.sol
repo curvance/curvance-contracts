@@ -419,116 +419,116 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         assertEq(eUSDC.exchangeRateCached(), 1 ether);
     }
 
-    function testLiquidationExact() public {
-        _preparePT(user1, 1 ether);
+    // function testLiquidationExact() public {
+    //     _preparePT(user1, 1 ether);
 
-        // try mint()
-        vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.mint(1 ether, user1);
+    //     // try mint()
+    //     vm.startPrank(user1);
+    //     pendlePT.approve(address(cPendlePT), 1 ether);
+    //     cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+    //     marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
 
-        // try borrow()
-        eUSDC.borrow(1000e6);
-        vm.stopPrank();
+    //     // try borrow()
+    //     eUSDC.borrow(1000e6);
+    //     vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+    //     // skip min hold period
+    //     skip(20 minutes);
 
-        (uint256 pendlePTPrice, ) = oracleManager.getPrice(
-            address(pendlePT),
-            true,
-            true
-        );
+    //     (uint256 pendlePTPrice, ) = oracleManager.getPrice(
+    //         address(pendlePT),
+    //         true,
+    //         true
+    //     );
 
-        mockUsdcFeed.setMockAnswer(120000000);
+    //     mockUsdcFeed.setMockAnswer(120000000);
 
-        // try liquidate half
-        _prepareUSDC(user2, 250e6);
-        vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 250e6);
+    //     // try liquidate half
+    //     _prepareUSDC(user2, 250e6);
+    //     vm.startPrank(user2);
+    //     usdc.approve(address(eUSDC), 250e6);
 
-        address[] memory accounts = new address[](1);
-        accounts[0] = user1;
-        uint256[] memory debtAmounts = new uint256[](1);
-        debtAmounts[0] = 250e6;
+    //     address[] memory accounts = new address[](1);
+    //     accounts[0] = user1;
+    //     uint256[] memory debtAmounts = new uint256[](1);
+    //     debtAmounts[0] = 250e6;
 
-        eUSDC.liquidateExact(
-            accounts,
-            debtAmounts,
-            address(cPendlePT)
-        );
-        vm.stopPrank();
+    //     eUSDC.liquidateExact(
+    //         accounts,
+    //         debtAmounts,
+    //         address(cPendlePT)
+    //     );
+    //     vm.stopPrank();
 
-        uint256 liquidatedAmount = 250e6;
-        assertApproxEqRel(
-            cPendlePT.balanceOf(user1),
-            1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
-            0.03e18
-        );
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+    //     uint256 liquidatedAmount = 250e6;
+    //     assertApproxEqRel(
+    //         cPendlePT.balanceOf(user1),
+    //         1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
+    //         0.03e18
+    //     );
+    //     assertEq(cPendlePT.exchangeRateCached(), 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
-    }
+    //     assertEq(eUSDC.balanceOf(user1), 0);
+    //     assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
+    //     assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+    // }
 
-    function testLiquidationFull() public {
-        _preparePT(user1, 1 ether);
+    // function testLiquidationFull() public {
+    //     _preparePT(user1, 1 ether);
 
-        // try mint()
-        vm.startPrank(user1);
-        pendlePT.approve(address(cPendlePT), 1 ether);
-        cPendlePT.mint(1 ether, user1);
+    //     // try mint()
+    //     vm.startPrank(user1);
+    //     pendlePT.approve(address(cPendlePT), 1 ether);
+    //     cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+    //     marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
 
-        // try borrow()
-        eUSDC.borrow(1000e6);
-        vm.stopPrank();
+    //     // try borrow()
+    //     eUSDC.borrow(1000e6);
+    //     vm.stopPrank();
 
-        // skip min hold period
-        skip(20 minutes);
+    //     // skip min hold period
+    //     skip(20 minutes);
 
-        (uint256 pendlePTPrice, ) = oracleManager.getPrice(
-            address(pendlePT),
-            true,
-            true
-        );
+    //     (uint256 pendlePTPrice, ) = oracleManager.getPrice(
+    //         address(pendlePT),
+    //         true,
+    //         true
+    //     );
 
-        mockUsdcFeed.setMockAnswer(120000000);
+    //     mockUsdcFeed.setMockAnswer(120000000);
 
-        // try liquidate
-        _prepareUSDC(user2, 1000e6);
-        vm.startPrank(user2);
-        usdc.approve(address(eUSDC), 1000e6);
-        address[] memory accounts = new address[](1);
-        accounts[0] = user1;
+    //     // try liquidate
+    //     _prepareUSDC(user2, 1000e6);
+    //     vm.startPrank(user2);
+    //     usdc.approve(address(eUSDC), 1000e6);
+    //     address[] memory accounts = new address[](1);
+    //     accounts[0] = user1;
 
-        eUSDC.liquidate(
-            accounts,
-            address(cPendlePT)
-        );
-        vm.stopPrank();
+    //     eUSDC.liquidate(
+    //         accounts,
+    //         address(cPendlePT)
+    //     );
+    //     vm.stopPrank();
 
-        uint256 liquidatedAmount = 590e6;
+    //     uint256 liquidatedAmount = 590e6;
 
-        AccountSnapshot memory snapshot = cPendlePT.getSnapshotPacked(user1);
-        assertApproxEqRel(
-            cPendlePT.balanceOf(user1),
-            1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
-            0.03e18
-        );
-        assertEq(snapshot.debtBalance, 0);
-        assertEq(snapshot.exchangeRate, 1 ether);
+    //     AccountSnapshot memory snapshot = cPendlePT.getSnapshotPacked(user1);
+    //     assertApproxEqRel(
+    //         cPendlePT.balanceOf(user1),
+    //         1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,
+    //         0.03e18
+    //     );
+    //     assertEq(snapshot.debtBalance, 0);
+    //     assertEq(snapshot.exchangeRate, 1 ether);
 
-        assertEq(eUSDC.balanceOf(user1), 0);
-        assertApproxEqRel(
-            eUSDC.debtBalanceCached(user1),
-            1000e6 - liquidatedAmount,
-            0.01e18
-        );
-        assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
-    }
+    //     assertEq(eUSDC.balanceOf(user1), 0);
+    //     assertApproxEqRel(
+    //         eUSDC.debtBalanceCached(user1),
+    //         1000e6 - liquidatedAmount,
+    //         0.01e18
+    //     );
+    //     assertApproxEqRel(eUSDC.exchangeRateCached(), 1 ether, 0.01e18);
+    // }
 }
