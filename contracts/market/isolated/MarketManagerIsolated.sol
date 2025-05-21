@@ -1544,8 +1544,8 @@ contract MarketManagerIsolated is
         // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
         // is calculated.
         (
-            cachedData.pTokenUnderlyingPrice,
-            cachedData.eTokenUnderlyingPrice
+            cachedData.eTokenUnderlyingPrice,
+            cachedData.pTokenUnderlyingPrice
         ) = IOracleManager(
             centralRegistry.oracleManager()
         ).getPriceIsolatedPair(eToken, pToken, 2);

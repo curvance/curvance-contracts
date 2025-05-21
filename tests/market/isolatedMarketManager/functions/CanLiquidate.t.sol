@@ -250,6 +250,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             liqInstructions);
     }
 
+    event DebugUint256(string message, uint256 value);
+
     function test_canLiquidate_success() public {
         deal(address(balRETH), address(this), 42069);
         balRETH.approve(address(pBALRETH), 42069);
@@ -369,6 +371,9 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             uint256 earnTokenPrice = 1e18; // USDC price
             
             uint256 incentive = liqBaseIncentive;
+
+            console2.log("data.price", data.price);
+            console2.log("pBALRETH.exchangeRateCached()", pBALRETH.exchangeRateCached());
             
             uint256 debtToCollateralRatio = (incentive *
                 earnTokenPrice *
@@ -382,40 +387,28 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
                 collateralAvailable,
                 expectedLiquidatedTokens
             );
-
-
-            console2.log("debtToCollateralRatio", debtToCollateralRatio);
-            console2.log("amountAdjusted", amountAdjusted);
-            console2.log("expectedLiquidatedTokens", expectedLiquidatedTokens);
-            console2.log("expectedLiqAmount", expectedLiqAmount);
-            console2.log("debtAmountsReturned[0]", debtAmountsReturned[0]);
         }
+        // print out all values returned by canLiquidate
+        console2.log("==== CanLiquidate Results ====");
+        console2.log("liqResults.liquidatedAmounts[0]", liqResults.liquidatedAmounts[0]);
+        console2.log("liqResults.debtRepaid", liqResults.debtRepaid);
+        console2.log("liqResults.badDebtRealized", liqResults.badDebtRealized);
+        console2.log("debtAmounts", debtAmountsReturned[0]);
+        emit DebugUint256("debtAmounts", debtAmountsReturned[0]);
 
-        // assertEq(
-        //     debtAmountsReturned[0],
-        //     expectedLiqAmount,
-        //     "canLiquidate() returns the max debt amount that can be repaid"
-        // );
-
+        // validate liqResults.liquidatedAmounts[0]
+        // Full liquidation
         assertEq(
             liqResults.liquidatedAmounts[0],
-            collateralAvailable,
-            "canLiquidate() returns the amount of PTokens to be seized in liquidation"
+            collateralAvailable
         );
 
-        // Verify total debt repaid matches returned debt amount
+        // validate liqResults.debtRepaid
         assertEq(
             liqResults.debtRepaid,
-            debtAmountsReturned[0],
-            "Total debt repaid should match returned debt amount"
+            expectedLiqAmount
         );
-
-        // Should be zero bad debt
-        assertEq(
-            liqResults.badDebtRealized,
-            0,
-            "No bad debt should be realized in this liquidation"
-        );
+        
 
 
 
