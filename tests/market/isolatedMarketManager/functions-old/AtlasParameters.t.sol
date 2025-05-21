@@ -101,26 +101,26 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.stopPrank();
     }
     
-    // function testResetAtlasParameters() public {
-    //     vm.startPrank(dappControlUser);
+    function testResetAtlasParameters() public {
+        vm.startPrank(dappControlUser);
         
-    //     uint256 validPenalty = 1.15e18;
-    //     uint256 validCloseFactor = 0.30e18;
-    //     marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
+        uint256 validPenalty = 1.15e18;
+        uint256 validCloseFactor = 0.30e18;
+        marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
 
-    //     (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
-    //     assertEq(currentPenalty, validPenalty);
-    //     assertEq(currentCloseFactor, validCloseFactor);
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        assertEq(currentPenalty, validPenalty);
+        assertEq(currentCloseFactor, validCloseFactor);
         
-    //     marketManagerIsolated.resetAtlasParameters();
+        marketManagerIsolated.resetAtlasParameters();
         
-    //     uint256 defaultPenalty = 1.10e18; // 10% as set in setUp
-    //     (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
-    //     assertEq(currentPenalty, defaultPenalty);
-    //     assertEq(currentCloseFactor, 0);
+        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAtlasParameters does not return default penalties anymore.
+        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        assertEq(currentPenalty, 0);
+        assertEq(currentCloseFactor, 0);
         
-    //     vm.stopPrank();
-    // }
+        vm.stopPrank();
+    }
 
     function testResetAtlasParametersUnauthorized() public {
         vm.startPrank(user1);

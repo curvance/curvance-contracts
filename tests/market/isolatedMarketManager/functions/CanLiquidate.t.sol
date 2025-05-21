@@ -14,6 +14,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     address[] accounts = new address[](1);
     uint256[] debtAmounts = new uint256[](1);
 
+    uint256 eTokenUnderlyingPrice = 1e18;
+
     constructor() {
         accounts[0] = user1;
         debtAmounts[0] = 1000e6;
@@ -272,12 +274,69 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
+        
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
         marketManager.setPTokenCollateralCaps(tokens, caps);
 
+        _setupUserPositionAndOracles();
+
+        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
+            eToken: address(eUSDC),
+            pToken: address(pBALRETH),
+            numAccounts: 1,
+            liquidateExact: false,
+            eTokenRepaid: 0,
+            pTokenLiquidated: 0,
+            badDebt: 0
+        });
+
+        // Price of ETH drops and balRETH collateral goes below required collateral ratio
+        mockWethFeed.setMockAnswer(1000e8);
+        mockRethFeed.setMockAnswer(1000e8);
+
+        // =================== RESULTS ==================
+        (
+            IMarketManager.LiqResults memory liqResults,
+            uint256[] memory debtAmountsReturned
+        ) = marketManager.canLiquidate(
+            address(this),
+            accounts,
+            debtAmounts,
+            liqInstructions);
+
+        uint256 collateralAvailable = 1e18 - 1;
+        uint256 expectedRepayAmount = _calculateExpectedRepayAmount(collateralAvailable);
+
+        // print out all values returned by canLiquidate
+        console2.log("==== CanLiquidate Results ====");
+        console2.log("liqResults.liquidatedAmounts[0]", liqResults.liquidatedAmounts[0]);
+        console2.log("liqResults.debtRepaid", liqResults.debtRepaid);
+        console2.log("liqResults.badDebtRealized", liqResults.badDebtRealized);
+        console2.log("debtAmounts", debtAmountsReturned[0]);
+
+        // validate liqResults.liquidatedAmounts[0]
+        assertEq(
+            liqResults.liquidatedAmounts[0],
+            collateralAvailable
+        );
+
+        // validate liqResults.debtRepaid
+        assertEq(
+            liqResults.debtRepaid,
+            expectedRepayAmount
+        );
+
+        // Should have no bad debt
+        assertEq(liqResults.badDebtRealized, 0);
+
+        // validate debtAmountsReturned
+        assertEq(debtAmountsReturned[0], expectedRepayAmount);
+    }
+
+    function _setupUserPositionAndOracles() internal {
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
@@ -302,115 +361,45 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(user1), 1000e6);
+    }
 
-        IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            pToken: address(pBALRETH),
-            numAccounts: 1,
-            liquidateExact: false,
-            eTokenRepaid: 0,
-            pTokenLiquidated: 0,
-            badDebt: 0
-        });
-
-
-        // Can not liquidate yet while collateral is above required collateral ratio
-        // vm.expectRevert(
-        //     MarketManager.MarketManager__NoLiquidationAvailable.selector
-        // );
-        // marketManager.canLiquidate(
-        //     address(this),
-        //     accounts,
-        //     debtAmounts,
-        //     liqInstructions);
-
-        // Price of ETH drops and balRETH collateral goes below required collateral ratio
-        // and can now liquidate
-        mockWethFeed.setMockAnswer(1000e8);
-        mockRethFeed.setMockAnswer(1000e8);
-
-        // =================== RESULTS ==================
-        (
-            IMarketManager.LiqResults memory liqResults,
-            uint256[] memory debtAmountsReturned
-        ) = marketManager.canLiquidate(
-            address(this),
-            accounts,
-            debtAmounts,
-            liqInstructions);
-
-        (, , , , , , , , uint256 baseCFactor, uint256 cFactorCurve, , ) = marketManager
-            .tokenData(address(pBALRETH));
-
-        uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
-        uint256 debtAmount = (cFactor * eUSDC.debtBalanceCached(user1)) / WAD;
-
-        PriceReturnData memory data = balRETHAdapter.getPrice(
+    function _calculateExpectedRepayAmount(uint256 collateralAvailable) internal view returns (uint256) {
+        PriceReturnData memory priceData = balRETHAdapter.getPrice(
             _BAL_WETH_RETH_ADDRESS,
             true,
             true
         );
 
-        uint256 collateralAvailable = 1e18 - 1;
-        uint256 expectedLiqAmount;
-        {
-            (
-                ,
-                ,
-                ,
-                ,
-                uint256 liqBaseIncentive,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-            ) = marketManager.tokenData(address(pBALRETH));
-
-            uint256 earnTokenPrice = 1e18; // USDC price
-            
-            uint256 incentive = liqBaseIncentive;
-
-            console2.log("data.price", data.price);
-            console2.log("pBALRETH.exchangeRateCached()", pBALRETH.exchangeRateCached());
-            
-            uint256 debtToCollateralRatio = (incentive *
-                earnTokenPrice *
-                WAD) / (data.price * pBALRETH.exchangeRateCached());
-            uint256 amountAdjusted = (debtAmount *
-                (10 ** pBALRETH.decimals())) / (10 ** eUSDC.decimals());
-            uint256 expectedLiquidatedTokens = (amountAdjusted *
-                debtToCollateralRatio) / WAD;
-            expectedLiqAmount = FixedPointMathLib.mulDivUp(
-                debtAmount,
-                collateralAvailable,
-                expectedLiquidatedTokens
-            );
-        }
-        // print out all values returned by canLiquidate
-        console2.log("==== CanLiquidate Results ====");
-        console2.log("liqResults.liquidatedAmounts[0]", liqResults.liquidatedAmounts[0]);
-        console2.log("liqResults.debtRepaid", liqResults.debtRepaid);
-        console2.log("liqResults.badDebtRealized", liqResults.badDebtRealized);
-        console2.log("debtAmounts", debtAmountsReturned[0]);
-        emit DebugUint256("debtAmounts", debtAmountsReturned[0]);
-
-        // validate liqResults.liquidatedAmounts[0]
-        // Full liquidation
-        assertEq(
-            liqResults.liquidatedAmounts[0],
-            collateralAvailable
-        );
-
-        // validate liqResults.debtRepaid
-        assertEq(
-            liqResults.debtRepaid,
-            expectedLiqAmount
-        );
+        (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,,
+         uint256 baseCFactor, uint256 cFactorCurve) = marketManager.tokenData(address(pBALRETH));
         
+        uint256 lFactor = 1e18; // Hard Liquidation factor
 
+        uint256 pTokenUnderlyingPrice = priceData.price;
+        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
 
+        // debtToCollateralMultiplier = (auctionLiqIncentive * eTokenUnderlyingPrice * WAD) / (pTokenUnderlyingPrice * pTokenExchangeRate)
+        // auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD)
+        uint256 debtToCollateralMultiplier = 
+            ((liqBaseIncentive + ((liqCurve * lFactor) / WAD)) * eTokenUnderlyingPrice * WAD) / // Inlined auctionLiqIncentive for stack too deep
+            (pTokenUnderlyingPrice * pTokenExchangeRate);
 
+        uint256 currentDebtBalance = eUSDC.debtBalanceCached(user1);
+        
+        // debtBalanceForLiquidation = maxAmount (because we liquidateExact = false)
+        // auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD)
+        // maxAmount = (auctionCFactor * currentDebtBalance) / WAD;
+        uint256 debtBalanceForLiquidation = 
+            ((baseCFactor + ((cFactorCurve * lFactor) / WAD)) * currentDebtBalance) / WAD; 
+
+        // Inline pTokenDecimals and eTokenDecimals
+        uint256 liquidatedPTokens = (((debtBalanceForLiquidation * (10 ** pBALRETH.decimals())) / (10 ** eUSDC.decimals())) 
+            * debtToCollateralMultiplier) / WAD;
+        
+        return FixedPointMathLib.mulDivUp(
+            debtBalanceForLiquidation,
+            collateralAvailable,
+            liquidatedPTokens
+        );
     }
 }
