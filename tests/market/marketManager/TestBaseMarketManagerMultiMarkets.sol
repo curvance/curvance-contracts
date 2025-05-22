@@ -430,13 +430,13 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         }
     }
 
-    function _liquidateAccount(
-        address _account,
-        address _liquidator
-    ) internal {
-        vm.prank(_liquidator);
-        marketManager.liquidateAccount(_account);
-    }
+    // function _liquidateAccount(
+    //     address _account,
+    //     address _liquidator
+    // ) internal {
+    //     vm.prank(_liquidator);
+    //     marketManager.liquidateAccount(_account);
+    // }
 
     function _eTokenLiquidateExact(
         EToken _eToken,
@@ -445,10 +445,14 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         address _account,
         address _liquidator
     ) internal {
+        address[] memory accounts = new address[](1);
+        accounts[0] = _account;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = _expectedLiqAmount;
         vm.prank(_liquidator);
         _eToken.liquidateExact(
-            _account,
-            _expectedLiqAmount,
+            accounts,
+            debtAmounts,
             address(_collateral)
         );
     }
@@ -459,7 +463,14 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         address _account,
         address _liquidator
     ) internal {
+        address[] memory accounts = new address[](1);
+        accounts[0] = _account;
+        uint256[] memory debtAmounts = new uint256[](1);
+        debtAmounts[0] = 1000e6;
         vm.prank(_liquidator);
-        _eToken.liquidate(_account, address(_collateral));
+        _eToken.liquidate(
+            accounts,
+            address(_collateral)
+        );
     }
 }

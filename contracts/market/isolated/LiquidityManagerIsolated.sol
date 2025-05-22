@@ -230,7 +230,7 @@ abstract contract LiquidityManagerIsolated {
                             .accountPositions[account]
                             .collateralPosted * snapshot.exchangeRate) / WAD),
                         underlyingPrices[i],
-                        snapshot.decimals,
+                        10 ** snapshot.decimals,
                         true
                     );
                     accountCollateral += collateralValue;
@@ -245,7 +245,7 @@ abstract contract LiquidityManagerIsolated {
                     accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
-                        snapshot.decimals,
+                        10 ** snapshot.decimals,
                         false
                     );
                 }
@@ -345,7 +345,7 @@ abstract contract LiquidityManagerIsolated {
                         newDebt += _assetValue(
                             snapshot.debtBalance,
                             underlyingPrices[i],
-                            snapshot.decimals,
+                            10 ** snapshot.decimals,
                             false
                         );
                     } else {
@@ -396,7 +396,7 @@ abstract contract LiquidityManagerIsolated {
                         newDebt += _assetValue(
                             action.borrowAmount,
                             underlyingPrices[i],
-                            snapshot.decimals,
+                            10 ** snapshot.decimals,
                             false
                         );
 
@@ -511,7 +511,7 @@ abstract contract LiquidityManagerIsolated {
                     accountData.accountDebt += _assetValue(
                         snapshot.debtBalance,
                         underlyingPrices[i],
-                        snapshot.decimals,
+                        10 ** snapshot.decimals,
                         false
                     );
                 }

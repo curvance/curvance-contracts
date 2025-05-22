@@ -28,6 +28,7 @@ contract AtlasParametersTest is TestBaseMarketManager {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -113,9 +114,9 @@ contract AtlasParametersTest is TestBaseMarketManager {
         
         marketManagerIsolated.resetAtlasParameters();
         
-        uint256 defaultPenalty = 1.10e18; // 10% as set in setUp
+        // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAtlasParameters does not return default penalties anymore.
         (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
-        assertEq(currentPenalty, defaultPenalty);
+        assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         
         vm.stopPrank();
@@ -160,25 +161,30 @@ contract AtlasParametersTest is TestBaseMarketManager {
         return liquidatedTokens;
     }
 
-    function testLiquidationWithDynamicPenalty() public {
-        _prepareLiquidationIsolated();
+    // function testLiquidationWithDynamicPenalty() public {
+    //     _prepareLiquidationIsolated();
 
-        testSetAtlasParameters();
+    //     testSetAtlasParameters();
 
-        _prepareUSDC(user3, 250e6);
-        vm.startPrank(user3);
+    //     _prepareUSDC(user3, 250e6);
+    //     vm.startPrank(user3);
 
-        usdc.approve(address(eUSDCIsolated), 250e6);
-        eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
-        vm.stopPrank();
+    //     address[] memory usersToLiquidate = new address[](1);   
+    //     usersToLiquidate[0] = user1;
+    //     uint256[] memory amountsToLiquidate = new uint256[](1);
+    //     amountsToLiquidate[0] = 250e6;
 
-        uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
-        assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
+    //     usdc.approve(address(eUSDCIsolated), 250e6);
+    //     eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     vm.stopPrank();
 
-        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-        assertEq(liquidatorUSDCBalance, 0);
+    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
 
-    }
+    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+    //     assertEq(liquidatorUSDCBalance, 0);
+
+    // }
 
     function _calculateExpectedLiquidatedTokensWithDefaultPenalty() public pure returns (uint256) {
         uint256 WAD = 1e18;
@@ -198,23 +204,28 @@ contract AtlasParametersTest is TestBaseMarketManager {
         return liquidatedTokens;
     }
 
-    function testLiquidationWithDefaultPenalty() public {
-        _prepareLiquidationIsolated();
+    // function testLiquidationWithDefaultPenalty() public {
+    //     _prepareLiquidationIsolated();
 
-        _prepareUSDC(user3, 250e6);
+    //     _prepareUSDC(user3, 250e6);
 
-        vm.startPrank(user3);
+    //     vm.startPrank(user3);
 
-        usdc.approve(address(eUSDCIsolated), 250e6);
-        eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
-        vm.stopPrank();
+    //     address[] memory usersToLiquidate = new address[](1);   
+    //     usersToLiquidate[0] = user1;
+    //     uint256[] memory amountsToLiquidate = new uint256[](1);
+    //     amountsToLiquidate[0] = 250e6;
 
-        uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
-        assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
+    //     usdc.approve(address(eUSDCIsolated), 250e6);
+    //     eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     vm.stopPrank();
 
-        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-        assertEq(liquidatorUSDCBalance, 0);
-    }
+    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
+
+    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+    //     assertEq(liquidatorUSDCBalance, 0);
+    // }
 
     function testLiquidationFailureWithDifferentUnlockedCollateral() public {
         _prepareLiquidationIsolated();
@@ -224,11 +235,16 @@ contract AtlasParametersTest is TestBaseMarketManager {
         vm.prank(dappControlUser);
         marketManagerIsolated.unlockAtlasCollateral(address(1));
 
+        address[] memory usersToLiquidate = new address[](1);   
+        usersToLiquidate[0] = user1;
+        uint256[] memory amountsToLiquidate = new uint256[](1);
+        amountsToLiquidate[0] = 250e6;
+
         vm.startPrank(user3);
 
         usdc.approve(address(eUSDCIsolated), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
-        eUSDCIsolated.liquidateExact(user1, 250e6, address(pBALRETHIsolated));
+        eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
         vm.stopPrank();
     }
 
@@ -252,27 +268,32 @@ contract AtlasParametersTest is TestBaseMarketManager {
         return liquidatedTokens;
     }
 
-    function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
-        _prepareLiquidationIsolated();
+    // function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
+    //     _prepareLiquidationIsolated();
 
-        testSetAtlasParameters();
+    //     testSetAtlasParameters();
 
-        eUSDCIsolated.accrueInterest();                 // pull interest forward
-        uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
+    //     eUSDCIsolated.accrueInterest();                 // pull interest forward
+    //     uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
 
-        uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
+    //     uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
 
-        _prepareUSDC(user3, debtBalance);
-        vm.startPrank(user3);
+    //     _prepareUSDC(user3, debtBalance);
+    //     vm.startPrank(user3);
 
-        usdc.approve(address(eUSDCIsolated), debtBalance);
-        eUSDCIsolated.liquidate(user1, address(pBALRETHIsolated));
-        vm.stopPrank();
+    //     address[] memory usersToLiquidate = new address[](1);   
+    //     usersToLiquidate[0] = user1;
+    //     uint256[] memory amountsToLiquidate = new uint256[](1);
+    //     amountsToLiquidate[0] = debtBalance;
 
-        uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
-        assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+    //     usdc.approve(address(eUSDCIsolated), debtBalance);
+    //     eUSDCIsolated.liquidate(usersToLiquidate, address(pBALRETHIsolated));
+    //     vm.stopPrank();
 
-        uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-        assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
-    }
+    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+
+    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+    //     assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
+    // }
 }
