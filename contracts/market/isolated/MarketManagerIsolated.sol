@@ -573,7 +573,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external view returns (
+    ) external returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -1412,116 +1412,232 @@ contract MarketManagerIsolated is
         }
     }
 
+struct LiquidationVars {
+    uint256 debtToCollateralMultiplier;
+    uint256 maxAmount;
+    uint256 liquidatedPTokens;
+    uint256 collateralAvailable;
+    uint256 collateralRequired;
+    uint256 badDebt;
+}
+
+    event DebugUint256(string message, uint256 value);
+
     /// @notice Helper function for checking if the liquidation should be
     ///         allowed to occur.
-    function _canLiquidate(
-        address account,
-        uint256 debtAmount,
-        CachedLiqData memory cachedData,
-        AuctionLiqData memory auctionData,
-        MarketToken storage pTokenData,
-        bool liquidateExact
-    ) internal view returns (uint256, uint256, uint256 badDebt) {
-        // Calculate the users lFactor and bubble up their active debt.
-        (auctionData.lFactor, auctionData.debtBalance) = _liquidationValuesOfCached(
-            account,
+function _canLiquidate(
+    address account,
+    uint256 debtAmount,
+    CachedLiqData memory cachedData,
+    AuctionLiqData memory auctionData,
+    MarketToken storage pTokenData,
+    bool liquidateExact
+) internal returns (uint256, uint256, uint256) {
+    // Declare the struct in memory
+    LiquidationVars memory vars;
+
+    emit DebugUint256("debtAmount", debtAmount);
+
+    emit DebugUint256("cachedData.pTokenExchangeRate", cachedData.pTokenExchangeRate);
+    emit DebugUint256("cachedData.pTokenCollReqSoft", cachedData.pTokenCollReqSoft);
+    emit DebugUint256("cachedData.pTokenCollReqHard", cachedData.pTokenCollReqHard);
+    emit DebugUint256("cachedData.pTokenUnderlyingPrice", cachedData.pTokenUnderlyingPrice);
+    emit DebugUint256("cachedData.pTokenDecimals", cachedData.pTokenDecimals);
+    emit DebugUint256("cachedData.eTokenDecimals", cachedData.eTokenDecimals);
+    emit DebugUint256("cachedData.eTokenUnderlyingPrice", cachedData.eTokenUnderlyingPrice);
+    emit DebugUint256("cachedData.auctionBuffer", cachedData.auctionBuffer);
+
+    // Calculate the users lFactor and bubble up their active debt.
+    (auctionData.lFactor, auctionData.debtBalance) = _liquidationValuesOfCached(
+        account,
+        cachedData
+    );
+
+    emit DebugUint256("auctionData.lFactor", auctionData.lFactor);
+    emit DebugUint256("auctionData.debtBalance", auctionData.debtBalance);
+
+    if (auctionData.lFactor == 0) {
+        return (0, 0, 0);
+    }
+
+    if (auctionData.auctionCFactor == 0) {
+        emit DebugUint256("auctionData.baseCFactor", auctionData.baseCFactor);
+        emit DebugUint256("auctionData.cFactorCurve", auctionData.cFactorCurve);
+        emit DebugUint256("auctionData.lFactor", auctionData.lFactor);
+        auctionData.auctionCFactor = auctionData.baseCFactor +
+            ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
+        emit DebugUint256("auctionData.auctionCFactor", auctionData.auctionCFactor);
+    }
+
+    if (auctionData.auctionLiqIncentive == 0) {
+        emit DebugUint256("auctionData.liqBaseIncentive", auctionData.liqBaseIncentive);
+        emit DebugUint256("auctionData.liqCurve", auctionData.liqCurve);
+        emit DebugUint256("auctionData.lFactor", auctionData.lFactor);
+        auctionData.auctionLiqIncentive = auctionData.liqBaseIncentive +
+            ((auctionData.liqCurve * auctionData.lFactor) / WAD);
+        emit DebugUint256("auctionData.auctionLiqIncentive", auctionData.auctionLiqIncentive);
+    }
+
+    // Calculate debtToCollateralMultiplier
+    emit DebugUint256("auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD", 
+        auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD);
+    emit DebugUint256("cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate", 
+        cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate);
+
+    vars.debtToCollateralMultiplier =
+        (((auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
+        (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate)) *
+        cachedData.pTokenDecimals) / cachedData.eTokenDecimals;
+    
+    emit DebugUint256("debtToCollateralMultiplier", vars.debtToCollateralMultiplier);
+
+    // Calculate maxAmount
+    emit DebugUint256("auctionData.auctionCFactor * auctionData.debtBalance", 
+        auctionData.auctionCFactor * auctionData.debtBalance);
+    vars.maxAmount = (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
+    emit DebugUint256("maxAmount", vars.maxAmount);
+
+    // Adjust debtAmount based on liquidateExact
+    if (!liquidateExact) {
+        debtAmount = vars.maxAmount;
+        emit DebugUint256("debtAmount for not exact liquidation", debtAmount);
+    }
+
+    // Calculate liquidatedPTokens
+    emit DebugUint256("debtAmount * cachedData.pTokenDecimals", debtAmount * cachedData.pTokenDecimals);
+    emit DebugUint256("cachedData.eTokenDecimals", cachedData.eTokenDecimals);
+    emit DebugUint256("debtToCollateralMultiplier", vars.debtToCollateralMultiplier);
+
+    vars.liquidatedPTokens = (debtAmount * vars.debtToCollateralMultiplier) / WAD;
+    emit DebugUint256("liquidatedPTokens", vars.liquidatedPTokens);
+
+    // Cache collateralAvailable
+    vars.collateralAvailable = pTokenData.accountPositions[account].collateralPosted;
+    emit DebugUint256("collateralAvailable", vars.collateralAvailable);
+
+    // Handle liquidation logic
+    if (liquidateExact) {
+        emit DebugUint256("liquidateExact", 1);
+        if (debtAmount > vars.maxAmount || vars.liquidatedPTokens > vars.collateralAvailable) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+    } else {
+        emit DebugUint256("liquidateExact", 0);
+        if (vars.liquidatedPTokens > vars.collateralAvailable) {
+            debtAmount = FixedPointMathLib.mulDivUp(
+                debtAmount,
+                vars.collateralAvailable,
+                vars.liquidatedPTokens
+            );
+            emit DebugUint256("debtAmount for not exact liquidation", debtAmount);
+            vars.liquidatedPTokens = vars.collateralAvailable;
+            emit DebugUint256("liquidatedPTokens for not exact liquidation", vars.liquidatedPTokens);
+        }
+    }
+
+    // Calculate collateralRequired
+    vars.collateralRequired = 
+        (((auctionData.debtBalance * cachedData.pTokenDecimals) / 
+        cachedData.eTokenDecimals) * vars.debtToCollateralMultiplier) / WAD;
+    emit DebugUint256("collateralRequired", vars.collateralRequired);
+    emit DebugUint256("collateralAvailable", vars.collateralAvailable);
+
+    // Calculate badDebt if necessary
+    if (vars.collateralRequired > vars.collateralAvailable) {
+        emit DebugUint256("auctionData.debtBalance", auctionData.debtBalance);
+        emit DebugUint256("debtToCollateralMultiplier", vars.debtToCollateralMultiplier);
+        emit DebugUint256("auctionData.auctionLiqIncentive", auctionData.auctionLiqIncentive);
+        emit DebugUint256("collateralAvailable", vars.collateralAvailable);
+
+        vars.badDebt = _calculateBadDebt(
+            auctionData,
+            vars.collateralAvailable,
+            vars.liquidatedPTokens,
+            debtAmount,
             cachedData
         );
 
-        if (auctionData.lFactor == 0) {
-            return (0, 0, 0);
-        }
+        emit DebugUint256("badDebt calculated", vars.badDebt);
+    } else {
+        vars.badDebt = 0; // Default value if no bad debt
+    }
 
-        if (auctionData.auctionCFactor == 0) {
-            // Fallback to using the base close factor when
-            // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
-            auctionData.auctionCFactor = auctionData.baseCFactor +
-                ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
-        }
+    emit DebugUint256("end of canLiquidate", 0);
 
-        if (auctionData.auctionLiqIncentive == 0) {
-            // Fallback to using the base liquidation incentive when
-            // _TRANSIENT_PENALTY_KEY is empty.
-            auctionData.auctionLiqIncentive = auctionData.liqBaseIncentive +
-                ((auctionData.liqCurve * auctionData.lFactor) / WAD);
-        }
+    // Return the results
+    return (debtAmount, vars.liquidatedPTokens, vars.badDebt);
+}
 
-        // Get the exchange rate, and calculate the number of
-        // position tokens to seize.
-        uint256 debtToCollateralMultiplier =
-            (auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
-            (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate);
-      
-        uint256 maxAmount = (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
-        // If they want to liquidate an exact amount, liquidate `debtAmount`,
-        // otherwise liquidate the maximum amount possible.
-        if (!liquidateExact) {
-            debtAmount = maxAmount;
-        }
+    function _calculateBadDebt(
+        AuctionLiqData memory auctionData,
+        uint256 collateralAvailable,
+        uint256 liquidatedPTokens,
+        uint256 debtAmount, 
+        CachedLiqData memory cachedData
+    ) internal returns (uint256 badDebt) {
 
-        // Calculate how many pTokens should be liquidated, adjusting decimals if necessary.
-        uint256 liquidatedPTokens = (((debtAmount * cachedData.pTokenDecimals) / 
-            cachedData.eTokenDecimals) * debtToCollateralMultiplier
-        ) / WAD;
+        emit DebugUint256("start of calculateBadDebt", 0);
+        emit DebugUint256("debtAmount", debtAmount);
 
-        // Cache `account`'s collateral posted of `pToken`.
-        uint256 collateralAvailable = pTokenData
-            .accountPositions[account]
-            .collateralPosted;
-        // If the user wants to liquidate an exact amount, make sure theres
-        // enough collateral available to liquidate,
-        // otherwise liquidate as much as possible.
-        if (liquidateExact) {
-            if (
-                debtAmount > maxAmount ||
-                liquidatedPTokens > collateralAvailable
-            ) {
-                // Make sure that the liquidation limit,
-                // and collateral posted >= amount.
-                _revert(_INVALID_PARAMETER_SELECTOR);
-            }
+        uint256 debtBalance = auctionData.debtBalance;
+
+        emit DebugUint256("debtBalance", debtBalance);
+        
+        // Convert everything to eToken values
+        uint256 totalDebtValue = 
+            (debtBalance * cachedData.eTokenUnderlyingPrice * cachedData.pTokenDecimals) /
+                (cachedData.eTokenDecimals * WAD);
+
+        emit DebugUint256("totalDebtValue", totalDebtValue);
+
+        uint256 totalCollateralValue =
+            (collateralAvailable * cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate) /
+                (cachedData.pTokenDecimals * WAD);
+
+        emit DebugUint256("totalCollateralValue", totalCollateralValue);
+
+        // Calculate debt/collateral ratio
+        uint256 dcRatio = (totalCollateralValue * WAD) / totalDebtValue;
+
+        emit DebugUint256("dcRatio", dcRatio);
+        
+        // Calculate remaining collateral value
+        uint256 remainingCollateralValue = 
+            ((collateralAvailable - liquidatedPTokens) *
+            cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate) /
+            (cachedData.pTokenDecimals * WAD);
+        
+        emit DebugUint256("remainingCollateralValue", remainingCollateralValue);
+
+        // Calculate expected debt coverage
+        uint256 expectedDebtCoverage = (remainingCollateralValue * WAD) / dcRatio;
+
+        emit DebugUint256("expectedDebtCoverage", expectedDebtCoverage);
+
+        // Convert remaining debt to dollar terms for consistent units
+        uint256 remainingDebtValue = 
+            ((debtBalance - debtAmount) * cachedData.eTokenUnderlyingPrice * cachedData.pTokenDecimals) /
+                (cachedData.eTokenDecimals * WAD);
+
+        emit DebugUint256("remainingDebtValue", remainingDebtValue);
+
+        // Calculate bad debt in dollar terms
+        uint256 badDebtValue;
+        // Bad debt is the remaining debt if the expected debt coverage is greater than the remaining debt
+        // prevents underflow
+        if (expectedDebtCoverage >= remainingDebtValue) {
+            badDebtValue = remainingDebtValue;
         } else {
-            if (liquidatedPTokens > collateralAvailable) {
-                debtAmount = FixedPointMathLib.mulDivUp(
-                    debtAmount,
-                    collateralAvailable,
-                    liquidatedPTokens
-                );
-                liquidatedPTokens = collateralAvailable;
-            }
+            badDebtValue = remainingDebtValue - expectedDebtCoverage;
         }
 
-        // If the necessary amount of collateral to liquidate `account`'s
-        // overall debt is above their collateral balance, theres bad debt
-        // that should be socialized.
-        uint256 collateralRequired = 
-            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD;
-        if (collateralRequired > collateralAvailable) {
-            badDebt = liquidatedPTokens * WAD;
-            // Get the dollar conversion between debtCollateralRatio by
-            // undoing the liquidation incentive premium, in WAD.
-            // Then divide by the collateral the account has.
-            uint256 shortfallRatio =
-                ((auctionData.debtBalance * debtToCollateralMultiplier * WAD) /
-                auctionData.auctionLiqIncentive) / collateralAvailable;
+        emit DebugUint256("badDebtValue", badDebtValue);
 
-            // Get prior ratio between debt/collateral before any
-            // liquidation = Shortfall Ratio
-            // Bad Debt = End debt - (end collateral * shortfall ratio)
-            // NOTE: We round UP on expected user outstanding debt meaning
-            // we round down bad debt and thus are in favor of the protocol.
-            badDebt = (auctionData.debtBalance - debtAmount) - 
-                FixedPointMathLib.mulDivUp(
-                    collateralAvailable - liquidatedPTokens,
-                    shortfallRatio,
-                    WAD
-                );
-        }
+        // Convert from dollar terms back to eToken units
+        badDebt = (badDebtValue * cachedData.eTokenDecimals) / 
+             (cachedData.eTokenUnderlyingPrice);
 
-        // Calculate the maximum amount of debt that can be liquidated
-        // and what collateral will be received. As well as any bad debt
-        // to recognize.
-        return (debtAmount, liquidatedPTokens, badDebt);
+        emit DebugUint256("badDebt", badDebt);
     }
 
     function _getLiquidationConfig(

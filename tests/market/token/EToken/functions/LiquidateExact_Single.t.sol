@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseETokenIsolated } from "tests/market/token/EToken/TestBaseETokenIsolated.t.sol";
 
-contract LiquidateExactTest is TestBaseETokenIsolated {
+contract LiquidateExactSingleTest is TestBaseETokenIsolated {
     function setUp() public override {
         super.setUp();
 
@@ -11,7 +11,7 @@ contract LiquidateExactTest is TestBaseETokenIsolated {
     }
 
     // Test a single liquidation
-    function test_liquidateExact_success() public {
+    function test_liquidateExact_single_success() public {
         address[] memory accounts = new address[](1);
         accounts[0] = user1;
         uint256[] memory debtAmounts = new uint256[](1);
