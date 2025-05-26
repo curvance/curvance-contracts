@@ -1496,8 +1496,7 @@ contract MarketManagerIsolated is
         // overall debt is above their collateral balance, theres bad debt
         // that should be socialized.
         uint256 collateralRequired = 
-            (((auctionData.debtBalance * cachedData.pTokenDecimals) / 
-            cachedData.eTokenDecimals) * debtToCollateralMultiplier) / WAD;
+            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD;
         if (collateralRequired > collateralAvailable) {
             
             badDebt = liquidatedPTokens * WAD;
