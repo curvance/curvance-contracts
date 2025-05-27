@@ -979,6 +979,8 @@ abstract contract BasePToken is
         _updateAssetsForDeposit(assets, ta, pending);
 
         // Mint `shares` to `to`.
+        // NOTE: This is the erc20 mint function, meaning this is effectively
+        //       super._mint().
         _mint(to, shares);
 
         _afterDepositAction(to, shares);
@@ -1022,7 +1024,7 @@ abstract contract BasePToken is
         // Burn `owner` `shares`.
         _burn(owner, shares);
 
-        // Vests any rewards,if there are any, then update `_totalAssets`
+        // Vests any rewards, if there are any, then update `_totalAssets`.
         // invariant and prepare assets for withdrawal.
         _updateAssetsForWithdrawal(assets, ta, pending);
 
