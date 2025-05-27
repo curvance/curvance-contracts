@@ -1598,7 +1598,11 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal view returns (uint256, uint256, uint256 badDebt) {
+    ) internal view returns (
+        uint256,
+        uint256 liquidatedPTokens,
+        uint256 badDebt
+    ) {
         // Calculate the users lFactor and bubble up their active debt.
         (
             auctionData.lFactor,
@@ -1643,8 +1647,7 @@ contract MarketManagerIsolated is
 
         // Calculate how many pTokens should be liquidated, adjusting decimals
         // if necessary.
-        uint256 liquidatedPTokens =
-            (debtAmount * debtToCollateralMultiplier) / WAD;
+        liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
 
         // Cache `account`'s collateral posted of `pToken`.
         uint256 collateralAvailable = pTokenData
