@@ -12,8 +12,9 @@ interface IOracleManager {
     /// @param inUSD Whether the price should be returned in USD or ETH.
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price.
+    /// @return price The current price of `asset`.
+    /// @return errorCode An error code related to fetching the price:
+    ///                   '0' indicates no error fetching price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving
@@ -22,7 +23,7 @@ interface IOracleManager {
         address asset,
         bool inUSD,
         bool getLower
-    ) external view returns (uint256, uint256);
+    ) external view returns (uint256 price, uint256 errorCode);
 
     /// @notice Retrieves the prices of multiple assets.
     /// @param assets An array of asset addresses to retrieve the prices for.

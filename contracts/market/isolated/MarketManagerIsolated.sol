@@ -1689,10 +1689,9 @@ contract MarketManagerIsolated is
             // we round down bad debt and thus are in favor of the protocol.
             badDebt = (auctionData.debtBalance - debtAmount) -
             FixedPointMathLib.mulDivUp(
-                collateralAvailable - liquidatedPTokens,
-                cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate,
-                (cachedData.eTokenUnderlyingPrice * WAD) /
-                    cachedData.eTokenDecimals
+                ((collateralAvailable - liquidatedPTokens) * cachedData.pTokenExchangeRate) / WAD,
+                cachedData.pTokenUnderlyingPrice,
+                (cachedData.eTokenUnderlyingPrice * WAD) / cachedData.eTokenDecimals
             );
         }
 

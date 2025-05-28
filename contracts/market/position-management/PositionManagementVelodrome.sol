@@ -99,6 +99,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
         if (totalAmountA == 0 && totalAmountB == 0) {
             revert PositionManagementBase__InvalidSlippage();
         }
+        
         uint256 minLpAmount = abi.decode(leverageData.auxData, (uint256));
 
         VelodromeLib.enterVelodrome(
