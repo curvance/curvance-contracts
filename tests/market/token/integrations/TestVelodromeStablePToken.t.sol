@@ -149,7 +149,7 @@ contract TestVelodromeStablePToken is TestBaseMarket {
         );
         swapData.slippage = 50e16;
 
-        pUSDCDAI.harvest(abi.encode(swapData));
+        pUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
         assertEq(
             pUSDCDAI.totalAssets(),
@@ -173,7 +173,7 @@ contract TestVelodromeStablePToken is TestBaseMarket {
             address(pUSDCDAI),
             type(uint256).max
         );
-        pUSDCDAI.harvest(abi.encode(swapData, 1.252e14));
+        pUSDCDAI.harvest(abi.encode(swapData, 1e14));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());

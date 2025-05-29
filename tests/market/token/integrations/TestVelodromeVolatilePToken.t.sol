@@ -151,7 +151,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         );
         swapData.slippage = 50e16;
 
-        pWETHUSDC.harvest(abi.encode(swapData));
+        pWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
 
         assertEq(
             pWETHUSDC.totalAssets(),

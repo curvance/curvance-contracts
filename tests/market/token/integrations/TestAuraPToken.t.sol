@@ -184,7 +184,7 @@ contract TestAuraPToken is TestBaseMarket {
             block.timestamp
         );
 
-        pBALRETH.harvest(abi.encode(swaps, 0));
+        pBALRETH.harvest(abi.encode(swaps, 1e8));
 
         // check vault data without modification to vesting period
 
@@ -247,7 +247,7 @@ contract TestAuraPToken is TestBaseMarket {
             block.timestamp
         );
 
-        pBALRETH.harvest(abi.encode(swaps, 0));
+        pBALRETH.harvest(abi.encode(swaps, 1e8));
 
         vaultData = pBALRETH.getVaultYieldStatus();
         rewardRate = vaultData.rewardRate;
