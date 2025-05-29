@@ -236,7 +236,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
         );
         swapData.slippage = 50e16;
 
-        pUSDCDAI.harvest(abi.encode(swapData, 1e7));
+        pUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         assertEq(
             pUSDCDAI.totalAssets(),
@@ -260,7 +260,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
             address(pUSDCDAI),
             type(uint256).max
         );
-        pUSDCDAI.harvest(abi.encode(swapData, 1e7));
+        pUSDCDAI.harvest(abi.encode(swapData, 1e4));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());

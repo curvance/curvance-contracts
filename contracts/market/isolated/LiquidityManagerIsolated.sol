@@ -121,12 +121,41 @@ abstract contract LiquidityManagerIsolated {
         uint256 positionClosureNeeded;
     }
 
+    /// @notice Data structure returned on liquidation threshold calculation
+    ///         containing an accounts collateral values under specific
+    ///         (soft liquidation versus hard liquidation) methodology
+    ///         that will lead to liquidations.
+    /// @param accountCollateralSoft The account's soft collateral value
+    ///                              (collateral adjusted by soft
+    ///                              requirements).
+    /// @param accountCollateralHard The account's hard collateral value
+    ///                              (collateral adjusted by hard
+    ///                              requirements).
+    /// @param accountDebt The account's total debt value.
     struct AccountLiqData {
         uint256 accountCollateralSoft;
         uint256 accountCollateralHard;
         uint256 accountDebt;
     }
 
+    /// @notice Data structure returned on querying a liquidation's current
+    ///         configuration based on the auction liquidation system.
+    /// @param lFactor The liquidation factor for an account, indicating the
+    ///                severity of a liquidation, between 0 and WAD.
+    /// @param debtBalance An account's current active debt to an eToken.
+    /// @param auctionCFactor Maximum % that a liquidator can repay when soft
+    ///                       liquidating an account.
+    /// @param auctionLiqIncentive The ratio at which this token will be
+    ///                            compensated on liquidation.
+    /// @param baseCFactor Maximum % that a liquidator can repay when soft
+    ///                    liquidating an account.
+    /// @param cFactorCurve cFactor curve length between soft liquidation and
+    ///                     hard liquidation, should be equal to
+    ///                     100% - `baseCFactor`.
+    /// @param liqBaseIncentive The base ratio at which this token will be
+    ///                         compensated on soft liquidation.
+    /// @param liqCurve The liquidation incentive curve length between soft
+    ///                 liquidation to hard liquidation.
     struct AuctionLiqData {
         uint256 lFactor;
         uint256 debtBalance;
@@ -138,6 +167,27 @@ abstract contract LiquidityManagerIsolated {
         uint256 liqCurve;
     }
 
+    /// @notice Data structure returned on querying a liquidation's current
+    ///         configuration based on the aggregate liquidation system.
+    /// @param pToken The address of the position token (collateral token)
+    ///               involved in the liquidation.
+    /// @param eToken The address of the earn token (debt token) involved
+    ///               in the liquidation.
+    /// @param pTokenExchangeRate The exchange rate of pToken's underlying
+    ///                           token to the pToken itself.
+    /// @param pTokenCollReqSoft The collateral requirement where dipping
+    ///                          below this will cause a soft liquidation.
+    /// @param pTokenCollReqHard The collateral requirement where dipping
+    ///                          below this will cause a hard liquidation.
+    /// @param pTokenUnderlyingPrice The current price of the underlying token
+    ///                              of the pToken.
+    /// @param pTokenDecimals The decimals that `pToken` is measured in.
+    /// @param eTokenDecimals The decimals that `eToken` is measured in.
+    /// @param eTokenUnderlyingPrice The current price of the underlying token
+    ///                              of the eToken.
+    /// @param auctionBuffer The current buffer that accountCollateralSoft is
+    ///                      multiplied against, 10 bps or 0 if not an auction
+    ///                      liquidation.
     struct CachedLiqData {
         address pToken;
         address eToken;
