@@ -132,7 +132,7 @@ contract TestPendleLPPToken is TestBaseMarket {
 
         LimitOrderData memory limit;
 
-        cSTETH.harvest(abi.encode(swaps, 0, approx, limit));
+        cSTETH.harvest(abi.encode(swaps, 1e8, approx, limit));
 
         vm.warp(block.timestamp + 8 days);
 

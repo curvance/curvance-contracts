@@ -173,7 +173,7 @@ contract TestVelodromeStablePToken is TestBaseMarket {
             address(pUSDCDAI),
             type(uint256).max
         );
-        pUSDCDAI.harvest(abi.encode(swapData));
+        pUSDCDAI.harvest(abi.encode(swapData, 1.252e14));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());

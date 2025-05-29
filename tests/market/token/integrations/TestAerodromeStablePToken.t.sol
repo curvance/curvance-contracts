@@ -260,7 +260,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
             address(pUSDCDAI),
             type(uint256).max
         );
-        pUSDCDAI.harvest(abi.encode(swapData));
+        pUSDCDAI.harvest(abi.encode(swapData, 1e10));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkAERO.updateAnswer(chainlinkAERO.latestAnswer());
