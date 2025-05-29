@@ -57,19 +57,6 @@ abstract contract PluginDelegable {
 
     /// EXTERNAL FUNCTIONS ///
 
-    /// @notice Returns whether `delegate` has the ability to act on behalf of
-    ///         `user`.
-    /// @param user The address to check whether `delegate` has delegation
-    ///             permissions for.
-    /// @param delegate The address to check delegation permissions of `user`.
-    /// @return Returns whether `delegate` is an approved delegate of `user`.
-    function isDelegate(
-        address user,
-        address delegate
-    ) public view returns (bool) {
-        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
-    }
-
     /// @notice Approves or restricts `delegate`'s authority to operate
     ///         on the caller's behalf.
     /// @dev NOTE: Be careful who you approve here!
@@ -96,6 +83,19 @@ abstract contract PluginDelegable {
     }
 
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns whether `delegate` has the ability to act on behalf of
+    ///         `user`.
+    /// @param user The address to check whether `delegate` has delegation
+    ///             permissions for.
+    /// @param delegate The address to check delegation permissions of `user`.
+    /// @return Returns whether `delegate` is an approved delegate of `user`.
+    function isDelegate(
+        address user,
+        address delegate
+    ) public view returns (bool) {
+        return _isDelegate[user][getUserApprovalIndex(user)][delegate];
+    }
 
     /// @notice Returns `user`'s approval index.
     /// @dev The approval index is a way to revoke approval on all tokens,

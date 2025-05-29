@@ -73,7 +73,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev `bytes4(keccak256(bytes("EToken__Unauthorized()")))`.
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc7e7bc18;
     /// @dev `bytes4(keccak256(bytes("EToken__ValidationFailed()")))`.
-    uint256 internal constant _VALIDATION_FAILED_SELECTOR = 0xdb8f0ad;
+    uint256 internal constant _VALIDATION_FAILED_SELECTOR = 0xdb8f0ad7;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
     uint256 internal constant _BASE_UNDERLYING_RESERVE = 42069;
