@@ -104,7 +104,7 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
-            10000,    // maxEffectiveCFactor 100%
+            3000,    // maxEffectiveCFactor 30%
             2000     // baseCFactor 20%
         );
 

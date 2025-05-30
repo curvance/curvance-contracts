@@ -566,6 +566,8 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
+    event debug(string message, uint256 value);
+
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
@@ -586,7 +588,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external view returns (
+    ) external returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -1035,6 +1037,8 @@ contract MarketManagerIsolated is
         );
     }
 
+    event debugUint256(string message, uint256 value);
+
     /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
     /// @dev Can emit {NewCollateralCap} events.
     /// @param pTokens The addresses of the markets (tokens) to
@@ -1058,23 +1062,32 @@ contract MarketManagerIsolated is
             }
         }
 
+        emit debugUint256("checkpoint 1", 1);
+
         if (numTokens != newCollateralCaps.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 2", 2);
 
         for (uint256 i; i < numTokens; ++i) {
             // Make sure the pToken is a pToken.
             _checkIsPToken(pTokens[i]);
 
+            emit debugUint256("is ptoken passed", 0);
+
             // Do not let people collateralize assets
             // with collateralization ratio of 0.
             if (tokenData[pTokens[i]].collRatio == 0) {
+                emit debugUint256("collratio zero", 0);
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             collateralCaps[pTokens[i]] = newCollateralCaps[i];
             emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
         }
+
+        emit debugUint256("checkpoint 3", 3);
     }
 
     /// @notice Admin function to set market-wide liquidation status.
@@ -1598,11 +1611,12 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal view returns (
+    ) internal returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
     ) {
+
         // Calculate the users lFactor and bubble up their active debt.
         (
             auctionData.lFactor,
@@ -1611,6 +1625,11 @@ contract MarketManagerIsolated is
             account,
             cachedData
         );
+
+        emit debug("baseCFactor", auctionData.baseCFactor);
+        emit debug("cFactorCurve", auctionData.cFactorCurve);
+        emit debug("liqBaseIncentive", auctionData.liqBaseIncentive);
+        emit debug("liqCurve", auctionData.liqCurve);
 
         if (auctionData.lFactor == 0) {
             return (0, 0, 0);
@@ -1623,6 +1642,8 @@ contract MarketManagerIsolated is
                 ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
         }
 
+        emit debug("auctionData.auctionCFactor", auctionData.auctionCFactor);
+
         if (auctionData.auctionLiqIncentive == 0) {
             // Fallback to using the base liquidation incentive when
             // _TRANSIENT_PENALTY_KEY is empty.
@@ -1630,14 +1651,21 @@ contract MarketManagerIsolated is
                 ((auctionData.liqCurve * auctionData.lFactor) / WAD);
         }
 
+        emit debug("auctionLiqIncentive:", auctionData.auctionLiqIncentive);
+
         // Get the exchange rate, and calculate the number of
         // position tokens to seize.
         uint256 debtToCollateralMultiplier =
             (((auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
             (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate)) *
             cachedData.pTokenDecimals) / cachedData.eTokenDecimals;
+        
+        emit debug("debtToCollateralMultiplier", debtToCollateralMultiplier);
+
         uint256 maxAmount =
             (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
+
+        emit debug("maxAmount", maxAmount);
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {

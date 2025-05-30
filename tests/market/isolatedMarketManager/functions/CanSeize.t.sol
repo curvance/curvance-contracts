@@ -43,6 +43,7 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
+    // not possible to reach this code path
     // function test_canSeize_fail_whenMarketManagersMismatch() public {
     //     marketManager.listToken(address(pBALRETH));
     //     marketManager.listToken(address(eUSDC));

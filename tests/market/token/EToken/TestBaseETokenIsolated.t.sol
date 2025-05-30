@@ -85,7 +85,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
             200,     // liqIncMin (2% min dynamic penalty)
             400,     // liqIncMax (4% max dynamic penalty)
             1000,    // minEffectiveCFactor (10% min dynamic cFactor)
-            10000,   // maxEffectiveCFactor (100% max dynamic cFactor)
+            3000,   // maxEffectiveCFactor (30% max dynamic cFactor)
             1000     // baseCFactor (10% base cFactor, 0.9 WAD curve)
         );
 

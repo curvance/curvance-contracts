@@ -238,8 +238,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         // Set a valid penalty (WAD + 15%)
         vm.prank(dappControlUser);
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 1e18;
+        uint256 validPenalty = 1.15e18; //15%
+        uint256 closeFactor = 0.30e18; // 30%
         marketManager.setAtlasParameters(validPenalty, closeFactor);
         vm.stopPrank();
 
