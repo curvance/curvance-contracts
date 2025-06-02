@@ -160,7 +160,7 @@ abstract contract ActionRegistry {
     ///                         their transferability status can be assumed,
     ///                         it's best to make sure the caller intends on
     ///                         flipping their status for onchain integrators.
-    function setTransferLockStatus(bool transferDisabled) external {
+    function setTransferStatus(bool transferDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their transfer
@@ -188,7 +188,7 @@ abstract contract ActionRegistry {
         emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
     }
 
-    /// DELEGATION PLUGIN MANAGEMENT ///
+    /// PLUGIN DELEGATION MANAGEMENT ///
 
     /// @notice Returns `user`'s approval index.
     /// @dev The approval index is a way to revoke approval on all tokens,
@@ -231,7 +231,7 @@ abstract contract ActionRegistry {
     /// @param delegationDisabled Whether caller wants to allow new delegation
     ///                           or not.
     ///      Emits a {DelegableStatusChanged} event.
-    function setDelegable(bool delegationDisabled) external {
+    function setDelegableStatus(bool delegationDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their delegation

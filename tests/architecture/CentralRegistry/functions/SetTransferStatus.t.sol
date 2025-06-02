@@ -5,40 +5,40 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
-contract SetTransferLockStatusTest is TestBaseMarket {
+contract setTransferStatusTest is TestBaseMarket {
     event LockStatusChanged(
         address indexed user,
         bool locked,
         uint256 timestamp
     );
 
-    function test_setTransferLockStatus_fail_whenStatusIsNotFlipping() public {
+    function test_setTransferStatus_fail_whenStatusIsNotFlipping() public {
         vm.expectRevert(
             ActionRegistry.ActionRegistry__InvalidParams.selector
         );
-        centralRegistry.setTransferLockStatus(false);
+        centralRegistry.setTransferStatus(false);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         vm.expectRevert(
             ActionRegistry.ActionRegistry__InvalidParams.selector
         );
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
     }
 
-    function test_setTransferLockStatus_fail_whenCooldownIsNotEnded() public {
-        centralRegistry.setTransferLockStatus(true);
+    function test_setTransferStatus_fail_whenCooldownIsNotEnded() public {
+        centralRegistry.setTransferStatus(true);
 
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
         vm.expectRevert(
-            ActionRegistry.ActionRegistry__InvalidParams.selector
+            ActionRegistry.ActionRegistry__CooldownActive.selector
         );
-        centralRegistry.setTransferLockStatus(false);
+        centralRegistry.setTransferStatus(false);
     }
 
-    function test_setTransferLockStatus_success() public {
+    function test_setTransferStatus_success() public {
         vm.startPrank(user1);
 
         assertFalse(centralRegistry.checkTransfersDisabled(user1));
@@ -46,7 +46,7 @@ contract SetTransferLockStatusTest is TestBaseMarket {
         vm.expectEmit(true, true, true, true);
         emit LockStatusChanged(user1, true, 0);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
@@ -58,7 +58,7 @@ contract SetTransferLockStatusTest is TestBaseMarket {
         vm.expectEmit(true, true, true, true);
         emit LockStatusChanged(user1, false, block.timestamp + 5 days);
 
-        centralRegistry.setTransferLockStatus(false);
+        centralRegistry.setTransferStatus(false);
 
         assertTrue(centralRegistry.checkTransfersDisabled(user1));
 
