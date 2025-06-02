@@ -92,10 +92,10 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
             true
         );
 
-        uint256 rate1 = interestRateModel.getBorrowRate(1e18, 1.7e18, 1e18);
+        uint256 rate1 = interestRateModel.getBorrowRate(0, 1e18, 0);
         console2.log("borrowRate: %d", rate1);
 
-        uint256 rate2 = interestRateModel.getBorrowRate(1e18, 2e18, 1e18);
+        uint256 rate2 = interestRateModel.getBorrowRate(0.1e18, 0.9e18, 0);
         console2.log("borrowRate: %d", rate2);
 
         assertNotEq(rate1, rate2);

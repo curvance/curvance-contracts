@@ -57,6 +57,11 @@ abstract contract ActionRegistry {
     ///         universe.
     uint256 public constant COOLDOWN_MAXIMUM = 52 weeks;
 
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__InvalidParams()")))`.
+    uint256 internal constant _INVALID_PARAMS_SELECTOR = 0x51b33a31;
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__CooldownActive()")))`.
+    uint256 internal constant _COOLDOWN_ACTIVE_SELECTOR = 0x8471b001;
+
     /// STORAGE ///
 
     /// @notice Contains a user's configuration values for transfers and
@@ -110,22 +115,21 @@ abstract contract ActionRegistry {
         }
 
         UserConfig storage userConfig = _userConfig[msg.sender];
-        uint256 userCooldownTimestamp = userConfig.lockCooldown;
-
-        // Validate the user does not currently have their cooldown active.
-        if (userCooldownTimestamp > block.timestamp) {
-            revert ActionRegistry__CooldownActive();
-        }
-
         // If a user is decreasing their cooldown, lock cooldown
         // will automatically apply, delaying when transferability and plugin
         // approval can be re-enabled, preventing a malicious party from
         // tracking a user to decrease their cooldown to 0 and then enabling
         // transferability.
-        if (userCooldownTimestamp > cooldown) {
-            uint40 newCooldown = uint40(
-                userCooldownTimestamp + block.timestamp
-            );
+        uint256 userCooldown = userConfig.lockCooldown;
+        if (userCooldown > cooldown) {
+            // Validate the user does not currently have a cooldown active.
+            if (
+                block.timestamp < userConfig.transferEnabledTimestamp ||
+                block.timestamp < userConfig.delegationEnabledTimestamp
+            ) {
+                _revert(_COOLDOWN_ACTIVE_SELECTOR);
+            }
+            uint40 newCooldown = uint40(userCooldown + block.timestamp);
             userConfig.transferEnabledTimestamp = newCooldown;
             userConfig.delegationEnabledTimestamp = newCooldown;
         }
@@ -163,8 +167,7 @@ abstract contract ActionRegistry {
         // lock status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (transferDisabled == userConfig.transferDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -235,8 +238,7 @@ abstract contract ActionRegistry {
         // status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (delegationDisabled == userConfig.delegationDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -271,8 +273,7 @@ abstract contract ActionRegistry {
         // Validate the user did not recently reduce their action cooldown
         // period, triggering their action cooldown.
         if (enabledTimestamp > block.timestamp) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_COOLDOWN_ACTIVE_SELECTOR);
         }
 
         return (_userConfig[msg.sender].lockCooldown + block.timestamp);
