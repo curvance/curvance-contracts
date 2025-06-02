@@ -62,6 +62,7 @@ contract TestBaseMarketIsolated is TestBaseIsolated {
         _deployEUSDC();
         _deployEDAI();
 
+        _deployPUSDC();
         _deployPBALRETH();
         _deployPBALRETHWithExitFee();
 

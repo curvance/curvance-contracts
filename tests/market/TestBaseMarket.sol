@@ -63,6 +63,7 @@ contract TestBaseMarket is TestBase {
         _deployEUSDC();
         _deployEDAI();
         _deployEUSDCIsolated();
+        _deployPUSDC();
         _deployPBALRETH();
         _deployPBALRETHWithExitFee();
         _deployPBALRETHIsolated();

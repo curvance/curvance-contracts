@@ -14,6 +14,7 @@ import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
@@ -108,9 +109,12 @@ contract TestVariables {
     EToken public eUSDC;
     EToken public eDAI;
     EToken public eUSDCIsolated;
-    AuraPToken public pBALRETH;
+
+    SimplePToken public pUSDC;
     MockAuraPTokenWithExitFee public pBALRETHWithExitFee;
+    AuraPToken public pBALRETH;
     AuraPToken public pBALRETHIsolated;
+
     IERC20 public usdc;
     IERC20 public dai;
     IERC20 public weth;
