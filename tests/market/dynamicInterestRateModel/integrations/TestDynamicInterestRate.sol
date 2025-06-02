@@ -73,13 +73,25 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function _deployPUSDC() internal returns (MockSimplePToken) {
-        pUSDC = new MockSimplePToken(
-            ICentralRegistry(address(centralRegistry)),
-            address(usdc),
-            address(marketManager)
+    function test_DynamicInterestRateModel_PrecisionCheck() public {
+        interestRateModel.updateDynamicInterestRateModel(
+            1500,
+            1500,
+            5500,
+            4 hours,
+            5500,
+            150000000,
+            150,
+            true
         );
-        return pUSDC;
+
+        uint256 rate1 = interestRateModel.getBorrowRate(1e18, 1.7e18, 1e18);
+        console2.log("borrowRate: %d", rate1);
+
+        uint256 rate2 = interestRateModel.getBorrowRate(1e18, 2e18, 1e18);
+        console2.log("borrowRate: %d", rate2);
+
+        assertNotEq(rate1, rate2);
     }
 
     function testWhenUtilizationIsBelowVertexStartingPoint() public {

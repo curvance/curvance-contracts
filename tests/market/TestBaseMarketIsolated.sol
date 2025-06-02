@@ -445,6 +445,18 @@ contract TestBaseMarketIsolated is TestBaseIsolated {
         return eToken;
     }
 
+    function _deployPUSDC()
+        internal
+        initMainVariables
+        returns (MockSimplePToken) {
+        pUSDC = new MockSimplePToken(
+            ICentralRegistry(address(centralRegistry)),
+            address(usdc),
+            address(marketManager)
+        );
+        return pUSDC;
+    }
+
     function _deployPBALRETH()
         internal
         initMainVariables
