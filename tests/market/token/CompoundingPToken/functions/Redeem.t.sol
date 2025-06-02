@@ -20,7 +20,7 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
     {
         pBALRETH.mint(100, address(this));
 
-        centralRegistry.setTransferStatus(true);
+        centralRegistry.setTransferableStatus(true);
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         pBALRETH.redeem(10, address(this), address(this));

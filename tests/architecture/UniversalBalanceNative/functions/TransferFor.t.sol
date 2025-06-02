@@ -52,7 +52,7 @@ contract UniversalBalanceNativeTransferForTest is
         public
     {
         vm.prank(user1);
-        centralRegistry.setTransferStatus(true);
+        centralRegistry.setTransferableStatus(true);
 
         vm.prank(user2);
 

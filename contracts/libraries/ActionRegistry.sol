@@ -77,15 +77,15 @@ abstract contract ActionRegistry {
 
     event CooldownSet(address indexed user, uint256 userLockCooldown);
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
+    event TransferableStatusChanged(
+        address indexed user,
+        bool isLocked,
+        uint256 transferEnabledTimestamp
+    );
     event DelegableStatusChanged(
         address indexed user,
         bool delegable,
         uint256 delegationEnabledTimestamp
-    );
-    event LockStatusChanged(
-        address indexed user,
-        bool isLocked,
-        uint256 transferEnabledTimestamp
     );
 
     /// ERRORS ///
@@ -154,13 +154,13 @@ abstract contract ActionRegistry {
     /// @notice Sets token transferability for the caller, if enabling
     ///         transferability, the caller's opt in transfer cooldown will
     ///         be applied.
-    /// @dev Emits a {LockStatusChanged} event.
+    /// @dev Emits a {TransferableStatusChanged} event.
     /// @param transferDisabled Whether the user intends on enabling or
     ///                         disabling transferability, while flipping
     ///                         their transferability status can be assumed,
     ///                         it's best to make sure the caller intends on
     ///                         flipping their status for onchain integrators.
-    function setTransferStatus(bool transferDisabled) external {
+    function setTransferableStatus(bool transferDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their transfer
@@ -185,7 +185,11 @@ abstract contract ActionRegistry {
         userConfig.transferDisabled = transferDisabled;
 
         // Timestamp emitted is 0 if locking transferability.
-        emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
+        emit TransferableStatusChanged(
+            msg.sender,
+            transferDisabled,
+            enableTimestamp
+        );
     }
 
     /// PLUGIN DELEGATION MANAGEMENT ///
