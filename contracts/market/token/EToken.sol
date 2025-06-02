@@ -729,6 +729,8 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
     /// @notice Returns the future debt balance for `account` assuming
     ///         interest rates do not change.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
     /// @param account The address whose debt balance should be calculated.
     /// @param timestamp The unix timestamp to calculate `account` debt
     ///                  balance with.

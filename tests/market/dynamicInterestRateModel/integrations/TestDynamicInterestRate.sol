@@ -6,6 +6,7 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import "forge-std/console2.sol";
 
 // new DynamicInterestRateModel(
 //             ICentralRegistry(address(centralRegistry)),
@@ -25,7 +26,6 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 //
 contract TestDynamicInterestRateWithEToken is TestBaseMarket {
     DynamicInterestRateModel public interestRateModel;
-    SimplePToken public pUSDC;
 
     address public owner;
     address public user;
