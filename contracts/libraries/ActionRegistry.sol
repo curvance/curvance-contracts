@@ -86,6 +86,7 @@ abstract contract ActionRegistry {
     /// ERRORS ///
 
     error ActionRegistry__InvalidParams();
+    error ActionRegistry__CooldownActive();
     error ActionRegistry__UnsafeCooldown();
 
     /// CONSTRUCTOR ///
@@ -109,15 +110,21 @@ abstract contract ActionRegistry {
         }
 
         UserConfig storage userConfig = _userConfig[msg.sender];
+        uint256 userCooldownTimestamp = userConfig.lockCooldown;
+
+        // Validate the user does not currently have their cooldown active.
+        if (userCooldownTimestamp > block.timestamp) {
+            revert ActionRegistry__CooldownActive();
+        }
 
         // If a user is decreasing their cooldown, lock cooldown
         // will automatically apply, delaying when transferability and plugin
         // approval can be re-enabled, preventing a malicious party from
         // tracking a user to decrease their cooldown to 0 and then enabling
         // transferability.
-        if (userConfig.lockCooldown > cooldown) {
+        if (userCooldownTimestamp > cooldown) {
             uint40 newCooldown = uint40(
-                userConfig.lockCooldown + block.timestamp
+                userCooldownTimestamp + block.timestamp
             );
             userConfig.transferEnabledTimestamp = newCooldown;
             userConfig.delegationEnabledTimestamp = newCooldown;
