@@ -24,7 +24,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
 
     function test_canRedeem_fail_whenTransferIsDisabled() public {
         vm.prank(user1);
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
         marketManager.canRedeem(address(eUSDC), user1, 100e6);

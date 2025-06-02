@@ -18,7 +18,7 @@ contract UniversalBalanceWithdrawTest is TestBaseUniversalBalance {
     {
         vm.startPrank(user1);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector

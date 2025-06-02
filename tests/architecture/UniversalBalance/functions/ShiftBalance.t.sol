@@ -28,7 +28,7 @@ contract UniversalBalanceShiftBalanceTest is TestBaseUniversalBalance {
 
         universalBalance.deposit(1e6, false);
 
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         vm.expectRevert(
             UniversalBalance.UniversalBalance__Unauthorized.selector

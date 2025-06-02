@@ -100,7 +100,7 @@ contract NativeMultiWithdrawNativeForTest is TestBaseUniversalBalanceNative {
         setupVariables(depositAmounts, withdrawAmounts_, forceLentRedemption_)
     {
         vm.prank(user2);
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferStatus(true);
 
         vm.prank(user1);
 
