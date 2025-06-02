@@ -165,21 +165,25 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation
             );
 
-        console2.log("maxAmount for borrower 1", maxAmount[0]);
-        console2.log("liquidatedPTokens for borrower 1", liquidatedPTokens[0]);
-        console2.log("collateralRequired for borrower 1", collateralRequired[0]);
-        console2.log("maxAmount for borrower 2", maxAmount[1]);
-        console2.log("liquidatedPTokens for borrower 2", liquidatedPTokens[1]);
-        console2.log("collateralRequired for borrower 2", collateralRequired[1]);
-        console2.log("maxAmount for borrower 3", maxAmount[2]);
-        console2.log("liquidatedPTokens for borrower 3", liquidatedPTokens[2]);
-        console2.log("collateralRequired for borrower 3", collateralRequired[2]);
-        console2.log("maxAmount for borrower 4", maxAmount[3]);
-        console2.log("liquidatedPTokens for borrower 4", liquidatedPTokens[3]);
-        console2.log("collateralRequired for borrower 4", collateralRequired[3]);
-        console2.log("maxAmount for borrower 5", maxAmount[4]);
-        console2.log("liquidatedPTokens for borrower 5", liquidatedPTokens[4]);
-        console2.log("collateralRequired for borrower 5", collateralRequired[4]);
+        // DELETE
+        // address[] memory borrowersTemporary = new address[](1);
+        // borrowersTemporary[0] = borrowers[4];
+
+        console2.log("Expected maxAmount for borrower 1", maxAmount[0]);
+        console2.log("Expected liquidatedPTokens for borrower 1", liquidatedPTokens[0]);
+        console2.log("Expected collateralRequired for borrower 1", collateralRequired[0]);
+        console2.log("Expected maxAmount for borrower 2", maxAmount[1]);
+        console2.log("Expected liquidatedPTokens for borrower 2", liquidatedPTokens[1]);
+        console2.log("Expected collateralRequired for borrower 2", collateralRequired[1]);
+        console2.log("Expected maxAmount for borrower 3", maxAmount[2]);
+        console2.log("Expected liquidatedPTokens for borrower 3", liquidatedPTokens[2]);
+        console2.log("Expected collateralRequired for borrower 3", collateralRequired[2]);
+        console2.log("Expected maxAmount for borrower 4", maxAmount[3]);
+        console2.log("Expected liquidatedPTokens for borrower 4", liquidatedPTokens[3]);
+        console2.log("Expected collateralRequired for borrower 4", collateralRequired[3]);
+        console2.log("Expected maxAmount for borrower 5", maxAmount[4]);
+        console2.log("Expected liquidatedPTokens for borrower 5", liquidatedPTokens[4]);
+        console2.log("Expected collateralRequired for borrower 5", collateralRequired[4]);
 
         // ===== Liquidate =====
 
@@ -190,29 +194,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         );
 
         // ===== Validate =====
-        uint256[] memory badDebts = new uint256[](5);
-
-        for(uint i = 0; i < 5; i++) {
-            if(liquidatedPTokens[i] < WAD) continue; // skip postion if no bad debt
-
-            badDebts[i] = _calculateBadDebtWithHigherPrecision(
-                debtBalancesPreLiquidation[i],               // Total debt balance
-                maxAmount[i],              // Amount being liquidated
-                collateralAvailable,       // Available collateral
-                collateralRequired[i],      // Required collateral
-                liquidatedPTokens[i],      // Liquidated tokens
-                pTokenPrice,               // pToken price
-                eTokenPrice,               // eToken price
-                1e18         // Exchange rate, no yield is generated at this point
-            );
-        }
         
-        console2.log("badDebts", badDebts[0]);
-        console2.log("badDebts", badDebts[1]);
-        console2.log("badDebts", badDebts[2]);
-        console2.log("badDebts", badDebts[3]);
-        console2.log("badDebts", badDebts[4]);
-
     }
 
     function _createPositions() internal {
@@ -349,6 +331,13 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         } else {
             return 0;
         }
+        
+    }
+
+    function _calculateExpectedTotalBadDebt(
+        uint256[] memory liquidatedPTokens
+    ) internal view returns (uint256 totalBadDebt) {
+
         
     }
 
