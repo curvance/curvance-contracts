@@ -15,7 +15,6 @@ contract TestPositionManagementSimple is TestBaseMarket {
     address public owner;
     address public user;
 
-    SimplePToken public pUSDC;
     PositionManagementSimple public positionManagement;
 
     receive() external payable {}
@@ -51,12 +50,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // deploy simple pToken
         {
-            pUSDC = new SimplePToken(
-                ICentralRegistry(address(centralRegistry)),
-                IERC20(address(usdc)),
-                address(marketManager)
-            );
-
+            _deployPUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
             marketManager.listToken(address(pUSDC));

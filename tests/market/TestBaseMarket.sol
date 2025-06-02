@@ -496,7 +496,7 @@ contract TestBaseMarket is TestBase {
         returns (SimplePToken) {
         pUSDC = new SimplePToken(
             ICentralRegistry(address(centralRegistry)),
-            address(usdc),
+            usdc,
             address(marketManager)
         );
         return pUSDC;

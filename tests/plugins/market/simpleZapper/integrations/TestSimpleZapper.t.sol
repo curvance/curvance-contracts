@@ -17,7 +17,6 @@ contract TestSimpleZapper is TestBaseMarket {
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     address public owner;
-    SimplePToken public pUSDC;
     SimpleZapper public simpleZapper;
 
     receive() external payable {}
@@ -51,12 +50,7 @@ contract TestSimpleZapper is TestBaseMarket {
 
         // deploy simple pToken
         {
-            pUSDC = new SimplePToken(
-                ICentralRegistry(address(centralRegistry)),
-                IERC20(address(usdc)),
-                address(marketManager)
-            );
-
+            _deployPUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
             marketManager.listToken(address(pUSDC));
