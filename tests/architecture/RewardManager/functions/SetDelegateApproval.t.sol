@@ -16,7 +16,7 @@ contract SetDelegateApprovalTest is TestBaseRewardManager {
     function test_setDelegateApproval_fail_whenDelegationIsDisabled() public {
         vm.startPrank(user1);
 
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
 
         vm.expectRevert(
             PluginDelegable.PluginDelegable__DelegatingDisabled.selector
@@ -30,8 +30,8 @@ contract SetDelegateApprovalTest is TestBaseRewardManager {
         vm.startPrank(user1);
 
         centralRegistry.setCooldown(10 days);
-        centralRegistry.setDelegable(true);
-        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegableStatus(true);
+        centralRegistry.setDelegableStatus(false);
 
         vm.expectRevert(
             PluginDelegable.PluginDelegable__DelegatingDisabled.selector
