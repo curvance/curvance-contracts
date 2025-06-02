@@ -566,8 +566,6 @@ contract MarketManagerIsolated is
         _checkHoldPeriod(account);
     }
 
-    event debug(string message, uint256 value);
-
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
@@ -588,7 +586,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external returns (
+    ) external view returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -855,6 +853,8 @@ contract MarketManagerIsolated is
         emit TokenListed(eToken);
     }
 
+    event debugUint256(string message, uint256 value);
+
     /// @notice Sets market liquidity configuration values for a position
     ///         token inside this market.
     /// @dev Emits a {PositionTokenUpdated} event.
@@ -900,16 +900,22 @@ contract MarketManagerIsolated is
         minEffectiveCloseFactor = _bpToWad(minEffectiveCloseFactor);
         maxEffectiveCloseFactor = _bpToWad(maxEffectiveCloseFactor);
 
+        emit debugUint256("checkpoint 1", 1);
+
         // Validate collateralization ratio is not above the maximum allowed.
         if (collRatio > MAX_COLLATERALIZATION_RATIO) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 2", 2);
 
         // Validate soft liquidation collateral requirement is
         // not above the maximum allowed.
         if (collReqSoft > MAX_COLLATERAL_REQUIREMENT) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 3", 3);
 
         // Validate hard liquidation collateral requirement is not above
         // the soft liquidation requirement. Liquidations occur when
@@ -919,12 +925,16 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 4", 4);
+
         // Validate hard liquidation incentive is
         // higher than the soft liquidation incentive. Give heavier incentives
         // when collateral is running out to reduce delta exposure.
         if (liqIncBase >= liqIncHard) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 5", 5);
 
         // Make sure the maximum dynamic penalty is not greater than the base
         // liquidation incentive and that the minimum dynamic penalty is not
@@ -933,17 +943,23 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 6", 6);
+
         // Validate hard liquidation incentive is
         // not above the maximum allowed.
         if (liqIncMax > MAX_LIQUIDATION_INCENTIVE) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 7", 7);
+
         // Validate maximum liquidation incentive and default is
         // equal or higher than the minimum liquidation incentive.
         if (liqIncMin >= liqIncMax) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 8", 8);
 
         // Validate hard liquidation collateral requirement is larger
         // than the hard liquidation incentive. We cannot give more incentives
@@ -953,6 +969,10 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 9", 9);
+
+        
+
         // Validate hard liquidation collateral requirement is larger
         // than the hard liquidation incentive. We cannot give more incentives
         // than are available. We do not need to check soft liquidation as the
@@ -961,16 +981,22 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 10", 10);
+
         // Validate that soft liquidation is within acceptable bounds.
         if (baseCFactor > MAX_BASE_CFACTOR || baseCFactor < MIN_BASE_CFACTOR) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 11", 11);
 
         // Validate the soft liquidation collateral premium
         // is not more strict than the asset's CR.
         if (collRatio > (WAD_SQUARED / (WAD + collReqSoft))) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
+
+        emit debugUint256("checkpoint 12", 12);
 
         // Cache positionToken storage address.
         address pToken = positionToken;
@@ -983,18 +1009,26 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        emit debugUint256("checkpoint 13", 13);
+
         (, uint256 errorCode) = IOracleManager(centralRegistry.oracleManager())
             .getPrice(pToken, true, true);
+
+        emit debugUint256("checkpoint 14", 14);
 
         // Validate that we get a usable price.
         if (errorCode == 2) {
             revert MarketManager__PriceError();
         }
 
+        emit debugUint256("checkpoint 15", 15);
+
         // Assign new collateralization ratio.
         // Note that a collateralization ratio of 0 corresponds to
         // no collateralization of the pToken.
         marketToken.collRatio = collRatio;
+
+        emit debugUint256("checkpoint 16", 16);
 
         // Store the collateral requirement as a premium above `WAD`,
         // that way we can calculate solvency via division
@@ -1002,15 +1036,21 @@ contract MarketManagerIsolated is
         marketToken.collReqSoft = collReqSoft + WAD;
         marketToken.collReqHard = collReqHard + WAD;
 
+        emit debugUint256("checkpoint 17", 17);
+
         // We use the liquidation incentive values as a premium in
         // `calculateLiquidatedTokens`, so it needs to be 1 + incentive.
         marketToken.liqBaseIncentive = WAD + liqIncBase;
         marketToken.liqMinIncentive = WAD + liqIncMin;
         marketToken.liqMaxIncentive = WAD + liqIncMax;
 
+        emit debugUint256("checkpoint 18", 18);
+
         // Store the distance between liquidation incentive A & B,
         // so we can quickly scale between [base, 100%] based on lFactor.
         marketToken.liqCurve = liqIncHard - liqIncBase;
+
+        emit debugUint256("checkpoint 19", 19);
 
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
@@ -1018,9 +1058,13 @@ contract MarketManagerIsolated is
         // that way we can quickly scale between [base, 100%] based on lFactor.
         marketToken.cFactorCurve = WAD - baseCFactor;
 
+        emit debugUint256("checkpoint 20", 20);
+
         // Assign the min and max effective closeFactor
         marketToken.minEffectiveCloseFactor = minEffectiveCloseFactor;
         marketToken.maxEffectiveCloseFactor = maxEffectiveCloseFactor;
+
+        emit debugUint256("checkpoint 21", 21);
 
         emit PositionTokenUpdated(
             pToken,
@@ -1036,8 +1080,6 @@ contract MarketManagerIsolated is
             baseCFactor
         );
     }
-
-    event debugUint256(string message, uint256 value);
 
     /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
     /// @dev Can emit {NewCollateralCap} events.
@@ -1062,32 +1104,23 @@ contract MarketManagerIsolated is
             }
         }
 
-        emit debugUint256("checkpoint 1", 1);
-
         if (numTokens != newCollateralCaps.length) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
-
-        emit debugUint256("checkpoint 2", 2);
 
         for (uint256 i; i < numTokens; ++i) {
             // Make sure the pToken is a pToken.
             _checkIsPToken(pTokens[i]);
 
-            emit debugUint256("is ptoken passed", 0);
-
             // Do not let people collateralize assets
             // with collateralization ratio of 0.
             if (tokenData[pTokens[i]].collRatio == 0) {
-                emit debugUint256("collratio zero", 0);
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             collateralCaps[pTokens[i]] = newCollateralCaps[i];
             emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
         }
-
-        emit debugUint256("checkpoint 3", 3);
     }
 
     /// @notice Admin function to set market-wide liquidation status.
@@ -1611,12 +1644,11 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal returns (
+    ) internal view returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
     ) {
-
         // Calculate the users lFactor and bubble up their active debt.
         (
             auctionData.lFactor,
@@ -1625,11 +1657,6 @@ contract MarketManagerIsolated is
             account,
             cachedData
         );
-
-        emit debug("baseCFactor", auctionData.baseCFactor);
-        emit debug("cFactorCurve", auctionData.cFactorCurve);
-        emit debug("liqBaseIncentive", auctionData.liqBaseIncentive);
-        emit debug("liqCurve", auctionData.liqCurve);
 
         if (auctionData.lFactor == 0) {
             return (0, 0, 0);
@@ -1642,8 +1669,6 @@ contract MarketManagerIsolated is
                 ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
         }
 
-        emit debug("auctionData.auctionCFactor", auctionData.auctionCFactor);
-
         if (auctionData.auctionLiqIncentive == 0) {
             // Fallback to using the base liquidation incentive when
             // _TRANSIENT_PENALTY_KEY is empty.
@@ -1651,21 +1676,14 @@ contract MarketManagerIsolated is
                 ((auctionData.liqCurve * auctionData.lFactor) / WAD);
         }
 
-        emit debug("auctionLiqIncentive:", auctionData.auctionLiqIncentive);
-
         // Get the exchange rate, and calculate the number of
         // position tokens to seize.
         uint256 debtToCollateralMultiplier =
             (((auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
             (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate)) *
             cachedData.pTokenDecimals) / cachedData.eTokenDecimals;
-        
-        emit debug("debtToCollateralMultiplier", debtToCollateralMultiplier);
-
         uint256 maxAmount =
             (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
-
-        emit debug("maxAmount", maxAmount);
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
