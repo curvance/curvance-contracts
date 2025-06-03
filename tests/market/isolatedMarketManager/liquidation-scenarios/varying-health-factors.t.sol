@@ -43,6 +43,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     uint256 baseCFactor;
     uint256 cFactorCurve;
 
+    event BadDebtRecognized(address liquidator, uint256 amount);
+
     function setUp() public override {
         super.setUp();
 
@@ -155,46 +157,106 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
-        console2.log("lFactorsPreLiquidation", lFactorsPreLiquidation[0]);
-
         (,uint256 eTokenPrice, uint256 pTokenPrice) = 
             marketManager.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision(
+            _getLiquidationValuesWithHigherPrecision_NonAtlas(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation
             );
 
-        // DELETE
-        // address[] memory borrowersTemporary = new address[](1);
-        // borrowersTemporary[0] = borrowers[4];
+        uint256 expectedTotalBadDebt;
+        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
 
-        console2.log("Expected maxAmount for borrower 1", maxAmount[0]);
-        console2.log("Expected liquidatedPTokens for borrower 1", liquidatedPTokens[0]);
-        console2.log("Expected collateralRequired for borrower 1", collateralRequired[0]);
-        console2.log("Expected maxAmount for borrower 2", maxAmount[1]);
-        console2.log("Expected liquidatedPTokens for borrower 2", liquidatedPTokens[1]);
-        console2.log("Expected collateralRequired for borrower 2", collateralRequired[1]);
-        console2.log("Expected maxAmount for borrower 3", maxAmount[2]);
-        console2.log("Expected liquidatedPTokens for borrower 3", liquidatedPTokens[2]);
-        console2.log("Expected collateralRequired for borrower 3", collateralRequired[2]);
-        console2.log("Expected maxAmount for borrower 4", maxAmount[3]);
-        console2.log("Expected liquidatedPTokens for borrower 4", liquidatedPTokens[3]);
-        console2.log("Expected collateralRequired for borrower 4", collateralRequired[3]);
-        console2.log("Expected maxAmount for borrower 5", maxAmount[4]);
-        console2.log("Expected liquidatedPTokens for borrower 5", liquidatedPTokens[4]);
-        console2.log("Expected collateralRequired for borrower 5", collateralRequired[4]);
+        for(uint i; i < 5; i++) {
+            expectedTotalBadDebt += _calculateBadDebt(
+                debtBalancesPreLiquidation[i],
+                maxAmount[i],
+                collateralAvailable,
+                collateralRequired[i],
+                liquidatedPTokens[i],
+                pTokenPrice,
+                eTokenPrice,
+                pTokenExchangeRate
+            );
+        }
+
+        uint256 totalBorrowsBefore = eUSDC.totalBorrows();
 
         // ===== Liquidate =====
 
         eUSDC.approve(address(marketManager), 100000e6);
+
+        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit();
+        emit BadDebtRecognized(address(this), expectedTotalBadDebt);
+
         eUSDC.liquidate(
             borrowers,
             address(pBALRETH)
         );
 
         // ===== Validate =====
-        
+
+        // Verify healthy accounts (1 and 2) are not liquidated
+        assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+
+        // Verify liquidated accounts (3, 4, and 5) are liquidated
+        for (uint i = 2; i < 5; i++) {
+            // Debt should be reduced by maxAmount if soft liquidation
+            if(borrowers[i] == borrower3) {
+                assertEq(eUSDC.debtBalanceCached(borrowers[i]), debtBalancesPreLiquidation[i] - maxAmount[i], "Borrower 3 should be soft liquidated");
+            } else {
+                assertEq(eUSDC.debtBalanceCached(borrowers[i]), 0, "Borrower should be hard liquidated");
+            }
+
+            // Collateral should be reduced by liquidatedPTokens
+            assertApproxEqAbs(
+                pBALRETH.balanceOf(borrowers[i]), 
+                _ONE - liquidatedPTokens[i],
+                1000, // Tolerance of 1000 wei 
+                "Collateral post liquidation mismatch"
+            );
+        }
+
+        uint256 totalDebtRepaid = maxAmount[2] + borrowAmounts[3] + borrowAmounts[4];
+
+        assertApproxEqAbs(
+            eUSDC.totalBorrows(),
+            totalBorrowsBefore - totalDebtRepaid,
+            100, // Small tolerance
+            "Incorrect totalBorrows after liquidation"
+        );
+
+        // Verify liquidator received the expected collateral
+        uint256 expectedLiquidatorBalance = liquidatedPTokens[2] + liquidatedPTokens[3] + liquidatedPTokens[4];
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(address(this)),
+            expectedLiquidatorBalance,
+            1000,
+            "Liquidator didn't receive expected collateral"
+        );
+
+        // Test accounts health factor after liquidation
+        for (uint i = 2; i < 5; i++) {
+            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
+                borrowers[i],
+                address(eUSDC),
+                address(pBALRETH)
+            );
+            
+            if (eUSDC.debtBalanceCached(borrowers[i]) > 0) {
+                // If there's still debt, health factor should be improved
+                assertTrue(
+                    lFactorAfter < lFactorsPreLiquidation[i],
+                    "Health factor should improve after partial liquidation"
+                );
+            } else {
+                // If fully liquidated, lFactor should be 0
+                assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
+            }
+        }
     }
 
     function _createPositions() internal {
@@ -257,7 +319,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         return debtBalances;
     }
 
-    function _getLiquidationValuesWithHigherPrecision(
+    function _getLiquidationValuesWithHigherPrecision_NonAtlas(
         uint256 eTokenPrice,
         uint256 pTokenPrice,
         uint256[] memory lFactors
@@ -308,7 +370,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         return (maxAmount, liquidatedPTokens, collateralRequired);
     }
 
-    function _calculateBadDebtWithHigherPrecision(
+    function _calculateBadDebt(
         uint256 _debtBalance,
         uint256 _debtAmount,
         uint256 _collateralAvailable,
@@ -333,93 +395,5 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         }
         
     }
-
-    function _calculateExpectedTotalBadDebt(
-        uint256[] memory liquidatedPTokens
-    ) internal view returns (uint256 totalBadDebt) {
-
-        
-    }
-
-
-
-    // function _validateLiquidations() internal {
-
-    //     uint256 lFactor;
-    //     uint256 eTokenPrice;
-    //     uint256 pTokenPrice;
-        
-    //     for(uint i; i < 5; i++) {
-
-    //         (lFactor, eTokenPrice, pTokenPrice) = marketManager.liquidationStatusOf(
-    //             borrowers[i],
-    //             address(eUSDC),
-    //             address(pBALRETH)
-    //         );
-
-    //         (uint256 maxAmount, uint256 liquidatedPTokens) = _calculateExpectedRepayAndLiquidated(
-    //             _ONE,
-    //             lFactor,
-    //             borrowAmounts[i],
-    //             eTokenPrice,
-    //             pTokenPrice
-    //         );
-
-    //         uint256 badDebt = _calculateBadDebt(
-    //             borrowAmounts[i],
-    //             _ONE,
-    //             liquidatedPTokens,
-    //             pTokenPrice,
-    //             eTokenPrice,
-    //             borrowAmounts[i]
-    //         );
-
-
-    //     }
-    // }
-
-    // function _calculateExpectedRepayAndLiquidated(
-    //     uint256 collateralAvailable, 
-    //     uint256 lFactor, 
-    //     uint256 loanAmount, 
-    //     uint256 eTokenUnderlyingPrice, 
-    //     uint256 pTokenUnderlyingPrice) internal view returns (uint256 maxAmount, uint256 liquidatedPTokens) {
-
-    //     (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
-    //         marketManager.tokenData(address(pBALRETH));
-        
-        
-    //     // default values since not using ASS
-    //     uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
-
-    //     uint256 auctionLiqIncentive = liqBaseIncentive +
-    //             ((liqCurve * lFactor) / WAD);
-
-    //     // uint256 pTokenDecimals = 1e18;
-    //     // uint256 eTokenDecimals = 1e6;
-
-    //     uint256 debtToCollateralMultiplier = 
-    //     (((auctionLiqIncentive * eTokenUnderlyingPrice * WAD) /
-    //         (pTokenUnderlyingPrice * 1e18)) *
-    //         1e18) / 1e6;
-
-    //     maxAmount = (auctionCFactor * loanAmount) / WAD;
-
-    //     liquidatedPTokens = (maxAmount * debtToCollateralMultiplier) / WAD;
-
-    //     console2.log("liquidatedPTokens 000", liquidatedPTokens);
-
-    //     maxAmount = FixedPointMathLib.mulDivUp(
-    //         maxAmount,
-    //         collateralAvailable,
-    //         liquidatedPTokens
-    //     );
-
-    //     liquidatedPTokens = collateralAvailable;
-
-
-    //     return (maxAmount, liquidatedPTokens);
-    // }
-
 
 }
