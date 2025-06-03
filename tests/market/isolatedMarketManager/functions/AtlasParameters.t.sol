@@ -1,82 +1,51 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import { TestBaseMarketManager } from "tests/market/marketManager/TestBaseMarketManager.sol";
+import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManager/TestBaseMarketManagerIsolated.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-contract AtlasParametersTest is TestBaseMarketManager {
+contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
 
 
     function setUp() public override {
         super.setUp();
-        
-        // Setup market with tokens
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETHIsolated), 42069);
-
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDCIsolated), 42069);
-        
-        // List tokens in the market
-        marketManagerIsolated.listTokens(address(pBALRETHIsolated), address(eUSDCIsolated));
-        
-        // Set position token parameters
-        marketManagerIsolated.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
-        );
-
-        // Create a dapp control user
-        dappControlUser = makeAddr("dappControlUser");
-        vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
-        vm.stopPrank();
-
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(pBALRETHIsolated);
-        uint256[] memory caps = new uint256[](1);
-        caps[0] = 100_000e18;
-        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
 
     }
 
     function testSetAtlasParameters() public {
+        _setUpMarketNonLiquidation();
         // Only dapp control can set penalty
         vm.startPrank(dappControlUser);
         
         // Set a valid penalty (WAD + 15%)
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
+        marketManager.setAtlasParameters(validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManager.getLatestAtlasParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, closeFactor);
         vm.stopPrank();
     }
     
     function testSetAtlasParametersUnauthorized() public {
+        _setUpMarketNonLiquidation();
+
         // // Non-dapp control user should not be able to set penalty
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.setAtlasParameters(1.15e18, 0.30e18);
+        marketManager.setAtlasParameters(1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
     
     function testSetAtlasParametersInvalidValue() public {
+        _setUpMarketNonLiquidation();
+        
         vm.startPrank(dappControlUser);
         
         uint256 tooLowPenalty = 1.01e18;
@@ -87,35 +56,37 @@ contract AtlasParametersTest is TestBaseMarketManager {
         uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(tooLowPenalty, validCloseFactor);
+        marketManager.setAtlasParameters(tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(tooHighPenalty, validCloseFactor);
+        marketManager.setAtlasParameters(tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(validPenalty, tooHighCloseFactor);
+        marketManager.setAtlasParameters(validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManagerIsolated.setAtlasParameters(validPenalty, tooLowCloseFactor);
+        marketManager.setAtlasParameters(validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
     
     function testResetAtlasParameters() public {
+        _setUpMarketNonLiquidation();
+
         vm.startPrank(dappControlUser);
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
+        marketManager.setAtlasParameters(validPenalty, validCloseFactor);
 
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManager.getLatestAtlasParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, validCloseFactor);
         
-        marketManagerIsolated.resetAtlasParameters();
+        marketManager.resetAtlasParameters();
         
         // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAtlasParameters does not return default penalties anymore.
-        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
+        (currentPenalty, currentCloseFactor) = marketManager.getLatestAtlasParameters();
         assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         
@@ -123,10 +94,12 @@ contract AtlasParametersTest is TestBaseMarketManager {
     }
 
     function testResetAtlasParametersUnauthorized() public {
+        _setUpMarketNonLiquidation();
+
         vm.startPrank(user1);
         
         vm.expectRevert();
-        marketManagerIsolated.resetAtlasParameters();
+        marketManager.resetAtlasParameters();
         
         vm.stopPrank();
     }
@@ -228,12 +201,18 @@ contract AtlasParametersTest is TestBaseMarketManager {
     // }
 
     function testLiquidationFailureWithDifferentUnlockedCollateral() public {
-        _prepareLiquidationIsolated();
+        _prepareLiquidation();
 
         _prepareUSDC(user3, 250e6);
 
+        // Create a dapp control user
+        dappControlUser = makeAddr("dappControlUser");
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        vm.stopPrank();
+
         vm.prank(dappControlUser);
-        marketManagerIsolated.unlockAtlasCollateral(address(1));
+        marketManager.unlockAtlasCollateral(address(1));
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -242,20 +221,60 @@ contract AtlasParametersTest is TestBaseMarketManager {
 
         vm.startPrank(user3);
 
-        usdc.approve(address(eUSDCIsolated), 250e6);
+        usdc.approve(address(eUSDC), 250e6);
         vm.expectRevert(MarketManagerIsolated.MarketManager__UnauthorizedCollateral.selector);
-        eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+        eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
         vm.stopPrank();
     }
 
-    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public view returns (uint256) {
+    function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
+        _prepareLiquidation();
+
+        // Create a dapp control user
+        dappControlUser = makeAddr("dappControlUser");
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        vm.stopPrank();
+
+        // Set a valid penalty (WAD + 15%)
+        vm.prank(dappControlUser);
+        uint256 validPenalty = 1.15e18; //15%
+        uint256 closeFactor = 0.30e18; // 30%
+        marketManager.setAtlasParameters(validPenalty, closeFactor);
+        vm.stopPrank();
+
+        eUSDC.accrueInterest(); // pull interest forward
+        uint256 debtBalance = IEToken(address(eUSDC)).debtBalanceCached(user1);
+
+        uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
+
+        _prepareUSDC(user3, debtBalance);
+        vm.startPrank(user3);
+
+        address[] memory usersToLiquidate = new address[](1);   
+        usersToLiquidate[0] = user1;
+        uint256[] memory amountsToLiquidate = new uint256[](1);
+        amountsToLiquidate[0] = debtBalance;
+
+        usdc.approve(address(eUSDC), debtBalance);
+        eUSDC.liquidate(usersToLiquidate, address(pBALRETH));
+        vm.stopPrank();
+
+        // uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
+        // assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
+
+        // uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
+        // assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
+    }
+
+    function _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(uint256 debtBalance) public pure returns (uint256) {
         uint256 WAD = 1e18;
 
         uint256 incentive = 1.15e18; 
         uint256 earnTokenPrice = 2e18; 
         uint256 pTokenPrice = 1677420866257185401796; 
         uint256 exchangeRate = 1e18;
-        uint256 closeFactor = 0.30e18;
+        uint256 closeFactor = 1e18;
         
         uint256 debtToCollateralRatio = (incentive * earnTokenPrice * WAD) /
             (pTokenPrice * exchangeRate);
@@ -268,32 +287,41 @@ contract AtlasParametersTest is TestBaseMarketManager {
         return liquidatedTokens;
     }
 
-    // function testLiquidationWithDynamicPenaltyAndCloseFactor() public {
-    //     _prepareLiquidationIsolated();
+    function _setUpMarketNonLiquidation() internal {
+        // Setup market with tokens
+        deal(address(balRETH), address(this), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
 
-    //     testSetAtlasParameters();
+        deal(address(_USDC_ADDRESS), address(this), 42069);
+        usdc.approve(address(eUSDC), 42069);
+        
+        // List tokens in the market
+        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        
+        // Set position token parameters
+        marketManager.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
 
-    //     eUSDCIsolated.accrueInterest();                 // pull interest forward
-    //     uint256 debtBalance = IEToken(address(eUSDCIsolated)).debtBalanceCached(user1);
+        // Create a dapp control user
+        dappControlUser = makeAddr("dappControlUser");
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        vm.stopPrank();
 
-    //     uint256 closeBalance = (debtBalance * 0.30e18) / 1e18;
-
-    //     _prepareUSDC(user3, debtBalance);
-    //     vm.startPrank(user3);
-
-    //     address[] memory usersToLiquidate = new address[](1);   
-    //     usersToLiquidate[0] = user1;
-    //     uint256[] memory amountsToLiquidate = new uint256[](1);
-    //     amountsToLiquidate[0] = debtBalance;
-
-    //     usdc.approve(address(eUSDCIsolated), debtBalance);
-    //     eUSDCIsolated.liquidate(usersToLiquidate, address(pBALRETHIsolated));
-    //     vm.stopPrank();
-
-    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
-    //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenaltyAndCloseFactor(debtBalance));
-
-    //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
-    //     assertEq(liquidatorUSDCBalance, debtBalance - closeBalance);
-    // }
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManager.setPTokenCollateralCaps(tokens, caps);
+    }
 }

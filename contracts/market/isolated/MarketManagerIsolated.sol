@@ -586,7 +586,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external view returns (
+    ) external returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -1522,6 +1522,8 @@ contract MarketManagerIsolated is
         }
     }
 
+    event BAD_DEBT_EVENT(uint256 amount);
+
     /// @notice Determines if an account can be liquidated and calculates
     ///         liquidation parameters. Computes liquidation amounts,
     ///         collateral seizure, and potential bad debt based on `account`
@@ -1598,7 +1600,7 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal view returns (
+    ) internal returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
@@ -1633,7 +1635,6 @@ contract MarketManagerIsolated is
             (((auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
             (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate)) *
             cachedData.pTokenDecimals) / cachedData.eTokenDecimals;
-      
         uint256 maxAmount =
             (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
@@ -1641,7 +1642,7 @@ contract MarketManagerIsolated is
         if (!liquidateExact) {
             debtAmount = maxAmount;
         }
-
+        
         // Calculate how many pTokens should be liquidated, adjusting decimals
         // if necessary.
         liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
@@ -1650,6 +1651,7 @@ contract MarketManagerIsolated is
         uint256 collateralAvailable = pTokenData
             .accountPositions[account]
             .collateralPosted;
+
         // If the user wants to liquidate an exact amount, make sure theres
         // enough collateral available to liquidate, otherwise
         // liquidate as much as possible.
@@ -1691,6 +1693,8 @@ contract MarketManagerIsolated is
                 (cachedData.eTokenUnderlyingPrice * WAD) / cachedData.eTokenDecimals
             );
         }
+
+        emit BAD_DEBT_EVENT(badDebt);
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt
