@@ -1618,16 +1618,13 @@ contract MarketManagerIsolated is
             return (0, 0, 0);
         }
 
-        if (auctionData.auctionCFactor == 0) {
+        // If this liquidation is not part of an auction we need to
+        // manually calculate liquidation size and liquidation penalty.
+        if (cachedData.auctionBuffer == 0) {
             // Fallback to using the base close factor when
             // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
             auctionData.auctionCFactor = auctionData.baseCFactor +
                 ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
-        }
-
-        if (auctionData.auctionLiqIncentive == 0) {
-            // Fallback to using the base liquidation incentive when
-            // _TRANSIENT_PENALTY_KEY is empty.
             auctionData.auctionLiqIncentive = auctionData.liqBaseIncentive +
                 ((auctionData.liqCurve * auctionData.lFactor) / WAD);
         }
