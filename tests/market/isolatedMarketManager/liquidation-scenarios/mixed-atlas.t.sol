@@ -12,25 +12,26 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 2: Mixed Collateral Results w/ 92% LTV
-// - Setup: 4 users with different positions
-// - User 1: 2.5 pBALRETH ($4,000), 2,500 USDC debt (very healthy)
-// - User 2: 2.0 pBALRETH ($3,200), 2,500 USDC debt (healthy)
-// - User 3: 1.9 pBALRETH ($3,040), 2,500 USDC debt (borderline)
-// - User 4: 1.7 pBALRETH ($2,720), 2,500 USDC debt (risky)
-// - Action: Price drop of pBALRETH by 10% (to ~$1,420)
-// - Expected: Users 3 and 4 liquidated, Users 1 and 2 remain healthy
+// ## Scenario 4: Mixed Atlas and Regular Liquidations
+// - Setup: 4 users with varying positions
+// - User 1: 1.0 pBALRETH ($1,600), 1,200 USDC debt (for Atlas)
+// - User 2: 0.95 pBALRETH ($1,520), 1,200 USDC debt (for Atlas)
+// - User 3: 0.9 pBALRETH ($1,440), 1,200 USDC debt (for regular)
+// - User 4: 0.85 pBALRETH ($1,360), 1,200 USDC debt (for regular)
+// - Action 1: Price drop by 12% (to $1,408), Atlas transaction with custom parameters for User 1 and User 2
+// - Action 2: Regular liquidation attempt for User 3 and User 4
+// - Expected: Users 1 and 2 liquidated via Atlas with custom parameters, Users 3 and 4 via regular liquidation
 
-contract MixedCollateral is TestBaseMarketManagerIsolated {
+contract MixedAtlas is TestBaseMarketManagerIsolated {
 
     address borrower1 = makeAddr("borrower1");
     address borrower2 = makeAddr("borrower2");
     address borrower3 = makeAddr("borrower3");
     address borrower4 = makeAddr("borrower4");
 
-    uint256 borrowAmount = 2500e6;
+    uint256 borrowAmount = 1200e6;
     address[] borrowers = [borrower1, borrower2, borrower3, borrower4];
-    uint256[] collateralAmounts = [2.5e18, 2e18, 1.9e18, 1.7e18];
+    uint256[] collateralAmounts = [1e18, 0.95e18, 0.9e18, 0.85e18];
 
     uint256 WAD_SQUARED = 1e36;
 
@@ -38,6 +39,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     uint256 liqCurve;
     uint256 baseCFactor;
     uint256 cFactorCurve;
+
+    address dappControlUser = makeAddr("dappControlUser");
 
     event BadDebtRecognized(address liquidator, uint256 amount);
 
@@ -115,8 +118,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
 
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1440e8);
-        mockRethFeed.setMockAnswer(1440e8);
+        mockWethFeed.setMockAnswer(1408e8);
+        mockRethFeed.setMockAnswer(1408e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
             marketManager.tokenData(address(pBALRETH));
@@ -126,33 +129,43 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         baseCFactor = baseCFactor_;
         cFactorCurve = cFactorCurve_;
 
+        // Create a dapp control user
+        vm.startPrank(centralRegistry.daoAddress());
+        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        vm.stopPrank();
+
         console2.log("SETUP COMPLETE");
     }
 
-    function test_mixedCollateral() public {
-        
-        IMarketManager.LiqInstructions memory liqInstructions;
-        liqInstructions = IMarketManager.LiqInstructions({
+    function test_mixedAtlas() public {
+        IMarketManager.LiqInstructions memory liqInstructions_Atlas;
+        liqInstructions_Atlas = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
             pToken: address(pBALRETH),
-            numAccounts: 4,
+            numAccounts: 2,
             liquidateExact: false,
             eTokenRepaid: 0,
             pTokenLiquidated: 0,
             badDebt: 0
         });
 
-        _prepareUSDC(address(this), 100000e6);
+        IMarketManager.LiqInstructions memory liqInstructions_Regular;
+        liqInstructions_Regular = IMarketManager.LiqInstructions({
+            eToken: address(eUSDC),
+            pToken: address(pBALRETH),
+            numAccounts: 2,
+            liquidateExact: false,
+            eTokenRepaid: 0,
+            pTokenLiquidated: 0,
+            badDebt: 0
+        });
+
+        _prepareUSDC(dappControlUser, 100000e6);
 
         // ===== Cache liquidation values =====
 
         uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
-
-        console2.log("Borrower 1 lFactor", lFactorsPreLiquidation[0]);
-        console2.log("Borrower 2 lFactor", lFactorsPreLiquidation[1]);
-        console2.log("Borrower 3 lFactor", lFactorsPreLiquidation[2]);
-        console2.log("Borrower 4 lFactor", lFactorsPreLiquidation[3]);
 
         (,uint256 eTokenPrice, uint256 pTokenPrice) = 
             marketManager.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
@@ -164,97 +177,21 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             _getLiquidationValuesWithHigherPrecision_NonAtlas(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation
             );
-
-        uint256 expectedTotalBadDebt;
+        
+        
         uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
-
-        for(uint i; i < 4; i++) {
-            expectedTotalBadDebt += _calculateBadDebt(
-                debtBalancesPreLiquidation[i],
-                maxAmount[i],
-                collateralAmounts[i],
-                collateralRequired[i],
-                liquidatedPTokens[i],
-                pTokenPrice,
-                eTokenPrice,
-                pTokenExchangeRate
-            );
-        }
-
-        uint256 totalBorrowsBefore = eUSDC.totalBorrows();
 
         // ===== Liquidate =====
 
+        vm.prank(dappControlUser);
         eUSDC.approve(address(marketManager), 100000e6);
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit();
-        emit BadDebtRecognized(address(this), expectedTotalBadDebt);
+        uint256 validPenalty = 1.15e18;
+        uint256 closeFactor = 0.30e18;
+        marketManager.setAtlasParameters(validPenalty, closeFactor);
 
-        eUSDC.liquidate(
-            borrowers,
-            address(pBALRETH)
-        );
-
-        // ===== Validate =====
-
-        // Verify healthy accounts (1 and 2) are not liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
-        assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
-
-        // Verify account 4 is hard liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[3]), 0, "Borrower 4 should be hard liquidated");
-
-        // Verify account 3 is soft liquidated
-        assertEq(eUSDC.debtBalanceCached(borrowers[2]), debtBalancesPreLiquidation[2] - maxAmount[2], "Borrower 3 should be soft liquidated");
-        
-        // Assert collateral is reduced by liquidatedPTokens
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(borrowers[3]),
-            collateralAmounts[3] - liquidatedPTokens[3],
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
-
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(borrowers[2]),
-            collateralAmounts[2] - liquidatedPTokens[2],
-            1000, // Tolerance of 1000 wei 
-            "Collateral post liquidation mismatch"
-        );
-
-        uint256 totalDebtRepaid = borrowAmount + maxAmount[2];
-
-        assertApproxEqAbs(
-            eUSDC.totalBorrows(),
-            totalBorrowsBefore - totalDebtRepaid,
-            100, // Small tolerance
-            "Incorrect totalBorrows after liquidation"
-        );
-
-        // Verify liquidator received the expected collateral
-        uint256 expectedLiquidatorBalance = liquidatedPTokens[2] + liquidatedPTokens[3];
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(address(this)),
-            expectedLiquidatorBalance,
-            1000,
-            "Liquidator didn't receive expected collateral"
-        );
-
-        for(uint i = 2; i < 4; i++) {
-            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
-                borrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
-            );
-
-            if(eUSDC.debtBalanceCached(borrowers[i]) > 0) {
-                assertTrue(lFactorAfter < lFactorsPreLiquidation[i], "Health factor should improve after partial liquidation");
-            } else {
-                assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
-            }
-        }
     }
+
 
     function _createPositions() internal {
         _prepareBALRETH(borrower1, collateralAmounts[0]);

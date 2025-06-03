@@ -75,7 +75,6 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         _prepareUSDC(address(this), _ONE);
 
         _prepareBALRETH(user1, _ONE + 42069);
-        // _prepareUSDC(address(this), _ONE); // possibly not needed
 
         vm.prank(user1);
         usdc.approve(address(eUSDC), _ONE);
@@ -84,8 +83,6 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
-        // _prepareBALRETH(address(this), 10e18);
-        // balRETH.approve(address(pBALRETH), 10e18);
 
         // Update position token parameters
         marketManager.updatePositionToken(
