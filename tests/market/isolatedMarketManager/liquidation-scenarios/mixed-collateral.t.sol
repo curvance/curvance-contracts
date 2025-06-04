@@ -223,6 +223,8 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             "Collateral post liquidation mismatch"
         );
 
+        // Assert Total borrows is reduced by the amount of debt repaid
+
         uint256 totalDebtRepaid = borrowAmount + maxAmount[2];
 
         assertApproxEqAbs(

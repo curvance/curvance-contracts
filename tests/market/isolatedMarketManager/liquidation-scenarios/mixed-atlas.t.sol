@@ -29,9 +29,10 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
     address borrower3 = makeAddr("borrower3");
     address borrower4 = makeAddr("borrower4");
 
-    uint256 borrowAmount = 1200e6;
-    address[] borrowers = [borrower1, borrower2, borrower3, borrower4];
-    uint256[] collateralAmounts = [1e18, 0.95e18, 0.9e18, 0.85e18];
+    uint256 borrowAmount = 2500e6;
+    address[] atlasBorrowers = [borrower1, borrower2];
+    address[] regularBorrowers = [borrower3, borrower4];
+    uint256[] collateralAmounts = [1.9e18, 1.9e18, 1.9e18, 1.9e18];
 
     uint256 WAD_SQUARED = 1e36;
 
@@ -41,6 +42,10 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
     uint256 cFactorCurve;
 
     address dappControlUser = makeAddr("dappControlUser");
+
+    // Atlas parameters
+    uint256 validPenalty = 1.04e18;
+    uint256 closeFactor = 0.50e18;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
 
@@ -92,7 +97,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
             550,     // liqIncHard 5.5%
             300,     // liqIncMin 3%
             550,     // liqIncMax 5.5% 
-            2000,    // minEffectiveCFactor 20%
+            1000,    // minEffectiveCFactor 20%
             5000,    // maxEffectiveCFactor 50%
             2000     // baseCFactor 20%
         );
@@ -115,11 +120,10 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, liquidityProvider);
         vm.stopPrank();
-
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1408e8);
-        mockRethFeed.setMockAnswer(1408e8);
+        mockWethFeed.setMockAnswer(1300e8);
+        mockRethFeed.setMockAnswer(1300e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
             marketManager.tokenData(address(pBALRETH));
@@ -138,57 +142,122 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
     }
 
     function test_mixedAtlas() public {
-        IMarketManager.LiqInstructions memory liqInstructions_Atlas;
-        liqInstructions_Atlas = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            pToken: address(pBALRETH),
-            numAccounts: 2,
-            liquidateExact: false,
-            eTokenRepaid: 0,
-            pTokenLiquidated: 0,
-            badDebt: 0
-        });
-
-        IMarketManager.LiqInstructions memory liqInstructions_Regular;
-        liqInstructions_Regular = IMarketManager.LiqInstructions({
-            eToken: address(eUSDC),
-            pToken: address(pBALRETH),
-            numAccounts: 2,
-            liquidateExact: false,
-            eTokenRepaid: 0,
-            pTokenLiquidated: 0,
-            badDebt: 0
-        });
 
         _prepareUSDC(dappControlUser, 100000e6);
+        _prepareUSDC(address(this), 100000e6);
 
         // ===== Cache liquidation values =====
 
-        uint256[] memory lFactorsPreLiquidation = _getLFactorsPreLiquidation();
-        uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
-
-        (,uint256 eTokenPrice, uint256 pTokenPrice) = 
-            marketManager.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
-
-        console2.log("eTokenPrice", eTokenPrice);
-        console2.log("pTokenPrice", pTokenPrice);
-
-        (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAtlas(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation
-            );
-        
-        
         uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
 
-        // ===== Liquidate =====
+        uint256[] memory debtBalancesPreLiquidation_atlas = _getDebtBalancePreLiquidation(atlasBorrowers);
+        uint256[] memory debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
 
-        vm.prank(dappControlUser);
-        eUSDC.approve(address(marketManager), 100000e6);
+        uint256[] memory lFactorsPreLiquidation_atlas = _getLFactorsPreLiquidation(atlasBorrowers);
+        uint256[] memory lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
-        uint256 validPenalty = 1.15e18;
-        uint256 closeFactor = 0.30e18;
+        (,uint256 eTokenPrice, uint256 pTokenPrice) = 
+            marketManager.liquidationStatusOf(atlasBorrowers[0], address(eUSDC), address(pBALRETH));
+
+        (uint256[] memory maxAmount_atlas, uint256[] memory liquidatedPTokens_atlas, uint256[] memory collateralRequired_atlas) = 
+            _getLiquidationValuesWithHigherPrecision_Atlas(
+                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_atlas, closeFactor, validPenalty
+            );
+
+        (uint256[] memory maxAmount_regular, uint256[] memory liquidatedPTokens_regular, uint256[] memory collateralRequired_regular) = 
+            _getLiquidationValuesWithHigherPrecision_NonAtlas(
+                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_regular
+            );
+
+        uint256[] memory badDebt_atlas = new uint256[](2);
+        uint256[] memory badDebt_regular = new uint256[](2);
+
+        for(uint i; i < 2; i++) {
+            badDebt_atlas[i] = _calculateBadDebt(
+                debtBalancesPreLiquidation_atlas[i],
+                maxAmount_atlas[i],
+                collateralAmounts[i],
+                collateralRequired_atlas[i],
+                liquidatedPTokens_atlas[i],
+                pTokenPrice,
+                eTokenPrice,
+                pTokenExchangeRate
+            );
+            console2.log("badDebt_atlas", badDebt_atlas[i]);
+        }
+
+        for(uint i; i < 2; i++) {
+            badDebt_regular[i] = _calculateBadDebt(
+                debtBalancesPreLiquidation_regular[i],
+                maxAmount_regular[i],
+                collateralAmounts[i],
+                collateralRequired_regular[i],
+                liquidatedPTokens_regular[i],
+                pTokenPrice,
+                eTokenPrice,
+                pTokenExchangeRate
+            );
+            console2.log("badDebt_regular", badDebt_regular[i]);
+        }
+
+            // ===== Liquidate =====
+
+        vm.startPrank(dappControlUser);
+        usdc.approve(address(eUSDC), 100000e6);
+
         marketManager.setAtlasParameters(validPenalty, closeFactor);
+        marketManager.unlockAtlasCollateral(address(eUSDC));
+        eUSDC.liquidate(
+            atlasBorrowers,
+            address(pBALRETH)
+        );
+        marketManager.lockAtlasCollateral();
+        marketManager.resetAtlasParameters();
+        vm.stopPrank();
+
+        usdc.approve(address(eUSDC), 100000e6);
+        eUSDC.liquidate(
+            regularBorrowers,
+            address(pBALRETH)
+        );
+
+        // ===== Validate =====
+
+        // Verify debt balances
+        assertEq(eUSDC.debtBalanceCached(atlasBorrowers[0]), debtBalancesPreLiquidation_atlas[0] - (maxAmount_atlas[0] + badDebt_atlas[0]), "Atlas borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalanceCached(atlasBorrowers[1]), debtBalancesPreLiquidation_atlas[1] - (maxAmount_atlas[1] + badDebt_atlas[1]), "Atlas borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalanceCached(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalanceCached(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
+
+        // Verify collateral is reduced by liquidatedPTokens
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(atlasBorrowers[0]),
+            collateralAmounts[0] - (liquidatedPTokens_atlas[0]),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(atlasBorrowers[1]),
+            collateralAmounts[1] - (liquidatedPTokens_atlas[1]),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(regularBorrowers[0]),
+            collateralAmounts[2] - (liquidatedPTokens_regular[0]),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(regularBorrowers[1]),
+            collateralAmounts[3] - (liquidatedPTokens_regular[1]),
+            1000, // Tolerance of 1000 wei 
+            "Collateral post liquidation mismatch"
+        );
+
 
     }
 
@@ -225,10 +294,10 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
     }
 
-    function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](4);
+    function _getLFactorsPreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory lFactors) {
+        lFactors = new uint256[](2);
 
-        for(uint i; i < 4; i++) {
+        for(uint i; i < borrowers.length; i++) {
             (lFactors[i],,) = marketManager.liquidationStatusOf(
                 borrowers[i],
                 address(eUSDC),
@@ -239,9 +308,9 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         return lFactors;
     }
 
-    function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
-        debtBalances = new uint256[](4);
-        for(uint i; i < 4; i++) {
+    function _getDebtBalancePreLiquidation(address[] memory borrowers) internal view returns (uint256[] memory debtBalances) {
+        debtBalances = new uint256[](borrowers.length);
+        for(uint i; i < borrowers.length; i++) {
             debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
         }
         return debtBalances;
@@ -261,16 +330,65 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
         
-        maxAmount = new uint256[](4);
-        liquidatedPTokens = new uint256[](4);
-        collateralRequired = new uint256[](4);
+        maxAmount = new uint256[](lFactors.length);
+        liquidatedPTokens = new uint256[](lFactors.length);
+        collateralRequired = new uint256[](lFactors.length);
 
-        for (uint i; i < 4; i++) {
+        for (uint i; i < lFactors.length; i++) {
             if (lFactors[i] == 0) continue;
             
             // Follow the contract's exact calculations but with higher precision
             uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactors[i]) / WAD);
             uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactors[i]) / WAD);
+            
+            // Calculate with extra precision
+            uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
+                (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
+                
+            maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
+            
+            // Calculate with extra precision
+            liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            
+            if (liquidatedPTokens[i] > collateralAmounts[i]) {
+                // Use the contract's exact formula
+                maxAmount[i] = FixedPointMathLib.mulDivUp(
+                    maxAmount[i],
+                    collateralAmounts[i],
+                    liquidatedPTokens[i]
+                );
+                liquidatedPTokens[i] = collateralAmounts[i];
+            }
+            
+            // Use the contract's exact formula
+            collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+        }
+
+        return (maxAmount, liquidatedPTokens, collateralRequired);
+    }
+
+    function _getLiquidationValuesWithHigherPrecision_Atlas(
+        uint256 eTokenPrice,
+        uint256 pTokenPrice,
+        uint256[] memory lFactors,
+        uint256 auctionCFactor,
+        uint256 auctionLiqIncentive
+    ) internal view returns (
+        uint256[] memory maxAmount, 
+        uint256[] memory liquidatedPTokens,
+        uint256[] memory collateralRequired
+    ) {
+        uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
+        
+        // Keep original values but use higher precision for calculations
+        uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
+        
+        maxAmount = new uint256[](lFactors.length);
+        liquidatedPTokens = new uint256[](lFactors.length);
+        collateralRequired = new uint256[](lFactors.length);
+
+        for (uint i; i < lFactors.length; i++) {
+            if (lFactors[i] == 0) continue;
             
             // Calculate with extra precision
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
