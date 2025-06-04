@@ -59,6 +59,8 @@ abstract contract BasePToken is
 
     /// @dev `bytes4(keccak256(bytes("BasePToken__Unauthorized()")))`
     uint256 internal constant _UNAUTHORIZED_SELECTOR = 0xc123b8f2;
+    /// @dev `bytes4(keccak256(bytes("BasePToken__InsufficientShares()")))`
+    uint256 internal constant _INSUFFICIENT_SHARES_SELECTOR = 0x3bb64346;
     /// @dev `keccak256(bytes("Deposit(address,address,uint256,uint256)"))`.
     uint256 internal constant _DEPOSIT_EVENT_SIGNATURE =
         0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7;
@@ -123,10 +125,10 @@ abstract contract BasePToken is
     /// ERRORS ///
 
     error BasePToken__EmptyAction();
-    error BasePToken__ZeroAssets();
     error BasePToken__ZeroShares();
-    error BasePToken__WithdrawMoreThanMax();
-    error BasePToken__RedeemMoreThanMax();
+    error BasePToken__InsufficientShares();
+    error BasePToken__InsufficientAssets();
+    error BasePToken__InsufficientCollateral();
     error BasePToken__Unauthorized();
     error BasePToken__InvalidMarketManager();
     error BasePToken__UnsupportedChain();
@@ -186,11 +188,11 @@ abstract contract BasePToken is
     ///                          eToken underlying to repay outstanding debt.
     ///                       2. The amount of pTokens that will be
     ///                          deleveraged.
-    ///                       3. Address of eToken that will have its underlying
-    ///                          token debt repaid.
-    ///                       4. Optional struct containing instructions on how
-    ///                          to handle swapping into eToken underlying to
-    ///                          facilitate deleveraging.
+    ///                       3. Address of eToken that will have its
+    ///                          underlying token debt repaid.
+    ///                       4. Optional struct containing instructions on
+    ///                          how to handle swapping into eToken underlying
+    ///                          to facilitate deleveraging.
     ///                       5. The amount of underlying tokens that will be
     ///                          repaid to the eToken lenders.
     ///                       6. Optional auxiliary data for execution of a
@@ -251,6 +253,10 @@ abstract contract BasePToken is
         }
 
         shares = _deposit(assets, receiver);
+
+        // Can skip _checkPostCollateral since we know that `shares` is not
+        // 0 and `receiver` has shares to post as collateral due to prior
+        // _deposit action.
         _postCollateral(receiver, shares);
     }
 
@@ -273,6 +279,10 @@ abstract contract BasePToken is
         _checkDelegate(receiver, msg.sender);
 
         shares = _deposit(assets, receiver);
+
+        // Can skip _checkPostCollateral since we know that `shares` is not
+        // 0 and `receiver` has shares to post as collateral due to prior
+        // _deposit action.
         _postCollateral(receiver, shares);
     }
 
@@ -324,7 +334,7 @@ abstract contract BasePToken is
     ///      enabled (collRatio > 0).
     /// @param shares The amount of shares to post as collateral.
     function postCollateral(uint256 shares) external nonReentrant {
-        _checkZeroAmount(shares);
+        _checkPostCollateral(msg.sender, shares);
 
         _postCollateral(msg.sender, shares);
     }
@@ -338,8 +348,8 @@ abstract contract BasePToken is
         address account,
         uint256 shares
     ) external nonReentrant {
-        _checkZeroAmount(shares);
         _checkDelegate(account, msg.sender);
+        _checkPostCollateral(account, shares);
 
         _postCollateral(msg.sender, shares);
     }
@@ -348,7 +358,7 @@ abstract contract BasePToken is
     /// @param shares The number of shares that are posted of collateral
     ///               that will be removed.
     function removeCollateral(uint256 shares) external nonReentrant {
-        _checkZeroAmount(shares);
+        _checkRemoveCollateral(msg.sender, shares);
 
         _removeCollateral(msg.sender, shares);
     }
@@ -361,8 +371,8 @@ abstract contract BasePToken is
         address account,
         uint256 shares
     ) external nonReentrant {
-        _checkZeroAmount(shares);
         _checkDelegate(account, msg.sender);
+        _checkRemoveCollateral(msg.sender, shares);
 
         _removeCollateral(msg.sender, shares);
     }
@@ -622,7 +632,8 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        _prepareTransfer(msg.sender, to, amount);
+        _checkTransfer(msg.sender, to, amount);
+
         // Execute transfer.
         super.transfer(to, amount);
         return true;
@@ -640,7 +651,8 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        _prepareTransfer(from, to, amount);
+        _checkTransfer(from, to, amount);
+
         // Execute transfer.
         super.transferFrom(from, to, amount);
         return true;
@@ -651,6 +663,13 @@ abstract contract BasePToken is
     /// @return Whether this token is a pToken or not.
     function isPToken() public pure returns (bool) {
         return true;
+    }
+
+    /// @notice Returns whether the underlying token can be borrowed.
+    /// @dev true = Borrowable; false = Not Borrowable.
+    /// @return Whether this token is borrowable or not.
+    function isBorrowable() public pure virtual returns (bool) {
+        return false;
     }
 
     /// @dev Returns true that this contract implements both ERC4626
@@ -923,8 +942,7 @@ abstract contract BasePToken is
 
         // We use a modified version of maxWithdraw with newly vested assets.
         if (assets > _convertToAssets(balancePrior, ta)) {
-            // revert with "BasePToken__WithdrawMoreThanMax".
-            _revert(0xf1688f19);
+            revert BasePToken__InsufficientAssets();
         }
 
         // No need to check for rounding error, previewWithdraw rounds up.
@@ -965,8 +983,7 @@ abstract contract BasePToken is
 
         // Check whether `shares` is above max allowed redemption.
         if (shares > maxRedeem(owner)) {
-            // revert with "BasePToken__RedeemMoreThanMax".
-            _revert(0xdfe9efae);
+            _revert(_INSUFFICIENT_SHARES_SELECTOR);
         }
 
         // Validate that `owner` can redeem `shares`.
@@ -988,7 +1005,7 @@ abstract contract BasePToken is
 
         // Check for rounding error, since we round down in previewRedeem.
         if ((assets = _previewRedeem(shares, ta)) == 0) {
-            revert BasePToken__ZeroAssets();
+            revert BasePToken__InsufficientAssets();
         }
 
         // Execute withdrawal.
@@ -1186,32 +1203,77 @@ abstract contract BasePToken is
         }
     }
 
+    /// @notice Helper function to check validity of a proposed posting
+    ///         of collateral.
+    /// @param owner The address of the account posting `shares`
+    ///              as collateral.
+    /// @param shares The number of shares to post as collateral from `owner`.
+    function _checkPostCollateral(
+        address owner,
+        uint256 shares
+    ) internal view {
+        _checkZeroAmount(shares);
+
+        if (collateralPosted[owner] + shares > balanceOf(owner)) {
+            _revert(_INSUFFICIENT_SHARES_SELECTOR);
+        }
+    }
+
+    /// @notice Helper function to check validity of a proposed removal
+    ///         of collateral.
+    /// @param owner The address of the account removing `shares`
+    ///              as collateral.
+    /// @param shares The number of shares to remove as collateral
+    ///               from `owner`.
+    function _checkRemoveCollateral(
+        address owner,
+        uint256 shares
+    ) internal {
+        _checkZeroAmount(shares);
+
+        uint256 balanceOfCached = balanceOf(owner);
+        uint256 collateralPostedCached = collateralPosted[owner];
+
+        if (collateralPostedCached < shares) {
+            revert BasePToken__InsufficientCollateral();
+        }
+
+        marketManager.canRedeemWithCollateralRemoval(
+            address(this),
+            owner,
+            balanceOfCached,
+            collateralPostedCached,
+            shares,
+            true
+        );
+    }
+
     /// @notice Helper function to prepare for a transfer.
-    /// @param from The address of the account transferring `amount`
+    /// @param from The address of the account transferring `shares`
     ///             shares from.
-    /// @param to The address of the destination account to receive `amount`
+    /// @param to The address of the destination account to receive `shares`
     ///           shares.
-    /// @param amount The number of tokens to transfer from `from` to `to`.
-    function _prepareTransfer(
+    /// @param shares The number of tokens to transfer from `from` to `to`.
+    function _checkTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 shares
     ) internal {
-        _checkZeroAmount(amount);
+        _checkZeroAmount(shares);
         // Fails if transfer not allowed.
         uint256 collateralToRemove = marketManager.canTransferPToken(
             address(this),
             msg.sender,
             balanceOf(from),
             collateralPosted[from],
-            amount
+            shares
         );
 
         if (collateralToRemove > 0) {
             _removeCollateral(from, collateralToRemove);
         }
         
-        _beforeTransferAction(from, to, amount);
+        _beforeTransferAction(from, to, shares);
     }
 
     /// @notice Helper function to efficiently transfers pToken balances
