@@ -223,6 +223,14 @@ contract MarketManagerIsolated is
         return tokenData[mToken].isListed;
     }
 
+    /// @notice Returns the ratio at which `mToken` can be collateralized.
+    /// @return Ratio returned in `WAD`, e.g. 0.8e18 = 80% collateral value.
+    function collateralizationRatio(
+        address mToken
+    ) external view returns (uint256) {
+        return tokenData[mToken].collRatio;
+    }
+
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
     }
@@ -420,9 +428,9 @@ contract MarketManagerIsolated is
         uint256 collateralPosted,
         uint256 amount,
         bool forceRedeemCollateral
-    ) external {
+    ) external returns (uint256) {
         _checkIsToken(mToken);
-        _canRedeemWithCollateralRemoval(
+        return _canRedeemWithCollateralRemoval(
             mToken,
             account,
             balanceOf,
@@ -613,13 +621,13 @@ contract MarketManagerIsolated is
         uint256 balanceOf,
         uint256 collateralPosted,
         uint256 amount
-    ) external {
+    ) external returns (uint256) {
         _checkIsToken(mToken);
         if (transferPaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        _canRedeemWithCollateralRemoval(
+        return _canRedeemWithCollateralRemoval(
             mToken,
             from,
             balanceOf,
@@ -627,6 +635,7 @@ contract MarketManagerIsolated is
             amount,
             false
         );
+        
     }
 
     /// @notice Checks if the account should be allowed to transfer debt

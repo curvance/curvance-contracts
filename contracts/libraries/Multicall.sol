@@ -12,7 +12,6 @@ import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 abstract contract Multicall {
     /// TYPES ///
 
-    /// @title Multicall Data
     /// @notice Struct containing information on the desired
     ///         multicall action to execute. 
     /// @param target The address of the target contract to execute the call at.
@@ -40,13 +39,16 @@ abstract contract Multicall {
         ICentralRegistry centralRegistry = _getCentralRegistry();
         uint256 numCalls = calls.length;
         results = new bytes[](numCalls);
+        MulticallData memory cachedCall;
 
         for (uint256 i; i < numCalls; ++i) {
-            if (calls[i].isPriceUpdate) {
+            cachedCall = calls[i];
+            
+            if (cachedCall.isPriceUpdate) {
                 // CASE: We need to update a pull based price oracle and we
                 //       need a direct call to the target address.
                 address callDataChecker = centralRegistry.multicallChecker(
-                    calls[i].target
+                    cachedCall.target
                 );
 
                 // Validate we know how to verify this calldata.
@@ -56,13 +58,13 @@ abstract contract Multicall {
 
                 IMulticallChecker(callDataChecker).checkCalldata(
                     msg.sender,
-                    calls[i].target,
-                    calls[i].data
+                    cachedCall.target,
+                    cachedCall.data
                 );
 
                 results[i] = LowLevelCallsHelper._call(
-                    calls[i].target,
-                    calls[i].data
+                    cachedCall.target,
+                    cachedCall.data
                 );
 
                 continue;
@@ -71,13 +73,13 @@ abstract contract Multicall {
             // CASE: Not a price update and we need delegate the call to the
             //       current address.
 
-            if (address(this) != calls[i].target) {
+            if (address(this) != cachedCall.target) {
                 revert Multicall__InvalidTarget();
             }
 
             results[i] = LowLevelCallsHelper._delegateCall(
                 address(this),
-                calls[i].data
+                cachedCall.data
             );
         }
     }

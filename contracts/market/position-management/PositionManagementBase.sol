@@ -565,10 +565,9 @@ abstract contract PositionManagementBase is
             10 ** IPToken(positionToken).decimals()
         );
 
-        (, uint256 collRatio, , , , , , , , , ,) = marketManager.tokenData(
+        uint256 collRatio = marketManager.collateralizationRatio(
             positionToken
         );
-
         // If the position token cannot be borrowed against the hypothetical
         // leverage check will result in 0 meaning nothing new to leverage
         // against.

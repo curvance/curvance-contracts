@@ -83,7 +83,7 @@ interface IMarketManager {
         uint256 collateralPosted,
         uint256 amount,
         bool forceRedeemCollateral
-    ) external;
+    ) external returns (uint256);
 
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
@@ -156,7 +156,7 @@ interface IMarketManager {
         uint256 balanceOf,
         uint256 collateralPosted,
         uint256 amount
-    ) external;
+    ) external returns (uint256);
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
     /// @dev The caller must be a listed MToken in the `markets` mapping.
@@ -171,6 +171,12 @@ interface IMarketManager {
     /// @notice Returns whether `mToken` is listed in the lending market.
     /// @param mToken market token address.
     function isListed(address mToken) external view returns (bool);
+
+    /// @notice Returns the ratio at which `mToken` can be collateralized.
+    /// @return Ratio returned in `WAD`, e.g. 0.8e18 = 80% collateral value.
+    function collateralizationRatio(
+        address mToken
+    ) external view returns (uint256);
 
     /// @notice Amount of pToken that can be posted of collateral,
     ///         in shares.

@@ -865,7 +865,7 @@ abstract contract BasePToken is
         _updateAllowance(owner, shares);
 
         // Validate that `owner` can redeem `shares`.
-        marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             owner,
             balancePrior,
@@ -873,6 +873,10 @@ abstract contract BasePToken is
             shares,
             forceRedeemCollateral
         );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(owner, collateralToRemove);
+        }
 
         // Execute withdrawal.
         _processWithdraw(
@@ -966,7 +970,7 @@ abstract contract BasePToken is
         }
 
         // Validate that `owner` can redeem `shares`.
-        marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             owner,
             balanceOf(owner),
@@ -974,6 +978,10 @@ abstract contract BasePToken is
             shares,
             forceRedeemCollateral
         );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(owner, collateralToRemove);
+        }
 
         // Calculate any pending rewards and new total assets invariant.
         (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
@@ -1164,7 +1172,7 @@ abstract contract BasePToken is
         );
 
         // Fails if redemption not allowed.
-        marketManager.canRedeemWithCollateralRemoval(
+        uint256 collateralToRemove = marketManager.canRedeemWithCollateralRemoval(
             address(this),
             owner,
             balancePrior,
@@ -1172,6 +1180,10 @@ abstract contract BasePToken is
             shares,
             false
         );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(owner, collateralToRemove);
+        }
     }
 
     /// @notice Helper function to prepare for a transfer.
@@ -1186,15 +1198,18 @@ abstract contract BasePToken is
         uint256 amount
     ) internal {
         _checkZeroAmount(amount);
-        
         // Fails if transfer not allowed.
-        marketManager.canTransferPToken(
+        uint256 collateralToRemove = marketManager.canTransferPToken(
             address(this),
             msg.sender,
             balanceOf(from),
             collateralPosted[from],
             amount
         );
+
+        if (collateralToRemove > 0) {
+            _removeCollateral(from, collateralToRemove);
+        }
         
         _beforeTransferAction(from, to, amount);
     }
