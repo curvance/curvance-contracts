@@ -298,7 +298,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
         _prepareWETH(user1, 1 ether);
         weth.approve(address(pWETH), 1 ether);
         pWETH.mint(1 ether, user1);
-        marketManager.postCollateral(user1, address(pWETH), 1 ether);
+        pWETH.postCollateral(1 ether);
         // borrow
         eUSDC.borrow(500e6);
         vm.stopPrank();

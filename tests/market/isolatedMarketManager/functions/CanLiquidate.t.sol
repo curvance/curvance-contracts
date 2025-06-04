@@ -229,7 +229,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 999e18);
+        pBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
@@ -372,7 +372,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1e18 - 1);
+        pBALRETH.postCollateral(1e18 - 1);
 
         // Borrow eUSDC with pBALRETH as collateral
         _prepareUSDC(address(eUSDC), 100_000e6);

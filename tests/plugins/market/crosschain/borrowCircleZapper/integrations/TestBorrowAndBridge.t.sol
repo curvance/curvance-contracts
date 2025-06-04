@@ -133,7 +133,7 @@ contract TestBorrowAndBridge is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);

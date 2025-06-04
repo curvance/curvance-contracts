@@ -178,7 +178,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         // mint
         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -270,7 +270,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deal(_AERODROME_DAI_USDC, user, 0.001 ether);
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.001 ether);
         pUSDCDAI.deposit(0.001 ether, user);
-        marketManager.postCollateral(user, address(pUSDCDAI), 0.001 ether);
+        pUSDCDAI.postCollateral(0.001 ether);
         assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(500 ether);
@@ -329,7 +329,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
         deal(_AERODROME_DAI_USDC, user, 0.001 ether);
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 0.001 ether);
         pUSDCDAI.deposit(0.001 ether, user);
-        marketManager.postCollateral(user, address(pUSDCDAI), 0.001 ether);
+        pUSDCDAI.postCollateral(0.001 ether);
         assertEq(pUSDCDAI.balanceOf(user), 0.001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(500 ether);
@@ -449,7 +449,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarket {
 
         // mint
         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);

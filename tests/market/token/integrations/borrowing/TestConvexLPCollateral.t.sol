@@ -133,7 +133,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         assertEq(rewarder.earned(address(cSTETH)), 0);
 
         cSTETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(cSTETH), 1_000e18 - 1);
+        cSTETH.postCollateral(1_000e18 - 1);
 
         assertEq(
             rewarder.balanceOf(address(cSTETH)),

@@ -135,7 +135,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
 
         pBALRETHWithExitFee.deposit(100e18, user1);
 
-        marketManager.postCollateral(user1, address(pBALRETHWithExitFee), 100e18);
+        pBALRETHWithExitFee.postCollateral(100e18);
 
         eUSDC.borrow(100e6);
 

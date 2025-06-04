@@ -202,7 +202,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -269,7 +269,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -521,7 +521,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarket {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);

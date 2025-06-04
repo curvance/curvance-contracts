@@ -140,7 +140,7 @@ contract CompoundingPTokenWithdrawByPositionManagementTest is
 
         pBALRETH.deposit(100e18, user1);
 
-        marketManager.postCollateral(user1, address(pBALRETH), 100e18);
+        pBALRETH.postCollateral(100e18);
 
         eUSDC.borrow(100e6);
 

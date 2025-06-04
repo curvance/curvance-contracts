@@ -121,7 +121,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // mint
         assertGt(pUSDC.mint(1000e6, user), 0);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         assertEq(pUSDC.balanceOf(user), 1000e6);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -280,7 +280,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
 
         // mint
         assertGt(pUSDC.mint(1000e6, user), 0);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         assertEq(pUSDC.balanceOf(user), 1000e6);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -401,7 +401,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         usdc.approve(address(pUSDC), 1000e6);
         
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         eDAI.borrow(100 ether);
         
@@ -485,7 +485,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         usdc.approve(address(pUSDC), 1000e6);
         
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -570,7 +570,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         usdc.approve(address(pUSDC), 1000e6);
         
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -616,7 +616,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         usdc.approve(address(pUSDC), 1000e6);
         
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -701,7 +701,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         usdc.approve(address(pUSDC), 1000e6);
         
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -760,7 +760,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         
         // mint
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -807,7 +807,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(pUSDC), 1000e6);
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         eDAI.borrow(100 ether);
         
         // Do not set delegate approval for user2
@@ -908,7 +908,7 @@ contract TestPositionManagementSimple is TestBaseMarket {
         deal(address(usdc), user, 1000e6);
         usdc.approve(address(pUSDC), 1000e6);
         pUSDC.mint(1000e6, user);
-        marketManager.postCollateral(user, address(pUSDC), 1000e6);
+        pUSDC.postCollateral(1000e6);
         eDAI.borrow(100 ether);
         
         vm.stopPrank();

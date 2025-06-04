@@ -138,34 +138,20 @@
 //             MarketManager.MarketManager__InvalidParameter.selector
 //         );
 //         vm.prank(users[0]);
-//         marketManager.postCollateral(
-//             address(users[0]),
-//             address(pTokens[0]),
+//         pTokens[0].postCollateral(
 //             0
-//         );
-
-//         vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
-//         vm.prank(users[0]);
-//         marketManager.postCollateral(
-//             address(users[0]),
-//             address(address(0)),
-//             1 ether
 //         );
 
 //         vm.expectRevert(
 //             MarketManager.MarketManager__InsufficientCollateral.selector
 //         );
 //         vm.prank(users[0]);
-//         marketManager.postCollateral(
-//             address(users[0]),
-//             address(pTokens[0]),
+//         pTokens[0].postCollateral(
 //             2 ether
 //         );
 
 //         vm.prank(users[0]);
-//         marketManager.postCollateral(
-//             address(users[0]),
-//             address(pTokens[0]),
+//         pTokens[0].postCollateral(
 //             1 ether
 //         );
 //     }
@@ -209,19 +195,19 @@
 //         vm.expectRevert(
 //             MarketManager.MarketManager__InvalidParameter.selector
 //         );
-//         marketManager.removeCollateral(address(pTokens[0]), 0);
+//         pTokens[0].removeCollateral(0);
 
 //         vm.expectRevert(MarketManager.MarketManager__InvariantError.selector);
-//         marketManager.removeCollateral(address(pTokens[0]), 1 ether);
+//         pTokens[0].removeCollateral(1 ether);
 
 //         vm.expectRevert(
 //             MarketManager.MarketManager__InsufficientCollateral.selector
 //         );
 //         vm.prank(users[0]);
-//         marketManager.removeCollateral(address(pTokens[0]), 2 ether);
+//         pTokens[0].removeCollateral(2 ether);
 
 //         vm.prank(users[0]);
-//         marketManager.removeCollateral(address(pTokens[0]), 1 ether);
+//         pTokens[0].removeCollateral(1 ether);
 //     }
 
 //     function testRemoveCollateralAfterRedeemPaused() public {
@@ -264,11 +250,11 @@
 
 //         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
 //         vm.prank(users[0]);
-//         marketManager.removeCollateral(address(pTokens[0]), 1 ether);
+//         pTokens[0].removeCollateral(1 ether);
 
 //         marketManager.setRedeemPaused(false);
 //         vm.prank(users[0]);
-//         marketManager.removeCollateral(address(pTokens[0]), 1 ether);
+//         pTokens[0].removeCollateral(1 ether);
 //     }
 
 //     function testPositionCloseAfterRemoveCollateral() public {
@@ -322,7 +308,7 @@
 //         assertTrue(hasPosition);
 
 //         vm.prank(users[0]);
-//         marketManager.removeCollateral(address(pTokens[0]), 1 ether);
+//         pTokens[0].removeCollateral(1 ether);
 
 //         (hasPosition, , ) = marketManager.tokenDataOf(
 //             users[0],

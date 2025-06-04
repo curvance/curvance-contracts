@@ -175,7 +175,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
         assertEq(pBALRETH.exchangeRateCached(), _ONE);
@@ -244,7 +244,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
 
         // try borrow()
         eDAI.borrow(500e18);
@@ -272,7 +272,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -310,7 +310,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
 
         // try borrow()
         eDAI.borrow(500e18);
@@ -339,7 +339,7 @@ contract TestTokenInteractions is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), _ONE);
         pBALRETH.deposit(_ONE, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+        pBALRETH.postCollateral(_ONE);
 
         // try mint()
         _prepareDAI(user1, 1000e18);
@@ -374,7 +374,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), _ONE);
     //     pBALRETH.deposit(_ONE, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+    //     pBALRETH.postCollateral(_ONE);
 
     //     // try borrow()
     //     eDAI.borrow(1000e18);
@@ -424,7 +424,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), _ONE);
     //     pBALRETH.deposit(_ONE, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+    //     pBALRETH.postCollateral(_ONE);
 
     //     // try borrow()
     //     eDAI.borrow(1000e18);
@@ -473,7 +473,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), _ONE);
     //     pBALRETH.deposit(_ONE, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+    //     pBALRETH.postCollateral(_ONE);
 
     //     // try borrow()
     //     eDAI.borrow(1000e18);
@@ -510,7 +510,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), _ONE);
     //     pBALRETH.deposit(_ONE, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+    //     pBALRETH.postCollateral(_ONE);
 
     //     // try borrow()
     //     eDAI.borrow(1000e18);
@@ -588,7 +588,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     vm.expectRevert(
     //         MarketManager.MarketManager__CollateralCapReached.selector
     //     );
-    //     marketManager.postCollateral(user1, address(pBALRETH), _ONE);
+    //     pBALRETH.postCollateral(_ONE);
 
     //     vm.expectRevert(
     //         MarketManager.MarketManager__InsufficientCollateral.selector

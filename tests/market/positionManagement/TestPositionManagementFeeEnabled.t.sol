@@ -195,7 +195,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarket {
 
         // mint
         assertGt(pUSDCDAI.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pUSDCDAI), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pUSDCDAI.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);

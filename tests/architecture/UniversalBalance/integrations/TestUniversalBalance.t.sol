@@ -502,7 +502,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         vm.startPrank(user2);
         wbtc.approve(address(cWBTC), 100e8);
         cWBTC.mint(100e8, user2);
-        marketManager.postCollateral(user2, address(cWBTC), 100e8);
+        cWBTC.postCollateral(100e8);
         eUSDC.borrow(50e6);
 
         vm.stopPrank();

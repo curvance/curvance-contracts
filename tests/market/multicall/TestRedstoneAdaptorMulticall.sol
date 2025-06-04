@@ -325,7 +325,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarket {
         vm.prank(user1);
         assertGt(pWBTC.deposit(0.1e8, user1), 0);
         vm.prank(user1);
-        marketManager.postCollateral(user1, address(pWBTC), 0.1e8);
+        pWBTC.postCollateral(0.1e8);
         assertEq(pWBTC.balanceOf(user1), 0.1e8);
 
         uint256 amountForLeverage = (positionManagement.maxRemainingLeverageOf(

@@ -121,7 +121,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 10e18);
         pBALRETH.deposit(10e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 10e18);
+        pBALRETH.postCollateral(10e18);
         vm.stopPrank();
 
         vm.prank(address(eUSDC));
@@ -176,7 +176,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 999e18);
+        pBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         vm.prank(address(eUSDC));
@@ -280,7 +280,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1_000e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 999e18);
+        pBALRETH.postCollateral(999e18);
         vm.stopPrank();
 
         bool hasPosition;

@@ -127,7 +127,7 @@ contract TestSimpleZapper is TestBaseMarket {
     function testSwapAndRepay() external {
         testSwapAndDeposit();
         vm.startPrank(user1);
-        marketManager.postCollateral(user1, address(pUSDC), 2e9);
+        pUSDC.postCollateral(2e9);
 
         // try borrow()
         eDAI.borrow(500 ether);

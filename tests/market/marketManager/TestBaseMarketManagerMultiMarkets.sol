@@ -130,11 +130,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         uint256 _amount
     ) internal {
         vm.prank(_user);
-        marketManager.postCollateral(
-            address(_user),
-            address(_pToken),
-            _amount
-        );
+        _pToken.postCollateral(_amount);
     }
 
     function _supplyEToken(

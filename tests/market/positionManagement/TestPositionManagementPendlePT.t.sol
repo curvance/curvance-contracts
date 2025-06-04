@@ -183,7 +183,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // mint
         assertGt(pPendlePT.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        pPendlePT.postCollateral(1 ether);
         assertEq(pPendlePT.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -300,7 +300,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // mint
         assertGt(pPendlePT.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        pPendlePT.postCollateral(1 ether);
         assertEq(pPendlePT.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -426,7 +426,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // mint
         assertGt(pPendlePT.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        pPendlePT.postCollateral(1 ether);
         
         // borrow
         eDAI.borrow(100 ether);
@@ -479,7 +479,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
 
         // mint
         assertGt(pPendlePT.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pPendlePT), 1 ether);
+        pPendlePT.postCollateral(1 ether);
         
         // borrow
         eDAI.borrow(100 ether);

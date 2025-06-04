@@ -455,12 +455,10 @@
 //         }
 
 //         {
-//             (bool success, bytes memory revertData) = address(marketManager)
+//             (bool success, bytes memory revertData) = IMToken(mtoken)
 //                 .call(
 //                     abi.encodeWithSignature(
-//                         "postCollateral(address,address,uint256)",
-//                         address(this),
-//                         mtoken,
+//                         "postCollateral(uint256)",
 //                         tokens
 //                     )
 //                 );
@@ -533,11 +531,9 @@
 //             type(uint256).max
 //         );
 
-//         (bool success, ) = address(marketManager).call(
+//         (bool success, ) = IMToken(mtoken).call(
 //             abi.encodeWithSignature(
-//                 "postCollateral(address,address,uint256)",
-//                 address(this),
-//                 mtoken,
+//                 "postCollateral(uint256)",
 //                 tokens
 //             )
 //         );
@@ -596,7 +592,7 @@
 //         emit LogUint256("shortfall:", shortfall);
 
 //         if (shortfall > 0) {
-//             try marketManager.removeCollateral(mtoken, tokens) {} catch (
+//             try IMToken(mtoken).removeCollateral(tokens) {} catch (
 //                 bytes memory revertData
 //             ) {
 //                 uint256 errorSelector = extractErrorSelector(revertData);
@@ -610,7 +606,7 @@
 //         } else {
 //             // the account has no shortfall
 
-//             try marketManager.removeCollateral(mtoken, tokens) {
+//             try IMToken(mtoken).removeCollateral(tokens) {
 //                 // Collateral posted for the mtoken should decrease
 //                 uint256 newCollateralPostedForToken = marketManager
 //                     .collateralPosted(mtoken);
@@ -657,7 +653,7 @@
 //         _check_price_feed();
 //         require(!_hasPosition(mtoken));
 
-//         try marketManager.removeCollateral(mtoken, tokens) {
+//         try IMToken(mtoken).removeCollateral(tokens) {
 //             assertWithMsg(
 //                 false,
 //                 "MARKET-23 removeCollateral should fail with non existent position"
@@ -702,7 +698,7 @@
 //             type(uint256).max
 //         );
 
-//         try marketManager.removeCollateral(mtoken, tokens) {
+//         try IMToken(mtoken).removeCollateral(tokens) {
 //             assertWithMsg(
 //                 false,
 //                 "MARKET-24 removeCollateral should fail insufficient collateral"

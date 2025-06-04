@@ -242,7 +242,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         assertEq(snapshot.debtBalance, 0);
         assertEq(snapshot.exchangeRate, 1 ether);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+        cPendlePT.postCollateral(1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -294,7 +294,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         pendlePT.approve(address(cPendlePT), 1 ether);
         cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+        cPendlePT.postCollateral(1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -322,7 +322,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         pendlePT.approve(address(cPendlePT), 1 ether);
         cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+        cPendlePT.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -361,7 +361,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         pendlePT.approve(address(cPendlePT), 1 ether);
         cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+        cPendlePT.postCollateral(1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -391,7 +391,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
         pendlePT.approve(address(cPendlePT), 1 ether);
         cPendlePT.mint(1 ether, user1);
 
-        marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+        cPendlePT.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -427,7 +427,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
     //     pendlePT.approve(address(cPendlePT), 1 ether);
     //     cPendlePT.mint(1 ether, user1);
 
-    //     marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+    //     cPendlePT.postCollateral(1 ether);
 
     //     // try borrow()
     //     eUSDC.borrow(1000e6);
@@ -482,7 +482,7 @@ contract TestPTokenForPendlePT is TestBaseMarket {
     //     pendlePT.approve(address(cPendlePT), 1 ether);
     //     cPendlePT.mint(1 ether, user1);
 
-    //     marketManager.postCollateral(user1, address(cPendlePT), 1 ether);
+    //     cPendlePT.postCollateral(1 ether);
 
     //     // try borrow()
     //     eUSDC.borrow(1000e6);

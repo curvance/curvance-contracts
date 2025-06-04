@@ -28,11 +28,7 @@ contract ETokenBorrowTest is TestBaseEToken {
 
         eUSDC.mint(200e6);
 
-        marketManager.postCollateral(
-            address(this),
-            address(pBALRETH),
-            1e18 - 1
-        );
+        pBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));
@@ -52,11 +48,7 @@ contract ETokenBorrowTest is TestBaseEToken {
 
         eUSDC.mint(200e6);
 
-        marketManager.postCollateral(
-            address(this),
-            address(pBALRETH),
-            1e18 - 1
-        );
+        pBALRETH.postCollateral(1e18 - 1);
 
         uint256 underlyingBalance = usdc.balanceOf(address(this));
         uint256 balance = eUSDC.balanceOf(address(this));

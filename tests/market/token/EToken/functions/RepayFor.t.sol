@@ -14,11 +14,7 @@ contract ETokenRepayForTest is TestBaseEToken {
 
         _prepareUSDC(address(eUSDC), 2000e6);
 
-        marketManager.postCollateral(
-            address(this),
-            address(pBALRETH),
-            1e18 - 1
-        );
+        pBALRETH.postCollateral(1e18 - 1);
 
         vm.prank(user1);
         eUSDC.mintFor(100e6, address(this));

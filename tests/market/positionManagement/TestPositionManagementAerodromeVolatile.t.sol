@@ -201,7 +201,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -325,7 +325,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(100 ether);
@@ -400,7 +400,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(100 ether);
@@ -553,7 +553,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarket {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        marketManager.postCollateral(user, address(pWETHUSDC), 0.0001 ether);
+        pUSDCDAI.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);

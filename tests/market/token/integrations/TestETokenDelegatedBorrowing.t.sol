@@ -131,7 +131,7 @@ contract TestETokenDelegatedBorrowing is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether - 1);
+        pBALRETH.postCollateral(1 ether - 1);
 
         // delegate borrow
         eDAI.setDelegateApproval(user2, true);

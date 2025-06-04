@@ -83,7 +83,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
         pBALRETH.deposit(1e18, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 9e17);
+        pBALRETH.postCollateral(9e17);
         vm.stopPrank();
 
         bool hasPosition;

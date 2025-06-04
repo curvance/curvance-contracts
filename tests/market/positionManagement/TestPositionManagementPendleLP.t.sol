@@ -183,7 +183,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
 
         // mint
         assertGt(pSTETH.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pSTETH), 1 ether);
+        pSTETH.postCollateral(1 ether);
         assertEq(pSTETH.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -375,7 +375,7 @@ contract TestPositionManagementPendleLP is TestBaseMarket {
 
         // mint
         assertGt(pSTETH.deposit(1 ether, user), 0);
-        marketManager.postCollateral(user, address(pSTETH), 1 ether);
+        pSTETH.postCollateral(1 ether);
         assertEq(pSTETH.balanceOf(user), 1 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);

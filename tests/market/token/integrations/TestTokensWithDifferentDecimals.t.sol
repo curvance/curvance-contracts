@@ -134,7 +134,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
 
         // try mintFor()
@@ -180,7 +180,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
         assertEq(pBALRETH.exchangeRateCached(), 1 ether);
@@ -237,7 +237,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -265,7 +265,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -303,7 +303,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -332,7 +332,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1 ether);
         pBALRETH.deposit(1 ether, user1);
-        marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+        pBALRETH.postCollateral(1 ether);
 
         // try mint()
         _prepareUSDC(user1, 1000e6);
@@ -368,7 +368,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), 1 ether);
     //     pBALRETH.deposit(1 ether, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+    //     pBALRETH.postCollateral(1 ether);
 
     //     // try borrow()
     //     eUSDC.borrow(1000e6);
@@ -420,7 +420,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarket {
     //     vm.startPrank(user1);
     //     balRETH.approve(address(pBALRETH), 1 ether);
     //     pBALRETH.deposit(1 ether, user1);
-    //     marketManager.postCollateral(user1, address(pBALRETH), 1 ether);
+    //     pBALRETH.postCollateral(1 ether);
 
     //     // try borrow()
     //     eUSDC.borrow(1000e6);
