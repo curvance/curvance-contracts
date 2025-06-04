@@ -622,20 +622,9 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        // Fails if transfer not allowed.
-        marketManager.canTransferPToken(
-            address(this),
-            msg.sender,
-            balanceOf(msg.sender),
-            collateralPosted[msg.sender],
-            amount
-        );
-
-        _beforeTransferAction(msg.sender, to, amount);
-
+        _prepareTransfer(msg.sender, to, amount);
         // Execute transfer.
         super.transfer(to, amount);
-
         return true;
     }
 
@@ -651,20 +640,9 @@ abstract contract BasePToken is
         address to,
         uint256 amount
     ) public override nonReentrant returns (bool) {
-        // Fails if transfer not allowed.
-        marketManager.canTransferPToken(
-            address(this),
-            from,
-            balanceOf(from),
-            collateralPosted[from],
-            amount
-        );
-
-        _beforeTransferAction(from, to, amount);
-
+        _prepareTransfer(from, to, amount);
         // Execute transfer.
         super.transferFrom(from, to, amount);
-
         return true;
     }
 
@@ -1196,6 +1174,31 @@ abstract contract BasePToken is
         );
     }
 
+    /// @notice Helper function to prepare for a transfer.
+    /// @param from The address of the account transferring `amount`
+    ///             shares from.
+    /// @param to The address of the destination account to receive `amount`
+    ///           shares.
+    /// @param amount The number of tokens to transfer from `from` to `to`.
+    function _prepareTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        _checkZeroAmount(amount);
+        
+        // Fails if transfer not allowed.
+        marketManager.canTransferPToken(
+            address(this),
+            msg.sender,
+            balanceOf(from),
+            collateralPosted[from],
+            amount
+        );
+        
+        _beforeTransferAction(from, to, amount);
+    }
+
     /// @notice Helper function to efficiently transfers pToken balances
     ///         without checking approvals.
     /// @dev This is only used in liquidations where maximal gas
@@ -1491,14 +1494,11 @@ abstract contract BasePToken is
 
     /// @notice An optional set of instructions to execute before processing
     ///         a transfer of `from`'s shares to `to`.
-    /// @param amount The number of tokens to transfer from `from` to `to`.
     function _beforeTransferAction(
         address /* from */,
         address /* to */,
-        uint256 amount
-    ) internal virtual {
-        _checkZeroAmount(amount);
-    }
+        uint256 /* shares */
+    ) internal virtual {}
 
     /// @notice An optional set of instructions to execute before processing
     ///         liquidation of `account`'s collateral.

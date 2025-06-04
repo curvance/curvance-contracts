@@ -111,7 +111,6 @@ abstract contract BasePTokenWithGauge is BasePToken {
         address to,
         uint256 shares
     ) internal override {
-        _checkZeroAmount(shares);
         // Update Gauge Manager values for `from`.
         gaugeManager.withdraw(address(this), from, shares);
 

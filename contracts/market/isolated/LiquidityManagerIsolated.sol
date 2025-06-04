@@ -59,8 +59,6 @@ abstract contract LiquidityManagerIsolated {
     ///                     100% - baseCFactor.
     /// @dev In `WAD` format, e.g. 0.9e18 = 90% distance between base cFactor,
     ///      and 100%.
-    /// @param accountPositions Mapping that stores account information like token
-    ///                    positions and collateral posted.
     struct MarketToken {
         bool isListed;
         uint256 collRatio;
@@ -212,8 +210,8 @@ abstract contract LiquidityManagerIsolated {
 
     /// @notice Value that indicates whether an account has an
     ///         active position in the token.
-    ///         0 or 1 for no; 2 for yes.
     /// @dev Market Token address => Account address => Active position status.
+    ///      0 or 1 for no; 2 for yes.
     mapping(address => mapping(address => uint256)) public accountPositions;
     /// @notice Assets and redemption cooldown data for an account.
     /// @dev Account => AccountData struct.
@@ -335,134 +333,129 @@ abstract contract LiquidityManagerIsolated {
             uint256 numAssets
         ) = _assetDataOf(account, action.errorCodeBreakpoint);
         bool[] memory positionsToClose = new bool[](numAssets);
+        AccountSnapshot memory snapshot;
         uint256 maxDebt;
         uint256 newDebt;
+        
+        for (uint256 i; i < numAssets; ++i) {
+            uint256 posted;
+            uint256 cr;
+            snapshot = snapshots[i];
 
-        {
-            // Use scoping to avoid stack too deep.
-            AccountSnapshot memory snapshot;
+            if (snapshot.isPToken) {
+                // Cache Collateralization for pToken status and potential
+                // hypothetical action below.
+                cr = tokenData[snapshot.asset].collRatio;
+                // If the pToken has a Collateralization Ratio,
+                // increment their collateral and max borrow value.
+                if (cr != 0) {
+                    // Cache collateral posted.
+                    posted = snapshot.collateralPosted;
 
-            for (uint256 i; i < numAssets; ++i) {
-                uint256 posted;
-                uint256 cr;
-                snapshot = snapshots[i];
-
-                if (snapshot.isPToken) {
-                    // Cache Collateralization for pToken status and potential
-                    // hypothetical action below.
-                    cr = tokenData[snapshot.asset].collRatio;
-                    // If the pToken has a Collateralization Ratio,
-                    // increment their collateral and max borrow value.
-                    if (cr != 0) {
-                        // Cache collateral posted.
-                        posted = snapshot.collateralPosted;
-
+                    // If there is no collateral posted and its not a
+                    // position to be modified, clean up the position
+                    // entry as the user was liquidated.
+                    if (posted == 0) {
                         // If there is no collateral posted and its not a
                         // position to be modified, clean up the position
                         // entry as the user was liquidated.
-                        if (posted == 0) {
-                            // If there is no collateral posted and its not a
-                            // position to be modified, clean up the position
-                            // entry as the user was liquidated.
-                            if (action.mTokenModified != snapshot.asset) {
-                                positionsToClose[i] = true;
-                                if (result.positionClosureNeeded == 0) {
-                                    result.positionClosureNeeded = 2;
-                                }
-                            }
-                        } else {
-                            // There is collateral posted in this pToken,
-                            // and the user can take on more debt.
-                            maxDebt = _addLiquidityValue(
-                                maxDebt,
-                                posted,
-                                snapshot.exchangeRate,
-                                underlyingPrices[i],
-                                10 ** snapshot.decimals,
-                                cr
-                            );
-                        }
-                    }
-                } else {
-                    // If they have a debt balance, increment their debt.
-                    if (snapshot.debtBalance > 0) {
-                        newDebt += _assetValue(
-                            snapshot.debtBalance,
-                            underlyingPrices[i],
-                            10 ** snapshot.decimals,
-                            false
-                        );
-                    } else {
-                        // If there is no debt and its not a position
-                        // to be modified, clean up the position entry as the
-                        // user was liquidated (bad debt insolvency).
                         if (action.mTokenModified != snapshot.asset) {
                             positionsToClose[i] = true;
                             if (result.positionClosureNeeded == 0) {
                                 result.positionClosureNeeded = 2;
                             }
                         }
-                    }
-                }
-
-                // Calculate impact of mTokenModified action.
-                if (action.mTokenModified == snapshot.asset) {
-                    // If its a PToken our only option is to redeem it since
-                    // it cant be borrowed.
-                    // If its a EToken we can redeem it but it will not have
-                    // any effect on borrow amount since EToken have a collateral
-                    // value of 0.
-                    if (snapshot.isPToken) {
-                        // If the pToken has a Collateralization Ratio,
-                        // increase their new debt.
-                        if (cr != 0) {
-                            // If they are trying to redeem more tokens than
-                            // they have, the transaction will fail before it
-                            // gets to this point, so no special case needed.
-                            if (posted == action.redeemTokens) {
-                                positionsToClose[i] = true;
-                                if (result.positionClosureNeeded == 0) {
-                                    result.positionClosureNeeded = 2;
-                                }
-                            }
-
-                            // Hypothetical redemption action.
-                            newDebt += _redemptionValue(
-                                action.redeemTokens,
-                                snapshot.exchangeRate,
-                                underlyingPrices[i],
-                                10 ** snapshot.decimals,
-                                cr
-                            );
-                        }
                     } else {
-                        // Hypothetical borrow action.
-                        newDebt += _assetValue(
-                            action.borrowAmount,
+                        // There is collateral posted in this pToken,
+                        // and the user can take on more debt.
+                        maxDebt = _addLiquidityValue(
+                            maxDebt,
+                            posted,
+                            snapshot.exchangeRate,
                             underlyingPrices[i],
                             10 ** snapshot.decimals,
-                            false
+                            cr
                         );
-
-                        // Initially, we would worry that newDebt can be
-                        // incremented during both borrow and redemption
-                        // actions but actions are done in isolation, so if
-                        // newDebt is increases here then mTokenModified will
-                        // never reach the redemption action block.
-                        // This means we can check terminal newDebt value here
-                        // and know its only including current and
-                        // hypothetical new debt.
-                        if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
-                            revert LiquidityManager__InsufficientLoanSize();
+                    }
+                }
+            } else {
+                // If they have a debt balance, increment their debt.
+                if (snapshot.debtBalance > 0) {
+                    newDebt += _assetValue(
+                        snapshot.debtBalance,
+                        underlyingPrices[i],
+                        10 ** snapshot.decimals,
+                        false
+                    );
+                } else {
+                    // If there is no debt and its not a position
+                    // to be modified, clean up the position entry as the
+                    // user was liquidated (bad debt insolvency).
+                    if (action.mTokenModified != snapshot.asset) {
+                        positionsToClose[i] = true;
+                        if (result.positionClosureNeeded == 0) {
+                            result.positionClosureNeeded = 2;
                         }
-
-                        // We don't need to check for closing a position here
-                        // since borrow action will only expand a position.
                     }
                 }
             }
-        }
 
+            // Calculate impact of mTokenModified action.
+            if (action.mTokenModified == snapshot.asset) {
+                // If its a PToken our only option is to redeem it since
+                // it cant be borrowed.
+                // If its a EToken we can redeem it but it will not have
+                // any effect on borrow amount since EToken have a collateral
+                // value of 0.
+                if (snapshot.isPToken) {
+                    // If the pToken has a Collateralization Ratio,
+                    // increase their new debt.
+                    if (cr != 0) {
+                        // If they are trying to redeem more tokens than
+                        // they have, the transaction will fail before it
+                        // gets to this point, so no special case needed.
+                        if (posted == action.redeemTokens) {
+                            positionsToClose[i] = true;
+                            if (result.positionClosureNeeded == 0) {
+                                result.positionClosureNeeded = 2;
+                            }
+                        }
+
+                        // Hypothetical redemption action.
+                        newDebt += _redemptionValue(
+                            action.redeemTokens,
+                            snapshot.exchangeRate,
+                            underlyingPrices[i],
+                            10 ** snapshot.decimals,
+                            cr
+                        );
+                    }
+                } else {
+                    // Hypothetical borrow action.
+                    newDebt += _assetValue(
+                        action.borrowAmount,
+                        underlyingPrices[i],
+                        10 ** snapshot.decimals,
+                        false
+                    );
+
+                    // Initially, we would worry that newDebt can be
+                    // incremented during both borrow and redemption
+                    // actions but actions are done in isolation, so if
+                    // newDebt is increases here then mTokenModified will
+                    // never reach the redemption action block.
+                    // This means we can check terminal newDebt value here
+                    // and know its only including current and
+                    // hypothetical new debt.
+                    if (newDebt < MIN_ACTIVE_LOAN_SIZE) {
+                        revert LiquidityManager__InsufficientLoanSize();
+                    }
+
+                    // We don't need to check for closing a position here
+                    // since borrow action will only expand a position.
+                }
+            }
+        }
         // These will not underflow/overflow as condition is checked prior.
         // Returns excess liquidity on hypothetical positions.
         if (maxDebt > newDebt) {

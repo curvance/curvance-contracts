@@ -8,8 +8,9 @@ struct AccountSnapshot {
     address asset;
     bool isPToken;
     uint8 decimals;
-    uint256 debtBalance;
     uint256 exchangeRate;
+    uint256 collateralPosted;
+    uint256 debtBalance;
 }
 
 interface IMToken {
@@ -40,24 +41,10 @@ interface IMToken {
     /// @param user User to query eToken balance for.
     function balanceOf(address user) external view returns (uint256);
 
-    /// @notice Get a snapshot of the account's balances,
-    ///         and the cached exchange rate.
-    /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// @param account Address of the account to snapshot.
-    /// @return Current account shares balance.
-    /// @return Current account borrow balance, which will be 0,
-    ///         kept for composability.
-    /// @return Current exchange rate between assets and shares, in `WAD`.
-    function getSnapshot(
-        address account
-    ) external view returns (uint256, uint256, uint256);
-
     /// @notice Returns a snapshot of the pToken and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
-    ///       since it is unused.
     /// @return Snapshot struct containing packed information.
-    function getSnapshotPacked(
+    function getSnapshot(
         address account
     ) external view returns (AccountSnapshot memory);
 

@@ -20,4 +20,12 @@ interface ILiquidityManager {
         uint256 cFactorCurve
     );
 
+    /// @notice Value that indicates whether an account has an
+    ///         active position in the token.
+    ///         0 or 1 for no; 2 for yes.
+    /// @dev Market Token address => Account address => Active position status.
+    function accountPositions(
+        address mToken,
+        address account
+    ) external view returns (uint256);
 }

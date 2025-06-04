@@ -560,7 +560,7 @@ contract OracleManager is IOracleManager {
         uint256 errorCode;
 
         for (uint256 i; i < numAssets; ++i) {
-            snapshots[i] = assets[i].getSnapshotPacked(account);
+            snapshots[i] = assets[i].getSnapshot(account);
             (underlyingPrices[i], errorCode) = getPrice(
                 assets[i].underlying(),
                 true,

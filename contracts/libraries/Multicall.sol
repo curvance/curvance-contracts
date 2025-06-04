@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseCallDataChecker } from "contracts/calldata-checker/BaseCallDataChecker.sol";
 import { LowLevelCallsHelper } from "contracts/libraries/LowLevelCallsHelper.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
@@ -10,7 +9,7 @@ import { IMulticallChecker } from "contracts/interfaces/IMulticallChecker.sol";
 /// @title Curvance Multicall helper.
 /// @notice Multicall implementation to support pull based oracles and
 ///         other chained actions within Curvance.
-abstract contract Multicall is BaseCallDataChecker {
+abstract contract Multicall {
     /// TYPES ///
 
     /// @title Multicall Data

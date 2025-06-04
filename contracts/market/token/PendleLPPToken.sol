@@ -35,8 +35,6 @@ contract PendleLPPToken is CompoundingPToken {
         address[] underlyingTokens;
     }
 
-    /// CONSTANTS ///
-
     /// STORAGE ///
 
     /// @notice StrategyData packed configuration data.
