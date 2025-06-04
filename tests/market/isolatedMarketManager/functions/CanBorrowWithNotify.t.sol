@@ -81,7 +81,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     //         2000     // baseCFactor 20%
     //     );
 
-    //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
+    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
 
     //     vm.expectRevert();
     //     vm.prank(address(pBALRETH));
@@ -100,7 +100,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
     //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
-    //     marketManager.setPTokenCollateralCaps(
+    //     marketManager.setCollateralCaps(
     //         mTokens,
     //         borrowCaps
     //     );
@@ -174,7 +174,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -233,7 +233,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -304,7 +304,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);

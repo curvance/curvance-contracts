@@ -194,6 +194,6 @@ contract PendleLPDeployer is DeployConfiguration {
         // followings should be done separate because it requires dust amount deposits
         // marketManager.listToken;
         // marketManager.updatePositionToken
-        // marketManager.setPTokenCollateralCaps
+        // marketManager.setCollateralCaps
     }
 }

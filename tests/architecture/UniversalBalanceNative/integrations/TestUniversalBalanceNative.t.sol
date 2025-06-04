@@ -146,7 +146,7 @@ contract TestUniversalBalanceNative is TestBaseMarket {
             mTokens[0] = address(cWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setPTokenCollateralCaps(mTokens, caps);
+            marketManager.setCollateralCaps(mTokens, caps);
         }
 
         owners.push(user2);

@@ -84,7 +84,7 @@ contract TestComplexZapperCurveETH is TestBaseMarket {
         mTokens[0] = address(pToken);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function testEnterCurveWithETH() public {

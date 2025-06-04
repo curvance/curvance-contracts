@@ -1011,6 +1011,7 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 newVertexMultiplier,
         uint256 newTimestamp
     ) internal pure returns (uint256 result) {
+        /// @solidity memory-safe-assembly
         assembly {
             // Mask `newVertexMultiplier` to the lower 192 bits,
             // in case the upper bits somehow aren't clean.
@@ -1034,6 +1035,7 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 packedRatesData = _currentRates;
         uint256 timestampCasted;
         // Cast `timestampCasted` with assembly to avoid redundant masking.
+        /// @solidity memory-safe-assembly
         assembly {
             timestampCasted := newTimestamp
         }

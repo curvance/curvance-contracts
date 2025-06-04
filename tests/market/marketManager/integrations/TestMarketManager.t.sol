@@ -496,7 +496,7 @@
 //         );
 //         assertTrue(hasPosition);
 //         vm.prank(address(eTokens[1]));
-//         marketManager.canBorrowWithPrune(address(eTokens[1]), users[0], 0);
+//         marketManager.canBorrow(address(eTokens[1]), users[0], 0);
 //         vm.prank(users[0]);
 
 //         (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager

@@ -151,7 +151,7 @@
 //         require(_mintAndApprove(EToken(eToken).underlying(), eToken, amount));
 //         (bool borrowPossible, ) = address(marketManager).call(
 //             abi.encodeWithSignature(
-//                 "canBorrowWithPrune(address,address,uint256)",
+//                 "canBorrow(address,address,uint256)",
 //                 eToken,
 //                 address(this),
 //                 amount
@@ -217,7 +217,7 @@
 //         require(marketManager.isListed(eToken));
 //         (bool borrowPossible, ) = address(marketManager).call(
 //             abi.encodeWithSignature(
-//                 "canBorrowWithPrune(address,address,uint256)",
+//                 "canBorrow(address,address,uint256)",
 //                 eToken,
 //                 address(this),
 //                 amount

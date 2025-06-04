@@ -515,7 +515,7 @@ contract MarketManager is
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
-    function canBorrowWithPrune(
+    function canBorrow(
         address eToken,
         address account,
         uint256 amount
@@ -948,7 +948,7 @@ contract MarketManager is
     ///                change the borrow caps for.
     /// @param newCollateralCaps The new collateral cap values in underlying
     ///                          to be set, in  shares.
-    function setPTokenCollateralCaps(
+    function setCollateralCaps(
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {

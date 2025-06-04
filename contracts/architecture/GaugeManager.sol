@@ -823,7 +823,7 @@ contract GaugeManager is
 
     /// @dev Internal helper for reverting efficiently.
     function _revert(uint256 s) internal pure {
-        /// @solidity memory-safe-assembly.
+        /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, s)
             revert(0x1c, 0x04)

@@ -108,7 +108,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
         tokens[0] = address(positionToken);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
     }
 
     function _genCollateral(

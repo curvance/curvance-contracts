@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 
-contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
+contract SetCollateralCapsTest is TestBaseMarketManager {
     address[] public mTokens;
     uint256[] public collateralCaps;
 
@@ -21,27 +21,27 @@ contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
         collateralCaps.push(100e18);
     }
 
-    function test_setPTokenCollateralCaps_fail_whenCallerIsNotAuthorized()
+    function test_setCollateralCaps_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(1));
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setCollateralCaps(mTokens, collateralCaps);
     }
 
-    function test_setPTokenCollateralCaps_fail_whenMTokenLengthIsZero()
+    function test_setCollateralCaps_fail_whenMTokenLengthIsZero()
         public
     {
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setPTokenCollateralCaps(
+        marketManager.setCollateralCaps(
             new address[](0),
             collateralCaps
         );
     }
 
-    function test_setPTokenCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
+    function test_setCollateralCaps_fail_whenMTokenAndCapsLengthsMismatch()
         public
     {
         mTokens.push(address(eUSDC));
@@ -49,19 +49,19 @@ contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setCollateralCaps(mTokens, collateralCaps);
         mTokens.pop();
     }
 
-    function test_setPTokenCollateralCaps_fail_whenNotPToken() public {
+    function test_setCollateralCaps_fail_whenNotPToken() public {
         assertEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
             MarketManager.MarketManager__InvalidParameter.selector
         );
-        marketManager.setPTokenCollateralCaps(mTokens, collateralCaps);
+        marketManager.setCollateralCaps(mTokens, collateralCaps);
     }
 
-    function test_setPTokenCollateralCaps_success() public {
+    function test_setCollateralCaps_success() public {
         _prepareBALRETH(address(this), 1 ether);
         balRETH.approve(address(pBALRETH), 1 ether);
         marketManager.listToken(address(pBALRETH));
@@ -87,7 +87,7 @@ contract SetPTokenCollateralCapsTest is TestBaseMarketManager {
             emit NewCollateralCap(validMTokens[i], validCollateralCaps[i]);
         }
 
-        marketManager.setPTokenCollateralCaps(
+        marketManager.setCollateralCaps(
             validMTokens,
             validCollateralCaps
         );

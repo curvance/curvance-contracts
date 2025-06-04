@@ -115,7 +115,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             mTokens[0] = address(pWETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setPTokenCollateralCaps(mTokens, caps);
+            marketManager.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWETH);

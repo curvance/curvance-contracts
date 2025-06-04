@@ -110,7 +110,7 @@
 //         tokens[0] = address(pBALRETHIsolated);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
-//         marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+//         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
 //         _prepareBALRETH(user1, 1_000e18);
 
@@ -169,7 +169,7 @@
 //         tokens[0] = address(pBALRETHIsolated);
 //         uint256[] memory caps = new uint256[](1);
 //         caps[0] = 100_000e18;
-//         marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+//         marketManagerIsolated.setCollateralCaps(tokens, caps);
 
 //         _prepareBALRETH(user1, 1_000e18);
 

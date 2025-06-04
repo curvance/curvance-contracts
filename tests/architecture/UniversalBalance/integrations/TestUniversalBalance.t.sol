@@ -9,11 +9,11 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestUniversalBalance is TestBaseMarket {
+contract TestUniversalBalance is TestBaseMarketIsolated {
     address public owner;
 
     MockDataFeed public mockUsdcFeed;
@@ -138,7 +138,7 @@ contract TestUniversalBalance is TestBaseMarket {
             mTokens[0] = address(cWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setPTokenCollateralCaps(mTokens, caps);
+            marketManager.setCollateralCaps(mTokens, caps);
         }
 
         owners.push(user2);

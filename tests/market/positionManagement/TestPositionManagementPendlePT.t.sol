@@ -126,7 +126,7 @@ contract TestPositionManagementPendlePT is TestBaseMarket {
             mTokens[0] = address(pPendlePT);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setPTokenCollateralCaps(mTokens, caps);
+            marketManager.setCollateralCaps(mTokens, caps);
         }
 
         positionManagement = new PositionManagementPendlePT(

@@ -109,7 +109,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         tokens[0] = address(pBALRETHWithExitFee);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         addPositionManagement();
 

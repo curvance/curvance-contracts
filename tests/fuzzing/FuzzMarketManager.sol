@@ -286,7 +286,7 @@
 //         }
 //     }
 
-//     /// @custom:property market-9 – Calling setPTokenCollateralCaps should increase the globally set the collateral caps to the cap provided
+//     /// @custom:property market-9 – Calling setCollateralCaps should increase the globally set the collateral caps to the cap provided
 //     /// @custom:property market-10 Setting collateral caps for a token given permissions and collateral values being set should succeed.
 //     /// @custom:precondition address(this) has dao permissions
 //     /// @custom:precondition mtoken is a C token
@@ -310,7 +310,7 @@
 
 //         (bool success, ) = address(marketManager).call(
 //             abi.encodeWithSignature(
-//                 "setPTokenCollateralCaps(address[],uint256[])",
+//                 "setCollateralCaps(address[],uint256[])",
 //                 tokens,
 //                 caps
 //             )
@@ -326,7 +326,7 @@
 //             // market-7
 //             assertWithMsg(
 //                 false,
-//                 "MARKET-10 expected setPTokenCollateralCaps to succeed"
+//                 "MARKET-10 expected setCollateralCaps to succeed"
 //             );
 //         }
 

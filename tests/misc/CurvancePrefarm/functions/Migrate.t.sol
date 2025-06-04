@@ -61,7 +61,7 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         mTokens[0] = address(pBALRETH);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function test_migrate_fail_whenMigrationIsNotStarted() public {

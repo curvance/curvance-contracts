@@ -115,7 +115,7 @@ contract TestConvexLPCollateral is TestBaseMarket {
         tokens[0] = address(cSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         // User mints cSTETH with cvxStethEth LP tokens and then uses the cSTETH as collateral to borrow 10,000 eUSDC
         _prepareUSDC(address(eUSDC), 100_000e6);

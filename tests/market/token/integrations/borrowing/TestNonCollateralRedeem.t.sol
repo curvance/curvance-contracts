@@ -40,7 +40,7 @@ contract TestNonCollateralRedeem is TestBaseMarket {
         mTokens[0] = address(pBALRETH);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1_000_000e18;
-        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
 
         // Deposit 1 pBALRETH
         pBALRETH.deposit(1e18, address(this));

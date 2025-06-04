@@ -65,7 +65,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     //     borrowCaps[0] = 100e6 - 1;
 
     //     marketManager.listToken(address(pBALRETH));
-    //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
+    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
 
     //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
     //     vm.prank(address(pBALRETH));
@@ -83,7 +83,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     //     borrowCaps[0] = 100e6;
 
     //     marketManager.listToken(address(pBALRETH));
-    //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
+    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
 
     //     vm.prank(address(pBALRETH));
     //     marketManager.canBorrowWithNotify(address(pBALRETH), user1, borrowCaps[0] - 1);
@@ -152,7 +152,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 1_000e18);
@@ -212,7 +212,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
@@ -301,7 +301,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);

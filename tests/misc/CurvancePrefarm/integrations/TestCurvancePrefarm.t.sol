@@ -99,7 +99,7 @@ contract TestCurvancePrefarm is TestBaseCurvancePrefarm {
         mTokens[0] = address(pBALRETH);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManager.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function test_swapAndDeposit_migrate_withPToken_withCollateralize_success()

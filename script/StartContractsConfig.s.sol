@@ -498,7 +498,7 @@ contract StartContractsConfig is
         mTokens[0] = pToken;
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** underlying.decimals(); //1m tokens
-        market.setPTokenCollateralCaps(mTokens, newCollateralCaps);
+        market.setCollateralCaps(mTokens, newCollateralCaps);
 
         return pToken;
     }

@@ -898,7 +898,7 @@ contract MarketManagerIsolated is
     ///                change the borrow caps for.
     /// @param newCollateralCaps The new collateral cap values in underlying
     ///                          to be set, in  shares.
-    function setPTokenCollateralCaps(
+    function setCollateralCaps(
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {
@@ -906,6 +906,7 @@ contract MarketManagerIsolated is
 
         uint256 numTokens = pTokens.length;
 
+        /// @solidity memory-safe-assembly
         assembly {
             if iszero(numTokens) {
                 // store the error selector to location 0x0.
@@ -1046,6 +1047,7 @@ contract MarketManagerIsolated is
     function lockAtlasCollateral() external {
         _checkAtlasPermissions();
 
+        /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
         }
@@ -1058,6 +1060,7 @@ contract MarketManagerIsolated is
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         _checkAtlasPermissions();
 
+        /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
         }
@@ -1091,11 +1094,13 @@ contract MarketManagerIsolated is
 
         // Set new Risk Parameters in transient storage. 
         // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+        /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_PENALTY_KEY, newPenalty)
         }
 
         // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
+        /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
         }
@@ -1107,12 +1112,14 @@ contract MarketManagerIsolated is
     function resetAtlasParameters() external {
         _checkAtlasPermissions();
 
+        /// @solidity memory-safe-assembly
         assembly {
             // Clear the transient storage slot by writing zero. 
             tstore(_TRANSIENT_PENALTY_KEY, 0)
         }
 
         // Clear the transient storage slot by writing zero.
+        /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_CLOSE_FACTOR_KEY, 0)
         }
@@ -1131,6 +1138,7 @@ contract MarketManagerIsolated is
         uint256 penalty,
         uint256 closeFactor
     ) {
+        /// @solidity memory-safe-assembly
         assembly {
             penalty := tload(_TRANSIENT_PENALTY_KEY)
             closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
@@ -1788,6 +1796,7 @@ contract MarketManagerIsolated is
         address eTokenToLiquidate
     ) internal view returns (uint256) {
         uint256 result;
+        /// @solidity memory-safe-assembly
         assembly {
             result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }

@@ -70,7 +70,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         tokens[0] = address(pUSDC);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManager.setCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);
