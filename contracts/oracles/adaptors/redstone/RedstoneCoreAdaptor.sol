@@ -106,7 +106,7 @@ contract RedstoneCoreAdaptor is
 
         // Validate unique signer threshold is possible to reach based
         // on signers authorised.
-        if (uniqueSignersThreshold_ >= numSigners) {
+        if (uniqueSignersThreshold_ > numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
