@@ -295,12 +295,6 @@ contract PythAdaptor is BaseOracleAdaptor {
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
-        if (
-            !IOracleManager(centralRegistry.oracleManager()).isSequencerValid()
-        ) {
-            pData.hadError = true;
-            return pData;
-        }
 
         PythStructs.Price memory price = IPyth(pyth).getPriceUnsafe(
             data.priceId
@@ -312,17 +306,19 @@ contract PythAdaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        uint8 decimals = uint8(-1 * int8(price.expo));
-        uint256 newPrice = (uint256(int256(price.price)) * WAD) /
-            (10 ** decimals);
-
-        pData.price = uint240(newPrice);
-        pData.hadError = _verifyData(
+        uint256 normalizedPrice = _normalizePrice(
             uint256(int256(price.price)),
+            -1 * int8(price.expo)
+        );
+
+        pData.hadError = _verifyData(
+            normalizedPrice,
             price.publishTime,
             data.max,
             data.min,
             data.heartbeat
         );
+
+        pData.price = uint240(normalizedPrice);
     }
 }

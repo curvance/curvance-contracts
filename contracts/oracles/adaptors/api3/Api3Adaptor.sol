@@ -239,6 +239,8 @@ contract Api3Adaptor is BaseOracleAdaptor {
         AdaptorData memory data,
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
+        pData.inUSD = inUSD;
+        
         (int256 price, uint256 updatedAt) = data.proxyFeed.read();
 
         // If we got a price of 0 or less, bubble up an error immediately.
@@ -247,7 +249,6 @@ contract Api3Adaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        pData.price = uint240(uint256(price));
         pData.hadError = _verifyData(
             uint256(price),
             updatedAt,
@@ -255,6 +256,7 @@ contract Api3Adaptor is BaseOracleAdaptor {
             0,
             data.heartbeat
         );
-        pData.inUSD = inUSD;
+
+        pData.price = uint240(uint256(price));
     }
 }

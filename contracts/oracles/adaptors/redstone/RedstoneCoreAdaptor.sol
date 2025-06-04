@@ -41,7 +41,11 @@ contract RedstoneCoreAdaptor is
     uint256 public constant DEFAULT_HEART_BEAT = 1 days;
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
-    uint256 public constant MINIMUM_SIGNER_THRESHOLD_ALLOWED = 3;
+    uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
+
+    /// @notice The maximum number of signers allowed inside this adaptor.
+    /// @dev 1.002e4 = 0.2%.
+    uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
 
     /// STORAGE ///
 
@@ -98,9 +102,16 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
+        uint256 numSigners = signers.length;
+
         // Validate unique signer threshold is possible to reach based
         // on signers authorised.
-        if (uniqueSignersThreshold_ > signers.length) {
+        if (uniqueSignersThreshold_ >= numSigners) {
+            revert RedstoneCoreAdaptor__InvalidConfiguration();
+        }
+
+        // Validate that the number of signers is below the maximum allowed.
+        if (MAXIMUM_SIGNERS_ALLOWED < numSigners) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
@@ -285,7 +296,7 @@ contract RedstoneCoreAdaptor is
         // Its not intended to ever get close to 255 signers but this is
         // theoretically the maximum for the uint8 storage value, so a
         // sanity check is made.
-        if (signerIndex > 255) {
+        if (signerIndex >= MAXIMUM_SIGNERS_ALLOWED) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
@@ -417,6 +428,8 @@ contract RedstoneCoreAdaptor is
         AdaptorData memory data,
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
+        pData.inUSD = inUSD;
+
         uint256 price = overriddenPrice[asset][inUSD];
         if (price == 0) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
@@ -425,20 +438,12 @@ contract RedstoneCoreAdaptor is
         // Cache decimals value.
         uint256 quoteDecimals = data.decimals;
         if (quoteDecimals != 18) {
-            // Decimals are < 18 so we need to multiply up to coerce to
-            // 18 decimals.
-            if (quoteDecimals < 18) {
-                price = price * (10 ** (18 - quoteDecimals));
-            } else {
-                // Decimals are > 18 so we need to multiply down to coerce to
-                // 18 decimals.
-                price = price / (10 ** (quoteDecimals - 18));
-            }
+            price = _normalizePrice(price, quoteDecimals);
         }
 
         // We redundantly check for feed data staleness through a heartbeat
         // check, redstone naturally checks timestamp through its msg.data
-        // read, so we are kind of doing this twice, but better safe than
+        // read, so we are redundantly checking, but better safe than
         // sorry!
         pData.hadError = _verifyData(
             price,
@@ -448,10 +453,7 @@ contract RedstoneCoreAdaptor is
             data.heartbeat
         );
 
-        if (!pData.hadError) {
-            pData.inUSD = inUSD;
-            pData.price = uint240(price);
-        }
+        pData.price = uint240(price);
     }
 
     /// @notice Extracts price stored in msg.data with the transaction,

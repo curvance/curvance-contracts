@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
+import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -90,6 +91,23 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
         }
 
         return false;
+    }
+
+    /// @notice Helper function for normalizing (converting prices in
+    ///         different forms to a common scale) prices received from
+    ///         various oracle adaptors.
+    /// @param price The price to normalize.
+    /// @param decimals The decimal precision `price` is reported in.
+    /// @return Returns the normalized price in 1e18 (WAD) scale.
+    function _normalizePrice(
+        uint256 price,
+        uint256 decimals
+    ) internal view returns (uint256) {
+        return FixedPointMathLib.fullMulDiv(
+            price,
+            WAD,
+            10 ** decimals
+        );
     }
 
     /// @notice Helper function to check whether `price` would overflow

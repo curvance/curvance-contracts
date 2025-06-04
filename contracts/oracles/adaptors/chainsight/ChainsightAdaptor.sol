@@ -278,6 +278,8 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
         AdaptorData memory data,
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
+        pData.inUSD = inUSD;
+        
         (
             int256 price,
             uint256 updatedAt
@@ -292,16 +294,19 @@ contract ChainsightAdaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        uint256 newPrice = (uint256(price) * WAD) / (10 ** data.decimals);
-
-        pData.price = uint240(newPrice);
-        pData.hadError = _verifyData(
+        uint256 normalizedPrice = _normalizePrice(
             uint256(price),
+            data.decimals
+        );
+
+        pData.hadError = _verifyData(
+            normalizedPrice,
             updatedAt,
             data.max,
             0,
             data.heartbeat
         );
-        pData.inUSD = inUSD;
+        
+        pData.price = uint240(normalizedPrice);
     }
 }

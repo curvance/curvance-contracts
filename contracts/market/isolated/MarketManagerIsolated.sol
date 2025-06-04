@@ -1305,7 +1305,8 @@ contract MarketManagerIsolated is
         } else {
             // If they want to redeem more pTokens than they have idle,
             // calculate how much collateral will be redeemed from
-            // the delta.
+            // the delta. Otherwise collateralToRemove default value of 0
+            // is correct.
             if (collateralPosted + amount >= balanceOf) {
                 collateralToRemove = collateralPosted + amount - balanceOf;
             }

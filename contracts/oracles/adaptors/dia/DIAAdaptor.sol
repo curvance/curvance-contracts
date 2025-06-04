@@ -221,15 +221,19 @@ contract DIAAdaptor is BaseOracleAdaptor {
             return pData;
         }
 
-        uint256 newPrice = (uint256(price) * WAD) / (10 ** data.decimals);
-
-        pData.price = uint240(newPrice);
-        pData.hadError = _verifyData(
+        uint256 normalizedPrice = _normalizePrice(
             uint256(price),
+            data.decimals
+        );
+
+        pData.hadError = _verifyData(
+            normalizedPrice,
             updatedAt,
             data.max,
             data.min,
             data.heartbeat
         );
+
+        pData.price = uint240(normalizedPrice);
     }
 }

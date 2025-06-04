@@ -71,28 +71,23 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 contract OracleManager is IOracleManager {
     /// TYPES ///
 
-    /// @title Oracle Feed Data
     /// @notice Data retrieved from a price feed.
-    /// @dev The price is stored as a uint240 to avoid precision loss.
-    ///      The hadError flag is used to indicate if the price feed
-    ///      had an error.
-    /// @dev The FeedData struct is used to store the price and hadError flag for a price feed.
+    /// @param price Price of the asset in some asset, either the chain's
+    ///              native token or USD.The price is stored as a uint240 to
+    ///              avoid precision loss.
+    /// @param hadError Success/Failure return data, true if adaptor couldnt
+    ///                 price asset.
     struct FeedData {
-        /// @notice price of the asset in some asset, either the chain's
-        ///         native token or USD.
         uint240 price;
-        /// @notice message return data, true if adaptor couldnt price asset.
         bool hadError;
     }
 
-    /// @title mToken Data
     /// @notice Stored data for an mToken.
-    /// @dev The isMToken flag is used to indicate if the provided address is an MToken or not.
-    ///      The underlying address is the address of the underlying asset for the MToken.
+    /// @param isMToken Used to indicate if the provided address is an
+    ///                 MToken or not.
+    /// @param underlying Address of the underlying asset for the MToken.
     struct MTokenData {
-        /// @notice Whether the provided address is an MToken or not.
         bool isMToken;
-        /// @notice Token address of underlying asset for MToken.
         address underlying;
     }
 
@@ -107,6 +102,14 @@ contract OracleManager is IOracleManager {
     ///         comes back up.
     uint256 public constant GRACE_PERIOD_TIME = 3600;
 
+    /// @notice Minimum value that a divergence flag can be set as
+    ///         inside the protocol.
+    /// @dev 1.002e4 = 0.2%.
+    uint256 public constant MIN_DIVERGENCE_FLAG_VALUE = 1.002e4;
+    /// @notice Maximum value that a divergence flag can be set as
+    ///         inside the protocol.
+    /// @dev 1.03e4 = 3.0%.
+    uint256 public constant MAX_DIVERGENCE_FLAG_VALUE = 1.03e4;
     /// @dev `bytes4(keccak256(bytes("OracleManager__NotSupported()")))`.
     uint256 internal constant _NOT_SUPPORTED_SELECTOR = 0x37ccbfb5;
     /// @dev `bytes4(keccak256(bytes("OracleManager__InvalidParameter()")))`.
@@ -316,11 +319,17 @@ contract OracleManager is IOracleManager {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (maxCautionDivergence < 10200 || maxCautionDivergence > 12000) {
+        if (
+            maxCautionDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
+            maxCautionDivergence > MAX_DIVERGENCE_FLAG_VALUE
+            ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        if (maxBadSourceDivergence < 10200 || maxBadSourceDivergence > 12000) {
+        if (
+            maxBadSourceDivergence < MIN_DIVERGENCE_FLAG_VALUE ||
+            maxBadSourceDivergence > MAX_DIVERGENCE_FLAG_VALUE
+            ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
