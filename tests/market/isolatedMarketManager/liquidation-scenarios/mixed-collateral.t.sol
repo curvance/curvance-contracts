@@ -225,7 +225,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
 
         // Assert Total borrows is reduced by the amount of debt repaid
 
-        uint256 totalDebtRepaid = borrowAmount + maxAmount[2];
+        uint256 totalDebtRepaid = borrowAmount + maxAmount[2]; // User 3 is soft liquidated, using borrowAmount as user 4 who is hard liquidated
 
         assertApproxEqAbs(
             eUSDC.totalBorrows(),
@@ -243,6 +243,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
             "Liquidator didn't receive expected collateral"
         );
 
+        // Verify lFactors
         for(uint i = 2; i < 4; i++) {
             (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
                 borrowers[i],

@@ -14,13 +14,15 @@ import "forge-std/console2.sol";
 
 // ## Scenario 4: Mixed Atlas and Regular Liquidations
 // - Setup: 4 users with varying positions
-// - User 1: 1.0 pBALRETH ($1,600), 1,200 USDC debt (for Atlas)
-// - User 2: 0.95 pBALRETH ($1,520), 1,200 USDC debt (for Atlas)
-// - User 3: 0.9 pBALRETH ($1,440), 1,200 USDC debt (for regular)
-// - User 4: 0.85 pBALRETH ($1,360), 1,200 USDC debt (for regular)
-// - Action 1: Price drop by 12% (to $1,408), Atlas transaction with custom parameters for User 1 and User 2
+// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Atlas)
+// - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Atlas)
+// - User 3: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
+// - User 4: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
+// - Action 1: Price drop by to ~$1,300, Atlas transaction with custom parameters for User 1 and User 2
 // - Action 2: Regular liquidation attempt for User 3 and User 4
 // - Expected: Users 1 and 2 liquidated via Atlas with custom parameters, Users 3 and 4 via regular liquidation
+
+// TODO: Use different loan/collateral ratios for each user
 
 contract MixedAtlas is TestBaseMarketManagerIsolated {
 
@@ -141,6 +143,23 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         console2.log("SETUP COMPLETE");
     }
 
+    uint256[] debtBalancesPreLiquidation_atlas;
+    uint256[] debtBalancesPreLiquidation_regular;
+    uint256[] lFactorsPreLiquidation_atlas;
+    uint256[] lFactorsPreLiquidation_regular;
+    uint256 eTokenPrice;
+    uint256 pTokenPrice;
+    uint256[] maxAmount_atlas;
+    uint256[] liquidatedPTokens_atlas;
+    uint256[] collateralRequired_atlas;
+    uint256[] maxAmount_regular;
+    uint256[] liquidatedPTokens_regular;
+    uint256[] collateralRequired_regular;
+    uint256[] badDebt_atlas = new uint256[](2);
+    uint256[] badDebt_regular = new uint256[](2);
+    uint256 totalBorrowsBefore;
+    uint256 totalDebtRepaid;
+
     function test_mixedAtlas() public {
 
         _prepareUSDC(dappControlUser, 100000e6);
@@ -150,27 +169,28 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
 
-        uint256[] memory debtBalancesPreLiquidation_atlas = _getDebtBalancePreLiquidation(atlasBorrowers);
-        uint256[] memory debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
+        totalBorrowsBefore = eUSDC.totalBorrows();
 
-        uint256[] memory lFactorsPreLiquidation_atlas = _getLFactorsPreLiquidation(atlasBorrowers);
-        uint256[] memory lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
+        debtBalancesPreLiquidation_atlas = _getDebtBalancePreLiquidation(atlasBorrowers);
+        debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
 
-        (,uint256 eTokenPrice, uint256 pTokenPrice) = 
+        lFactorsPreLiquidation_atlas = _getLFactorsPreLiquidation(atlasBorrowers);
+        lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
+
+        (,eTokenPrice, pTokenPrice) = 
             marketManager.liquidationStatusOf(atlasBorrowers[0], address(eUSDC), address(pBALRETH));
 
-        (uint256[] memory maxAmount_atlas, uint256[] memory liquidatedPTokens_atlas, uint256[] memory collateralRequired_atlas) = 
+        (maxAmount_atlas, liquidatedPTokens_atlas, collateralRequired_atlas) = 
             _getLiquidationValuesWithHigherPrecision_Atlas(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation_atlas, closeFactor, validPenalty
             );
 
-        (uint256[] memory maxAmount_regular, uint256[] memory liquidatedPTokens_regular, uint256[] memory collateralRequired_regular) = 
+        (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
             _getLiquidationValuesWithHigherPrecision_NonAtlas(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation_regular
             );
 
-        uint256[] memory badDebt_atlas = new uint256[](2);
-        uint256[] memory badDebt_regular = new uint256[](2);
+        console2.log("CHECKPOINT 1");
 
         for(uint i; i < 2; i++) {
             badDebt_atlas[i] = _calculateBadDebt(
@@ -257,6 +277,78 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
+
+        // Assert Total borrows is reduced by the amount of debt repaid
+
+        totalDebtRepaid = maxAmount_atlas[0] + 
+        maxAmount_atlas[1] + 
+        maxAmount_regular[0] + 
+        maxAmount_regular[1] + 
+        badDebt_atlas[0] + 
+        badDebt_atlas[1] + 
+        badDebt_regular[0] + 
+        badDebt_regular[1];
+
+        assertApproxEqAbs(
+            eUSDC.totalBorrows(),
+            totalBorrowsBefore - totalDebtRepaid,
+            100, // Small tolerance
+            "Incorrect totalBorrows after liquidation"
+        );
+
+        // Verify liquidator received the expected collateral
+        uint256 expectedDappControlUserLiquidatorBalance = 
+        (liquidatedPTokens_atlas[0]) + 
+        (liquidatedPTokens_atlas[1]);
+
+        uint256 expectedNormalUserLiquidatorBalance = 
+        (liquidatedPTokens_regular[0]) + 
+        (liquidatedPTokens_regular[1]);
+
+        console2.log("expectedDappControlUserLiquidatorBalance", expectedDappControlUserLiquidatorBalance);
+        console2.log("liquidatedPTokens_atlas[0]", liquidatedPTokens_atlas[0]);
+        console2.log("liquidatedPTokens_atlas[1]", liquidatedPTokens_atlas[1]);
+        console2.log("liquidatedPTokens_regular[0]", liquidatedPTokens_regular[0]);
+        console2.log("liquidatedPTokens_regular[1]", liquidatedPTokens_regular[1]);
+
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(dappControlUser),
+            expectedDappControlUserLiquidatorBalance,
+            1000,
+            "Dapp control user didn't receive expected collateral"
+        );
+
+        assertApproxEqAbs(
+            pBALRETH.balanceOf(address(this)),
+            expectedNormalUserLiquidatorBalance,
+            1000,
+            "Liquidator didn't receive expected collateral"
+        );
+
+        // Verify lFactors
+        // Atlas borrowers should still have lFactor > 0
+        // Regular borrowers should have lFactor since fully liquidated
+
+        for(uint i = 0; i < 2; i++) {
+            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
+                atlasBorrowers[i],
+                address(eUSDC),
+                address(pBALRETH)
+            );
+
+            assertGt(lFactorAfter, 0, "Atlas borrower should still have lFactor > 0");
+        }
+
+        for(uint i = 0; i < 2; i++) {
+            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
+                regularBorrowers[i],
+                address(eUSDC),
+                address(pBALRETH)
+            );
+
+            assertEq(lFactorAfter, 0, "Regular borrower should have lFactor = 0");
+        }
+
 
 
     }
