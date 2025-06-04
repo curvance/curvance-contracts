@@ -378,7 +378,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Fail if terminal position is not allowed with no additional
         // adjustment.
-        marketManager.canBorrowWithPrune(address(this), account, 0);
+        marketManager.canBorrow(address(this), account, 0);
     }
 
     /// @notice Repays underlying tokens to lenders, freeing up their
@@ -690,6 +690,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
                 asset: address(this),
                 isPToken: false,
                 decimals: decimals(),
+                collateralPosted: 0,
                 debtBalance: debtBalanceCached(account),
                 exchangeRate: 0 // Unused in marketManager.
             })
@@ -1294,7 +1295,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         (
             liqResults,
             amounts
-        ) = marketManager.canLiquidateWithExecution(
+        ) = marketManager.canLiquidate(
             liquidator,
             accounts,
             amounts,
@@ -1361,6 +1362,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             totalBorrows -= liqResults.debtRepaid;
         }
 
+        // Emit event recognizing any bad debt. 
+        if (liqResults.badDebtRealized > 0) {
+            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
+        }
+
         // We check above that the mToken must be a position token,
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
@@ -1369,10 +1375,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             liqResults.liquidatedAmounts,
             address(this)
         );
-
-        if (liqResults.badDebtRealized > 0) {
-            emit BadDebtRecognized(liquidator, liqResults.badDebtRealized);
-        }
     }
 
     /// @notice Withdraws reserves from the market and transfers them to

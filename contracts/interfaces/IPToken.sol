@@ -80,6 +80,14 @@ interface IPToken is IMToken {
         IPositionManagement.DeleverageStruct memory deleverageData
     ) external;
 
+    /// @notice Amount of pToken that has been posted as collateral,
+    ///         in shares.
+    function marketCollateralPosted() external view returns (uint256);
+
+    /// @notice Collateral information associated with an account.
+    /// @param account The address of the account to check collateral posted of.
+    function collateralPosted(address account) external view returns (uint256);
+
     /// @notice Transfers position tokens (this pToken) from `account`
     ///         to `liquidator`.
     /// @dev Will fail unless called by a eToken during the process

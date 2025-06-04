@@ -8,7 +8,9 @@ import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
+import { ILiquidityManager } from "contracts/interfaces/ILiquidityManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
@@ -209,15 +211,16 @@ contract CurvanceAuxiliaryData {
             uint256 collateralOrDebtAmount
         )
     {
-        IMarketManager marketManager = IMarketManager(
-            IMToken(token).marketManager()
+        ILiquidityManager liquidityManager = ILiquidityManager(
+            address(IMToken(token).marketManager()) 
         );
-        bool isPToken = IMToken(token).isPToken();
 
-        (hasPosition, balanceOf, collateralOrDebtAmount) = marketManager
-            .tokenDataOf(account, token);
-        collateralOrDebtAmount = isPToken
-            ? collateralOrDebtAmount
+        hasPosition = liquidityManager.accountPositions(
+            token, account
+        ) == 2 ? true : false;
+        balanceOf = IMToken(token).balanceOf(account);
+        collateralOrDebtAmount = IMToken(token).isPToken()
+            ? IPToken(token).collateralPosted(account)
             : IEToken(token).debtBalanceCached(account);
     }
 
@@ -416,11 +419,11 @@ contract CurvanceAuxiliaryData {
             pTokenData.totalPositionTokens =
                 marketToken.totalSupply() -
                 MARKET_ASSET_RESERVE;
-            pTokenData.totalCollateralPosted = mm.collateralPosted(pTokens[i]);
+            pTokenData.totalCollateralPosted = IPToken(pTokens[i]).marketCollateralPosted();
             pTokenData.collateralCap = mm.collateralCaps(pTokens[i]);
             pTokenData.sharePrice = _getTokenPrice(pTokens[i], true);
             pTokenData.tokenPrice = _getTokenPrice(address(token), true);
-            pTokenData.config = _getTokenConfig(pTokens[i], mm);
+            pTokenData.config = _getTokenConfig(pTokens[i], ILiquidityManager(address(mm)));
 
             pTokenMarketData[i] = pTokenData;
         }
@@ -430,7 +433,7 @@ contract CurvanceAuxiliaryData {
         MarketETokenData[] memory eTokenMarketData = new MarketETokenData[](
             numTokens
         );
-        for (uint256 i = 0; i < numTokens; i++) {
+        for (uint256 i; i < numTokens; ++i) {
             MarketETokenData memory eTokenData;
             EToken marketToken = EToken(eTokens[i]);
             IERC20 token = IERC20(marketToken.underlying());
@@ -462,7 +465,7 @@ contract CurvanceAuxiliaryData {
             eTokenData.utilizationRate = getUtilizationRate(eTokens[i]);
             eTokenData.sharePrice = _getTokenPrice(eTokens[i], false);
             eTokenData.tokenPrice = _getTokenPrice(address(token), false);
-            eTokenData.config = _getTokenConfig(eTokens[i], mm);
+            eTokenData.config = _getTokenConfig(eTokens[i], ILiquidityManager(address(mm)));
 
             if (eTokenData.tvl > eTokenData.borrows) {
                 eTokenData.liquidityAvailable =
@@ -545,7 +548,7 @@ contract CurvanceAuxiliaryData {
             uint256 price = _getTokenPrice(assetAddress, true);
             result +=
                 (price *
-                    IMarketManager(market).collateralPosted(assetAddress)) /
+                    IPToken(assetAddress).marketCollateralPosted()) /
                 10 ** IMToken(assetAddress).decimals();
         }
     }
@@ -706,7 +709,7 @@ contract CurvanceAuxiliaryData {
     /// INTERNAL FUNCTIONS ///
     function _getTokenConfig(
         address token,
-        IMarketManager mm
+        ILiquidityManager mm
     ) internal view returns (MarketAssetConfig memory) {
         MarketAssetConfig memory config;
 

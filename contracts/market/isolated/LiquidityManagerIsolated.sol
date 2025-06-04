@@ -7,6 +7,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
@@ -26,17 +27,6 @@ abstract contract LiquidityManagerIsolated {
     struct AccountData {
         IMToken[] assets;
         uint256 cooldownTimestamp;
-    }
-
-    /// @param activePosition Value that indicates whether an account has
-    ///                       an active position in the token.
-    ///                       0 or 1 for no; 2 for yes.
-    /// @param collateralPosted The amount of collateral an account has posted
-    ///                         inside the market. Only applicable to pTokens,
-    ///                         not eTokens.
-    struct AccountPosition {
-        uint256 activePosition;
-        uint256 collateralPosted;
     }
 
     /// @notice Storage configuration for how a market token should behave
@@ -84,7 +74,6 @@ abstract contract LiquidityManagerIsolated {
         uint256 maxEffectiveCloseFactor;
         uint256 baseCFactor;
         uint256 cFactorCurve;
-        mapping(address => AccountPosition) accountPositions;
     }
 
     /// @notice Data structure containing information on hypothetical action
@@ -218,6 +207,14 @@ abstract contract LiquidityManagerIsolated {
     ///         token characterists, account position data.
     /// @dev Market Token Address => MarketToken struct.
     mapping(address => MarketToken) public tokenData;
+
+    // ACCOUNT LIQUIDITY DATA //
+
+    /// @notice Value that indicates whether an account has an
+    ///         active position in the token.
+    ///         0 or 1 for no; 2 for yes.
+    /// @dev Market Token address => Account address => Active position status.
+    mapping(address => mapping(address => uint256)) public accountPositions;
     /// @notice Assets and redemption cooldown data for an account.
     /// @dev Account => AccountData struct.
     mapping(address => AccountData) public accountAssets;
@@ -276,9 +273,8 @@ abstract contract LiquidityManagerIsolated {
                 // and max borrow value.
                 if (tokenData[snapshot.asset].collRatio != 0) {
                     uint256 collateralValue = _assetValue(
-                        ((tokenData[snapshot.asset]
-                            .accountPositions[account]
-                            .collateralPosted * snapshot.exchangeRate) / WAD),
+                        ((snapshot.collateralPosted * snapshot.exchangeRate
+                        ) / WAD),
                         underlyingPrices[i],
                         10 ** snapshot.decimals,
                         true
@@ -359,9 +355,7 @@ abstract contract LiquidityManagerIsolated {
                     // increment their collateral and max borrow value.
                     if (cr != 0) {
                         // Cache collateral posted.
-                        posted = tokenData[snapshot.asset]
-                            .accountPositions[account]
-                            .collateralPosted;
+                        posted = snapshot.collateralPosted;
 
                         // If there is no collateral posted and its not a
                         // position to be modified, clean up the position
@@ -628,8 +622,7 @@ abstract contract LiquidityManagerIsolated {
                             cachedData.pTokenCollReqSoft,
                             cachedData.pTokenCollReqHard,
                             cachedData.pTokenUnderlyingPrice,
-                            tokenData[cachedAsset]
-                                .accountPositions[account].collateralPosted,
+                            IPToken(cachedData.pToken).collateralPosted(account),
                             accountData.accountCollateralSoft,
                             accountData.accountCollateralHard
                     );
@@ -842,7 +835,7 @@ abstract contract LiquidityManagerIsolated {
             tokenData[asset].collReqSoft,
             tokenData[asset].collReqHard,
             price,
-            tokenData[asset].accountPositions[account].collateralPosted,
+            IPToken(asset).collateralPosted(account),
             softSumPrior,
             hardSumPrior
         );

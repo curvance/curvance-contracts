@@ -82,12 +82,17 @@ abstract contract BasePToken is
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;
 
-    /// @notice Underlying asset for the PToken, cannot be a fee-on-transfer token.
+    /// @notice Underlying asset for the pToken.
+    /// @dev CANNOT be a fee-on-transfer token.
     IERC20 internal immutable _asset;
-    /// @notice PToken decimals.
+    /// @notice pToken decimal precision.
     uint8 internal immutable _decimals;
 
     /// STORAGE ///
+
+    /// @notice Amount of pToken that has been posted as collateral,
+    ///         in shares.
+    uint256 marketCollateralPosted;
 
     /// @notice Token name metadata.
     string internal _name;
@@ -96,7 +101,17 @@ abstract contract BasePToken is
     /// @notice Total PToken underlying token assets, minus pending vesting.
     uint256 internal _totalAssets;
 
+    /// @notice Collateral information associated with an account.
+    /// @dev Account address => Collateral data.
+    mapping(address => uint256) public collateralPosted;
+    
     /// EVENTS ///
+
+    event CollateralAdjusted(
+        address account,
+        uint256 amount,
+        bool increased
+    );
 
     event Liquidated(
         address liquidator,
@@ -236,7 +251,7 @@ abstract contract BasePToken is
         }
 
         shares = _deposit(assets, receiver);
-        marketManager.postCollateral(receiver, address(this), shares);
+        _postCollateral(receiver, shares);
     }
 
     /// @notice Caller deposits assets into the market, `receivier` receives
@@ -258,7 +273,7 @@ abstract contract BasePToken is
         _checkDelegate(receiver, msg.sender);
 
         shares = _deposit(assets, receiver);
-        marketManager.postCollateral(receiver, address(this), shares);
+        _postCollateral(receiver, shares);
     }
 
     /// @notice Caller withdraws assets from the market and burns their shares.
@@ -304,6 +319,54 @@ abstract contract BasePToken is
         assets = _redeem(shares, receiver, owner, true, true);
     }
 
+    /// @notice Posts `shares` as collateral inside this market.
+    /// @dev The position token must have collateralization
+    ///      enabled (collRatio > 0).
+    /// @param shares The amount of shares to post as collateral.
+    function postCollateral(uint256 shares) external nonReentrant {
+        _checkZeroAmount(shares);
+
+        _postCollateral(msg.sender, shares);
+    }
+
+    /// @notice Posts `shares` as collateral inside this market
+    ///         for `account`.
+    /// @dev The position token must have collateralization
+    ///      enabled (collRatio > 0).
+    /// @param shares The amount of shares to post as collateral.
+    function postCollateralFor(
+        address account,
+        uint256 shares
+    ) external nonReentrant {
+        _checkZeroAmount(shares);
+        _checkDelegate(account, msg.sender);
+
+        _postCollateral(msg.sender, shares);
+    }
+
+    /// @notice Removes `shares` of collateral posted inside this market.
+    /// @param shares The number of shares that are posted of collateral
+    ///               that will be removed.
+    function removeCollateral(uint256 shares) external nonReentrant {
+        _checkZeroAmount(shares);
+
+        _removeCollateral(msg.sender, shares);
+    }
+
+    /// @notice Removes `shares` of collateral posted inside this market
+    ///         for `account`.
+    /// @param shares The number of shares that are posted of collateral
+    ///               that will be removed.
+    function removeCollateralFor(
+        address account,
+        uint256 shares
+    ) external nonReentrant {
+        _checkZeroAmount(shares);
+        _checkDelegate(account, msg.sender);
+
+        _removeCollateral(msg.sender, shares);
+    }
+
     /// @notice Returns the underlying balance of the `account`, safely.
     /// @dev Has added re-entry lock for protocols building ontop of Curvance
     ///      Protocol to have confidence in data quality.
@@ -340,33 +403,20 @@ abstract contract BasePToken is
         return convertToAssets(WAD);
     }
 
-    /// @notice Get a snapshot of the account's balances,
-    ///         and the cached exchange rate.
-    /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// @param account Address of the account to snapshot.
-    /// @return Current account shares balance.
-    /// @return Current account borrow balance, which will be 0,
-    ///         kept for composability.
-    /// @return Current exchange rate between assets and shares, in `WAD`.
-    function getSnapshot(
-        address account
-    ) external view returns (uint256, uint256, uint256) {
-        return (balanceOf(account), 0, convertToAssets(WAD));
-    }
-
     /// @notice Returns a snapshot of the pToken and `account` data.
     /// @dev Used by MarketManager to efficiently perform liquidity checks.
     /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
     ///       since it is unused.
     /// @return The snapshot of the pToken and `account` data.
-    function getSnapshotPacked(
-        address
+    function getSnapshot(
+        address account
     ) external view returns (AccountSnapshot memory) {
         return (
             AccountSnapshot({
                 asset: address(this),
                 isPToken: true,
                 decimals: decimals(),
+                collateralPosted: collateralPosted[account],
                 debtBalance: 0, // This is a pToken so always 0.
                 exchangeRate: convertToAssets(WAD)
             })
@@ -396,11 +446,9 @@ abstract contract BasePToken is
         // We know that accounts and shares arrays are the same length since
         // its validated inside the eToken getting debt repaid within.
 
-        uint256 numAccounts = accounts.length;
         uint256 cachedAmount;
         address cachedAccount;
-        // Self liquidation check moved to Market Manager
-
+        uint256 numAccounts = accounts.length;
         for (uint256 i; i < numAccounts; ++i) {
             cachedAmount = shares[i];
             // If theres no debt to repay for this user can
@@ -411,8 +459,12 @@ abstract contract BasePToken is
 
             cachedAccount = accounts[i];
 
+            // Execute any prior liquidation actions.
             _beforeLiquidationAction(cachedAccount, liquidator, cachedAmount);
-            // Efficiently transfer token balances from `cachedAccount`
+
+            // Remove liquidated account's collateral.
+            _removeCollateral(cachedAccount, cachedAmount);
+            // Efficiently transfer liquidated token balance from `cachedAccount`
             // to `liquidator`.
             _transferFromWithoutAllowance(cachedAccount, liquidator, cachedAmount);
             emit Liquidated(
@@ -571,7 +623,13 @@ abstract contract BasePToken is
         uint256 amount
     ) public override nonReentrant returns (bool) {
         // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), msg.sender, amount);
+        marketManager.canTransferPToken(
+            address(this),
+            msg.sender,
+            balanceOf(msg.sender),
+            collateralPosted[msg.sender],
+            amount
+        );
 
         _beforeTransferAction(msg.sender, to, amount);
 
@@ -594,7 +652,13 @@ abstract contract BasePToken is
         uint256 amount
     ) public override nonReentrant returns (bool) {
         // Fails if transfer not allowed.
-        marketManager.canTransferPToken(address(this), from, amount);
+        marketManager.canTransferPToken(
+            address(this),
+            from,
+            balanceOf(from),
+            collateralPosted[from],
+            amount
+        );
 
         _beforeTransferAction(from, to, amount);
 
@@ -827,6 +891,7 @@ abstract contract BasePToken is
             address(this),
             owner,
             balancePrior,
+            collateralPosted[owner],
             shares,
             forceRedeemCollateral
         );
@@ -927,6 +992,7 @@ abstract contract BasePToken is
             address(this),
             owner,
             balanceOf(owner),
+            collateralPosted[owner],
             shares,
             forceRedeemCollateral
         );
@@ -949,6 +1015,40 @@ abstract contract BasePToken is
             ta,
             pending
         );
+    }
+
+    /// @notice Helper function for posting `shares` as collateral
+    ///         for `account` inside this market.
+    /// @dev Emits {CollateralAdjusted} event.
+    ///      May emit {PositionAdjusted} event inside Market Manager.
+    /// @param account The account posting collateral.
+    /// @param shares The amount of shares to post as collateral.
+    function _postCollateral(address account, uint256 shares) internal {
+        uint256 newNetCollateral = marketCollateralPosted + shares;
+        marketManager.canCollateralize(
+            address(this),
+            account,
+            newNetCollateral
+        );
+        // Update user and market collateral posted invariants.
+        collateralPosted[account] = collateralPosted[account] + shares;
+        marketCollateralPosted = newNetCollateral;
+        emit CollateralAdjusted(account, shares, true);
+    }
+
+    /// @notice Helper function for removing `shares` collateral posted for
+    ///         `account` inside this market.
+    /// @dev Emits a {CollateralRemoved} event.
+    ///      May emit {PositionAdjusted} event inside Market Manager.
+    /// @param account The address of the account to reduce `mToken`
+    ///                collateral posted for.
+    /// @param shares The number of shares that are posted of collateral
+    ///               that should be removed.
+    function _removeCollateral(address account, uint256 shares) internal {
+        // Update user and market collateral posted invariants.
+        collateralPosted[account] = collateralPosted[account] - shares;
+        marketCollateralPosted = marketCollateralPosted - shares;
+        emit CollateralAdjusted(account, shares, false);
     }
 
     /// @notice Processes a deposit of `assets` from the market and mints
@@ -1090,6 +1190,7 @@ abstract contract BasePToken is
             address(this),
             owner,
             balancePrior,
+            collateralPosted[owner],
             shares,
             false
         );

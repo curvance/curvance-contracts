@@ -26,20 +26,30 @@ interface IMarketManager {
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function mintPaused(address mToken) external view returns (uint256);
 
-    /// @notice Post collateral for `mToken` inside this market.
-    /// @param account The account posting collateral.
-    /// @param mToken The address of the mToken to post collateral for.
-    /// @param tokens The amount of `mToken` to post as collateral, in shares.
-    function postCollateral(
-        address account,
-        address mToken,
-        uint256 tokens
-    ) external;
+    /// @notice Whether mToken collateralization is paused.
+    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
+    function collateralizationPaused(
+        address mToken
+    ) external view returns (uint256);
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
     /// @param mToken The token to verify mints against.
     function canMint(address mToken) external;
+
+    /// @notice Checks if the account should be allowed to collateralize
+    ///         their shares of the given market.
+    ///         Prunes unused positions in `account` data.
+    /// @dev May emit a {PositionAdjusted} event.
+    /// @param pToken The position token to verify collateralization of.
+    /// @param account The account which would collateralize the asset.
+    /// @param newNetCollateral The amount of shares that would be
+    ///                         collateralized in total if allowed.
+    function canCollateralize(
+        address pToken,
+        address account,
+        uint256 newNetCollateral
+    ) external;
 
     /// @notice Checks if the account should be allowed to redeem tokens
     ///         in the given market.
@@ -59,15 +69,18 @@ interface IMarketManager {
     ///      (specifically pTokens, because eTokens are never collateral).
     /// @param mToken The market to verify the redeem against.
     /// @param account The account which would redeem the tokens.
-    /// @param balance The current mTokens balance of `account`.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
+    /// @param balanceOf The current mToken share balance of `account`.
+    /// @param collateralPosted The current mToken shares posted as
+    ///                         collateral by `account`.
+    /// @param amount The number of pToken shares to redeem for the
+    ///               underlying asset in the market.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function canRedeemWithCollateralRemoval(
         address mToken,
         address account,
-        uint256 balance,
+        uint256 balanceOf,
+        uint256 collateralPosted,
         uint256 amount,
         bool forceRedeemCollateral
     ) external;
@@ -78,7 +91,7 @@ interface IMarketManager {
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
-    function canBorrowWithPrune(
+    function canBorrow(
         address eToken,
         address account,
         uint256 amount
@@ -103,13 +116,15 @@ interface IMarketManager {
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external;
 
-    /// @notice Checks if the liquidation should be allowed to occur
-    function canLiquidateWithExecution(
+    /// @notice Checks if the liquidation should be allowed to occur,
+    ///         and returns how many position tokens should be seized
+    ///         on liquidation.
+    function canLiquidate(
         address liquidator,
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory liqInstructions
-    ) external returns (LiqResults memory, uint256[] memory);
+    ) external view returns (LiqResults memory, uint256[] memory);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
     /// @param pToken Asset which was used as collateral and will be seized.
@@ -130,11 +145,16 @@ interface IMarketManager {
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which sources the tokens.
+    /// @param from The account which will transfer the tokens.
+    /// @param balanceOf The current pToken share balance of `account`.
+    /// @param collateralPosted The current mToken shares posted as
+    ///                         collateral by `account`.
     /// @param amount The number of mTokens to transfer.
     function canTransferPToken(
         address mToken,
         address from,
+        uint256 balanceOf,
+        uint256 collateralPosted,
         uint256 amount
     ) external;
 
@@ -152,28 +172,6 @@ interface IMarketManager {
     /// @param mToken market token address.
     function isListed(address mToken) external view returns (bool);
 
-    /// @notice Market token data including listing status,
-    ///         token characterists, account position data.
-    /// @dev Market Token Address => MarketToken struct.
-    function tokenData(address mToken) external view returns (
-        bool isListed,
-        uint256 collRatio,
-        uint256 collReqSoft,
-        uint256 collReqHard,
-        uint256 liqBaseIncentive,
-        uint256 liqCurve,
-        uint256 liqMinIncentive,
-        uint256 liqMaxIncentive,
-        uint256 minEffectiveCloseFactor,
-        uint256 maxEffectiveCloseFactor,
-        uint256 baseCFactor,
-        uint256 cFactorCurve
-    );
-
-    /// @notice Amount of pToken that has been posted as collateral,
-    ///         in shares.
-    function collateralPosted(address pToken) external view returns (uint256);
-
     /// @notice Amount of pToken that can be posted of collateral,
     ///         in shares.
     function collateralCaps(address pToken) external view returns (uint256);
@@ -184,14 +182,6 @@ interface IMarketManager {
     function assetsOf(
         address account
     ) external view returns (IMToken[] memory);
-
-    /// @notice Returns if an account has an active position in `mToken`.
-    /// @param account The address of the account to check a position of.
-    /// @param mToken The address of the market token.
-    function tokenDataOf(
-        address account,
-        address mToken
-    ) external view returns (bool, uint256, uint256);
 
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
@@ -228,12 +218,4 @@ interface IMarketManager {
     function positionManagement(
         address positionContract
     ) external view returns (bool);
-
-    /// @notice Locks Atlas OEV liquidations
-    /// @dev This function must be called by an authorized Atlas DApp Control
-    function lockAtlasOev() external;
-
-    /// @notice Unlocks Atlas OEV liquidations
-    /// @dev This function must be called by an authorized Atlas DApp Control
-    function unlockAtlasOev() external;
 }

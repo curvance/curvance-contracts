@@ -74,6 +74,7 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///
 contract MarketManagerIsolated is
     LiquidityManagerIsolated,
+    IMarketManager,
     ERC165,
     Multicall
 {
@@ -137,12 +138,8 @@ contract MarketManagerIsolated is
     ///         offchain querying.
     address[] public tokensListed;
 
-    /// @notice Whether an address is an authorized position management
-    ///         operator or not.
-    /// @dev Address => Is an approved position management operator.
-    mapping(address => bool) public positionManagement;
-
     /// MARKET STATE
+
     /// @notice Whether liquidations are paused.
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public liquidationPaused = 1;
@@ -158,30 +155,26 @@ contract MarketManagerIsolated is
     /// @notice Whether mToken minting is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public mintPaused;
+    /// @notice Whether pToken minting is paused.
+    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
+    mapping(address => uint256) public collateralizationPaused;
     /// @notice Whether eToken borrowing is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public borrowPaused;
 
-    /// COLLATERAL POSTING INVARIANTS
-
-    /// @notice Amount of pToken that has been posted as collateral,
-    ///         in shares.
-    /// @dev Token => User Collateral Posted, in shares.
-    mapping(address => uint256) public collateralPosted;
     /// @notice Amount of pToken that can be posted of collateral,
     ///         in shares.
     /// @dev Token => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
+    /// @notice Whether an address is an authorized position management
+    ///         operator or not.
+    /// @dev Address => Is an approved position management operator.
+    mapping(address => bool) public positionManagement;
+
     /// EVENTS ///
 
     event TokenListed(address mToken);
-    event CollateralAdjusted(
-        address account,
-        address pToken,
-        uint256 amount,
-        bool increase
-    );
     event PositionAdjusted(address mToken, address account, bool open);
     event PositionTokenUpdated(
         address mToken,
@@ -243,28 +236,6 @@ contract MarketManagerIsolated is
         address account
     ) external view returns (IMToken[] memory) {
         return accountAssets[account].assets;
-    }
-
-    /// @notice Returns if an account has an active position in `mToken`.
-    /// @param account The address of the account to check a position of.
-    /// @param mToken The address of the market token.
-    function tokenDataOf(
-        address account,
-        address mToken
-    )
-        external
-        view
-        returns (
-            bool hasPosition,
-            uint256 balanceOf,
-            uint256 collateralPostedOf
-        )
-    {
-        AccountPosition memory accountPositions = tokenData[mToken]
-            .accountPositions[account];
-        hasPosition = accountPositions.activePosition == 2;
-        balanceOf = IMToken(mToken).balanceOf(account);
-        collateralPostedOf = accountPositions.collateralPosted;
     }
 
     /// @notice Determine `account`'s current status between collateral,
@@ -378,85 +349,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Posts `tokens` of `pToken` as collateral inside this market.
-    /// @dev The position token must have collateralization
-    ///      enabled (collRatio > 0).
-    /// @param account The account posting collateral.
-    /// @param pToken The address of the pToken to post collateral for.
-    /// @param tokens The amount of `pToken` to post as collateral, in shares.
-    function postCollateral(
-        address account,
-        address pToken,
-        uint256 tokens
-    ) external {
-        if (tokens == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // If they are trying to post collateral for someone else,
-        // make sure it is done via the pToken contract itself.
-        if (msg.sender != account) {
-            _checkIsToken(pToken);
-        }
-
-        _checkIsListedToken(pToken);
-        _checkIsPToken(pToken);
-
-        AccountPosition storage accountPositions = tokenData[pToken]
-            .accountPositions[account];
-
-        // Precondition invariant check.
-        if (
-            accountPositions.collateralPosted + tokens >
-            IMToken(pToken).balanceOf(account)
-        ) {
-            revert MarketManager__InsufficientCollateral();
-        }
-
-        _postCollateral(account, accountPositions, pToken, tokens);
-    }
-
-    /// @notice Removes collateral posted for `pToken` inside this market.
-    /// @param pToken The address of the pToken to remove collateral for.
-    /// @param tokens The number of tokens that are posted of collateral
-    ///               that should be removed, in shares.
-    function removeCollateral(address pToken, uint256 tokens) external {
-        if (tokens == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        AccountPosition storage accountPositions = tokenData[pToken]
-            .accountPositions[msg.sender];
-
-        // We can check this instead of .isListed because any unlisted token
-        // will always have activePosition == 0,
-        // and this lets us check for any invariant errors across both listing
-        // and positions simultaneously.
-        if (accountPositions.activePosition != 2) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
-
-        _checkIsPToken(pToken);
-
-        if (accountPositions.collateralPosted < tokens) {
-            revert MarketManager__InsufficientCollateral();
-        }
-
-        // Fail if the sender is not permitted to redeem `tokens`.
-        // Note: `tokens` is in shares.
-        (
-            uint256 positionClosureNeeded,
-            bool[] memory positionsToClose
-        ) = _canRedeem(pToken, msg.sender, tokens);
-        _removeCollateral(msg.sender, accountPositions, pToken, tokens);
-
-        _closePositionsIfNeeded(
-            positionClosureNeeded,
-            msg.sender,
-            positionsToClose
-        );
-    }
-
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
     /// @param mToken The market token to verify minting status for.
@@ -466,6 +358,78 @@ contract MarketManagerIsolated is
         }
 
         _checkIsListedToken(mToken);
+    }
+
+    /// @notice Checks if the account should be allowed to collateralize
+    ///         their shares of the given market.
+    ///         Prunes unused positions in `account` data.
+    /// @dev May emit a {PositionAdjusted} event.
+    /// @param pToken The position token to verify collateralization of.
+    /// @param account The account which would collateralize the asset.
+    /// @param newNetCollateral The amount of shares that would be
+    ///                         collateralized in total if allowed.
+    function canCollateralize(
+        address pToken,
+        address account,
+        uint256 newNetCollateral
+    ) external {
+        _checkIsToken(pToken);
+        _checkIsListedToken(pToken);
+
+        if (collateralizationPaused[pToken] == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        // This also acts as a check that the pToken is a pToken and 
+        // collateralization ratio is > 0, since collateralCaps can only
+        // be raised above zero if the token is a pToken and pToken's
+        // collateralization ratio is > 0.
+        if (newNetCollateral > collateralCaps[pToken]) {
+            revert MarketManager__CollateralCapReached();
+        }
+
+        // On collateral posting:
+        // We need to flip their cooldown flag to prevent flashloan attacks.
+        accountAssets[account].cooldownTimestamp = block.timestamp;
+        // If `account` does not have a position in `pToken`, open one.
+        if (accountPositions[pToken][account] != 2) {
+            accountPositions[pToken][account] = 2;
+            accountAssets[account].assets.push(IMToken(pToken));
+
+            emit PositionAdjusted(pToken, account, true);
+        }
+    }
+
+    /// @notice Checks if the account should be allowed to redeem tokens
+    ///         in the given market, and then redeems.
+    /// @dev This can only be called by the mToken itself
+    ///      (specifically pTokens, because eTokens are never collateral).
+    /// @param mToken The market token to verify the redemption against.
+    /// @param account The account which would redeem the tokens.
+    /// @param balanceOf The current pToken share balance of `account`.
+    /// @param collateralPosted The current mToken shares posted as
+    ///                         collateral by `account`.
+    /// @param amount The number of pToken shares to redeem for the
+    ///               underlying asset in the market.
+    /// @param forceRedeemCollateral Whether the collateral should be always
+    ///                              reduced.
+    function canRedeemWithCollateralRemoval(
+        address mToken,
+        address account,
+        uint256 balanceOf,
+        uint256 collateralPosted,
+        uint256 amount,
+        bool forceRedeemCollateral
+    ) external {
+        _checkIsToken(mToken);
+        _canRedeemWithCollateralRemoval(
+            mToken,
+            account,
+            balanceOf,
+            collateralPosted,
+            amount,
+            forceRedeemCollateral
+        );
     }
 
     /// @notice Checks if the account should be allowed to redeem `amount`
@@ -482,48 +446,18 @@ contract MarketManagerIsolated is
         _canRedeem(mToken, account, amount);
     }
 
-    /// @notice Checks if the account should be allowed to redeem tokens
-    ///         in the given market, and then redeems.
-    /// @dev This can only be called by the mToken itself
-    ///      (specifically pTokens, because eTokens are never collateral).
-    /// @param mToken The market token to verify the redemption against.
-    /// @param account The account which would redeem the tokens.
-    /// @param balance The current mTokens balance of `account`.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
-    /// @param forceRedeemCollateral Whether the collateral should be always
-    ///                              reduced.
-    function canRedeemWithCollateralRemoval(
-        address mToken,
-        address account,
-        uint256 balance,
-        uint256 amount,
-        bool forceRedeemCollateral
-    ) external {
-        _checkIsToken(mToken);
-        _canRedeemWithCollateralRemoval(
-            mToken,
-            account,
-            balance,
-            amount,
-            forceRedeemCollateral
-        );
-    }
-
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     ///         Prunes unused positions in `account` data.
-    /// @dev May emit a {TokenPositionCreated} event.
+    /// @dev May emit a {PositionAdjusted} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
-    function canBorrowWithPrune(
+    function canBorrow(
         address eToken,
         address account,
         uint256 amount
     ) external {
-        _checkIsToken(eToken);
-
         _canBorrow(eToken, account, amount);
     }
 
@@ -539,9 +473,7 @@ contract MarketManagerIsolated is
         address account,
         uint256 amount
     ) external {
-        _checkIsToken(eToken);
         accountAssets[account].cooldownTimestamp = block.timestamp;
-
         _canBorrow(eToken, account, amount);
     }
 
@@ -586,96 +518,14 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external returns (
-        IMarketManager.LiqResults memory results,
-        uint256[] memory
-    ) {
-        (
-            CachedLiqData memory cachedData,
-            AuctionLiqData memory auctionData,
-            MarketToken storage pTokenData  
-        ) =_getLiquidationConfig(instructions.eToken, instructions.pToken);
-
-        uint256 numAccounts = accounts.length;
-        address cachedAccount;
-        // Amounts array is empty since the max amount possible
-        // will be liquidated.
-        results.liquidatedAmounts = new uint256[](numAccounts);
-        for (uint256 i; i < numAccounts; ++i) {
-            cachedAccount = accounts[i];
-            if (liquidator == cachedAccount) {
-                _revert(_UNAUTHORIZED_SELECTOR);
-            }
-
-            (
-                instructions.eTokenRepaid,
-                instructions.pTokenLiquidated,
-                instructions.badDebt
-                ) = _canLiquidate(
-                cachedAccount,
-                debtAmounts[i],
-                cachedData,
-                auctionData,
-                pTokenData,
-                instructions.liquidateExact
-            );
-
-            // If the user is being liquidated update relevant values.
-            if (instructions.pTokenLiquidated > 0) {
-                results.debtRepaid += instructions.eTokenRepaid;
-                results.liquidatedAmounts[i] = instructions.pTokenLiquidated;
-
-                if (instructions.badDebt > 0) {
-                    results.badDebtRealized += instructions.badDebt;
-                    // Add the bad debt to debt to remove from the liquidated
-                    // account.
-                    instructions.eTokenRepaid += instructions.badDebt;
-                }
-
-                // If its an exact liquidation this will be a redundant setter
-                // but anticipation is majority of liquidators will use non-exact
-                // so checking for liquidateExact each time is a waste.
-                debtAmounts[i] = instructions.eTokenRepaid;
-            }
-        }
-
-        // If theres no debt to repay then there were no liquidations.
-        if (results.debtRepaid == 0) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
-
-        return (results, debtAmounts);
-    }
-
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many position tokens should be seized
-    ///         on liquidation.
-    /// @param accounts The addresses of the accounts to be liquidated.
-    /// @param debtAmounts The amounts of underlying asset the liquidator
-    ///                    wishes to repay, empty if desired to max liquidate.
-    /// @param instructions A LiqInstructions struct containing:
-    ///               eToken Debt token to repay which is borrowed by
-    ///                      `account`.
-    ///               pToken Position token which was used as collateral
-    ///                      and will be seized.
-    ///               numAccounts The number of accounts to be potentially
-    ///                           liquidated.
-    ///               liquidateExact Whether the liquidator desires a
-    ///                              specific liquidation amount.
-    function canLiquidateWithExecution(
-        address liquidator,
-        address[] calldata accounts,
-        uint256[] memory debtAmounts,
-        IMarketManager.LiqInstructions memory instructions
-    ) external returns (
+    ) external view returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
         _checkIsToken(instructions.eToken);
         (
             CachedLiqData memory cachedData,
-            AuctionLiqData memory auctionData,
-            MarketToken storage pTokenData  
+            AuctionLiqData memory auctionData
         ) =_getLiquidationConfig(instructions.eToken, instructions.pToken);
 
         address cachedAccount;
@@ -697,7 +547,6 @@ contract MarketManagerIsolated is
                 debtAmounts[i],
                 cachedData,
                 auctionData,
-                pTokenData,
                 instructions.liquidateExact
             );
 
@@ -718,13 +567,6 @@ contract MarketManagerIsolated is
                 // non-exact so checking for liquidateExact each time is a
                 // waste.
                 debtAmounts[i] = instructions.eTokenRepaid;
-
-                _removeCollateral(
-                    cachedAccount,
-                    pTokenData.accountPositions[cachedAccount],
-                    instructions.pToken,
-                    instructions.pTokenLiquidated
-                );
             }
         }
 
@@ -757,6 +599,36 @@ contract MarketManagerIsolated is
         }
     }
 
+    /// @notice Checks if the account should be allowed to transfer collateral
+    ///         tokens in the given market.
+    /// @param mToken The market token to verify the transfer of.
+    /// @param from The account which will transfer the tokens.
+    /// @param balanceOf The current pToken share balance of `account`.
+    /// @param collateralPosted The current mToken shares posted as
+    ///                         collateral by `account`.
+    /// @param amount The number of mTokens to transfer.
+    function canTransferPToken(
+        address mToken,
+        address from,
+        uint256 balanceOf,
+        uint256 collateralPosted,
+        uint256 amount
+    ) external {
+        _checkIsToken(mToken);
+        if (transferPaused == 2) {
+            _revert(_PAUSED_SELECTOR);
+        }
+
+        _canRedeemWithCollateralRemoval(
+            mToken,
+            from,
+            balanceOf,
+            collateralPosted,
+            amount,
+            false
+        );
+    }
+
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
@@ -779,30 +651,6 @@ contract MarketManagerIsolated is
         ) = _canRedeem(mToken, from, amount);
 
         _closePositionsIfNeeded(positionClosureNeeded, from, positionsToClose);
-    }
-
-    /// @notice Checks if the account should be allowed to transfer collateral
-    ///         tokens in the given market.
-    /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which will transfer the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferPToken(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external {
-        _checkIsToken(mToken);
-        if (transferPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        _canRedeemWithCollateralRemoval(
-            mToken,
-            from,
-            IMToken(mToken).balanceOf(from),
-            amount,
-            false
-        );
     }
 
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
@@ -1101,6 +949,19 @@ contract MarketManagerIsolated is
         emit TokenActionPaused(mToken, "Mint Paused", state);
     }
 
+    /// @notice Admin function to set market token collateralization status.
+    /// @dev Requires timelock authority if unpausing.
+    ///      Emits a {TokenActionPaused} event.
+    /// @param mToken The market token to set minting status for.
+    /// @param state Whether the desired action is pausing or unpausing.
+    function setCollateralizationPaused(address mToken, bool state) external {
+        _checkAuthorizedPermissions(state);
+        _checkIsListedToken(mToken);
+
+        collateralizationPaused[mToken] = state ? 2 : 1;
+        emit TokenActionPaused(mToken, "Collateralization Paused", state);
+    }
+
     /// @notice Admin function to set market token borrow status.
     /// @dev Requires timelock authority if unpausing.
     ///      Emits a {TokenActionPaused} event.
@@ -1280,72 +1141,11 @@ contract MarketManagerIsolated is
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Helper function for posting `tokens` of `pToken`
-    ///         as collateral for `account` inside this market.
-    /// @dev Emits {CollateralPosted} and, potentially,
-    ///      {TokenPositionCreated} events.
-    /// @param account The account posting collateral.
-    /// @param accountPositions Cached account metadata of `account.`
-    /// @param pToken The address of the pToken to post collateral for.
-    /// @param tokens The amount of `pToken` to post as collateral, in shares.
-    function _postCollateral(
-        address account,
-        AccountPosition storage accountPositions,
-        address pToken,
-        uint256 tokens
-    ) internal {
-        // This also acts as a check that the pToken collateralization ratio
-        // is > 0, since collateralCaps can only be raised above zero if a
-        // pToken's collateralization ratio is > 0.
-        if (collateralPosted[pToken] + tokens > collateralCaps[pToken]) {
-            revert MarketManager__CollateralCapReached();
-        }
-
-        // On collateral posting:
-        // We need to flip their cooldown flag to prevent flashloan attacks.
-        accountAssets[account].cooldownTimestamp = block.timestamp;
-        collateralPosted[pToken] = collateralPosted[pToken] + tokens;
-        accountPositions.collateralPosted =
-            accountPositions.collateralPosted +
-            tokens;
-        emit CollateralAdjusted(account, pToken, tokens, true);
-
-        // If `account` does not have a position in `pToken`, open one.
-        if (accountPositions.activePosition != 2) {
-            accountPositions.activePosition = 2;
-            accountAssets[account].assets.push(IMToken(pToken));
-
-            emit PositionAdjusted(pToken, account, true);
-        }
-    }
-
-    /// @notice Helper function for removing `pToken` collateral posted for
-    ///         `account` inside this market.
-    /// @dev Emits a {CollateralRemoved} event.
-    /// @param account The address of the account to reduce `mToken`
-    ///                collateral posted for.
-    /// @param accountPositions Cached account metadata of `account.`
-    /// @param pToken The address of the pToken to remove collateral for.
-    /// @param tokens The number of tokens that are posted of collateral
-    ///               that should be removed, in shares.
-    function _removeCollateral(
-        address account,
-        AccountPosition storage accountPositions,
-        address pToken,
-        uint256 tokens
-    ) internal {
-        accountPositions.collateralPosted =
-            accountPositions.collateralPosted -
-            tokens;
-        collateralPosted[pToken] = collateralPosted[pToken] - tokens;
-        emit CollateralAdjusted(account, pToken, tokens, false);
-    }
-
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical borrow will result in a
     ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
-    ///      May emit a {TokenPositionCreated} event.
+    ///      May emit a {PositionAdjusted} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param amount The amount of underlying the account would borrow.
@@ -1354,18 +1154,19 @@ contract MarketManagerIsolated is
         address account,
         uint256 amount
     ) internal {
+        _checkIsToken(eToken);
+        _checkIsListedToken(eToken);
+
         if (borrowPaused[eToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        _checkIsListedToken(eToken);
-
         // Check if the user already has an active borrow in the eToken.
-        if (tokenData[eToken].accountPositions[account].activePosition != 2) {
+        if (accountPositions[eToken][account] != 2) {
             // The account does not have an active borrow in the eToken,
             // so update this so borrow position is monitored in liquidity
             // checks.
-            tokenData[eToken].accountPositions[account].activePosition = 2;
+            accountPositions[eToken][account] = 2;
             accountAssets[account].assets.push(IMToken(eToken));
 
             emit PositionAdjusted(eToken, account, true);
@@ -1431,7 +1232,7 @@ contract MarketManagerIsolated is
         // This will result in skipping a liquidity check for eToken
         // redemptions because active positions are not given for lent
         // positions.
-        if (tokenData[mToken].accountPositions[account].activePosition != 2) {
+        if (accountPositions[mToken][account] != 2) {
             bool[] memory emptyPositions;
             return (0, emptyPositions);
         }
@@ -1465,44 +1266,40 @@ contract MarketManagerIsolated is
     ///      (specifically pTokens, because eTokens are never collateral).
     /// @param pToken The position token to verify the redemption against.
     /// @param account The account which would redeem the tokens.
-    /// @param balance The current mTokens balance of `account`.
-    /// @param amount The number of mTokens to exchange
-    ///               for the underlying asset in the market.
+    /// @param balanceOf The current mToken share balance of `account`.
+    /// @param collateralPosted The current mToken shares posted as
+    ///                         collateral by `account`.
+    /// @param amount The number of pToken shares to redeem for the
+    ///               underlying asset in the market.
     /// @param forceRedeemCollateral Whether the collateral should be always
     ///                              reduced.
     function _canRedeemWithCollateralRemoval(
         address pToken,
         address account,
-        uint256 balance,
+        uint256 balanceOf,
+        uint256 collateralPosted,
         uint256 amount,
         bool forceRedeemCollateral
-    ) internal {
-        // Check how much collateral should be removed, if any.
-        (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
-                account,
-                pToken,
-                balance,
-                amount,
-                forceRedeemCollateral
-            );
+    ) internal returns (uint256 collateralToRemove) {
+        // If collateral is being directly removed by user intention,
+        // or liquidation we can skip balance checks.
+        if (forceRedeemCollateral) {
+            collateralToRemove = amount;
+        } else {
+            // If they want to redeem more pTokens than they have idle,
+            // calculate how much collateral will be redeemed from
+            // the delta.
+            if (collateralPosted + amount >= balanceOf) {
+                collateralToRemove = collateralPosted + amount - balanceOf;
+            }
+        }
 
-        // Execute removal of collateral posted, if needed.
+        // Validate that the collateral being removed is allowed.
         if (collateralToRemove > 0) {
             (
                 uint256 positionClosureNeeded,
                 bool[] memory positionsToClose
             ) = _canRedeem(pToken, account, collateralToRemove);
-
-            _removeCollateral(
-                account,
-                accountPositions,
-                pToken,
-                collateralToRemove
-            );
-
             _closePositionsIfNeeded(
                 positionClosureNeeded,
                 account,
@@ -1521,8 +1318,6 @@ contract MarketManagerIsolated is
             _checkHoldPeriod(account);
         }
     }
-
-    event BAD_DEBT_EVENT(uint256 amount);
 
     /// @notice Determines if an account can be liquidated and calculates
     ///         liquidation parameters. Computes liquidation amounts,
@@ -1584,8 +1379,6 @@ contract MarketManagerIsolated is
     ///                    liqCurve The liquidation incentive curve length
     ///                             between soft liquidation to hard
     ///                             liquidation.
-    /// @param pTokenData Storage reference to the position token's market
-    ///                   data.
     /// @param liquidateExact If true, liquidate exactly `debtAmount`; if
     ///                       false, liquidate maximum possible.
     /// @return uint256 The actual amount of debt that will be liquidated.
@@ -1598,9 +1391,8 @@ contract MarketManagerIsolated is
         uint256 debtAmount,
         CachedLiqData memory cachedData,
         AuctionLiqData memory auctionData,
-        MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal returns (
+    ) internal view returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
@@ -1648,9 +1440,9 @@ contract MarketManagerIsolated is
         liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
 
         // Cache `account`'s collateral posted of `pToken`.
-        uint256 collateralAvailable = pTokenData
-            .accountPositions[account]
-            .collateralPosted;
+        uint256 collateralAvailable = IPToken(
+            cachedData.pToken
+        ).collateralPosted(account);
 
         // If the user wants to liquidate an exact amount, make sure theres
         // enough collateral available to liquidate, otherwise
@@ -1693,8 +1485,6 @@ contract MarketManagerIsolated is
                 (cachedData.eTokenUnderlyingPrice * WAD) / cachedData.eTokenDecimals
             );
         }
-
-        emit BAD_DEBT_EVENT(badDebt);
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt
@@ -1760,20 +1550,17 @@ contract MarketManagerIsolated is
     ///                     liqCurve The liquidation incentive curve length
     ///                              between soft liquidation to hard
     ///                              liquidation.
-    /// @return pTokenData Storage reference to the position token's market
-    ///                    configuration data.
     function _getLiquidationConfig(
         address eToken,
         address pToken
     ) internal view returns (
         CachedLiqData memory cachedData,
-        AuctionLiqData memory auctionData,
-        MarketToken storage pTokenData
+        AuctionLiqData memory auctionData
     ) {
         _checkIsListedToken(eToken);
         _checkIsListedToken(pToken);
 
-        pTokenData = tokenData[pToken];
+        MarketToken memory pTokenData = tokenData[pToken];
         // Do not let people liquidate 0 collateralization ratio assets.
         if (pTokenData.collRatio == 0) {
             _revert(_INVALID_PARAMETER_SELECTOR);
@@ -1879,55 +1666,10 @@ contract MarketManagerIsolated is
                 cachedToken = address(userAssets[i]);
 
                 // Remove `mToken` account position flag.
-                tokenData[cachedToken]
-                    .accountPositions[account]
-                    .activePosition = 1;
+                accountPositions[cachedToken][account] = 1;
                 emit PositionAdjusted(cachedToken, account, false);
             }
         }
-    }
-
-    /// @notice Helper function to calculate how much collateral should
-    ///         be removed for their desired action.
-    /// @param account The account to potential reduce posted collateral for.
-    /// @param pToken The pToken address to potentially reduce collateral for.
-    /// @param balance The pToken share balance of `account`.
-    /// @param amount The maximum amount of shares that could be removed as
-    ///               collateral.
-    /// @param forceReduce Whether to force reduce `account`'s collateral
-    ///                    for not.
-    function _checkCollateralToRemove(
-        address account,
-        address pToken,
-        uint256 balance,
-        uint256 amount,
-        bool forceReduce
-    ) internal view returns (uint256, AccountPosition storage) {
-        AccountPosition storage accountPositions = tokenData[pToken]
-            .accountPositions[account];
-
-        // If collateral removal amount is 0, we can skip balance checks.
-        if (amount == 0) {
-            return (0, accountPositions);
-        }
-
-        // If collateral is being directly removed by user intention,
-        // or liquidation we can skip balance checks.
-        if (forceReduce) {
-            return (amount, accountPositions);
-        }
-
-        uint256 reductionAmount;
-
-        // If they want to redeem more pTokens than they have used,
-        // calculate the delta between the two values.
-        if (accountPositions.collateralPosted + amount >= balance) {
-            reductionAmount =
-                (accountPositions.collateralPosted + amount) -
-                balance;
-        }
-
-        return (reductionAmount, accountPositions);
     }
 
     /// @notice Check whether the hold period is met.
