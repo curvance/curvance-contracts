@@ -219,7 +219,7 @@ contract VelodromeStablePToken is CompoundingPToken {
                 true
             );
             // Feed calculated data, and stable = true.
-            VelodromeLib._swapExactTokensForTokens(
+            uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
                 address(sd.router),
                 _asset,
                 sd.token0,
@@ -236,7 +236,7 @@ contract VelodromeStablePToken is CompoundingPToken {
                 sd.token1,
                 true,
                 totalAmountA,
-                IERC20(sd.token1).balanceOf(address(this)), // totalAmountB
+                totalAmountB,
                 VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
             );
 
