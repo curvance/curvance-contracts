@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {

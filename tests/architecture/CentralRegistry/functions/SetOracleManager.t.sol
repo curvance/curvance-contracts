@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetOracleManagerTest is TestBaseMarket {
+contract SetOracleManagerTest is TestBaseMarketIsolated {
     event CoreContractSet(string indexed contractType, address newAddress);
 
     address public newOracleManager = makeAddr("Oracle Manager");

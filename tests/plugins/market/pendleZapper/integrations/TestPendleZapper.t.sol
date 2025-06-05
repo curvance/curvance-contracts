@@ -12,9 +12,9 @@ import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPendleZapper is TestBaseMarket {
+contract TestPendleZapper is TestBaseMarketIsolated {
     address internal _PENDLE_ROUTER =
         0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal _PENDLE_LP_STETH =

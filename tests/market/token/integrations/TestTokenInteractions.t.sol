@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestTokenInteractions is TestBaseMarket {
+contract TestTokenInteractions is TestBaseMarketIsolated {
     address public owner;
 
     MockDataFeed public mockDaiFeed;

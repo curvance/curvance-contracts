@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract Market {
@@ -13,7 +13,7 @@ contract Market {
     }
 }
 
-contract AddMarketManagerTest is TestBaseMarket {
+contract AddMarketManagerTest is TestBaseMarketIsolated {
     address public newMarket;
 
     event NewCurvanceContract(string indexed contractType, address newAddress);

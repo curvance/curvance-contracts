@@ -13,11 +13,11 @@ import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRoute
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
 import { IERC20 } from "contracts/market/token/PendleLPPToken.sol";
 import { IPMarket } from "contracts/interfaces/external/pendle/IPMarket.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
-contract TestPositionManagementPendlePT is TestBaseMarket {
+contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
     address internal _CHAINLINK_STETH_USD =
         0xCfE54B5cD566aB89272946F602D76Ea879CAb4a8;
     IPendleRouter internal _ROUTER =

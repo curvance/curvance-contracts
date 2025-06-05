@@ -8,11 +8,11 @@ import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestSimpleZapper is TestBaseMarket {
+contract TestSimpleZapper is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 

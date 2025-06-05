@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 
 contract SetBorrowPausedTest is TestBaseMarketManager {
     event TokenActionPaused(address mToken, string action, bool pauseState);

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 
 contract ETokenBorrowTest is TestBaseEToken {
     event Borrow(address borrower, uint256 borrowAmount);

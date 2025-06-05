@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/OdosCalldataChecker.sol";
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestOdosCalldataChecker is TestBaseMarket {
+contract TestOdosCalldataChecker is TestBaseMarketIsolated {
     address public odosRouterV2 = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     OdosCalldataChecker public checker;
 

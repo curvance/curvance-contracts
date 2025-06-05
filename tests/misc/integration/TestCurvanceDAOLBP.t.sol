@@ -7,9 +7,9 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestCurvanceDAOLBP is TestBaseMarket {
+contract TestCurvanceDAOLBP is TestBaseMarketIsolated {
     CurvanceDAOLBP public lbp;
 
     uint256 public softPrice = 10e18; // $10

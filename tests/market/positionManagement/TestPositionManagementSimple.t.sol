@@ -9,9 +9,9 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPositionManagementSimple is TestBaseMarket {
+contract TestPositionManagementSimple is TestBaseMarketIsolated {
     address public owner;
     address public user;
 

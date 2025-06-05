@@ -8,9 +8,9 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestVelodromeVolatilePToken is TestBaseMarket {
+contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     address internal _VELO_ADDRESS =
         0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db;
     address internal _WETH_USDC = 0x0493Bf8b6DBB159Ce2Db2E0E8403E753Abd1235b;

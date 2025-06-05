@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperCurveStable is TestBaseMarket {
+contract TestComplexZapperCurveStable is TestBaseMarketIsolated {
     address internal _CURVE_TRICRYPTO_LP =
         0xc4AD29ba4B3c580e6D59105FFf484999997675Ff;
     address internal _CURVE_TRICRYPTO_MINTER =

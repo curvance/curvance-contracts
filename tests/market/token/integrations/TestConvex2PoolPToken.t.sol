@@ -8,9 +8,9 @@ import { IBooster } from "contracts/interfaces/external/convex/IBooster.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestConvex2PoolPToken is TestBaseMarket {
+contract TestConvex2PoolPToken is TestBaseMarketIsolated {
     address internal _CVX_ADDRESS = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
     address internal _CRV_ADDRESS = 0xD533a949740bb3306d119CC777fa900bA034cd52;
     IERC20 public CONVEX_STETH_ETH_POOL =

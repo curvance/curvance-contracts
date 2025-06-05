@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-contract TestBaseUniversalBalanceNative is TestBaseMarket {
+contract TestBaseUniversalBalanceNative is TestBaseMarketIsolated {
     UniversalBalanceNative public universalBalanceNative;
     EToken public eWETH;
 

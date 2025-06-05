@@ -5,10 +5,10 @@ import { CVEInitialDistribution } from "contracts/misc/CVEInitialDistribution.so
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 import "tests/utils/merkle/Merkle.sol";
 
-contract TestCVEInitialDistribution is TestBaseMarket {
+contract TestCVEInitialDistribution is TestBaseMarketIsolated {
     uint256 public constant USER_LENGTH = 10;
 
     CVEInitialDistribution public distributor;

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 
 contract ETokenTransferTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);

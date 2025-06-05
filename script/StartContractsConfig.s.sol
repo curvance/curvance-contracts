@@ -10,7 +10,7 @@ import { RewardManager } from "contracts/architecture/RewardManager.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { OracleManager } from "contracts/oracles/OracleManager.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";

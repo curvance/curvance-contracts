@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract UniversalBalanceNativeMultiDepositForTest is

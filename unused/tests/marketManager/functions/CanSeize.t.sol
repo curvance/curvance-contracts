@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract CanSeizeTest is TestBaseMarketManager {

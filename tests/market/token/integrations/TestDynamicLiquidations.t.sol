@@ -2,9 +2,9 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestDynamicLiquidations is TestBaseMarket {
+contract TestDynamicLiquidations is TestBaseMarketIsolated {
     address public owner;
 
     MockDataFeed public mockDaiFeed;

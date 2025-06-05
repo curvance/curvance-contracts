@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetCCTPDomainTest is TestBaseMarket {
+contract SetCCTPDomainTest is TestBaseMarketIsolated {
     event CCTPDomainSet(uint32 newDomain);
 
     function test_setCCTPDomain_fail_whenCallerIsNotAuthorized() public {

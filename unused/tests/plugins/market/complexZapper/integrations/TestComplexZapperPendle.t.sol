@@ -7,14 +7,13 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IPendleRouter } from "contracts/interfaces/external/pendle/IPendleRouter.sol";
 import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtOracle.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { PendleLPTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendleLPTokenAdaptor.sol";
 import { PendleLPPToken } from "contracts/market/token/PendleLPPToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperPendle is TestBaseMarket {
+contract TestComplexZapperPendle is TestBaseMarketIsolated {
     address internal _PENDLE_ROUTER =
         0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal _PENDLE_LP_STETH =

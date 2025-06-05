@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 
-contract TestBaseDynamicInterestRateModel is TestBaseMarket {
+contract TestBaseDynamicInterestRateModel is TestBaseMarketIsolated {
     DynamicInterestRateModel public interestRateModel;
 
     function setUp() public virtual override {

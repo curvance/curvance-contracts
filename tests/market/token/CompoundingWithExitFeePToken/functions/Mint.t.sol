@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingWithExitFeePToken } from "../TestBaseCompoundingWithExitFeePToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
 
 contract CompoundingWithExitFeePTokenMintTest is

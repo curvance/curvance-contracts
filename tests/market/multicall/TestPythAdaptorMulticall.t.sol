@@ -18,11 +18,11 @@ import { PythAdaptor } from "contracts/oracles/adaptors/pyth/PythAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { PythAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/PythAdaptorMulticallChecker.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestPythAdaptorMulticall is TestBaseMarket {
+contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 

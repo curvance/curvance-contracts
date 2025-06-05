@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract SetLiquidationPausedTest is TestBaseMarketManagerIsolated {
     event ActionPaused(string action, bool pauseState);
+
 
     function test_setLiquidationPaused_fail_whenCallerIsNotAuthorized()
         public

@@ -1,12 +1,12 @@
 // // SPDX-License-Identifier: UNLICENSED
 // pragma solidity ^0.8.19;
 
-// import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+// import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 // import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-// import { MarketManager } from "contracts/market/MarketManager.sol";
+// 
 // import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
-// contract CentralRegistrySetDurationsTest is TestBaseMarket {
+// contract CentralRegistrySetDurationsTest is TestBaseMarketIsolated {
 //     MarketManager[] internal _marketManagers;
 
 //     function setUp() public override {

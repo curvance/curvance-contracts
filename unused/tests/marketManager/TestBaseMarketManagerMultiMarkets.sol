@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
@@ -12,7 +12,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 
 import "forge-std/console2.sol";
 
-contract TestBaseMarketManagerMultiMarkets is TestBaseMarket {
+contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
     uint256 public constant MAX_DEPOSIT = 1e26;
     uint256 public constant MIN_WITHDRAW = 1e18;
     uint256 public constant BP = 1e4;

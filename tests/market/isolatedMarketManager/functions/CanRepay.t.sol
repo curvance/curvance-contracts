@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
 contract CanRepayTest is TestBaseMarketManagerIsolated {
     function test_canRepay_fail_whenTokenNotListed() public {

@@ -5,9 +5,9 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestETokenReserves is TestBaseMarket {
+contract TestETokenReserves is TestBaseMarketIsolated {
     address public owner;
     address public dao;
 

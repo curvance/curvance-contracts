@@ -10,11 +10,11 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestUniversalBalanceNative is TestBaseMarket {
+contract TestUniversalBalanceNative is TestBaseMarketIsolated {
     address public owner;
 
     MockDataFeed public mockUsdcFeed;

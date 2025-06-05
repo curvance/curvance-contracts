@@ -15,9 +15,9 @@ import { IPendlePTOracle } from "contracts/interfaces/external/pendle/IPendlePtO
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPositionManagementPendleLP is TestBaseMarket {
+contract TestPositionManagementPendleLP is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =

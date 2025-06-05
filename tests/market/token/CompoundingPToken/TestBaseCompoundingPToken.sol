@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
-contract TestBaseCompoundingPToken is TestBaseMarket {
+contract TestBaseCompoundingPToken is TestBaseMarketIsolated {
     MockDataFeed public mockUsdcFeed;
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;

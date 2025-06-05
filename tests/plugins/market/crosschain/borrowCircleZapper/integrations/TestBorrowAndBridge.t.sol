@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
@@ -11,7 +11,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IUniswapV3Router } from "contracts/interfaces/external/uniswap/IUniswapV3Router.sol";
 
-contract TestBorrowAndBridge is TestBaseMarket {
+contract TestBorrowAndBridge is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 

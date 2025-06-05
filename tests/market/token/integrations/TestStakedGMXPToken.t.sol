@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -15,7 +15,7 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 
-contract TestStakedGMXPToken is TestBaseMarket {
+contract TestStakedGMXPToken is TestBaseMarketIsolated {
     address internal _GMX_REWARD_ROUTER =
         0x159854e14A862Df9E39E1D128b8e5F70B4A3cE9B;
     address internal _GMX_FEE_GMX_TRACKER =

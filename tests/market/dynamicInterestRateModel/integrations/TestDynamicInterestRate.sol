@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
@@ -24,7 +24,7 @@ import "forge-std/console2.sol";
 // Clean up testing of Maximum/minimum vertex rates
 // Clean up testing of Decay rate being applied
 //
-contract TestDynamicInterestRateWithEToken is TestBaseMarket {
+contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
     DynamicInterestRateModel public interestRateModel;
 
     address public owner;

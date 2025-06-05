@@ -2,8 +2,6 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 
-contract TestNonCollateralRedeem is TestBaseMarket {
+contract TestNonCollateralRedeem is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
     }

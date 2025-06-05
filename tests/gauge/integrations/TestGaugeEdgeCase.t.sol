@@ -5,12 +5,12 @@ import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
 // FIX
-contract TestGaugeEdgeCase is TestBaseMarket {
+contract TestGaugeEdgeCase is TestBaseMarketIsolated {
     address public owner;
     address[] public tokens;
     address[] public users;

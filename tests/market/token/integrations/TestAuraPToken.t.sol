@@ -7,9 +7,9 @@ import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { CompoundingPToken} from "contracts/market/token/CompoundingPToken.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestAuraPToken is TestBaseMarket {
+contract TestAuraPToken is TestBaseMarketIsolated {
     address internal _BAL_ADDRESS = 0xba100000625a3754423978a60c9317c58a424e3D;
     address internal _AURA_ADDRESS =
         0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;

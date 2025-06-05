@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 // Dynamically tests multiple functions in CentralRegistry that
 // remove a contract from a mapping
-contract BasicRemoveContractsTest is TestBaseMarket {
+contract BasicRemoveContractsTest is TestBaseMarketIsolated {
     event RemovedCurvanceContract(
         string indexed contractType,
         address removedAddress

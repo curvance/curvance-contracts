@@ -6,7 +6,8 @@ import "forge-std/console.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { DeployConfiguration } from "../utils/DeployConfiguration.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract PositionManagementSimpleDeployer is DeployConfiguration {
@@ -31,7 +32,7 @@ contract PositionManagementSimpleDeployer is DeployConfiguration {
             )
         );
 
-        MarketManager(marketManager).setPositionManagement(
+        MarketManagerIsolated(marketManager).setPositionManagement(
             positionManagementSimple
         );
 

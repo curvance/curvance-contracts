@@ -2,10 +2,9 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseCompoundingPToken } from "../TestBaseCompoundingPToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 import { CompoundingPToken } from "contracts/market/token/CompoundingPToken.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { ERC165 } from "contracts/libraries/external/ERC165.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";

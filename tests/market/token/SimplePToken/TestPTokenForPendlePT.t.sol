@@ -10,11 +10,11 @@ import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken, IERC20 } from "contracts/market/token/SimplePToken.sol";
 import { PendlePrincipalTokenAdaptor } from "contracts/oracles/adaptors/pendle/PendlePrincipalTokenAdaptor.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestPTokenForPendlePT is TestBaseMarket {
+contract TestPTokenForPendlePT is TestBaseMarketIsolated {
     address public owner;
 
     address internal constant _PT_ORACLE =

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
-contract SetLockBoostMultiplierTest is TestBaseMarket {
+contract SetLockBoostMultiplierTest is TestBaseMarketIsolated {
     function test_setLockBoostMultiplier_fail_whenCallerIsNotAuthorized()
         public
     {

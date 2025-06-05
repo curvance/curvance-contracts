@@ -7,11 +7,11 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestGaugeManager is TestBaseMarket {
+contract TestGaugeManager is TestBaseMarketIsolated {
     address public owner;
     address[] public tokens;
     address[] public users;

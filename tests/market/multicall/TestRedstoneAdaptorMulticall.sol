@@ -17,11 +17,11 @@ import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-check
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
 import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
 contract User {}
 
-contract TestRedstoneAdaptorMulticall is TestBaseMarket {
+contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
 

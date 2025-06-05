@@ -4,16 +4,15 @@ pragma solidity ^0.8.19;
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatilePToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperVelodrome is TestBaseMarket {
+contract TestComplexZapperVelodrome is TestBaseMarketIsolated {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
     address internal _VELODROME_ROUTER =

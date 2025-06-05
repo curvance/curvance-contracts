@@ -2,15 +2,15 @@
 pragma solidity ^0.8.19;
 
 import { TestERC4626 } from "tests/market/token/4626/TestERC4626.sol";
-import { TestBaseMarket, ICentralRegistry } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated, ICentralRegistry } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockERC20Token } from "contracts/mocks/MockERC20Token.sol";
 import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 
-contract TestERC4626PToken is TestERC4626, TestBaseMarket {
+contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
     // @todo check the failing tests: test_maxWithdraw! which reverts
     // test_redeem, test_withdraw have problem with allowance
-    function setUp() public override(TestERC4626, TestBaseMarket) {
+    function setUp() public override(TestERC4626, TestBaseMarketIsolated) {
         vm.chainId(1);
         vm.warp(1640926800);
 

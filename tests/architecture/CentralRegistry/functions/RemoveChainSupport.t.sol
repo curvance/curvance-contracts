@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
+import { DENOMINATOR } from "contracts/libraries/Constants.sol";
 
-contract RemoveChainSupportTest is TestBaseMarket {
+contract RemoveChainSupportTest is TestBaseMarketIsolated {
     using stdStorage for StdStorage;
 
     event RemovedChain(

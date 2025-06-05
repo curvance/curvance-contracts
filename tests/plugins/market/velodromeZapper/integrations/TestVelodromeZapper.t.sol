@@ -11,9 +11,9 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { VelodromeVolatileLPAdaptor } from "contracts/oracles/adaptors/velodrome/VelodromeVolatileLPAdaptor.sol";
 import { VelodromeVolatilePToken, IVeloGauge, IVeloRouter, IVeloPairFactory } from "contracts/market/token/VelodromeVolatilePToken.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestVelodromeZapper is TestBaseMarket {
+contract TestVelodromeZapper is TestBaseMarketIsolated {
     address internal _VELODROME_FACTORY =
         0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a;
     address internal _VELODROME_ROUTER =

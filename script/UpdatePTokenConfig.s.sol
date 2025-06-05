@@ -3,8 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
 
-import { MarketManager } from "contracts/market/MarketManager.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
 
 contract UpdatePTokenConfig is Script, DeployConfiguration {
@@ -48,7 +47,7 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         console.log("pToken =", pToken);
         require(pToken != address(0), "Set the pToken!");
 
-        MarketManager(marketManager).updatePositionToken(
+        MarketManagerIsolated(marketManager).updatePositionToken(
             pToken,
             _readConfigUint256(string.concat(pathName, ".collRatio")),
             _readConfigUint256(string.concat(pathName, ".collReqA")),

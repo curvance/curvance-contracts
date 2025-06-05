@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract MarketManagerSetAtlasDAppControlTest is TestBaseMarket {
+contract MarketManagerSetAtlasDAppControlTest is TestBaseMarketIsolated {
     MarketManagerIsolated internal _marketManager;
 
     function setUp() public override {

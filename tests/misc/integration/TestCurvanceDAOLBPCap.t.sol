@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import { CurvanceDAOLBP } from "contracts/misc/CurvanceDAOLBP.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestCurvanceDAOLBPCap is TestBaseMarket {
+contract TestCurvanceDAOLBPCap is TestBaseMarketIsolated {
     CurvanceDAOLBP public lbp;
 
     uint256 public softPrice = 10e18; // 10 weth

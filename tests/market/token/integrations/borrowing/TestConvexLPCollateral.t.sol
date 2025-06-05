@@ -5,9 +5,9 @@ import { Convex2PoolPToken, IERC20 } from "contracts/market/token/Convex2PoolPTo
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
 import { IBaseRewardPool } from "contracts/interfaces/external/convex/IBaseRewardPool.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestConvexLPCollateral is TestBaseMarket {
+contract TestConvexLPCollateral is TestBaseMarketIsolated {
     event Repay(address payer, address borrower, uint256 repayAmount);
 
     address internal constant _STETH_ADDRESS =

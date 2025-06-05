@@ -8,9 +8,9 @@ import { VelodromeStableLPAdaptor } from "contracts/oracles/adaptors/velodrome/V
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestAerodromeStablePToken is TestBaseMarket {
+contract TestAerodromeStablePToken is TestBaseMarketIsolated {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
     address internal _AERODROME_DAI_USDC =

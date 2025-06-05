@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
-contract setTransferableStatusTest is TestBaseMarket {
+contract setTransferableStatusTest is TestBaseMarketIsolated {
     event TransferableStatusChanged(
         address indexed user,
         bool locked,

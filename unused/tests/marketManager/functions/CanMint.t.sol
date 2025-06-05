@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 
 contract CanMintTest is TestBaseMarketManager {
     function test_canMint_fail_whenMintPaused() public {

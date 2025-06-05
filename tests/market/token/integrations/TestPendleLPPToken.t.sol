@@ -9,9 +9,9 @@ import { PendleLPPToken, IERC20 } from "contracts/market/token/PendleLPPToken.so
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPendleLPPToken is TestBaseMarket {
+contract TestPendleLPPToken is TestBaseMarketIsolated {
     address internal _UNISWAP_V3_SWAP_ROUTER =
         0xE592427A0AEce92De3Edee1F18E0157C05861564;
     IPendleRouter internal _ROUTER =

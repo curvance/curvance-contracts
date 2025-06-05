@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 
 contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {

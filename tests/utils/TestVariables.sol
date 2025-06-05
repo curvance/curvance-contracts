@@ -17,7 +17,7 @@ import { EToken } from "contracts/market/token/EToken.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
+
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
 import { VelodromeZapper } from "contracts/plugins/market/VelodromeZapper.sol";

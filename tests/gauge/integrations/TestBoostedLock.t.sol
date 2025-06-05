@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
 import { ETokenWithGauge } from "contracts/market/token/withGauge/ETokenWithGauge.sol";
@@ -11,7 +11,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract User {}
 
-contract TestBoostedLock is TestBaseMarket {
+contract TestBoostedLock is TestBaseMarketIsolated {
     address public owner;
     address[] public tokens;
     address[] public users;

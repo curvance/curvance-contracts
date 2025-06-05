@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { OogaBoogaCalldataChecker } from "contracts/calldata-checker/swap-checker/OogaBoogaCalldataChecker.sol";
 import { BaseSwapChecker } from "contracts/calldata-checker/swap-checker/BaseSwapChecker.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
-import "tests/market/TestBaseMarket.sol";
+import "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestOogaBoogaCalldataChecker is TestBaseMarket {
+contract TestOogaBoogaCalldataChecker is TestBaseMarketIsolated {
     address public obRouter = 0x1111111254EEB25477B68fb85Ed929f73A960582;
     OogaBoogaCalldataChecker public checker;
 

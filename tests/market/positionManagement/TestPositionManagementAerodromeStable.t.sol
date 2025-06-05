@@ -15,9 +15,9 @@ import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.s
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestPositionManagementAerodromeStable is TestBaseMarket {
+contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
     address internal _AERODROME_DAI_USDC =
         0x67b00B46FA4f4F24c03855c5C8013C0B938B3eEc;
     IVeloGauge public gauge =

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
-import { TestBaseMarketManager } from "tests/market/marketManager/TestBaseMarketManager.sol";
+import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 
-contract ListTokens is TestBaseMarketManager {
+contract ListTokens is TestBaseMarketManagerIsolated {
 
     function setUp() public override {
         super.setUp();

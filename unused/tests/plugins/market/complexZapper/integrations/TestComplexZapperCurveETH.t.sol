@@ -6,12 +6,11 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { Curve2PoolLPAdaptor } from "contracts/oracles/adaptors/curve/Curve2PoolLPAdaptor.sol";
-import { ComplexZapper } from "contracts/plugins/market/ComplexZapper.sol";
 import { ZapperBase } from "contracts/plugins/ZapperBase.sol";
 
-import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
+import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
-contract TestComplexZapperCurveETH is TestBaseMarket {
+contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
     address internal _CURVE_STETH_LP =
         0x21E27a5E5513D6e65C4f830167390997aA84843a;
     address internal _CURVE_STETH_MINTER =
