@@ -122,11 +122,11 @@ contract OracleManager is IOracleManager {
     /// @notice The maximum allowed divergence between prices
     ///         before CAUTION is flipped, in `DENOMINATOR`.
     ///         10500 = 5% deviation.
-    uint256 public cautionDivergenceFlag = 10500;
+    uint256 public cautionDivergenceFlag = 1.005e4;
     /// @notice The maximum allowed divergence between prices
     ///         before BAD_SOURCE is flipped, in `DENOMINATOR`.
     ///         11000 = 10% deviation.
-    uint256 public badSourceDivergenceFlag = 11000;
+    uint256 public badSourceDivergenceFlag = 1.01e4;
 
     // Address => Adaptor approval status
     mapping(address => bool) public isApprovedAdaptor;
@@ -757,8 +757,9 @@ contract OracleManager is IOracleManager {
                 return (0, true);
             }
 
-            data.price = uint240(
-                _convertNativeUSD(data.price, newPrice, data.inUSD)
+            return (
+                _convertNativeUSD(data.price, newPrice, data.inUSD),
+                data.hadError
             );
         }
 
