@@ -586,7 +586,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external returns (
+    ) external view returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -1598,7 +1598,7 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal returns (
+    ) internal view returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
