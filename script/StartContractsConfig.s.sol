@@ -17,6 +17,7 @@ import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateMo
 import { EToken } from "contracts/market/token/EToken.sol";
 import { MockToken } from "contracts/mocks/MockToken.sol";
 import { TestnetToken } from "contracts/mocks/TestnetToken.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { DeployConfiguration } from "./utils/DeployConfiguration.sol";
@@ -241,7 +242,7 @@ contract StartContractsConfig is
             );
         }
 
-        MarketManager fourthMarket = _createMarket("fourthTestMarket", cr);
+        MarketManagerIsolated fourthMarket = _createMarket("fourthTestMarket", cr);
         MarketTokenDeploy[]
             memory fourthPositionTokens = new MarketTokenDeploy[](1);
         MarketTokenDeploy[] memory fourthEarnTokens = new MarketTokenDeploy[](
@@ -291,7 +292,7 @@ contract StartContractsConfig is
         address usdc = _getDeployedContract("USDC");
         address wbtc = _getDeployedContract("WBTC");
 
-        MarketManager firstMarket = _createMarket("firstTestMarket", cr);
+        MarketManagerIsolated firstMarket = _createMarket("firstTestMarket", cr);
         MarketTokenDeploy[]
             memory firstPositionTokens = new MarketTokenDeploy[](1);
         MarketTokenDeploy[] memory firstEarnTokens = new MarketTokenDeploy[](
@@ -316,7 +317,7 @@ contract StartContractsConfig is
             firstEarnTokens
         );
 
-        MarketManager secondMarket = _createMarket("secondTestMarket", cr);
+        MarketManagerIsolated secondMarket = _createMarket("secondTestMarket", cr);
         MarketTokenDeploy[]
             memory secondPositionTokens = new MarketTokenDeploy[](1);
         MarketTokenDeploy[] memory secondEarnTokens = new MarketTokenDeploy[](
@@ -345,9 +346,9 @@ contract StartContractsConfig is
     function _createMarket(
         string memory marketName,
         ICentralRegistry cr
-    ) internal returns (MarketManager market) {
+    ) internal returns (MarketManagerIsolated market) {
         uint256 marketInterestFactor = 1000; // 10%
-        market = new MarketManager(cr);
+        market = new MarketManagerIsolated(cr);
         _saveDeployedContracts(marketName, address(market));
         CentralRegistry(address(cr)).addMarketManager(
             address(market),
@@ -368,7 +369,7 @@ contract StartContractsConfig is
     }
 
     function _deployMarketTokens(
-        MarketManager market,
+        MarketManagerIsolated market,
         ICentralRegistry cr,
         MarketTokenDeploy[] memory PositionTokens,
         MarketTokenDeploy[] memory earnTokens
@@ -402,7 +403,7 @@ contract StartContractsConfig is
         address chainlinkEthAggregator,
         address chainlinkUsdAggregator,
         ICentralRegistry cr,
-        MarketManager market
+        MarketManagerIsolated market
     ) internal returns (address) {
         DynamicInterestRateModel interestRateModel = new DynamicInterestRateModel(
                 cr,
@@ -457,7 +458,7 @@ contract StartContractsConfig is
         address chainlinkEthAggregator,
         address chainlinkUsdAggregator,
         ICentralRegistry cr,
-        MarketManager market
+        MarketManagerIsolated market
     ) internal returns (address) {
         IERC20 underlying = IERC20(tokenAddress);
         address pToken = address(
