@@ -217,7 +217,7 @@ contract StartContractsConfig is
             address m_eth = _getDeployedContract("mETH");
             address m_usd = _getDeployedContract("mUSD");
 
-            MarketManager thirdMarket = _createMarket("thirdTestMarket", cr);
+            MarketManagerIsolated thirdMarket = _createMarket("thirdTestMarket", cr);
             MarketTokenDeploy[]
                 memory thirdPositionTokens = new MarketTokenDeploy[](1);
             MarketTokenDeploy[]

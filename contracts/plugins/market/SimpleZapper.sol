@@ -113,9 +113,9 @@ contract SimpleZapper is ZapperBase {
             swapData.inputToken = address(wrappedNative);
         }
 
-        uint256 amount;
         // Cache underlying to minimize external calls.
         address eTokenUnderlying = IMToken(eToken).underlying();
+        uint256 outAmount;
 
         // Make sure if we are swapping that we are swapping into the proper
         // underlying token.
@@ -123,18 +123,18 @@ contract SimpleZapper is ZapperBase {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        if (swapData.inputToken == swapData.outputToken) {
-            amount = swapData.inputAmount;
+        if (swapData.inputToken == eTokenUnderlying) {
+            outAmount = swapData.inputAmount;
         } else {
             // Execute swap into eToken underlying.
-            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+            outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
         }
 
         return
             _repayDebt(
                 eToken,
                 eTokenUnderlying,
-                amount,
+                outAmount,
                 repayAmount,
                 recipient
             );
@@ -173,8 +173,12 @@ contract SimpleZapper is ZapperBase {
             recipient
         );
 
-        // Execute swap into `swapData.outputToken`.
-        uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        uint256 outAmount;
+        if (swapData.inputToken == swapData.outputToken) {
+            outAmount = swapData.inputAmount;
+        } else {
+            outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
 
         _transferToRecipient(swapData.outputToken, recipient, outAmount);
 
@@ -219,9 +223,14 @@ contract SimpleZapper is ZapperBase {
             recipient
         );
 
-        // Execute swap into `swapData.outputToken` which should be
-        // new mToken underlying.
-        uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        uint256 outAmount;
+        if (swapData.inputToken == swapData.outputToken) {
+            outAmount = swapData.inputAmount;
+        } else {
+            // Execute swap into `swapData.outputToken` which should be
+            // new mToken underlying.
+            outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        }
 
         // Enter new Curvance mToken position.
         return
