@@ -757,8 +757,9 @@ contract OracleManager is IOracleManager {
                 return (0, true);
             }
 
-            data.price = uint240(
-                _convertNativeUSD(data.price, newPrice, data.inUSD)
+            return (
+                _convertNativeUSD(data.price, newPrice, data.inUSD),
+                data.hadError
             );
         }
 

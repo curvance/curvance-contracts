@@ -98,7 +98,7 @@ contract RedstoneCoreAdaptor is
         PrimaryProdDataServiceConsumerBase(signers)
     {
         // Validate that unique signer threshold is within acceptable limits.
-        if (MINIMUM_SIGNER_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
+        if (MINIMUM_SIGNERS_THRESHOLD_ALLOWED > uniqueSignersThreshold_) {
             revert RedstoneCoreAdaptor__InvalidConfiguration();
         }
 
@@ -356,7 +356,7 @@ contract RedstoneCoreAdaptor is
             // Make sure that decreasing the signer threshold would not pushed
             // signer requirement below minimum allowed inside the Curvance
             // Protocol.
-            if (_uniqueSignersThreshold == MINIMUM_SIGNER_THRESHOLD_ALLOWED) {
+            if (_uniqueSignersThreshold == MINIMUM_SIGNERS_THRESHOLD_ALLOWED) {
                 revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
 
