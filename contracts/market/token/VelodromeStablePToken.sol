@@ -162,10 +162,7 @@ contract VelodromeStablePToken is CompoundingPToken {
             (
                 SwapperLib.Swap memory swapData,
                 uint256 lpMinOutAmount
-                ) = abi.decode(
-                    data,
-                    (SwapperLib.Swap, uint256)
-                    );
+            ) = abi.decode(data, (SwapperLib.Swap, uint256));
 
             uint256 rewardAmount = IERC20(rewardToken).balanceOf(
                 address(this)
@@ -194,7 +191,6 @@ contract VelodromeStablePToken is CompoundingPToken {
                     SwapperLib.swapSafe(centralRegistry, swapData);
                 }
             }
-
             uint256 totalAmountA = IERC20(sd.token0).balanceOf(address(this));
 
             // Make sure swap was routed into token0, or that token0 is VELO.
@@ -202,15 +198,51 @@ contract VelodromeStablePToken is CompoundingPToken {
                 revert VelodromeStablePToken__SlippageError();
             }
 
-            // Add liquidity to Velodrome lp with stable params.
-            yield = VelodromeLib.enterVelodrome(
-                address(sd.router),
+            // Cache asset to minimize storage reads.
+            address _asset = asset();
+            // Pull reserve data so we can swap half of token0 into token1
+            // optimally.
+            (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
+            (r0, r1) = sd.token0 == IVeloPair(_asset).token0()
+                ? (r0, r1)
+                : (r1, r0);
+            // Feed library pair factory, lpToken, and stable = true,
+            // plus calculated data.
+            uint256 swapAmount = VelodromeLib._optimalDeposit(
                 address(sd.pairFactory),
-                address(_asset),
+                _asset,
                 totalAmountA,
-                0,
-                lpMinOutAmount
+                r0,
+                r1,
+                sd.decimalsA,
+                sd.decimalsB,
+                true
             );
+            // Feed calculated data, and stable = true.
+            VelodromeLib._swapExactTokensForTokens(
+                address(sd.router),
+                _asset,
+                sd.token0,
+                sd.token1,
+                swapAmount,
+                true
+            );
+            totalAmountA -= swapAmount;
+
+            // Add liquidity to Velodrome lp with stable params.
+            yield = VelodromeLib._addLiquidity(
+                address(sd.router),
+                sd.token0,
+                sd.token1,
+                true,
+                totalAmountA,
+                IERC20(sd.token1).balanceOf(address(this)), // totalAmountB
+                VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
+            );
+
+            if (yield < lpMinOutAmount) {
+                revert VelodromeStablePToken__SlippageError();
+            }
 
             // Deposit new assets into Velodrome gauge to continue
             // yield farming.
