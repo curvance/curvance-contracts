@@ -194,7 +194,7 @@ contract MarketManager is
     error MarketManager__InsufficientCollateral();
     error MarketManager__NoLiquidationAvailable();
     error MarketManager__PriceError();
-    error MarketManager__CollateralCapReached();
+    error MarketManager__CapReached();
     error MarketManager__MarketManagerMismatch();
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
@@ -1191,7 +1191,7 @@ contract MarketManager is
         // is > 0, since collateralCaps can only be raised above zero if a
         // pToken's collateralization ratio is > 0.
         if (collateralPosted[pToken] + tokens > collateralCaps[pToken]) {
-            revert MarketManager__CollateralCapReached();
+            revert MarketManager__CapReached();
         }
 
         // On collateral posting:

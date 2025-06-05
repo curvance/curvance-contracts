@@ -304,7 +304,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
         // and to pause user redemptions for 20 minutes.
-        marketManager.canBorrowWithNotify(address(this), msg.sender, amount);
+        marketManager.canBorrowWithNotify(
+            address(this),
+            msg.sender,
+            totalBorrows + amount,
+            amount
+        );
 
         _borrow(msg.sender, amount, msg.sender);
     }
@@ -332,7 +337,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Reverts if borrow not allowed.
         // Notifies the Market Manager that a user is taking on more debt,
         // and to pause user redemptions for 20 minutes.
-        marketManager.canBorrowWithNotify(address(this), account, amount);
+        marketManager.canBorrowWithNotify(
+            address(this),
+            account,
+            totalBorrows + amount,
+            amount
+        );
 
         _borrow(account, amount, recipient);
     }
@@ -378,7 +388,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Fail if terminal position is not allowed with no additional
         // adjustment.
-        marketManager.canBorrow(address(this), account, 0);
+        marketManager.canBorrow(
+            address(this),
+            account,
+            totalBorrows + amount,
+            0
+        );
     }
 
     /// @notice Repays underlying tokens to lenders, freeing up their

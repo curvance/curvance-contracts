@@ -208,7 +208,7 @@ contract MarketManagerIsolated is
     error MarketManager__InsufficientCollateral();
     error MarketManager__NoLiquidationAvailable();
     error MarketManager__PriceError();
-    error MarketManager__CollateralCapReached();
+    error MarketManager__CapReached();
     error MarketManager__MarketManagerMismatch();
     error MarketManager__InvalidParameter();
     error MarketManager__MinimumHoldPeriod();
@@ -399,7 +399,7 @@ contract MarketManagerIsolated is
         // be raised above zero if the token is a pToken and pToken's
         // collateralization ratio is > 0.
         if (newNetCollateral > collateralCaps[pToken]) {
-            revert MarketManager__CollateralCapReached();
+            revert MarketManager__CapReached();
         }
 
         // On collateral posting:
@@ -466,13 +466,16 @@ contract MarketManagerIsolated is
     /// @dev May emit a {PositionAdjusted} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrow(
         address eToken,
         address account,
+        uint256 newNetDebt,
         uint256 amount
     ) external {
-        _canBorrow(eToken, account, amount);
+        _canBorrow(eToken, account, newNetDebt, amount);
     }
 
     /// @notice Checks if the account should be allowed to borrow
@@ -481,14 +484,17 @@ contract MarketManagerIsolated is
     /// @dev This can only be called by the market itself.
     /// @param eToken The market token to verify the borrow for.
     /// @param account The account which would borrow the asset.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrowWithNotify(
         address eToken,
         address account,
+        uint256 newNetDebt,
         uint256 amount
     ) external {
         accountAssets[account].cooldownTimestamp = block.timestamp;
-        _canBorrow(eToken, account, amount);
+        _canBorrow(eToken, account, newNetDebt, amount);
     }
 
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
@@ -899,7 +905,7 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
-    /// @dev Can emit {CollateralCapUpdated} event(s).
+    /// @dev Can emit {NewCollateralCap} event(s).
     /// @param pTokens The addresses of the tokens to change the collateral
     ///                caps for.
     /// @param newCollateralCaps The new collateral cap values to be
@@ -939,7 +945,7 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Set `newDebtCaps` for the given `eTokens`.
-    /// @dev Can emit {DebtCapUpdated} event(s).
+    /// @dev Can emit {NewDebtCap} event(s).
     /// @param eTokens The addresses of the tokens to change the
     ///                debt caps for.
     /// @param newDebtCaps The new collateral cap values to be
@@ -1207,10 +1213,13 @@ contract MarketManagerIsolated is
     ///      May emit a {PositionAdjusted} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed. 
     /// @param amount The amount of underlying the account would borrow.
     function _canBorrow(
         address eToken,
         address account,
+        uint256 newNetDebt,
         uint256 amount
     ) internal {
         _checkIsToken(eToken);
@@ -1218,6 +1227,12 @@ contract MarketManagerIsolated is
 
         if (borrowPaused[eToken] == 2) {
             _revert(_PAUSED_SELECTOR);
+        }
+
+        // Validates that this borrow action will not push net debt
+        // above the debt limit.
+        if (newNetDebt > debtCaps[eToken]) {
+            revert MarketManager__CapReached();
         }
 
         // Check if the user already has an active borrow in the eToken.

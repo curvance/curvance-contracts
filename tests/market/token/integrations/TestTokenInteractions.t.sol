@@ -586,7 +586,7 @@ contract TestTokenInteractions is TestBaseMarket {
     //     pBALRETH.deposit(_ONE, user1);
 
     //     vm.expectRevert(
-    //         MarketManager.MarketManager__CollateralCapReached.selector
+    //         MarketManager.MarketManager__CapReached.selector
     //     );
     //     pBALRETH.postCollateral(_ONE);
 

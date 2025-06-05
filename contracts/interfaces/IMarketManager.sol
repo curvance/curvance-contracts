@@ -90,10 +90,13 @@ interface IMarketManager {
     /// @dev May emit a {TokenPositionCreated} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrow(
         address eToken,
         address account,
+        uint256 newNetDebt,
         uint256 amount
     ) external;
 
@@ -103,10 +106,13 @@ interface IMarketManager {
     /// @dev This can only be called by the market itself.
     /// @param mToken The market to verify the borrow against.
     /// @param account The account which would borrow the asset.
+    /// @param newNetDebt The amount of assets that would be
+    ///                   outstanding debt in total if allowed.
     /// @param amount The amount of underlying the account would borrow.
     function canBorrowWithNotify(
         address mToken,
         address account,
+        uint256 newNetDebt,
         uint256 amount
     ) external;
 
