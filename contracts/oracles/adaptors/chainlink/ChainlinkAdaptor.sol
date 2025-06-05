@@ -30,6 +30,8 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         bool isConfigured;
         uint256 decimals;
         uint256 heartbeat;
+        uint256 reportedMax;
+        uint256 reportedMin;
         uint256 max;
         uint256 min;
     }
@@ -145,14 +147,6 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
         uint256 bufferedMaxPrice = (maxFromChainlink * 9) / 10;
         uint256 bufferedMinPrice = (minFromChainklink * 11) / 10;
 
-        // If the buffered max price is above uint240 its theoretically
-        // possible to get a price which would lose precision on uint240
-        // conversion, which we need to protect against in getPrice() so
-        // we can add a second protective layer here.
-        if (bufferedMaxPrice > type(uint240).max) {
-            bufferedMaxPrice = type(uint240).max;
-        }
-
         if (bufferedMinPrice >= bufferedMaxPrice) {
             revert ChainlinkAdaptor__InvalidMinMaxConfig();
         }
@@ -167,8 +161,12 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         // Save adaptor data and update mapping that we support `asset` now.
         data.decimals = feedAggregator.decimals();
-        data.max = bufferedMaxPrice;
-        data.min = bufferedMinPrice;
+        data.reportedMax = bufferedMaxPrice;
+        data.reportedMin = bufferedMinPrice;
+        data.max = type(uint240).max;
+        // Data.min is intended to be 0 which is uint256 default value
+        // so can skip setting here.
+        
         data.heartbeat = heartbeat != 0 ? heartbeat : DEFAULT_HEART_BEAT;
         data.aggregator = IChainlink(aggregator);
         data.isConfigured = true;
@@ -268,6 +266,14 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
 
         // If we got a price of 0 or less, bubble up an error immediately.
         if (price <= 0) {
+            pData.hadError = true;
+            return pData;
+        }
+
+        if (
+            uint256(price) >= data.reportedMax ||
+            uint256(price) <= data.reportedMin
+            ) {
             pData.hadError = true;
             return pData;
         }

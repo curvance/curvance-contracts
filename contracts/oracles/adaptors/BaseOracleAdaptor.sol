@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
+import { WAD } from "contracts/libraries/Constants.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
@@ -102,7 +103,7 @@ abstract contract BaseOracleAdaptor is IOracleAdaptor {
     function _normalizePrice(
         uint256 price,
         uint256 decimals
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return FixedPointMathLib.fullMulDiv(
             price,
             WAD,
