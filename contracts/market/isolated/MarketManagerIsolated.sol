@@ -167,6 +167,11 @@ contract MarketManagerIsolated is
     /// @dev Token => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
+    /// @notice Amount of eToken underlying that can be borrowed,
+    ///         in assets.
+    /// @dev Token => Market-wide Debt Cap, in assets.
+    mapping(address => uint256) public debtCaps;
+
     /// @notice Whether an address is an authorized position management
     ///         operator or not.
     /// @dev Address => Is an approved position management operator.
@@ -191,7 +196,8 @@ contract MarketManagerIsolated is
     );
     event ActionPaused(string action, bool pauseState);
     event TokenActionPaused(address mToken, string action, bool pauseState);
-    event NewCollateralCap(address mToken, uint256 newCollateralCap);
+    event CollateralCapUpdated(address mToken, uint256 newCollateralCap);
+    event DebtCapUpdated(address mToken, uint256 newDebtCap);
     event NewPositionManagementContract(address newPositionManager);
 
     /// ERRORS ///
@@ -893,11 +899,11 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
-    /// @dev Can emit {NewCollateralCap} events.
-    /// @param pTokens The addresses of the markets (tokens) to
-    ///                change the borrow caps for.
-    /// @param newCollateralCaps The new collateral cap values in underlying
-    ///                          to be set, in  shares.
+    /// @dev Can emit {CollateralCapUpdated} event(s).
+    /// @param pTokens The addresses of the tokens to change the collateral
+    ///                caps for.
+    /// @param newCollateralCaps The new collateral cap values to be
+    ///                          set, in shares.
     function setCollateralCaps(
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
@@ -921,17 +927,53 @@ contract MarketManagerIsolated is
         }
 
         for (uint256 i; i < numTokens; ++i) {
-            // Make sure the pToken is a pToken.
-            _checkIsPToken(pTokens[i]);
-
             // Do not let people collateralize assets
-            // with collateralization ratio of 0.
+            // with a collateralization ratio of 0.
             if (tokenData[pTokens[i]].collRatio == 0) {
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
 
             collateralCaps[pTokens[i]] = newCollateralCaps[i];
-            emit NewCollateralCap(pTokens[i], newCollateralCaps[i]);
+            emit CollateralCapUpdated(pTokens[i], newCollateralCaps[i]);
+        }
+    }
+
+    /// @notice Set `newDebtCaps` for the given `eTokens`.
+    /// @dev Can emit {DebtCapUpdated} event(s).
+    /// @param eTokens The addresses of the tokens to change the
+    ///                debt caps for.
+    /// @param newDebtCaps The new collateral cap values to be
+    ///                          set, in assets.
+    function setDebtCaps(
+        address[] calldata eTokens,
+        uint256[] calldata newDebtCaps
+    ) external {
+        _checkDaoPermissions();
+
+        uint256 numTokens = eTokens.length;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            if iszero(numTokens) {
+                // store the error selector to location 0x0.
+                mstore(0x0, _INVALID_PARAMETER_SELECTOR)
+                // return bytes 29-32 for the selector.
+                revert(0x1c, 0x04)
+            }
+        }
+
+        if (numTokens != newDebtCaps.length) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        for (uint256 i; i < numTokens; ++i) {
+            // Do not let people borrow assets if they are not intended to be.
+            if (!IMToken(eTokens[i]).isBorrowable()) {
+                _revert(_INVALID_PARAMETER_SELECTOR);
+            }
+
+            debtCaps[eTokens[i]] = newDebtCaps[i];
+            emit DebtCapUpdated(eTokens[i], newDebtCaps[i]);
         }
     }
 
@@ -1709,14 +1751,6 @@ contract MarketManagerIsolated is
     function _checkIsListedToken(address token) internal view {
         if (!tokenData[token].isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
-    }
-
-    /// @notice Check whether token is pToken.
-    /// @param token The token to check whether it's pToken or not.
-    function _checkIsPToken(address token) internal view {
-        if (!IMToken(token).isPToken()) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
         }
     }
 

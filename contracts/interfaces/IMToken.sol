@@ -36,6 +36,11 @@ interface IMToken {
     /// @return Whether this token is a pToken or not.
     function isPToken() external view returns (bool);
 
+    /// @notice Returns whether the underlying token can be borrowed.
+    /// @dev true = Borrowable; false = Not Borrowable.
+    /// @return Whether this token is borrowable or not.
+    function isBorrowable() external view returns (bool);
+
     /// @notice The eToken balance of an account.
     /// @dev Account address => account token balance.
     /// @param user User to query eToken balance for.

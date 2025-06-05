@@ -842,6 +842,13 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return false;
     }
 
+    /// @notice Returns whether the underlying token can be borrowed.
+    /// @dev true = Borrowable; false = Not Borrowable.
+    /// @return Whether this token is borrowable or not.
+    function isBorrowable() public pure virtual returns (bool) {
+        return true;
+    }
+
     /// @notice Updates pending interest and returns the up-to-date exchange
     ///         rate from the underlying to the eToken.
     /// @return Calculated exchange rate, in `WAD`.

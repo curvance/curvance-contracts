@@ -8,7 +8,7 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
     address[] public mTokens;
     uint256[] public collateralCaps;
 
-    event NewCollateralCap(address mToken, uint256 newCollateralCap);
+    event CollateralCapUpdated(address mToken, uint256 newCollateralCap);
 
     function setUp() public override {
         super.setUp();
@@ -84,7 +84,7 @@ contract SetCollateralCapsTest is TestBaseMarketManager {
 
         for (uint256 i = 0; i < validMTokens.length; i++) {
             vm.expectEmit(address(marketManager));
-            emit NewCollateralCap(validMTokens[i], validCollateralCaps[i]);
+            emit CollateralCapUpdated(validMTokens[i], validCollateralCaps[i]);
         }
 
         marketManager.setCollateralCaps(
