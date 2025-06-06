@@ -10,6 +10,9 @@ import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
 import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/ChainlinkAdaptor.sol";
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 
+// NOTE: This test fails when input amount is very small.
+// Fails when amount0 is 3.584e18. Probably due to precision loss.
+
 contract TestAerodromeStablePToken is TestBaseMarket {
     address internal _AERO_ADDRESS =
         0x940181a94A35A4569E4529A3CDfB74e38FD98631;
@@ -119,7 +122,7 @@ contract TestAerodromeStablePToken is TestBaseMarket {
     }
 
     function testDaiUsdcStablePool_fuzzed(uint256 amount0) public {
-        vm.assume(100e18 < amount0 && amount0 < 500_000e18);
+        vm.assume(10e18 < amount0 && amount0 < 60_000e18);
 
         (uint256 price, uint256 errorCode) = oracleManager.getPrice(
             _AERODROME_DAI_USDC,

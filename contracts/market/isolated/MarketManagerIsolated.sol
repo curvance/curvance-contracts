@@ -586,7 +586,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external returns (
+    ) external view returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -1522,8 +1522,6 @@ contract MarketManagerIsolated is
         }
     }
 
-    event BAD_DEBT_EVENT(uint256 amount);
-
     /// @notice Determines if an account can be liquidated and calculates
     ///         liquidation parameters. Computes liquidation amounts,
     ///         collateral seizure, and potential bad debt based on `account`
@@ -1600,7 +1598,7 @@ contract MarketManagerIsolated is
         AuctionLiqData memory auctionData,
         MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal returns (
+    ) internal view returns (
         uint256,
         uint256 liquidatedPTokens,
         uint256 badDebt
@@ -1693,8 +1691,6 @@ contract MarketManagerIsolated is
                 (cachedData.eTokenUnderlyingPrice * WAD) / cachedData.eTokenDecimals
             );
         }
-
-        emit BAD_DEBT_EVENT(badDebt);
 
         // Calculate the maximum amount of debt that can be liquidated
         // and what collateral will be received. As well as any bad debt

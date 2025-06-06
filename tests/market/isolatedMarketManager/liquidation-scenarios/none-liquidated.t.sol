@@ -12,27 +12,24 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 1: Multiple Users Liquidated
-// - Setup: 5 users with varying health factors
-// - User 1: 1.0 pBALRETH ($1,600), 800 USDC debt (healthy)
-// - User 2: 1.0 pBALRETH ($1,600), 1,000 USDC debt (borderline)
-// - User 3: 1.0 pBALRETH ($1,600), 1,100 USDC debt (soft liquidation)
-// - User 4: 1.0 pBALRETH ($1,600), 1,200 USDC debt (hard liquidation)
-// - User 5: 1.0 pBALRETH ($1,600), 1,300 USDC debt (severe liquidation)
-// - Action: Price drop of pBALRETH by 15% (to $1,380)
-// - Expected: Users 3, 4, and 5 should be liquidated in single transaction
+// ## Scenario 3: No Users Liquidated
+// - Setup: 3 users with healthy positions
+// - User 1: 1.5 pBALRETH ($2,400), 1,000 USDC debt
+// - User 2: 1.4 pBALRETH ($2,240), 1,000 USDC debt
+// - User 3: 1.3 pBALRETH ($2,080), 1,000 USDC debt
+// - Action: Price drop of pBALRETH by 5% (to $1,520)
+// - Expected: No liquidations occur
     
 
-contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
+contract NoneLiquidated is TestBaseMarketManagerIsolated {
 
     address borrower1 = makeAddr("borrower1");
     address borrower2 = makeAddr("borrower2");
     address borrower3 = makeAddr("borrower3");
-    address borrower4 = makeAddr("borrower4");
-    address borrower5 = makeAddr("borrower5");
 
-    uint256[] borrowAmounts = [800e6, 1000e6, 1100e6, 1200e6, 1300e6];
-    address[] borrowers = [borrower1, borrower2, borrower3, borrower4, borrower5];
+    uint256 borrowAmount = 1000e6;
+    address[] borrowers = [borrower1, borrower2, borrower3];
+    uint256[] collateralAmounts = [1.5e18, 1.4e18, 1.3e18];
 
     uint256 WAD_SQUARED = 1e36;
 
@@ -119,8 +116,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         _createPositions();
 
-        mockWethFeed.setMockAnswer(1380e8);
-        mockRethFeed.setMockAnswer(1380e8);
+        mockWethFeed.setMockAnswer(1520e8);
+        mockRethFeed.setMockAnswer(1520e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
             marketManager.tokenData(address(pBALRETH));
@@ -130,17 +127,17 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         baseCFactor = baseCFactor_;
         cFactorCurve = cFactorCurve_;
 
-        // vm.warp(block.timestamp + 20 minutes); skipping so no interest accrues which keeps it simple
+        // vm.warp(block.timestamp + 20 minutes); 
 
     }
 
-    function test_multipleUsersLiquidatedWithVaryingHealthFactors() public {
+    function test_noneLiquidated() public {
 
         IMarketManager.LiqInstructions memory liqInstructions;
         liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
             pToken: address(pBALRETH),
-            numAccounts: 5,
+            numAccounts: 3,
             liquidateExact: false,
             eTokenRepaid: 0,
             pTokenLiquidated: 0,
@@ -165,7 +162,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256 expectedTotalBadDebt;
         uint256 pTokenExchangeRate = pBALRETH.exchangeRateCached();
 
-        for(uint i; i < 5; i++) {
+        for(uint i; i < 3; i++) {
             expectedTotalBadDebt += _calculateBadDebt(
                 debtBalancesPreLiquidation[i],
                 maxAmount[i],
@@ -184,10 +181,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         eUSDC.approve(address(marketManager), 100000e6);
 
-        // Assert BadDebtRecognized event is emitted with expected total bad debt
-        vm.expectEmit();
-        emit BadDebtRecognized(address(this), expectedTotalBadDebt);
-
+        vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
         eUSDC.liquidate(
             borrowers,
             address(pBALRETH)
@@ -195,109 +189,51 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
 
         // ===== Validate =====
 
-        // Verify healthy accounts (1 and 2) are not liquidated
+        // Verify all healthy accounts (1, 2, and 3) are not liquidated
         assertEq(eUSDC.debtBalanceCached(borrowers[0]), debtBalancesPreLiquidation[0], "Healthy account 1 shouldn't be liquidated");
         assertEq(eUSDC.debtBalanceCached(borrowers[1]), debtBalancesPreLiquidation[1], "Healthy account 2 shouldn't be liquidated");
+        assertEq(eUSDC.debtBalanceCached(borrowers[2]), debtBalancesPreLiquidation[2], "Healthy account 3 shouldn't be liquidated");
 
-        // Verify liquidated accounts (3, 4, and 5) are liquidated
-        for (uint i = 2; i < 5; i++) {
-            // Debt should be reduced by maxAmount if soft liquidation
-            if(borrowers[i] == borrower3) {
-                assertEq(eUSDC.debtBalanceCached(borrowers[i]), debtBalancesPreLiquidation[i] - maxAmount[i], "Borrower 3 should be soft liquidated");
-            } else {
-                assertEq(eUSDC.debtBalanceCached(borrowers[i]), 0, "Borrower should be hard liquidated");
-            }
+        // Verify all users have the same collateral
+        assertEq(pBALRETH.balanceOf(borrowers[0]), collateralAmounts[0], "Healthy account 1 should have the same collateral");
+        assertEq(pBALRETH.balanceOf(borrowers[1]), collateralAmounts[1], "Healthy account 2 should have the same collateral");
+        assertEq(pBALRETH.balanceOf(borrowers[2]), collateralAmounts[2], "Healthy account 3 should have the same collateral");
+    
+        // Verify the same amount of borrows is still owed
+        assertEq(eUSDC.totalBorrows(), totalBorrowsBefore, "Total borrows should be the same");
 
-            // Collateral should be reduced by liquidatedPTokens
-            assertApproxEqAbs(
-                pBALRETH.balanceOf(borrowers[i]), 
-                _ONE - liquidatedPTokens[i],
-                1000, // Tolerance of 1000 wei 
-                "Collateral post liquidation mismatch"
-            );
-        }
-
-        uint256 totalDebtRepaid = maxAmount[2] + borrowAmounts[3] + borrowAmounts[4];
-
-        assertApproxEqAbs(
-            eUSDC.totalBorrows(),
-            totalBorrowsBefore - totalDebtRepaid,
-            100, // Small tolerance
-            "Incorrect totalBorrows after liquidation"
-        );
-
-        // Verify liquidator received the expected collateral
-        uint256 expectedLiquidatorBalance = liquidatedPTokens[2] + liquidatedPTokens[3] + liquidatedPTokens[4];
-        assertApproxEqAbs(
-            pBALRETH.balanceOf(address(this)),
-            expectedLiquidatorBalance,
-            1000,
-            "Liquidator didn't receive expected collateral"
-        );
-
-        // Test accounts health factor after liquidation
-        for (uint i = 2; i < 5; i++) {
-            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
-                borrowers[i],
-                address(eUSDC),
-                address(pBALRETH)
-            );
-            
-            if (eUSDC.debtBalanceCached(borrowers[i]) > 0) {
-                // If there's still debt, health factor should be improved
-                assertTrue(
-                    lFactorAfter < lFactorsPreLiquidation[i],
-                    "Health factor should improve after partial liquidation"
-                );
-            } else {
-                // If fully liquidated, lFactor should be 0
-                assertEq(lFactorAfter, 0, "Fully liquidated account should have 0 lFactor");
-            }
-        }
+        // Verify liquidator received no collateral
+        assertEq(pBALRETH.balanceOf(address(this)), 0, "Liquidator should have received no collateral");
     }
 
     function _createPositions() internal {
-        _prepareBALRETH(borrower1, _ONE);
-        _prepareBALRETH(borrower2, _ONE);
-        _prepareBALRETH(borrower3, _ONE);
-        _prepareBALRETH(borrower4, _ONE);
-        _prepareBALRETH(borrower5, _ONE);
+        _prepareBALRETH(borrower1, collateralAmounts[0]);
+        _prepareBALRETH(borrower2, collateralAmounts[1]);
+        _prepareBALRETH(borrower3, collateralAmounts[2]);
 
         vm.startPrank(borrower1);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.depositAsCollateral(_ONE, borrower1);
-        eUSDC.borrow(borrowAmounts[0]);
+        balRETH.approve(address(pBALRETH), collateralAmounts[0]);
+        pBALRETH.depositAsCollateral(collateralAmounts[0], borrower1);
+        eUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower2);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.depositAsCollateral(_ONE, borrower2);
-        eUSDC.borrow(borrowAmounts[1]);
+        balRETH.approve(address(pBALRETH), collateralAmounts[1]);
+        pBALRETH.depositAsCollateral(collateralAmounts[1], borrower2);
+        eUSDC.borrow(borrowAmount);
         vm.stopPrank();
 
         vm.startPrank(borrower3);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.depositAsCollateral(_ONE, borrower3);
-        eUSDC.borrow(borrowAmounts[2]);
-        vm.stopPrank();
-
-        vm.startPrank(borrower4);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.depositAsCollateral(_ONE, borrower4);
-        eUSDC.borrow(borrowAmounts[3]);
-        vm.stopPrank();
-
-        vm.startPrank(borrower5);
-        balRETH.approve(address(pBALRETH), _ONE);
-        pBALRETH.depositAsCollateral(_ONE, borrower5);
-        eUSDC.borrow(borrowAmounts[4]);
+        balRETH.approve(address(pBALRETH), collateralAmounts[2]);
+        pBALRETH.depositAsCollateral(collateralAmounts[2], borrower3);
+        eUSDC.borrow(borrowAmount);
         vm.stopPrank();
     }
 
     function _getLFactorsPreLiquidation() internal view returns (uint256[] memory lFactors) {
-        lFactors = new uint256[](5);
+        lFactors = new uint256[](3);
 
-        for(uint i; i < 5; i++) {
+        for(uint i; i < 3; i++) {
             (lFactors[i],,) = marketManager.liquidationStatusOf(
                 borrowers[i],
                 address(eUSDC),
@@ -309,8 +245,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     }
 
     function _getDebtBalancePreLiquidation() internal view returns (uint256[] memory debtBalances) {
-        debtBalances = new uint256[](5);
-        for(uint i; i < 5; i++) {
+        debtBalances = new uint256[](3);
+        for(uint i; i < 3; i++) {
             debtBalances[i] = eUSDC.debtBalanceCached(borrowers[i]);
         }
         return debtBalances;
@@ -330,11 +266,11 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
         
-        maxAmount = new uint256[](5);
-        liquidatedPTokens = new uint256[](5);
-        collateralRequired = new uint256[](5);
+        maxAmount = new uint256[](3);
+        liquidatedPTokens = new uint256[](3);
+        collateralRequired = new uint256[](3);
 
-        for (uint i; i < 5; i++) {
+        for (uint i; i < 3; i++) {
             if (lFactors[i] == 0) continue;
             
             // Follow the contract's exact calculations but with higher precision
@@ -345,7 +281,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             uint256 highPrecisionD2C = (((auctionLiqIncentive * eTokenPrice * WAD * PRECISION_FACTOR) /
                 (pTokenPrice * pTokenExchangeRate)) * 1e18) / 1e6;
                 
-            maxAmount[i] = (auctionCFactor * borrowAmounts[i]) / WAD;
+            maxAmount[i] = (auctionCFactor * borrowAmount) / WAD;
             
             // Calculate with extra precision
             liquidatedPTokens[i] = (maxAmount[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
@@ -361,7 +297,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             }
             
             // Use the contract's exact formula
-            collateralRequired[i] = (borrowAmounts[i] * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
+            collateralRequired[i] = (borrowAmount * highPrecisionD2C) / (WAD * PRECISION_FACTOR);
         }
 
         return (maxAmount, liquidatedPTokens, collateralRequired);
