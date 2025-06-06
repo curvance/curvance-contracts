@@ -45,23 +45,4 @@ contract MarketManagerSetAtlasDAppControlTest is TestBaseMarketIsolated {
         centralRegistry.removeAuthorizedAtlasDAppControl(address(1));
     }
 
-    function test_marketManagerLockAtlasCollateral_fail_whenCallerIsNotAuthorized() public {
-        centralRegistry.addAuthorizedAtlasDAppControl(address(1));
-        vm.prank(address(2));
-
-        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManagerIsolated.lockAtlasCollateral();
-    }
-
-    function test_marketManagerUnlockAtlasCollateral_success() public {
-        centralRegistry.addAuthorizedAtlasDAppControl(address(5));
-
-        assertEq(centralRegistry.hasAtlasPermissions(address(5)), true);
-
-        vm.prank(address(5));
-        marketManagerIsolated.unlockAtlasCollateral(address(1));
-
-        vm.prank(address(5));
-        marketManagerIsolated.lockAtlasCollateral();
-    }
 }
