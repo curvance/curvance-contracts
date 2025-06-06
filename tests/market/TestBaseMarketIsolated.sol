@@ -34,7 +34,7 @@ import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol"
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
 
-contract TestBaseMarketIsolated is TestBaseIsolated {
+contract TestBaseMarketIsolated is TestBase {
     struct PerChainData {
         uint256 chainId;
         uint256 blockNumber;

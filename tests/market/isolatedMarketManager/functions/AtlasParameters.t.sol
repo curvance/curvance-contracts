@@ -148,8 +148,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     uint256[] memory amountsToLiquidate = new uint256[](1);
     //     amountsToLiquidate[0] = 250e6;
 
-    //     usdc.approve(address(eUSDCIsolated), 250e6);
-    //     eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     usdc.approve(address(eUSDC), 250e6);
+    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
     //     vm.stopPrank();
 
     //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
@@ -190,8 +190,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     uint256[] memory amountsToLiquidate = new uint256[](1);
     //     amountsToLiquidate[0] = 250e6;
 
-    //     usdc.approve(address(eUSDCIsolated), 250e6);
-    //     eUSDCIsolated.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     usdc.approve(address(eUSDC), 250e6);
+    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
     //     vm.stopPrank();
 
     //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);

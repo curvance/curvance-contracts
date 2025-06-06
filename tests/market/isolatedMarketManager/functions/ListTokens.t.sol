@@ -12,28 +12,28 @@ contract ListTokens is TestBaseMarketManagerIsolated {
     function testListTokens() public {
         // Setup market with tokens
         deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETHIsolated), 42069);
+        balRETH.approve(address(pBALRETH), 42069);
 
         deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDCIsolated), 42069);
+        usdc.approve(address(eUSDC), 42069);
         
         // Check that the tokens are not listed
-        assertFalse(marketManagerIsolated.isListed(address(pBALRETHIsolated)));
-        assertFalse(marketManagerIsolated.isListed(address(eUSDCIsolated)));
+        assertFalse(marketManagerIsolated.isListed(address(pBALRETH)));
+        assertFalse(marketManagerIsolated.isListed(address(eUSDC)));
         
         // Call the function being tested
-        marketManagerIsolated.listTokens(address(pBALRETHIsolated), address(eUSDCIsolated));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         
         // Assert the tokens are now listed
         assertTrue(
-            marketManagerIsolated.isListed(address(pBALRETHIsolated)));
+            marketManagerIsolated.isListed(address(pBALRETH)));
         assertTrue(
-            marketManagerIsolated.isListed(address(eUSDCIsolated)));
+            marketManagerIsolated.isListed(address(eUSDC)));
 
         address [] memory tokens = marketManagerIsolated.queryTokensListed();
         assertEq(tokens.length, 2);
-        assertEq(tokens[0], address(pBALRETHIsolated));
-        assertEq(tokens[1], address(eUSDCIsolated));
+        assertEq(tokens[0], address(pBALRETH));
+        assertEq(tokens[1], address(eUSDC));
 
     }
 }

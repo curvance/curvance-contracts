@@ -189,16 +189,16 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
 
     //     vm.startPrank(user2);
 
-    //     usdc.approve(address(eUSDCIsolated), 10_000e6);
+    //     usdc.approve(address(eUSDC), 10_000e6);
 
     //     // Deposit USDC to get eTokens
 
-    //     eUSDCIsolated.mint(10_000e6);
+    //     eUSDC.mint(10_000e6);
     //     vm.stopPrank();
 
     //     vm.startPrank(user1);
 
-    //     eUSDCIsolated.borrow(1000e6);
+    //     eUSDC.borrow(1000e6);
     //     vm.stopPrank();
         
     //     skip(20 minutes);
