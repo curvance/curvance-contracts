@@ -144,7 +144,7 @@ contract TestVariables {
     mapping(uint256 => BalancerStablePoolAdaptor) public balRETHAdapters;
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
-    mapping(uint256 => MarketManagerIsolated) public marketManagerIsolated;
+    mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
     mapping(uint256 => CurvanceAuxiliaryData) public curvanceAuxiliaryDatas;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
