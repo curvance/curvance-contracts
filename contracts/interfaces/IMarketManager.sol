@@ -4,6 +4,24 @@ pragma solidity ^0.8.26;
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 
 interface IMarketManager {
+    /// TYPES ///
+
+    struct LiqInstructions {
+        address eToken;
+        address pToken;
+        uint256 numAccounts;
+        bool liquidateExact;
+        uint256 eTokenRepaid;
+        uint256 pTokenLiquidated;
+        uint256 badDebt;
+    }
+
+    struct LiqResults {
+        uint256[] liquidatedAmounts;
+        uint256 debtRepaid;
+        uint256 badDebtRealized;
+    }
+
     /// @notice Whether mToken minting is paused.
     /// @dev Token => 0 or 1 = unpaused; 2 = paused.
     function mintPaused(address mToken) external view returns (uint256);
@@ -85,26 +103,13 @@ interface IMarketManager {
     /// @param account The account who will have their loan repaid.
     function canRepay(address mToken, address account) external;
 
-    /// @notice Checks if the liquidation should be allowed to occur,
-    ///         and returns how many position tokens should be seized
-    ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token which was used as collateral and will
-    ///        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on liquidation.
-    /// @return The number of `pToken` tokens to be seized in a liquidation.
+    /// @notice Checks if the liquidation should be allowed to occur
     function canLiquidateWithExecution(
-        address eToken,
-        address pToken,
         address liquidator,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external returns (uint256, uint256);
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory liqInstructions
+    ) external returns (LiqResults memory, uint256[] memory);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
     /// @param pToken Asset which was used as collateral and will be seized.
@@ -133,24 +138,6 @@ interface IMarketManager {
         uint256 amount
     ) external;
 
-    /// @notice Queues a token specific liquidation for `account` liquidating
-    ///         `pToken` by repaying active debt in `eToken`.
-    /// @dev Called by the eToken itself to validate that liquidation is
-    ///      allowed based on `account`'s current liquidity.
-    /// @param eToken The earning token debt position to be from
-    ///               `account`.
-    /// @param pToken The position token to be liquidated from
-    ///               `account`.
-    /// @param liquidator The account to execute the liquidation once queued.
-    /// @param account The account being liquidated and debt repaid on behalf
-    ///                of.
-    function queueLiquidation(
-        address eToken,
-        address pToken,
-        address liquidator,
-        address account
-    ) external;
-
     /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
     /// @dev The caller must be a listed MToken in the `markets` mapping.
     /// @param mToken The address of the eToken that the account is borrowing.
@@ -175,10 +162,21 @@ interface IMarketManager {
         uint256 collReqHard,
         uint256 liqBaseIncentive,
         uint256 liqCurve,
-        uint256 liqFee,
+        uint256 liqMinIncentive,
+        uint256 liqMaxIncentive,
+        uint256 minEffectiveCloseFactor,
+        uint256 maxEffectiveCloseFactor,
         uint256 baseCFactor,
         uint256 cFactorCurve
     );
+
+    /// @notice Amount of pToken that has been posted as collateral,
+    ///         in shares.
+    function collateralPosted(address pToken) external view returns (uint256);
+
+    /// @notice Amount of pToken that can be posted of collateral,
+    ///         in shares.
+    function collateralCaps(address pToken) external view returns (uint256);
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
@@ -205,6 +203,24 @@ interface IMarketManager {
         address account
     ) external view returns (uint256, uint256, uint256);
 
+    /// @notice Determine whether `account` can be liquidated,
+    ///         by calculating their lFactor, based on their
+    ///         collateral versus outstanding debt.
+    /// @param account The account to check liquidation status for.
+    /// @param eToken The eToken to be repaid during potential liquidation.
+    /// @param pToken The pToken to be seized during potential
+    ///                        liquidation.
+    /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
+    ///                 indicates a soft liquidation, with a value of
+    ///                 1e18 (WAD) indicating a hard liquidation.
+    /// @return earnTokenPrice Current price for `earnToken`.
+    /// @return positionTokenPrice Current price for `positionToken`.
+    function liquidationStatusOf(
+        address account,
+        address eToken,
+        address pToken
+    ) external view returns (uint256, uint256, uint256);
+
     /// @notice Returns whether `positionContract` is an approved position
     ///         management operator or not.
     /// @param positionContract Address to check for position management
@@ -212,19 +228,6 @@ interface IMarketManager {
     function positionManagement(
         address positionContract
     ) external view returns (bool);
-
-    /// @notice Updates status of unique liquidation sequencing to
-    ///         `sequencingActive`.
-    function setSequencingStatus(bool sequencingActive) external;
-
-    /// @notice Updates regular duration. 
-    function setRegularDuration(uint256 _duration) external;
-
-    /// @notice Updates priority duration. 
-    function setPriorityDuration(uint256 _duration) external;
-
-    /// @notice Updates end duration. 
-    function setEndDuration(uint256 _duration) external;
 
     /// @notice Locks Atlas OEV liquidations
     /// @dev This function must be called by an authorized Atlas DApp Control

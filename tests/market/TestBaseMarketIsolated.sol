@@ -14,6 +14,7 @@ import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { VotingHub } from "contracts/architecture/VotingHub.sol";
 import { GaugeManager } from "contracts/architecture/GaugeManager.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { AuraPToken } from "contracts/market/token/AuraPToken.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { PendleZapper } from "contracts/plugins/market/PendleZapper.sol";
@@ -61,6 +62,7 @@ contract TestBaseMarketIsolated is TestBaseIsolated {
         _deployEUSDC();
         _deployEDAI();
 
+        _deployPUSDC();
         _deployPBALRETH();
         _deployPBALRETHWithExitFee();
 
@@ -445,6 +447,18 @@ contract TestBaseMarketIsolated is TestBaseIsolated {
         return eToken;
     }
 
+    function _deployPUSDC()
+        internal
+        initMainVariables
+        returns (SimplePToken) {
+        pUSDC = new SimplePToken(
+            ICentralRegistry(address(centralRegistry)),
+            usdc,
+            address(marketManager)
+        );
+        return pUSDC;
+    }
+
     function _deployPBALRETH()
         internal
         initMainVariables
@@ -604,6 +618,7 @@ contract TestBaseMarketIsolated is TestBaseIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%

@@ -44,7 +44,7 @@ contract UniversalBalanceTransferForTest is TestBaseUniversalBalance {
         public
     {
         vm.prank(user1);
-        centralRegistry.setTransferLockStatus(true);
+        centralRegistry.setTransferableStatus(true);
 
         vm.prank(user2);
 

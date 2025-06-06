@@ -358,9 +358,9 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates the current borrow rate per compound,
     ///         and updates the vertex multiplier if necessary.
     /// @param underlyingHeld The amount of underlying assets held in the
-    ///                       market.
-    /// @param borrows The amount of borrows in the market.
-    /// @param reserves The amount of reserves in the market.
+    ///                       market token.
+    /// @param borrows The amount of outstanding borrows in the market token.
+    /// @param reserves The amount of held reserves in the market token.
     /// @return borrowRate The borrow rate percentage per compound, in `WAD`.
     function getBorrowRateWithUpdate(
         uint256 underlyingHeld,
@@ -521,9 +521,9 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Calculates the current borrow rate per compound,
     ///         with updated vertex multiplier applied.
     /// @param underlyingHeld The amount of underlying assets held in the
-    ///                       market.
-    /// @param borrows The amount of borrows in the market.
-    /// @param reserves The amount of reserves in the market.
+    ///                       market token.
+    /// @param borrows The amount of outstanding borrows in the market token.
+    /// @param reserves The amount of held reserves in the market token.
     /// @return The borrow rate percentage per compound, in `WAD`.
     function getPredictedBorrowRate(
         uint256 underlyingHeld,
@@ -554,11 +554,13 @@ contract DynamicInterestRateModel is ERC165 {
     }
 
     /// @notice Calculates the current borrow rate, per compound.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
     /// @param underlyingHeld The amount of underlying assets held in the
-    ///                       market.
-    /// @param borrows The amount of borrows in the market.
-    /// @param reserves The amount of reserves in the market.
-    /// @return The borrow rate percentage, per compound, in `WAD`.
+    ///                       market token.
+    /// @param borrows The amount of outstanding borrows in the market token.
+    /// @param reserves The amount of held reserves in the market token.
+    /// @return The borrow interest rate percentage, per compound, in `WAD`.
     function getBorrowRate(
         uint256 underlyingHeld,
         uint256 borrows,
@@ -582,13 +584,15 @@ contract DynamicInterestRateModel is ERC165 {
     }
 
     /// @notice Calculates the current supply rate, per compound.
+    /// @dev This function's intention is for frontend data querying and
+    ///     should not be used for onchain execution.
     /// @param underlyingHeld The amount of underlying assets held in the
-    ///                       market.
-    /// @param borrows The amount of borrows in the market.
-    /// @param reserves The amount of reserves in the market.
-    /// @param interestFee The current interest rate reserve factor
-    ///                    for the market.
-    /// @return The supply rate percentage, per compound, in `WAD`.
+    ///                       market token.
+    /// @param borrows The amount of outstanding borrows in the market token.
+    /// @param reserves The amount of held reserves in the market token.
+    /// @param interestFee The current interest rate protocol fee
+    ///                    for the market token.
+    /// @return The supply interest rate percentage, per compound, in `WAD`.
     function getSupplyRate(
         uint256 underlyingHeld,
         uint256 borrows,
@@ -656,7 +660,8 @@ contract DynamicInterestRateModel is ERC165 {
     ) internal view returns (uint256) {
         // We divide by WAD to maintain precision.
         return
-            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) / WAD;
+            (util * ratesConfig.vertexInterestRate * vertexMultiplier()) /
+            WAD_SQUARED;
     }
 
     /// @notice Updates the parameters of the dynamic interest rate model
@@ -715,14 +720,14 @@ contract DynamicInterestRateModel is ERC165 {
             revert DynamicInterestRateModel__InvalidAdjustmentRate();
         }
 
-        // Validate Decay rate is below the maximum allowed (5%).
+        // Validate Decay rate is below the maximum bound.
         if (decayRate > MAX_VERTEX_DECAY_RATE) {
             revert DynamicInterestRateModel__InvalidDecayRate();
         }
 
         // Our theoretical limit for the vertex multiplier is:
         // (2^256 - 1) / 3e36 = 3.8597e40.
-        // Where 3e36 is the theoretical maximum value of cFactor and
+        // Where 3e36 is the theoretical maximum value of shift and
         // 2^256 - 1 is type(uint256).max.
         // As a result, we cap the vertex maximum before this number to
         // prevent any overflows on values.
@@ -736,7 +741,7 @@ contract DynamicInterestRateModel is ERC165 {
             (INTEREST_COMPOUND_RATE * baseRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * vertexUtilStart);
         config.vertexInterestRate =
-            (INTEREST_COMPOUND_RATE * vertexRatePerYear) /
+            (INTEREST_COMPOUND_RATE * vertexRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * (WAD - vertexUtilStart));
 
         config.vertexStartingPoint = vertexUtilStart;
@@ -821,7 +826,7 @@ contract DynamicInterestRateModel is ERC165 {
         // Apply a positive multiplier to the current multiplier based on
         // `util` vs `increaseThreshold` and `increaseThresholdMax`.
         // Then apply decay effect.
-        newMultiplier = _getPositiveCFactorResult(
+        newMultiplier = _getPositiveShift(
             currentMultiplier, // `multiplier`.
             config.adjustmentVelocity, // `adjustmentVelocity`.
             decay, // `decay`.
@@ -874,8 +879,8 @@ contract DynamicInterestRateModel is ERC165 {
         uint256 newMultiplier;
 
         if (util <= config.decreaseThresholdMax) {
-            // Apply maximum adjustVelocity reduction (cFactor = 1).
-            // We only need to adjust for 1e18 precision since `cFactor`
+            // Apply maximum adjustVelocity reduction (shift = 1).
+            // We only need to adjust for 1e18 precision since `shift`
             // is not used here.
             // currentMultiplier / (1 + adjustmentVelocity) = newMultiplier.
             newMultiplier =
@@ -890,7 +895,7 @@ contract DynamicInterestRateModel is ERC165 {
         // Apply a negative multiplier to the current multiplier based on
         // `util` vs `decreaseThreshold` and `decreaseThresholdMax`.
         // Then apply decay effect.
-        newMultiplier = _getNegativeCFactorResult(
+        newMultiplier = _getNegativeShift(
             currentMultiplier, // `multiplier`.
             config.adjustmentVelocity, // `adjustmentVelocity`.
             decay, // `decay`.
@@ -904,14 +909,14 @@ contract DynamicInterestRateModel is ERC165 {
         return newMultiplier < WAD ? WAD : newMultiplier;
     }
 
-    /// @notice Calculates a positive curve value based on `current`,
+    /// @notice Calculates positive shift value based on `current`,
     ///         `start`, and `end` values. Then applies the linear curve
     ///         effect to the adjustment velocity, then applies the
     ///         adjustment velocity and decay effect to `multiplier`.
-    /// @dev The cFactor is scaled by current, start, and end values and
+    /// @dev The shift is scaled by current, start, and end values and
     ///      multiplied by `WAD` to maintain precision. This results in 1,
     ///      (in `WAD`) if the current value is greater than or equal to
-    ///      `end`. The terminal cFactor is then applied to the
+    ///      `end`. The terminal shift is then applied to the
     ///      adjustmentVelocity in determining the growth of `multiplier` for
     ///      this cycle, then the decay rate is applied.
     /// @param multiplier The current vertex multiplier value, in `WAD`.
@@ -925,9 +930,9 @@ contract DynamicInterestRateModel is ERC165 {
     ///              the calculation range.
     /// @param end The end value of the curve, marking the end of the
     ///            calculation range.
-    /// @return The new multiplier with the calculated positive curve value
-    ///         (cFactor), and decay rate applied.
-    function _getPositiveCFactorResult(
+    /// @return The new multiplier with the calculated shift value,
+    ///         and decay rate applied.
+    function _getPositiveShift(
         uint256 multiplier,
         uint256 adjustmentVelocity,
         uint256 decay,
@@ -937,27 +942,27 @@ contract DynamicInterestRateModel is ERC165 {
     ) internal pure returns (uint256) {
         // We do not need to check for current >= end, since we know util is
         // the absolute maximum utilization is 100%, and thus current == end.
-        // Which will result in WAD result for `cFactor`.
+        // Which will result in WAD result for `shift`.
         // Thus, this will be bound between [0, WAD].
-        uint256 cFactor = ((current - start) * WAD) / (end - start);
+        uint256 shift = ((current - start) * WAD) / (end - start);
 
-        // Apply cFactor curve result to adjustment velocity.
+        // Apply shift result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
-        cFactor = WAD_SQUARED + (cFactor * adjustmentVelocity);
+        shift = WAD_SQUARED + (shift * adjustmentVelocity);
 
-        // Apply positive `cFactor` effect to `currentMultiplier`, and
+        // Apply positive `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        return ((multiplier * cFactor) / WAD_SQUARED) - decay;
+        return ((multiplier * shift) / WAD_SQUARED) - decay;
     }
 
-    /// @notice Calculates a negative curve value based on `current`,
+    /// @notice Calculates negative shift value based on `current`,
     ///         `start`, and `end` values. Then applies the linear curve
     ///         effect to the adjustment velocity, then applies the
     ///         adjustment velocity and decay effect to `multiplier`.
-    /// @dev The cFactor is scaled by current, start, and end values and
+    /// @dev The shift is scaled by current, start, and end values and
     ///      multiplied by `WAD` to maintain precision. This results in 1,
     ///      (in `WAD`) if the current value is less than or equal to
-    ///      `end`. The terminal cFactor is then applied to the
+    ///      `end`. The terminal shift is then applied to the
     ///      adjustmentVelocity in determining the reduction of `multiplier`
     ///      for this cycle, then the decay rate is applied.
     /// @param multiplier The current vertex multiplier value, in `WAD`.
@@ -971,9 +976,9 @@ contract DynamicInterestRateModel is ERC165 {
     ///              the calculation range.
     /// @param end The end value of the curve, marking the end of the
     ///            calculation range.
-    /// @return The new multiplier with the calculated negative curve value
-    ///         (cFactor), and decay rate applied.
-    function _getNegativeCFactorResult(
+    /// @return The new multiplier with the calculated shift value,
+    ///         and decay rate applied.
+    function _getNegativeShift(
         uint256 multiplier,
         uint256 adjustmentVelocity,
         uint256 decay,
@@ -984,15 +989,15 @@ contract DynamicInterestRateModel is ERC165 {
         // Calculate linear curve multiplier. We know that current > end,
         // based on pre conditional checks.
         // Thus, this will be bound between [0, WAD].
-        uint256 cFactor = ((start - current) * WAD) / (start - end);
+        uint256 shift = ((start - current) * WAD) / (start - end);
 
-        // Apply cFactor curve result to adjustment velocity.
+        // Apply shift result to adjustment velocity.
         // Then add 100% on top for final adjustment value to `multiplier`.
-        cFactor = WAD_SQUARED + (cFactor * adjustmentVelocity);
+        shift = WAD_SQUARED + (shift * adjustmentVelocity);
 
-        // Apply negative `cFactor` effect to `currentMultiplier`, and
+        // Apply negative `shift` effect to `currentMultiplier`, and
         // adjust for 1e36 precision. Then apply decay effect.
-        return ((multiplier * WAD_SQUARED) / cFactor) - decay;
+        return ((multiplier * WAD_SQUARED) / shift) - decay;
     }
 
     /// @notice Packs `newVertexMultiplier` together with `newTimestamp`,

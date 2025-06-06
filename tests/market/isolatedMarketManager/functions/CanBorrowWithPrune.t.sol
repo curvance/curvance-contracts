@@ -6,7 +6,7 @@ import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
 import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
-contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
+contract CanBorrowWithPruneTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
         super.setUp();
 
@@ -103,6 +103,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -157,6 +158,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -186,7 +188,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , , , , ) = marketManager
+        (, uint256 collRatio, , , , , , , , , , ) = marketManager
             .tokenData(address(pBALRETH));
             
         uint256 assetValue = (price *
@@ -259,6 +261,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
             1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
             500,     // liqIncMin 5%
             2000,    // liqIncMax 20%
             2000,    // minEffectiveCFactor 20%
@@ -314,15 +317,15 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     //         block.timestamp
     //     );
 
-    //     IMToken[] memory mTokens = new IMToken[](1);
+    //     address[] memory mTokens = new address[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = IMToken(address(pBALRETH));
+    //     mTokens[0] = address(pBALRETH);
     //     borrowCaps[0] = 100e6 - 1;
 
-    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
     //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
+    //     vm.expectRevert();
     //     vm.prank(address(pBALRETH));
     //     marketManager.canBorrowWithPrune(address(pBALRETH), user1, 100e6);
     // }
@@ -341,12 +344,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     //         block.timestamp
     //     );
 
-    //     IMToken[] memory mTokens = new IMToken[](1);
+    //     address[] memory mTokens = new address[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = IMToken(address(pBALRETH));
+    //     mTokens[0] = address(pBALRETH);
     //     borrowCaps[0] = 100e6;
 
-    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
     //     marketManager.setPTokenCollateralCaps(mTokens, borrowCaps);
 
     //     vm.prank(address(pBALRETH));

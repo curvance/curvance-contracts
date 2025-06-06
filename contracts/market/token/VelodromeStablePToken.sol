@@ -159,42 +159,38 @@ contract VelodromeStablePToken is CompoundingPToken {
 
             // Claim pending Velodrome rewards.
             sd.gauge.getReward(address(this));
+            (
+                SwapperLib.Swap memory swapData,
+                uint256 lpMinOutAmount
+            ) = abi.decode(data, (SwapperLib.Swap, uint256));
 
-            {
-                uint256 rewardAmount = IERC20(rewardToken).balanceOf(
-                    address(this)
+            uint256 rewardAmount = IERC20(rewardToken).balanceOf(
+                address(this)
+            );
+            // If there are no pending rewards, skip swapping logic.
+            if (rewardAmount > 0) {
+                // Take protocol fee for token lockers and strategy bot.
+                rewardAmount = _applyFee(
+                    rewardAmount,
+                    rewardToken,
+                    centralRegistry.protocolHarvestFee(),
+                    centralRegistry.feeManager()
                 );
-                // If there are no pending rewards, skip swapping logic.
-                if (rewardAmount > 0) {
-                    // Take protocol fee for token lockers and strategy bot.
-                    rewardAmount = _applyFee(
-                        rewardAmount,
-                        rewardToken,
-                        centralRegistry.protocolHarvestFee(),
-                        centralRegistry.feeManager()
-                    );
 
-                    // Swap from VELO to underlying tokens, if necessary.
-                    if (!rewardTokenIsUnderlying) {
-                        SwapperLib.Swap memory swapData = abi.decode(
-                            data,
-                            (SwapperLib.Swap)
-                        );
-
-                        if (
-                            !isApprovedAsset[swapData.inputToken] ||
-                            swapData.outputToken != sd.token0
-                        ) {
-                            // This also implicitly checks:
-                            // `swapData.inputToken != rewardToken`.
-                            revert CompoundingPToken__UnapprovedAssetSwap();
-                        }
-
-                        SwapperLib.swapSafe(centralRegistry, swapData);
+                // Swap from VELO to underlying tokens, if necessary.
+                if (!rewardTokenIsUnderlying) {
+                    if (
+                        !isApprovedAsset[swapData.inputToken] ||
+                        swapData.outputToken != sd.token0
+                    ) {
+                        // This also implicitly checks:
+                        // `swapData.inputToken != rewardToken`.
+                        revert CompoundingPToken__UnapprovedAssetSwap();
                     }
+
+                    SwapperLib.swapSafe(centralRegistry, swapData);
                 }
             }
-
             uint256 totalAmountA = IERC20(sd.token0).balanceOf(address(this));
 
             // Make sure swap was routed into token0, or that token0 is VELO.
@@ -207,8 +203,7 @@ contract VelodromeStablePToken is CompoundingPToken {
             // Pull reserve data so we can swap half of token0 into token1
             // optimally.
             (uint256 r0, uint256 r1, ) = IVeloPair(_asset).getReserves();
-            (uint256 reserveA, uint256 reserveB) = sd.token0 ==
-                IVeloPair(_asset).token0()
+            (r0, r1) = sd.token0 == IVeloPair(_asset).token0()
                 ? (r0, r1)
                 : (r1, r0);
             // Feed library pair factory, lpToken, and stable = true,
@@ -217,14 +212,14 @@ contract VelodromeStablePToken is CompoundingPToken {
                 address(sd.pairFactory),
                 _asset,
                 totalAmountA,
-                reserveA,
-                reserveB,
+                r0,
+                r1,
                 sd.decimalsA,
                 sd.decimalsB,
                 true
             );
             // Feed calculated data, and stable = true.
-            VelodromeLib._swapExactTokensForTokens(
+            uint256 totalAmountB = VelodromeLib._swapExactTokensForTokens(
                 address(sd.router),
                 _asset,
                 sd.token0,
@@ -241,9 +236,13 @@ contract VelodromeStablePToken is CompoundingPToken {
                 sd.token1,
                 true,
                 totalAmountA,
-                IERC20(sd.token1).balanceOf(address(this)), // totalAmountB
+                totalAmountB,
                 VelodromeLib.VELODROME_ADD_LIQUIDITY_SLIPPAGE
             );
+
+            if (yield < lpMinOutAmount) {
+                revert VelodromeStablePToken__SlippageError();
+            }
 
             // Deposit new assets into Velodrome gauge to continue
             // yield farming.

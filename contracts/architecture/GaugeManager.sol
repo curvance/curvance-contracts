@@ -335,9 +335,9 @@ contract GaugeManager is
     ///      we simply record deposits/withdraws as virtual balances here.
     /// @param token Protocol supported mToken address to withdraw for
     ///              `user`.
-    /// @param user User address to withdraw `amount` of `token` for, on
+    /// @param user Address to withdraw `amount` of `token` for, on
     ///             liquidation.
-    /// @param liquidator User address to deposit `amount` of `token` for, on
+    /// @param liquidator Address to deposit `amount` of `token` for, on
     ///                   liquidation.
     /// @param amount The amount of `token` to move from `user` and
     ///               `liquidator` on liquidation.

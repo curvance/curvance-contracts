@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, IMToken, IEToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -10,13 +10,11 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IMToken } from "contracts/interfaces/IMToken.sol";
-import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
-import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+
 /// @title Curvance DAO Market Manager.
 /// @notice Manages risk within the Curvance DAO markets.
 /// @dev Curvance Market Managers are built as "thesis driven" micro
@@ -75,21 +73,10 @@ import { IPToken } from "contracts/interfaces/IPToken.sol";
 ///      collateral shortfall.
 ///
 contract MarketManagerIsolated is
-    LiquidityManager,
+    LiquidityManagerIsolated,
     ERC165,
     Multicall
 {
-    /// ATLAS RELATED CONSTANTS ///
-
-    /// @dev A fixed key to use in transient storage for the dynamic penalty.
-    bytes32 constant TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
-    /// @dev A fixed key to use in transient storage for dynamic close factor
-    bytes32 internal constant TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
-    /// @dev A fixed key to use in transient storage for enforcing a single collateral which can be liquidated during Atlas tx
-    bytes32 internal constant TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
-    /// @dev buffer to ensure Atlas can do interest triggered liquidations
-    uint256 public constant ATLAS_BUFFER = 1000;
-
     /// CONSTANTS ///
 
     /// @notice Maximum collateral requirement to avoid liquidation.
@@ -98,14 +85,19 @@ contract MarketManagerIsolated is
     uint256 public constant MAX_COLLATERAL_REQUIREMENT = 2.34e18;
     /// @notice Minimum excess collateral requirement
     ///         on top of liquidation incentive.
-    /// @dev .015e18 = 1.5%.
-    uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .015e18;
+    /// @dev .01e18 = 1.0%.
+    uint256 public constant MIN_EXCESS_COLLATERAL_REQUIREMENT = .01e18;
     /// @notice Maximum collateralization ratio.
-    /// @dev .91e18 = 91%.
-    uint256 public constant MAX_COLLATERALIZATION_RATIO = .91e18;
+    /// @dev .975e18 = 97.5%.
+    uint256 public constant MAX_COLLATERALIZATION_RATIO = .975e18;
     /// @notice The maximum liquidation incentive.
     /// @dev .3e18 = 30%.
     uint256 public constant MAX_LIQUIDATION_INCENTIVE = .3e18;
+    /// @notice Buffer to ensure Orderflow auction can do
+    ///      interest-triggered liquidations.
+    /// @dev 0.999e18 = 99.9%. multiplied then divided
+    ///      by WAD = 10 bps buffer.
+    uint256 public constant AUCTION_BUFFER = 0.999e18;
     /// @notice The maximum base cFactor.
     /// @dev .5e18 = 50%.
     uint256 public constant MAX_BASE_CFACTOR = .5e18;
@@ -126,11 +118,15 @@ contract MarketManagerIsolated is
     uint256 internal constant _PAUSED_SELECTOR = 0xf47323f4;
     /// @dev `bytes4(keccak256(bytes("MarketManager__InvariantError()")))`
     uint256 internal constant _INVARIANT_ERROR_SELECTOR = 0x5518d5cb;
-
-    /// ATLAS RELATED ERRORS ///
-
     /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
     uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
+    /// @dev A fixed key to use in transient storage for the dynamic penalty.
+    bytes32 internal constant _TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    /// @dev A fixed key to use in transient storage for dynamic close factor.
+    bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
+    /// @dev A fixed key to use in transient storage for enforcing a single
+    ///      collateral which can be liquidated during Atlas tx.
+    bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
 
     /// STORAGE ///
 
@@ -170,10 +166,11 @@ contract MarketManagerIsolated is
 
     /// @notice Amount of pToken that has been posted as collateral,
     ///         in shares.
-    /// @dev Token => Collateral Posted.
+    /// @dev Token => User Collateral Posted, in shares.
     mapping(address => uint256) public collateralPosted;
-    /// @notice Amount of pToken that can be posted of collateral, in shares.
-    /// @dev Token => Collateral Cap, in shares.
+    /// @notice Amount of pToken that can be posted of collateral,
+    ///         in shares.
+    /// @dev Token => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
     /// EVENTS ///
@@ -192,6 +189,7 @@ contract MarketManagerIsolated is
         uint256 collReqSoft,
         uint256 collReqHard,
         uint256 liqIncBase,
+        uint256 liqIncHard,
         uint256 liqIncMin,
         uint256 liqIncMax,
         uint256 minEffectiveCFactor,
@@ -222,7 +220,7 @@ contract MarketManagerIsolated is
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) LiquidityManager(centralRegistry_) {}
+    ) LiquidityManagerIsolated(centralRegistry_) {}
 
     /// EXTERNAL FUNCTIONS ///
 
@@ -284,35 +282,25 @@ contract MarketManagerIsolated is
     /// @notice Determine `account`'s current collateral and debt values
     ///         in the market.
     /// @param account The account to check bad debt status for.
-    /// @return accountCollateral The total market value of `account`'s
-    ///                           collateral.
-    /// @return accountCollateralSoft The total market value of `account`'s
-    ///                               collateral offset by soft liquidation
-    ///                               requirements.
-    /// @return accountCollateralHard The total market value of `account`'s
-    ///                               collateral offset by hard liquidation
-    ///                               requirements.
-    /// @return accountDebt The total outstanding debt value of `account`.
+    /// @return The total market value of `account`'s collateral offset
+    /// by soft liquidation requirements.
+    /// @return The total market value of `account`'s collateral offset
+    /// by hard liquidation requirements.
+    /// @return The total outstanding debt value of `account`.
     function liquidationValuesOf(
         address account
     )
         external
         view
-        returns (
-            uint256 accountCollateral,
-            uint256 accountCollateralSoft,
-            uint256 accountCollateralHard,
-            uint256 accountDebt
-        )
-    {
+        returns (uint256, uint256, uint256) {
         (
-            accountCollateral,
-            accountCollateralSoft,
-            accountCollateralHard,
-            accountDebt,
-            ,
-
+            AccountLiqData memory accountData,,,
         ) = _liquidationValuesOf(account, address(0), address(0));
+        return (
+            accountData.accountCollateralSoft,
+            accountData.accountCollateralHard,
+            accountData.accountDebt
+        );
     }
 
     /// @notice Determine whether `account` can be liquidated,
@@ -340,15 +328,10 @@ contract MarketManagerIsolated is
             uint256 positionTokenPrice
         )
     {
-        LiqData memory result = _liquidationStatusOf(
+        (, lfactor, earnTokenPrice, positionTokenPrice) = _liquidationValuesOf(
             account,
             eToken,
             pToken
-        );
-        return (
-            result.lFactor,
-            result.earnTokenPrice,
-            result.positionTokenPrice
         );
     }
 
@@ -447,7 +430,8 @@ contract MarketManagerIsolated is
 
         // We can check this instead of .isListed because any unlisted token
         // will always have activePosition == 0,
-        // and this lets us check for any invariant errors.
+        // and this lets us check for any invariant errors across both listing
+        // and positions simultaneously.
         if (accountPositions.activePosition != 2) {
             _revert(_INVARIANT_ERROR_SELECTOR);
         }
@@ -585,81 +569,171 @@ contract MarketManagerIsolated is
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token collateralized by `account` and will
-    ///               be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param debtAmounts The amounts of underlying asset the liquidator
+    ///                    wishes to repay, empty if desired to max liquidate.
+    /// @param instructions A LiqInstructions struct containing:
+    ///               eToken Debt token to repay which is borrowed by
+    ///                      `account`.
+    ///               pToken Position token which was used as collateral
+    ///                      and will be seized.
+    ///               numAccounts The number of accounts to be potentially
+    ///                           liquidated.
+    ///               liquidateExact Whether the liquidator desires a
+    ///                              specific liquidation amount.
     function canLiquidate(
-        address eToken,
-        address pToken,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external view returns (uint256, uint256) {
-        return _canLiquidate(eToken, pToken, account, amount, liquidateExact);
+        address liquidator,
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory instructions
+    ) external view returns (
+        IMarketManager.LiqResults memory results,
+        uint256[] memory
+    ) {
+        (
+            CachedLiqData memory cachedData,
+            AuctionLiqData memory auctionData,
+            MarketToken storage pTokenData  
+        ) =_getLiquidationConfig(instructions.eToken, instructions.pToken);
+
+        uint256 numAccounts = accounts.length;
+        address cachedAccount;
+        // Amounts array is empty since the max amount possible
+        // will be liquidated.
+        results.liquidatedAmounts = new uint256[](numAccounts);
+        for (uint256 i; i < numAccounts; ++i) {
+            cachedAccount = accounts[i];
+            if (liquidator == cachedAccount) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            (
+                instructions.eTokenRepaid,
+                instructions.pTokenLiquidated,
+                instructions.badDebt
+                ) = _canLiquidate(
+                cachedAccount,
+                debtAmounts[i],
+                cachedData,
+                auctionData,
+                pTokenData,
+                instructions.liquidateExact
+            );
+
+            // If the user is being liquidated update relevant values.
+            if (instructions.pTokenLiquidated > 0) {
+                results.debtRepaid += instructions.eTokenRepaid;
+                results.liquidatedAmounts[i] = instructions.pTokenLiquidated;
+
+                if (instructions.badDebt > 0) {
+                    results.badDebtRealized += instructions.badDebt;
+                    // Add the bad debt to debt to remove from the liquidated
+                    // account.
+                    instructions.eTokenRepaid += instructions.badDebt;
+                }
+
+                // If its an exact liquidation this will be a redundant setter
+                // but anticipation is majority of liquidators will use non-exact
+                // so checking for liquidateExact each time is a waste.
+                debtAmounts[i] = instructions.eTokenRepaid;
+            }
+        }
+
+        // If theres no debt to repay then there were no liquidations.
+        if (results.debtRepaid == 0) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        return (results, debtAmounts);
     }
 
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
-    /// @param eToken Debt token to repay which is borrowed by `account`.
-    /// @param pToken Position token which was used as collateral and will
-    ///        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param amount The amount of `earnToken` underlying being repaid.
-    /// @param liquidateExact Whether the liquidator desires a specific
-    ///                       liquidation amount.
-    /// @return The amount of `earnToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `positionToken` tokens to be seized in a
-    ///         liquidation.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param debtAmounts The amounts of underlying asset the liquidator
+    ///                    wishes to repay, empty if desired to max liquidate.
+    /// @param instructions A LiqInstructions struct containing:
+    ///               eToken Debt token to repay which is borrowed by
+    ///                      `account`.
+    ///               pToken Position token which was used as collateral
+    ///                      and will be seized.
+    ///               numAccounts The number of accounts to be potentially
+    ///                           liquidated.
+    ///               liquidateExact Whether the liquidator desires a
+    ///                              specific liquidation amount.
     function canLiquidateWithExecution(
-        address eToken,
-        address pToken,
         address liquidator,
-        address account,
-        uint256 amount,
-        bool liquidateExact
-    ) external returns (uint256, uint256) {
-        _checkIsToken(eToken);
-
-        (uint256 eTokenRepaid, uint256 pTokenLiquidated) = _canLiquidate(
-            eToken,
-            pToken,
-            account,
-            amount,
-            liquidateExact
-        );
-
-        // We can pass balance = 0 here since we are forcing collateral closure
-        // and balance will never be lower than collateral posted.
+        address[] calldata accounts,
+        uint256[] memory debtAmounts,
+        IMarketManager.LiqInstructions memory instructions
+    ) external returns (
+        IMarketManager.LiqResults memory results,
+        uint256[] memory
+    ) {
+        _checkIsToken(instructions.eToken);
         (
-            uint256 collateralToRemove,
-            AccountPosition storage accountPositions
-        ) = _checkCollateralToRemove(
-                account,
-                pToken,
-                0,
-                pTokenLiquidated,
-                true
+            CachedLiqData memory cachedData,
+            AuctionLiqData memory auctionData,
+            MarketToken storage pTokenData  
+        ) =_getLiquidationConfig(instructions.eToken, instructions.pToken);
+
+        address cachedAccount;
+        // Amounts array is empty since the max amount possible
+        // will be liquidated.
+        results.liquidatedAmounts = new uint256[](instructions.numAccounts);
+        for (uint256 i; i < instructions.numAccounts; ++i) {
+            cachedAccount = accounts[i];
+            if (liquidator == cachedAccount) {
+                _revert(_UNAUTHORIZED_SELECTOR);
+            }
+
+            (
+                instructions.eTokenRepaid,
+                instructions.pTokenLiquidated,
+                instructions.badDebt
+                ) = _canLiquidate(
+                cachedAccount,
+                debtAmounts[i],
+                cachedData,
+                auctionData,
+                pTokenData,
+                instructions.liquidateExact
             );
-        if (collateralToRemove > 0) {
-            _removeCollateral(
-                account,
-                accountPositions,
-                pToken,
-                collateralToRemove
-            );
+
+            // If the user is being liquidated update relevant values.
+            if (instructions.pTokenLiquidated > 0) {
+                results.debtRepaid += instructions.eTokenRepaid;
+                results.liquidatedAmounts[i] = instructions.pTokenLiquidated;
+
+                if (instructions.badDebt > 0) {
+                    results.badDebtRealized += instructions.badDebt;
+                    // Add the bad debt to debt to remove from the liquidated
+                    // account.
+                    instructions.eTokenRepaid += instructions.badDebt;
+                }
+
+                // If its an exact liquidation this will be a redundant setter
+                // but anticipation is majority of liquidators will use
+                // non-exact so checking for liquidateExact each time is a
+                // waste.
+                debtAmounts[i] = instructions.eTokenRepaid;
+
+                _removeCollateral(
+                    cachedAccount,
+                    pTokenData.accountPositions[cachedAccount],
+                    instructions.pToken,
+                    instructions.pTokenLiquidated
+                );
+            }
         }
 
-        return (eTokenRepaid, pTokenLiquidated);
+        // If theres no debt to repay then there were no liquidations.
+        if (results.debtRepaid == 0) {
+            revert MarketManager__NoLiquidationAvailable();
+        }
+
+        return (results, debtAmounts);
     }
 
     /// @notice Checks if the seizing of `collateral` by repayment of
@@ -731,130 +805,6 @@ contract MarketManagerIsolated is
         );
     }
 
-    /// @notice Liquidates an entire account by partially paying down debts,
-    ///         distributing all `account` collateral and recognize remaining
-    ///         debt as bad debt.
-    /// @dev Updates `account` EToken interest before solvency is checked.
-    ///      Extensive run invariant checks are made to prevent potential
-    ///      asset callback exploits.
-    ///      Emits a {CollateralRemoved} event.
-    /// @param account The address to liquidate completely.
-    function liquidateAccount(address account) external {
-        if (liquidationPaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _getUpdatedLiquidationStatusOf(account);
-
-        uint256 repayRatio = (data.debtToPay * WAD) / data.debt;
-        uint256 debt;
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Repay `account`'s debt and recognize bad debt.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (!mToken.isPToken()) {
-                debt = IEToken(address(mToken)).debtBalanceCached(account);
-
-                // If the debt balance now does not match initial
-                // debt balance, there has been an attempt at
-                // invariant manipulation, revert.
-                if (debt != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this eToken actually has outstanding debt.
-                if (debt > 0) {
-                    // Repay `account`'s debt where:
-                    // debtToPay = totalCollateral / (1 - liquidationPenalty).
-                    // badDebt = totalDebt - debtToPay.
-                    // Thus:
-                    // totalDebt = debtToPay + badDebt.
-                    // Where debtToPay is what caller repays to receive collateral,
-                    // badDebt is loss to lenders by offsetting
-                    // totalBorrows (total estimated outstanding debt).
-                    IEToken(address(mToken)).repayWithBadDebt(
-                        msg.sender,
-                        account,
-                        repayRatio
-                    );
-                }
-            }
-        }
-
-        uint256 collateral;
-
-        // Seize `account`'s collateral and remove posted collateral.
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            // Cache `account` mToken.
-            mToken = accountAssetsPrior[i];
-            if (mToken.isPToken()) {
-                AccountPosition storage collateralData = tokenData[
-                    address(mToken)
-                ].accountPositions[account];
-                // Cache `account` collateral posted.
-                collateral = collateralData.collateralPosted;
-
-                // If the collateral posted now does not match initial
-                // collateral posted, there has been an attempt at
-                // invariant manipulation, revert.
-                if (collateral != assetBalances[i]) {
-                    _revert(_INVARIANT_ERROR_SELECTOR);
-                }
-
-                // Make sure this pToken is actually being used as collateral.
-                // Without this check a user would be immune to bad debt
-                // liquidation.
-                if (collateral > 0) {
-                    // Remove `account` posted collateral,
-                    // as their account is completely closed out.
-                    delete collateralData.collateralPosted;
-
-                    // Update collateralPosted invariant.
-                    collateralPosted[address(mToken)] =
-                        collateralPosted[address(mToken)] -
-                        collateral;
-                    emit CollateralAdjusted(
-                        account,
-                        address(mToken),
-                        collateral,
-                        false
-                    );
-                    // Seize `account`'s collateral and give to caller.
-                    IPToken(address(mToken)).seizeAccountLiquidation(
-                        msg.sender,
-                        account,
-                        collateral
-                    );
-                }
-            }
-        }
-
-        IMToken[] memory accountAssetsPost = accountAssets[account].assets;
-        uint256 numAssetsPost = accountAssetsPost.length;
-
-        // If a user somehow manipulated their assets via ERC777 or some
-        // other callbacks we can validate that no changes occurred to
-        // user assets, as we've already validated collateral posted/debt
-        // balances above.
-        if (numAssetsPost != numAssetsPrior) {
-            _revert(_INVARIANT_ERROR_SELECTOR);
-        }
-
-        for (uint256 i = 0; i < numAssetsPrior; ++i) {
-            if (accountAssetsPost[i] != accountAssetsPrior[i]) {
-                _revert(_INVARIANT_ERROR_SELECTOR);
-            }
-        }
-    }
-
     /// PERMISSIONED EXTERNAL FUNCTIONS ///
 
     /// @notice Add isolated market token pair to the market and set it as
@@ -914,6 +864,8 @@ contract MarketManagerIsolated is
     ///                    avoid hard liquidation, in basis points.
     /// @param liqIncBase The default liquidation incentive for
     ///                   `positionToken`, in basis points.
+    /// @param liqIncHard The hard liquidation incentive for `pToken`,
+    ///                   in basis points.
     /// @param liqIncMin The minimum possible liquidation incentive for
     ///                  `positionToken`, in basis points.
     /// @param liqIncMax The maximum possible liquidation incentive for
@@ -923,6 +875,7 @@ contract MarketManagerIsolated is
         uint256 collReqSoft,
         uint256 collReqHard,
         uint256 liqIncBase,
+        uint256 liqIncHard,
         uint256 liqIncMin,
         uint256 liqIncMax,
         uint256 minEffectiveCloseFactor,
@@ -938,6 +891,7 @@ contract MarketManagerIsolated is
         collReqSoft = _bpToWad(collReqSoft);
         collReqHard = _bpToWad(collReqHard);
         liqIncBase = _bpToWad(liqIncBase);
+        liqIncHard = _bpToWad(liqIncHard);
         liqIncMin = _bpToWad(liqIncMin);
         liqIncMax = _bpToWad(liqIncMax);
         baseCFactor = _bpToWad(baseCFactor);
@@ -963,6 +917,13 @@ contract MarketManagerIsolated is
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
+        // Validate hard liquidation incentive is
+        // higher than the soft liquidation incentive. Give heavier incentives
+        // when collateral is running out to reduce delta exposure.
+        if (liqIncBase >= liqIncHard) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
         // Make sure the maximum dynamic penalty is not greater than the base
         // liquidation incentive and that the minimum dynamic penalty is not
         // less than the base liquidation incentive.
@@ -979,6 +940,14 @@ contract MarketManagerIsolated is
         // Validate maximum liquidation incentive and default is
         // equal or higher than the minimum liquidation incentive.
         if (liqIncMin >= liqIncMax) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Validate hard liquidation collateral requirement is larger
+        // than the hard liquidation incentive. We cannot give more incentives
+        // than are available. We do not need to check soft liquidation as the
+        // restrictions are thinner than this case.
+        if (liqIncHard + MIN_EXCESS_COLLATERAL_REQUIREMENT > collReqHard) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
@@ -1037,6 +1006,10 @@ contract MarketManagerIsolated is
         marketToken.liqMinIncentive = WAD + liqIncMin;
         marketToken.liqMaxIncentive = WAD + liqIncMax;
 
+        // Store the distance between liquidation incentive A & B,
+        // so we can quickly scale between [base, 100%] based on lFactor.
+        marketToken.liqCurve = liqIncHard - liqIncBase;
+
         // Assign the base cFactor
         marketToken.baseCFactor = baseCFactor;
         // Store the distance between base cFactor and 100%,
@@ -1053,6 +1026,7 @@ contract MarketManagerIsolated is
             collReqSoft,
             collReqHard,
             liqIncBase,
+            liqIncHard,
             liqIncMin,
             liqIncMax,
             minEffectiveCloseFactor,
@@ -1196,7 +1170,104 @@ contract MarketManagerIsolated is
         emit NewPositionManagementContract(newPositionManagement);
     }
 
+    /// @notice Called from the Atlas DappControl as a post hook
+    ///         after liquidations are tried to enable all 
+    ///         collateral to be liquidated outside Atlas tx.
+    function lockAtlasCollateral() external {
+        _checkAtlasPermissions();
+
+        assembly {
+            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
+        }
+    }
+
+    /// @notice Called from the Atlas DappControl as a pre hook
+    ///         before liquidations are tried to enforce that 
+    ///         only a specific collateral can be liquidated.
+    function unlockAtlasCollateral(address collateralToUnlock) external {
+        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
+        _checkAtlasPermissions();
+
+        assembly {
+            tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
+        }
+    }
+
+    /// @notice Sets new dynamic close factor and liquidation penalty
+    ///         values in transient storage.
+    /// @dev Transient storage enforces any liquidator outside Atlas
+    ///      uses the default risk parameters.
+    /// @param newPenalty The new penalty value.
+    function setAtlasParameters(
+        uint256 newPenalty,
+        uint256 newCloseFactor
+    ) external {
+        _checkAtlasPermissions();
+
+        // Validate new Liquidation Penalty value. 
+        MarketToken storage pToken = tokenData[positionToken];
+        // Validate new penalty is within configured allowed penalty.
+        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Validate new Close Factor value.
+        if (
+            newCloseFactor < pToken.minEffectiveCloseFactor ||
+            newCloseFactor > pToken.maxEffectiveCloseFactor
+            ) {
+            revert MarketManager__InvalidParameter();
+        }
+
+        // Set new Risk Parameters in transient storage. 
+        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
+        assembly {
+            tstore(_TRANSIENT_PENALTY_KEY, newPenalty)
+        }
+
+        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
+        assembly {
+            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
+        }
+    }
+
+    /// @notice Resets the Atlas risk parameters in transient storage to zero.
+    ///         This is redundant since the transient values will be reset 
+    ///         after an Atlas tx, but helps to ensure expected behaviour. 
+    function resetAtlasParameters() external {
+        _checkAtlasPermissions();
+
+        assembly {
+            // Clear the transient storage slot by writing zero. 
+            tstore(_TRANSIENT_PENALTY_KEY, 0)
+        }
+
+        // Clear the transient storage slot by writing zero.
+        assembly {
+            tstore(_TRANSIENT_CLOSE_FACTOR_KEY, 0)
+        }
+        
+    }
+
     /// PUBLIC FUNCTIONS ///
+
+    /// @notice Returns the current Atlas parameters in an active transaction.
+    /// @dev If a dynamic penalty or close factor is set in transient storage,
+    ///      that value is returned; otherwise, the default penalty or close
+    ///      factor is returned.
+    ///      NOTE: caller must handle the case where the
+    ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
+    function getLatestAtlasParameters() public view returns (
+        uint256 penalty,
+        uint256 closeFactor
+    ) {
+        assembly {
+            penalty := tload(_TRANSIENT_PENALTY_KEY)
+            closeFactor := tload(_TRANSIENT_CLOSE_FACTOR_KEY)
+        }
+        // NOTE: Fallback scenarios where a parameter(s) MUST based handled
+        // separately based on lFactor.
+    }
 
     /// @inheritdoc ERC165
     function supportsInterface(
@@ -1208,53 +1279,6 @@ contract MarketManagerIsolated is
     }
 
     /// INTERNAL FUNCTIONS ///
-
-    /// @notice Update pending interest in markts and determine `account`'s
-    ///         current status between collateral, debt, and additional
-    ///         liquidity and whether theres associated bad debt available
-    ///         warranting an account liquidation.
-    /// @param account The account to determine bad debt status.
-    /// @return Array of the amount of collateral posted and debt balances for
-    ///         each user position.
-    function _getUpdatedLiquidationStatusOf(
-        address account
-    ) internal returns (BadDebtData memory, uint256[] memory) {
-        // Make sure `account` is not trying to liquidate themselves.
-        if (msg.sender == account) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Make sure liquidations are not paused.
-        if (seizePaused == 2) {
-            _revert(_PAUSED_SELECTOR);
-        }
-
-        IMToken[] memory accountAssetsPrior = accountAssets[account].assets;
-        uint256 numAssetsPrior = accountAssetsPrior.length;
-        IMToken mToken;
-
-        // Update pending interest in markets.
-        for (uint256 i; i < numAssetsPrior; ) {
-            // Cache `account` mToken then increment i.
-            mToken = accountAssetsPrior[i++];
-            if (!mToken.isPToken()) {
-                // Update EToken interest if necessary.
-                IEToken(address(mToken)).accrueInterest();
-            }
-        }
-
-        (
-            BadDebtData memory data,
-            uint256[] memory assetBalances
-        ) = _accountLiquidationStatusOf(account);
-
-        // If an account has no collateral or debt this will revert.
-        if (data.collateral >= data.debt) {
-            revert MarketManager__NoLiquidationAvailable();
-        }
-
-        return (data, assetBalances);
-    }
 
     /// @notice Helper function for posting `tokens` of `pToken`
     ///         as collateral for `account` inside this market.
@@ -1412,7 +1436,7 @@ contract MarketManagerIsolated is
             return (0, emptyPositions);
         }
 
-        // Check account liquidity with hypothetical sToken redemption.
+        // Check account liquidity with hypothetical mToken redemption.
         (
             HypotheticalData memory result,
             bool[] memory positionsToClose
@@ -1498,129 +1522,305 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Helper function for checking if the liquidation should be
-    ///         allowed to occur.
-    /// @param eToken Asset which was borrowed by the borrower.
-    /// @param pToken Asset which was used as collateral and will
-    ///                        be seized.
-    /// @param account The address of the account to be liquidated.
-    /// @param debtAmount The amount of `eToken` desired to liquidate.
-    ///                   When `liquidateExact` is false, this value is
-    ///                   replaced with the maximum executable liquidation
-    ///                   amount.
-    /// @param liquidateExact Whether the liquidator wants to liquidate a
-    ///                       specific amount of debt, used in conjunction
-    ///                       with `debtAmount`.
-    /// @return The amount of `eToken` underlying to be repaid on
-    ///         liquidation.
-    /// @return The number of `pToken` tokens to be seized in a
-    ///         liquidation.
+    /// @notice Determines if an account can be liquidated and calculates
+    ///         liquidation parameters. Computes liquidation amounts,
+    ///         collateral seizure, and potential bad debt based on `account`
+    ///         health.
+    /// @param account The address of the account being evaluated for
+    ///                liquidation.
+    /// @param debtAmount The amount of debt to liquidate, used only if
+    ///                   `liquidateExact` is true.
+    /// @param cachedData A CachedLiqData struct containing:
+    ///                   pToken The address of the position token
+    ///                          (collateral token) involved in the
+    ///                          liquidation.
+    ///                   eToken The address of the earn token (debt token)
+    ///                          involved in the liquidation.
+    ///                   pTokenExchangeRate The exchange rate of pToken's
+    ///                                      underlying token to the pToken
+    ///                                      itself.
+    ///                   pTokenCollReqSoft The collateral requirement where
+    ///                                     dipping below this will cause a
+    ///                                     soft liquidation.
+    ///                   pTokenCollReqHard The collateral requirement where
+    ///                                     dipping below this will cause a
+    ///                                     hard liquidation.
+    ///                   pTokenUnderlyingPrice The current price of the
+    ///                                         underlying token of the
+    ///                                         pToken.
+    ///                   pTokenDecimals The decimals that `pToken` is
+    ///                                  measured in.
+    ///                   eTokenDecimals The decimals that `eToken` is
+    ///                                  measured in.
+    ///                   eTokenUnderlyingPrice The current price of the
+    ///                                         underlying token of the
+    ///                                         eToken.
+    ///                   auctionBuffer The current buffer that
+    ///                                 accountCollateralSoft is multiplied
+    ///                                 against, 10 bps or 0 if not an
+    ///                                 auction liquidation.
+    /// @param auctionData An AuctionLiqData struct containing:
+    ///                    lFactor Empty variable to hold an account's
+    ///                            liquidation factor later.
+    ///                    debtBalance Empty variable to hold an account's
+    ///                                debt's active debt to `eToken` later.
+    ///                    auctionCFactor Maximum % that a liquidator can
+    ///                                   repay when soft liquidating an
+    ///                                   account.
+    ///                    auctionLiqIncentive The ratio at which this token
+    ///                                        will be compensated on
+    ///                                        liquidation.
+    ///                    baseCFactor Maximum % that a liquidator can repay
+    ///                                when soft liquidating an account.
+    ///                    cFactorCurve cFactor curve length between soft
+    ///                                 liquidation and hard liquidation,
+    ///                                 should be equal to
+    ///                                 100% - `baseCFactor`.
+    ///                    liqBaseIncentive The base ratio at which this
+    ///                                     token will be compensated on
+    ///                                     soft liquidation.
+    ///                    liqCurve The liquidation incentive curve length
+    ///                             between soft liquidation to hard
+    ///                             liquidation.
+    /// @param pTokenData Storage reference to the position token's market
+    ///                   data.
+    /// @param liquidateExact If true, liquidate exactly `debtAmount`; if
+    ///                       false, liquidate maximum possible.
+    /// @return uint256 The actual amount of debt that will be liquidated.
+    /// @return liquidatedPTokens The amount of position tokens (pTokens) that
+    ///                           will be seized as collateral.
+    /// @return badDebt The amount of bad debt to recognize as part of the
+    ///                 liquidation (if any).
     function _canLiquidate(
-        address eToken,
-        address pToken,
         address account,
         uint256 debtAmount,
+        CachedLiqData memory cachedData,
+        AuctionLiqData memory auctionData,
+        MarketToken storage pTokenData,
         bool liquidateExact
-    ) internal view returns (uint256, uint256) {
-        _checkIsListedToken(eToken);
-        _checkIsListedToken(pToken);
-
-        // Will revert if during Atlas transaction and liquidator has chosen incorrect collateral.
-        // Intended to be passed into new _liquidationStatusOf() function.
-        uint256 atlasBuffer = _checkCollateralUnlocked(eToken);
-
-        MarketToken storage pTokenData = tokenData[pToken];
-
-        // Do not let people liquidate 0 collateralization ratio assets.
-        if (pTokenData.collRatio == 0) {
-            _revert(_INVALID_PARAMETER_SELECTOR);
-        }
-
-        // Calculate the users lFactor.
-        LiqData memory data = _liquidationStatusOf(
+    ) internal view returns (
+        uint256,
+        uint256 liquidatedPTokens,
+        uint256 badDebt
+    ) {
+        // Calculate the users lFactor and bubble up their active debt.
+        (
+            auctionData.lFactor,
+            auctionData.debtBalance
+        ) = _liquidationValuesOfCached(
             account,
-            eToken,
-            pToken
+            cachedData
         );
 
-        // Validate that `account` has a liquidation available.
-        if (data.lFactor == 0) {
-            revert MarketManager__NoLiquidationAvailable();
+        if (auctionData.lFactor == 0) {
+            return (0, 0, 0);
         }
 
-        uint256 maxAmount;
-        uint256 debtToCollateralRatio;
-        {
-            (uint256 incentive, uint256 closeFactor) = getLatestAtlasParameters();
-            if (closeFactor == 0) {
-                // fallback to using the base close factor if TRANSIENT_CLOSE_FACTOR_KEY is empty.
-                closeFactor = pTokenData.baseCFactor +
-                    ((pTokenData.cFactorCurve * data.lFactor) / WAD);
-            }
-            
-            maxAmount =
-            (closeFactor * IEToken(eToken).debtBalanceCached(account)) /
-                 WAD;
-
-            // Get the exchange rate, and calculate the number of
-            // position tokens to seize.
-            debtToCollateralRatio =
-                (incentive * data.earnTokenPrice * WAD) /
-                (data.positionTokenPrice *
-                    IPToken(pToken).exchangeRateCached());
+        // If this liquidation is not part of an auction we need to
+        // manually calculate liquidation size and liquidation penalty.
+        if (cachedData.auctionBuffer == 0) {
+            // Fallback to using the base close factor when
+            // _TRANSIENT_CLOSE_FACTOR_KEY is empty.
+            auctionData.auctionCFactor = auctionData.baseCFactor +
+                ((auctionData.cFactorCurve * auctionData.lFactor) / WAD);
+            auctionData.auctionLiqIncentive = auctionData.liqBaseIncentive +
+                ((auctionData.liqCurve * auctionData.lFactor) / WAD);
         }
-
+        
+        // Get the exchange rate, and calculate the number of
+        // position tokens to seize.
+        uint256 debtToCollateralMultiplier =
+            (((auctionData.auctionLiqIncentive * cachedData.eTokenUnderlyingPrice * WAD) /
+            (cachedData.pTokenUnderlyingPrice * cachedData.pTokenExchangeRate)) *
+            cachedData.pTokenDecimals) / cachedData.eTokenDecimals;
+        uint256 maxAmount =
+            (auctionData.auctionCFactor * auctionData.debtBalance) / WAD;
         // If they want to liquidate an exact amount, liquidate `debtAmount`,
         // otherwise liquidate the maximum amount possible.
         if (!liquidateExact) {
             debtAmount = maxAmount;
         }
-
-        // Adjust decimals if necessary.
-        uint256 amountAdjusted = (debtAmount *
-            (10 ** IERC20(pToken).decimals())) /
-            (10 ** IERC20(eToken).decimals());
-        // Calculate how many pTokens should be liquidated.
-        uint256 liquidatedTokens = (amountAdjusted * debtToCollateralRatio) /
-            WAD;
+        
+        // Calculate how many pTokens should be liquidated, adjusting decimals
+        // if necessary.
+        liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
 
         // Cache `account`'s collateral posted of `pToken`.
         uint256 collateralAvailable = pTokenData
             .accountPositions[account]
             .collateralPosted;
+
         // If the user wants to liquidate an exact amount, make sure theres
-        // enough collateral available to liquidate,
-        // otherwise liquidate as much as possible.
+        // enough collateral available to liquidate, otherwise
+        // liquidate as much as possible.
         if (liquidateExact) {
             if (
                 debtAmount > maxAmount ||
-                liquidatedTokens > collateralAvailable
+                liquidatedPTokens > collateralAvailable
             ) {
                 // Make sure that the liquidation limit,
                 // and collateral posted >= amount.
                 _revert(_INVALID_PARAMETER_SELECTOR);
             }
         } else {
-            if (liquidatedTokens > collateralAvailable) {
+            if (liquidatedPTokens > collateralAvailable) {
                 debtAmount = FixedPointMathLib.mulDivUp(
                     debtAmount,
                     collateralAvailable,
-                    liquidatedTokens
+                    liquidatedPTokens
                 );
-                liquidatedTokens = collateralAvailable;
+                liquidatedPTokens = collateralAvailable;
             }
         }
 
+        // If the necessary amount of collateral to liquidate `account`'s
+        // overall debt is above their collateral balance, theres bad debt
+        // that should be socialized.
+        uint256 collateralRequired = 
+            (auctionData.debtBalance * debtToCollateralMultiplier) / WAD;
+        if (collateralRequired > collateralAvailable) {
+            // Get prior ratio between debt/collateral before any
+            // liquidation = Shortfall Ratio
+            // Bad Debt = End debt - (end collateral * shortfall ratio)
+            // NOTE: We round UP on expected user outstanding debt meaning
+            // we round down bad debt and thus are in favor of the protocol.
+            badDebt = (auctionData.debtBalance - debtAmount) -
+            FixedPointMathLib.mulDivUp(
+                ((collateralAvailable - liquidatedPTokens) * cachedData.pTokenExchangeRate) / WAD,
+                cachedData.pTokenUnderlyingPrice,
+                (cachedData.eTokenUnderlyingPrice * WAD) / cachedData.eTokenDecimals
+            );
+        }
+
         // Calculate the maximum amount of debt that can be liquidated
-        // and what collateral will be received.
-        return (debtAmount, liquidatedTokens);
+        // and what collateral will be received. As well as any bad debt
+        // to recognize.
+        return (debtAmount, liquidatedPTokens, badDebt);
+    }
+
+    /// @notice Retrieves and caches liquidation configuration data for a
+    ///         given token pair.
+    /// @param eToken The address of the earn token (debt token) involved
+    ///               in the liquidation.
+    /// @param pToken The address of the position token (collateral token)
+    ///               involved in the liquidation.
+    /// @return cachedData A CachedLiqData struct containing:
+    ///                    pToken The address of the position token
+    ///                           (collateral token) involved in the
+    ///                           liquidation.
+    ///                    eToken The address of the earn token (debt token)
+    ///                           involved in the liquidation.
+    ///                    pTokenExchangeRate The exchange rate of pToken's
+    ///                                       underlying token to the pToken
+    ///                                       itself.
+    ///                    pTokenCollReqSoft The collateral requirement where
+    ///                                      dipping below this will cause a
+    ///                                      soft liquidation.
+    ///                    pTokenCollReqHard The collateral requirement where
+    ///                                      dipping below this will cause a
+    ///                                      hard liquidation.
+    ///                    pTokenUnderlyingPrice The current price of the
+    ///                                          underlying token of the
+    ///                                          pToken.
+    ///                    pTokenDecimals The decimals that `pToken` is
+    ///                                   measured in.
+    ///                    eTokenDecimals The decimals that `eToken` is
+    ///                                   measured in.
+    ///                    eTokenUnderlyingPrice The current price of the
+    ///                                          underlying token of the
+    ///                                          eToken.
+    ///                    auctionBuffer The current buffer that
+    ///                                  accountCollateralSoft is multiplied
+    ///                                  against, 10 bps or 0 if not an
+    ///                                  auction liquidation.
+    /// @return auctionData An AuctionLiqData struct containing:
+    ///                     lFactor Empty variable to hold an account's
+    ///                             liquidation factor later.
+    ///                     debtBalance Empty variable to hold an account's
+    ///                                 debt's active debt to `eToken` later.
+    ///                     auctionCFactor Maximum % that a liquidator can
+    ///                                    repay when soft liquidating an
+    ///                                    account.
+    ///                     auctionLiqIncentive The ratio at which this token
+    ///                                         will be compensated on
+    ///                                         liquidation.
+    ///                     baseCFactor Maximum % that a liquidator can repay
+    ///                                 when soft liquidating an account.
+    ///                     cFactorCurve cFactor curve length between soft
+    ///                                  liquidation and hard liquidation,
+    ///                                  should be equal to
+    ///                                  100% - `baseCFactor`.
+    ///                     liqBaseIncentive The base ratio at which this
+    ///                                      token will be compensated on
+    ///                                      soft liquidation.
+    ///                     liqCurve The liquidation incentive curve length
+    ///                              between soft liquidation to hard
+    ///                              liquidation.
+    /// @return pTokenData Storage reference to the position token's market
+    ///                    configuration data.
+    function _getLiquidationConfig(
+        address eToken,
+        address pToken
+    ) internal view returns (
+        CachedLiqData memory cachedData,
+        AuctionLiqData memory auctionData,
+        MarketToken storage pTokenData
+    ) {
+        _checkIsListedToken(eToken);
+        _checkIsListedToken(pToken);
+
+        pTokenData = tokenData[pToken];
+        // Do not let people liquidate 0 collateralization ratio assets.
+        if (pTokenData.collRatio == 0) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Liquidations are only blocked if an error code of 2 (NO_SOURCE)
+        // is calculated.
+        (
+            cachedData.eTokenUnderlyingPrice,
+            cachedData.pTokenUnderlyingPrice
+        ) = IOracleManager(
+            centralRegistry.oracleManager()
+        ).getPriceIsolatedPair(eToken, pToken, 2);
+
+        // Cache all variables needed for computing liquidation levels and
+        // compress into one struct for stack too deep limits.
+        cachedData.pToken = pToken;
+        cachedData.pTokenExchangeRate = IPToken(pToken).exchangeRateCached();
+        cachedData.pTokenCollReqSoft = tokenData[pToken].collReqSoft;
+        cachedData.pTokenCollReqHard = tokenData[pToken].collReqHard;
+        cachedData.pTokenDecimals = 10 ** IERC20(pToken).decimals();
+        cachedData.eToken = eToken;
+        cachedData.eTokenDecimals = 10 ** IERC20(eToken).decimals();
+
+        // Will revert if during auction transaction and liquidator has chosen
+        // incorrect collateral.
+        cachedData.auctionBuffer = _checkCollateralUnlocked(eToken);
+        // Pull transient storage variables from auctioneer updates.
+        (
+            auctionData.auctionLiqIncentive,
+            auctionData.auctionCFactor
+        ) = getLatestAtlasParameters();
+
+        // We only need to read storage and cache these variables if we did
+        // not receive cFactor/liqIncentive from the auction.
+        if (auctionData.auctionCFactor == 0) {
+            auctionData.baseCFactor = pTokenData.baseCFactor;
+            auctionData.cFactorCurve = pTokenData.cFactorCurve;
+        }
+
+        if (auctionData.auctionLiqIncentive == 0) {
+            auctionData.liqBaseIncentive = pTokenData.liqBaseIncentive;
+            auctionData.liqCurve = pTokenData.liqCurve;
+        }
     }
 
     /// @notice Helper function for closing user positions after liquidity
     ///         checks have been passed.
-    /// @dev Used as sort of a garbage collection system for any user positions
-    ///      that should be closed to optimize future liquidity checks.
-    ///      May emit {TokenPositionClosed} events.
+    /// @dev Used as sort of a garbage collection system for any user
+    ///      positions that should be closed to optimize future liquidity
+    ///      checks. May emit {PositionAdjusted} events.
     /// @param positionsClosureNeeded Whether closing positions is needed
     ///                               for `account`.
     /// @param account The address of the account to close a
@@ -1784,6 +1984,13 @@ contract MarketManagerIsolated is
         }
     }
 
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkAtlasPermissions() internal view {
+        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+    }
+
     /// @dev Checks whether the caller has sufficient permissions based on `state`,
     /// turning something off is less "risky" than enabling something,
     /// so `state` = true has reduced permissioning compared to `state` = false.
@@ -1820,127 +2027,32 @@ contract MarketManagerIsolated is
         return centralRegistry;
     }
 
-    /// @notice Called from the Atlas DappControl as a post hook
-    ///         after liquidations are tried to enable all 
-    ///         collateral to be liquidated outside Atlas tx.
-    function lockAtlasCollateral() external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, 0)
-        }
-    }
-
-    /// @notice Called from the Atlas DappControl as a pre hook
-    ///         before liquidations are tried to enforce that 
-    ///         only a specific collateral can be liquidated.
-    function unlockAtlasCollateral(address collateralToUnlock) external {
-        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            tstore(TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
-        }
-    }
-
-    /// @notice Sets new dynamic close factor and liquidation penalty
-    ///         values in transient storage.
-    /// @dev Transient storage enforces any liquidator outside Atlas
-    ///      uses the default risk parameters.
-    /// @param newPenalty The new penalty value.
-    function setAtlasParameters(uint256 newPenalty, uint256 newCloseFactor) external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        // Validate new Liquidation Penalty value. 
-        MarketToken storage pToken = tokenData[positionToken];
-        // Validate new penalty is within configured allowed penalty.
-        if (newPenalty < pToken.liqMinIncentive || newPenalty > pToken.liqMaxIncentive) {
-            revert MarketManager__InvalidParameter();
-        }
-
-        // Validate new Close Factor value.
-        if (newCloseFactor < pToken.minEffectiveCloseFactor || newCloseFactor > pToken.maxEffectiveCloseFactor) {
-            revert MarketManager__InvalidParameter();
-        }
-
-        // Set new Risk Parameters in transient storage. 
-        // tstore(key, value): store `newPenalty` under TRANSIENT_PENALTY_KEY.
-        assembly {
-            tstore(TRANSIENT_PENALTY_KEY, newPenalty)
-        }
-
-        // tstore(key, value): store `newCloseFactor` under TRANSIENT_CLOSE_FACTOR_KEY.
-        assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, newCloseFactor)
-        }
-    }
-
-    /// @notice Resets the Atlas risk parameters in transient storage to zero.
-    ///         This is redundant since the transient values will be reset 
-    ///         after an Atlas tx, but helps to ensure expected behaviour. 
-    function resetAtlasParameters() external {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
-        }
-
-        assembly {
-            // Clear the transient storage slot by writing zero. 
-            tstore(TRANSIENT_PENALTY_KEY, 0)
-        }
-
-        // Clear the transient storage slot by writing zero.
-        assembly {
-            tstore(TRANSIENT_CLOSE_FACTOR_KEY, 0)
-        }
-        
-    }
-
-    /// @notice Returns the current Atlas parameters.
-    /// @dev If a dynamic penalty or close factor is set in transient storage, 
-    ///      that value is returned; otherwise, the default penalty or close factor
-    ///      is returned.
-    /// @dev Note: caller must handle the case where the
-    ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
-    function getLatestAtlasParameters() public view returns (uint256 penalty, uint256 closeFactor) {
-        assembly {
-            penalty := tload(TRANSIENT_PENALTY_KEY)
-            closeFactor := tload(TRANSIENT_CLOSE_FACTOR_KEY)
-        }
-        if (penalty == 0) {
-            penalty = tokenData[positionToken].liqBaseIncentive;
-        }
-        // if closeFactor is not set, 0 is returned. (caller must handle this)
-        // can't handle this here because lFactor is not available in this function
-    }
-
-    /// @notice Will revert and block liquidations of collateral that are not 
+    /// @notice Will revert and block liquidations of collateral that are not
     ///         currently allowed by Atlas, only if this is an Atlas tx.
-    function _checkCollateralUnlocked(address eTokenToLiquidate) internal view returns (uint256) {
+    function _checkCollateralUnlocked(
+        address eTokenToLiquidate
+    ) internal view returns (uint256) {
         uint256 result;
         assembly {
-            result := tload(TRANSIENT_COLLATERAL_UNLOCKED_KEY)
+            result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
-        // CASE: This is not an Atlas tx, so allow all collaterals, and return no buffer. 
+        // CASE: This is not an Atlas tx, so allow all collaterals,
+        // and return no buffer. 
         if (result == 0) {
             return 0;
         }
 
         address unlockedCollateral = address(uint160(result));
 
-        // This is an Atlas tx, and Atlas liquidator attempted wrong collateral so revert.
+        // This is an Atlas tx, and Atlas liquidator attempted wrong
+        // collateral so revert.
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
 
-        // if we reach this point this is an Atlas tx and collateral is valid, so return 
-        // the atlas buffer. 
-        return ATLAS_BUFFER;
+        // if we reach this point this is an Atlas tx and collateral is valid,
+        // so return the atlas buffer. 
+        return AUCTION_BUFFER;
     }
 }

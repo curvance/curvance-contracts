@@ -185,7 +185,7 @@ contract TestConvex2PoolPToken is TestBaseMarket {
             block.timestamp
         );
 
-        cSTETH.harvest(abi.encode(swaps, 0));
+        cSTETH.harvest(abi.encode(swaps, 1e8));
 
         assertEq(
             cSTETH.totalAssets(),
@@ -199,7 +199,7 @@ contract TestConvex2PoolPToken is TestBaseMarket {
         deal(_CRV_ADDRESS, address(cSTETH), 100e18);
         deal(_CVX_ADDRESS, address(cSTETH), 100e18);
         deal(address(cSTETH), 1 ether);
-        cSTETH.harvest(abi.encode(new SwapperLib.Swap[](0)));
+        cSTETH.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
         vm.warp(block.timestamp + 7 days);
 
         uint256 totalAssets = cSTETH.totalAssets();

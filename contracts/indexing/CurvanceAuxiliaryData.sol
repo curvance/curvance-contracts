@@ -3,7 +3,6 @@ pragma solidity ^0.8.26;
 
 import { EToken } from "contracts/market/token/EToken.sol";
 import { BasePToken } from "contracts/market/token/BasePToken.sol";
-import { MarketManager } from "contracts/market/MarketManager.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
@@ -345,7 +344,7 @@ contract CurvanceAuxiliaryData {
         address account
     ) public view returns (MarketData memory result) {
         if (account != address(0)) {
-            try MarketManager(market).statusOf(account) returns (
+            try IMarketManager(market).statusOf(account) returns (
                 uint256 collateral,
                 uint256 maxDebt,
                 uint256 debt
@@ -384,7 +383,7 @@ contract CurvanceAuxiliaryData {
         view
         returns (MarketETokenData[] memory, MarketPTokenData[] memory)
     {
-        MarketManager mm = MarketManager(market);
+        IMarketManager mm = IMarketManager(market);
         address[] memory pTokens = getMarketCollateralAssets(market);
         uint256 numTokens = pTokens.length;
         MarketPTokenData[] memory pTokenMarketData = new MarketPTokenData[](
@@ -495,7 +494,7 @@ contract CurvanceAuxiliaryData {
         address eToken,
         address pToken
     ) external view returns (bool) {
-        (uint256 lFactor,,) = MarketManager(market).liquidationStatusOf(
+        (uint256 lFactor,,) = IMarketManager(market).liquidationStatusOf(
             account,
             eToken,
             pToken
@@ -546,7 +545,7 @@ contract CurvanceAuxiliaryData {
             uint256 price = _getTokenPrice(assetAddress, true);
             result +=
                 (price *
-                    MarketManager(market).collateralPosted(assetAddress)) /
+                    IMarketManager(market).collateralPosted(assetAddress)) /
                 10 ** IMToken(assetAddress).decimals();
         }
     }
@@ -707,7 +706,7 @@ contract CurvanceAuxiliaryData {
     /// INTERNAL FUNCTIONS ///
     function _getTokenConfig(
         address token,
-        MarketManager mm
+        IMarketManager mm
     ) internal view returns (MarketAssetConfig memory) {
         MarketAssetConfig memory config;
 
@@ -718,6 +717,10 @@ contract CurvanceAuxiliaryData {
             uint256 collReqHard,
             uint256 liqBaseIncentive,
             uint256 liqCurve,
+            ,
+            ,
+            ,
+            ,
             uint256 baseCFactor,
             uint256 cFactorCurve
         ) = mm.tokenData(token);

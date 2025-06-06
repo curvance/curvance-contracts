@@ -151,7 +151,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
         );
         swapData.slippage = 50e16;
 
-        pWETHUSDC.harvest(abi.encode(swapData));
+        pWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
 
         assertEq(
             pWETHUSDC.totalAssets(),
@@ -175,7 +175,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarket {
             address(pWETHUSDC),
             type(uint256).max
         );
-        pWETHUSDC.harvest(abi.encode(swapData));
+        pWETHUSDC.harvest(abi.encode(swapData, 1.407e10));
 
         vm.warp(block.timestamp + 7 days);
         chainlinkVELO.updateAnswer(chainlinkVELO.latestAnswer());

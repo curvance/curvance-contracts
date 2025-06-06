@@ -5,41 +5,41 @@ import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 import { ActionRegistry } from "contracts/libraries/ActionRegistry.sol";
 
-contract SetDelegableTest is TestBaseMarket {
+contract setDelegableStatusTest is TestBaseMarket {
     event DelegableStatusChanged(
         address indexed user,
         bool delegable,
         uint256 delegationEnabledTimestamp
     );
 
-    function test_setDelegable_fail_whenStatusIsNotFlipping() public {
+    function test_setDelegableStatus_fail_whenStatusIsNotFlipping() public {
         vm.expectRevert(
             ActionRegistry.ActionRegistry__InvalidParams.selector
         );
-        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegableStatus(false);
 
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
 
         vm.expectRevert(
             ActionRegistry.ActionRegistry__InvalidParams.selector
         );
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
     }
 
-    function test_setDelegable_fail_whenCooldownIsNotEnded() public {
+    function test_setDelegableStatus_fail_whenCooldownIsNotEnded() public {
         centralRegistry.setCooldown(10 days);
 
-        centralRegistry.setDelegable(true);
-        centralRegistry.setDelegable(false);
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
+        centralRegistry.setDelegableStatus(false);
+        centralRegistry.setDelegableStatus(true);
 
         vm.expectRevert(
-            ActionRegistry.ActionRegistry__InvalidParams.selector
+            ActionRegistry.ActionRegistry__CooldownActive.selector
         );
-        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegableStatus(false);
     }
 
-    function test_setDelegable_success() public {
+    function test_setDelegableStatus_success() public {
         vm.startPrank(user1);
 
         assertFalse(centralRegistry.checkDelegationDisabled(user1));
@@ -47,14 +47,14 @@ contract SetDelegableTest is TestBaseMarket {
         vm.expectEmit(true, true, true, true);
         emit DelegableStatusChanged(user1, true, 0);
 
-        centralRegistry.setDelegable(true);
+        centralRegistry.setDelegableStatus(true);
 
         assertTrue(centralRegistry.checkDelegationDisabled(user1));
 
         vm.expectEmit(true, true, true, true);
         emit DelegableStatusChanged(user1, false, block.timestamp);
 
-        centralRegistry.setDelegable(false);
+        centralRegistry.setDelegableStatus(false);
 
         assertFalse(centralRegistry.checkDelegationDisabled(user1));
 

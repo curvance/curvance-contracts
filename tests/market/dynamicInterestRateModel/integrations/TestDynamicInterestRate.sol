@@ -4,8 +4,9 @@ pragma solidity ^0.8.19;
 import { TestBaseMarket } from "tests/market/TestBaseMarket.sol";
 import { DynamicInterestRateModel } from "contracts/market/DynamicInterestRateModel.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
-import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
+import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import "forge-std/console2.sol";
 
 // new DynamicInterestRateModel(
 //             ICentralRegistry(address(centralRegistry)),
@@ -17,8 +18,15 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 //             100000000, // 1000x maximum vertex multiplier
 //             100 // decayRate
 //         );
+// TO-DO:
+// Remove dependencies on assertGt/assertLe/assertLt/assertApproxEqRel
+// Add better testing for precision loss errors with stateless fuzzing
+// Clean up testing of Maximum/minimum vertex rates
+// Clean up testing of Decay rate being applied
+//
 contract TestDynamicInterestRateWithEToken is TestBaseMarket {
     DynamicInterestRateModel public interestRateModel;
+
     address public owner;
     address public user;
     uint256 constant INITIAL_DEPOSIT = 200000e18;
@@ -26,8 +34,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160000e18; // 80% utilization
     uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
     uint256 public constant INTEREST_COMPOUND_RATE = 10 minutes;
-    MockSimplePToken public pUSDC;
-
+    
     function setUp() public virtual override {
         super.setUp();
 
@@ -73,13 +80,25 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarket {
         vm.stopPrank();
     }
 
-    function _deployPUSDC() internal returns (MockSimplePToken) {
-        pUSDC = new MockSimplePToken(
-            ICentralRegistry(address(centralRegistry)),
-            address(usdc),
-            address(marketManager)
+    function test_DynamicInterestRateModel_PrecisionCheck() public {
+        interestRateModel.updateDynamicInterestRateModel(
+            1500,
+            1500,
+            5500,
+            4 hours,
+            5500,
+            150000000,
+            150,
+            true
         );
-        return pUSDC;
+
+        uint256 rate1 = interestRateModel.getBorrowRate(0, 1e18, 0);
+        console2.log("borrowRate: %d", rate1);
+
+        uint256 rate2 = interestRateModel.getBorrowRate(0.1e18, 0.9e18, 0);
+        console2.log("borrowRate: %d", rate2);
+
+        assertNotEq(rate1, rate2);
     }
 
     function testWhenUtilizationIsBelowVertexStartingPoint() public {

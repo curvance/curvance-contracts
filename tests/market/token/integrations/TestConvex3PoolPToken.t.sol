@@ -89,7 +89,7 @@ pragma solidity ^0.8.19;
 //         deal(address(CVX), address(pToken), 100e18);
 //         deal(address(WETH), address(pToken), 1 ether);
 
-//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0)));
+//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
 
 //         assertEq(
 //             pToken.totalAssets(),
@@ -103,7 +103,7 @@ pragma solidity ^0.8.19;
 //         deal(address(CRV), address(pToken), 100e18);
 //         deal(address(CVX), address(pToken), 100e18);
 //         deal(address(WETH), address(pToken), 1 ether);
-//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0)));
+//         pToken.harvest(abi.encode(new SwapperLib.Swap[](0), 1e8));
 //         vm.warp(block.timestamp + 7 days);
 
 //         uint256 totalAssets = pToken.totalAssets();

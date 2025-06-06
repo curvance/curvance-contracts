@@ -57,6 +57,11 @@ abstract contract ActionRegistry {
     ///         universe.
     uint256 public constant COOLDOWN_MAXIMUM = 52 weeks;
 
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__InvalidParams()")))`.
+    uint256 internal constant _INVALID_PARAMS_SELECTOR = 0x51b33a31;
+    /// @dev `bytes4(keccak256(bytes("ActionRegistry__CooldownActive()")))`.
+    uint256 internal constant _COOLDOWN_ACTIVE_SELECTOR = 0x8471b001;
+
     /// STORAGE ///
 
     /// @notice Contains a user's configuration values for transfers and
@@ -72,20 +77,21 @@ abstract contract ActionRegistry {
 
     event CooldownSet(address indexed user, uint256 userLockCooldown);
     event ApprovalIndexIncremented(address indexed user, uint256 newIndex);
+    event TransferableStatusChanged(
+        address indexed user,
+        bool isLocked,
+        uint256 transferEnabledTimestamp
+    );
     event DelegableStatusChanged(
         address indexed user,
         bool delegable,
         uint256 delegationEnabledTimestamp
     );
-    event LockStatusChanged(
-        address indexed user,
-        bool isLocked,
-        uint256 transferEnabledTimestamp
-    );
 
     /// ERRORS ///
 
     error ActionRegistry__InvalidParams();
+    error ActionRegistry__CooldownActive();
     error ActionRegistry__UnsafeCooldown();
 
     /// CONSTRUCTOR ///
@@ -109,16 +115,21 @@ abstract contract ActionRegistry {
         }
 
         UserConfig storage userConfig = _userConfig[msg.sender];
-
         // If a user is decreasing their cooldown, lock cooldown
         // will automatically apply, delaying when transferability and plugin
         // approval can be re-enabled, preventing a malicious party from
         // tracking a user to decrease their cooldown to 0 and then enabling
         // transferability.
-        if (userConfig.lockCooldown > cooldown) {
-            uint40 newCooldown = uint40(
-                userConfig.lockCooldown + block.timestamp
-            );
+        uint256 userCooldown = userConfig.lockCooldown;
+        if (userCooldown > cooldown) {
+            // Validate the user does not currently have a cooldown active.
+            if (
+                block.timestamp < userConfig.transferEnabledTimestamp ||
+                block.timestamp < userConfig.delegationEnabledTimestamp
+            ) {
+                _revert(_COOLDOWN_ACTIVE_SELECTOR);
+            }
+            uint40 newCooldown = uint40(userCooldown + block.timestamp);
             userConfig.transferEnabledTimestamp = newCooldown;
             userConfig.delegationEnabledTimestamp = newCooldown;
         }
@@ -143,21 +154,20 @@ abstract contract ActionRegistry {
     /// @notice Sets token transferability for the caller, if enabling
     ///         transferability, the caller's opt in transfer cooldown will
     ///         be applied.
-    /// @dev Emits a {LockStatusChanged} event.
+    /// @dev Emits a {TransferableStatusChanged} event.
     /// @param transferDisabled Whether the user intends on enabling or
     ///                         disabling transferability, while flipping
     ///                         their transferability status can be assumed,
     ///                         it's best to make sure the caller intends on
     ///                         flipping their status for onchain integrators.
-    function setTransferLockStatus(bool transferDisabled) external {
+    function setTransferableStatus(bool transferDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their transfer
         // lock status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (transferDisabled == userConfig.transferDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -175,10 +185,14 @@ abstract contract ActionRegistry {
         userConfig.transferDisabled = transferDisabled;
 
         // Timestamp emitted is 0 if locking transferability.
-        emit LockStatusChanged(msg.sender, transferDisabled, enableTimestamp);
+        emit TransferableStatusChanged(
+            msg.sender,
+            transferDisabled,
+            enableTimestamp
+        );
     }
 
-    /// DELEGATION PLUGIN MANAGEMENT ///
+    /// PLUGIN DELEGATION MANAGEMENT ///
 
     /// @notice Returns `user`'s approval index.
     /// @dev The approval index is a way to revoke approval on all tokens,
@@ -221,15 +235,14 @@ abstract contract ActionRegistry {
     /// @param delegationDisabled Whether caller wants to allow new delegation
     ///                           or not.
     ///      Emits a {DelegableStatusChanged} event.
-    function setDelegable(bool delegationDisabled) external {
+    function setDelegableStatus(bool delegationDisabled) external {
         UserConfig storage userConfig = _userConfig[msg.sender];
 
         // Validates that user is intending on flipping their delegation
         // status, even though we could assume they want to flip
         // by calling this function, it helps to validate for human error.
         if (delegationDisabled == userConfig.delegationDisabled) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_INVALID_PARAMS_SELECTOR);
         }
 
         uint256 enableTimestamp;
@@ -264,8 +277,7 @@ abstract contract ActionRegistry {
         // Validate the user did not recently reduce their action cooldown
         // period, triggering their action cooldown.
         if (enabledTimestamp > block.timestamp) {
-            // revert with ActionRegistry__InvalidParams()
-            _revert(0x51b33a31);
+            _revert(_COOLDOWN_ACTIVE_SELECTOR);
         }
 
         return (_userConfig[msg.sender].lockCooldown + block.timestamp);

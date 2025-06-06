@@ -8,6 +8,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IChainlink } from "contracts/interfaces/external/chainlink/IChainlink.sol";
 import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
+import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 
 /// @title Curvance Dynamic Pessimistic Dual Oracle Manager.
 /// @notice Provides a universal interface allowing contracts
@@ -67,7 +68,7 @@ import { IOracleAdaptor, PriceReturnData } from "contracts/interfaces/IOracleAda
 ///      a decentralized model, many oracle providers all verified against
 ///      each other. "Don't trust, verify."
 ///
-contract OracleManager {
+contract OracleManager is IOracleManager {
     /// TYPES ///
 
     /// @title Oracle Feed Data
@@ -408,8 +409,9 @@ contract OracleManager {
     ///              or a chain's native token (false).
     /// @param getLower Whether the lower or higher price should be returned
     ///                 if two feeds are available.
-    /// @return price The price of the asset.
-    /// @return errorCode An error code related to fetching the price.
+    /// @return price The current price of `asset`.
+    /// @return errorCode An error code related to fetching the price:
+    ///                   '0' indicates no error fetching price.
     ///                   '1' indicates that price should be taken with
     ///                   caution.
     ///                   '2' indicates a complete failure in receiving

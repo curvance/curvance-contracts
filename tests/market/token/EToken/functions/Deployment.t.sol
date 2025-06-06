@@ -67,8 +67,6 @@ contract ETokenDeploymentTest is TestBaseEToken {
             .target(_USDC_ADDRESS)
             .sig(IERC20.totalSupply.selector)
             .checked_write(type(uint232).max);
-
-
         vm.expectRevert(
            EToken.EToken__ValidationFailed.selector
         );

@@ -114,24 +114,6 @@ interface IEToken is IMToken {
     /// @param amount The amount to repay, or 0 for the full outstanding amount.
     function repayFor(address account, uint256 amount) external;
 
-    /// @notice Used by the market manager contract to repay a portion
-    ///         of underlying token debt to lenders, remaining debt shortfall
-    ///        is recognized equally by lenders due to `account` default.
-    /// @dev Only market manager contract can call this function.
-    ///      Updates pending interest prior to execution of the repay,
-    ///      inside the market manager contract.
-    /// @param liquidator The account liquidating `account`'s collateral,
-    ///                   and repaying a portion of `account`'s debt.
-    /// @param account The account being liquidated and repaid on behalf of.
-    /// @param repayRatio The ratio of outstanding debt that `liquidator`
-    ///                   will repay from `account`'s obligations,
-    ///                   out of 100%, in `WAD`.
-    function repayWithBadDebt(
-        address liquidator,
-        address account,
-        uint256 repayRatio
-    ) external;
-
     /// @notice Withdraws all reserves from the gauge and transfers them to
     ///         Curvance DAO.
     /// @dev If daoAddress is going to be moved all reserves should be
