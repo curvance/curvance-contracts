@@ -168,7 +168,7 @@ contract CanBorrowTest is TestBaseMarketManager {
         vm.prank(address(eUSDC));
         marketManager.canBorrow(address(eUSDC), user1, 100e6);
 
-        AccountSnapshot memory snapshot = pBALRETH.getSnapshotPacked(user1);
+        AccountSnapshot memory snapshot = pBALRETH.getSnapshot(user1);
         (uint256 price, ) = oracleManager.getPrice(
             pBALRETH.asset(),
             true,

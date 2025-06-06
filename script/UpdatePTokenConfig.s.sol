@@ -64,7 +64,7 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         newCollateralCaps[0] = _readConfigUint256(
             string.concat(pathName, ".collateralCaps")
         );
-        MarketManager(marketManager).setCollateralCaps(
+        MarketManagerIsolated(marketManager).setCollateralCaps(
             mTokens,
             newCollateralCaps
         );

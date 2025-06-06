@@ -158,8 +158,8 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -206,8 +206,8 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
 
         positionManagement.depositAndLeverage(1000e6, leverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, amountForLeverage);
 
         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -226,7 +226,7 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         eDAI.accrueInterest();
 
         vm.startPrank(user);
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
         PositionManagementSimple.DeleverageStruct memory deleverageData;
@@ -253,8 +253,8 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         deleverageData.repayAmount = 890 ether;
         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(
             eDAIBorrowed,
             eDAIBorrowedBefore - deleverageData.repayAmount
@@ -321,8 +321,8 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
         (uint256 pUSDCBalance, uint256 pUSDCBorrowed, ) = pUSDC.getSnapshot(
@@ -342,7 +342,7 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         eDAI.accrueInterest();
 
         vm.startPrank(user);
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 pUSDCBalanceBefore, , ) = pUSDC.getSnapshot(user);
 
         PositionManagementSimple.DeleverageStruct memory deleverageData;
@@ -375,8 +375,8 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(
             eDAIBorrowed,
             eDAIBorrowedBefore - deleverageData.repayAmount

@@ -206,13 +206,12 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -251,13 +250,12 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
             0.05e18
         ); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -310,13 +308,12 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
             0.05e18 // 5% slippage
         );
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, amountForLeverage + 500 ether);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.0034 ether);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        assertGt(pUSDCDAI.balanceOf(user), 0.0034 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -369,13 +366,12 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
             0.05e18 // 5% slippage
         );
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, amountForLeverage + 500 ether);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.0027 ether);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        assertGt(pUSDCDAI.balanceOf(user), 0.0027 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
 
         vm.stopPrank();
@@ -391,8 +387,8 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
 
         PositionManagementAerodrome.DeleverageStruct memory deleverageData;
 
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
-        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
         deleverageData.positionToken = IPToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
@@ -423,17 +419,16 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(
             eDAIBorrowed,
             eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
         assertEq(
-            pUSDCDAIBalance,
+            pUSDCDAI.balanceOf(user),
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);
@@ -480,13 +475,12 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
-        assertGt(pUSDCDAIBalance, 0.00013 ether);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
         assertEq(pUSDCDAIBorrowed, 0 ether);
     }
 
@@ -500,8 +494,8 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
 
         PositionManagementAerodrome.DeleverageStruct memory deleverageData;
 
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
-        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
         deleverageData.positionToken = IPToken(address(pUSDCDAI));
         deleverageData.collateralAmount = 0.00003 ether;
@@ -536,17 +530,16 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(
             eDAIBorrowed,
             eDAIBorrowedBefore - deleverageData.repayAmount
         );
 
-        (uint256 pUSDCDAIBalance, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI
-            .getSnapshot(user);
+        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
         assertEq(
-            pUSDCDAIBalance,
+            pUSDCDAI.balanceOf(user),
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
         assertEq(pUSDCDAIBorrowed, 0);

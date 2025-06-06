@@ -227,7 +227,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManager {
         uint256 cooldownTimestamp = marketManager.accountAssets(user1);
         assertEq(cooldownTimestamp, block.timestamp);
 
-        AccountSnapshot memory snapshot = pBALRETH.getSnapshotPacked(user1);
+        AccountSnapshot memory snapshot = pBALRETH.getSnapshot(user1);
         (uint256 price, ) = oracleManager.getPrice(
             pBALRETH.asset(),
             true,

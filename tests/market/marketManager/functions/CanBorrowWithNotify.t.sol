@@ -1,60 +1,96 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
-contract CanBorrowTest is TestBaseMarketManagerIsolated {
+contract CanBorrowWithNotifyTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        // marketManager.listToken(address(eUSDC));
-        skip(gaugeManager.gaugeStartTime() - block.timestamp);
-
-        mockWethFeed.setMockUpdatedAt(block.timestamp);
-        mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
-
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
-
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManager.listToken(address(eUSDC));
     }
 
-    function test_canBorrow_fail_whenBorrowPaused() public {
+    function test_canBorrowWithNotify_fail_whenCallerIsNotMToken() public {
+        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6);
+    }
+
+    function test_canBorrowWithNotify_fail_whenCallerMTokenIsNotListed()
+        public
+    {
+        vm.prank(address(eDAI));
+
+        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6);
+    }
+
+    function test_canBorrowWithNotify_fail_whenBorrowPaused() public {
         marketManager.setBorrowPaused(address(eUSDC), true);
 
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Paused.selector);
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenMTokenIsNotListed() public {
-        // marketManager.listToken(address(eDAI));
-
-        vm.prank(address(eDAI));
+    function test_canBorrowWithNotify_fail_whenMTokenIsNotListed() public {
+        vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
+    function test_canBorrowWithNotify_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
         public
     {
-        // marketManager.listToken(address(eDAI));
+        marketManager.listToken(address(eDAI));
 
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(eDAI), user1, 100e6);
+        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenInsufficientLiquidity() public {
+    // function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
+    //     skip(gaugeManager.gaugeStartTime() - block.timestamp);
+    //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
+    //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
+
+    //     IMToken[] memory mTokens = new IMToken[](1);
+    //     uint256[] memory borrowCaps = new uint256[](1);
+    //     mTokens[0] = IMToken(address(pBALRETH));
+    //     borrowCaps[0] = 100e6 - 1;
+
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+
+    //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
+    //     vm.prank(address(pBALRETH));
+    //     marketManager.canBorrowWithNotify(address(pBALRETH), user1, 100e6);
+    // }
+
+    // function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
+    //     skip(gaugeManager.gaugeStartTime() - block.timestamp);
+    //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
+    //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
+
+    //     IMToken[] memory mTokens = new IMToken[](1);
+    //     uint256[] memory borrowCaps = new uint256[](1);
+    //     mTokens[0] = IMToken(address(pBALRETH));
+    //     borrowCaps[0] = 100e6;
+
+    //     marketManager.listToken(address(pBALRETH));
+    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+
+    //     vm.prank(address(pBALRETH));
+    //     marketManager.canBorrowWithNotify(address(pBALRETH), user1, borrowCaps[0] - 1);
+    // }
+
+    function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
+        vm.warp(gaugeManager.gaugeStartTime());
         chainlinkUsdcUsd.updateRoundData(
             0,
             1e8,
@@ -73,10 +109,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6);
     }
 
-    function test_canBorrow_fail_whenInsufficientLoanSize() public {
+    function test_canBorrowWithNotify_fail_whenInsufficientLoanSize() public {
+        vm.warp(gaugeManager.gaugeStartTime());
+
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
         chainlinkEthUsd.updateRoundData(
             0,
             1500e8,
@@ -96,19 +137,17 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
+
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
@@ -128,10 +167,17 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
         );
-        marketManager.canBorrow(address(eUSDC), user1, 10e6);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 10e6);
     }
 
-    function test_canBorrow_success_whenSufficientLiquidity() public {
+    function test_canBorrowWithNotify_success_whenSufficientLiquidity()
+        public
+    {
+        vm.warp(gaugeManager.gaugeStartTime());
+
+        mockWethFeed.setMockUpdatedAt(block.timestamp);
+        mockRethFeed.setMockUpdatedAt(block.timestamp);
+
         chainlinkEthUsd.updateRoundData(
             0,
             1500e8,
@@ -151,19 +197,17 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
+
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
@@ -179,7 +223,9 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, 100e6);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6);
+        uint256 cooldownTimestamp = marketManager.accountAssets(user1);
+        assertEq(cooldownTimestamp, block.timestamp);
 
         AccountSnapshot memory snapshot = pBALRETH.getSnapshot(user1);
         (uint256 price, ) = oracleManager.getPrice(
@@ -187,9 +233,9 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , , , , , ) = marketManager
-            .tokenData(address(pBALRETH));
-            
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
+            address(pBALRETH)
+        );
         uint256 assetValue = (price *
             ((999e18 * snapshot.exchangeRate) / 1e18)) /
             10 ** pBALRETH.decimals();
@@ -199,39 +245,25 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         uint256 borrowInUSDC = (maxBorrow / 10 ** pBALRETH.decimals()) *
             10 ** eUSDC.decimals();
         vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, borrowInUSDC);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, borrowInUSDC);
+        cooldownTimestamp = marketManager.accountAssets(user1);
+        assertEq(cooldownTimestamp, block.timestamp);
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
             MarketManager.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(address(eUSDC));
-        marketManager.canBorrow(
+        marketManager.canBorrowWithNotify(
             address(eUSDC),
             user1,
             borrowInUSDC + 1e6
         );
     }
 
-    function test_canBorrow_fail_entersUserInMarket() external {
-        chainlinkUsdcUsd.updateRoundData(
-            0,
-            1e8,
-            block.timestamp,
-            block.timestamp
-        );
-        chainlinkUsdcEth.updateRoundData(
-            0,
-            1e18,
-            block.timestamp,
-            block.timestamp
-        );
+    function test_canBorrowWithNotify_success_entersUserInMarket() external {
+        vm.warp(gaugeManager.gaugeStartTime());
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
-        marketManager.canBorrow(address(eUSDC), user1, 0);
-    }
-
-    function test_canBorrow_success_entersUserInMarket() external {
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
 
@@ -254,18 +286,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
 
         address[] memory tokens = new address[](1);
@@ -290,7 +319,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         assertEq(accountAssets.length, 1);
 
         vm.prank(address(eUSDC));
-        marketManager.canBorrow(address(eUSDC), user1, 1_000e6);
+        marketManager.canBorrowWithNotify(address(eUSDC), user1, 1_000e6);
 
         (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
 
@@ -301,57 +330,4 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         assertEq(address(accountAssets[0]), address(pBALRETH));
         assertEq(address(accountAssets[1]), address(eUSDC));
     }
-
-    // function test_canBorrow_fail_whenExceedsBorrowCap() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6 - 1;
-
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
-
-    //     vm.expectRevert();
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, 100e6);
-    // }
-
-    // function test_canBorrow_success_whenCapNotExceeded() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6;
-
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
-
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, borrowCaps[0] - 1);
-    // }
 }

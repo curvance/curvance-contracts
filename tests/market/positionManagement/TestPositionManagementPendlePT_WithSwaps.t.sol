@@ -217,8 +217,8 @@ contract Test_SwapPositionManagementPendlePT is TestBaseMarketIsolated {
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
 
         (uint256 pPendlePTBalance, uint256 pPendlePTBorrowed, ) = pPendlePT
@@ -361,7 +361,7 @@ contract Test_SwapPositionManagementPendlePT is TestBaseMarketIsolated {
 
         vm.startPrank(user);
         PositionManagementPendlePT.DeleverageStruct memory deleverageData;
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
         (uint256 PTBalanceBefore, , ) = pPendlePT.getSnapshot(user);
 
         emit debugUint("eDAIBorrowedBefore", eDAIBorrowedBefore);
@@ -412,8 +412,8 @@ contract Test_SwapPositionManagementPendlePT is TestBaseMarketIsolated {
 
         positionManagement.deleverage(deleverageData, 0.6e18); // 60% slippage
 
-        (uint256 eDAIBalance, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
-        assertEq(eDAIBalance, 0);
+        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        assertEq(eDAI.balanceOf(user), 0);
         assertEq(
             eDAIBorrowed,
             eDAIBorrowedBefore - deleverageData.repayAmount

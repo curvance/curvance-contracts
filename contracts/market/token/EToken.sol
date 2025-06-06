@@ -672,24 +672,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return ((exchangeRateWithUpdateSafe() * balanceOf[account]) / WAD);
     }
 
-    /// @notice Get a snapshot of the account's balances, and the cached
-    ///         exchange rate.
-    /// @dev This is used by marketManager to more efficiently perform
-    ///      liquidity checks.
-    /// @param account The address of the account to snapshot.
-    /// @return Account token balance.
-    /// @return Account debt balance.
-    /// @return Token => Underlying exchange rate, in `WAD`.
-    function getSnapshot(
-        address account
-    ) external view returns (uint256, uint256, uint256) {
-        return (
-            balanceOf[account],
-            debtBalanceCached(account),
-            exchangeRateCached()
-        );
-    }
-
     /// @notice Get a snapshot of the eToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.
@@ -697,7 +679,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     ///            since its unused.
     /// @param account The address of the account to snapshot.
     /// @return The account snapshot of `account`.
-    function getSnapshotPacked(
+    function getSnapshot(
         address account
     ) external view returns (AccountSnapshot memory) {
         return (

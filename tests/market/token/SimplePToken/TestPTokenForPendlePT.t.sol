@@ -237,7 +237,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
         pendlePT.approve(address(cPendlePT), 1 ether);
         cPendlePT.mint(1 ether, user1);
 
-        AccountSnapshot memory snapshot = cPendlePT.getSnapshotPacked(user1);
+        AccountSnapshot memory snapshot = cPendlePT.getSnapshot(user1);
         assertEq(cPendlePT.balanceOf(user1), 1 ether);
         assertEq(snapshot.debtBalance, 0);
         assertEq(snapshot.exchangeRate, 1 ether);
@@ -514,7 +514,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
 
     //     uint256 liquidatedAmount = 590e6;
 
-    //     AccountSnapshot memory snapshot = cPendlePT.getSnapshotPacked(user1);
+    //     AccountSnapshot memory snapshot = cPendlePT.getSnapshot(user1);
     //     assertApproxEqRel(
     //         cPendlePT.balanceOf(user1),
     //         1 ether - (liquidatedAmount * 12e11 * 1 ether) / pendlePTPrice,

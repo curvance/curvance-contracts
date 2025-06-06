@@ -1,27 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-
+import { TestBaseMarketManager } from "../TestBaseMarketManager.sol";
+import { LiquidityManager } from "contracts/market/LiquidityManager.sol";
+import { MarketManager } from "contracts/market/MarketManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
-contract CanBorrowTest is TestBaseMarketManagerIsolated {
+contract CanBorrowTest is TestBaseMarketManager {
     function setUp() public override {
         super.setUp();
 
-        // marketManager.listToken(address(eUSDC));
+        marketManager.listToken(address(eUSDC));
         skip(gaugeManager.gaugeStartTime() - block.timestamp);
 
         mockWethFeed.setMockUpdatedAt(block.timestamp);
         mockRethFeed.setMockUpdatedAt(block.timestamp);
-
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
-
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
-
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_canBorrow_fail_whenBorrowPaused() public {
@@ -34,7 +27,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canBorrow_fail_whenMTokenIsNotListed() public {
-        // marketManager.listToken(address(eDAI));
+        marketManager.listToken(address(eDAI));
 
         vm.prank(address(eDAI));
 
@@ -46,7 +39,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
     function test_canBorrow_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
         public
     {
-        // marketManager.listToken(address(eDAI));
+        marketManager.listToken(address(eDAI));
 
         vm.prank(address(eUSDC));
 
@@ -96,18 +89,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
@@ -151,18 +141,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(pBALRETH);
@@ -187,9 +174,9 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             true,
             true
         );
-        (, uint256 collRatio, , , , , , , , , , ) = marketManager
-            .tokenData(address(pBALRETH));
-            
+        (, uint256 collRatio, , , , , , ) = marketManager.tokenData(
+            address(pBALRETH)
+        );
         uint256 assetValue = (price *
             ((999e18 * snapshot.exchangeRate) / 1e18)) /
             10 ** pBALRETH.decimals();
@@ -254,18 +241,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        // marketManager.listToken(address(pBALRETH));
+        marketManager.listToken(address(pBALRETH));
         marketManager.updatePositionToken(
-            7000,    // collRatio 70%
-            4000,    // collReqSoft 40%
-            3000,    // collReqHard 25%
-            1000,    // liqIncBase 10%
-            1500,    // liqIncHard 15%
-            500,     // liqIncMin 5%
-            2000,    // liqIncMax 20%
-            2000,    // minEffectiveCFactor 20%
-            5000,    // maxEffectiveCFactor 50%
-            2000     // baseCFactor 20%
+            address(pBALRETH),
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
         );
 
         address[] memory tokens = new address[](1);
@@ -316,15 +300,15 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
     //         block.timestamp
     //     );
 
-    //     address[] memory mTokens = new address[](1);
+    //     IMToken[] memory mTokens = new IMToken[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
+    //     mTokens[0] = IMToken(address(pBALRETH));
     //     borrowCaps[0] = 100e6 - 1;
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
+    //     marketManager.listToken(address(pBALRETH));
     //     marketManager.setCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.expectRevert();
+    //     vm.expectRevert(MarketManager.MarketManager__BorrowCapReached.selector);
     //     vm.prank(address(pBALRETH));
     //     marketManager.canBorrow(address(pBALRETH), user1, 100e6);
     // }
@@ -343,12 +327,12 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
     //         block.timestamp
     //     );
 
-    //     address[] memory mTokens = new address[](1);
+    //     IMToken[] memory mTokens = new IMToken[](1);
     //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
+    //     mTokens[0] = IMToken(address(pBALRETH));
     //     borrowCaps[0] = 100e6;
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
+    //     marketManager.listToken(address(pBALRETH));
     //     marketManager.setCollateralCaps(mTokens, borrowCaps);
 
     //     vm.prank(address(pBALRETH));
