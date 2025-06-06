@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
@@ -29,7 +30,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
 
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManager.canBorrow(address(eUSDC), user1, 100e6, 100e6);
     }
 
@@ -38,7 +39,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
 
         vm.prank(address(eDAI));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
 
         marketManager.canBorrow(address(eUSDC), user1, 100e6, 100e6);
     }
@@ -50,7 +51,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
 
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canBorrow(address(eDAI), user1, 100e6, 100e6);
     }
 
@@ -227,7 +228,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canBorrow(address(eUSDC), user1, 0, 0);
     }
 

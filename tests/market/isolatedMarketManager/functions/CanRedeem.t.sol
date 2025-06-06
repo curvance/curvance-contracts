@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract CanRedeemTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
@@ -17,7 +18,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canRedeem(address(eDAI), user1, 100e6);
     }
 
@@ -25,7 +26,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.prank(user1);
         centralRegistry.setTransferableStatus(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 
@@ -37,7 +38,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
 
         vm.stopPrank();
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
 

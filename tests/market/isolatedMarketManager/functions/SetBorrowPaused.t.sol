@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
     event TokenActionPaused(address mToken, string action, bool pauseState);
@@ -9,12 +10,12 @@ contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
     function test_setBorrowPaused_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.setBorrowPaused(address(eUSDC), true);
     }
 
     function test_setBorrowPaused_fail_whenMTokenIsNotListed() public {
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.setBorrowPaused(address(eUSDC), true);
     }
 

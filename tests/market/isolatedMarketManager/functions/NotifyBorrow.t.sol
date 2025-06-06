@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
@@ -18,7 +18,7 @@ contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
     }
 
     function test_notifyBorrow_fail_whenCallerIsNotMToken() public {
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.notifyBorrow(address(eUSDC), user1);
     }
 

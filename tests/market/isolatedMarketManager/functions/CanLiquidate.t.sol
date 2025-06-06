@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { PriceReturnData } from "contracts/interfaces/IOracleAdaptor.sol";
 import { WAD } from "contracts/libraries/Constants.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
@@ -31,7 +32,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
             address(this),
             accounts,
@@ -51,7 +52,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             badDebt: 0
         });
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canLiquidate(
             address(this),
             accounts,

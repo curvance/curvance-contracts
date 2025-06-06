@@ -2,18 +2,19 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract CanSeizeTest is TestBaseMarketManagerIsolated {
     function test_canSeize_fail_whenPaused() public {
         marketManager.setSeizePaused(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     function test_canSeize_fail_whenPTokenNotListed() public {
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
@@ -26,7 +27,7 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
 
         // marketManager.listTokens(address(pBALRETH), address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canSeize(address(pBALRETH), address(eUSDC));
     }
 
@@ -54,7 +55,7 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
     //     centralRegistry.addLendingMarket(address(newMarketManager), 1000);
     //     eUSDC.setMarketManager(address(newMarketManager));
 
-    //     vm.expectRevert(MarketManager.MarketManager__MarketManagerMismatch.selector);
+    //     vm.expectRevert(MarketManagerIsolated.MarketManager__MarketManagerMismatch.selector);
     //     marketManager.canSeize(address(pBALRETH), address(eUSDC));
     // }
 }

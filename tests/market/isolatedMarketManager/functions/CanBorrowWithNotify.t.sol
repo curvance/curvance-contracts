@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 
 contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
@@ -18,7 +19,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canBorrowWithNotify_fail_whenCallerIsNotMToken() public {
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
@@ -27,7 +28,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     {
         vm.prank(address(eDAI));
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
@@ -36,14 +37,14 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenMTokenIsNotListed() public {
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
@@ -52,7 +53,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
     {
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
@@ -250,7 +251,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         uint256 expectedCooldownTimestamp;
         assertEq(cooldownTimestamp, block.timestamp);
 
-        vm.expectRevert(MarketManager.MarketManager__MinimumHoldPeriod.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);
         marketManager.canRepay(address(eUSDC), user1);
 
         vm.warp(block.timestamp + 20 minutes);

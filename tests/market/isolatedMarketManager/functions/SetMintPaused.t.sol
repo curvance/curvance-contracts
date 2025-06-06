@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetMintPausedTest is TestBaseMarketManagerIsolated {
     event TokenActionPaused(address mToken, string action, bool pauseState);
@@ -9,15 +10,15 @@ contract SetMintPausedTest is TestBaseMarketManagerIsolated {
     function test_setMintPaused_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(1));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.setMintPaused(address(eUSDC), true);
     }
 
     function test_setMintPaused_fail_whenMTokenIsNotListed() public {
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canMint(address(eUSDC));
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.setMintPaused(address(eUSDC), true);
     }
 
@@ -39,7 +40,7 @@ contract SetMintPausedTest is TestBaseMarketManagerIsolated {
 
         marketManager.setMintPaused(address(eUSDC), true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         marketManager.canMint(address(eUSDC));
 
         assertEq(marketManager.mintPaused(address(eUSDC)), 2);

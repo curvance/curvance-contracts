@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract SetLiquidationPausedTest is TestBaseMarketManagerIsolated {
     event ActionPaused(string action, bool pauseState);
@@ -12,7 +13,7 @@ contract SetLiquidationPausedTest is TestBaseMarketManagerIsolated {
     {
         vm.prank(address(1));
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
         marketManager.setLiquidationPaused(true);
     }
 

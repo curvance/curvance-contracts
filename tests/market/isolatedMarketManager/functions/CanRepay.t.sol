@@ -2,10 +2,11 @@
 pragma solidity ^0.8.19;
 
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract CanRepayTest is TestBaseMarketManagerIsolated {
     function test_canRepay_fail_whenTokenNotListed() public {
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         marketManager.canRepay(address(eUSDC), user1);
     }
 
