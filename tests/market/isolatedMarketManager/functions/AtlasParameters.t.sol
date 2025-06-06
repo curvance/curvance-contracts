@@ -5,6 +5,7 @@ import { TestBaseMarketManagerIsolated } from "tests/market/isolatedMarketManage
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
+
 contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     address dappControlUser = makeAddr("dappControlUser");
 
@@ -237,7 +238,8 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         // Set a valid penalty (WAD + 15%)
-        vm.prank(dappControlUser);
+        vm.startPrank(dappControlUser);
+        marketManager.unlockAtlasCollateral(address(eUSDC));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
         marketManager.setAtlasParameters(validPenalty, closeFactor);
