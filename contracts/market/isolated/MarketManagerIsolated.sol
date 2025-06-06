@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
-import { LiquidityManagerIsolated, IMToken, IEToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
+import { LiquidityManagerIsolated, IMToken, IOracleManager } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
@@ -230,13 +230,21 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Returns the ratio at which `mToken` can be collateralized.
-    /// @return Ratio returned in `WAD`, e.g. 0.8e18 = 80% collateral value.
+    /// @dev In WAD form e.g. 0.8e18 = 80% collateral value can be borrowed.
+    /// @param mToken The address of the market token to return
+    ///               collateralization ratio of.
+    /// @return The ratio at with debt can be borrowed against collateralized
+    ///         assets.
     function collateralizationRatio(
         address mToken
     ) external view returns (uint256) {
         return tokenData[mToken].collRatio;
     }
 
+    /// @notice Helper function for querying the current market tokens listed
+    ///         inside this market.
+    /// @return Array containing list of all market token addresses listed in
+    ///         this market.
     function queryTokensListed() external view returns (address[] memory) {
         return tokensListed;
     }
@@ -1794,13 +1802,6 @@ contract MarketManagerIsolated is
     function _checkIsListedToken(address token) internal view {
         if (!tokenData[token].isListed) {
             _revert(_TOKEN_NOT_LISTED_SELECTOR);
-        }
-    }
-
-    /// @dev Checks whether the caller is the Central Registry.
-    function _checkIsCentralRegistry() internal view {
-        if (msg.sender != address(centralRegistry)) {
-            _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
