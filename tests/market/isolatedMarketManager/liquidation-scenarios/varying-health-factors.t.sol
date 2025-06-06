@@ -21,6 +21,9 @@ import "forge-std/console2.sol";
 // - User 5: 1.0 pBALRETH ($1,600), 1,300 USDC debt (severe liquidation)
 // - Action: Price drop of pBALRETH by 15% (to $1,380)
 // - Expected: Users 3, 4, and 5 should be liquidated in single transaction
+//          User 3 has a soft liquidation, so no bad debt is accrued.
+//          User 4 has a hard liquidation, which accrues some bad debt.
+//          User 5 has a severe hard liquidaiton, which accrues substantial bad debt.
     
 
 contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
