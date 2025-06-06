@@ -178,9 +178,9 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterCurveWithPTokenWithCollateralize() public {
@@ -211,9 +211,9 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterCurveWithDelegation() public {
@@ -250,9 +250,9 @@ contract TestComplexZapperCurveETH is TestBaseMarketIsolated {
 
         assertEq(user2.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 3 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 3 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testRedeemAndExitCurve() public {

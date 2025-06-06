@@ -207,9 +207,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         );
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithPTokenWithCollateralize() public {
@@ -240,9 +240,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testEnterVelodromeWithDelegation() public {
@@ -273,9 +273,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         );
 
         assertEq(user1.balance, 0);
-        (uint256 balance, uint256 borrowed, ) = pToken.getSnapshot(user1);
-        assertApproxEqRel(balance, 0.00006 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pTokenBorrowed, ) = pToken.getSnapshot(user1);
+        assertApproxEqRel(pToken.balanceOf(user1), 0.00006 ether, 0.01 ether);
+        assertEq(pTokenBorrowed, 0);
     }
 
     function testRedeemAndExitVelodrome() public {

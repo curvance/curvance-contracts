@@ -191,9 +191,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
-        assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(user1);
+        assertApproxEqRel(pSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertEq(pSTETHBorrowed, 0);
     }
 
     function testEnterPendleWithPTokenWithCollateralize() public {
@@ -234,9 +234,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(user1.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
-        assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(user1);
+        assertApproxEqRel(pSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertEq(pSTETHBorrowed, 0);
     }
 
     function testEnterPendleWithDelegation() public {
@@ -277,9 +277,9 @@ contract TestPendleZapper is TestBaseMarketIsolated {
 
         assertEq(user2.balance, 0);
 
-        (uint256 balance, uint256 borrowed, ) = pSTETH.getSnapshot(user1);
-        assertApproxEqRel(balance, 1.24 ether, 0.01 ether);
-        assertEq(borrowed, 0);
+        (,,,, uint256 pSTETHBorrowed, ) = pSTETH.getSnapshot(user1);
+        assertApproxEqRel(pSTETH.balanceOf(user1), 1.24 ether, 0.01 ether);
+        assertEq(pSTETHBorrowed, 0);
     }
 
     function testRedeemAndExitPendle() public {
