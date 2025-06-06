@@ -149,10 +149,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     amountsToLiquidate[0] = 250e6;
 
     //     usdc.approve(address(eUSDC), 250e6);
-    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
     //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDynamicPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);
@@ -191,10 +191,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
     //     amountsToLiquidate[0] = 250e6;
 
     //     usdc.approve(address(eUSDC), 250e6);
-    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETHIsolated));
+    //     eUSDC.liquidateExact(usersToLiquidate, amountsToLiquidate, address(pBALRETH));
     //     vm.stopPrank();
 
-    //     uint256 liquidatorpTokenBalance = pBALRETHIsolated.balanceOf(user3);
+    //     uint256 liquidatorpTokenBalance = pBALRETH.balanceOf(user3);
     //     assertEq(liquidatorpTokenBalance, _calculateExpectedLiquidatedTokensWithDefaultPenalty());
 
     //     uint256 liquidatorUSDCBalance = usdc.balanceOf(user3);

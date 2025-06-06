@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-import { TestBaseIsolated } from "tests/utils/TestBaseIsolated.sol";
+import { TestBase } from "tests/utils/TestBase.sol";
 
 import { CVE } from "contracts/token/CVE.sol";
 import { VeCVE } from "contracts/token/VeCVE.sol";

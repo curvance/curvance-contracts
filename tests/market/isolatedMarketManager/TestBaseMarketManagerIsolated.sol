@@ -176,9 +176,9 @@ contract TestBaseMarketManagerIsolated is TestBaseMarketIsolated {
     //     vm.startPrank(user1);
 
     //     balRETH.approve(address(pBALRETH), _ONE);
-    //     pBALRETHIsolated.deposit(_ONE, user1);
+    //     pBALRETH.deposit(_ONE, user1);
 
-    //     marketManagerIsolated.postCollateral(user1, address(pBALRETHIsolated), _ONE - 1);
+    //     marketManagerIsolated.postCollateral(user1, address(pBALRETH), _ONE - 1);
 
     //     _prepareUSDC(address(this), 1000e6);   
 
