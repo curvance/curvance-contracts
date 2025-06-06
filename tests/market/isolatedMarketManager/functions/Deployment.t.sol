@@ -10,7 +10,7 @@ contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
         public
     {
         vm.expectRevert(
-            LiquidityManager.LiquidityManager__InvalidParameter.selector
+            LiquidityManagerIsolated.LiquidityManager__InvalidParameter.selector
         );
         new MarketManagerIsolated(ICentralRegistry(address(0)));
     }

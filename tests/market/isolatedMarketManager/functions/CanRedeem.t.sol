@@ -47,7 +47,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         marketManager.notifyBorrow(address(eUSDC), user1);
 
         vm.expectRevert(
-            MarketManager.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         marketManager.canRedeem(address(eUSDC), user1, 100e6);
     }
@@ -96,7 +96,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
 
         skip(20 minutes);
         vm.expectRevert(
-            MarketManager.MarketManager__InsufficientCollateral.selector
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         marketManager.canRedeem(address(pBALRETH), user1, 100e18);
     }

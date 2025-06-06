@@ -72,7 +72,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(
-            MarketManager.MarketManager__InsufficientCollateral.selector
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         marketManager.canBorrow(address(eUSDC), user1, 100e6, 100e6);
     }
@@ -127,7 +127,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(
-            LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
+            LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
         marketManager.canBorrow(address(eUSDC), user1, 10e6, 10e6);
     }
@@ -204,7 +204,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
 
         // should fail when borrowing more than is allowed by provided collateral
         vm.expectRevert(
-            MarketManager.MarketManager__InsufficientCollateral.selector
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         vm.prank(address(eUSDC));
         marketManager.canBorrow(

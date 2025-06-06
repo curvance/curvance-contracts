@@ -23,7 +23,7 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
         marketManager.notifyBorrow(address(eUSDC), user1);
 
         vm.expectRevert(
-            MarketManager.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         marketManager.canRepay(address(eUSDC), user1);
     }

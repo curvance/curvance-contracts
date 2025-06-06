@@ -81,7 +81,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
 
         vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
         marketManager.canLiquidate(
             address(this),
@@ -123,7 +123,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
 
         vm.expectRevert(
-            MarketManager.MarketManager__NoLiquidationAvailable.selector
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
             address(this),
@@ -167,7 +167,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
 
 
         vm.expectRevert(
-            MarketManager.MarketManager__NoLiquidationAvailable.selector
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
             address(this),
@@ -243,7 +243,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         });
 
         vm.expectRevert(
-            MarketManager.MarketManager__NoLiquidationAvailable.selector
+            MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
         marketManager.canLiquidate(
             address(this),

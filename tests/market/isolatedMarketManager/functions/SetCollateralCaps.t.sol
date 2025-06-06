@@ -33,7 +33,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         public
     {
         vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
         marketManager.setCollateralCaps(
             new address[](0),
@@ -47,7 +47,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         mTokens.push(address(eUSDC));
         assertNotEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
         marketManager.setCollateralCaps(mTokens, collateralCaps);
         mTokens.pop();
@@ -56,7 +56,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     function test_setCollateralCaps_fail_whenNotPToken() public {
         assertEq(mTokens.length, collateralCaps.length);
         vm.expectRevert(
-            MarketManager.MarketManager__InvalidParameter.selector
+            MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
         marketManager.setCollateralCaps(mTokens, collateralCaps);
     }

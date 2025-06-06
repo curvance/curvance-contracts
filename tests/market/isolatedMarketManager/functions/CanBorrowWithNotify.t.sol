@@ -126,7 +126,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(
-            MarketManager.MarketManager__InsufficientCollateral.selector
+            MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
@@ -185,7 +185,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         vm.prank(address(eUSDC));
 
-        vm.expectRevert(LiquidityManager.LiquidityManager__InsufficientLoanSize.selector);
+        vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         // borrow below the minimum loan size
         marketManager.canBorrowWithNotify(address(eUSDC), user1, 10e6, 10e6);
     }
