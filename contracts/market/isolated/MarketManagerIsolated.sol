@@ -180,7 +180,7 @@ contract MarketManagerIsolated is
     /// EVENTS ///
 
     event TokenListed(address mToken);
-    event PositionAdjusted(address mToken, address account, bool open);
+    event PositionUpdated(address mToken, address account, bool open);
     event PositionTokenUpdated(
         address mToken,
         uint256 collRatio,
@@ -194,11 +194,11 @@ contract MarketManagerIsolated is
         uint256 maxEffectiveCFactor,
         uint256 baseCFactor
     );
-    event ActionPaused(string action, bool pauseState);
-    event TokenActionPaused(address mToken, string action, bool pauseState);
     event CollateralCapUpdated(address mToken, uint256 newCollateralCap);
     event DebtCapUpdated(address mToken, uint256 newDebtCap);
-    event NewPositionManagementContract(address newPositionManager);
+    event PositionManagerUpdated(address positionManager, bool addPerms);
+    event ActionPaused(string action, bool pauseState);
+    event TokenActionPaused(address mToken, string action, bool pauseState);
 
     /// ERRORS ///
 
@@ -377,7 +377,7 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to collateralize
     ///         their shares of the given market.
     ///         Prunes unused positions in `account` data.
-    /// @dev May emit a {PositionAdjusted} event.
+    /// @dev May emit a {PositionUpdated} event.
     /// @param pToken The position token to verify collateralization of.
     /// @param account The account which would collateralize the asset.
     /// @param newNetCollateral The amount of shares that would be
@@ -410,7 +410,7 @@ contract MarketManagerIsolated is
             accountPositions[pToken][account] = 2;
             accountAssets[account].assets.push(IMToken(pToken));
 
-            emit PositionAdjusted(pToken, account, true);
+            emit PositionUpdated(pToken, account, true);
         }
     }
 
@@ -463,7 +463,7 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to borrow
     ///         the underlying asset of the given market.
     ///         Prunes unused positions in `account` data.
-    /// @dev May emit a {PositionAdjusted} event.
+    /// @dev May emit a {PositionUpdated} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
@@ -905,7 +905,7 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Set `newCollateralizationCaps` for the given `pTokens`.
-    /// @dev Can emit {NewCollateralCap} event(s).
+    /// @dev Can emit {CollateralCapUpdated} event(s).
     /// @param pTokens The addresses of the tokens to change the collateral
     ///                caps for.
     /// @param newCollateralCaps The new collateral cap values to be
@@ -945,7 +945,7 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Set `newDebtCaps` for the given `eTokens`.
-    /// @dev Can emit {NewDebtCap} event(s).
+    /// @dev Can emit {DebtCapUpdated} event(s).
     /// @param eTokens The addresses of the tokens to change the
     ///                debt caps for.
     /// @param newDebtCaps The new collateral cap values to be
@@ -1066,27 +1066,55 @@ contract MarketManagerIsolated is
         emit ActionPaused("Seize Paused", state);
     }
 
-    /// @notice Used to set the position folding address to allow
-    ///         complex position actions.
+    /// @notice Adds an position management address for complex
+    ///         position actions.
     /// @dev Requires timelock authority.
-    ///      Emits a {NewPositionManagementContract} event.
-    /// @param newPositionManagement The new position management address.
-    function setPositionManagement(address newPositionManagement) external {
+    ///      Emits a {PositionManagerUpdated} event.
+    /// @param newPositionManager The address to add position management
+    ///                           permissions for.
+    function addPositionManagement(address newPositionManager) external {
         _checkElevatedPermissions();
 
         if (
             !ERC165Checker.supportsInterface(
-                newPositionManagement,
+                newPositionManager,
                 type(IPositionManagement).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Assign new position folding contract.
-        positionManagement[newPositionManagement] = true;
+        // Validate `newPositionManager` does not have permissions.
+        if (positionManagement[newPositionManager]) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
 
-        emit NewPositionManagementContract(newPositionManagement);
+        // Add position management permissions.
+        positionManagement[newPositionManager] = true;
+
+        emit PositionManagerUpdated(newPositionManager, true);
+    }
+
+    /// @notice Removes an position management address for complex
+    ///         position actions.
+    /// @dev Requires timelock authority.
+    ///      Emits a {PositionManagerUpdated} event.
+    /// @param currentPositionManager The address to remove position
+    ///                               management permissions for.
+    function removePositionManagement(
+        address currentPositionManager
+    ) external {
+        _checkElevatedPermissions();
+
+        // Validate `currentPositionManager` already has permissions.
+        if (!positionManagement[currentPositionManager]) {
+            _revert(_INVALID_PARAMETER_SELECTOR);
+        }
+
+        // Remove position management permissions.
+        delete positionManagement[currentPositionManager];
+
+        emit PositionManagerUpdated(currentPositionManager, false);
     }
 
     /// @notice Called from the Atlas DappControl as a post hook
@@ -1210,7 +1238,7 @@ contract MarketManagerIsolated is
     ///         the underlying asset of the given market.
     /// @dev Will natively revert if a hypothetical borrow will result in a
     ///      loan less than `MIN_ACTIVE_LOAN_SIZE`, set in `LiquidityManager`.
-    ///      May emit a {PositionAdjusted} event.
+    ///      May emit a {PositionUpdated} event.
     /// @param eToken The debt token to verify the borrow of.
     /// @param account The account which would borrow the asset.
     /// @param newNetDebt The amount of assets that would be
@@ -1243,7 +1271,7 @@ contract MarketManagerIsolated is
             accountPositions[eToken][account] = 2;
             accountAssets[account].assets.push(IMToken(eToken));
 
-            emit PositionAdjusted(eToken, account, true);
+            emit PositionUpdated(eToken, account, true);
         }
 
         // Check if the user has sufficient liquidity to borrow,
@@ -1686,7 +1714,7 @@ contract MarketManagerIsolated is
     ///         checks have been passed.
     /// @dev Used as sort of a garbage collection system for any user
     ///      positions that should be closed to optimize future liquidity
-    ///      checks. May emit {PositionAdjusted} events.
+    ///      checks. May emit {PositionUpdated} events.
     /// @param positionsClosureNeeded Whether closing positions is needed
     ///                               for `account`.
     /// @param account The address of the account to close a
@@ -1742,7 +1770,7 @@ contract MarketManagerIsolated is
 
                 // Remove `mToken` account position flag.
                 accountPositions[cachedToken][account] = 1;
-                emit PositionAdjusted(cachedToken, account, false);
+                emit PositionUpdated(cachedToken, account, false);
             }
         }
     }

@@ -142,7 +142,7 @@ contract TestPositionManagementAerodromeStable is TestBaseMarketIsolated {
             address(aeroRouter),
             address(aeroPairFactory)
         );
-        marketManager.setPositionManagement(address(positionManagement));
+        marketManager.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
 

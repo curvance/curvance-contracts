@@ -136,7 +136,7 @@ contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
             _ROUTER
         );
 
-        marketManager.setPositionManagement(address(positionManagement));
+        marketManager.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
     }

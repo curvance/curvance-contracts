@@ -170,7 +170,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
 
     function addPositionManagement() public {
         // Set this contract as a position management handler in the MarketManager
-        marketManager.setPositionManagement(address(this));
+        marketManager.addPositionManager(address(this));
     }
 
     // the same logic from the CompoundingWithExitFeePToken contract which removes the exit fee

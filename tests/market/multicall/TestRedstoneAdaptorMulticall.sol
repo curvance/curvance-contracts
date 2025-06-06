@@ -198,7 +198,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
                 address(marketManager),
                 _WETH_ADDRESS
             );
-            marketManager.setPositionManagement(address(positionManagement));
+            marketManager.addPositionManager(address(positionManagement));
         }
 
         centralRegistry.setExternalCalldataChecker(

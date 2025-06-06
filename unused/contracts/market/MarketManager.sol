@@ -1059,7 +1059,7 @@
 //     /// @dev Requires timelock authority.
 //     ///      Emits a {NewPositionManagementContract} event.
 //     /// @param newPositionManagement The new position management address.
-//     function setPositionManagement(address newPositionManagement) external {
+//     function addPositionManager(address newPositionManagement) external {
 //         _checkElevatedPermissions();
 
 //         if (

@@ -40,7 +40,7 @@ interface IMarketManager {
     /// @notice Checks if the account should be allowed to collateralize
     ///         their shares of the given market.
     ///         Prunes unused positions in `account` data.
-    /// @dev May emit a {PositionAdjusted} event.
+    /// @dev May emit a {PositionUpdated} event.
     /// @param pToken The position token to verify collateralization of.
     /// @param account The account which would collateralize the asset.
     /// @param newNetCollateral The amount of shares that would be

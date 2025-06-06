@@ -141,7 +141,7 @@ contract TestPositionManagementVelodromeStable is TestBaseMarketIsolated {
             address(veloRouter),
             address(veloPairFactory)
         );
-        marketManager.setPositionManagement(address(positionManagement));
+        marketManager.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
 

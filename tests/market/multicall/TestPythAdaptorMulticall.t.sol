@@ -213,7 +213,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
                 address(marketManager),
                 _WETH_ADDRESS
             );
-            marketManager.setPositionManagement(address(positionManagement));
+            marketManager.addPositionManager(address(positionManagement));
         }
 
         address[] memory multicallProviders = new address[](3);

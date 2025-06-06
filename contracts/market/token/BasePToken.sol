@@ -109,7 +109,7 @@ abstract contract BasePToken is
     
     /// EVENTS ///
 
-    event CollateralAdjusted(
+    event CollateralUpdated(
         address account,
         uint256 amount,
         bool increased
@@ -1022,8 +1022,8 @@ abstract contract BasePToken is
 
     /// @notice Helper function for posting `shares` as collateral
     ///         for `account` inside this market.
-    /// @dev Emits {CollateralAdjusted} event.
-    ///      May emit {PositionAdjusted} event inside Market Manager.
+    /// @dev Emits {CollateralUpdated} event.
+    ///      May emit {PositionUpdated} event inside Market Manager.
     /// @param account The account posting collateral.
     /// @param shares The amount of shares to post as collateral.
     function _postCollateral(address account, uint256 shares) internal {
@@ -1036,13 +1036,13 @@ abstract contract BasePToken is
         // Update user and market collateral posted invariants.
         collateralPosted[account] = collateralPosted[account] + shares;
         marketCollateralPosted = newNetCollateral;
-        emit CollateralAdjusted(account, shares, true);
+        emit CollateralUpdated(account, shares, true);
     }
 
     /// @notice Helper function for removing `shares` collateral posted for
     ///         `account` inside this market.
-    /// @dev Emits a {CollateralRemoved} event.
-    ///      May emit {PositionAdjusted} event inside Market Manager.
+    /// @dev Emits a {CollateralUpdated} event.
+    ///      May emit {PositionUpdated} event inside Market Manager.
     /// @param account The address of the account to reduce `mToken`
     ///                collateral posted for.
     /// @param shares The number of shares that are posted of collateral
@@ -1051,7 +1051,7 @@ abstract contract BasePToken is
         // Update user and market collateral posted invariants.
         collateralPosted[account] = collateralPosted[account] - shares;
         marketCollateralPosted = marketCollateralPosted - shares;
-        emit CollateralAdjusted(account, shares, false);
+        emit CollateralUpdated(account, shares, false);
     }
 
     /// @notice Processes a deposit of `assets` from the market and mints

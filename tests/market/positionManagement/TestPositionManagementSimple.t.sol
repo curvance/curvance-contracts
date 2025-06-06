@@ -78,7 +78,7 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
             _WETH_ADDRESS
         );
 
-        marketManager.setPositionManagement(address(positionManagement));
+        marketManager.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
     }
