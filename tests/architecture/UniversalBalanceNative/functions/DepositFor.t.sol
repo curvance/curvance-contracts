@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { TestBaseUniversalBalanceNative } from "../TestBaseUniversalBalanceNative.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
+import { MarketManagerIsolated } from "contracts/market/MarketManagerIsolated.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
@@ -94,7 +95,7 @@ contract UniversalBalanceNativeDepositForTest is
 
         weth.approve(address(universalBalanceNative), _ONE);
 
-        vm.expectRevert(MarketManager.MarketManager__TokenNotListed.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
         universalBalanceNative.depositFor(_ONE, true, user2);
 
         vm.stopPrank();
