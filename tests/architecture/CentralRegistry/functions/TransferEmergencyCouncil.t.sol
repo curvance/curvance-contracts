@@ -9,7 +9,7 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
     address public newEmergencyCouncil2 = address(1002);
 
     event PermissionsTransferred(
-        string indexed permissionsType,,
+        string indexed permissionsType,
         address previousEmergencyCouncil,
         address newEmergencyCouncil
     );
