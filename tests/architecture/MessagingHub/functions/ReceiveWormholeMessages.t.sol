@@ -55,7 +55,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     {
         additionalMessages.push(abi.encode("1", "1"));
 
-        vm.startPrank(_WORMHOLE_RELAYER);
+        vm.startPrank(_CROSSCHAIN_RELAYER);
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.receiveWormholeMessages(
@@ -85,7 +85,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     {
         messagingHub.setMessagingHubStatus(3);
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
 
         vm.expectRevert(
             MessagingHub.MessagingHub__MessagingHubPaused.selector
@@ -104,7 +104,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     {
         _prepareUSDC(address(messagingHub), 100e6);
 
-        vm.startPrank(_WORMHOLE_RELAYER);
+        vm.startPrank(_CROSSCHAIN_RELAYER);
 
         messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
@@ -138,7 +138,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     {
         _prepareUSDC(address(messagingHub), 100e6);
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
@@ -156,7 +156,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     {
         _prepareUSDC(address(messagingHub), 100e6);
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
@@ -172,7 +172,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
     function test_receiveWormholeMessages_success_whenPayloadTypeIs1() public {
         assertEq(usdc.balanceOf(address(messagingHub)), 0);
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
@@ -186,7 +186,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
 
         rewardManager.notifyShutdown();
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(1, _addressToBytes32(_USDC_ADDRESS), 100e6),
             additionalMessages,
@@ -213,7 +213,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         emissionData.tokens[0] = _USDC_ADDRESS;
         emissionData.emissions[0] = _ONE;
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(2, epoch, emissionData),
             additionalMessages,
@@ -240,7 +240,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         uint256 rewardManagerBalance = usdc.balanceOf(address(rewardManager));
         uint256 daoBalance = usdc.balanceOf(centralRegistry.daoAddress());
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
             additionalMessages,
@@ -262,7 +262,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
 
         nextEpoch = rewardManager.nextEpochToDeliver();
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(3, nextEpoch, _ONE),
             additionalMessages,
@@ -292,7 +292,7 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         uint256 amount = _ONE;
         bool continuousLock = true;
 
-        vm.prank(_WORMHOLE_RELAYER);
+        vm.prank(_CROSSCHAIN_RELAYER);
         messagingHub.receiveWormholeMessages(
             abi.encode(4, recipient, amount, continuousLock),
             additionalMessages,

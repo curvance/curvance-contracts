@@ -23,7 +23,7 @@ contract TestFeeManager is TestBaseFeeManager {
         // Fork Ethereum as source chain and select it
         srcForkId = _fork(19140000);
 
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
 
         // Deploy contracts on forked Ethereum
         _init();
@@ -191,7 +191,7 @@ contract TestFeeManager is TestBaseFeeManager {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );
@@ -328,7 +328,7 @@ contract TestFeeManager is TestBaseFeeManager {
             2,
             dstForkId,
             address(messagingHub),
-            _WORMHOLE_RELAYER,
+            _CROSSCHAIN_RELAYER,
             _CIRCLE_MESSAGE_TRANSMITTER,
             logs
         );

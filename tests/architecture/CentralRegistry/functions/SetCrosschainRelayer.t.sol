@@ -21,7 +21,7 @@ contract SetCrosschainRelayerTest is TestBaseMarketIsolated {
     function test_setCrosschainRelayer_success() public {
         assertEq(
             address(centralRegistry.crosschainRelayer()),
-            _WORMHOLE_RELAYER
+            _CROSSCHAIN_RELAYER
         );
 
         vm.expectEmit(true, true, true, true);

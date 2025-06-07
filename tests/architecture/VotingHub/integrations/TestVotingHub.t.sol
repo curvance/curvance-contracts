@@ -22,7 +22,7 @@ contract TestVotingHub is TestBaseVotingHub {
         // Fork Ethereum as source chain and select it
         srcForkId = _fork(19140000);
 
-        _WORMHOLE_CORES[block.chainid] = address(new WormholeMock());
+        _CROSSCHAIN_CORES[block.chainid] = address(new WormholeMock());
         wormholeHelper = new WormholeHelper();
 
         // Deploy contracts on forked Ethereum
@@ -51,7 +51,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _USDC_ADDRESSES[1],
             1,
             2,
-            _WORMHOLE_RELAYERS[1],
+            _CROSSCHAIN_RELAYERS[1],
             0
         );
 
@@ -78,7 +78,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _USDC_ADDRESSES[1],
             1,
             2,
-            _WORMHOLE_RELAYERS[1],
+            _CROSSCHAIN_RELAYERS[1],
             0
         );
 
@@ -94,7 +94,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _USDC_ADDRESSES[42161],
             42161,
             23,
-            _WORMHOLE_RELAYERS[42161],
+            _CROSSCHAIN_RELAYERS[42161],
             3
         );
 
@@ -111,7 +111,7 @@ contract TestVotingHub is TestBaseVotingHub {
             _USDC_ADDRESSES[10],
             10,
             24,
-            _WORMHOLE_RELAYERS[10],
+            _CROSSCHAIN_RELAYERS[10],
             2
         );
 
@@ -225,8 +225,8 @@ contract TestVotingHub is TestBaseVotingHub {
         dstForkIds[1] = dstForkId2;
         expDstAddresses[0] = address(messagingHubs[42161]);
         expDstAddresses[1] = address(messagingHubs[10]);
-        dstRelayers[0] = _WORMHOLE_RELAYERS[42161];
-        dstRelayers[1] = _WORMHOLE_RELAYERS[10];
+        dstRelayers[0] = _CROSSCHAIN_RELAYERS[42161];
+        dstRelayers[1] = _CROSSCHAIN_RELAYERS[10];
 
         wormholeHelper.help(2, dstForkIds, expDstAddresses, dstRelayers, logs);
 

@@ -108,8 +108,8 @@ contract TestBaseMarket is TestBase {
         centralRegistry.transferEmergencyCouncil(address(this));
         centralRegistry.setLockBoostMultiplier(lockBoostMultiplier);
         centralRegistry.setTokenMessager(_CIRCLE_TOKEN_MESSENGER);
-        centralRegistry.setCrosschainRelayer(_WORMHOLE_RELAYER);
-        centralRegistry.setCrosschainCore(_WORMHOLE_CORE);
+        centralRegistry.setCrosschainRelayer(_CROSSCHAIN_RELAYER);
+        centralRegistry.setCrosschainCore(_CROSSCHAIN_CORE);
         centralRegistry.setMessageTransmitter(
             address(new MockMessageTransmitter())
         );

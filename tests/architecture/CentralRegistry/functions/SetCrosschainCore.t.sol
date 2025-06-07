@@ -19,7 +19,7 @@ contract SetCrosschainCoreTest is TestBaseMarketIsolated {
     }
 
     function test_setCrosschainCore_success() public {
-        assertEq(address(centralRegistry.crosschainCore()), _WORMHOLE_CORE);
+        assertEq(address(centralRegistry.crosschainCore()), _CROSSCHAIN_CORE);
 
         vm.expectEmit(true, true, true, true);
         emit CoreContractUpdated("Crosschain Core", newCrosschainCore);

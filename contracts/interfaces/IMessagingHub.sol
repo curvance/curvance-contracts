@@ -15,7 +15,7 @@ struct EmissionData {
 
 interface IMessagingHub {
     /// @notice Quotes gas cost and token fee for executing crosschain
-    ///         wormhole deposit and messaging.
+    ///         deposit and messaging.
     /// @param dstChainId Destination chain ID.
     /// @param gasLimit Gas limit with which to call on destination chain.
     /// @return Total gas cost.
@@ -68,7 +68,7 @@ interface IMessagingHub {
     ///                    VeCVE lock migrations have a payloadType of 4, whereas CVE
     ///                    has no payload type because its a native transfer.
     /// @param aux Auxilliary boolean data if needed for bridging token.
-    /// @return Wormhole sequence for emitted TransferTokensWithRelay message.
+    /// @return Sequence for emitted TransferTokensWithRelay message.
     function bridgeToken(
         uint256 dstChainId,
         address recipient,
