@@ -39,7 +39,7 @@ contract RedstoneCoreAdaptor is
     ///                          signers, in milliseconds.
     /// @param blockTimestamp The block timestamp when `price` was stored,
     ///                       in seconds.
-    struct StoredPrice {
+    struct StoredData {
         uint256 price;
         uint128 redstoneTimestamp;
         uint128 blockTimestamp;

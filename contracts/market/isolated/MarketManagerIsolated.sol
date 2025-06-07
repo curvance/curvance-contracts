@@ -153,23 +153,23 @@ contract MarketManagerIsolated is
     /// @dev 1 = unpaused; 2 = paused.
     uint256 public redeemPaused = 1;
     /// @notice Whether mToken minting is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public mintPaused;
     /// @notice Whether pToken minting is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public collateralizationPaused;
     /// @notice Whether eToken borrowing is paused.
-    /// @dev Token => 0 or 1 = unpaused; 2 = paused.
+    /// @dev Token Address => 0 or 1 = unpaused; 2 = paused.
     mapping(address => uint256) public borrowPaused;
 
-    /// @notice Amount of pToken that can be posted of collateral,
+    /// @notice The total amount of `mToken` that can be posted as collateral,
     ///         in shares.
-    /// @dev Token => Market-wide Collateral Cap, in shares.
+    /// @dev Token Address => Market-wide Collateral Cap, in shares.
     mapping(address => uint256) public collateralCaps;
 
-    /// @notice Amount of eToken underlying that can be borrowed,
+    /// @notice The total amount of `mToken` underlying that can be borrowed,
     ///         in assets.
-    /// @dev Token => Market-wide Debt Cap, in assets.
+    /// @dev Token Address => Market-wide Debt Cap, in assets.
     mapping(address => uint256) public debtCaps;
 
     /// @notice Whether an address is an authorized position management
@@ -253,7 +253,7 @@ contract MarketManagerIsolated is
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
-    /// @return A dynamic list with the assets the account has entered.
+    /// @return A dynamic list with the assets `account` has entered.
     function assetsOf(
         address account
     ) external view returns (IMToken[] memory) {
@@ -263,9 +263,10 @@ contract MarketManagerIsolated is
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
     /// @param account The account to determine liquidity for.
-    /// @return accountCollateral total collateral amount of account.
-    /// @return maxDebt max borrow amount of account.
-    /// @return accountDebt total borrow amount of account.
+    /// @return The current total collateral amount of `account`.
+    /// @return The maximum debt amount of `account` can take out with
+    ///         their current collateral.
+    /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
     ) external view returns (uint256, uint256, uint256) {
@@ -533,14 +534,33 @@ contract MarketManagerIsolated is
     /// @param debtAmounts The amounts of underlying asset the liquidator
     ///                    wishes to repay, empty if desired to max liquidate.
     /// @param instructions A LiqInstructions struct containing:
-    ///               eToken Debt token to repay which is borrowed by
-    ///                      `account`.
-    ///               pToken Position token which was used as collateral
-    ///                      and will be seized.
-    ///               numAccounts The number of accounts to be potentially
+    ///               eToken Token to potentially repay which is borrowed
+    ///                      by `account`.
+    ///               pToken Token which was used as collateral by `account`
+    ///                      and may be seized.
+    ///               numAccounts The number of accounts to be, potentially,
     ///                           liquidated.
     ///               liquidateExact Whether the liquidator desires a
     ///                              specific liquidation amount.
+    ///               eTokenRepaid Empty variable slot to store how much
+    ///                            `eToken` will be repaid as part of a
+    ///                            particular liquidation.
+    ///               pTokenLiquidated Empty variable slot to store how much
+    ///                                `pToken` will be seized as part of a
+    ///                                particular liquidation.
+    ///               badDebt Empty variable slot to store how much bad debt
+    ///                       will be realized as part of a particular
+    ///                       liquidation.
+    /// @return results A LiqResults struct containing:
+    ///                 liquidatedAmounts An array containing the collateral
+    ///                                   amounts to liquidate from
+    ///                                   `accounts`.
+    ///                 debtRepaid The total amount of debt to repay from
+    ///                            `accounts`.
+    ///                 badDebtRealized The total amount of debt to realize as
+    ///                                 losses for lenders inside this market.
+    /// @return An array containing the debt amounts to repay from
+    ///        `accounts`.
     function canLiquidate(
         address liquidator,
         address[] calldata accounts,
@@ -631,10 +651,11 @@ contract MarketManagerIsolated is
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which will transfer the tokens.
-    /// @param balanceOf The current pToken share balance of `account`.
-    /// @param collateralPosted The current mToken shares posted as
-    ///                         collateral by `account`.
-    /// @param amount The number of mTokens to transfer.
+    /// @param balanceOf The current balance that `from` has of `pToken`
+    ///                  shares.
+    /// @param collateralPosted The amount of `mToken` shares posted as
+    ///                         collateral by `from`.
+    /// @param amount The amount of `mToken` to transfer.
     function canTransferPToken(
         address mToken,
         address from,
@@ -661,8 +682,8 @@ contract MarketManagerIsolated is
     /// @notice Checks if the account should be allowed to transfer debt
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
-    /// @param from The account which will transfer the tokens.
-    /// @param amount The number of mTokens to transfer.
+    /// @param from The account which the tokens will be transferred from.
+    /// @param amount The amount of `mToken` to transfer.
     function canTransferEToken(
         address mToken,
         address from,

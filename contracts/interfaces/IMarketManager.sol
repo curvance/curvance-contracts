@@ -6,6 +6,25 @@ import { IMToken } from "contracts/interfaces/IMToken.sol";
 interface IMarketManager {
     /// TYPES ///
 
+    /// @notice Data structure passed communicating the intended liquidation
+    ///         scenario to review based on current liquidity levels.
+    /// @param eToken Token to potentially repay which is borrowed by
+    ///               `account`.
+    /// @param pToken Token which was used as collateral by `account` and may
+    ///               be seized.
+    /// @param numAccounts The number of accounts to be, potentially,
+    ///                    liquidated.
+    /// @param liquidateExact Whether the liquidator desires a specific
+    ///                       liquidation amount.
+    /// @param eTokenRepaid Empty variable slot to store how much `eToken`
+    ///                     will be repaid as part of a particular
+    ///                     liquidation.
+    /// @param pTokenLiquidated Empty variable slot to store how much
+    ///                         `pToken` will be seized as part of a
+    ///                         particular liquidation.
+    /// @param badDebt Empty variable slot to store how much bad debt will
+    ///                be realized by lenders as part of a particular
+    ///                liquidation.
     struct LiqInstructions {
         address eToken;
         address pToken;
@@ -16,6 +35,13 @@ interface IMarketManager {
         uint256 badDebt;
     }
 
+    /// @notice Data structure returned communicating outcome of a liquidity
+    ///         scenario review based on current liquidity levels.
+    /// @param liquidatedAmounts An array containing the collateral amounts to
+    ///                          liquidate from accounts.
+    /// @param debtRepaid The total amount of debt to repay from accounts.
+    /// @param badDebtRealized The total amount of debt to realize as losses
+    ///                        for lenders inside this market.
     struct LiqResults {
         uint256[] liquidatedAmounts;
         uint256 debtRepaid;
@@ -125,6 +151,18 @@ interface IMarketManager {
     /// @notice Checks if the liquidation should be allowed to occur,
     ///         and returns how many position tokens should be seized
     ///         on liquidation.
+    /// @param accounts The addresses of the accounts to be liquidated.
+    /// @param debtAmounts The amounts of underlying asset the liquidator
+    ///                    wishes to repay, empty if desired to max liquidate.
+    /// @param instructions A LiqInstructions struct containing:
+    ///               eToken Debt token to repay which is borrowed by
+    ///                      `account`.
+    ///               pToken Position token which was used as collateral
+    ///                      and will be seized.
+    ///               numAccounts The number of accounts to be potentially
+    ///                           liquidated.
+    ///               liquidateExact Whether the liquidator desires a
+    ///                              specific liquidation amount.
     function canLiquidate(
         address liquidator,
         address[] calldata accounts,
@@ -137,25 +175,15 @@ interface IMarketManager {
     /// @param earnToken Asset which was borrowed by the account.
     function canSeize(address pToken, address earnToken) external;
 
-    /// @notice Checks if the account should be allowed to transfer debt
-    ///         tokens in the given market.
-    /// @param mToken The market to verify the transfer against.
-    /// @param from The account which sources the tokens.
-    /// @param amount The number of mTokens to transfer.
-    function canTransferEToken(
-        address mToken,
-        address from,
-        uint256 amount
-    ) external;
-
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which will transfer the tokens.
-    /// @param balanceOf The current pToken share balance of `account`.
-    /// @param collateralPosted The current mToken shares posted as
-    ///                         collateral by `account`.
-    /// @param amount The number of mTokens to transfer.
+    /// @param balanceOf The current balance that `from` has of `pToken`
+    ///                  shares.
+    /// @param collateralPosted The amount of `mToken` shares posted as
+    ///                         collateral by `from`.
+    /// @param amount The amount of `mToken` to transfer.
     function canTransferPToken(
         address mToken,
         address from,
@@ -164,7 +192,19 @@ interface IMarketManager {
         uint256 amount
     ) external returns (uint256);
 
-    /// @notice Updates `account` cooldownTimestamp to the current block timestamp.
+    /// @notice Checks if the account should be allowed to transfer debt
+    ///         tokens in the given market.
+    /// @param mToken The market token to verify the transfer of.
+    /// @param from The account which the tokens will be transferred from.
+    /// @param amount The amount of `mToken` to transfer.
+    function canTransferEToken(
+        address mToken,
+        address from,
+        uint256 amount
+    ) external;
+
+    /// @notice Updates `account` cooldownTimestamp to the current block
+    ///         timestamp.
     /// @dev The caller must be a listed MToken in the `markets` mapping.
     /// @param mToken The address of the eToken that the account is borrowing.
     /// @param account The address of the account that has just borrowed.
@@ -184,13 +224,17 @@ interface IMarketManager {
         address mToken
     ) external view returns (uint256);
 
-    /// @notice Amount of pToken that can be posted of collateral,
+    /// @notice The total amount of `mToken` that can be posted as collateral,
     ///         in shares.
-    function collateralCaps(address pToken) external view returns (uint256);
+    function collateralCaps(address mToken) external view returns (uint256);
+
+    /// @notice The total amount of `mToken` underlying that can be borrowed,
+    ///         in assets.
+    function debtCaps(address mToken) external view returns (uint256);
 
     /// @notice Returns the assets an account has entered.
     /// @param account The address of the account to pull assets for.
-    /// @return A dynamic list with the assets the account has entered.
+    /// @return A dynamic list with the assets `account` has entered.
     function assetsOf(
         address account
     ) external view returns (IMToken[] memory);
@@ -198,9 +242,10 @@ interface IMarketManager {
     /// @notice Determine `account`'s current status between collateral,
     ///         debt, and additional liquidity.
     /// @param account The account to determine liquidity for.
-    /// @return accountCollateral total collateral amount of account.
-    /// @return maxDebt max borrow amount of account.
-    /// @return accountDebt total borrow amount of account.
+    /// @return The current total collateral amount of `account`.
+    /// @return The maximum debt amount of `account` can take out with
+    ///         their current collateral.
+    /// @return The current total borrow amount of `account`.
     function statusOf(
         address account
     ) external view returns (uint256, uint256, uint256);
@@ -225,8 +270,8 @@ interface IMarketManager {
 
     /// @notice Returns whether `positionContract` is an approved position
     ///         management operator or not.
-    /// @param positionContract Address to check for position management
-    ///                         authority.
+    /// @param addressToCheck Address to check for position management
+    ///                       authority.
     function positionManager(
         address addressToCheck
     ) external view returns (bool);
