@@ -54,10 +54,15 @@ contract RedstoneCoreAdaptor is
     /// @notice The smallest value that Redstone Core unique signer threshold
     ///         can be inside Curvance.
     uint256 public constant MINIMUM_SIGNERS_THRESHOLD_ALLOWED = 3;
-
     /// @notice The maximum number of signers allowed inside this adaptor.
     /// @dev 1.002e4 = 0.2%.
     uint256 public constant MAXIMUM_SIGNERS_ALLOWED = 255;
+    /// @notice The maximum timestamp delay from block.timestamp that is
+    ///         acceptable.
+    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS = 3 minutes;
+    /// @notice The maximum timestamp ahead from block.timestamp that is
+    ///         acceptable.
+    uint256 constant DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS = 1 minutes;
 
     /// STORAGE ///
 
@@ -489,19 +494,13 @@ contract RedstoneCoreAdaptor is
                 (receivedTimestampSeconds - block.timestamp) >
                 DEFAULT_MAX_DATA_TIMESTAMP_AHEAD_SECONDS
             ) {
-                revert TimestampFromTooLongFuture(
-                    receivedTimestampSeconds,
-                    block.timestamp
-                );
+                revert RedstoneCoreAdaptor__StalePrice();
             }
         } else if (
             (block.timestamp - receivedTimestampSeconds) >
             DEFAULT_MAX_DATA_TIMESTAMP_DELAY_SECONDS
         ) {
-            revert TimestampIsTooOld(
-                receivedTimestampSeconds,
-                block.timestamp
-            );
+            revert RedstoneCoreAdaptor__StalePrice();
         }
     }
 
@@ -525,7 +524,7 @@ contract RedstoneCoreAdaptor is
             _isAuthorisedSigner[signer] = i + 1;
             authorisedSigners.push(signer);
 
-            emit RedstoneCoreSignerAdded(signer);
+            emit SignerUpdated(signer, true);
         }
     }
 }

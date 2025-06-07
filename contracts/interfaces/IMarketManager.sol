@@ -167,7 +167,7 @@ interface IMarketManager {
         address liquidator,
         address[] calldata accounts,
         uint256[] memory debtAmounts,
-        IMarketManager.LiqInstructions memory liqInstructions
+        IMarketManager.LiqInstructions memory instructions
     ) external view returns (LiqResults memory, uint256[] memory);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
