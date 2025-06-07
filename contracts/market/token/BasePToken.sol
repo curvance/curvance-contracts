@@ -203,7 +203,7 @@ abstract contract BasePToken is
         IPositionManagement.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that the position folding contract is calling.
-        if (!marketManager.positionManagement(msg.sender)) {
+        if (!marketManager.positionManagers(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -247,7 +247,7 @@ abstract contract BasePToken is
     ) external nonReentrant returns (uint256 shares) {
         if (
             msg.sender != receiver &&
-            !marketManager.positionManagement(msg.sender)
+            !marketManager.positionManagers(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
