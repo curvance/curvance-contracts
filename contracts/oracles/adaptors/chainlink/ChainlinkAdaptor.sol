@@ -19,7 +19,7 @@ contract ChainlinkAdaptor is BaseOracleAdaptor {
     ///                     false = unconfigured; true = configured.
     /// @param decimals Returns the number of decimals the aggregator
     ///                 responds with.
-    /// @param heartbeat The max amount of time between price updates.
+    /// @param heartbeat The max amount of time allowed between price updates.
     ///                  0 defaults to using DEFAULT_HEART_BEAT.
     /// @param max The maximum valid price of the asset.
     ///            0 defaults to use proxy max price reduced by ~10%.

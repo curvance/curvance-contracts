@@ -175,7 +175,7 @@ contract MarketManagerIsolated is
     /// @notice Whether an address is an authorized position management
     ///         operator or not.
     /// @dev Address => Is an approved position management operator.
-    mapping(address => bool) public positionManagement;
+    mapping(address => bool) public positionManagers;
 
     /// EVENTS ///
 
@@ -1080,7 +1080,7 @@ contract MarketManagerIsolated is
     ///      Emits a {PositionManagerUpdated} event.
     /// @param newPositionManager The address to add position management
     ///                           permissions for.
-    function addPositionManagement(address newPositionManager) external {
+    function addPositionManager(address newPositionManager) external {
         _checkElevatedPermissions();
 
         if (
@@ -1093,12 +1093,12 @@ contract MarketManagerIsolated is
         }
 
         // Validate `newPositionManager` does not have permissions.
-        if (positionManagement[newPositionManager]) {
+        if (positionManagers[newPositionManager]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Add position management permissions.
-        positionManagement[newPositionManager] = true;
+        positionManagers[newPositionManager] = true;
 
         emit PositionManagerUpdated(newPositionManager, true);
     }
@@ -1109,18 +1109,18 @@ contract MarketManagerIsolated is
     ///      Emits a {PositionManagerUpdated} event.
     /// @param currentPositionManager The address to remove position
     ///                               management permissions for.
-    function removePositionManagement(
+    function removePositionManager(
         address currentPositionManager
     ) external {
         _checkElevatedPermissions();
 
         // Validate `currentPositionManager` already has permissions.
-        if (!positionManagement[currentPositionManager]) {
+        if (!positionManagers[currentPositionManager]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Remove position management permissions.
-        delete positionManagement[currentPositionManager];
+        delete positionManagers[currentPositionManager];
 
         emit PositionManagerUpdated(currentPositionManager, false);
     }

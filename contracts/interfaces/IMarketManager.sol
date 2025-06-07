@@ -227,7 +227,7 @@ interface IMarketManager {
     ///         management operator or not.
     /// @param positionContract Address to check for position management
     ///                         authority.
-    function positionManagement(
-        address positionContract
+    function positionManager(
+        address addressToCheck
     ) external view returns (bool);
 }
