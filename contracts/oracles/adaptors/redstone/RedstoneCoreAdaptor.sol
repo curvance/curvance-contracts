@@ -167,8 +167,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        StoredData storage assetData = storedData[asset][inUSD];
-        if (assetData.redstoneTimestamp >= redstoneTimestamp) {
+        if (storedData[asset][inUSD].redstoneTimestamp >= redstoneTimestamp) {
             return; // Can skip storing the data since the data is stale.
         }
 
@@ -196,7 +195,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        assetData = StoredData({
+        storedData[asset][inUSD] = StoredData({
             price: price,
             blockTimestamp: uint128(block.timestamp),
             redstoneTimestamp: redstoneTimestamp
@@ -466,8 +465,8 @@ contract RedstoneCoreAdaptor is
         StoredData memory assetData = storedData[asset][inUSD];
         // Validate the price returned is not stale.
         if (block.timestamp - assetData.blockTimestamp > heartbeat) {
-            pData.hadError;
-            return;
+            pData.hadError = true;
+            return pData;
         }
 
         uint256 price = uint240(assetData.price);
