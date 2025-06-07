@@ -188,16 +188,16 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @notice GETH ChainId => Messaging ChainId.
     mapping(uint256 => uint16) public GETHToMessagingChainId;
 
-    /// @notice The amount of CVE rewards allocated on this chain,
+    /// @notice Indicates the amount of token rewards allocated on this chain,
     ///         for an epoch.
-    /// @dev Epoch # => CVE rewards allocated.
+    /// @dev Epoch # => Token rewards allocated.
     mapping(uint256 => uint256) public emissionsAllocatedByEpoch;
 
-    /// @notice The amount of CVE rewards allocated across all chains,
-    ///         for an era. An era is a particular period in time in which
-    ///         CVE rewards are constant, before a halvening event moves the
+    /// @notice Indicates the amount of token rewards allocated across all
+    ///         chains, for an era. An era is a particular period in time in
+    ///         which rewards are constant, before a halvening event moves the
     ///         protocol to a new era.
-    /// @dev Era # => CVE rewards allocated.
+    /// @dev Era # => Token rewards allocated.
     mapping(uint256 => uint256) public targetEmissionAllocationByEra;
 
     // CONTRACT MAPPINGS
@@ -773,11 +773,11 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     /// EMISSIONS LOGIC
 
-    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
     /// @dev Only callable by the Voting Hub.
     /// @param epoch The epoch having its token emission values set.
-    /// @param emissionsAllocated The amount of CVE rewards allocated on
+    /// @param emissionsAllocated The amount of token rewards allocated on
     ///                           this chain, for an epoch.
     function setEmissionsAllocatedByEpoch(
         uint256 epoch,

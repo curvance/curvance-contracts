@@ -39,28 +39,27 @@ interface ICentralRegistry {
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
 
-    /// @notice Returns whether the address has dao permissions or not.
+    /// @notice Indicates if address has DAO permissions or not.
     function hasDaoPermissions(
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the address has elevated permissions or not.
+    /// @notice Indicates if address has elevated DAO permissions or not.
     function hasElevatedPermissions(
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the address has lock creation permissions
-    ///         or not.
+    /// @notice Indicates if address has lock creation permissions or not.
     function hasLockingPermissions(
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the address has Auction permissions or not.
+    /// @notice Indicates if address has auction permissions or not.
     function hasAuctionPermissions(
         address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the address has Harvest permissions or not.
+    /// @notice Indicates if address has harvest permissions or not.
     function hasHarvestPermissions(
         address addressToCheck
     ) external view returns (bool);
@@ -107,38 +106,38 @@ interface ICentralRegistry {
     /// @notice Returns domain value.
     function domain() external view returns (uint32);
 
-    /// @notice Returns protocolCompoundFee, in `WAD`.
+    /// @notice Returns protocol gas fee on harvest, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
 
-    /// @notice Returns protocolYieldFee, in `WAD`.
+    /// @notice Returns protocol yield fee on strategy harvest, in `WAD`.
     function protocolYieldFee() external view returns (uint256);
 
-    /// @notice Returns protocolHarvestFee, in `WAD`.
+    /// @notice Returns protocol yield + gas fee on strategy harvest,
+    ///         in `WAD`.
     function protocolHarvestFee() external view returns (uint256);
 
-    /// @notice Returns protocolLeverageFee, in `WAD`.
+    /// @notice Returns protocol fee on leverage actions, in `WAD`.
     function protocolLeverageFee() external view returns (uint256);
 
-    /// @notice Returns slippage limit, in `WAD`.
-    function slippageLimit() external view returns (uint256);
-
-    /// @notice Lending Market => Protocol Reserve Factor on interest
-    ///         generated.
+    /// @notice Returns protocol fee on interest generated in `market`.
     function protocolInterestFee(
         address market
     ) external view returns (uint256);
 
-    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `Basis Points`
+    /// @notice Returns earlyUnlockPenaltyMultiplier value, in `Basis Points`.
     function earlyUnlockPenaltyMultiplier() external view returns (uint256);
 
-    /// @notice Returns voteBoostMultiplier value, in `Basis Points`
+    /// @notice Returns voteBoostMultiplier value, in `Basis Points`.
     function voteBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns lockBoostMultiplier value, in `Basis Points`
+    /// @notice Returns lockBoostMultiplier value, in `Basis Points`.
     function lockBoostMultiplier() external view returns (uint256);
 
-    /// @notice Returns an array of Chain IDs recorded in the Messaging Layers
-    ///         Chain ID format.
+    /// @notice Returns swap slippage limit, in `WAD`.
+    function slippageLimit() external view returns (uint256);
+
+    /// @notice Returns an array of Chain IDs recorded in the Crosschain
+    ///         Protocol's Chain ID format.
     function getForeignChainIds() external view returns (uint256[] memory);
 
     /// @notice Returns an array of Curvance markets on this chain.
@@ -179,39 +178,48 @@ interface ICentralRegistry {
         uint256 chainId
     ) external view returns (uint16);
 
-    /// @notice Returns whether the inputted address is a Multicall provider.
-    function isMulticallProvider(
-        address addressToCheck
-    ) external view returns (bool);
-
-    /// @notice Returns whether the inputted address is a Market Manager.
+    /// @notice Indicates if an address is a market manager or not.
     function isMarketManager(
         address addressToCheck
     ) external view returns (bool);
 
+    /// @notice Indicates if an address is a multicall provider or not.
+    function isMulticallProvider(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Maps an intent target address to the contract that will
+    ///         inspect provided external calldata.
     function externalCalldataChecker(
         address addressToCheck
     ) external view returns (address);
 
+    /// @notice Maps a Multicall target address to the contract that will
+    ///         inspect provided multicall calldata.
     function multicallChecker(
         address addressToCheck
     ) external view returns (address);
 
-    function isAtlasOevAllowed() external view returns (bool);
-    /// @notice Returns the amount of CVE rewards allocated on this chain,
+    /// @notice Indicates the amount of token rewards allocated on this chain,
     ///         for an epoch.
     function emissionsAllocatedByEpoch(
         uint256 epoch
     ) external view returns (uint256);
 
-    /// @notice Returns the amount of CVE rewards allocated across all chains,
-    ///         for an era.
+    /// @notice Indicates the amount of token rewards allocated across all
+    ///         chains, for an era. An era is a particular period in time in
+    ///         which rewards are constant, before a halvening event moves the
+    ///         protocol to a new era.
     function targetEmissionAllocationByEra(
         uint256 era
     ) external view returns (uint256);
 
-    /// @notice Sets the amount of CVE rewards allocated on this chain,
+    /// @notice Sets the amount of token rewards allocated on this chain,
     ///         for an epoch.
+    /// @dev Only callable by the Voting Hub.
+    /// @param epoch The epoch having its token emission values set.
+    /// @param emissionsAllocated The amount of token rewards allocated on
+    ///                           this chain, for an epoch.
     function setEmissionsAllocatedByEpoch(
         uint256 epoch,
         uint256 emissionsAllocated
