@@ -10,7 +10,6 @@
 // import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 // import { MockSimplePToken } from "contracts/mocks/MockSimplePToken.sol";
 // import { MockV3Aggregator } from "contracts/mocks/MockV3Aggregator.sol";
-// import { MockTokenBridgeRelayer } from "contracts/mocks/MockTokenBridgeRelayer.sol";
 
 // import { CVE } from "contracts/token/CVE.sol";
 // import { VeCVE } from "contracts/token/VeCVE.sol";
@@ -67,7 +66,6 @@
 //     MockToken public dai;
 //     MockToken public WETH;
 //     MockToken public balRETH;
-//     MockTokenBridgeRelayer public bridgeRelayer;
 
 //     MockV3Aggregator public chainlinkUsdcUsd;
 //     MockV3Aggregator public chainlinkUsdcEth;
@@ -149,7 +147,6 @@
 //     }
 
 //     function _deployCVE() internal {
-//         bridgeRelayer = new MockTokenBridgeRelayer();
 //         cve = new CVE(
 //             ICentralRegistry(address(centralRegistry)),
 //             address(this)

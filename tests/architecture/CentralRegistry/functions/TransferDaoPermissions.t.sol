@@ -4,15 +4,16 @@ pragma solidity 0.8.26;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract TransferDaoOwnershipTest is TestBaseMarketIsolated {
+contract TransferDaoPermissionsTest is TestBaseMarketIsolated {
     address public newDaoAddress = address(1000);
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
+    event PermissionsTransferred(
+        string indexed permissionsType,
+        address previousOwner,
+        address newOwner
     );
 
-    function test_transferDaoOwnership_fail_whenCallerIsNotAuthorized()
+    function test_transferDaoPermissions_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(0));
@@ -20,16 +21,20 @@ contract TransferDaoOwnershipTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.transferDaoOwnership(newDaoAddress);
+        centralRegistry.transferDaoPermissions(newDaoAddress);
     }
 
-    function test_transferDaoOwnership_success() public {
+    function test_transferDaoPermissions_success() public {
         assertTrue(centralRegistry.hasDaoPermissions(address(this)));
 
         vm.expectEmit(true, true, true, true);
-        emit OwnershipTransferred(address(this), newDaoAddress);
+        emit PermissionsTransferred(
+            "DAO Permissions",
+            address(this),
+            newDaoAddress
+        );
 
-        centralRegistry.transferDaoOwnership(newDaoAddress);
+        centralRegistry.transferDaoPermissions(newDaoAddress);
 
         assertEq(centralRegistry.daoAddress(), newDaoAddress);
         assertTrue(centralRegistry.hasDaoPermissions(newDaoAddress));

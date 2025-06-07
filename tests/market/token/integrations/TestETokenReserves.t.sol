@@ -111,7 +111,7 @@ contract TestETokenReserves is TestBaseMarketIsolated {
         assertEq(eDAI.interestFactor(), (marketInterestFactor * 1e18) / 10000);
         assertEq(
             eDAI.interestFactor(),
-            centralRegistry.protocolInterestFactor(address(marketManagerIsolated))
+            centralRegistry.protocolInterestFee(address(marketManagerIsolated))
         );
     }
 

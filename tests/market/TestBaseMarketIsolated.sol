@@ -104,17 +104,16 @@ contract TestBaseMarketIsolated is TestBase {
         );
         centralRegistry.transferEmergencyCouncil(address(this));
         centralRegistry.setLockBoostMultiplier(lockBoostMultiplier);
-        centralRegistry.setCircleTokenMessenger(_CIRCLE_TOKEN_MESSENGER);
-        centralRegistry.setWormholeRelayer(_WORMHOLE_RELAYER);
-        centralRegistry.setWormholeCore(_WORMHOLE_CORE);
+        centralRegistry.setTokenMessager(_CIRCLE_TOKEN_MESSENGER);
+        centralRegistry.setCrosschainRelayer(_CROSSCHAIN_RELAYER);
+        centralRegistry.setCrosschainCore(_CROSSCHAIN_CORE);
         centralRegistry.setMessageTransmitter(
             address(new MockMessageTransmitter())
         );
-        centralRegistry.setTokenBridge(_TOKEN_BRIDGE);
         centralRegistry.setSlippageLimit(6000);
 
         _prepareUSDC(
-            address(centralRegistry.circleMessageTransmitter()),
+            address(centralRegistry.messageTransmitter()),
             1_000_000e6
         );
     }
@@ -122,9 +121,9 @@ contract TestBaseMarketIsolated is TestBase {
     function _deployCVE() internal virtual initMainVariables {
         // If TokenBridgeRelayer doesn't exist on the address,
         // deploy mock TokenBridgeRelayer on the address.
-        if (_TOKEN_BRIDGE.code.length == 0) {
-            vm.etch(_TOKEN_BRIDGE, address(new MockTokenBridgeRelayer()).code);
-        }
+        // if (_TOKEN_BRIDGE.code.length == 0) {
+        //    vm.etch(_TOKEN_BRIDGE, address(new MockTokenBridgeRelayer()).code);
+        // }
 
         cve = cves[block.chainid] = new CVE(
             ICentralRegistry(address(centralRegistry)),

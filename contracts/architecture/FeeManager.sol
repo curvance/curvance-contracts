@@ -129,7 +129,7 @@ contract FeeManager is ReentrancyGuard {
         bytes calldata data,
         address[] calldata tokens
     ) external nonReentrant {
-        if (!centralRegistry.isHarvester(msg.sender)) {
+        if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
             revert FeeManager__Unauthorized();
         }
 

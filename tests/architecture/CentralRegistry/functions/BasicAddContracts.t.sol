@@ -7,7 +7,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 // Dynamically tests multiple functions in CentralRegistry that
 // add a contract to a mapping
 contract BasicAddContractsTest is TestBaseMarketIsolated {
-    event NewCurvanceContract(string indexed contractType, address newAddress);
+    event ContractUpdated(string indexed contractType, address newAddress);
 
     string[] public addFuncs;
     string[] public maps;
@@ -17,7 +17,7 @@ contract BasicAddContractsTest is TestBaseMarketIsolated {
         super.setUp();
 
         addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
-        maps = ["hasLockingPermissions(address)", "isHarvester(address)"];
+        maps = ["hasLockingPermissions(address)", "hasHarvestPermissions(address)"];
         expectedLogs = ["Locking Permissions", "Harvestor"];
     }
 
@@ -66,7 +66,7 @@ contract BasicAddContractsTest is TestBaseMarketIsolated {
         uint8 length = uint8(addFuncs.length);
         for (uint256 i; i < length; i++) {
             vm.expectEmit(true, true, true, true);
-            emit NewCurvanceContract(expectedLogs[i], user1);
+            emit ContractUpdated(expectedLogs[i], user1, true);
             bytes memory sig = abi.encodeWithSignature(addFuncs[i], user1);
             (bool success, bytes memory data) = address(centralRegistry).call(
                 sig

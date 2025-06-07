@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract BasicSettersTest is TestBaseMarketIsolated {
-    event CoreContractSet(string indexed contractType, address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     string[] public setters;
     string[] public getters;
@@ -73,7 +73,7 @@ contract BasicSettersTest is TestBaseMarketIsolated {
             address newAddr = user1;
 
             vm.expectEmit(true, true, true, true);
-            emit CoreContractSet(expectedLogs[i], newAddr);
+            emit CoreContractUpdated(expectedLogs[i], newAddr);
 
             bytes memory setterSig = abi.encodeWithSignature(
                 setters[i],

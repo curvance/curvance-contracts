@@ -105,8 +105,8 @@ contract AddChainSupportTest is TestBaseMarketIsolated {
             address cveAddress,
             address feeTokenAddress,
             uint16 messagingChainId,
-            address wormholeRelayer,
-            uint32 cctpDomain
+            address crosschainRelayer,
+            uint32 domain
         ) = centralRegistry.supportedChainData(42161);
 
         assertEq(isSupported, 2);
@@ -115,8 +115,8 @@ contract AddChainSupportTest is TestBaseMarketIsolated {
         assertEq(cveAddress, address(1));
         assertEq(feeTokenAddress, _USDC_ADDRESS);
         assertEq(messagingChainId, 23);
-        assertEq(wormholeRelayer, relayer);
-        assertEq(cctpDomain, 3);
+        assertEq(crosschainRelayer, relayer);
+        assertEq(domain, 3);
 
         assertEq(centralRegistry.messagingToGETHChainId(23), 42161);
         assertEq(centralRegistry.GETHToMessagingChainId(42161), 23);

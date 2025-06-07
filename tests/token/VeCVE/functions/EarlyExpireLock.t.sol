@@ -22,7 +22,7 @@ contract EarlyExpireLockTest is TestBaseVeCVE {
 
         veCVE.createLock(30e18, false, rewardsData, "", 0);
 
-        centralRegistry.transferDaoOwnership(user1);
+        centralRegistry.transferDaoPermissions(user1);
     }
 
     function test_earlyExpireLock_fail_whenVeCVEIsShutdown(

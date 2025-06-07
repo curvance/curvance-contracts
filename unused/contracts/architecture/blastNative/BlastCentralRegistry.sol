@@ -102,8 +102,8 @@ contract BlastCentralRegistry is CentralRegistry {
 
     /// PUBLIC FUNCTIONS ///
 
-    function transferDaoOwnership(address newDaoAddress) public override {
-        super.transferDaoOwnership(newDaoAddress);
+    function transferDaoPermissions(address newDaoAddress) public override {
+        super.transferDaoPermissions(newDaoAddress);
         IBlast(0x4300000000000000000000000000000000000002).configureGovernor(
             newDaoAddress
         );

@@ -7,7 +7,7 @@ import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 // Dynamically tests multiple functions in CentralRegistry that
 // remove a contract from a mapping
 contract BasicRemoveContractsTest is TestBaseMarketIsolated {
-    event RemovedCurvanceContract(
+    event ContractUpdated(
         string indexed contractType,
         address removedAddress
     );
@@ -24,7 +24,7 @@ contract BasicRemoveContractsTest is TestBaseMarketIsolated {
             "removeLockingPermissions(address)",
             "removeHarvester(address)"
         ];
-        maps = ["hasLockingPermissions(address)", "isHarvester(address)"];
+        maps = ["hasLockingPermissions(address)", "hasHarvestPermissions(address)"];
         expectedLogs = ["Locking Permissions", "Harvestor"];
         addFuncs = ["addLockingPermissions(address)", "addHarvester(address)"];
     }
@@ -77,7 +77,7 @@ contract BasicRemoveContractsTest is TestBaseMarketIsolated {
             assertTrue(success);
 
             vm.expectEmit(true, true, true, true);
-            emit RemovedCurvanceContract(expectedLogs[i], user1);
+            emit ContractUpdated(expectedLogs[i], user1, false);
             sig = abi.encodeWithSignature(removeFuncs[i], user1);
             (success, ) = address(centralRegistry).call(sig);
             assertTrue(success);

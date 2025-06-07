@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetGaugeManagerTest is TestBaseMarketIsolated {
-    event CoreContractSet(string indexed contractType, address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newGaugeManager = makeAddr("Gauge Manager");
 
@@ -44,7 +44,7 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
         assertEq(centralRegistry.gaugeManager(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Gauge Manager", newGaugeManager);
+        emit CoreContractUpdated("Gauge Manager", newGaugeManager);
 
         centralRegistry.setGaugeManager(newGaugeManager);
     }

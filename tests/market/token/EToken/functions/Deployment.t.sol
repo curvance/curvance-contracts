@@ -80,7 +80,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
 
     function test_eTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
-        uint256 newInterestFactor = centralRegistry.protocolInterestFactor(
+        uint256 newInterestFactor = centralRegistry.protocolInterestFee(
             address(marketManagerIsolated)
         );
         emit NewInterestFactor(0, newInterestFactor);

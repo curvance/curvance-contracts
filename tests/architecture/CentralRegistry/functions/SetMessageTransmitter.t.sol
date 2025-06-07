@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetMessageTransmitterTest is TestBaseMarketIsolated {
-    event MessageTransmitterSet(address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newMessageTransmitter = makeAddr("Message Transmitter");
 
@@ -22,12 +22,12 @@ contract SetMessageTransmitterTest is TestBaseMarketIsolated {
 
     function test_setMessageTransmitter_success() public {
         vm.expectEmit(true, true, true, true);
-        emit MessageTransmitterSet(newMessageTransmitter);
+        emit CoreContractUpdated("Message Transmitter", newMessageTransmitter);
 
         centralRegistry.setMessageTransmitter(newMessageTransmitter);
 
         assertEq(
-            address(centralRegistry.circleMessageTransmitter()),
+            address(centralRegistry.messageTransmitter()),
             newMessageTransmitter
         );
     }

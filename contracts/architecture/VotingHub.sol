@@ -72,7 +72,7 @@ contract VotingHub is QueryResponse {
 
     constructor(
         ICentralRegistry centralRegistry_
-    ) QueryResponse(address(centralRegistry_.wormholeCore())) {
+    ) QueryResponse(address(centralRegistry_.crosschainCore())) {
         centralRegistry = centralRegistry_;
 
         // Query epoch and token configuration directly to minimize potential
@@ -121,7 +121,7 @@ contract VotingHub is QueryResponse {
         EmissionData[] memory remoteEmissionData
     ) external {
         if (
-            !centralRegistry.isHarvester(msg.sender) &&
+            !centralRegistry.hasHarvestPermissions(msg.sender) &&
             !centralRegistry.hasDaoPermissions(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);

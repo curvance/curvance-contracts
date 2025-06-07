@@ -6,7 +6,7 @@ import { MessagingHub } from "contracts/architecture/MessagingHub.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract InvalidCentralRegistry {
-    function wormholeCore() external pure returns (address) {
+    function crosschainCore() external pure returns (address) {
         return address(1);
     }
 }

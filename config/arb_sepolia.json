@@ -11,11 +11,10 @@
     "harvester": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",
     "sequencer": "0x0000000000000000000000000000000000000000",
     "feeToken": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-    "wormholeCore": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
-    "wormholeRelayer": "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
-    "circleTokenMessenger": "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5",
-    "messageTransmitter": "0xaCF1ceeF35caAc005e15888dDb8A3515C41B4872",
-    "tokenBridge": "0xC7A204bDBFe983FCD8d8E61D02b475D4073fF97e"
+    "crosschainCore": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35",
+    "crosschainRelayer": "0x7B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470",
+    "tokenMessager": "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5",
+    "messageTransmitter": "0xaCF1ceeF35caAc005e15888dDb8A3515C41B4872"
   },
   "cve": {
     "teamAddress": "0xBAaf22d2Bc4Ac001BBDDA7De73d3ae1bA71dfDDB",

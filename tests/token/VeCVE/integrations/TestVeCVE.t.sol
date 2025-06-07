@@ -33,7 +33,7 @@ contract TestVeCVE is TestBaseVeCVE {
 
         _skipRestrictionDuration();
 
-        centralRegistry.transferDaoOwnership(user1);
+        centralRegistry.transferDaoPermissions(user1);
     }
 
     function test_createLockBeforeGenesisStartTime() public {

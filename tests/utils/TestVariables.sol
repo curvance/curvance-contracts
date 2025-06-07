@@ -57,8 +57,8 @@ contract TestVariables {
     bytes32 internal _BAL_WETH_RETH_POOLID;
     address internal _AURA_BOOSTER;
     address internal _REWARDER;
-    address internal _WORMHOLE_CORE;
-    address internal _WORMHOLE_RELAYER;
+    address internal _CROSSCHAIN_CORE;
+    address internal _CROSSCHAIN_RELAYER;
     address internal _CIRCLE_TOKEN_MESSENGER;
     address internal _CIRCLE_MESSAGE_TRANSMITTER;
     address internal _TOKEN_BRIDGE;
@@ -84,8 +84,8 @@ contract TestVariables {
     mapping(uint256 => bytes32) internal _BAL_WETH_RETH_POOLIDS;
     mapping(uint256 => address) internal _AURA_BOOSTERS;
     mapping(uint256 => address) internal _REWARDERS;
-    mapping(uint256 => address) internal _WORMHOLE_CORES;
-    mapping(uint256 => address) internal _WORMHOLE_RELAYERS;
+    mapping(uint256 => address) internal _CROSSCHAIN_CORES;
+    mapping(uint256 => address) internal _CROSSCHAIN_RELAYERS;
     mapping(uint256 => address) internal _CIRCLE_TOKEN_MESSENGERS;
     mapping(uint256 => address) internal _CIRCLE_MESSAGE_TRANSMITTERS;
     mapping(uint256 => address) internal _TOKEN_BRIDGES;
@@ -239,8 +239,8 @@ contract TestVariables {
         ] = 0x1e19cf2d73a72ef1332c882f20534b6519be0276000200000000000000000112;
         _AURA_BOOSTERS[chainId] = 0xA57b8d98dAE62B26Ec3bcC4a365338157060B234;
         _REWARDERS[chainId] = 0xDd1fE5AD401D4777cE89959b7fa587e569Bf125D;
-        _WORMHOLE_CORES[chainId] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -271,8 +271,8 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
-        _WORMHOLE_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0xa5f208e072434bC67592E4C49C1B991BA79BCA46;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -302,8 +302,8 @@ contract TestVariables {
         _UNISWAP_V2_ROUTERS[
             chainId
         ] = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-        _WORMHOLE_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
-        _WORMHOLE_RELAYERS[
+        _CROSSCHAIN_CORES[chainId] = 0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722;
+        _CROSSCHAIN_RELAYERS[
             chainId
         ] = 0x27428DD2d3DD32A4D7f7C497eAaa23130d894911;
         _CIRCLE_TOKEN_MESSENGERS[
@@ -350,8 +350,8 @@ contract TestVariables {
         _BAL_WETH_RETH_POOLID = _BAL_WETH_RETH_POOLIDS[chainId];
         _AURA_BOOSTER = _AURA_BOOSTERS[chainId];
         _REWARDER = _REWARDERS[chainId];
-        _WORMHOLE_CORE = _WORMHOLE_CORES[chainId];
-        _WORMHOLE_RELAYER = _WORMHOLE_RELAYERS[chainId];
+        _CROSSCHAIN_CORE = _CROSSCHAIN_CORES[chainId];
+        _CROSSCHAIN_RELAYER = _CROSSCHAIN_RELAYERS[chainId];
         _CIRCLE_TOKEN_MESSENGER = _CIRCLE_TOKEN_MESSENGERS[chainId];
         _CIRCLE_MESSAGE_TRANSMITTER = _CIRCLE_MESSAGE_TRANSMITTERS[chainId];
         _TOKEN_BRIDGE = _TOKEN_BRIDGES[chainId];

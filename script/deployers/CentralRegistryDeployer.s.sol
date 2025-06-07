@@ -114,29 +114,29 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.setVeCVE: ", veCve);
     }
 
-    function _setWormholeCore(address wormholeCore) internal {
+    function _setCrosschainCore(address crosschainCore) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 
-        CentralRegistry(centralRegistry).setWormholeCore(wormholeCore);
-        console.log("centralRegistry.setWormholeCore: ", wormholeCore);
+        CentralRegistry(centralRegistry).setCrosschainCore(crosschainCore);
+        console.log("centralRegistry.setCrosschainCore: ", crosschainCore);
     }
 
-    function _setWormholeRelayer(address wormholeRelayer) internal {
+    function _setCrosschainRelayer(address crosschainRelayer) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 
-        CentralRegistry(centralRegistry).setWormholeRelayer(wormholeRelayer);
-        console.log("centralRegistry.setWormholeRelayer: ", wormholeRelayer);
+        CentralRegistry(centralRegistry).setCrosschainRelayer(crosschainRelayer);
+        console.log("centralRegistry.setCrosschainRelayer: ", crosschainRelayer);
     }
 
-    function _setCircleTokenMessenger(address circleTokenMessenger) internal {
+    function _setTokenMessenger(address tokenMessager) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
 
-        CentralRegistry(centralRegistry).setCircleTokenMessenger(
-            circleTokenMessenger
+        CentralRegistry(centralRegistry).setTokenMessager(
+            tokenMessager
         );
         console.log(
-            "centralRegistry.setCircleTokenMessenger: ",
-            circleTokenMessenger
+            "centralRegistry.setTokenMessager: ",
+            tokenMessager
         );
     }
 
@@ -150,13 +150,6 @@ contract CentralRegistryDeployer is DeployConfiguration {
             "centralRegistry.setMessageTransmitter: ",
             messageTransmitter
         );
-    }
-
-    function _setTokenBridge(address tokenBridge) internal {
-        require(centralRegistry != address(0), "Set the centralRegistry!");
-
-        CentralRegistry(centralRegistry).setTokenBridge(tokenBridge);
-        console.log("centralRegistry.setTokenBridge: ", tokenBridge);
     }
 
     function _setVoteBoostMultiplier(uint256 voteBoostMultiplier) internal {
@@ -221,23 +214,23 @@ contract CentralRegistryDeployer is DeployConfiguration {
         console.log("centralRegistry.addMarketManager: ", marketManager);
     }
 
-    function _transferDaoOwnership(address daoAddress) internal {
+    function _transferDaoPermissions(address daoAddress) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(daoAddress != address(0), "Set the daoAddress!");
 
-        CentralRegistry(centralRegistry).transferDaoOwnership(daoAddress);
-        console.log("centralRegistry.transferDaoOwnership: ", daoAddress);
+        CentralRegistry(centralRegistry).transferDaoPermissions(daoAddress);
+        console.log("centralRegistry.transferDaoPermissions: ", daoAddress);
     }
 
-    function _migrateTimelockConfiguration(address timelock) internal {
+    function _transferTimelockPermissions(address timelock) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(timelock != address(0), "Set the timelock!");
 
-        CentralRegistry(centralRegistry).migrateTimelockConfiguration(
+        CentralRegistry(centralRegistry).transferTimelockPermissions(
             timelock
         );
         console.log(
-            "centralRegistry.migrateTimelockConfiguration: ",
+            "centralRegistry.transferTimelockPermissions: ",
             timelock
         );
     }

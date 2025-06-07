@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetGenesisEpochTest is TestBaseMarketIsolated {
-    event GenesisEpochSet(uint256 newGenesisEpoch);
+    event GenesisEpochUpdated(uint256 newGenesisEpoch);
 
     function setUp() public override {
         super.setUp();
@@ -50,7 +50,7 @@ contract SetGenesisEpochTest is TestBaseMarketIsolated {
         uint256 newGenesisEpoch = centralRegistry.genesisEpoch() + 1;
 
         vm.expectEmit(true, true, true, true);
-        emit GenesisEpochSet(newGenesisEpoch);
+        emit GenesisEpochUpdated(newGenesisEpoch);
 
         centralRegistry.setGenesisEpoch(newGenesisEpoch);
 

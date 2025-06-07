@@ -4,13 +4,13 @@ pragma solidity 0.8.26;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetCircleTokenMessengerTest is TestBaseMarketIsolated {
-    event CircleTokenMessengerSet(address newAddress);
+contract SetTokenMessengerTest is TestBaseMarketIsolated {
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newCircleTokenMessenger =
         makeAddr("Circle Token Messenger");
 
-    function test_setCircleTokenMessenger_fail_whenCallerIsNotAuthorized()
+    function test_setTokenMessenger_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(0));
@@ -18,22 +18,22 @@ contract SetCircleTokenMessengerTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setCircleTokenMessenger(newCircleTokenMessenger);
+        centralRegistry.setTokenMessager(newCircleTokenMessenger);
     }
 
-    function test_setCircleTokenMessenger_success() public {
+    function test_setTokenMessenger_success() public {
         assertEq(
-            address(centralRegistry.circleTokenMessenger()),
+            address(centralRegistry.tokenMessager()),
             _CIRCLE_TOKEN_MESSENGER
         );
 
         vm.expectEmit(true, true, true, true);
-        emit CircleTokenMessengerSet(newCircleTokenMessenger);
+        emit CoreContractUpdated("Token Messager", newCircleTokenMessenger);
 
-        centralRegistry.setCircleTokenMessenger(newCircleTokenMessenger);
+        centralRegistry.setTokenMessager(newCircleTokenMessenger);
 
         assertEq(
-            address(centralRegistry.circleTokenMessenger()),
+            address(centralRegistry.tokenMessager()),
             newCircleTokenMessenger
         );
     }

@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
-import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
-import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
-import { IMessageTransmitter } from "contracts/interfaces/external/wormhole/IMessageTransmitter.sol";
-import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridge.sol";
-
 /// TYPES ///
 
 /// @title Chain Data
@@ -19,8 +13,8 @@ import { ITokenBridge } from "contracts/interfaces/external/wormhole/ITokenBridg
 /// @param cveAddress CVE address on the chain.
 /// @param feeTokenAddress Fee token address on the chain.
 /// @param messagingChainId Messaging Chain ID where this address authorized.
-/// @param wormholeRelayer Wormhole relayer address on the chain.
-/// @param cctpDomain CCTP domain for the chain.
+/// @param crosschainRelayer Crosschain relayer address on the chain.
+/// @param domain Domain for the chain.
 struct ChainData {
     uint256 isSupported;
     address messagingHub;
@@ -28,8 +22,8 @@ struct ChainData {
     address cveAddress;
     address feeTokenAddress;
     uint16 messagingChainId;
-    address wormholeRelayer;
-    uint32 cctpDomain;
+    address crosschainRelayer;
+    uint32 domain;
 }
 
 interface ICentralRegistry {
@@ -45,21 +39,29 @@ interface ICentralRegistry {
     /// @notice Returns Protocol DAO address.
     function daoAddress() external view returns (address);
 
-    /// @notice Returns whether the caller has Atlas permissions or not.
-    function hasAtlasPermissions(address _address) external view returns (bool);
-
-    /// @notice Returns whether the caller has dao permissions or not.
-    function hasDaoPermissions(address _address) external view returns (bool);
-
-    /// @notice Returns whether the caller has elevated protocol permissions
-    ///         or not.
-    function hasElevatedPermissions(
-        address _address
+    /// @notice Returns whether the address has dao permissions or not.
+    function hasDaoPermissions(
+        address addressToCheck
     ) external view returns (bool);
 
-    /// @notice Returns whether the inputted has lock creation permissioning
+    /// @notice Returns whether the address has elevated permissions or not.
+    function hasElevatedPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Returns whether the address has lock creation permissions
     ///         or not.
     function hasLockingPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Returns whether the address has Auction permissions or not.
+    function hasAuctionPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
+    /// @notice Returns whether the address has Harvest permissions or not.
+    function hasHarvestPermissions(
         address addressToCheck
     ) external view returns (bool);
 
@@ -84,32 +86,26 @@ interface ICentralRegistry {
     /// @notice Returns Oracle Manager address.
     function oracleManager() external view returns (address);
 
-    /// @notice Returns feeManager address.
+    /// @notice Returns Fee Manager address.
     function feeManager() external view returns (address);
 
-    /// @notice Returns fee token address.
+    /// @notice Returns Fee Token address.
     function feeToken() external view returns (address);
 
-    /// @notice Returns WormholeCore contract address.
-    function wormholeCore() external view returns (IWormhole);
+    /// @notice Returns Crosschain Core contract address.
+    function crosschainCore() external view returns (address);
 
-    /// @notice Returns WormholeRelayer contract address.
-    function wormholeRelayer() external view returns (IWormholeRelayer);
+    /// @notice Returns Crosschain Relayer contract address.
+    function crosschainRelayer() external view returns (address);
 
-    /// @notice Returns Circle Token Messenger contract address.
-    function circleTokenMessenger() external view returns (ITokenMessenger);
+    /// @notice Returns Token Messenger contract address.
+    function tokenMessager() external view returns (address);
 
-    /// @notice Returns Circle Token Messenger contract address.
-    function circleMessageTransmitter()
-        external
-        view
-        returns (IMessageTransmitter);
+    /// @notice Returns Messenger Transmitter contract address.
+    function messageTransmitter() external view returns (address);
 
-    /// @notice Returns Wormhole TokenBridge contract address.
-    function tokenBridge() external view returns (ITokenBridge);
-
-    /// @notice Returns CCTP domain.
-    function cctpDomain() external view returns (uint32);
+    /// @notice Returns domain value.
+    function domain() external view returns (uint32);
 
     /// @notice Returns protocolCompoundFee, in `WAD`.
     function protocolCompoundFee() external view returns (uint256);
@@ -128,7 +124,7 @@ interface ICentralRegistry {
 
     /// @notice Lending Market => Protocol Reserve Factor on interest
     ///         generated.
-    function protocolInterestFactor(
+    function protocolInterestFee(
         address market
     ) external view returns (uint256);
 
@@ -182,9 +178,6 @@ interface ICentralRegistry {
     function GETHToMessagingChainId(
         uint256 chainId
     ) external view returns (uint16);
-
-    /// @notice Returns whether the inputted address is a Harvester.
-    function isHarvester(address addressToCheck) external view returns (bool);
 
     /// @notice Returns whether the inputted address is a Multicall provider.
     function isMulticallProvider(

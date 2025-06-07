@@ -11,16 +11,19 @@ import { ITimelock } from "contracts/interfaces/ITimelock.sol";
 
 ///
 /// @title Curvance DAO Timelock
-/// @notice A timelock controller for the Curvance DAO that enforces a delay period 
-///         before administrative operations can be executed.
-/// @dev This contract extends OpenZeppelin's TimelockController with Curvance-specific 
-///      functionality. It enforces a minimum delay of 7 days for all timelock transaction 
-///      proposals.
+/// @notice A timelock controller for the Curvance DAO that enforces a delay
+///         period before administrative operations can be executed.
+/// @dev This contract extends OpenZeppelin's TimelockController with
+///      Curvance-specific functionality. It enforces a minimum delay of
+///      5-days for all timelock transaction proposals.
 ///
 /// The timelock serves as a security mechanism that:
-/// - Creates transparency by making governance actions visible before execution.
-/// - Provides a window for token holders to exit if they disagree with proposed changes.
-/// - Protects the protocol from immediate execution of potentially malicious proposals.
+/// - Creates transparency by making governance actions visible before
+///   execution.
+/// - Provides a window for token holders to exit if they disagree with
+///   proposed changes.
+/// - Protects the protocol from immediate execution of potentially malicious
+///   proposals.
 ///
 /// This implementation:
 /// - Stays in sync with DAO address changes through the CentralRegistry.
@@ -31,7 +34,7 @@ contract Timelock is TimelockController, ERC165 {
     /// CONSTANTS ///
 
     /// @notice Minimum delay for timelock transaction proposals to execute.
-    uint256 public constant MINIMUM_DELAY = 7 days;
+    uint256 public constant MINIMUM_DELAY = 5 days;
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
     /// @notice Internally stored Curvance DAO address.

@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetCVETest is TestBaseMarketIsolated {
-    event CoreContractSet(string indexed contractType, address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newCVE = makeAddr("CVE");
 
@@ -46,7 +46,7 @@ contract SetCVETest is TestBaseMarketIsolated {
         assertEq(centralRegistry.cve(), _ZERO_ADDRESS);
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("CVE", newCVE);
+        emit CoreContractUpdated("CVE", newCVE);
 
         centralRegistry.setCVE(newCVE);
 
@@ -57,7 +57,7 @@ contract SetCVETest is TestBaseMarketIsolated {
         address newCVE1 = makeAddr("CVE1");
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("CVE", newCVE1);
+        emit CoreContractUpdated("CVE", newCVE1);
 
         centralRegistry.setCVE(newCVE1);
     }

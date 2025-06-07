@@ -4,26 +4,26 @@ pragma solidity 0.8.26;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
-contract SetCCTPDomainTest is TestBaseMarketIsolated {
-    event CCTPDomainSet(uint32 newDomain);
+contract SetDomainTest is TestBaseMarketIsolated {
+    event DomainSet(uint32 newDomain);
 
-    function test_setCCTPDomain_fail_whenCallerIsNotAuthorized() public {
+    function test_setDomain_fail_whenCallerIsNotAuthorized() public {
         vm.prank(address(0));
 
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setCCTPDomain(3);
+        centralRegistry.setDomain(3);
     }
 
-    function test_setCCTPDomain_success() public {
-        assertEq(centralRegistry.cctpDomain(), 0);
+    function test_setDomain_success() public {
+        assertEq(centralRegistry.domain(), 0);
 
         vm.expectEmit(true, true, true, true);
-        emit CCTPDomainSet(3);
+        emit DomainSet(3);
 
-        centralRegistry.setCCTPDomain(3);
+        centralRegistry.setDomain(3);
 
-        assertEq(centralRegistry.cctpDomain(), 3);
+        assertEq(centralRegistry.domain(), 3);
     }
 }

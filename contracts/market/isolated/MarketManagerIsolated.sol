@@ -122,12 +122,15 @@ contract MarketManagerIsolated is
     /// @dev `bytes4(keccak256(bytes("MarketManager__UnauthorizedCollateral()")))`
     uint256 internal constant _UNAUTHORIZED_COLLATERAL_SELECTOR = 0x8ef93120;
     /// @dev A fixed key to use in transient storage for the dynamic penalty.
-    bytes32 internal constant _TRANSIENT_PENALTY_KEY = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
+    bytes32 internal constant _TRANSIENT_PENALTY_KEY
+        = 0xd033e44c9f2a65a460c9f878712895054941eb772c7716e6dee8b66c21be9561;
     /// @dev A fixed key to use in transient storage for dynamic close factor.
-    bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY = 0x2345678901234567890123456789012345678901234567890123456789012345;
+    bytes32 internal constant _TRANSIENT_CLOSE_FACTOR_KEY
+        = 0x2345678901234567890123456789012345678901234567890123456789012345;
     /// @dev A fixed key to use in transient storage for enforcing a single
-    ///      collateral which can be liquidated during Atlas tx.
-    bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY = 0x3456789012345678901234567890123456789012345678901234567890123456;
+    ///      collateral which can be liquidated during Auction tx.
+    bytes32 internal constant _TRANSIENT_COLLATERAL_UNLOCKED_KEY
+        = 0x3456789012345678901234567890123456789012345678901234567890123456;
 
     /// STORAGE ///
 
@@ -1099,58 +1102,56 @@ contract MarketManagerIsolated is
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
-    /// @param newPositionManager The address to add position management
-    ///                           permissions for.
-    function addPositionManager(address newPositionManager) external {
+    /// @param newAddress The address to add position management
+    ///                   permissions for.
+    function addPositionManager(address newAddress) external {
         _checkElevatedPermissions();
 
         if (
             !ERC165Checker.supportsInterface(
-                newPositionManager,
+                newAddress,
                 type(IPositionManagement).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
-        // Validate `newPositionManager` does not have permissions.
-        if (positionManagers[newPositionManager]) {
+        // Validate `newAddress` does not have permissions.
+        if (positionManagers[newAddress]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Add position management permissions.
-        positionManagers[newPositionManager] = true;
+        positionManagers[newAddress] = true;
 
-        emit PositionManagerUpdated(newPositionManager, true);
+        emit PositionManagerUpdated(newAddress, true);
     }
 
     /// @notice Removes an position management address for complex
     ///         position actions.
     /// @dev Requires timelock authority.
     ///      Emits a {PositionManagerUpdated} event.
-    /// @param currentPositionManager The address to remove position
-    ///                               management permissions for.
-    function removePositionManager(
-        address currentPositionManager
-    ) external {
+    /// @param addressApproved The address to remove position
+    ///                        management permissions for.
+    function removePositionManager(address addressApproved) external {
         _checkElevatedPermissions();
 
-        // Validate `currentPositionManager` already has permissions.
-        if (!positionManagers[currentPositionManager]) {
+        // Validate `addressApproved` already has permissions.
+        if (!positionManagers[addressApproved]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Remove position management permissions.
-        delete positionManagers[currentPositionManager];
+        delete positionManagers[addressApproved];
 
-        emit PositionManagerUpdated(currentPositionManager, false);
+        emit PositionManagerUpdated(addressApproved, false);
     }
 
-    /// @notice Called from the Atlas DappControl as a post hook
+    /// @notice Called from the Auction DappControl as a post hook
     ///         after liquidations are tried to enable all 
-    ///         collateral to be liquidated outside Atlas tx.
-    function lockAtlasCollateral() external {
-        _checkAtlasPermissions();
+    ///         collateral to be liquidated outside Auction tx.
+    function lockAuctionCollateral() external {
+        _checkAuctionPermissions();
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -1158,12 +1159,12 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Called from the Atlas DappControl as a pre hook
+    /// @notice Called from the Auction DappControl as a pre hook
     ///         before liquidations are tried to enforce that 
     ///         only a specific collateral can be liquidated.
-    function unlockAtlasCollateral(address collateralToUnlock) external {
+    function unlockAuctionCollateral(address collateralToUnlock) external {
         uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
-        _checkAtlasPermissions();
+        _checkAuctionPermissions();
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -1173,14 +1174,14 @@ contract MarketManagerIsolated is
 
     /// @notice Sets new dynamic close factor and liquidation penalty
     ///         values in transient storage.
-    /// @dev Transient storage enforces any liquidator outside Atlas
+    /// @dev Transient storage enforces any liquidator outside Auction
     ///      uses the default risk parameters.
     /// @param newPenalty The new penalty value.
-    function setAtlasParameters(
+    function setAuctionParameters(
         uint256 newPenalty,
         uint256 newCloseFactor
     ) external {
-        _checkAtlasPermissions();
+        _checkAuctionPermissions();
 
         // Validate new Liquidation Penalty value. 
         MarketToken storage pToken = tokenData[positionToken];
@@ -1211,11 +1212,11 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @notice Resets the Atlas risk parameters in transient storage to zero.
+    /// @notice Resets the Auction risk parameters in transient storage to zero.
     ///         This is redundant since the transient values will be reset 
-    ///         after an Atlas tx, but helps to ensure expected behaviour. 
-    function resetAtlasParameters() external {
-        _checkAtlasPermissions();
+    ///         after an Auction tx, but helps to ensure expected behaviour. 
+    function resetAuctionParameters() external {
+        _checkAuctionPermissions();
 
         /// @solidity memory-safe-assembly
         assembly {
@@ -1233,13 +1234,13 @@ contract MarketManagerIsolated is
 
     /// PUBLIC FUNCTIONS ///
 
-    /// @notice Returns the current Atlas parameters in an active transaction.
+    /// @notice Returns the current Auction parameters in an active transaction.
     /// @dev If a dynamic penalty or close factor is set in transient storage,
     ///      that value is returned; otherwise, the default penalty or close
     ///      factor is returned.
     ///      NOTE: caller must handle the case where the
     ///      TRANSIENT_CLOSE_FACTOR_KEY is empty, and zero is returned.
-    function getLatestAtlasParameters() public view returns (
+    function getLatestAuctionParameters() public view returns (
         uint256 penalty,
         uint256 closeFactor
     ) {
@@ -1724,7 +1725,7 @@ contract MarketManagerIsolated is
         (
             auctionData.auctionLiqIncentive,
             auctionData.auctionCFactor
-        ) = getLatestAtlasParameters();
+        ) = getLatestAuctionParameters();
 
         // We only need to read storage and cache these variables if we did
         // not receive cFactor/liqIncentive from the auction.
@@ -1848,8 +1849,8 @@ contract MarketManagerIsolated is
     }
 
     /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkAtlasPermissions() internal view {
-        if (!centralRegistry.hasAtlasPermissions(msg.sender)) {
+    function _checkAuctionPermissions() internal view {
+        if (!centralRegistry.hasAuctionPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
@@ -1891,7 +1892,7 @@ contract MarketManagerIsolated is
     }
 
     /// @notice Will revert and block liquidations of collateral that are not
-    ///         currently allowed by Atlas, only if this is an Atlas tx.
+    ///         currently allowed by Auction, only if this is an Auction tx.
     function _checkCollateralUnlocked(
         address eTokenToLiquidate
     ) internal view returns (uint256) {
@@ -1901,7 +1902,7 @@ contract MarketManagerIsolated is
             result := tload(_TRANSIENT_COLLATERAL_UNLOCKED_KEY)
         }
 
-        // CASE: This is not an Atlas tx, so allow all collaterals,
+        // CASE: This is not an Auction tx, so allow all collaterals,
         // and return no buffer. 
         if (result == 0) {
             return 0;
@@ -1909,14 +1910,14 @@ contract MarketManagerIsolated is
 
         address unlockedCollateral = address(uint160(result));
 
-        // This is an Atlas tx, and Atlas liquidator attempted wrong
+        // This is an Auction tx, and Auction liquidator attempted wrong
         // collateral so revert.
         if (unlockedCollateral != eTokenToLiquidate) {
             _revert(_UNAUTHORIZED_COLLATERAL_SELECTOR);
         }
 
-        // if we reach this point this is an Atlas tx and collateral is valid,
-        // so return the atlas buffer. 
+        // if we reach this point this is an Auction tx and collateral is valid,
+        // so return the auction buffer. 
         return AUCTION_BUFFER;
     }
 }

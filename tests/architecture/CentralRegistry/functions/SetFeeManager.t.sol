@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetFeeManagerTest is TestBaseMarketIsolated {
-    event CoreContractSet(string indexed contractType, address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newFeeManager = makeAddr("Fee Manager");
 
@@ -22,7 +22,7 @@ contract SetFeeManagerTest is TestBaseMarketIsolated {
         assertEq(centralRegistry.feeManager(), address(feeManager));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Fee Manager", newFeeManager);
+        emit CoreContractUpdated("Fee Manager", newFeeManager);
 
         centralRegistry.setFeeManager(newFeeManager);
 

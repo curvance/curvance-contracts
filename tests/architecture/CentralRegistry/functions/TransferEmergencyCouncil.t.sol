@@ -8,9 +8,10 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
     address public newEmergencyCouncil1 = address(1001);
     address public newEmergencyCouncil2 = address(1002);
 
-    event EmergencyCouncilTransferred(
-        address indexed previousEmergencyCouncil,
-        address indexed newEmergencyCouncil
+    event PermissionsTransferred(
+        string indexed permissionsType,,
+        address previousEmergencyCouncil,
+        address newEmergencyCouncil
     );
 
     function test_transferEmergencyCouncil_fail_whenCallerIsNotAuthorized()
@@ -29,7 +30,11 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         assertTrue(centralRegistry.hasElevatedPermissions(address(this)));
 
         vm.expectEmit(true, true, true, true);
-        emit EmergencyCouncilTransferred(address(this), newEmergencyCouncil1);
+        emit PermissionsTransferred(
+            "Emergency Council",
+            address(this),
+            newEmergencyCouncil1
+        );
 
         centralRegistry.transferEmergencyCouncil(newEmergencyCouncil1);
 
@@ -41,7 +46,8 @@ contract TransferEmergencyCouncilTest is TestBaseMarketIsolated {
         assertTrue(centralRegistry.hasElevatedPermissions(address(this)));
 
         vm.expectEmit(true, true, true, true);
-        emit EmergencyCouncilTransferred(
+        emit PermissionsTransferred(
+            "Emergency Council",
             newEmergencyCouncil1,
             newEmergencyCouncil2
         );

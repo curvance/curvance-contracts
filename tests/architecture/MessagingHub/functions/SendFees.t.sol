@@ -73,7 +73,7 @@ contract SendFeesTest is TestBaseMessagingHub {
         deal(address(messagingHub), _ONE);
         _prepareUSDC(address(feeManager), _ONE);
 
-        centralRegistry.setCircleTokenMessenger(address(0));
+        centralRegistry.setTokenMessager(address(0));
 
         vm.expectRevert(MessagingHub.MessagingHub__InvalidParameter.selector);
         messagingHub.sendFees(42161, 10e6, 0);

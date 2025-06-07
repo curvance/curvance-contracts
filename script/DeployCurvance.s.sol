@@ -63,17 +63,16 @@ contract DeployCurvance is
         _setLockBoostMultiplier(
             _readConfigUint256(".centralRegistry.lockBoostMultiplier")
         );
-        _setWormholeCore(_readConfigAddress(".centralRegistry.wormholeCore"));
-        _setWormholeRelayer(
-            _readConfigAddress(".centralRegistry.wormholeRelayer")
+        _setCrosschainCore(_readConfigAddress(".centralRegistry.crosschainCore"));
+        _setCrosschainRelayer(
+            _readConfigAddress(".centralRegistry.crosschainRelayer")
         );
-        _setCircleTokenMessenger(
-            _readConfigAddress(".centralRegistry.circleTokenMessenger")
+        _setTokenMessenger(
+            _readConfigAddress(".centralRegistry.tokenMessager")
         );
         _setMessageTransmitter(
             _readConfigAddress(".centralRegistry.messageTransmitter")
         );
-        _setTokenBridge(_readConfigAddress(".centralRegistry.tokenBridge"));
         _addHarvester(_readConfigAddress(".centralRegistry.harvester"));
 
         // Deploy CVE
@@ -115,10 +114,10 @@ contract DeployCurvance is
         _deployAuxiliaryData(centralRegistry);
 
         // transfer dao, timelock, emergency council
-        // _transferDaoOwnership(
+        // _transferDaoPermissions(
         //     _readConfigAddress(".centralRegistry.daoAddress")
         // );
-        // _migrateTimelockConfiguration(
+        // _transferTimelockPermissions(
         //     _readConfigAddress(".centralRegistry.timelock")
         // );
         // _transferEmergencyCouncil(

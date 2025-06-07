@@ -425,7 +425,7 @@ abstract contract CompoundingPToken is BasePToken {
 
     /// @notice Checks if the caller can compound pending vaults rewards.
     function _canCompound() internal view {
-        if (!centralRegistry.isHarvester(msg.sender)) {
+        if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 

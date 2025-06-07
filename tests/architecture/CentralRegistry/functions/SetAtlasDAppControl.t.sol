@@ -22,19 +22,19 @@ contract MarketManagerSetAtlasDAppControlTest is TestBaseMarketIsolated {
     }
 
     function test_marketManagerAddAuthorizedAtlasDAppControl_success() public {
-        assertEq(centralRegistry.hasAtlasPermissions(address(1)), false);
+        assertEq(centralRegistry.hasAuctionPermissions(address(1)), false);
 
         centralRegistry.addAuthorizedAtlasDAppControl(address(1));
 
-        assertEq(centralRegistry.hasAtlasPermissions(address(1)), true);
+        assertEq(centralRegistry.hasAuctionPermissions(address(1)), true);
 
         centralRegistry.addAuthorizedAtlasDAppControl(address(0));
 
-        assertEq(centralRegistry.hasAtlasPermissions(address(1)), true);
+        assertEq(centralRegistry.hasAuctionPermissions(address(1)), true);
 
         centralRegistry.removeAuthorizedAtlasDAppControl(address(1));
 
-        assertEq(centralRegistry.hasAtlasPermissions(address(1)), false);
+        assertEq(centralRegistry.hasAuctionPermissions(address(1)), false);
     }
 
     function test_marketManagerRemoveAuthorizedAtlasDAppControl_fail_whenCallerIsNotAuthorized() public {

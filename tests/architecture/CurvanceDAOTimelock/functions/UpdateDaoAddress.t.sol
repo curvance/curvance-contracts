@@ -22,7 +22,7 @@ contract UpdateDaoAddressTest is TestBaseTimelock {
         assertTrue(timelock.hasRole(timelock.EXECUTOR_ROLE(), daoAddress));
 
         vm.prank(daoAddress);
-        centralRegistry.transferDaoOwnership(address(1));
+        centralRegistry.transferDaoPermissions(address(1));
 
         timelock.updateDaoAddress();
 

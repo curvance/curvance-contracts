@@ -19,7 +19,7 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
 
     address public newMarket;
 
-    event RemovedCurvanceContract(
+    event PermissionsUpdated(
         string indexed contractType,
         address removedAddress
     );
@@ -63,7 +63,7 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
         centralRegistry.addMarketManager(newMarket, 5000);
 
         vm.expectEmit(true, true, true, true);
-        emit RemovedCurvanceContract("Market Manager", newMarket);
+        emit PermissionsUpdated("Market Manager", newMarket, false);
 
         centralRegistry.removeMarketManager(newMarket);
         assertFalse(centralRegistry.isMarketManager(newMarket));

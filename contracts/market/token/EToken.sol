@@ -173,7 +173,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Assign the interest factor for interest generated
         // inside this market.
-        uint256 newInterestFactor = centralRegistry.protocolInterestFactor(
+        uint256 newInterestFactor = centralRegistry.protocolInterestFee(
             marketManager_
         );
         interestFactor = newInterestFactor;

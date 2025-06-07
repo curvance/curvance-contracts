@@ -184,7 +184,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     }
 
     function test_borrowAndBridge_fail_whenCCTPIsNotConfigured() public {
-        centralRegistry.setCircleTokenMessenger(address(0));
+        centralRegistry.setTokenMessager(address(0));
 
         vm.startPrank(user1);
 

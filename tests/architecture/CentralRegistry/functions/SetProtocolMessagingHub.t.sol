@@ -5,7 +5,7 @@ import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol"
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
 
 contract SetMessagingHubTest is TestBaseMarketIsolated {
-    event CoreContractSet(string indexed contractType, address newAddress);
+    event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newMessagingHub = makeAddr("Messaging Hub");
 
@@ -22,7 +22,7 @@ contract SetMessagingHubTest is TestBaseMarketIsolated {
         assertEq(centralRegistry.messagingHub(), address(messagingHub));
 
         vm.expectEmit(true, true, true, true);
-        emit CoreContractSet("Messaging Hub", newMessagingHub);
+        emit CoreContractUpdated("Messaging Hub", newMessagingHub);
 
         centralRegistry.setMessagingHub(newMessagingHub);
 

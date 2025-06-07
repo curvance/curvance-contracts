@@ -13,7 +13,7 @@ contract Market {
     }
 }
 
-contract SetProtocolInterestRateFeeTest is TestBaseMarketIsolated {
+contract SetProtocolInterestFeeTest is TestBaseMarketIsolated {
     address public newMarket;
 
     function setUp() public virtual override {
@@ -21,7 +21,7 @@ contract SetProtocolInterestRateFeeTest is TestBaseMarketIsolated {
         newMarket = address(new Market());
     }
 
-    function test_setProtocolInterestRateFee_fail_whenCallerIsNotAuthorized()
+    function test_setProtocolInterestFee_fail_whenCallerIsNotAuthorized()
         public
     {
         vm.prank(address(0));
@@ -29,33 +29,33 @@ contract SetProtocolInterestRateFeeTest is TestBaseMarketIsolated {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__Unauthorized.selector
         );
-        centralRegistry.setProtocolInterestRateFee(newMarket, 100);
+        centralRegistry.setProtocolInterestFee(newMarket, 100);
     }
 
-    function test_setProtocolInterestRateFee_fail_whenValueTooHigh() public {
+    function test_setProtocolInterestFee_fail_whenValueTooHigh() public {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setProtocolInterestRateFee(newMarket, 7501);
+        centralRegistry.setProtocolInterestFee(newMarket, 7501);
     }
 
-    function test_setProtocolInterestRateFee_fail_whenNotLendingMarket()
+    function test_setProtocolInterestFee_fail_whenNotLendingMarket()
         public
     {
         vm.expectRevert(
             CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
         );
-        centralRegistry.setProtocolInterestRateFee(newMarket, 5000);
+        centralRegistry.setProtocolInterestFee(newMarket, 5000);
 
         centralRegistry.addMarketManager(newMarket, 5000);
-        centralRegistry.setProtocolInterestRateFee(newMarket, 5000);
+        centralRegistry.setProtocolInterestFee(newMarket, 5000);
     }
 
-    function test_setProtocolInterestRateFee_success() public {
+    function test_setProtocolInterestFee_success() public {
         centralRegistry.addMarketManager(newMarket, 5000);
-        centralRegistry.setProtocolInterestRateFee(newMarket, 5000);
+        centralRegistry.setProtocolInterestFee(newMarket, 5000);
         assertEq(
-            centralRegistry.protocolInterestFactor(newMarket),
+            centralRegistry.protocolInterestFee(newMarket),
             5000 * 1e14
         );
     }

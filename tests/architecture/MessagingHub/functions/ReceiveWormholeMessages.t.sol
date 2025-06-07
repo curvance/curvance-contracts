@@ -33,11 +33,11 @@ contract MessagingHubReceiveWormholeMessagesTest is TestBaseMessagingHub {
         );
 
         MockMessageTransmitter(
-            address(centralRegistry.circleMessageTransmitter())
+            address(centralRegistry.messageTransmitter())
         ).enableForceTransfer(_USDC_ADDRESS, address(messagingHub), 100e6);
     }
 
-    function test_receiveWormholeMessages_fail_whenCallerIsNotWormholeRelayer()
+    function test_receiveWormholeMessages_fail_whenCallerIsNotCrosschainRelayer()
         public
     {
         vm.expectRevert(MessagingHub.MessagingHub__Unauthorized.selector);

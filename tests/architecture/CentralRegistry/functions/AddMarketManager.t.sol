@@ -16,7 +16,7 @@ contract Market {
 contract AddMarketManagerTest is TestBaseMarketIsolated {
     address public newMarket;
 
-    event NewCurvanceContract(string indexed contractType, address newAddress);
+    event PermissionsUpdated(string indexed contractType, address newAddress);
 
     function setUp() public virtual override {
         super.setUp();
@@ -60,7 +60,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
         assertFalse(centralRegistry.isMarketManager(newMarket));
 
         vm.expectEmit(true, true, true, true);
-        emit NewCurvanceContract("Market Manager", newMarket);
+        emit PermissionsUpdated("Market Manager", newMarket, true);
 
         centralRegistry.addMarketManager(newMarket, 5000);
 
@@ -74,7 +74,7 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
             newMarket
         );
         assertEq(
-            centralRegistry.protocolInterestFactor(newMarket),
+            centralRegistry.protocolInterestFee(newMarket),
             5000 * 1e14
         );
     }
