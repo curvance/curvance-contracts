@@ -218,69 +218,40 @@ contract StartContractsConfig is
             address m_usd = _getDeployedContract("mUSD");
 
             MarketManagerIsolated thirdMarket = _createMarket("thirdTestMarket", cr);
-            MarketTokenDeploy[]
-                memory thirdPositionTokens = new MarketTokenDeploy[](1);
-            MarketTokenDeploy[]
-                memory thirdEarnTokens = new MarketTokenDeploy[](1);
-            thirdPositionTokens[0] = MarketTokenDeploy(
-                "PToken-mETH",
-                m_eth,
-                address(0),
-                chainlinkEthFeedInUsd
-            );
-            thirdEarnTokens[0] = MarketTokenDeploy(
-                "EToken-mUSD",
-                m_usd,
-                address(0),
-                chainlinkUsdcFeedInUsd
-            );
-            _deployMarketTokens(
+            _configureMarket(
                 thirdMarket,
                 cr,
-                thirdPositionTokens,
-                thirdEarnTokens
+                MarketTokenDeploy(
+                    "PToken-mETH",
+                    m_eth,
+                    address(0),
+                    chainlinkEthFeedInUsd
+                ),
+                MarketTokenDeploy(
+                    "EToken-mUSD",
+                    m_usd,
+                    address(0),
+                    chainlinkUsdcFeedInUsd
+                )
             );
         }
 
         MarketManagerIsolated fourthMarket = _createMarket("fourthTestMarket", cr);
-        MarketTokenDeploy[]
-            memory fourthPositionTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory fourthEarnTokens = new MarketTokenDeploy[](
-            1
-        );
-        if (!is_berachain && !is_movement) {
-            fourthEarnTokens = new MarketTokenDeploy[](2);
-        }
-        fourthPositionTokens[0] = MarketTokenDeploy(
-            "PToken-LUSD",
-            l_usd,
-            address(0),
-            chainlinkUsdcFeedInUsd
-        );
-
-        fourthEarnTokens[0] = MarketTokenDeploy(
-            "EToken-SWETH",
-            sweth,
-            address(0),
-            chainlinkUsdcFeedInUsd
-        );
-
-        if (!is_berachain && !is_movement) {
-            address mk_usd = _getDeployedContract("mkUSD");
-
-            fourthEarnTokens[1] = MarketTokenDeploy(
-                "EToken-mkUSD",
-                mk_usd,
-                address(0),
-                chainlinkUsdcFeedInUsd
-            );
-        }
-
-        _deployMarketTokens(
+        _configureMarket(
             fourthMarket,
             cr,
-            fourthPositionTokens,
-            fourthEarnTokens
+            MarketTokenDeploy(
+                "PToken-LUSD",
+                l_usd,
+                address(0),
+                chainlinkUsdcFeedInUsd
+            ),
+            MarketTokenDeploy(
+                "EToken-SWETH",
+                sweth,
+                address(0),
+                chainlinkUsdcFeedInUsd
+            )
         );
     }
 
@@ -293,53 +264,39 @@ contract StartContractsConfig is
         address wbtc = _getDeployedContract("WBTC");
 
         MarketManagerIsolated firstMarket = _createMarket("firstTestMarket", cr);
-        MarketTokenDeploy[]
-            memory firstPositionTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory firstEarnTokens = new MarketTokenDeploy[](
-            1
-        );
-        firstPositionTokens[0] = MarketTokenDeploy(
-            "PToken-WBTC",
-            wbtc,
-            _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
-            _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
-        );
-        firstEarnTokens[0] = MarketTokenDeploy(
-            "EToken-USDC",
-            usdc,
-            _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
-            _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
-        );
-        _deployMarketTokens(
+        _configureMarket(
             firstMarket,
             cr,
-            firstPositionTokens,
-            firstEarnTokens
+            MarketTokenDeploy(
+                "PToken-WBTC",
+                wbtc,
+                _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
+                _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
+            ),
+            MarketTokenDeploy(
+                "EToken-USDC",
+                usdc,
+                _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
+                _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
+            )
         );
 
         MarketManagerIsolated secondMarket = _createMarket("secondTestMarket", cr);
-        MarketTokenDeploy[]
-            memory secondPositionTokens = new MarketTokenDeploy[](1);
-        MarketTokenDeploy[] memory secondEarnTokens = new MarketTokenDeploy[](
-            1
-        );
-        secondPositionTokens[0] = MarketTokenDeploy(
-            "PToken-USDC",
-            usdc,
-            _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
-            _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
-        );
-        secondEarnTokens[0] = MarketTokenDeploy(
-            "EToken-WBTC",
-            wbtc,
-            _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
-            _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
-        );
-        _deployMarketTokens(
+        _configureMarket(
             secondMarket,
             cr,
-            secondPositionTokens,
-            secondEarnTokens
+            MarketTokenDeploy(
+                "PToken-USDC",
+                usdc,
+                _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
+                _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
+            ),
+            MarketTokenDeploy(
+                "EToken-WBTC",
+                wbtc,
+                _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
+                _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
+            )
         );
     }
 
@@ -368,33 +325,54 @@ contract StartContractsConfig is
         );
     }
 
-    function _deployMarketTokens(
+    function _configureMarket(
         MarketManagerIsolated market,
         ICentralRegistry cr,
-        MarketTokenDeploy[] memory PositionTokens,
-        MarketTokenDeploy[] memory earnTokens
+        MarketTokenDeploy PositionToken,
+        MarketTokenDeploy earnToken
     ) internal {
-        for (uint256 i = 0; i < PositionTokens.length; i++) {
-            _deployPToken(
-                PositionTokens[i].name,
-                PositionTokens[i].token,
-                PositionTokens[i].chainlinkEthAggregator,
-                PositionTokens[i].chainlinkUsdAggregator,
+        address pTokenToList =_deployPToken(
+                PositionToken.name,
+                PositionToken.token,
+                PositionToken.chainlinkEthAggregator,
+                PositionToken.chainlinkUsdAggregator,
                 cr,
                 market
-            );
-        }
+        );
+        address eTokenToList = _deployEToken(
+            earnTokens[i].name,
+            earnTokens[i].token,
+            earnTokens[i].chainlinkEthAggregator,
+            earnTokens[i].chainlinkUsdAggregator,
+            cr,
+            market
+        );
+        market.listTokens(pTokenToList, eTokenToList);
+        market.updatePositionToken(
+            // From FuzzMarketManager -> setup()
+            pToken,
+            7000,
+            4000,
+            3000,
+            200,
+            400,
+            1000
+        );
 
-        for (uint256 i = 0; i < earnTokens.length; i++) {
-            _deployEToken(
-                earnTokens[i].name,
-                earnTokens[i].token,
-                earnTokens[i].chainlinkEthAggregator,
-                earnTokens[i].chainlinkUsdAggregator,
-                cr,
-                market
-            );
-        }
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = pToken;
+        uint256[] memory newCollateralCaps = new uint256[](1);
+        // mTokens have same decimals as underlying token.
+        newCollateralCaps[0]
+            = 1000000 * 10 ** IERC20(mTokens[0]).decimals(); //1m tokens
+        market.setCollateralCaps(mTokens, newCollateralCaps);
+        
+        mTokens[0] = eToken;
+        uint256[] memory newDebtCaps = new uint256[](1);
+        // mTokens have same decimals as underlying token.
+        newDebtCaps[0]
+            = 700000 * 10 ** IERC20(mTokens[0]).decimals(); //700k tokens
+        market.setDebtCaps(mTokens, newDebtCaps);
     }
 
     function _deployEToken(
@@ -447,8 +425,6 @@ contract StartContractsConfig is
         }
 
         MockToken(tokenAddress).approve(eToken, 1e25);
-        market.listToken(eToken);
-
         return eToken;
     }
 
@@ -484,23 +460,6 @@ contract StartContractsConfig is
         }
 
         MockToken(tokenAddress).approve(pToken, 1e25);
-        market.listToken(pToken);
-        market.updatePositionToken(
-            // From FuzzMarketManager -> setup()
-            pToken,
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
-        );
-        address[] memory mTokens = new address[](1);
-        mTokens[0] = pToken;
-        uint256[] memory newCollateralCaps = new uint256[](1);
-        newCollateralCaps[0] = 1000000 * 10 ** underlying.decimals(); //1m tokens
-        market.setCollateralCaps(mTokens, newCollateralCaps);
-
         return pToken;
     }
 
