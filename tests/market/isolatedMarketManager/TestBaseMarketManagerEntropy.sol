@@ -87,16 +87,16 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         if (
             collReqB <=
             400 +
-                (marketManager.MIN_EXCESS_COLLATERAL_REQUIREMENT() / 10 ** 14)
+                (marketManagerIsolated.MIN_EXCESS_COLLATERAL_REQUIREMENT() / 10 ** 14)
         ) {
             collReqB =
                 400 +
-                (marketManager.MIN_EXCESS_COLLATERAL_REQUIREMENT() /
+                (marketManagerIsolated.MIN_EXCESS_COLLATERAL_REQUIREMENT() /
                     10 ** 14) +
                 1;
         }
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             positionToken,
             collRatio,
             collReqA,
@@ -109,7 +109,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         tokens[0] = address(positionToken);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 
     function _genColWithEntropy(
@@ -177,7 +177,7 @@ contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             console2.log("user %s", i);
             while (true) {
-                (accCollateral, accMaxDebt, accDebt) = marketManager.statusOf(
+                (accCollateral, accMaxDebt, accDebt) = marketManagerIsolated.statusOf(
                     users[i]
                 );
                 amount = _genRandom(i, entropy, 100e18, 500e18);

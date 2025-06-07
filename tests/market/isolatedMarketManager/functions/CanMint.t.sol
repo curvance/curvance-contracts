@@ -12,16 +12,16 @@ contract CanMintTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        marketManager.setMintPaused(address(eUSDC), true);
+        marketManagerIsolated.setMintPaused(address(eUSDC), true);
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManager.canMint(address(eUSDC));
+        marketManagerIsolated.canMint(address(eUSDC));
     }
 
     function test_canMint_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canMint(address(eUSDC));
+        marketManagerIsolated.canMint(address(eUSDC));
     }
 
     function test_canMint_success() public {
@@ -31,7 +31,7 @@ contract CanMintTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.canMint(address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canMint(address(eUSDC));
     }
 }

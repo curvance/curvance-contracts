@@ -60,7 +60,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
         pUSDCDAI = new AerodromeStablePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_AERODROME_DAI_USDC),
-            address(marketManager),
+            address(marketManagerIsolated),
             gauge,
             aeroPairFactory,
             aeroRouter
@@ -191,7 +191,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
         deal(_AERODROME_DAI_USDC, address(this), 42069);
 
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 42069);
-        marketManager.listToken(address(pUSDCDAI));
+        marketManagerIsolated.listToken(address(pUSDCDAI));
 
         vm.prank(user1);
         IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), assets);

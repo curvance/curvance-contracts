@@ -53,7 +53,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
     }
 
     function test_assetsOf() public {
-        IMToken[] memory assets = marketManager.assetsOf(user1);
+        IMToken[] memory assets = marketManagerIsolated.assetsOf(user1);
         assertEq(assets.length, 2);
         assertEq(address(assets[0]), address(pBALRETH));
         assertEq(address(assets[1]), address(eUSDC));
@@ -61,7 +61,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
 
     function test_tokenDataOf() public {
 
-        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = marketManager.tokenDataOf(user1, address(pBALRETH));
+        (bool hasPosition, uint256 balanceOf, uint256 collateralPostedOf) = marketManagerIsolated.tokenDataOf(user1, address(pBALRETH));
         assertEq(hasPosition, true);
         assertEq(balanceOf, _ONE, "balance of mismatch");
         assertEq(collateralPostedOf, _ONE - 1, "collateral posted mismatch");
@@ -72,7 +72,7 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
 
         mockUsdcFeed.setMockAnswer(1e8); // reset price back to $1
 
-        (uint256 accountCollateral, uint256 maxDebt, uint256 accountDebt) = marketManager.statusOf(user1);
+        (uint256 accountCollateral, uint256 maxDebt, uint256 accountDebt) = marketManagerIsolated.statusOf(user1);
 
         uint256 expectedMaxDebt = 7000 * accountCollateral / 10000; // 70% LTV
 

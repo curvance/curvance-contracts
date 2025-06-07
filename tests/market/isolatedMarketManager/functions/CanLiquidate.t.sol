@@ -33,7 +33,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         });
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -53,7 +53,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         });
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -67,7 +67,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         IMarketManager.LiqInstructions memory liqInstructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
@@ -83,7 +83,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -97,8 +97,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -125,7 +125,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -141,8 +141,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -169,7 +169,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -205,8 +205,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -223,7 +223,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
@@ -245,7 +245,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector
         );
-        marketManager.canLiquidate(
+        marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,
@@ -261,8 +261,8 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -279,7 +279,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         _setupUserPositionAndOracles();
 
@@ -303,7 +303,7 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
         (
             IMarketManager.LiqResults memory liqResults,
             uint256[] memory debtAmountsReturned
-        ) = marketManager.canLiquidate(
+        ) = marketManagerIsolated.canLiquidate(
             address(this),
             accounts,
             debtAmounts,

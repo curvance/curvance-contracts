@@ -293,7 +293,7 @@ contract TestMarketManagerMultiMarkets is TestBaseMarketManagerEntropy {
 
         _prepareLiquidationMultiple(liquidator, eTokens);
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-            if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
+            if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[0]), address(pTokens[0]))) {
                 continue;
             }
             // _liquidateAccount(users[i], liquidator);

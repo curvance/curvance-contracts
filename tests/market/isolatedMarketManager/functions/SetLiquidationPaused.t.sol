@@ -14,17 +14,17 @@ contract SetLiquidationPausedTest is TestBaseMarketManagerIsolated {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.setLiquidationPaused(true);
+        marketManagerIsolated.setLiquidationPaused(true);
     }
 
     function test_setLiquidationPaused_success() public {
-        assertEq(marketManager.liquidationPaused(), 1);
+        assertEq(marketManagerIsolated.liquidationPaused(), 1);
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Liquidation Paused", true);
 
-        marketManager.setLiquidationPaused(true);
+        marketManagerIsolated.setLiquidationPaused(true);
 
-        assertEq(marketManager.liquidationPaused(), 2);
+        assertEq(marketManagerIsolated.liquidationPaused(), 2);
     }
 }

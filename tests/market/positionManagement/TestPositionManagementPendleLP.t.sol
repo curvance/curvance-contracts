@@ -102,22 +102,22 @@ contract TestPositionManagementPendleLP is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         pSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
-            address(marketManager),
+            address(marketManagerIsolated),
             _ROUTER
         );
         oracleManager.addMTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, owner, 1 ether);
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
-        marketManager.listToken(address(pSTETH));
+        marketManagerIsolated.listToken(address(pSTETH));
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pSTETH),
             7000,
             4000,
@@ -132,15 +132,15 @@ contract TestPositionManagementPendleLP is TestBaseMarketIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
 
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
         positionManagement = new PositionManagementPendleLP(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS,
             _ROUTER
         );
 
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
     }
@@ -171,7 +171,7 @@ contract TestPositionManagementPendleLP is TestBaseMarketIsolated {
         );
         assertEq(
             address(positionManagement.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
     }
 

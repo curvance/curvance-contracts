@@ -20,7 +20,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
             address(interestRateModels[block.chainid][_DAI_ADDRESS])
         );
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(EToken.EToken__Unauthorized.selector);
         eUSDC.startMarket(user1);
@@ -29,7 +29,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
     function test_eTokenStartMarket_fail_whenInitializerIsZeroAddress()
         public
     {
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
 
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         eUSDC.startMarket(address(0));
@@ -41,7 +41,7 @@ contract ETokenStartMarketTest is TestBaseEToken {
 
         uint256 totalSupply = eUSDC.totalSupply();
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(user1);
 
         assertEq(eUSDC.totalSupply(), totalSupply + 42069);

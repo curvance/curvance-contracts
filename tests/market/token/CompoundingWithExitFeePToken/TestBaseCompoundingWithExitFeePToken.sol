@@ -79,6 +79,6 @@ contract TestBaseCompoundingWithExitFeePToken is TestBaseMarketIsolated {
             address(pBALRETHWithExitFee),
             _ONE
         );
-        marketManager.listToken(address(pBALRETHWithExitFee));
+        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
     }
 }

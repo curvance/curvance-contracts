@@ -22,7 +22,7 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
 
         centralRegistry.setTransferableStatus(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Unauthorized.selector);
         pBALRETH.redeem(10, address(this), address(this));
     }
 
@@ -34,7 +34,7 @@ contract CompoundingPTokenRedeemTest is TestBaseCompoundingPToken {
         centralRegistry.setCooldown(10 days);
         centralRegistry.setCooldown(5 days);
 
-        vm.expectRevert(MarketManager.MarketManager__Unauthorized.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Unauthorized.selector);
         pBALRETH.redeem(10, address(this), address(this));
     }
 

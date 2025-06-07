@@ -58,7 +58,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         MockSimplePToken SimplePToken = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
         vm.label(address(SimplePToken), "pToken");
 
@@ -66,8 +66,8 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         uint256 startAmount = 42069;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(SimplePToken), startAmount);
-        marketManager.listToken(address(SimplePToken));
-        vm.label(address(marketManager), "marketManager");
+        marketManagerIsolated.listToken(address(SimplePToken));
+        vm.label(address(marketManagerIsolated), "marketManager");
         return SimplePToken;
     }
 
@@ -80,7 +80,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         uint256 startAmount = 42069;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(earnToken), startAmount);
-        marketManager.listToken(address(earnToken));
+        marketManagerIsolated.listToken(address(earnToken));
         return earnToken;
     }
 
@@ -95,7 +95,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
 
     function _setCollateralData(address positionToken) internal {
         // set collateral factor
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             positionToken,
             7000,
             4000,
@@ -108,7 +108,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         tokens[0] = address(positionToken);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 
     function _genCollateral(
@@ -158,7 +158,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         uint256 _amount,
         bool _exact
     ) internal view returns (uint256 liqAmount, uint256 liquidatedTokens) {
-        (liqAmount, liquidatedTokens) = marketManager.canLiquidate(
+        (liqAmount, liquidatedTokens) = marketManagerIsolated.canLiquidate(
             address(_eToken),
             address(_pToken),
             _user,
@@ -214,7 +214,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         MockSimplePToken _pToken,
         bool _exact
     ) internal view returns (uint256, uint256) {
-        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManager
+        (, , , , , , uint256 baseCFactor, uint256 cFactorCurve) = marketManagerIsolated
             .tokenData(address(_pToken));
 
         uint256 cFactor = baseCFactor + ((cFactorCurve * 1e18) / WAD);
@@ -261,7 +261,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
             uint256 liqCurve,
             ,
 
-        ) = marketManager.tokenData(address(_pToken));
+        ) = marketManagerIsolated.tokenData(address(_pToken));
 
         PriceReturnData memory earnTokenData = chainlinkAdaptor.getPrice(
             _eToken.underlying(),
@@ -323,7 +323,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         console2.log("_liquidateExact");
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
+                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(pTokens[j]))) {
                     console2.log(
                         "user %s not flagged for liquidation",
                         users[i]
@@ -360,7 +360,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             console2.log("user %s", users[i]);
             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
+                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManagerIsolated), users[i], address(eTokens[j]), address(pTokens[j]))) {
                     console2.log(
                         "user %s not flagged for liquidation",
                         users[i]

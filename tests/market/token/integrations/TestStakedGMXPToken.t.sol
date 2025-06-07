@@ -51,7 +51,7 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
         cStakedGMX = new StakedGMXPToken(
             ICentralRegistry(address(centralRegistry)),
             gmx,
-            address(marketManager),
+            address(marketManagerIsolated),
             _GMX_REWARD_ROUTER,
             _WETH_ADDRESS
         );

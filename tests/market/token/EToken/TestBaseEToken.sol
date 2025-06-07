@@ -68,14 +68,14 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         usdc.approve(address(eUSDC), _ONE);
 
         usdc.approve(address(eUSDC), _ONE);
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
         _prepareBALRETH(address(this), 10e18);
         balRETH.approve(address(pBALRETH), 10e18);
 
-        marketManager.listToken(address(pBALRETH));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.updatePositionToken(
             address(pBALRETH),
             7000,
             4000, // liquidate at 71%
@@ -89,7 +89,7 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         pBALRETH.mint(_ONE, address(this));
     }

@@ -40,7 +40,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
             badDebt: 0
         });
 
-        (IMarketManager.LiqResults memory results, uint256[] memory debtAmountReturned) = marketManager.canLiquidate(
+        (IMarketManager.LiqResults memory results, uint256[] memory debtAmountReturned) = marketManagerIsolated.canLiquidate(
             user2,
             accounts,
             debtAmounts,
@@ -128,7 +128,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 maxAmount,
         uint256 debtToCollateralMultiplier
     ) internal view returns (uint256) {
-        (, , uint256 collateralAvailable) = marketManager.tokenDataOf(user, address(pBALRETH));
+        (, , uint256 collateralAvailable) = marketManagerIsolated.tokenDataOf(user, address(pBALRETH));
         uint256 debtAmount = maxAmount;
         uint256 liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
         if (liquidatedPTokens > collateralAvailable) {
@@ -140,10 +140,10 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
     // Main function refactored to avoid stack too deep
     function _calculateExpectedRepayAmountNotExact(address user) internal view returns (uint256) {
         (,,,, uint256 liqBaseIncentive, uint256 liqCurve,,,,, uint256 baseCFactor, uint256 cFactorCurve) = 
-            marketManager.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(pBALRETH));
         
         (uint256 lFactor, uint256 earnTokenPrice, uint256 positionTokenPrice) = 
-            marketManager.liquidationStatusOf(user, address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(user, address(eUSDC), address(pBALRETH));
 
         uint256 auctionCFactor = baseCFactor + ((cFactorCurve * lFactor) / WAD);
         uint256 auctionLiqIncentive = liqBaseIncentive + ((liqCurve * lFactor) / WAD);

@@ -87,14 +87,14 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        marketManager.hypotheticalLiquidityOf(
+        marketManagerIsolated.hypotheticalLiquidityOf(
             users[0],
             address(pTokens[0]),
             0,
             1
         );
 
-        (uint256 liquidity, uint256 debt, ) = marketManager
+        (uint256 liquidity, uint256 debt, ) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(liquidity, 0);
@@ -246,13 +246,13 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
 
         skip(30 minutes);
 
-        marketManager.setRedeemPaused(true);
+        marketManagerIsolated.setRedeemPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         vm.prank(users[0]);
         pTokens[0].removeCollateral(1 ether);
 
-        marketManager.setRedeemPaused(false);
+        marketManagerIsolated.setRedeemPaused(false);
         vm.prank(users[0]);
         pTokens[0].removeCollateral(1 ether);
     }
@@ -296,12 +296,12 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
         assertFalse(positionsToClose[0]);
-        (bool hasPosition, , ) = marketManager.tokenDataOf(
+        (bool hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
@@ -310,13 +310,13 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         pTokens[0].removeCollateral(1 ether);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
         assertFalse(hasPosition);
 
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
         assertEq(collateralSurplus, 0);
         assertEq(liquidityDeficit, 0);
@@ -361,12 +361,12 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 1);
         assertFalse(positionsToClose[0]);
-        (bool hasPosition, , ) = marketManager.tokenDataOf(
+        (bool hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
@@ -375,13 +375,13 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         vm.prank(users[0]);
         pTokens[0].withdrawCollateral(1 ether, users[0], users[0]);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
         assertFalse(hasPosition);
 
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
         assertEq(collateralSurplus, 0);
         assertEq(liquidityDeficit, 0);
@@ -433,7 +433,7 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         uint256 collateralSurplus;
         uint256 liquidityDeficit;
         bool[] memory positionsToClose;
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         bool hasPosition;
@@ -441,17 +441,17 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
         assertFalse(positionsToClose[0]);
         assertFalse(positionsToClose[1]);
         assertFalse(positionsToClose[2]);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
         assertTrue(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[0])
         );
         assertTrue(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[1])
         );
@@ -459,49 +459,49 @@ contract TestMarketManager is TestBaseMarketManagerEntropy {
 
         _liquidate(eTokens[0], pTokens[0], users[0], true);
 
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 3);
         assertFalse(positionsToClose[0]);
         assertTrue(positionsToClose[1]);
         assertFalse(positionsToClose[2]);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
         assertTrue(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[0])
         );
         assertTrue(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[1])
         );
         assertTrue(hasPosition);
         vm.prank(address(eTokens[1]));
-        marketManager.canBorrow(address(eTokens[1]), users[0], 0);
+        marketManagerIsolated.canBorrow(address(eTokens[1]), users[0], 0);
         vm.prank(users[0]);
 
-        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManager
+        (collateralSurplus, liquidityDeficit, positionsToClose) = marketManagerIsolated
             .hypotheticalLiquidityOf(users[0], address(pTokens[0]), 0, 0);
 
         assertEq(positionsToClose.length, 2);
         assertFalse(positionsToClose[0]);
         assertFalse(positionsToClose[1]);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(pTokens[0])
         );
         assertTrue(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[0])
         );
         assertFalse(hasPosition);
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             users[0],
             address(eTokens[1])
         );

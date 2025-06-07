@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-
+import { LiquidityManagerIsolated } from "contracts/market/isolated/LiquidityManagerIsolated.sol";
 import "tests/market/TestBaseMarketIsolated.sol";
 
 contract TestTokenInteractions is TestBaseMarketIsolated {
@@ -73,7 +73,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         {
             _prepareDAI(owner, 200_000e18);
             dai.approve(address(eDAI), 200_000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -83,9 +83,9 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(owner, _ONE);
             balRETH.approve(address(pBALRETH), _ONE);
-            marketManager.listToken(address(pBALRETH));
+            marketManagerIsolated.listToken(address(pBALRETH));
             // set collateral factor
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pBALRETH),
                 7000,
                 4000,
@@ -98,7 +98,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             tokens[0] = address(pBALRETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         // provide enough liquidity
@@ -181,12 +181,12 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
 
-        uint256 minimumBorrowAmount = (marketManager.MIN_ACTIVE_LOAN_SIZE() *
+        uint256 minimumBorrowAmount = (marketManagerIsolated.MIN_ACTIVE_LOAN_SIZE() *
             (10 ** priceDecimals)) / uint256(daiPrice);
 
         // try borrow() with insufficient loan size
         vm.expectRevert(
-            LiquidityManager.LiquidityManager__InsufficientLoanSize.selector
+            LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector
         );
         eDAI.borrow(minimumBorrowAmount - 1);
 
@@ -282,7 +282,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
-            MarketManager.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eDAI.redeem(1000e18, address(this));
 

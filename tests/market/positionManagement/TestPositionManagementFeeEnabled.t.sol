@@ -119,7 +119,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // setup pUSDCDAI
@@ -127,7 +127,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
             pUSDCDAI = new VelodromeStablePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_VELODROME_DAI_USDC),
-                address(marketManager),
+                address(marketManagerIsolated),
                 gauge,
                 veloPairFactory,
                 veloRouter
@@ -137,9 +137,9 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
 
             deal(_VELODROME_DAI_USDC, owner, 1 ether);
             IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-            marketManager.listToken(address(pUSDCDAI));
+            marketManagerIsolated.listToken(address(pUSDCDAI));
 
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pUSDCDAI),
                 7000,
                 4000,
@@ -154,17 +154,17 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         positionManagement = new PositionManagementVelodrome(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS,
             address(veloRouter),
             address(veloPairFactory)
         );
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
 

@@ -14,12 +14,12 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_canRedeem_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canRedeem(address(eDAI), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eDAI), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenTransferIsDisabled() public {
@@ -27,7 +27,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         centralRegistry.setTransferableStatus(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenCooldownIsNotEnded() public {
@@ -39,17 +39,17 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenWithinMinimumHoldPeriod() public {
         vm.prank(address(eUSDC));
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_fail_whenPTokenInsufficientLiquidity() public {
@@ -87,7 +87,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(
             user1,
             address(pBALRETH)
         );
@@ -98,27 +98,27 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canRedeem(address(pBALRETH), user1, 100e18);
+        marketManagerIsolated.canRedeem(address(pBALRETH), user1, 100e18);
     }
 
     function test_canRedeem_success_whenPastMinimumHoldPeriod() public {
         vm.prank(address(eUSDC));
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
 
         skip(20 minutes);
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_success_whenRedeemerNotInMarket() public {
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public {
         assertFalse(eUSDC.isPToken());
-        marketManager.canRedeem(address(eUSDC), user1, 100e6);
+        marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 }

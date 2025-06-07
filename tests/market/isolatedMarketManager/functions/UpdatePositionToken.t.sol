@@ -17,13 +17,13 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 42069);
         
         // List tokens in the market
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
     }
 
     function testUpdatePositionToken() public {
         // Set position token parameters
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -49,7 +49,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
             uint256 maxEffectiveCloseFactor,
             uint256 baseCFactor,
             uint256 cFactorCurve
-        ) = marketManager.tokenData(address(pBALRETH));
+        ) = marketManagerIsolated.tokenData(address(pBALRETH));
 
         assertEq(collRatio, 700000000000000000);
         assertEq(collReqSoft, 1400000000000000000);
@@ -70,7 +70,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         
         // Should revert with MarketManager__Unauthorized()
         vm.expectRevert(abi.encodeWithSignature("MarketManager__Unauthorized()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000, 4000, 3000, 1000, 1500, 500, 2000, 2000, 5000, 2000
         );
     }
@@ -80,7 +80,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             23500,    // collRatio 235% (above max)
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -99,7 +99,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             23500,   // collReqSoft 235% (above max)
             3000,    // collReqHard 30%
@@ -118,7 +118,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             5000,    // collReqHard 50% (should be < collReqSoft)
@@ -132,7 +132,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         );
 
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             5000,    // collReqHard 40% (should be < collReqSoft not equal)
@@ -151,7 +151,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -165,7 +165,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         );
 
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -185,7 +185,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -204,7 +204,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -224,7 +224,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             1000,    // collReqHard 10% (too low)
@@ -243,7 +243,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         //     _revert(_INVALID_PARAMETER_SELECTOR);
         // }
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -257,7 +257,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         );
         
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -279,7 +279,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         // (1e36 / (1e18 + (4000 * 1e14))) = 71.4 % max collRatio
         // 7200 > 71.4%
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7200,    // collRatio 72% 
             4000,    // collReqSoft 40%
             3000,    // collReqHard 30%
@@ -299,7 +299,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         // }
 
         // set up normally
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -315,7 +315,7 @@ contract UpdatePositionTokenIsolatedTest is TestBaseMarketManagerIsolated {
         // turn off collateralization
         // will revert with MarketManager__InvalidParameter()
         vm.expectRevert(abi.encodeWithSignature("MarketManager__InvalidParameter()"));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             0,    // collRatio 0%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%

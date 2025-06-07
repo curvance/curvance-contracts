@@ -77,7 +77,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         {
             _prepareDAI(address(this), 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -87,9 +87,9 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(address(this), _ONE);
             balRETH.approve(address(pBALRETH), _ONE);
-            marketManager.listToken(address(pBALRETH));
+            marketManagerIsolated.listToken(address(pBALRETH));
             // set collateral factor
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pBALRETH),
                 7000,
                 4000,
@@ -102,7 +102,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             tokens[0] = address(pBALRETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         // provide enough liquidity

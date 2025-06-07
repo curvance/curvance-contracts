@@ -48,7 +48,7 @@ contract TestGaugeManager is TestBaseMarketIsolated {
         for (uint256 i = 0; i < 10; i++) {
             // support market
             dai.approve(address(tokens[i]), 200000e18);
-            marketManager.listToken(tokens[i]);
+            marketManagerIsolated.listToken(tokens[i]);
 
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(tokens[i]);
@@ -698,7 +698,7 @@ contract TestGaugeManager is TestBaseMarketIsolated {
     }
 
     function testClaim() public {
-        address[] memory listedTokens = marketManager.queryTokensListed();
+        address[] memory listedTokens = marketManagerIsolated.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IEToken(tokens[0]).mint(100 ether);
@@ -816,7 +816,7 @@ contract TestGaugeManager is TestBaseMarketIsolated {
     }
 
     function testClaimWithDelegation() public {
-        address[] memory listedTokens = marketManager.queryTokensListed();
+        address[] memory listedTokens = marketManagerIsolated.queryTokensListed();
         // user0 deposit 100 token0
         vm.prank(users[0]);
         IEToken(tokens[0]).mint(100 ether);
@@ -928,12 +928,12 @@ contract TestGaugeManager is TestBaseMarketIsolated {
         _prepareBALRETH(address(this), 1 ether);
 
         balRETH.approve(address(pBALRETH), 1 ether);
-        marketManager.listToken(address(pBALRETH));
+        marketManagerIsolated.listToken(address(pBALRETH));
 
         oracleManager.addMTokenSupport(address(pBALRETH));
 
         // set collateral factor
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pBALRETH),
             0,
             4000,
@@ -992,7 +992,7 @@ contract TestGaugeManager is TestBaseMarketIsolated {
                 new ETokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
                     token,
-                    address(marketManager),
+                    address(marketManagerIsolated),
                     _deployDynamicInterestRateModel(token)
                 )
             )

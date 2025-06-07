@@ -86,12 +86,12 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
 
         // Update position token parameters
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             9200,    // collRatio 92%
             830,     // collReqSoft 8.3%
             650,     // collReqHard 6.5%
@@ -109,7 +109,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -128,7 +128,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1300e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManager.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(pBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -178,7 +178,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
         (,eTokenPrice, pTokenPrice) = 
-            marketManager.liquidationStatusOf(atlasBorrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(atlasBorrowers[0], address(eUSDC), address(pBALRETH));
 
         (maxAmount_atlas, liquidatedPTokens_atlas, collateralRequired_atlas) = 
             _getLiquidationValuesWithHigherPrecision_Atlas(
@@ -225,14 +225,14 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(eUSDC), 100000e6);
 
-        marketManager.setAtlasParameters(validPenalty, closeFactor);
-        marketManager.unlockAtlasCollateral(address(eUSDC));
+        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
+        marketManagerIsolated.unlockAtlasCollateral(address(eUSDC));
         eUSDC.liquidate(
             atlasBorrowers,
             address(pBALRETH)
         );
-        marketManager.lockAtlasCollateral();
-        marketManager.resetAtlasParameters();
+        marketManagerIsolated.lockAtlasCollateral();
+        marketManagerIsolated.resetAtlasParameters();
         vm.stopPrank();
 
         usdc.approve(address(eUSDC), 100000e6);
@@ -330,7 +330,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         // Regular borrowers should have lFactor since fully liquidated
 
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
+            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 atlasBorrowers[i],
                 address(eUSDC),
                 address(pBALRETH)
@@ -340,7 +340,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         }
 
         for(uint i = 0; i < 2; i++) {
-            (uint256 lFactorAfter,,) = marketManager.liquidationStatusOf(
+            (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
                 regularBorrowers[i],
                 address(eUSDC),
                 address(pBALRETH)
@@ -390,7 +390,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         lFactors = new uint256[](2);
 
         for(uint i; i < borrowers.length; i++) {
-            (lFactors[i],,) = marketManager.liquidationStatusOf(
+            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
                 address(eUSDC),
                 address(pBALRETH)

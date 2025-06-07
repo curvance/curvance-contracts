@@ -109,7 +109,7 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
             // support market
             _prepareWETH(owner, 200000 ether);
             weth.approve(address(eWETH), 200000e18);
-            marketManager.listToken(address(eWETH));
+            marketManagerIsolated.listToken(address(eWETH));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eWETH));
             address[] memory markets = new address[](1);
@@ -122,17 +122,17 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
             cWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
-                address(marketManager)
+                address(marketManagerIsolated)
             );
 
             // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(cWBTC), 1e8);
-            marketManager.listToken(address(cWBTC));
+            marketManagerIsolated.listToken(address(cWBTC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cWBTC));
             // set position token configuration
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(cWBTC),
                 7000,
                 4000, // liquidate at 71%
@@ -146,7 +146,7 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
             mTokens[0] = address(cWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
         }
 
         owners.push(user2);

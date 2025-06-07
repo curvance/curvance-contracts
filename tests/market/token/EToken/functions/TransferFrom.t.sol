@@ -26,9 +26,9 @@ contract ETokenTransferFromTest is TestBaseEToken {
     }
 
     function test_transfer_fail_whenTransferIsNotAllowed() public {
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         eUSDC.transferFrom(address(this), user1, 100e6);
     }
 

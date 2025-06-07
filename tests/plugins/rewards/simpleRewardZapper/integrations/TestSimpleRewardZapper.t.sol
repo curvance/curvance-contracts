@@ -74,7 +74,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManager.listToken(address(eUSDC));
+            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -91,17 +91,17 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             pWETH = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 weth,
-                address(marketManager)
+                address(marketManagerIsolated)
             );
 
             // support market
             _prepareWETH(owner, 1 ether);
             weth.approve(address(pWETH), 1 ether);
-            marketManager.listToken(address(pWETH));
+            marketManagerIsolated.listToken(address(pWETH));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWETH));
             // set position token configuration
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pWETH),
                 7000,
                 4000, // liquidate at 71%
@@ -115,7 +115,7 @@ contract TestSimpleRewardZapper is TestBaseSimpleRewardZapper {
             mTokens[0] = address(pWETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWETH);

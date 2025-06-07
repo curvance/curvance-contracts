@@ -19,8 +19,8 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
         usdc.approve(address(eUSDC), 1000e6);
         dai.approve(address(eDAI), 1000e18);
 
-        marketManager.listToken(address(eUSDC));
-        marketManager.listToken(address(eDAI));
+        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eDAI));
 
         eUSDC.depositReserves(100e6);
         eDAI.depositReserves(100e18);

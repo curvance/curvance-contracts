@@ -23,7 +23,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         new AuraPToken(
             ICentralRegistry(address(0)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER
@@ -60,7 +60,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER
@@ -71,7 +71,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
         pBALRETH = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER
@@ -82,7 +82,7 @@ contract CompoundingPTokenDeploymentTest is TestBaseCompoundingPToken {
             address(centralRegistry)
         );
         assertEq(pBALRETH.underlying(), _BAL_WETH_RETH_ADDRESS);
-        assertEq(address(pBALRETH.marketManager()), address(marketManager));
+        assertEq(address(pBALRETH.marketManager()), address(marketManagerIsolated));
         assertEq(pBALRETH.name(), "Curvance Balancer rETH Stable Pool");
     }
 }

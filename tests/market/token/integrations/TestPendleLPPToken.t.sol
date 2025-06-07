@@ -60,7 +60,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         cSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
-            address(marketManager),
+            address(marketManagerIsolated),
             _ROUTER
         );
 
@@ -78,7 +78,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 42069);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 42069);
-        marketManager.listToken(address(cSTETH));
+        marketManagerIsolated.listToken(address(cSTETH));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);
@@ -156,7 +156,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 42069);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 42069);
-        marketManager.listToken(address(cSTETH));
+        marketManagerIsolated.listToken(address(cSTETH));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);

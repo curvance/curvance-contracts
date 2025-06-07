@@ -43,7 +43,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -53,9 +53,9 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             _deployPUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
-            marketManager.listToken(address(pUSDC));
+            marketManagerIsolated.listToken(address(pUSDC));
             oracleManager.addMTokenSupport(address(pUSDC));
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pUSDC),
                 7000,
                 4000, // liquidate at 71%
@@ -69,7 +69,7 @@ contract TestSimpleZapper is TestBaseMarketIsolated {
             mTokens[0] = address(pUSDC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
         }
 
         address liquidityProvider = makeAddr("liquidityProvider");

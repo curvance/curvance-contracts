@@ -22,9 +22,9 @@ contract CompoundingWithExitFeePTokenMintTest is
     function test_compoundingWithExitFeePTokenMint_fail_whenMintIsNotAllowed()
         public
     {
-        marketManager.setMintPaused(address(pBALRETHWithExitFee), true);
+        marketManagerIsolated.setMintPaused(address(pBALRETHWithExitFee), true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         pBALRETHWithExitFee.mint(100, address(this));
     }
 

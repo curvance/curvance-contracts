@@ -67,7 +67,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         balRETH.approve(address(pBALRETH), 10e18);
         usdc.approve(address(eUSDC), _ONE);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
 
@@ -76,7 +76,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
 
         usdc.approve(address(eUSDC), _ONE);
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio (70%)
             4000,    // collReqSoft (40%)
             3000,    // collReqHard (30%)
@@ -93,7 +93,7 @@ contract TestBaseETokenIsolated is TestBaseMarketIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         pBALRETH.mint(_ONE, address(this));
     }

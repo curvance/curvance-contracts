@@ -26,7 +26,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
     {
         vm.prank(address(1));
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.setCollateralCaps(mTokens, collateralCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, collateralCaps);
     }
 
     function test_setCollateralCaps_fail_whenMTokenLengthIsZero()
@@ -35,7 +35,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCollateralCaps(
+        marketManagerIsolated.setCollateralCaps(
             new address[](0),
             collateralCaps
         );
@@ -49,7 +49,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCollateralCaps(mTokens, collateralCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, collateralCaps);
         mTokens.pop();
     }
 
@@ -58,7 +58,7 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InvalidParameter.selector
         );
-        marketManager.setCollateralCaps(mTokens, collateralCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, collateralCaps);
     }
 
     function test_setCollateralCaps_success() public {
@@ -70,8 +70,8 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -92,17 +92,17 @@ contract SetCollateralCapsTest is TestBaseMarketManagerIsolated {
         validCollateralCaps[1] = 10e18;
 
         for (uint256 i = 0; i < validMTokens.length; i++) {
-            vm.expectEmit(address(marketManager));
+            vm.expectEmit(address(marketManagerIsolated));
             emit CollateralCapUpdated(validMTokens[i], validCollateralCaps[i]);
         }
 
-        marketManager.setCollateralCaps(
+        marketManagerIsolated.setCollateralCaps(
             validMTokens,
             validCollateralCaps
         );
 
         assertEq(
-            marketManager.collateralCaps(address(pBALRETH)),
+            marketManagerIsolated.collateralCaps(address(pBALRETH)),
             validCollateralCaps[1]
         );
     }

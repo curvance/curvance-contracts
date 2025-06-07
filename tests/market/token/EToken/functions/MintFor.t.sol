@@ -14,9 +14,9 @@ contract ETokenMintForTest is TestBaseEToken {
     }
 
     function test_eTokenMintFor_fail_whenMintIsNotAllowed() public {
-        marketManager.setMintPaused(address(eUSDC), true);
+        marketManagerIsolated.setMintPaused(address(eUSDC), true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         eUSDC.mintFor(100e6, user1);
     }
 

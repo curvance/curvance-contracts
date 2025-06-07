@@ -129,7 +129,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
             address(pBALRETH),
             _ONE
         );
-        marketManager.listToken(address(pBALRETH));
+        marketManagerIsolated.listToken(address(pBALRETH));
     }
 
     function testHarvestAuraPToken() public {

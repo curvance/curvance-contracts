@@ -11,12 +11,12 @@ contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
     }
 
     function test_setBorrowPaused_fail_whenMTokenIsNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
     }
 
     function test_setBorrowPaused_success() public {
@@ -26,22 +26,22 @@ contract SetBorrowPausedTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        assertEq(marketManager.borrowPaused(address(eUSDC)), 0);
+        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 0);
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(eUSDC), "Borrow Paused", true);
 
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
 
-        assertEq(marketManager.borrowPaused(address(eUSDC)), 2);
+        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 2);
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit TokenActionPaused(address(eUSDC), "Borrow Paused", false);
 
-        marketManager.setBorrowPaused(address(eUSDC), false);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), false);
 
-        assertEq(marketManager.borrowPaused(address(eUSDC)), 1);
+        assertEq(marketManagerIsolated.borrowPaused(address(eUSDC)), 1);
     }
 }

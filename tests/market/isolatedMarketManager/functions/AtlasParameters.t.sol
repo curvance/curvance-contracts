@@ -23,10 +23,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         // Set a valid penalty (WAD + 15%)
         uint256 validPenalty = 1.15e18;
         uint256 closeFactor = 0.30e18;
-        marketManager.setAtlasParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
 
         // Verify the penalty was set correctly
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManager.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, closeFactor);
         vm.stopPrank();
@@ -39,7 +39,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.setAtlasParameters(1.15e18, 0.30e18);
+        marketManagerIsolated.setAtlasParameters(1.15e18, 0.30e18);
         
         vm.stopPrank();
     }
@@ -57,16 +57,16 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         uint256 validCloseFactor = 0.30e18;
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManager.setAtlasParameters(tooLowPenalty, validCloseFactor);
+        marketManagerIsolated.setAtlasParameters(tooLowPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManager.setAtlasParameters(tooHighPenalty, validCloseFactor);
+        marketManagerIsolated.setAtlasParameters(tooHighPenalty, validCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManager.setAtlasParameters(validPenalty, tooHighCloseFactor);
+        marketManagerIsolated.setAtlasParameters(validPenalty, tooHighCloseFactor);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__InvalidParameter.selector); 
-        marketManager.setAtlasParameters(validPenalty, tooLowCloseFactor);
+        marketManagerIsolated.setAtlasParameters(validPenalty, tooLowCloseFactor);
 
         vm.stopPrank();
     }
@@ -78,16 +78,16 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         
         uint256 validPenalty = 1.15e18;
         uint256 validCloseFactor = 0.30e18;
-        marketManager.setAtlasParameters(validPenalty, validCloseFactor);
+        marketManagerIsolated.setAtlasParameters(validPenalty, validCloseFactor);
 
-        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManager.getLatestAtlasParameters();
+        (uint256 currentPenalty, uint256 currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
         assertEq(currentPenalty, validPenalty);
         assertEq(currentCloseFactor, validCloseFactor);
         
-        marketManager.resetAtlasParameters();
+        marketManagerIsolated.resetAtlasParameters();
         
         // uint256 defaultPenalty = 1.10e18; // Not used anymore because getLatestAtlasParameters does not return default penalties anymore.
-        (currentPenalty, currentCloseFactor) = marketManager.getLatestAtlasParameters();
+        (currentPenalty, currentCloseFactor) = marketManagerIsolated.getLatestAtlasParameters();
         assertEq(currentPenalty, 0);
         assertEq(currentCloseFactor, 0);
         
@@ -100,7 +100,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.startPrank(user1);
         
         vm.expectRevert();
-        marketManager.resetAtlasParameters();
+        marketManagerIsolated.resetAtlasParameters();
         
         vm.stopPrank();
     }
@@ -213,7 +213,7 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         vm.prank(dappControlUser);
-        marketManager.unlockAtlasCollateral(address(1));
+        marketManagerIsolated.unlockAtlasCollateral(address(1));
 
         address[] memory usersToLiquidate = new address[](1);   
         usersToLiquidate[0] = user1;
@@ -239,10 +239,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
 
         // Set a valid penalty (WAD + 15%)
         vm.startPrank(dappControlUser);
-        marketManager.unlockAtlasCollateral(address(eUSDC));
+        marketManagerIsolated.unlockAtlasCollateral(address(eUSDC));
         uint256 validPenalty = 1.15e18; //15%
         uint256 closeFactor = 0.30e18; // 30%
-        marketManager.setAtlasParameters(validPenalty, closeFactor);
+        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
         vm.stopPrank();
 
         eUSDC.accrueInterest(); // pull interest forward
@@ -298,10 +298,10 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), 42069);
         
         // List tokens in the market
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         
         // Set position token parameters
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -324,6 +324,6 @@ contract AtlasParametersTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 }

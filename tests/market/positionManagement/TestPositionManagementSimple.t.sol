@@ -45,7 +45,7 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // deploy simple pToken
@@ -53,9 +53,9 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
             _deployPUSDC();
             _prepareUSDC(owner, 100e6);
             usdc.approve(address(pUSDC), 100e6);
-            marketManager.listToken(address(pUSDC));
+            marketManagerIsolated.listToken(address(pUSDC));
             oracleManager.addMTokenSupport(address(pUSDC));
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pUSDC),
                 7000,
                 4000, // liquidate at 71%
@@ -69,16 +69,16 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
             mTokens[0] = address(pUSDC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
         }
 
         positionManagement = new PositionManagementSimple(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS
         );
 
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
     }
@@ -109,7 +109,7 @@ contract TestPositionManagementSimple is TestBaseMarketIsolated {
         );
         assertEq(
             address(positionManagement.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
     }
 

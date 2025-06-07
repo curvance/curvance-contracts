@@ -77,7 +77,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManager.listToken(address(eUSDC));
+            marketManagerIsolated.listToken(address(eUSDC));
         }
 
         // setup pBALRETH
@@ -85,9 +85,9 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(pBALRETH), 1 ether);
-            marketManager.listToken(address(pBALRETH));
+            marketManagerIsolated.listToken(address(pBALRETH));
             // set collateral factor
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pBALRETH),
                 7000,
                 4000,
@@ -100,7 +100,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             tokens[0] = address(pBALRETH);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         // provide enough liquidity
@@ -276,7 +276,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
-            MarketManager.MarketManager__MinimumHoldPeriod.selector
+            marketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eUSDC.redeem(1000e6, address(this));
 

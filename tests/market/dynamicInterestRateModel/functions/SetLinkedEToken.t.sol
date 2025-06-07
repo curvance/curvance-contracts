@@ -26,7 +26,7 @@ contract SetLinkedETokenTest is TestBaseDynamicInterestRateModel {
         eToken = new EToken(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
-            address(marketManager),
+            address(marketManagerIsolated),
             address(interestRateModel)
         );
     }

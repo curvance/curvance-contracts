@@ -23,11 +23,11 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         USDC.approve(address(eUSDC), 1_000_000e6);
 
         // List tokens
-        marketManager.listToken(address(pBALRETH));
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listToken(address(eUSDC));
 
         // Config position token
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pBALRETH),
             7000,
             4000,
@@ -40,7 +40,7 @@ contract TestNonCollateralRedeem is TestBaseMarketIsolated {
         mTokens[0] = address(pBALRETH);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1_000_000e18;
-        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, newCollateralCaps);
 
         // Deposit 1 pBALRETH
         pBALRETH.deposit(1e18, address(this));

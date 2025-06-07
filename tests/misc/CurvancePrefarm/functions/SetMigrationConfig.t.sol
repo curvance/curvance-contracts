@@ -57,8 +57,8 @@ contract SetMigrationConfigTest is TestBaseCurvancePrefarm {
         usdc.approve(address(eUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManager.listToken(address(eUSDC));
-        marketManager.listToken(address(pBALRETH));
+        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(pBALRETH));
 
         (, address mTokenAddress, bool isPToken) = curvancePrefarm.tokenData(
             _USDC_ADDRESS

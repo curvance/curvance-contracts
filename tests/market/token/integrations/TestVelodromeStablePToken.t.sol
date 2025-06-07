@@ -54,7 +54,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         pUSDCDAI = new VelodromeStablePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_USDC_DAI),
-            address(marketManager),
+            address(marketManagerIsolated),
             gauge,
             veloPairFactory,
             veloRouter
@@ -102,7 +102,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         deal(_USDC_DAI, address(this), 42069);
 
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), 42069);
-        marketManager.listToken(address(pUSDCDAI));
+        marketManagerIsolated.listToken(address(pUSDCDAI));
 
         vm.prank(user1);
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), assets);

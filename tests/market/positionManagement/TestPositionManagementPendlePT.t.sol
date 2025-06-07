@@ -94,7 +94,7 @@ contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // deploy pPendlePT
@@ -102,17 +102,17 @@ contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
             pPendlePT = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 pendlePT,
-                address(marketManager)
+                address(marketManagerIsolated)
             );
 
             // support market
             _preparePT(owner, 1 ether);
             pendlePT.approve(address(pPendlePT), 1 ether);
-            marketManager.listToken(address(pPendlePT));
+            marketManagerIsolated.listToken(address(pPendlePT));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pPendlePT));
             // set position token configuration
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pPendlePT),
                 7000,
                 4000, // liquidate at 71%
@@ -126,17 +126,17 @@ contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
             mTokens[0] = address(pPendlePT);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
         }
 
         positionManagement = new PositionManagementPendlePT(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS,
             _ROUTER
         );
 
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
     }
@@ -171,7 +171,7 @@ contract TestPositionManagementPendlePT is TestBaseMarketIsolated {
         );
         assertEq(
             address(positionManagement.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
     }
 

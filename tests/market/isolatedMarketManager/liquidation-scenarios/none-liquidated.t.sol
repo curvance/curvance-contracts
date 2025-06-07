@@ -77,12 +77,12 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         usdc.approve(address(eUSDC), _ONE);
         balRETH.approve(address(pBALRETH), _ONE + 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
 
         // Update position token parameters
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             8000,    // collRatio 80% 
             2500,    // collReqSoft 25%
             2200,    // collReqHard 22% (increased to be > liqIncMax + 1%)
@@ -100,7 +100,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -120,7 +120,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         mockRethFeed.setMockAnswer(1520e8);
 
         (,,,, uint256 liqBaseIncentive_, uint256 liqCurve_,,,,, uint256 baseCFactor_, uint256 cFactorCurve_) = 
-            marketManager.tokenData(address(pBALRETH));
+            marketManagerIsolated.tokenData(address(pBALRETH));
 
         liqBaseIncentive = liqBaseIncentive_;
         liqCurve = liqCurve_;
@@ -152,7 +152,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         uint256[] memory debtBalancesPreLiquidation = _getDebtBalancePreLiquidation();
 
         (,uint256 eTokenPrice, uint256 pTokenPrice) = 
-            marketManager.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
             _getLiquidationValuesWithHigherPrecision_NonAtlas(
@@ -179,7 +179,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
 
         // ===== Liquidate =====
 
-        eUSDC.approve(address(marketManager), 100000e6);
+        eUSDC.approve(address(marketManagerIsolated), 100000e6);
 
         vm.expectRevert(abi.encodeWithSelector(MarketManagerIsolated.MarketManager__NoLiquidationAvailable.selector));
         eUSDC.liquidate(
@@ -234,7 +234,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         lFactors = new uint256[](3);
 
         for(uint i; i < 3; i++) {
-            (lFactors[i],,) = marketManager.liquidationStatusOf(
+            (lFactors[i],,) = marketManagerIsolated.liquidationStatusOf(
                 borrowers[i],
                 address(eUSDC),
                 address(pBALRETH)

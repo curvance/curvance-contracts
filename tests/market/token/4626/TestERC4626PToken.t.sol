@@ -35,7 +35,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         MockSimplePToken mockPToken = new MockSimplePToken(
             ICentralRegistry(address(centralRegistry)),
             address(mockUnderlying),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
         vm.label(address(mockPToken), "pToken");
 
@@ -43,7 +43,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         uint256 startAmount = 42069;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(mockPToken), startAmount);
-        marketManager.listToken(address(mockPToken));
+        marketManagerIsolated.listToken(address(mockPToken));
 
         _underlying_ = address(mockUnderlying);
         _vault_ = address(mockPToken);

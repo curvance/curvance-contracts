@@ -11,7 +11,7 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
         vm.prank(address(1));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
     }
 
     function test_setTransferPaused_success() public {
@@ -21,30 +21,30 @@ contract SetTransferPausedTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(eUSDC));
-        marketManager.canTransferEToken(address(eUSDC), address(this), 1);
+        marketManagerIsolated.canTransferEToken(address(eUSDC), address(this), 1);
 
-        assertEq(marketManager.transferPaused(), 1);
+        assertEq(marketManagerIsolated.transferPaused(), 1);
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Transfer Paused", true);
 
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
 
         vm.prank(address(eUSDC));
-        marketManager.canTransferEToken(address(eUSDC), address(this), 1);
+        marketManagerIsolated.canTransferEToken(address(eUSDC), address(this), 1);
 
-        assertEq(marketManager.transferPaused(), 2);
+        assertEq(marketManagerIsolated.transferPaused(), 2);
 
-        vm.expectEmit(true, true, true, true, address(marketManager));
+        vm.expectEmit(true, true, true, true, address(marketManagerIsolated));
         emit ActionPaused("Transfer Paused", false);
 
-        marketManager.setTransferPaused(false);
+        marketManagerIsolated.setTransferPaused(false);
 
-        assertEq(marketManager.transferPaused(), 1);
+        assertEq(marketManagerIsolated.transferPaused(), 1);
     }
 }

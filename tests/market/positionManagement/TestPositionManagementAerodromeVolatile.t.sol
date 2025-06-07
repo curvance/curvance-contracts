@@ -120,7 +120,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // setup pWETHUSDC
@@ -128,7 +128,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC = new AerodromeVolatilePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_AERODROME_WETH_USDC),
-                address(marketManager),
+                address(marketManagerIsolated),
                 gauge,
                 aeroPairFactory,
                 aeroRouter
@@ -138,9 +138,9 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
             deal(_AERODROME_WETH_USDC, owner, 1 ether);
             IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
-            marketManager.listToken(address(pWETHUSDC));
+            marketManagerIsolated.listToken(address(pWETHUSDC));
 
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pWETHUSDC),
                 7000,
                 4000,
@@ -155,17 +155,17 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         positionManagement = new PositionManagementAerodrome(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS,
             address(aeroRouter),
             address(aeroPairFactory)
         );
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
 
@@ -189,7 +189,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         );
         assertEq(
             address(positionManagement.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
     }
 
@@ -201,7 +201,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        pUSDCDAI.postCollateral(0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -323,7 +323,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        pUSDCDAI.postCollateral(0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(100 ether);
@@ -397,7 +397,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         deal(_AERODROME_WETH_USDC, user, 0.0001 ether);
         IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 0.0001 ether);
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        pUSDCDAI.postCollateral(0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
         eDAI.borrow(100 ether);
@@ -535,7 +535,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCDAIBorrowed, 0);
+        assertEq(pWETHUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -548,7 +548,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
         // mint
         assertGt(pWETHUSDC.deposit(0.0001 ether, user), 0);
-        pUSDCDAI.postCollateral(0.0001 ether);
+        pWETHUSDC.postCollateral(0.0001 ether);
         assertEq(pWETHUSDC.balanceOf(user), 0.0001 ether);
 
         uint256 balanceBeforeBorrow = dai.balanceOf(user);
@@ -680,7 +680,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCDAIBorrowed, 0);
+        assertEq(pWETHUSDCBorrowed, 0);
 
         vm.stopPrank();
     }

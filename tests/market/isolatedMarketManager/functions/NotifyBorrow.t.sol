@@ -14,18 +14,18 @@ contract NotifyBorrowTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_notifyBorrow_fail_whenCallerIsNotMToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
     }
 
     function test_notifyBorrow_success() public {
         vm.prank(address(eUSDC));
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
 
-        assertEq(marketManager.accountAssets(user1), block.timestamp);
+        assertEq(marketManagerIsolated.accountAssets(user1), block.timestamp);
     }
 }

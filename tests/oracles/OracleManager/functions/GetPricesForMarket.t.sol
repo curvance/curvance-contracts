@@ -38,9 +38,9 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(address(this));
 
         vm.expectRevert(OracleManager.OracleManager__NotSupported.selector);
@@ -54,10 +54,10 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
         _addSinglePriceFeed();
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(address(this));
 
         vm.expectRevert(
@@ -71,9 +71,9 @@ contract GetPricesForMarketTest is TestBaseOracleManager {
         vm.prank(address(this));
         usdc.approve(address(eUSDC), 1e18);
 
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(address(this));
 
         _addSinglePriceFeed();

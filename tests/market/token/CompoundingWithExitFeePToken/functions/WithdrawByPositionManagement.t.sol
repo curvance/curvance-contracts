@@ -14,7 +14,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLib.sol";
 
 contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
-    TestBaseMarket,
+    TestBaseMarketIsolated,
     IPositionManagement,
     ERC165
 {
@@ -80,7 +80,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         // list eUSDC
         _prepareUSDC(address(this), _ONE);
         usdc.approve(address(eUSDC), _ONE);
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
         // deposit reserves
         eUSDC.depositReserves(1000e6);
 
@@ -92,9 +92,9 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
             address(pBALRETHWithExitFee),
             42069
         );
-        marketManager.listToken(address(pBALRETHWithExitFee));
+        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pBALRETHWithExitFee),
             7000,
             4000, // liquidate at 71%
@@ -108,7 +108,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
         tokens[0] = address(pBALRETHWithExitFee);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         addPositionManagement();
 
@@ -170,7 +170,7 @@ contract CompoundingWithExitFeePTokenWithdrawByPositionManagement is
 
     function addPositionManagement() public {
         // Set this contract as a position management handler in the MarketManager
-        marketManager.addPositionManager(address(this));
+        marketManagerIsolated.addPositionManager(address(this));
     }
 
     // the same logic from the CompoundingWithExitFeePToken contract which removes the exit fee

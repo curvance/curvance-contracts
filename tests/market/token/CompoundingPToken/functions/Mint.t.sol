@@ -16,9 +16,9 @@ contract CompoundingPTokenMintTest is TestBaseCompoundingPToken {
     }
 
     function test_compoundingPTokenMint_fail_whenMintIsNotAllowed() public {
-        marketManager.setMintPaused(address(pBALRETH), true);
+        marketManagerIsolated.setMintPaused(address(pBALRETH), true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         pBALRETH.mint(100, address(this));
     }
 

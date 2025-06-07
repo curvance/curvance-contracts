@@ -392,11 +392,11 @@ contract TestBaseMarketIsolated is TestBase {
     }
 
     function _deployMarketManager() internal initMainVariables {
-        marketManager = marketManagers[block.chainid] = new MarketManagerIsolated(
+        marketManagerIsolated = marketManagersIsolated[block.chainid] = new MarketManagerIsolated(
             ICentralRegistry(address(centralRegistry))
         );
         centralRegistry.addMarketManager(
-            address(marketManager),
+            address(marketManagerIsolated),
             marketInterestFactor
         );
     }
@@ -436,7 +436,7 @@ contract TestBaseMarketIsolated is TestBase {
         EToken eToken = new EToken(
             ICentralRegistry(address(centralRegistry)),
             token,
-            address(marketManager),
+            address(marketManagerIsolated),
             _deployDynamicInterestRateModel(token)
         );
 
@@ -454,7 +454,7 @@ contract TestBaseMarketIsolated is TestBase {
         pUSDC = new SimplePToken(
             ICentralRegistry(address(centralRegistry)),
             usdc,
-            address(marketManager)
+            address(marketManagerIsolated)
         );
         return pUSDC;
     }
@@ -467,7 +467,7 @@ contract TestBaseMarketIsolated is TestBase {
         pBALRETH = pBALRETHs[block.chainid] = new AuraPToken(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER
@@ -485,7 +485,7 @@ contract TestBaseMarketIsolated is TestBase {
         ] = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
@@ -613,7 +613,7 @@ contract TestBaseMarketIsolated is TestBase {
     function _setPBALRETHCollateralCaps(
         uint256 cap
     ) internal initMainVariables {
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -629,7 +629,7 @@ contract TestBaseMarketIsolated is TestBase {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = cap;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 
     function _skipRestrictionDuration() internal {

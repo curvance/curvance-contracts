@@ -26,7 +26,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(0)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
@@ -65,7 +65,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
@@ -84,7 +84,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
@@ -96,7 +96,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         pBALRETHWithExitFee = new MockAuraPTokenWithExitFee(
             ICentralRegistry(address(centralRegistry)),
             balRETH,
-            address(marketManager),
+            address(marketManagerIsolated),
             109,
             _REWARDER,
             _AURA_BOOSTER,
@@ -110,7 +110,7 @@ contract CompoundingWithExitFeePTokenDeploymentTest is
         assertEq(pBALRETHWithExitFee.underlying(), _BAL_WETH_RETH_ADDRESS);
         assertEq(
             address(pBALRETHWithExitFee.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
         assertEq(
             pBALRETHWithExitFee.name(),

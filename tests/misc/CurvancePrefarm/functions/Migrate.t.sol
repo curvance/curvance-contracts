@@ -25,8 +25,8 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         usdc.approve(address(eUSDC), 1000e6);
         balRETH.approve(address(pBALRETH), 1000e18);
 
-        marketManager.listToken(address(eUSDC));
-        marketManager.listToken(address(pBALRETH));
+        marketManagerIsolated.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(pBALRETH));
 
         vm.startPrank(user1);
 
@@ -48,7 +48,7 @@ contract MigrateTest is TestBaseCurvancePrefarm {
 
         vm.stopPrank();
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pBALRETH),
             7000,
             4000,
@@ -61,7 +61,7 @@ contract MigrateTest is TestBaseCurvancePrefarm {
         mTokens[0] = address(pBALRETH);
         uint256[] memory newCollateralCaps = new uint256[](1);
         newCollateralCaps[0] = 1000000 * 10 ** 18;
-        marketManager.setCollateralCaps(mTokens, newCollateralCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, newCollateralCaps);
     }
 
     function test_migrate_fail_whenMigrationIsNotStarted() public {

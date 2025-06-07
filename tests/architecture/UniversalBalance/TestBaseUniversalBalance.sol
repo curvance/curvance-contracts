@@ -20,7 +20,7 @@ contract TestBaseUniversalBalance is TestBaseMarketIsolated {
         deal(user1, _ONE);
 
         usdc.approve(address(eUSDC), 1000e6);
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
 
         eUSDC.depositReserves(100e6);
 

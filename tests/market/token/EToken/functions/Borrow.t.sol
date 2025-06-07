@@ -8,7 +8,7 @@ contract ETokenBorrowTest is TestBaseEToken {
     event Borrow(address borrower, uint256 borrowAmount);
 
     function test_eTokenBorrow_fail_whenBorrowIsNotAllowed() public {
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
 
         vm.expectRevert();
         eUSDC.borrow(100e6);
@@ -18,7 +18,7 @@ contract ETokenBorrowTest is TestBaseEToken {
         uint256 cash = eUSDC.marketUnderlyingHeld();
 
         vm.expectRevert(
-            MarketManager.MarketManager__InsufficientCollateral.selector
+            marketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
         eUSDC.borrow(cash + 1);
     }

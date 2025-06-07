@@ -31,7 +31,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         new EToken(
             ICentralRegistry(address(0)),
             _USDC_ADDRESS,
-            address(marketManager),
+            address(marketManagerIsolated),
             address(interestRateModel)
         );
     }
@@ -55,7 +55,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         new EToken(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
-            address(marketManager),
+            address(marketManagerIsolated),
             address(0)
         );
     }
@@ -73,7 +73,7 @@ contract ETokenDeploymentTest is TestBaseEToken {
         new EToken(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
-            address(marketManager),
+            address(marketManagerIsolated),
             address(interestRateModel)
         );
     }
@@ -81,14 +81,14 @@ contract ETokenDeploymentTest is TestBaseEToken {
     function test_eTokenDeployment_success() public {
         vm.expectEmit(true, true, true, true);
         uint256 newInterestFactor = centralRegistry.protocolInterestFactor(
-            address(marketManager)
+            address(marketManagerIsolated)
         );
         emit NewInterestFactor(0, newInterestFactor);
 
         eUSDC = new EToken(
             ICentralRegistry(address(centralRegistry)),
             _USDC_ADDRESS,
-            address(marketManager),
+            address(marketManagerIsolated),
             address(interestRateModel)
         );
 
@@ -98,6 +98,6 @@ contract ETokenDeploymentTest is TestBaseEToken {
             address(eUSDC.interestRateModel()),
             address(interestRateModel)
         );
-        assertEq(address(eUSDC.marketManager()), address(marketManager));
+        assertEq(address(eUSDC.marketManager()), address(marketManagerIsolated));
     }
 }

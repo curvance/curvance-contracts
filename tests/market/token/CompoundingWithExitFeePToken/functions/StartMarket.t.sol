@@ -21,7 +21,7 @@ contract CompoundingWithExitFeePTokenStartMarketTest is
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         pBALRETHWithExitFee.startMarket(address(0));
     }
 
@@ -35,7 +35,7 @@ contract CompoundingWithExitFeePTokenStartMarketTest is
 
         uint256 totalSupply = pBALRETHWithExitFee.totalSupply();
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         pBALRETHWithExitFee.startMarket(user1);
 
         assertEq(pBALRETHWithExitFee.totalSupply(), totalSupply + 42069);

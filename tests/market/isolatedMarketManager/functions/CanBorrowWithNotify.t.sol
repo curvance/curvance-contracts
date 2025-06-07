@@ -15,12 +15,12 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function test_canBorrowWithNotify_fail_whenCallerIsNotMToken() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenCallerMTokenIsNotListed()
@@ -29,23 +29,23 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eDAI));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenBorrowPaused() public {
-        marketManager.setBorrowPaused(address(eUSDC), true);
+        marketManagerIsolated.setBorrowPaused(address(eUSDC), true);
 
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenMTokenIsNotListed() public {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenCallerIsNotMTokenAndBorrowerNotInMarket()
@@ -54,7 +54,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Unauthorized.selector);
-        marketManager.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
     // function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
@@ -128,7 +128,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__InsufficientCollateral.selector
         );
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 100e6, 100e6);
     }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLoanSize() public {
@@ -156,7 +156,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -173,7 +173,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -187,7 +187,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
 
         vm.expectRevert(LiquidityManagerIsolated.LiquidityManager__InsufficientLoanSize.selector);
         // borrow below the minimum loan size
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 10e6, 10e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 10e6, 10e6);
     }
 
     function test_canBorrowWithNotify_Success_whenSufficientLiquidity() public {
@@ -215,7 +215,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
             block.timestamp
         );
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -232,7 +232,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         _prepareBALRETH(user1, 1_000e18);
 
@@ -245,18 +245,18 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
 
         // minimum loan size is 50e6
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 50e6, 50e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 50e6, 50e6);
     
-        uint256 cooldownTimestamp = marketManager.accountAssets(user1);
+        uint256 cooldownTimestamp = marketManagerIsolated.accountAssets(user1);
         uint256 expectedCooldownTimestamp;
         assertEq(cooldownTimestamp, block.timestamp);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector);
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
 
         vm.warp(block.timestamp + 20 minutes);
 
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
    
     }
 
@@ -286,7 +286,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         );
 
         // marketManager.listToken(address(pBALRETH));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             7000,    // collRatio 70%
             4000,    // collReqSoft 40%
             3000,    // collReqHard 25%
@@ -303,7 +303,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         // Need some PTokens/collateral to have enough liquidity for borrowing
         _prepareBALRETH(user1, 10_000e18);
@@ -314,20 +314,20 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
-        IMToken[] memory accountAssets = marketManager.assetsOf(user1);
+        IMToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 1);
 
         vm.prank(address(eUSDC));
-        marketManager.canBorrowWithNotify(address(eUSDC), user1, 1_000e6, 1_000e6);
+        marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 1_000e6, 1_000e6);
 
-        (hasPosition, , ) = marketManager.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
 
         assertTrue(hasPosition);
 
-        accountAssets = marketManager.assetsOf(user1);
+        accountAssets = marketManagerIsolated.assetsOf(user1);
         assertEq(accountAssets.length, 2);
         assertEq(address(accountAssets[0]), address(pBALRETH));
         assertEq(address(accountAssets[1]), address(eUSDC));

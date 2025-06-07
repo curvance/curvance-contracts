@@ -20,9 +20,9 @@ contract ETokenTransferTest is TestBaseEToken {
 
     function test_eTokenTransfer_fail_whenTransferIsNotAllowed() public {
         deal(address(eUSDC), address(this), 100e6);
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         eUSDC.transfer(user1, 10e6);
     }
 

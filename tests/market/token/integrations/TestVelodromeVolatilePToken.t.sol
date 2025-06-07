@@ -56,7 +56,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
         pWETHUSDC = new VelodromeVolatilePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_WETH_USDC),
-            address(marketManager),
+            address(marketManagerIsolated),
             gauge,
             veloPairFactory,
             veloRouter
@@ -104,7 +104,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
         deal(_WETH_USDC, address(this), 42069);
 
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), 42069);
-        marketManager.listToken(address(pWETHUSDC));
+        marketManagerIsolated.listToken(address(pWETHUSDC));
 
         vm.prank(user1);
         IERC20(_WETH_USDC).approve(address(pWETHUSDC), assets);

@@ -33,9 +33,9 @@ contract CompoundingWithExitFeePTokenTransferFromTest is
     function test_compoundingWithExitFeePTokenTransferFrom_fail_whenTransferIsNotAllowed()
         public
     {
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         pBALRETHWithExitFee.transferFrom(address(this), user1, 100);
     }
 

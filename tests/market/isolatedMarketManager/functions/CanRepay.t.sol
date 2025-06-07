@@ -7,7 +7,7 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 contract CanRepayTest is TestBaseMarketManagerIsolated {
     function test_canRepay_fail_whenTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
     }
 
     function test_canRepay_fail_withinMinimumHoldPeriod() public {
@@ -17,15 +17,15 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(eUSDC));
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
 
         vm.expectRevert(
             MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
     }
 
     function test_canRepay_success_whenPastMinimumHoldPeriod() public {
@@ -35,13 +35,13 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.prank(address(eUSDC));
-        marketManager.notifyBorrow(address(eUSDC), user1);
+        marketManagerIsolated.notifyBorrow(address(eUSDC), user1);
 
         skip(20 minutes);
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
     }
 
     function test_canRepay_success() public {
@@ -51,7 +51,7 @@ contract CanRepayTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
-        marketManager.canRepay(address(eUSDC), user1);
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canRepay(address(eUSDC), user1);
     }
 }

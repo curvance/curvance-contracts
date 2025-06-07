@@ -137,7 +137,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManager.listToken(address(eUSDC));
+            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -154,17 +154,17 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             pWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
-                address(marketManager)
+                address(marketManagerIsolated)
             );
 
             // support market
             _prepareWBTC(owner, 1e8);
             wbtc.approve(address(pWBTC), 1e8);
-            marketManager.listToken(address(pWBTC));
+            marketManagerIsolated.listToken(address(pWBTC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pWBTC),
                 7000,
                 4000, // liquidate at 71%
@@ -178,7 +178,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             mTokens[0] = address(pWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(pWBTC);
@@ -195,10 +195,10 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
         {
             positionManagement = new PositionManagementSimple(
                 ICentralRegistry(address(centralRegistry)),
-                address(marketManager),
+                address(marketManagerIsolated),
                 _WETH_ADDRESS
             );
-            marketManager.addPositionManager(address(positionManagement));
+            marketManagerIsolated.addPositionManager(address(positionManagement));
         }
 
         centralRegistry.setExternalCalldataChecker(

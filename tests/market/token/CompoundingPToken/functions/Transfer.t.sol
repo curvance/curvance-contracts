@@ -24,9 +24,9 @@ contract CompoundingPTokenTransferTest is TestBaseCompoundingPToken {
     function test_compoundingPTokenTransfer_fail_whenTransferIsNotAllowed()
         public
     {
-        marketManager.setTransferPaused(true);
+        marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(MarketManager.MarketManager__Paused.selector);
+        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
         pBALRETH.transfer(user1, 0);
     }
 

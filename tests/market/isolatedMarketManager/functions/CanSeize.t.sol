@@ -7,15 +7,15 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract CanSeizeTest is TestBaseMarketManagerIsolated {
     function test_canSeize_fail_whenPaused() public {
-        marketManager.setSeizePaused(true);
+        marketManagerIsolated.setSeizePaused(true);
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
-        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     function test_canSeize_fail_whenPTokenNotListed() public {
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     function test_canSeize_fail_whenETokenNotListed() public {
@@ -25,10 +25,10 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         // deal(address(_USDC_ADDRESS), address(this), 42069);
         // usdc.approve(address(eUSDC), 42069);
 
-        // marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        // marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
         vm.expectRevert(MarketManagerIsolated.MarketManager__TokenNotListed.selector);
-        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     function test_canSeize_success() public {
@@ -38,15 +38,15 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
         deal(address(_USDC_ADDRESS), address(this), 42069);
         usdc.approve(address(eUSDC), 42069);
 
-        marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-        marketManager.canSeize(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
     }
 
     // not possible to reach this code path
     // function test_canSeize_fail_whenMarketManagersMismatch() public {
-    //     marketManager.listToken(address(pBALRETH));
-    //     marketManager.listToken(address(eUSDC));
+    //     marketManagerIsolated.listToken(address(pBALRETH));
+    //     marketManagerIsolated.listToken(address(eUSDC));
 
     //     MarketManager newMarketManager = new MarketManager(
     //         ICentralRegistry(address(centralRegistry)),
@@ -56,6 +56,6 @@ contract CanSeizeTest is TestBaseMarketManagerIsolated {
     //     eUSDC.setMarketManager(address(newMarketManager));
 
     //     vm.expectRevert(MarketManagerIsolated.MarketManager__MarketManagerMismatch.selector);
-    //     marketManager.canSeize(address(pBALRETH), address(eUSDC));
+    //     marketManagerIsolated.canSeize(address(pBALRETH), address(eUSDC));
     // }
 }

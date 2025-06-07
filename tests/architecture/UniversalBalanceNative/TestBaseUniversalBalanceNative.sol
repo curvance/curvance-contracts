@@ -25,7 +25,7 @@ contract TestBaseUniversalBalanceNative is TestBaseMarketIsolated {
         deal(user1, _ONE);
 
         weth.approve(address(eWETH), 10e18);
-        marketManager.listToken(address(eWETH));
+        marketManagerIsolated.listToken(address(eWETH));
         oracleManager.addMTokenSupport(address(eWETH));
 
         eWETH.depositReserves(_ONE + 1);

@@ -50,14 +50,14 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         oracleManager.addMTokenSupport(address(eDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(eDAI), 100e18);
-        marketManager.listToken(address(eDAI));
+        marketManagerIsolated.listToken(address(eDAI));
 
         // Setup pToken (pUSDC)
         oracleManager.addMTokenSupport(address(pUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(pUSDC), 100e6);
-        marketManager.listToken(address(pUSDC));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listToken(address(pUSDC));
+        marketManagerIsolated.updatePositionToken(
             address(pUSDC),
             7000,
             4000,
@@ -70,7 +70,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         tokens[0] = address(pUSDC);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareDAI(liquidityProvider, INITIAL_DEPOSIT - 100e18);

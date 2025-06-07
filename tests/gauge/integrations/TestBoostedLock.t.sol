@@ -51,7 +51,7 @@ contract TestBoostedLock is TestBaseMarketIsolated {
         for (uint256 i = 0; i < 10; i++) {
             // support market
             dai.approve(address(tokens[i]), 200000e18);
-            marketManager.listToken(tokens[i]);
+            marketManagerIsolated.listToken(tokens[i]);
 
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(tokens[i]);
@@ -288,7 +288,7 @@ contract TestBoostedLock is TestBaseMarketIsolated {
                 new ETokenWithGauge(
                     ICentralRegistry(address(centralRegistry)),
                     token,
-                    address(marketManager),
+                    address(marketManagerIsolated),
                     _deployDynamicInterestRateModel(token)
                 )
             )

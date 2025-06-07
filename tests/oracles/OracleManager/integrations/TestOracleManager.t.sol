@@ -109,7 +109,7 @@ contract TestOracleManager is TestBaseOracleManager {
         // support market
         _prepareUSDC(address(this), 200000e6);
         usdc.approve(address(eUSDC), 200000e6);
-        marketManager.listToken(address(eUSDC));
+        marketManagerIsolated.listToken(address(eUSDC));
 
         oracleManager.addMTokenSupport(address(eUSDC));
 

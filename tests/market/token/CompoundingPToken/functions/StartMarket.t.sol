@@ -19,7 +19,7 @@ contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
     {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         pBALRETH.startMarket(address(0));
     }
 
@@ -33,7 +33,7 @@ contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
 
         uint256 totalSupply = pBALRETH.totalSupply();
 
-        vm.prank(address(marketManager));
+        vm.prank(address(marketManagerIsolated));
         pBALRETH.startMarket(user1);
 
         assertEq(pBALRETH.totalSupply(), totalSupply + 42069);

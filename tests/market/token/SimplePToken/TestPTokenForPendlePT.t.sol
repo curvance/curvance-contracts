@@ -105,7 +105,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManager.listToken(address(eUSDC));
+            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -122,17 +122,17 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             cPendlePT = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 pendlePT,
-                address(marketManager)
+                address(marketManagerIsolated)
             );
 
             // support market
             _preparePT(owner, 1 ether);
             pendlePT.approve(address(cPendlePT), 1 ether);
-            marketManager.listToken(address(cPendlePT));
+            marketManagerIsolated.listToken(address(cPendlePT));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cPendlePT));
             // set position token configuration
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(cPendlePT),
                 7000,
                 4000, // liquidate at 71%
@@ -146,7 +146,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             mTokens[0] = address(cPendlePT);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100 ether;
-            marketManager.setCollateralCaps(mTokens, caps);
+            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(cPendlePT);
@@ -334,7 +334,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
-            MarketManager.MarketManager__MinimumHoldPeriod.selector
+            marketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eUSDC.redeem(1000e6, address(this));
 

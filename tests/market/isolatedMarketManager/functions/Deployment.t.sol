@@ -16,7 +16,7 @@ contract MarketManagerDeploymentTest is TestBaseMarketManagerIsolated {
     }
 
     function test_marketManagerDeployment_success() public {
-        marketManager = new MarketManagerIsolated(
+        marketManagerIsolated = new MarketManagerIsolated(
             ICentralRegistry(address(centralRegistry))
         );
 

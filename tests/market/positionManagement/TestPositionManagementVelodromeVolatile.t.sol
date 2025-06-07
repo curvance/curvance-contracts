@@ -121,7 +121,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManager.listToken(address(eDAI));
+            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // setup pWETHUSDC
@@ -129,7 +129,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC = new VelodromeVolatilePToken(
                 ICentralRegistry(address(centralRegistry)),
                 IERC20(_VELODROME_WETH_USDC),
-                address(marketManager),
+                address(marketManagerIsolated),
                 gauge,
                 veloPairFactory,
                 veloRouter
@@ -139,9 +139,9 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
 
             deal(_VELODROME_WETH_USDC, owner, 1 ether);
             IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
-            marketManager.listToken(address(pWETHUSDC));
+            marketManagerIsolated.listToken(address(pWETHUSDC));
 
-            marketManager.updatePositionToken(
+            marketManagerIsolated.updatePositionToken(
                 address(pWETHUSDC),
                 7000,
                 4000,
@@ -156,17 +156,17 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100_000e18;
 
-            marketManager.setCollateralCaps(tokens, caps);
+            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         positionManagement = new PositionManagementVelodrome(
             ICentralRegistry(address(centralRegistry)),
-            address(marketManager),
+            address(marketManagerIsolated),
             _WETH_ADDRESS,
             address(veloRouter),
             address(veloPairFactory)
         );
-        marketManager.addPositionManager(address(positionManagement));
+        marketManagerIsolated.addPositionManager(address(positionManagement));
 
         _provideEnoughLiquidityForLeverage();
 
@@ -190,7 +190,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
         );
         assertEq(
             address(positionManagement.marketManager()),
-            address(marketManager)
+            address(marketManagerIsolated)
         );
     }
 
@@ -412,7 +412,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCDAIBorrowed, 0);
+        assertEq(pWETHUSDCBorrowed, 0);
 
         vm.stopPrank();
     }
@@ -497,7 +497,7 @@ contract TestPositionManagementVelodromeVolatile is TestBaseMarketIsolated {
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCDAIBorrowed, 0);
+        assertEq(pWETHUSDCBorrowed, 0);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_WETH_USDC)
             .balanceOf(centralRegistry.daoAddress());

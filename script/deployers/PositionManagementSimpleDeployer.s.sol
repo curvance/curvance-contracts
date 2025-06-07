@@ -32,7 +32,7 @@ contract PositionManagementSimpleDeployer is DeployConfiguration {
             )
         );
 
-        MarketManagerIsolated(marketManager).addPositionManager(
+        MarketManagerIsolated(marketManager).addPositionManagement(
             positionManagementSimple
         );
 

@@ -100,7 +100,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         pToken = new VelodromeVolatilePToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_VELODROME_WETH_USDC),
-            address(marketManager),
+            address(marketManagerIsolated),
             IVeloGauge(_VELODROME_GAUGE),
             IVeloPairFactory(_VELODROME_FACTORY),
             IVeloRouter(_VELODROME_ROUTER)
@@ -109,9 +109,9 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
 
         deal(_VELODROME_WETH_USDC, address(this), 1 ether);
         IERC20(_VELODROME_WETH_USDC).approve(address(pToken), 1 ether);
-        marketManager.listToken(address(pToken));
+        marketManagerIsolated.listToken(address(pToken));
 
-        marketManager.updatePositionToken(
+        marketManagerIsolated.updatePositionToken(
             address(pToken),
             7000,
             4000,
@@ -126,7 +126,7 @@ contract TestVelodromeZapper is TestBaseMarketIsolated {
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
 
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 
     function testEnterVelodrome() public {

@@ -58,15 +58,15 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         pSTETH = new PendleLPPToken(
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
-            address(marketManager),
+            address(marketManagerIsolated),
             IPendleRouter(_PENDLE_ROUTER)
         );
         oracleManager.addMTokenSupport(address(pSTETH));
 
         deal(_LP_STETH, address(this), 1 ether);
         IERC20(_LP_STETH).approve(address(pSTETH), 1 ether);
-        marketManager.listToken(address(pSTETH));
-        marketManager.updatePositionToken(
+        marketManagerIsolated.listToken(address(pSTETH));
+        marketManagerIsolated.updatePositionToken(
             address(pSTETH),
             7000,
             4000,
@@ -80,7 +80,7 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         tokens[0] = address(pSTETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManager.setCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
     }
 
     function testEnterPendle() public {
@@ -302,8 +302,8 @@ contract TestPendleZapper is TestBaseMarketIsolated {
         data.approx.eps = 1e18;
 
         vm.warp(
-            marketManager.accountAssets(user1) +
-                marketManager.MIN_HOLD_PERIOD()
+            marketManagerIsolated.accountAssets(user1) +
+                marketManagerIsolated.MIN_HOLD_PERIOD()
         );
 
         vm.startPrank(user1);
