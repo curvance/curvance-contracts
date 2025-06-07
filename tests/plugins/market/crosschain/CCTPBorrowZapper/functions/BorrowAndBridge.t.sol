@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
+import { CCTPBorrowZapper } from "contracts/plugins/market/crosschain/CCTPBorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
@@ -18,7 +18,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     MockDataFeed public mockDaiFeed;
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
-    BorrowCircleZapper public circleZapper;
+    CCTPBorrowZapper public CCTPZapper;
 
     SwapperLib.Swap public swapData;
     IUniswapV3Router.ExactInputSingleParams public params;
@@ -112,7 +112,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         deal(user1, _ONE);
 
-        circleZapper = new BorrowCircleZapper(
+        CCTPZapper = new CCTPBorrowZapper(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -151,7 +151,7 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(circleZapper);
+        params.recipient = address(CCTPZapper);
         params.deadline = block.timestamp;
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
@@ -167,12 +167,12 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(circleZapper), true);
+        eDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
-            BorrowCircleZapper.BorrowCircleZapper__InvalidSwapData.selector
+            CCTPBorrowZapper.CCTPBorrowZapper__InvalidSwapData.selector
         );
-        circleZapper.borrowAndBridge{ value: _ONE }(
+        CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
@@ -188,12 +188,12 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(circleZapper), true);
+        eDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
-            BorrowCircleZapper.BorrowCircleZapper__CCTPIsNotConfigured.selector
+            CCTPBorrowZapper.CCTPBorrowZapper__CCTPIsNotConfigured.selector
         );
-        circleZapper.borrowAndBridge{ value: _ONE }(
+        CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,
@@ -205,18 +205,18 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     }
 
     function test_borrowAndBridge_fail_whenGasTokenIsNotEnough() public {
-        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(circleZapper), true);
+        eDAI.setDelegateApproval(address(CCTPZapper), true);
 
         vm.expectRevert(
-            BorrowCircleZapper
-                .BorrowCircleZapper__InsufficientGasToken
+            CCTPBorrowZapper
+                .CCTPBorrowZapper__InsufficientGasToken
                 .selector
         );
-        circleZapper.borrowAndBridge{ value: messageFee - 1 }(
+        CCTPZapper.borrowAndBridge{ value: messageFee - 1 }(
             address(eDAI),
             500e18,
             swapData,
@@ -228,13 +228,13 @@ contract BorrowAndBridgeTest is TestBaseMarketIsolated {
     }
 
     function test_borrowAndBridge_success() public {
-        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
         uint256 balance = user1.balance;
 
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(circleZapper), true);
-        circleZapper.borrowAndBridge{ value: _ONE }(
+        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        CCTPZapper.borrowAndBridge{ value: _ONE }(
             address(eDAI),
             500e18,
             swapData,

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
-import { BorrowCircleZapper } from "contracts/plugins/market/crosschain/BorrowCircleZapper.sol";
+import { CCTPBorrowZapper } from "contracts/plugins/market/crosschain/CCTPBorrowZapper.sol";
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { MockCalldataChecker } from "contracts/mocks/MockCalldataChecker.sol";
 
@@ -19,7 +19,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
     MockDataFeed public mockWethFeed;
     MockDataFeed public mockRethFeed;
 
-    BorrowCircleZapper public circleZapper;
+    CCTPBorrowZapper public CCTPZapper;
 
     function setUp() public override {
         _fork(19140000);
@@ -110,7 +110,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
 
         deal(user1, _ONE);
 
-        circleZapper = new BorrowCircleZapper(
+        CCTPZapper = new CCTPBorrowZapper(
             ICentralRegistry(address(centralRegistry))
         );
 
@@ -153,7 +153,7 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
         params.tokenIn = _DAI_ADDRESS;
         params.tokenOut = _USDC_ADDRESS;
         params.fee = 3000;
-        params.recipient = address(circleZapper);
+        params.recipient = address(CCTPZapper);
         params.deadline = block.timestamp;
         params.amountIn = 500e18;
         params.amountOutMinimum = 0;
@@ -163,13 +163,13 @@ contract TestBorrowAndBridge is TestBaseMarketIsolated {
             params
         );
 
-        uint256 messageFee = circleZapper.quoteMessageFee(42161, 0);
+        uint256 messageFee = CCTPZapper.quoteMessageFee(42161, 0);
 
         // try borrow()
         vm.startPrank(user1);
 
-        eDAI.setDelegateApproval(address(circleZapper), true);
-        circleZapper.borrowAndBridge{ value: messageFee }(
+        eDAI.setDelegateApproval(address(CCTPZapper), true);
+        CCTPZapper.borrowAndBridge{ value: messageFee }(
             address(eDAI),
             500e18,
             swapData,

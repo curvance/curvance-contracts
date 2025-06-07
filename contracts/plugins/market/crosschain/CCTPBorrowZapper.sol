@@ -13,7 +13,7 @@ import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegist
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
 
-contract BorrowCircleZapper is ReentrancyGuard {
+contract CCTPBorrowZapper is ReentrancyGuard {
     /// CONSTANTS ///
 
     /// @notice Gas limit with which to call `targetAddress` via wormhole.
@@ -23,10 +23,10 @@ contract BorrowCircleZapper is ReentrancyGuard {
 
     /// ERRORS ///
 
-    error BorrowCircleZapper__InvalidCentralRegistry();
-    error BorrowCircleZapper__InvalidSwapData();
-    error BorrowCircleZapper__InsufficientGasToken();
-    error BorrowCircleZapper__CCTPIsNotConfigured();
+    error CCTPBorrowZapper__InvalidCentralRegistry();
+    error CCTPBorrowZapper__InvalidSwapData();
+    error CCTPBorrowZapper__InsufficientGasToken();
+    error CCTPBorrowZapper__CCTPIsNotConfigured();
 
     /// CONSTRUCTOR ///
 
@@ -39,7 +39,7 @@ contract BorrowCircleZapper is ReentrancyGuard {
                 type(ICentralRegistry).interfaceId
             )
         ) {
-            revert BorrowCircleZapper__InvalidCentralRegistry();
+            revert CCTPBorrowZapper__InvalidCentralRegistry();
         }
 
         centralRegistry = centralRegistry_;
@@ -80,12 +80,12 @@ contract BorrowCircleZapper is ReentrancyGuard {
                 swapData.outputToken != feeToken ||
                 swapData.inputAmount != borrowAmount
             ) {
-                revert BorrowCircleZapper__InvalidSwapData();
+                revert CCTPBorrowZapper__InvalidSwapData();
             }
 
             SwapperLib._swapUnsafe(centralRegistry, swapData);
         } else if (swapData.target != address(0)) {
-            revert BorrowCircleZapper__InvalidSwapData();
+            revert CCTPBorrowZapper__InvalidSwapData();
         }
 
         // Bridge the fee token to `dstChainId` via Wormhole.
@@ -119,7 +119,9 @@ contract BorrowCircleZapper is ReentrancyGuard {
         uint256 amount,
         uint256 gasLimit
     ) internal {
-        ITokenMessenger tokenMessager = centralRegistry.tokenMessager();
+        ITokenMessenger tokenMessager = ITokenMessenger(
+            centralRegistry.tokenMessager()
+        );
 
         if (
             address(tokenMessager) != address(0) &&
@@ -135,7 +137,7 @@ contract BorrowCircleZapper is ReentrancyGuard {
                 gasLimit
             );
         } else {
-            revert BorrowCircleZapper__CCTPIsNotConfigured();
+            revert CCTPBorrowZapper__CCTPIsNotConfigured();
         }
     }
 
@@ -155,12 +157,10 @@ contract BorrowCircleZapper is ReentrancyGuard {
 
         // Validate that we have sufficient fees to send crosschain.
         if (msg.value < wormholeFee) {
-            revert BorrowCircleZapper__InsufficientGasToken();
+            revert CCTPBorrowZapper__InsufficientGasToken();
         }
 
-        IWormholeRelayer crosschainRelayer = IWormholeRelayer(
-            centralRegistry.crosschainRelayer()
-        );
+        IWormholeRelayer crosschainRelayer = _getWormholeRelayer();
         ChainData memory chainData = centralRegistry.supportedChainData(
             dstChainId
         );
@@ -220,17 +220,19 @@ contract BorrowCircleZapper is ReentrancyGuard {
         uint256 dstChainId,
         uint256 gasLimit
     ) internal view returns (uint256 nativeFee) {
-        (nativeFee, ) = centralRegistry
-            .crosschainRelayer()
-            .quoteEVMDeliveryPrice(
-                centralRegistry
-                    .supportedChainData(dstChainId)
-                    .messagingChainId,
-                0,
-                gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
-            );
+        (nativeFee, ) = _getWormholeRelayer().quoteEVMDeliveryPrice(
+            centralRegistry.supportedChainData(dstChainId).messagingChainId,
+            0,
+            gasLimit > _DEFAULT_GAS_LIMIT ? gasLimit : _DEFAULT_GAS_LIMIT
+        );
 
         // Add cost of publishing the 'sending token' wormhole message.
         nativeFee += centralRegistry.crosschainCore().messageFee();
+    }
+
+    /// @dev Returns the current Wormhole Relayer address to call.
+    /// @return The current Wormhole Relayer contract.
+    function _getWormholeRelayer() internal view returns (IWormholeRelayer) {
+        return IWormholeRelayer(centralRegistry.crosschainRelayer());
     }
 }
