@@ -20,6 +20,8 @@ import "forge-std/console2.sol";
 // - User 4: 1.7 pBALRETH ($2,720), 2,500 USDC debt (risky)
 // - Action: Price drop of pBALRETH by 10% (to ~$1,420)
 // - Expected: Users 3 and 4 liquidated, Users 1 and 2 remain healthy
+//      User 3 has a soft liquidation, so no bad debt.
+//      User 4 has a hard liquidation which accrues bad debt.
 
 contract MixedCollateral is TestBaseMarketManagerIsolated {
 

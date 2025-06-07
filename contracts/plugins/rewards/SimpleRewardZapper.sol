@@ -62,7 +62,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib.isETH here.
+        // CommonLib._isETH here.
 
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
@@ -85,7 +85,7 @@ contract SimpleRewardZapper is ZapperBase {
         }
 
         // Check how much in rewards were received from the swap.
-        outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
 
         // Make sure we did not somehow end up with an empty swap through
         // all prior checks, slippage checks are native handled by the solver
@@ -122,7 +122,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib.isETH here.
+        // CommonLib._isETH here.
 
         // Swap input token must match the reward token from the Reward Manager,
         // rather than hardcoding input here this also acts as check that
@@ -145,7 +145,7 @@ contract SimpleRewardZapper is ZapperBase {
             rewards = swapData.inputAmount;
         } else {
             // Execute swap into mToken underlying.
-            rewards = SwapperLib.swapUnsafe(centralRegistry, swapData);
+            rewards = SwapperLib._swapUnsafe(centralRegistry, swapData);
         }
 
         // Enter Curvance mToken position.
@@ -180,7 +180,7 @@ contract SimpleRewardZapper is ZapperBase {
         // Normally in swappers we check whether the input is a network's gas
         // token, but the Reward Manager is built with non gas token
         // stablecoins as reward tokens. Thus we do not need to check
-        // CommonLib.isETH here.
+        // CommonLib._isETH here.
 
         address rewardToken = _getFeeToken();
 
@@ -210,7 +210,7 @@ contract SimpleRewardZapper is ZapperBase {
             }
 
             // Swap from reward token into `eTokenUnderlying`.
-            swapData.inputAmount = SwapperLib.swapUnsafe(
+            swapData.inputAmount = SwapperLib._swapUnsafe(
                 centralRegistry,
                 swapData
             );

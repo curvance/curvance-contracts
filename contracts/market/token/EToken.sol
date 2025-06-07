@@ -209,7 +209,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             revert EToken__TransferError();
         }
 
-        RescueLib.rescueToken(centralRegistry, token, amount);
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Accrues pending interest and updates the interest rate model.

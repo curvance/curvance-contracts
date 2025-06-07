@@ -79,12 +79,12 @@ contract VelodromeZapper is ZapperBase {
         );
 
         // Enter Velodrome sAMM/vAMM position.
-        outAmount = VelodromeLib.enterVelodrome(
+        outAmount = VelodromeLib._enterVelodrome(
             router,
             factory,
             zapData.outputToken,
-            CommonLib.getTokenBalance(IVeloPair(zapData.outputToken).token0()),
-            CommonLib.getTokenBalance(IVeloPair(zapData.outputToken).token1()),
+            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token0()),
+            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token1()),
             zapData.minimumOut
         );
 
@@ -176,7 +176,7 @@ contract VelodromeZapper is ZapperBase {
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Velodrome sAMM/vAMM position.
-        VelodromeLib.exitVelodrome(
+        VelodromeLib._exitVelodrome(
             router,
             zapData.inputToken,
             zapData.inputAmount
@@ -186,10 +186,10 @@ contract VelodromeZapper is ZapperBase {
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert VelodromeZapper__SlippageError();
@@ -219,7 +219,7 @@ contract VelodromeZapper is ZapperBase {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(swapData[i].inputToken) &&
+                CommonLib._isETH(swapData[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
@@ -227,7 +227,7 @@ contract VelodromeZapper is ZapperBase {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
     }
 }

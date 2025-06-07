@@ -9,14 +9,14 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 /// @notice A utility library for rescuing tokens sent by mistake.
 library RescueLib {
     /// @notice Rescue any token sent by mistake.
-    /// @dev Contracts implementing RescueLib.rescueToken should NOT support
+    /// @dev Contracts implementing RescueLib._rescueToken should NOT support
     ///      duel-entry point tokens, otherwise pre/post protected token
     ///      balances will need to be checked in child implementations.
     ///      NOTE: Restrictions to which tokens should be limited for rescuing
     ///      must be handled by implementation contract.
     /// @param token token to rescue.
     /// @param amount amount of `token` to rescue, 0 indicates to rescue all.
-    function rescueToken(
+    function _rescueToken(
         ICentralRegistry centralRegistry,
         address token,
         uint256 amount

@@ -801,7 +801,7 @@ abstract contract PositionManagementBase is
     ) internal {
         // If the token to refund is the chains' native gas token we wrap
         // then transfer it to prevent callback attack vectors.
-        if (CommonLib.isETH(token)) {
+        if (CommonLib._isETH(token)) {
             IWETH(wrappedNative).deposit{ value: amount }();
             token = wrappedNative;
         }

@@ -29,7 +29,7 @@ library BalancerLib {
     /// @param tokens The underlying token addresses of the BPT.
     /// @param lpMinOutAmount The minimum output amount acceptable.
     /// @return lpOutAmount The output amount of BPT received.
-    function enterBalancer(
+    function _enterBalancer(
         address balancerVault,
         bytes32 balancerPoolId,
         address lpToken,
@@ -43,14 +43,14 @@ library BalancerLib {
 
         // Approve tokens to deposit into BPT.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib.getTokenBalance(tokens[i]);
+            balances[i] = CommonLib._getTokenBalance(tokens[i]);
             SwapperLib._approveTokenIfNeeded(
                 tokens[i],
                 balancerVault,
                 balances[i]
             );
 
-            if (CommonLib.isETH(tokens[i])) {
+            if (CommonLib._isETH(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
@@ -102,7 +102,7 @@ library BalancerLib {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` = true,
     ///                         indicates the coin index inside the Balancer
     ///                         BPT to withdraw as.
-    function exitBalancer(
+    function _exitBalancer(
         address balancerVault,
         bytes32 balancerPoolId,
         address lpToken,

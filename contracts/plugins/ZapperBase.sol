@@ -271,7 +271,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         uint256 inputAmount,
         bool depositAsWrappedNative
     ) internal {
-        if (CommonLib.isETH(inputToken)) {
+        if (CommonLib._isETH(inputToken)) {
             // Validate message has gas token attached.
             if (inputAmount != msg.value) {
                 revert ZapperBase__ExecutionError();
@@ -302,7 +302,7 @@ abstract contract ZapperBase is ReentrancyGuard {
         address recipient,
         uint256 amount
     ) internal {
-        if (CommonLib.isETH(token)) {
+        if (CommonLib._isETH(token)) {
             return SafeTransferLib.safeTransferETH(recipient, amount);
         }
 

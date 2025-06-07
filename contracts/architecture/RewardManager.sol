@@ -163,7 +163,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
-        RescueLib.rescueToken(centralRegistry, token, amount);
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the RewardManager and prevents future reward
@@ -585,7 +585,7 @@ contract RewardManager is PluginDelegable, ReentrancyGuard {
             }
 
             // Swap to CVE and update reward amount based on CVE received.
-            uint256 adjustedRewards = SwapperLib.swapUnsafe(
+            uint256 adjustedRewards = SwapperLib._swapUnsafe(
                 centralRegistry,
                 swapData
             );

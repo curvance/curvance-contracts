@@ -188,7 +188,7 @@ contract VelodromeStablePToken is CompoundingPToken {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib.swapSafe(centralRegistry, swapData);
+                    SwapperLib._swapSafe(centralRegistry, swapData);
                 }
             }
             uint256 totalAmountA = IERC20(sd.token0).balanceOf(address(this));

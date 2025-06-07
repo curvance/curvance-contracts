@@ -21,8 +21,13 @@ import "forge-std/console2.sol";
 // - Action 1: Price drop by to ~$1,300, Atlas transaction with custom parameters for User 1 and User 2
 // - Action 2: Regular liquidation attempt for User 3 and User 4
 // - Expected: Users 1 and 2 liquidated via Atlas with custom parameters, Users 3 and 4 via regular liquidation
+//          All users have the same underwater position, so each accrue bad debt at the moment.
+//          Users who are liquidated via Atlas accrue less bad debt because their positions are not completely closed
+//                  because they use a lower close factor than using liquiding the maximum amount.
+//          Users who are liquidated without Atlas are fully liquidated and accrue the full bad debt amount.
 
-// TODO: Use different loan/collateral ratios for each user
+// TODO: Use different loan/collateral ratios for each user. Currently each have the same collateral amount and loan.
+
 
 contract MixedAtlas is TestBaseMarketManagerIsolated {
 

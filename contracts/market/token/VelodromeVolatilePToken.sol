@@ -179,7 +179,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib.swapSafe(centralRegistry, swapData);
+                    SwapperLib._swapSafe(centralRegistry, swapData);
                 }
             }
             

@@ -48,7 +48,7 @@ library SwapperLib {
     /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (unsafe)
     /// @param swapData The swap instruction data to execute.
     /// @return The output amount received from swapping.
-    function swapUnsafe(
+    function _swapUnsafe(
         ICentralRegistry centralRegistry,
         Swap memory swapData
     ) internal returns (uint256) {
@@ -76,9 +76,9 @@ library SwapperLib {
 
         // Cache output token from struct for easier querying.
         address outputToken = swapData.outputToken;
-        uint256 balance = CommonLib.getTokenBalance(outputToken);
+        uint256 balance = CommonLib._getTokenBalance(outputToken);
 
-        uint256 value = CommonLib.isETH(swapData.inputToken)
+        uint256 value = CommonLib._isETH(swapData.inputToken)
             ? swapData.inputAmount
             : 0;
 
@@ -92,17 +92,17 @@ library SwapperLib {
         // Remove any excess approval.
         _removeApprovalIfNeeded(swapData.inputToken, swapData.target);
 
-        return CommonLib.getTokenBalance(outputToken) - balance;
+        return CommonLib._getTokenBalance(outputToken) - balance;
     }
 
     /// @notice Swaps `swapData.inputToken` into a `swapData.outputToken`. (safe: check slippage)
     /// @param swapData The swap instruction data to execute.
     /// @return outAmount The output amount received from swapping.
-    function swapSafe(
+    function _swapSafe(
         ICentralRegistry centralRegistry,
         Swap memory swapData
     ) internal returns (uint256 outAmount) {
-        outAmount = swapUnsafe(centralRegistry, swapData);
+        outAmount = _swapUnsafe(centralRegistry, swapData);
 
         IOracleManager oracleManager = IOracleManager(
             centralRegistry.oracleManager()
@@ -153,7 +153,7 @@ library SwapperLib {
         }
 
         uint256 value = (price * amount) /
-            (10 ** (CommonLib.isETH(token) ? 18 : IERC20(token).decimals()));
+            (10 ** (CommonLib._isETH(token) ? 18 : IERC20(token).decimals()));
 
         return value;
     }
@@ -167,7 +167,7 @@ library SwapperLib {
         address spender,
         uint256 amount
     ) internal {
-        if (!CommonLib.isETH(token)) {
+        if (!CommonLib._isETH(token)) {
             SafeTransferLib.safeApprove(token, spender, amount);
         }
     }
@@ -176,7 +176,7 @@ library SwapperLib {
     /// @param token The token address to remove approval.
     /// @param spender The spender address.
     function _removeApprovalIfNeeded(address token, address spender) internal {
-        if (!CommonLib.isETH(token)) {
+        if (!CommonLib._isETH(token)) {
             if (IERC20(token).allowance(address(this), spender) > 0) {
                 SafeTransferLib.safeApprove(token, spender, 0);
             }

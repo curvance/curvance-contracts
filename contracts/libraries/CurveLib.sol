@@ -29,7 +29,7 @@ library CurveLib {
     /// @param tokens The underlying coins of the Curve lp token.
     /// @param lpMinOutAmount The minimum output amount acceptable.
     /// @return lpOutAmount The output amount of Curve lp token received.
-    function enterCurve(
+    function _enterCurve(
         address lpMinter,
         address lpToken,
         address[] calldata tokens,
@@ -48,10 +48,10 @@ library CurveLib {
 
         // Approve tokens to deposit into Curve lp.
         for (uint256 i; i < numTokens; ++i) {
-            balances[i] = CommonLib.getTokenBalance(tokens[i]);
+            balances[i] = CommonLib._getTokenBalance(tokens[i]);
             SwapperLib._approveTokenIfNeeded(tokens[i], lpMinter, balances[i]);
 
-            if (CommonLib.isETH(tokens[i])) {
+            if (CommonLib._isETH(tokens[i])) {
                 // If eth is somehow contained in a pool twice,
                 // something is wrong and we need to halt execution.
                 if (containsEth) {
@@ -119,7 +119,7 @@ library CurveLib {
     /// @param singleAssetIndex Used if `singleAssetWithdraw` != 0, indicates
     ///                         the coin index inside the Curve lp
     ///                         to withdraw as.
-    function exitCurve(
+    function _exitCurve(
         address lpMinter,
         address lpToken,
         address[] calldata tokens,

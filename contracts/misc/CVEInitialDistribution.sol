@@ -202,7 +202,7 @@ contract CVEInitialDistribution is ReentrancyGuard {
             revert CVEInitialDistribution__TransferError();
         }
 
-        RescueLib.rescueToken(centralRegistry, token, amount);
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Withdraws unclaimed tokens to the DAO after the claim

@@ -81,7 +81,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
             }
 
             // swap borrow underlying to sy input token
-            SwapperLib.swapSafe(centralRegistry, swapData);
+            SwapperLib._swapSafe(centralRegistry, swapData);
         }
 
         // decode pendle data
@@ -89,7 +89,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
             .decode(leverageData.auxData, (uint256, PendleLib.PendleData));
 
         // enter pendle
-        PendleLib.enterPendle(
+        PendleLib._enterPendle(
             address(router),
             false,
             pendleData,
@@ -141,7 +141,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
             .decode(deleverageData.auxData, (uint256, PendleLib.PendleData));
 
         // exit pendle
-        PendleLib.exitPendle(
+        PendleLib._exitPendle(
             address(router),
             false,
             tokenOut,
@@ -165,7 +165,7 @@ contract PositionManagementPendleLP is PositionManagementBase {
 
             // Swap sy output token for borrow underlying.
             for (uint256 i; i < length; ++i) {
-                SwapperLib.swapSafe(
+                SwapperLib._swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]
                 );

@@ -97,11 +97,11 @@ contract PositionManagementPendlePT is PositionManagementBase {
                 revert PositionManagementBase__InvalidSwapperParam();
             }
 
-            SwapperLib.swapSafe(centralRegistry, swapData);
+            SwapperLib._swapSafe(centralRegistry, swapData);
         }
 
         // Enter Pendle position.
-        PendleLib.enterPendle(
+        PendleLib._enterPendle(
             address(router),
             true,
             pendleData,
@@ -157,7 +157,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
         }
 
         // Exit Pendle position.
-        PendleLib.exitPendle(
+        PendleLib._exitPendle(
             address(router),
             true,
             ptToken,
@@ -181,7 +181,7 @@ contract PositionManagementPendlePT is PositionManagementBase {
 
             // Swap output token for borrow underlying.
             for (uint256 i; i < length; ++i) {
-                SwapperLib.swapSafe(
+                SwapperLib._swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]
                 );

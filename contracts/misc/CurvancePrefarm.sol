@@ -183,7 +183,7 @@ contract CurvancePrefarm {
             revert CurvancePrefarm__InvalidParameters();
         }
 
-        if (CommonLib.isETH(swapData.inputToken)) {
+        if (CommonLib._isETH(swapData.inputToken)) {
             // Validate message has gas token attached.
             if (swapData.inputAmount != msg.value) {
                 revert CurvancePrefarm__InvalidSwapData();
@@ -198,7 +198,7 @@ contract CurvancePrefarm {
         }
 
         // Execute swap into eToken underlying.
-        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
 
         if (amount < depositAmount) {
             revert CurvancePrefarm__InvalidSwapOutput();

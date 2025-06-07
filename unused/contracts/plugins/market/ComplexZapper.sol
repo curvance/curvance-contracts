@@ -405,8 +405,8 @@ contract ComplexZapper is ZapperBase {
             router,
             factory,
             zapData.outputToken,
-            CommonLib.getTokenBalance(IVeloPair(zapData.outputToken).token0()),
-            CommonLib.getTokenBalance(IVeloPair(zapData.outputToken).token1()),
+            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token0()),
+            CommonLib._getTokenBalance(IVeloPair(zapData.outputToken).token1()),
             zapData.minimumOut
         );
 
@@ -519,7 +519,7 @@ contract ComplexZapper is ZapperBase {
         );
 
         // Enter Pendle position.
-        outAmount = PendleLib.enterPendle(
+        outAmount = PendleLib._enterPendle(
             router,
             isPt,
             data,
@@ -670,10 +670,10 @@ contract ComplexZapper is ZapperBase {
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -724,10 +724,10 @@ contract ComplexZapper is ZapperBase {
         // Swap unwrapped token(s) into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -761,10 +761,10 @@ contract ComplexZapper is ZapperBase {
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -807,10 +807,10 @@ contract ComplexZapper is ZapperBase {
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert ComplexZapper__SlippageError();
@@ -840,7 +840,7 @@ contract ComplexZapper is ZapperBase {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(swapData[i].inputToken) &&
+                CommonLib._isETH(swapData[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
@@ -848,7 +848,7 @@ contract ComplexZapper is ZapperBase {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
     }
 }
