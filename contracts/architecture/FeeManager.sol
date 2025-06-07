@@ -183,7 +183,7 @@ contract FeeManager is ReentrancyGuard {
             //       swap routing. We route liquidity to 1Inch with tight
             //       slippage requirement, meaning we do not need to
             //       separately check for slippage here.
-            SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
+            SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
         }
     }
 

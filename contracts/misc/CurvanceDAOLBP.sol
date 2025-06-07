@@ -210,7 +210,7 @@ contract CurvanceDAOLBP {
             revert CurvanceDAOLBP__InvalidSwapData();
         }
 
-        if (CommonLib.isETH(swapperData.inputToken)) {
+        if (CommonLib._isETH(swapperData.inputToken)) {
             // Validate message has gas token attached.
             if (swapperData.inputAmount != msg.value) {
                 revert CurvanceDAOLBP__InvalidSwapData();
@@ -225,7 +225,7 @@ contract CurvanceDAOLBP {
         }
 
         // Execute swap into eToken underlying.
-        uint256 amount = SwapperLib.swapUnsafe(centralRegistry, swapperData);
+        uint256 amount = SwapperLib._swapUnsafe(centralRegistry, swapperData);
 
         if (amount < commitAmount) {
             revert CurvanceDAOLBP__InvalidSwapOutput();

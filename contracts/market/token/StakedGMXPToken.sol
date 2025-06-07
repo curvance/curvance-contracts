@@ -112,7 +112,7 @@ contract StakedGMXPToken is CompoundingPToken {
                     revert CompoundingPToken__UnapprovedAssetSwap();
                 }
 
-                yield = SwapperLib.swapSafe(centralRegistry, swapData);
+                yield = SwapperLib._swapSafe(centralRegistry, swapData);
 
                 // Make sure swap was routed into GMX.
                 if (yield == 0) {

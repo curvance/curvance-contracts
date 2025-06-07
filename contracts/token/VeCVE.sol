@@ -228,7 +228,7 @@ contract VeCVE is ERC20, ReentrancyGuard {
             revert VeCVE__NonTransferrable();
         }
 
-        RescueLib.rescueToken(centralRegistry, token, amount);
+        RescueLib._rescueToken(centralRegistry, token, amount);
     }
 
     /// @notice Shuts down the contract, unstakes all tokens,

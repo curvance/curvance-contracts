@@ -64,7 +64,7 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         // Swap borrow underlying to collateral underlying.
-        SwapperLib.swapSafe(centralRegistry, swapData);
+        SwapperLib._swapSafe(centralRegistry, swapData);
     }
 
     /// @notice Callback function on redemption of tokens from a pToken vault
@@ -118,6 +118,6 @@ contract PositionManagementSimple is PositionManagementBase {
         }
 
         // Swap collateral underlying to borrow underlying.
-        SwapperLib.swapSafe(centralRegistry, swapData);
+        SwapperLib._swapSafe(centralRegistry, swapData);
     }
 }

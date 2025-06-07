@@ -197,7 +197,7 @@ contract PendleLPPToken is CompoundingPToken {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
+                    SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 

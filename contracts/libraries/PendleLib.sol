@@ -43,7 +43,7 @@ library PendleLib {
     /// @param lpToken The Pendle lp token address.
     /// @param minOutAmount The minimum lp/pt output amount acceptable.
     /// @return outAmount The lp/pt output amount of Pendle lp received.
-    function enterPendle(
+    function _enterPendle(
         address router,
         bool isPt,
         PendleData memory data,
@@ -124,7 +124,7 @@ library PendleLib {
     /// @param lpToken The Pendle lp token address.
     /// @param amount The Pendle lp/pt amount to exit.
     /// @param minTokenOut The minimum token output amount acceptable.
-    function exitPendle(
+    function _exitPendle(
         address router,
         bool isPt,
         address token,

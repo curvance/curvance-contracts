@@ -238,7 +238,7 @@ contract MockAuraPTokenWithExitFee is CompoundingWithExitFeePToken {
 
                     // swap from rewardToken to underlying LP token if necessary
                     if (!isUnderlyingToken[rewardToken]) {
-                        SwapperLib.swapUnsafe(
+                        SwapperLib._swapUnsafe(
                             centralRegistry,
                             swapDataArray[i]
                         );

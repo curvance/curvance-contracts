@@ -90,7 +90,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
             }
 
             // Swap borrow underlying to token0.
-            SwapperLib.swapSafe(centralRegistry, swapData);
+            SwapperLib._swapSafe(centralRegistry, swapData);
         }
 
         uint256 totalAmountA = IERC20(token0).balanceOf(address(this));
@@ -102,7 +102,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
         
         uint256 minLpAmount = abi.decode(leverageData.auxData, (uint256));
 
-        VelodromeLib.enterVelodrome(
+        VelodromeLib._enterVelodrome(
             router,
             pairFactory,
             pool,
@@ -152,7 +152,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
 
         address borrowUnderlying = deleverageData.borrowToken.underlying();
 
-        VelodromeLib.exitVelodrome(
+        VelodromeLib._exitVelodrome(
             router,
             pool,
             deleverageData.collateralAmount
@@ -176,7 +176,7 @@ contract PositionManagementVelodrome is PositionManagementBase {
 
             for (uint256 i; i < numSwaps; ++i) {
                 // Swap Swapper input token for borrow underlying.
-                SwapperLib.swapSafe(
+                SwapperLib._swapSafe(
                     centralRegistry,
                     deleverageData.swapData[i]
                 );

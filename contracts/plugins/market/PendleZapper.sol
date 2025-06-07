@@ -81,7 +81,7 @@ contract PendleZapper is ZapperBase {
         );
 
         // Enter Pendle position.
-        outAmount = PendleLib.enterPendle(
+        outAmount = PendleLib._enterPendle(
             router,
             isPt,
             data,
@@ -212,7 +212,7 @@ contract PendleZapper is ZapperBase {
         address recipient
     ) internal returns (uint256 outAmount) {
         // Exit Pendle market position.
-        PendleLib.exitPendle(
+        PendleLib._exitPendle(
             router,
             isPt,
             token,
@@ -226,10 +226,10 @@ contract PendleZapper is ZapperBase {
         // Swap unwrapped tokens into `zapData.outputToken`.
         for (uint256 i; i < numTokenSwaps; ) {
             // Execute swap(s) into `zapData.outputToken`.
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
 
-        outAmount = CommonLib.getTokenBalance(zapData.outputToken);
+        outAmount = CommonLib._getTokenBalance(zapData.outputToken);
         // Validate zap output is sufficient.
         if (outAmount < zapData.minimumOut) {
             revert PendleZapper__SlippageError();
@@ -259,7 +259,7 @@ contract PendleZapper is ZapperBase {
         // Swap `inputToken` into desired pToken underlying tokens.
         for (uint256 i; i < numTokenSwaps; ) {
             if (
-                CommonLib.isETH(swapData[i].inputToken) &&
+                CommonLib._isETH(swapData[i].inputToken) &&
                 depositAsWrappedNative
             ) {
                 // Switch inputToken to wrapped native token address.
@@ -267,7 +267,7 @@ contract PendleZapper is ZapperBase {
             }
 
             // Execute swap into underlying(s).
-            SwapperLib.swapUnsafe(centralRegistry, swapData[i++]);
+            SwapperLib._swapUnsafe(centralRegistry, swapData[i++]);
         }
     }
 }

@@ -54,7 +54,7 @@ contract SimpleZapper is ZapperBase {
         // If we are trying to deposit wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative) {
+        if (CommonLib._isETH(swapData.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapData.inputToken = address(wrappedNative);
         }
@@ -64,7 +64,7 @@ contract SimpleZapper is ZapperBase {
             amount = swapData.inputAmount;
         } else {
             // Execute swap into mToken underlying.
-            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+            amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
         }
 
         // Enter Curvance mToken position.
@@ -108,7 +108,7 @@ contract SimpleZapper is ZapperBase {
         // If we are trying to repay wrapped native, we may be able to skip
         // a swapper call by changing the input token and checking versus
         // output token.
-        if (CommonLib.isETH(swapData.inputToken) && depositAsWrappedNative) {
+        if (CommonLib._isETH(swapData.inputToken) && depositAsWrappedNative) {
             // Switch inputToken to wrapped native token address.
             swapData.inputToken = address(wrappedNative);
         }
@@ -127,7 +127,7 @@ contract SimpleZapper is ZapperBase {
             amount = swapData.inputAmount;
         } else {
             // Execute swap into eToken underlying.
-            amount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+            amount = SwapperLib._swapUnsafe(centralRegistry, swapData);
         }
 
         return
@@ -174,7 +174,7 @@ contract SimpleZapper is ZapperBase {
         );
 
         // Execute swap into `swapData.outputToken`.
-        uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        uint256 outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
 
         _transferToRecipient(swapData.outputToken, recipient, outAmount);
 
@@ -221,7 +221,7 @@ contract SimpleZapper is ZapperBase {
 
         // Execute swap into `swapData.outputToken` which should be
         // new mToken underlying.
-        uint256 outAmount = SwapperLib.swapUnsafe(centralRegistry, swapData);
+        uint256 outAmount = SwapperLib._swapUnsafe(centralRegistry, swapData);
 
         // Enter new Curvance mToken position.
         return

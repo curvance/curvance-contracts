@@ -46,7 +46,7 @@ library VelodromeLib {
     /// @param lpMinOutAmount The minimum output amount of `lpToken` that is
     ///                       acceptable for execution.
     /// @return lpOutAmount The amount of `lpToken` received.
-    function enterVelodrome(
+    function _enterVelodrome(
         address router,
         address factory,
         address lpToken,
@@ -98,7 +98,7 @@ library VelodromeLib {
             lpOutAmount += newLpOutAmount;
         }
 
-        amount1 = CommonLib.getTokenBalance(token1);
+        amount1 = CommonLib._getTokenBalance(token1);
 
         // Check if we are entering through token1 leg.
         if (amount1 > 0) {
@@ -153,7 +153,7 @@ library VelodromeLib {
     /// @param router The Velodrome router address to exit through.
     /// @param lpToken The Velodrome lp token address to exit.
     /// @param lpAmount The amount of `lpToken` to exit.
-    function exitVelodrome(
+    function _exitVelodrome(
         address router,
         address lpToken,
         uint256 lpAmount

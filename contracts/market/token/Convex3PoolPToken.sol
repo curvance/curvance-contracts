@@ -182,7 +182,7 @@ contract Convex3PoolPToken is CompoundingPToken {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
 
-                    SwapperLib.swapSafe(centralRegistry, swapDataArray[i]);
+                    SwapperLib._swapSafe(centralRegistry, swapDataArray[i]);
                 }
             }
 
@@ -343,9 +343,9 @@ contract Convex3PoolPToken is CompoundingPToken {
         uint256 value;
         for (uint256 i; i < 3; ++i) {
             underlyingToken = strategyData.underlyingTokens[i];
-            amounts[i] = CommonLib.getTokenBalance(underlyingToken);
+            amounts[i] = CommonLib._getTokenBalance(underlyingToken);
 
-            if (CommonLib.isETH(underlyingToken)) {
+            if (CommonLib._isETH(underlyingToken)) {
                 value = amounts[i];
             }
 

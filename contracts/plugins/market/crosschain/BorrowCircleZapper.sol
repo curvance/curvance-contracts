@@ -83,7 +83,7 @@ contract BorrowCircleZapper is ReentrancyGuard {
                 revert BorrowCircleZapper__InvalidSwapData();
             }
 
-            SwapperLib.swapUnsafe(centralRegistry, swapData);
+            SwapperLib._swapUnsafe(centralRegistry, swapData);
         } else if (swapData.target != address(0)) {
             revert BorrowCircleZapper__InvalidSwapData();
         }
