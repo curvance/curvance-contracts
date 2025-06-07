@@ -50,12 +50,12 @@ contract CentralRegistryDeployer is DeployConfiguration {
         );
     }
 
-    function _addHarvester(address harvester) internal {
+    function _addHarvestPermissions(address harvester) internal {
         require(centralRegistry != address(0), "Set the centralRegistry!");
         require(harvester != address(0), "Set the harvester!");
 
-        CentralRegistry(centralRegistry).addHarvester(harvester);
-        console.log("centralRegistry.addHarvester: ", harvester);
+        CentralRegistry(centralRegistry).addHarvestPermissions(harvester);
+        console.log("centralRegistry.addHarvestPermissions: ", harvester);
     }
 
     function _setGaugeManager(address gaugeManager) internal {

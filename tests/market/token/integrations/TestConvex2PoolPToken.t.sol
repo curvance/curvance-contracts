@@ -41,7 +41,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
         // start epoch

@@ -101,7 +101,7 @@ contract TestFeeManager is TestBaseFeeManager {
 
     function testMultiSwap() public {
         // add harvester
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,
             address(new MockCalldataChecker(_UNISWAP_V2_ROUTER))

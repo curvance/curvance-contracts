@@ -73,7 +73,7 @@ contract Test_SwapPositionManagementPendlePT is TestBaseMarketIsolated {
         chainlinkAdaptor.addAsset(_STETH, _CHAINLINK_STETH_USD, 0, true);
         oracleManager.addAssetPriceFeed(_STETH, address(chainlinkAdaptor));
 
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
         centralRegistry.setExternalCalldataChecker(

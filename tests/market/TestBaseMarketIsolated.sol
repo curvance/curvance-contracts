@@ -177,7 +177,7 @@ contract TestBaseMarketIsolated is TestBase {
 
     function _deployFeeManager() internal initMainVariables {
         harvester = makeAddr("harvester");
-        centralRegistry.addHarvester(harvester);
+        centralRegistry.addHarvestPermissions(harvester);
 
         feeManager = feeManagers[block.chainid] = new FeeManager(
             ICentralRegistry(address(centralRegistry))

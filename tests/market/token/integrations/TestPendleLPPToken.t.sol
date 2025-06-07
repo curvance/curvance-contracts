@@ -54,7 +54,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         );
         oracleManager.addAssetPriceFeed(_PENDLE, address(chainlinkAdaptor));
 
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
         cSTETH = new PendleLPPToken(

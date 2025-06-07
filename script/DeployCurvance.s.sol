@@ -73,7 +73,7 @@ contract DeployCurvance is
         _setMessageTransmitter(
             _readConfigAddress(".centralRegistry.messageTransmitter")
         );
-        _addHarvester(_readConfigAddress(".centralRegistry.harvester"));
+        _addHarvestPermissions(_readConfigAddress(".centralRegistry.harvester"));
 
         // Deploy CVE
 

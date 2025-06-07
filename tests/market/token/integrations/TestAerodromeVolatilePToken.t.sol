@@ -47,7 +47,7 @@ contract TestAerodromeVolatilePToken is TestBaseMarketIsolated {
         _deployGaugeManager();
         _deployMarketManager();
 
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
         centralRegistry.setExternalCalldataChecker(
             address(aeroRouter),

@@ -186,7 +186,7 @@
 //     function _deployFeeManager() internal {
 //         // harvester = makeAddr("harvester");
 //         harvester = address(this);
-//         centralRegistry.addHarvester(harvester);
+//         centralRegistry.addHarvestPermissions(harvester);
 
 //         emit LogUint256("woowowo", 0);
 //         feeManager = new FeeManager(

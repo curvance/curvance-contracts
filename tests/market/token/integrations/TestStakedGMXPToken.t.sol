@@ -45,7 +45,7 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
         _deployGaugeManager();
         _deployMarketManager();
 
-        centralRegistry.addHarvester(address(this));
+        centralRegistry.addHarvestPermissions(address(this));
         centralRegistry.setFeeManager(address(this));
 
         cStakedGMX = new StakedGMXPToken(
