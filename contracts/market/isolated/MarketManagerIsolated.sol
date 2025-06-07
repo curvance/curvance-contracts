@@ -377,8 +377,8 @@ contract MarketManagerIsolated is
 
     /// @notice Checks if the account should be allowed to mint tokens
     ///         in the given market.
-    /// @param mToken The market token to verify minting status for.
-    function canMint(address mToken) external view {
+    /// @param mToken The market token to verify mintability of.
+    function canMint(address mToken) external view virtual {
         if (mintPaused[mToken] == 2) {
             _revert(_PAUSED_SELECTOR);
         }
@@ -569,7 +569,7 @@ contract MarketManagerIsolated is
         address[] calldata accounts,
         uint256[] memory debtAmounts,
         IMarketManager.LiqInstructions memory instructions
-    ) external view returns (
+    ) external view virtual returns (
         IMarketManager.LiqResults memory results,
         uint256[] memory
     ) {
@@ -716,7 +716,7 @@ contract MarketManagerIsolated is
     /// @param pToken The address of the market position token to list.
     /// @param eToken The address of the market earn token to list.
     function listTokens(address pToken, address eToken) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         uint256 numTokens = tokensListed.length;
         if (numTokens != 0) {
@@ -946,7 +946,7 @@ contract MarketManagerIsolated is
         address[] calldata pTokens,
         uint256[] calldata newCollateralCaps
     ) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         uint256 numTokens = pTokens.length;
 
@@ -986,7 +986,7 @@ contract MarketManagerIsolated is
         address[] calldata eTokens,
         uint256[] calldata newDebtCaps
     ) external {
-        _checkDaoPermissions();
+        _checkMarketPermissions();
 
         uint256 numTokens = eTokens.length;
 
@@ -1834,16 +1834,16 @@ contract MarketManagerIsolated is
         return value * 1e14;
     }
 
-    /// @dev Checks whether the caller has sufficient permissioning.
-    function _checkDaoPermissions() internal view {
-        if (!centralRegistry.hasDaoPermissions(msg.sender)) {
+    /// @dev Checks whether the caller has sufficient permissions.
+    function _checkElevatedPermissions() internal view {
+        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
 
-    /// @dev Checks whether the caller has sufficient permissions.
-    function _checkElevatedPermissions() internal view {
-        if (!centralRegistry.hasElevatedPermissions(msg.sender)) {
+    /// @dev Checks whether the caller has sufficient permissioning.
+    function _checkMarketPermissions() internal view virtual {
+        if (!centralRegistry.hasMarketPermissions(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
     }
@@ -1855,12 +1855,13 @@ contract MarketManagerIsolated is
         }
     }
 
-    /// @dev Checks whether the caller has sufficient permissions based on `state`,
-    /// turning something off is less "risky" than enabling something,
-    /// so `state` = true has reduced permissioning compared to `state` = false.
+    /// @dev Checks whether the caller has sufficient permissions based on
+    ///      `state`, turning something off is less "risky" than enabling
+    ///      something, so `state` = true has reduced permissioning compared
+    ///      to `state` = false.
     function _checkAuthorizedPermissions(bool state) internal view {
         if (state) {
-            _checkDaoPermissions();
+            _checkMarketPermissions();
             return;
         }
 

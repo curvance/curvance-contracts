@@ -94,9 +94,9 @@ contract CentralRegistry is ERC165, ActionRegistry {
 
     // CURVANCE TOKEN CONTRACTS
 
-    /// @notice CVE contract address.
+    /// @notice CVE contract address on this chain.
     address public cve;
-    /// @notice veCVE contract address.
+    /// @notice veCVE contract address on this chain.
     address public veCVE;
 
     // DAO CONTRACTS DATA
@@ -108,18 +108,18 @@ contract CentralRegistry is ERC165, ActionRegistry {
     ///         rewards to depositors and lenders inside the Curvance
     ///         Protocol based on decentralized governance outcomes.
     address public gaugeManager;
-    /// @notice Voting Hub contract address, receives decentralized governance
-    ///         vote outcomes to update onchain across all blockchains.
-    address public votingHub;
-    /// @notice Messaging Hub contract address, processes crosschain messages
-    ///         across all supported blockchains.
-    address public messagingHub;
     /// @notice Oracle Manager contract address, manages oracle prices
     ///         for supported assets.
     address public oracleManager;
     /// @notice Fee Manager contract address, manages fees for decentralized
     ///         strategies for distribution.
     address public feeManager;
+    /// @notice Messaging Hub contract address, processes crosschain messages
+    ///         across all supported blockchains.
+    address public messagingHub;
+    /// @notice Voting Hub contract address, receives decentralized governance
+    ///         vote outcomes to update onchain across all blockchains.
+    address public votingHub;
 
     // CROSSCHAIN MESSAGING DATA
 
@@ -319,22 +319,6 @@ contract CentralRegistry is ERC165, ActionRegistry {
         timelock = timelock_;
         emergencyCouncil = emergencyCouncil_;
 
-        // Provide base dao permissioning to `daoAddress`,
-        // `timelock`, `emergencyCouncil`.
-        hasDaoPermissions[daoAddress] = true;
-        hasDaoPermissions[timelock] = true;
-        hasDaoPermissions[emergencyCouncil] = true;
-
-        // Provide elevated dao permissioning to `timelock`,
-        // `emergencyCouncil`.
-        hasElevatedPermissions[timelock] = true;
-        hasElevatedPermissions[emergencyCouncil] = true;
-
-        genesisEpoch = genesisEpoch_;
-        sequencer = sequencer_;
-
-        feeToken = feeToken_;
-
         emit PermissionsTransferred(
             "DAO Permissions",
             address(0),
@@ -346,6 +330,31 @@ contract CentralRegistry is ERC165, ActionRegistry {
             address(0),
             emergencyCouncil_
         );
+
+        // Provide base dao permissions to `daoAddress_`,
+        // `timelock_` and `emergencyCouncil_`.
+        hasDaoPermissions[daoAddress_] = true;
+        hasDaoPermissions[timelock_] = true;
+        hasDaoPermissions[emergencyCouncil_] = true;
+
+        // Provide elevated dao permissions to `timelock` and
+        // `emergencyCouncil`.
+        hasElevatedPermissions[timelock_] = true;
+        hasElevatedPermissions[emergencyCouncil_] = true;
+
+        // Provide market permissions to `daoAddress_`,
+        // `timelock_` and `emergencyCouncil_`.
+        hasMarketPermissions[daoAddress_] = true;
+        hasMarketPermissions[timelock_] = true;
+        hasMarketPermissions[emergencyCouncil_] = true;
+
+        emit PermissionsUpdated("Market", daoAddress_, true);
+        emit PermissionsUpdated("Market", timelock_, true);
+        emit PermissionsUpdated("Market", emergencyCouncil_, true);
+
+        genesisEpoch = genesisEpoch_;
+        sequencer = sequencer_;
+        feeToken = feeToken_;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -807,12 +816,20 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function transferDaoPermissions(address newDaoAddress) public virtual {
         _checkElevatedPermissions();
 
-        // Cache old dao address for event emission.
+        // Cache old dao address.
         address previousDaoAddress = daoAddress;
         daoAddress = newDaoAddress;
 
-        // Delete permission data.
-        delete hasDaoPermissions[previousDaoAddress];
+        // Delete permission data only if the old dao address does not also
+        // have Timelock or Emergency Council permissions.
+        if (previousDaoAddress != emergencyCouncil) {
+            if (previousDaoAddress != timelock) {
+                delete hasDaoPermissions[previousDaoAddress];
+                delete hasMarketPermissions[previousDaoAddress];
+                emit PermissionsUpdated("Market", previousDaoAddress, false);
+            }
+        }
+
         // Add new permission data.
         hasDaoPermissions[newDaoAddress] = true;
         emit PermissionsTransferred(
@@ -821,6 +838,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
             newDaoAddress
         );
 
+        // Assign market permissions only if the new address does
+        // not already have them.
+        if (!hasMarketPermissions[newDaoAddress]) {
+            hasMarketPermissions[newDaoAddress] = true;
+            emit PermissionsUpdated("Market", newDaoAddress, true);
+        }
+        
         // Notify Timelock Controller of a DAO address update.
         if (timelock != address(0)) {
             if (
@@ -841,11 +865,10 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function transferTimelockPermissions(address newTimelock) external {
         _checkEmergencyCouncilPermissions();
 
-        // Cache old timelock for event emission.
+        // Cache old timelock.
         address previousTimelock = timelock;
         timelock = newTimelock;
 
-        // Delete permission data.
         // If the previous Timelock also has Emergency Council permissions
         // for some reason, do not remove their elevated permissioning.
         if (previousTimelock != emergencyCouncil) {
@@ -855,6 +878,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
             // for some reason, do not remove their permissioning.
             if (previousTimelock != daoAddress) {
                 delete hasDaoPermissions[previousTimelock];
+                delete hasMarketPermissions[previousTimelock];
+                emit PermissionsUpdated("Market", previousTimelock, false);
             }
         }
 
@@ -866,6 +891,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
             previousTimelock,
             newTimelock
         );
+
+        // Assign market permissions only if the new address does
+        // not already have them.
+        if (!hasMarketPermissions[newTimelock]) {
+            hasMarketPermissions[newTimelock] = true;
+            emit PermissionsUpdated("Market", newTimelock, true);
+        }
     }
 
     /// @notice Transfers Emergency Council permissions to another address.
@@ -875,7 +907,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     function transferEmergencyCouncil(address newEmergencyCouncil) external {
         _checkEmergencyCouncilPermissions();
 
-        // Cache old emergency council for event emission.
+        // Cache old emergency council.
         address previousEmergencyCouncil = emergencyCouncil;
         emergencyCouncil = newEmergencyCouncil;
 
@@ -888,6 +920,12 @@ contract CentralRegistry is ERC165, ActionRegistry {
             // for some reason, do not remove their permissioning.
             if (previousEmergencyCouncil != daoAddress) {
                 delete hasDaoPermissions[previousEmergencyCouncil];
+                delete hasMarketPermissions[previousEmergencyCouncil];
+                emit PermissionsUpdated(
+                    "Market",
+                    previousEmergencyCouncil,
+                    false
+                );
             }
         }
 
@@ -899,6 +937,13 @@ contract CentralRegistry is ERC165, ActionRegistry {
             previousEmergencyCouncil,
             newEmergencyCouncil
         );
+
+        // Assign market permissions only if the new address does
+        // not already have them.
+        if (!hasMarketPermissions[newEmergencyCouncil]) {
+            hasMarketPermissions[newEmergencyCouncil] = true;
+            emit PermissionsUpdated("Market", newEmergencyCouncil, true);
+        }
     }
 
     /// @notice Adds a new Market Manager and corresponding fee configurations.
@@ -1084,7 +1129,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         hasMarketPermissions[newAddress] = true;
-        emit PermissionsUpdated("Harvest", newAddress, true);
+        emit PermissionsUpdated("Market", newAddress, true);
     }
 
     //// @notice Deauthorizes an address to manage markets.
@@ -1102,7 +1147,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
 
         delete hasMarketPermissions[addressApproved];
-        emit PermissionsUpdated("Harvest", addressApproved, false);
+        emit PermissionsUpdated("Market", addressApproved, false);
     }
 
     //// @notice Authorizes an address to manage harvest process.
@@ -1154,7 +1199,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
     /// @param messagingChainId Messaging Chain ID where this address
     ///                         authorized.
     /// @param relayer Crosschain relayer address on the chain.
-    /// @param domain Domain for the chain.
+    /// @param chainDomain Domain for the chain.
     function addChainSupport(
         address remoteMessagingHub,
         address remoteVotingHub,
@@ -1163,7 +1208,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
         uint256 chainId,
         uint16 messagingChainId,
         address relayer,
-        uint32 domain
+        uint32 chainDomain
     ) external {
         _checkElevatedPermissions();
 
@@ -1180,7 +1225,7 @@ contract CentralRegistry is ERC165, ActionRegistry {
             feeTokenAddress: feeTokenAddress,
             messagingChainId: messagingChainId,
             crosschainRelayer: relayer,
-            domain: domain
+            domain: chainDomain
         });
 
         messagingToGETHChainId[messagingChainId] = chainId;
