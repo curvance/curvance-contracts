@@ -232,7 +232,9 @@ contract StartContractsConfig is
                     m_usd,
                     address(0),
                     chainlinkUsdcFeedInUsd
-                )
+                ),
+            1000000,
+            700000
             );
         }
 
@@ -251,7 +253,9 @@ contract StartContractsConfig is
                 sweth,
                 address(0),
                 chainlinkUsdcFeedInUsd
-            )
+            ),
+            1000000,
+            700000
         );
     }
 
@@ -278,7 +282,9 @@ contract StartContractsConfig is
                 usdc,
                 _readConfigAddress(".markets.eTokens.USDC.chainlinkEth"),
                 _readConfigAddress(".markets.eTokens.USDC.chainlinkUsd")
-            )
+            ),
+            1000000,
+            700000
         );
 
         MarketManagerIsolated secondMarket = _createMarket("secondTestMarket", cr);
@@ -296,7 +302,9 @@ contract StartContractsConfig is
                 wbtc,
                 _readConfigAddress(".markets.pTokens.WBTC.chainlinkEth"),
                 _readConfigAddress(".markets.pTokens.WBTC.chainlinkUsd")
-            )
+            ),
+            1000000,
+            700000
         );
     }
 
@@ -329,7 +337,9 @@ contract StartContractsConfig is
         MarketManagerIsolated market,
         ICentralRegistry cr,
         MarketTokenDeploy PositionToken,
-        MarketTokenDeploy earnToken
+        MarketTokenDeploy earnToken,
+        uint256 collateralCap,
+        uint256 debtCap
     ) internal {
         address pTokenToList =_deployPToken(
                 PositionToken.name,
@@ -340,17 +350,17 @@ contract StartContractsConfig is
                 market
         );
         address eTokenToList = _deployEToken(
-            earnTokens[i].name,
-            earnTokens[i].token,
-            earnTokens[i].chainlinkEthAggregator,
-            earnTokens[i].chainlinkUsdAggregator,
+            earnToken.name,
+            earnToken.token,
+            earnToken.chainlinkEthAggregator,
+            earnToken.chainlinkUsdAggregator,
             cr,
             market
         );
         market.listTokens(pTokenToList, eTokenToList);
         market.updatePositionToken(
             // From FuzzMarketManager -> setup()
-            pToken,
+            pTokenToList,
             7000,
             4000,
             3000,
@@ -360,18 +370,21 @@ contract StartContractsConfig is
         );
 
         address[] memory mTokens = new address[](1);
-        mTokens[0] = pToken;
         uint256[] memory newCollateralCaps = new uint256[](1);
+        uint256[] memory newDebtCaps = new uint256[](1);
+
+        // Set Collateral Caps
+        mTokens[0] = pTokenToList;
         // mTokens have same decimals as underlying token.
         newCollateralCaps[0]
-            = 1000000 * 10 ** IERC20(mTokens[0]).decimals(); //1m tokens
+            = collateralCap * 10 ** IERC20(mTokens[0]).decimals(); //1m tokens
         market.setCollateralCaps(mTokens, newCollateralCaps);
         
-        mTokens[0] = eToken;
-        uint256[] memory newDebtCaps = new uint256[](1);
+        // Set Debt Caps
+        mTokens[0] = eTokenToList;
         // mTokens have same decimals as underlying token.
         newDebtCaps[0]
-            = 700000 * 10 ** IERC20(mTokens[0]).decimals(); //700k tokens
+            = debtCap * 10 ** IERC20(mTokens[0]).decimals(); //700k tokens
         market.setDebtCaps(mTokens, newDebtCaps);
     }
 
