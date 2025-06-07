@@ -196,9 +196,9 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        StoredData[asset][inUSD] = StoredData({
+        assetData = StoredData({
             price: price,
-            blockTimestamp: block.timestamp,
+            blockTimestamp: uint128(block.timestamp),
             redstoneTimestamp: redstoneTimestamp
         });
 
@@ -465,7 +465,7 @@ contract RedstoneCoreAdaptor is
         pData.inUSD = inUSD;
         StoredData memory assetData = storedData[asset][inUSD];
         // Validate the price returned is not stale.
-        if (block.timestamp - assetData.priceblockTimestamp > heartbeat) {
+        if (block.timestamp - assetData.blockTimestamp > heartbeat) {
             pData.hadError;
             return;
         }
@@ -477,7 +477,6 @@ contract RedstoneCoreAdaptor is
     ///      which we've replaced in the Redstone library for more
     ///      efficient timestamp validation.
     function _validateTimestamp(
-        bytes32 symbolHash,
         uint256 receivedTimestampMilliseconds
     ) internal view {
         // Getting data timestamp from future seems quite unlikely

@@ -308,7 +308,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
         uint256 normalizedPrice = _normalizePrice(
             uint256(int256(price.price)),
-            -1 * int8(price.expo)
+            uint256(int256(-1 * int8(price.expo)))
         );
 
         pData.hadError = _verifyData(
