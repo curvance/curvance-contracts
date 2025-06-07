@@ -32,6 +32,13 @@ contract RedstoneCoreAdaptor is
         uint256 heartbeat;
     }
 
+    /// @notice Stores cached data for Redstone core prices pulled
+    ///         from msg.data.
+    /// @param price The price recorded for an asset, in `WAD`.
+    /// @param redstoneTimestamp The price timestamp reported by Redstone
+    ///                          signers, in milliseconds.
+    /// @param blockTimestamp The block timestamp when `price` was stored,
+    ///                       in seconds.
     struct StoredPrice {
         uint256 price;
         uint128 redstoneTimestamp;
@@ -66,7 +73,7 @@ contract RedstoneCoreAdaptor is
     /// @dev Token address => inUSD => Adaptor Data.
     mapping(address => mapping(bool => AdaptorData)) public adaptorData;
 
-    mapping(address => mapping(bool => StoredPrice)) private storedPrice;
+    mapping(address => mapping(bool => StoredData)) private storedData;
 
     /// @dev A fixed key to use in transient storage for validating that the
     ///      timestamp provided on price write is accurate.
@@ -77,7 +84,7 @@ contract RedstoneCoreAdaptor is
 
     event AssetAdded(address asset, AdaptorData assetConfig, bool isUpdate);
     event AssetRemoved(address asset);
-    event SignerUpdated(address signer, bool addedPerms);
+    event SignerUpdated(address signer, bool addPerms);
     /// ERRORS ///
 
     error RedstoneCoreAdaptor__InvalidConfiguration();
@@ -150,13 +157,14 @@ contract RedstoneCoreAdaptor is
         bool inUSD,
         uint128 redstoneTimestamp
     ) external {
-        if (!adaptorData[asset][inUSD].isConfigured) {
+        AdaptorData memory data = adaptorData[asset][inUSD];
+        if (!data.isConfigured) {
             revert RedstoneCoreAdaptor__AssetIsNotSupported();
         }
 
-        StoredPrice storage assetData = overriddenPrice[asset][inUSD];
+        StoredData storage assetData = storedData[asset][inUSD];
         if (assetData.redstoneTimestamp >= redstoneTimestamp) {
-            return; // Can skip writing the price since the redstone price is stale.
+            return; // Can skip storing the data since the data is stale.
         }
 
         _validateTimestamp(redstoneTimestamp);
@@ -165,9 +173,7 @@ contract RedstoneCoreAdaptor is
             tstore(_TRANSIENT_REDSTONE_TIMESTAMP_KEY, redstoneTimestamp)
         }
 
-        uint256 price = getOracleNumericValueFromTxMsg(
-            adaptorData[asset][inUSD].symbolHash
-        );
+        uint256 price = getOracleNumericValueFromTxMsg(data.symbolHash);
 
         // Cache decimals value.
         uint256 quoteDecimals = data.decimals;
@@ -185,7 +191,7 @@ contract RedstoneCoreAdaptor is
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        storedPrice[asset][inUSD] = StoredPrice({
+        StoredData[asset][inUSD] = StoredData({
             price: price,
             blockTimestamp: block.timestamp,
             redstoneTimestamp: redstoneTimestamp
@@ -197,9 +203,12 @@ contract RedstoneCoreAdaptor is
         }
     }
 
-    /// @notice Validate the timestamp of a Redstone signed price data package.
-    /// @param timestampMillis Data package timestamp in milliseconds.
-    /// @dev Internally called in `updatePrice` for every signed data package in the payload.
+    /// @notice Validate the timestamp of a Redstone signed price data
+    ///         package.
+    /// @param receivedTimestampMilliseconds Data package timestamp in
+    ///                                      milliseconds.
+    /// @dev Internally called in `updatePrice` for every signed data package
+    ///      in the payload.
     function validateTimestamp(
         uint256 receivedTimestampMilliseconds
     ) public view virtual override {
@@ -231,7 +240,7 @@ contract RedstoneCoreAdaptor is
 
         if (heartbeat != 0) {
             if (heartbeat > DEFAULT_HEART_BEAT) {
-                revert RedstoneCoreAdaptor__InvalidHeartbeat();
+                revert RedstoneCoreAdaptor__InvalidConfiguration();
             }
         }
 
@@ -450,7 +459,7 @@ contract RedstoneCoreAdaptor is
         bool inUSD
     ) internal view returns (PriceReturnData memory pData) {
         pData.inUSD = inUSD;
-        StoredData memory assetData = storedPrice[asset][inUSD];
+        StoredData memory assetData = storedData[asset][inUSD];
         // Validate the price returned is not stale.
         if (block.timestamp - assetData.priceblockTimestamp > heartbeat) {
             pData.hadError;
