@@ -175,18 +175,18 @@ contract RedstoneCoreAdaptor is
 
         uint256 price = getOracleNumericValueFromTxMsg(data.symbolHash);
 
-        // Cache decimals value.
+        // Cache price feed decimals format.
         uint256 quoteDecimals = data.decimals;
         if (quoteDecimals != 18) {
             price = _normalizePrice(price, quoteDecimals);
         }
 
-        // Validate `value` is not at or above the maximum value allowed.
+        // Validate `price` is not at or above the maximum value allowed.
         if (price >= data.max) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
 
-        // Validate `value` is not truncated or misreported with a 0 value.
+        // Validate `price` is not truncated or misreported with a 0 value.
         if (price == 0) {
             revert RedstoneCoreAdaptor__InvalidPrice();
         }
@@ -257,12 +257,12 @@ contract RedstoneCoreAdaptor is
 
         AdaptorData storage data = adaptorData[asset][inUSD];
 
-        // If decimals == 0 we want default 8 decimals that
-        // redstone typically returns in.
+        // If decimals == 0 we use default 8 decimals that
+        // Redstone typically provides prices in.
         if (decimals == 0) {
             data.decimals = 8;
         } else {
-            // Otherwise coerce uint8 to uint256 for cheaper
+            // Otherwise, coerce uint8 to uint256 for cheaper
             // runtime conversion.
             data.decimals = uint256(decimals);
         }
@@ -375,8 +375,7 @@ contract RedstoneCoreAdaptor is
         }
 
         // Remove `currentSigner` from quick access address mapping.
-        _isAuthorisedSigner[currentSigner] = 0;
-
+        delete _isAuthorisedSigner[currentSigner];
         uint256 lastSignerIndex = authorisedSigners.length;
 
         // Switch array locations on authorised signer so we can pop
