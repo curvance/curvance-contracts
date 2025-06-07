@@ -59,6 +59,11 @@ interface ICentralRegistry {
         address addressToCheck
     ) external view returns (bool);
 
+    /// @notice Indicates if address has market permissions or not.
+    function hasMarketPermissions(
+        address addressToCheck
+    ) external view returns (bool);
+
     /// @notice Indicates if address has harvest permissions or not.
     function hasHarvestPermissions(
         address addressToCheck
