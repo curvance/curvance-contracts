@@ -2,16 +2,17 @@
 pragma solidity ^0.8.26;
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
-import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { SwapperLib } from "contracts/libraries/SwapperLib.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+import { ReentrancyGuard } from "contracts/libraries/external/ReentrancyGuard.sol";
+import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { ICentralRegistry, ChainData } from "contracts/interfaces/ICentralRegistry.sol";
 import { ITokenMessenger } from "contracts/interfaces/external/wormhole/ITokenMessenger.sol";
 import { IWormholeRelayer } from "contracts/interfaces/external/wormhole/IWormholeRelayer.sol";
+import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
 contract CCTPBorrowZapper is ReentrancyGuard {
     /// CONSTANTS ///
@@ -227,7 +228,7 @@ contract CCTPBorrowZapper is ReentrancyGuard {
         );
 
         // Add cost of publishing the 'sending token' wormhole message.
-        nativeFee += centralRegistry.crosschainCore().messageFee();
+        nativeFee += IWormhole(centralRegistry.crosschainCore()).messageFee();
     }
 
     /// @dev Returns the current Wormhole Relayer address to call.
