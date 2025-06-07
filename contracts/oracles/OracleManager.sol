@@ -431,21 +431,18 @@ contract OracleManager is IOracleManager {
         bool getLower
     ) public view returns (uint256 price, uint256 errorCode) {
         if (!_isSequencerValid()) {
-            return (0, 2);
+            return (0, BAD_SOURCE);
         }
 
         address mAsset;
-        
         // Check whether asset is an mToken.
         if (mTokenAssets[asset].isMToken) {
             mAsset = asset;
             asset = mTokenAssets[asset].underlying;
         }
 
-        uint256 numFeeds = _checkHasSupportedFeeds(asset);
-
         // Route pricing to a single feed source or dual feed source.
-        if (numFeeds < 2) {
+        if (_checkHasSupportedFeeds(asset) < 2) { // Returns number of feeds supported.
             bool hadError;
             (price, hadError) = _getPriceFromFeed(asset, 0, inUSD, getLower);
             if (hadError) {
@@ -455,16 +452,16 @@ contract OracleManager is IOracleManager {
             (price, errorCode) = _getPriceDualFeed(asset, inUSD, getLower);
         }
 
+        // Query the exchange rate between mToken and its underlying token
+        // and convert the price into WAD form.
+        if (mAsset != address(0)) {
+            price = (price * IMToken(mAsset).exchangeRateCached()) / WAD;
+        }
+
         // If somehow a feed returns a price of 0,
         // make sure we trigger the BAD_SOURCE flag.
         if (price == 0 && errorCode < BAD_SOURCE) {
             errorCode = BAD_SOURCE;
-        }
-
-        // Query the exchange rate for underlying token vs mToken and offset.
-        if (mAsset != address(0)) {
-            uint256 exchangeRate = IMToken(mAsset).exchangeRateCached();
-            price = (price * exchangeRate) / WAD;
         }
     }
 
