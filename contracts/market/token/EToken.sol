@@ -1365,9 +1365,9 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // so we cant seize this mToken as it is a debt token,
         // so there is no reEntry risk.
         IPToken(pToken).seize(
-            liquidator, accounts,
-            liqResults.liquidatedAmounts,
-            address(this)
+            liquidator,
+            accounts,
+            liqResults.liquidatedAmounts
         );
     }
 

@@ -97,13 +97,10 @@ interface IPToken is IMToken {
     ///                 collateral seized.
     /// @param shares An array containing the number of pTokens
     ///               shares to seize.
-    /// @param debtToken The market in which debt was repaid for
-    ///                  the accounts.
     function seize(
         address liquidator,
         address[] calldata accounts,
-        uint256[] calldata shares,
-        address debtToken
+        uint256[] calldata shares
     ) external;
 
     /// @notice Allows users to simulate the effects of their deposit at

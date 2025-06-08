@@ -109,18 +109,8 @@ abstract contract BasePToken is
     
     /// EVENTS ///
 
-    event CollateralUpdated(
-        address account,
-        uint256 amount,
-        bool increased
-    );
-
-    event Liquidated(
-        address liquidator,
-        address account,
-        uint256 liquidatedAmount,
-        address debtToken
-    );
+    event CollateralUpdated(address account, uint256 amount, bool increased);
+    event Liquidated(address liquidator, address account, uint256 amount);
 
     /// ERRORS ///
 
@@ -422,13 +412,10 @@ abstract contract BasePToken is
     ///                 collateral seized.
     /// @param shares An array containing the number of pTokens
     ///               shares to seize.
-    /// @param debtToken The market in which debt was repaid for
-    ///                  the accounts.
     function seize(
         address liquidator,
         address[] calldata accounts,
-        uint256[] calldata shares,
-        address debtToken
+        uint256[] calldata shares
     ) external nonReentrant {
         // Fails if seizure not allowed.
         marketManager.canSeize(address(this), msg.sender);
@@ -436,33 +423,29 @@ abstract contract BasePToken is
         // We know that accounts and shares arrays are the same length since
         // its validated inside the eToken getting debt repaid within.
 
-        uint256 cachedAmount;
-        address cachedAccount;
+        uint256 amount;
+        address account;
         uint256 numAccounts = accounts.length;
         for (uint256 i; i < numAccounts; ++i) {
-            cachedAmount = shares[i];
+            amount = shares[i];
             // If theres no debt to repay for this user can
             // skip them.
-            if (cachedAmount == 0) {
+            if (amount == 0) {
                 continue;
             }
 
-            cachedAccount = accounts[i];
+            account = accounts[i];
 
             // Execute any prior liquidation actions.
-            _beforeLiquidationAction(cachedAccount, liquidator, cachedAmount);
+            _beforeLiquidationAction(account, liquidator, amount);
 
             // Remove liquidated account's collateral.
-            _removeCollateral(cachedAccount, cachedAmount);
-            // Efficiently transfer liquidated token balance from `cachedAccount`
+            _removeCollateral(account, amount);
+            
+            // Efficiently transfer liquidated token balance from `account`
             // to `liquidator`.
-            _transferFromWithoutAllowance(cachedAccount, liquidator, cachedAmount);
-            emit Liquidated(
-                liquidator,
-                cachedAccount,
-                cachedAmount,
-                debtToken
-            );
+            _transferFromWithoutAllowance(account, liquidator, amount);
+            emit Liquidated(liquidator, account, amount);
         }
     }
 
