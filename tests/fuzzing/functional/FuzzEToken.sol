@@ -146,7 +146,7 @@
 //         require(marketManager.borrowPaused(eToken) != 2);
 //         uint256 upperBound = EToken(eToken).marketUnderlyingHeld() -
 //             EToken(eToken).totalReserves() -
-//             42069; // TODO: constant
+//             77777; // TODO: constant
 //         amount = clampBetween(amount, 1, upperBound - 1);
 //         require(_mintAndApprove(EToken(eToken).underlying(), eToken, amount));
 //         (bool borrowPossible, ) = address(marketManager).call(
@@ -211,7 +211,7 @@
 //         require(marketManager.borrowPaused(eToken) != 2);
 //         uint256 upperBound = EToken(eToken).marketUnderlyingHeld() -
 //             EToken(eToken).totalReserves() -
-//             42069;
+//             77777;
 //         amount = clampBetween(amount, 1, upperBound - 1);
 //         require(_mintAndApprove(EToken(eToken).underlying(), eToken, amount));
 //         require(marketManager.isListed(eToken));
@@ -273,7 +273,7 @@
 //             if (
 //                 EToken(eToken).marketUnderlyingHeld() -
 //                     EToken(eToken).totalReserves() <
-//                 amount + 42069
+//                 amount + 77777
 //             ) {
 //                 assertWithMsg(
 //                     errorSelector ==

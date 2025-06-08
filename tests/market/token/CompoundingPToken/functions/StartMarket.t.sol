@@ -36,6 +36,6 @@ contract CompoundingPTokenStartMarketTest is TestBaseCompoundingPToken {
         vm.prank(address(marketManagerIsolated));
         pBALRETH.startMarket(user1);
 
-        assertEq(pBALRETH.totalSupply(), totalSupply + 42069);
+        assertEq(pBALRETH.totalSupply(), totalSupply + 77777);
     }
 }

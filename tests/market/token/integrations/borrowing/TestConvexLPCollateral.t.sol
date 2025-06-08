@@ -127,7 +127,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         assertEq(
             rewarder.balanceOf(address(cSTETH)),
-            42069,
+            77777,
             "Rewarder must have balance equal to the initial mint"
         );
         assertEq(rewarder.earned(address(cSTETH)), 0);
@@ -137,7 +137,7 @@ contract TestConvexLPCollateral is TestBaseMarketIsolated {
 
         assertEq(
             rewarder.balanceOf(address(cSTETH)),
-            1000000000000000042069,
+            1000000000000000077777,
             "Convex LP Tokens must be deposited into Rewarder"
         );
         assertEq(rewarder.earned(address(cSTETH)), 0);

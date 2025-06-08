@@ -98,9 +98,9 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
 
     //     uint256 assets = 100e18;
     //     deal(_GMX_ADDRESS, user1, assets);
-    //     deal(_GMX_ADDRESS, address(this), 42069);
+    //     deal(_GMX_ADDRESS, address(this), 77777);
 
-    //     gmx.approve(address(cStakedGMX), 42069);
+    //     gmx.approve(address(cStakedGMX), 77777);
     //     marketManager.listToken(address(cStakedGMX));
 
     //     vm.prank(user1);
@@ -113,7 +113,7 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
 
     //     assertEq(
     //         initialAssets,
-    //         assets + 42069,
+    //         assets + 77777,
     //         "Total Assets should equal user deposit plus initial mint."
     //     );
 
@@ -202,7 +202,7 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
 
     //     assertGt(
     //         cStakedGMX.totalAssets(),
-    //         assets + 42069,
+    //         assets + 77777,
     //         "Total Assets should greater than original deposit plus initial mint."
     //     );
 

@@ -75,9 +75,9 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     function testPendleStethLP() public {
         uint256 assets = 100e18;
         deal(_LP_STETH, user1, assets);
-        deal(_LP_STETH, address(this), 42069);
+        deal(_LP_STETH, address(this), 77777);
 
-        IERC20(_LP_STETH).approve(address(cSTETH), 42069);
+        IERC20(_LP_STETH).approve(address(cSTETH), 77777);
         marketManagerIsolated.listToken(address(cSTETH));
 
         vm.prank(user1);
@@ -88,7 +88,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
 
         assertEq(
             cSTETH.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -142,7 +142,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         uint256 totalAssets = cSTETH.totalAssets();
         assertGt(
             totalAssets,
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -153,9 +153,9 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
     function testRevertWithInvalidSwapper() external {
         uint256 assets = 100e18;
         deal(_LP_STETH, user1, assets);
-        deal(_LP_STETH, address(this), 42069);
+        deal(_LP_STETH, address(this), 77777);
 
-        IERC20(_LP_STETH).approve(address(cSTETH), 42069);
+        IERC20(_LP_STETH).approve(address(cSTETH), 77777);
         marketManagerIsolated.listToken(address(cSTETH));
 
         vm.prank(user1);

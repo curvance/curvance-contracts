@@ -50,10 +50,10 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
     }
 
     function test_withdrawReservesMulti_success() public {
-        assertEq(dai.balanceOf(address(eDAI)), 100e18 + 42069);
+        assertEq(dai.balanceOf(address(eDAI)), 100e18 + 77777);
 
         centralRegistry.withdrawReservesMulti(eTokens);
 
-        assertEq(dai.balanceOf(address(eDAI)), 42069);
+        assertEq(dai.balanceOf(address(eDAI)), 77777);
     }
 }

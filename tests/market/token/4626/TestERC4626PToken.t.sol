@@ -40,7 +40,7 @@ contract TestERC4626PToken is TestERC4626, TestBaseMarketIsolated {
         vm.label(address(mockPToken), "pToken");
 
         // start market for pToken
-        uint256 startAmount = 42069;
+        uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(mockPToken), startAmount);
         marketManagerIsolated.listToken(address(mockPToken));

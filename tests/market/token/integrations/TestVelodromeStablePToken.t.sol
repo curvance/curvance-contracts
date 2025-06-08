@@ -99,9 +99,9 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
     function testUsdcDaiStablePool() public {
         uint256 assets = 100e18;
         deal(_USDC_DAI, user1, assets);
-        deal(_USDC_DAI, address(this), 42069);
+        deal(_USDC_DAI, address(this), 77777);
 
-        IERC20(_USDC_DAI).approve(address(pUSDCDAI), 42069);
+        IERC20(_USDC_DAI).approve(address(pUSDCDAI), 77777);
         marketManagerIsolated.listToken(address(pUSDCDAI));
 
         vm.prank(user1);
@@ -112,7 +112,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
         assertEq(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -153,7 +153,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
         assertEq(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -181,7 +181,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
 
         assertGt(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 

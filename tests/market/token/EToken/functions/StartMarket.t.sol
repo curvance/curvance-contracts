@@ -44,6 +44,6 @@ contract ETokenStartMarketTest is TestBaseEToken {
         vm.prank(address(marketManagerIsolated));
         eUSDC.startMarket(user1);
 
-        assertEq(eUSDC.totalSupply(), totalSupply + 42069);
+        assertEq(eUSDC.totalSupply(), totalSupply + 77777);
     }
 }

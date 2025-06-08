@@ -38,6 +38,6 @@ contract CompoundingWithExitFeePTokenStartMarketTest is
         vm.prank(address(marketManagerIsolated));
         pBALRETHWithExitFee.startMarket(user1);
 
-        assertEq(pBALRETHWithExitFee.totalSupply(), totalSupply + 42069);
+        assertEq(pBALRETHWithExitFee.totalSupply(), totalSupply + 77777);
     }
 }

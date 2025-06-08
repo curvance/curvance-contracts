@@ -61,7 +61,7 @@
 //     /// @custom:precondition mtoken must not already be listed
 //     /// @custom:precondition mtoken must be one of: pDAI, pUSDC
 //     function list_token_should_succeed(address mtoken) public {
-//         uint256 amount = 42069;
+//         uint256 amount = 77777;
 //         // require the token is not already listed into the marketManager
 //         require(!marketManager.isListed(mtoken));
 

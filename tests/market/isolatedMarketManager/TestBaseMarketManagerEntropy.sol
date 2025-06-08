@@ -5,7 +5,7 @@ import "./TestBaseMarketManagerMultiMarkets.sol";
 
 contract TestBaseMarketManagerEntropy is TestBaseMarketManagerMultiMarkets {
     uint256 public entropy;
-    uint256 public constant BASE_UNDERLYING_RESERVE = 42069;
+    uint256 public constant BASE_UNDERLYING_RESERVE = 77777;
 
     function _genRandom(
         uint256 _value,

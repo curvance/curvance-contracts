@@ -79,7 +79,7 @@ abstract contract BasePToken is
     uint256 internal constant _BALANCE_SLOT_SEED = 0x87a211a2;
     /// @dev The base underlying asset requirement held in order to minimize
     ///      rounding exploits, and more generally, invariant manipulation.
-    uint256 internal constant _BASE_UNDERLYING_RESERVE = 42069;
+    uint256 internal constant _BASE_UNDERLYING_RESERVE = 77777;
 
     /// @notice Address of the Market Manager linked to this contract.
     IMarketManager public immutable marketManager;

@@ -63,7 +63,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.label(address(SimplePToken), "pToken");
 
         // start market for pToken
-        uint256 startAmount = 42069;
+        uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(SimplePToken), startAmount);
         marketManager.listToken(address(SimplePToken));
@@ -77,7 +77,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.label(address(mockUnderlying), "tokenDebt");
         EToken earnToken = _deployEToken(address(mockUnderlying));
         vm.label(address(earnToken), "eToken");
-        uint256 startAmount = 42069;
+        uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(earnToken), startAmount);
         marketManager.listToken(address(earnToken));

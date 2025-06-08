@@ -112,7 +112,7 @@ contract CurvanceAuxiliaryData {
     }
 
     /// CONSTANTS ///
-    uint256 public constant MARKET_ASSET_RESERVE = 42069;
+    uint256 public constant MARKET_ASSET_RESERVE = 77777;
 
     /// STORAGE ///
 

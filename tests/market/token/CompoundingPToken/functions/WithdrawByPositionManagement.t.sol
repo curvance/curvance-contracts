@@ -90,12 +90,12 @@ contract CompoundingPTokenWithdrawByPositionManagementTest is
         eUSDC.depositReserves(1000e6);
 
         // list pBALRETH
-        _prepareBALRETH(address(this), 42069);
+        _prepareBALRETH(address(this), 77777);
         
         SafeTransferLib.safeApprove(
             _BAL_WETH_RETH_ADDRESS,
             address(pBALRETH),
-            42069
+            77777
         );
         marketManagerIsolated.listToken(address(pBALRETH));
 

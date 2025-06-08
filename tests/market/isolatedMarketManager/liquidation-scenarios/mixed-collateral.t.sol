@@ -72,11 +72,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 42069);
+        _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 42069);
+        balRETH.approve(address(pBALRETH), _ONE + 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
