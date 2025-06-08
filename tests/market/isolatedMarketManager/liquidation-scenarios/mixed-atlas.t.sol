@@ -114,7 +114,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -142,7 +142,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         // Create a dapp control user
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
 
         console2.log("SETUP COMPLETE");
@@ -230,14 +230,14 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(eUSDC), 100000e6);
 
-        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
-        marketManagerIsolated.unlockAtlasCollateral(address(eUSDC));
+        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
+        marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
         eUSDC.liquidate(
             atlasBorrowers,
             address(pBALRETH)
         );
-        marketManagerIsolated.lockAtlasCollateral();
-        marketManagerIsolated.resetAtlasParameters();
+        marketManagerIsolated.lockAuctionCollateral();
+        marketManagerIsolated.resetAuctionParameters();
         vm.stopPrank();
 
         usdc.approve(address(eUSDC), 100000e6);

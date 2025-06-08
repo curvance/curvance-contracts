@@ -314,7 +314,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -323,7 +323,7 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
         marketManagerIsolated.canBorrowWithNotify(address(eUSDC), user1, 1_000e6, 1_000e6);
 
-        (hasPosition, , ) = marketManagerIsolated.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertTrue(hasPosition);
 

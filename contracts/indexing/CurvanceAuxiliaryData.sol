@@ -224,6 +224,33 @@ contract CurvanceAuxiliaryData {
             : IEToken(token).debtBalanceCached(account);
     }
 
+    /// @notice Returns if an account has an active position in `mToken`.
+    /// @param account The address of the account to check a position of.
+    /// @param mToken The address of the market token.
+    function tokenDataOf(
+        address account,
+        address mToken
+    )
+        external
+        view
+        returns (
+            bool hasPosition,
+            uint256 balanceOf,
+            uint256 collateralPostedOf
+        )
+    {
+        IMToken mToken_ = IMToken(mToken);
+        IMarketManager marketManager = IMToken(mToken).marketManager();
+        uint256 hasPosition_ = ILiquidityManager(address(marketManager)).accountPositions(mToken, account);
+        if (hasPosition_ == 2) {
+            hasPosition = true;
+        }
+        balanceOf = mToken_.balanceOf(account);
+        if (mToken_.isPToken()) {
+            collateralPostedOf = IPToken(mToken).collateralPosted(account);
+        }
+    }
+
     /// @notice Return the debt balance of `account` based on stored data.
     /// @param account The address whose debt balance should be calculated.
     /// @return `account`'s cached balance index for `token`.

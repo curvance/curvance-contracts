@@ -50,21 +50,24 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         oracleManager.addMTokenSupport(address(eDAI));
         _prepareDAI(owner, 100e18);
         dai.approve(address(eDAI), 100e18);
-        marketManagerIsolated.listToken(address(eDAI));
-
         // Setup pToken (pUSDC)
         oracleManager.addMTokenSupport(address(pUSDC));
         _prepareUSDC(owner, 100e6);
         usdc.approve(address(pUSDC), 100e6);
-        marketManagerIsolated.listToken(address(pUSDC));
+        marketManagerIsolated.listTokens(address(pUSDC),address(eDAI));
+
+
         marketManagerIsolated.updatePositionToken(
-            address(pUSDC),
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            7000, // collRatio
+            4000, // collReqSoft
+            3000, // collReqHard
+            1000, // liqIncBase
+            1500, // liqIncHard
+            500, // liqIncMin
+            2000, // liqIncMax
+            2000, // minEffectiveCFactor
+            3000, // maxEffectiveCFactor
+            1000 // baseCFactor
         );
         address[] memory tokens = new address[](1);
         tokens[0] = address(pUSDC);

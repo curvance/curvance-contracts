@@ -20,7 +20,7 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimplePToken public cWBTC;
+    SimplePToken public pWBTC;
     UniversalBalance public universalBalance;
 
     address[] public owners;
@@ -101,17 +101,19 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
         {
             // support market
             _prepareUSDC(owner, 200_000e6);
+            _prepareBALRETH(owner, 1000e18);
             usdc.approve(address(eUSDC), 200_000e6);
-            marketManagerIsolated.listToken(address(eUSDC));
+            balRETH.approve(address(pBALRETH), 1000e18);
+            marketManagerIsolated.listTokens(address(eUSDC), address(pBALRETH));
 
             address[] memory markets = new address[](1);
             markets[0] = address(eUSDC);
         }
 
-        // deploy cWBTC
+        // deploy pWBTC
         {
             // deploy aura position vault
-            cWBTC = new SimplePToken(
+            pWBTC = new SimplePToken(
                 ICentralRegistry(address(centralRegistry)),
                 wbtc,
                 address(marketManagerIsolated)
@@ -119,23 +121,28 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
 
             // support market
             _prepareWBTC(owner, 1e8);
-            wbtc.approve(address(cWBTC), 1e8);
-            marketManagerIsolated.listToken(address(cWBTC));
+            _prepareUSDC(owner, 1000e6);    
+            wbtc.approve(address(pWBTC), 1e8);
+            usdc.approve(address(pWBTC), 1000e6);
+            marketManagerIsolated.listTokens(address(pWBTC), address(eUSDC));
             // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(cWBTC));
+            oracleManager.addMTokenSupport(address(pWBTC));
             // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(cWBTC),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
 
             address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cWBTC);
+            mTokens[0] = address(pWBTC);
             uint256[] memory caps = new uint256[](1);
             caps[0] = 100e8;
             marketManagerIsolated.setCollateralCaps(mTokens, caps);
@@ -497,12 +504,12 @@ contract TestUniversalBalance is TestBaseMarketIsolated {
     function testLentBalanceIncreased() public {
         testDeposit();
 
-        // mint cWBTC & borrow USDC
+        // mint pWBTC & borrow USDC
         _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
-        wbtc.approve(address(cWBTC), 100e8);
-        cWBTC.mint(100e8, user2);
-        cWBTC.postCollateral(100e8);
+        wbtc.approve(address(pWBTC), 100e8);
+        pWBTC.mint(100e8, user2);
+        pWBTC.postCollateral(100e8);
         eUSDC.borrow(50e6);
 
         vm.stopPrank();

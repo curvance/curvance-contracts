@@ -100,7 +100,7 @@ contract NoneLiquidated is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);

@@ -22,7 +22,7 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
     MockV3Aggregator public mockWbtcFeed;
 
-    SimplePToken public cWBTC;
+    SimplePToken public pWBTC;
     UniversalBalanceNative public universalBalanceNative;
     EToken public eWETH;
 
@@ -104,50 +104,44 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
         mockUsdcFeed.setMockUpdatedAt(block.timestamp);
         mockWbtcFeed.updateAnswer(60000e8);
 
-        // deploy eWETH
-        {
-            // support market
-            _prepareWETH(owner, 200000 ether);
-            weth.approve(address(eWETH), 200000e18);
-            marketManagerIsolated.listToken(address(eWETH));
-            // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(eWETH));
-            address[] memory markets = new address[](1);
-            markets[0] = address(eWETH);
-        }
+        _prepareWETH(owner, 200000 ether);
+        weth.approve(address(eWETH), 200000e18);
+        _prepareWBTC(owner, 1e8);
+        wbtc.approve(address(pWBTC), 1e8);
 
-        // deploy cWBTC
-        {
-            // deploy aura position vault
-            cWBTC = new SimplePToken(
-                ICentralRegistry(address(centralRegistry)),
-                wbtc,
-                address(marketManagerIsolated)
-            );
+        oracleManager.addMTokenSupport(address(eWETH));
+        address[] memory markets = new address[](1);
+        markets[0] = address(eWETH);
 
-            // support market
-            _prepareWBTC(owner, 1e8);
-            wbtc.approve(address(cWBTC), 1e8);
-            marketManagerIsolated.listToken(address(cWBTC));
-            // add MToken support on oracle manager
-            oracleManager.addMTokenSupport(address(cWBTC));
-            // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(cWBTC),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
+        pWBTC = new SimplePToken(
+            ICentralRegistry(address(centralRegistry)),
+            wbtc,
+            address(marketManagerIsolated)
+        );
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cWBTC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100e8;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
-        }
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
+
+        // add MToken support on oracle manager
+        oracleManager.addMTokenSupport(address(pWBTC));
+
+        marketManagerIsolated.listTokens(address(eWETH), address(pWBTC));
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(pWBTC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100e8;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
         owners.push(user2);
         owners.push(user3);
@@ -166,6 +160,7 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
             vm.prank(recipients[i]);
             universalBalanceNative.setDelegateApproval(user1, true);
         }
+
     }
 
     function testInitialize() public {
@@ -795,12 +790,12 @@ contract TestUniversalBalanceNative is TestBaseMarketIsolated {
     function testLentBalanceIncreased() public {
         testDeposit();
 
-        // mint cWBTC & borrow WETH
+        // mint pWBTC & borrow WETH
         _prepareWBTC(user2, 100e8);
         vm.startPrank(user2);
-        wbtc.approve(address(cWBTC), 100e8);
-        cWBTC.mint(100e8, user2);
-        cWBTC.postCollateral(100e8);
+        wbtc.approve(address(pWBTC), 100e8);
+        pWBTC.mint(100e8, user2);
+        pWBTC.postCollateral(100e8);
         eWETH.borrow(50e18);
 
         vm.stopPrank();

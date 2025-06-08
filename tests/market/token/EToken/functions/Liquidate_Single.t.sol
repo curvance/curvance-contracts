@@ -128,7 +128,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 maxAmount,
         uint256 debtToCollateralMultiplier
     ) internal view returns (uint256) {
-        (, , uint256 collateralAvailable) = marketManagerIsolated.tokenDataOf(user, address(pBALRETH));
+        (, , uint256 collateralAvailable) = curvanceAuxiliaryData.tokenDataOf(user, address(pBALRETH));
         uint256 debtAmount = maxAmount;
         uint256 liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
         if (liquidatedPTokens > collateralAvailable) {
