@@ -336,8 +336,8 @@ contract StartContractsConfig is
     function _configureMarket(
         MarketManagerIsolated market,
         ICentralRegistry cr,
-        MarketTokenDeploy PositionToken,
-        MarketTokenDeploy earnToken,
+        MarketTokenDeploy memory PositionToken,
+        MarketTokenDeploy memory earnToken,
         uint256 collateralCap,
         uint256 debtCap
     ) internal {
