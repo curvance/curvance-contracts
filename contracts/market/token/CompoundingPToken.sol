@@ -83,12 +83,11 @@ abstract contract CompoundingPToken is BaseMTokenWithYield {
 
     /// INTERNAL FUNCTIONS ///
 
-    /// @notice Updates asset values for a pending deposit request.
-    /// @param assets The amount of the underlying asset to deposit.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this deposit.
+    /// @notice Updates asset values for a pending deposit.
+    /// @param assets The amount of `asset()` to deposit.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
+    /// @param pending The yield pending to be vested during this deposit.
     function _updateAssetsForDeposit(
         uint256 assets,
         uint256 ta,
@@ -101,12 +100,11 @@ abstract contract CompoundingPToken is BaseMTokenWithYield {
         _afterDeposit(assets, 0);
     }
 
-    /// @notice Updates asset values for a pending withdrawal request.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this withdrawal.
+    /// @notice Updates asset values for a pending withdrawal.
+    /// @param assets The amount of `asset()` to withdraw.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
+    /// @param pending The yield pending to be vested during this withdrawal.
     function _updateAssetsForWithdrawal(
         uint256 assets,
         uint256 ta,

@@ -802,7 +802,7 @@ abstract contract BasePToken is
         marketManager.canMint(address(this));
 
         // Calculate any pending rewards and new total assets invariant.
-        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithPendingYield();
 
         // Check for rounding error, since we round down in previewDeposit.
         if ((shares = _previewDeposit(assets, ta)) == 0) {
@@ -831,7 +831,7 @@ abstract contract BasePToken is
         marketManager.canMint(address(this));
 
         // Calculate any pending rewards and new total assets invariant.
-        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithPendingYield();
 
         // No need to check for rounding error, previewMint rounds up.
         assets = _previewMint(shares, ta);
@@ -923,7 +923,7 @@ abstract contract BasePToken is
         _checkZeroAmount(assets);
 
         // Calculate any pending rewards and new total assets invariant.
-        (ta, pending) = _calculateTotalAssetsWithRewards();
+        (ta, pending) = _calculateTotalAssetsWithPendingYield();
         // Cache balanceOf of `owner`.
         balancePrior = balanceOf(owner);
 
@@ -988,7 +988,7 @@ abstract contract BasePToken is
         }
 
         // Calculate any pending rewards and new total assets invariant.
-        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithRewards();
+        (uint256 ta, uint256 pending) = _calculateTotalAssetsWithPendingYield();
 
         // Check for rounding error, since we round down in previewRedeem.
         if ((assets = _previewRedeem(shares, ta)) == 0) {
@@ -1468,10 +1468,10 @@ abstract contract BasePToken is
         return _convertToAssets(shares, ta);
     }
 
-    /// @notice Updates asset values for a pending deposit request.
-    /// @param assets The amount of the underlying asset to deposit.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion logic.
+    /// @notice Updates asset values for a pending deposit.
+    /// @param assets The amount of `asset()` to deposit.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
     function _updateAssetsForDeposit(
         uint256 assets,
         uint256 ta,
@@ -1483,10 +1483,10 @@ abstract contract BasePToken is
         }
     }
 
-    /// @notice Updates asset values for a pending withdrawal request.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion logic.
+    /// @notice Updates asset values for a pending withdrawal.
+    /// @param assets The amount of `asset()` to withdraw.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
     function _updateAssetsForWithdrawal(
         uint256 assets,
         uint256 ta,
@@ -1499,7 +1499,7 @@ abstract contract BasePToken is
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
     /// @return The total assets and pending rewards.
-    function _calculateTotalAssetsWithRewards()
+    function _calculateTotalAssetsWithPendingYield()
         internal
         view
         virtual

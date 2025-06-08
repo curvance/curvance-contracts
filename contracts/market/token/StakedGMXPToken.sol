@@ -76,7 +76,7 @@ contract StakedGMXPToken is CompoundingPToken {
         _canCompound();
 
         // Vest pending rewards if there are any.
-        _vestRewards(_totalAssetsWithPendingRewards());
+        _vestYield(_totalAssetsWithPendingYield());
 
         // Can only harvest once previous reward period is done.
         if (_checkVestStatus(_vaultData)) {

@@ -7,9 +7,9 @@ abstract contract BaseMTokenWithYield is BasePToken {
     /// TYPES ///
 
     /// @notice Storage format of _vaultData bitshifted data structure.
-    /// @param rewardRate The rate that the vault vests fresh rewards.
+    /// @param rewardRate The rate that the vault vests fresh yield.
     /// @param vestingPeriodEnd When the current vesting period ends.
-    /// @param lastVestClaim Last time vesting rewards were claimed.
+    /// @param lastVestClaim Last time vesting yield was claimed.
     struct VaultData {
         uint176 rewardRate;
         uint40 vestingPeriodEnd;
@@ -130,71 +130,70 @@ abstract contract BaseMTokenWithYield is BasePToken {
         nonReadReentrant
         returns (uint256)
     {
-        return _totalAssetsWithPendingRewards();
+        return _totalAssetsWithPendingYield();
     }
 
     /// @notice Returns the total amount of the underlying asset in the vault,
     ///         including pending rewards that are vested.
     /// @return The total number of underlying assets.
     function totalAssets() public view override returns (uint256) {
-        return _totalAssetsWithPendingRewards();
+        return _totalAssetsWithPendingYield();
     }
 
     /// INTERNAL FUNCTIONS ///
 
     /// @notice Returns total assets invariant.
     /// @return The total assets and pending rewards.
-    function _totalAssetsWithPendingRewards() internal view returns (uint256) {
-        return _totalAssets + _calculatePendingRewards();
+    function _totalAssetsWithPendingYield() internal view returns (uint256) {
+        return _totalAssets + _calculatePendingYield();
     }
 
     /// @notice Returns total assets invariant and any pending rewards for
     ///         depositors.
     /// @return The total assets and pending rewards.
     /// @return pending The pending rewards for depositors.
-    function _calculateTotalAssetsWithRewards()
+    function _calculateTotalAssetsWithPendingYield()
         internal
         view
         override
         returns (uint256, uint256)
     {
-        // Cache _totalAssets and pendingRewards.
-        uint256 pending = _calculatePendingRewards();
+        // Cache _totalAssets and pendingYield.
+        uint256 pending = _calculatePendingYield();
         return (_totalAssets + pending, pending);
     }
 
-    /// @notice Updates asset values for a pending deposit request.
-    /// @param assets The amount of the underlying asset to deposit.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this deposit.
+    /// @notice Updates asset values for a pending deposit.
+    /// @param assets The amount of `asset()` to deposit.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
+    /// @param pending The yield pending to be vested during this deposit.
     function _updateAssetsForDeposit(
         uint256 assets,
         uint256 ta,
         uint256 pending
     ) internal override virtual {
         unchecked {
-            // We know that this will not overflow as rewards are partly vested,
-            // and assets added and have not overflown from those operations.
+            // We know that this will not overflow as rewards are partly
+            // vested, and assets added and have not overflown from those
+            // operations.
             ta = ta + assets;
         }
 
         // Vest rewards, if there are any, then update `_totalAssets`
         // invariant.
         if (pending > 0) {
-            _vestRewards(ta);
+            _vestYield(ta);
         } else {
             _totalAssets = ta;
         }
     }
 
-    /// @notice Updates asset values for a pending withdrawal request.
-    /// @param assets The amount of the underlying asset to withdraw.
-    /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
-    /// @param pending The current rewards that are pending and will be vested
-    ///                during this withdrawal.
+    /// @notice Updates asset values for a pending withdrawal.
+    /// @param assets The amount of `asset()` to withdraw.
+    /// @param ta The current asset total for assets to shares conversion
+    ///           logic.
+    /// @param pending The yield pending to be vested during this withdrawal.
     function _updateAssetsForWithdrawal(
         uint256 assets,
         uint256 ta,
@@ -206,7 +205,7 @@ abstract contract BaseMTokenWithYield is BasePToken {
         // Vest rewards, if there are any, then update `_totalAssets`
         // invariant.
         if (pending > 0) {
-            _vestRewards(ta);
+            _vestYield(ta);
         } else {
             _totalAssets = ta;
         }
@@ -302,30 +301,30 @@ abstract contract BaseMTokenWithYield is BasePToken {
         _vaultData = packedVaultData;
     }
 
-    /// @notice Calculates pending rewards that have been vested.
-    /// @dev If there are no pending rewards or the vesting period has ended,
+    /// @notice Calculates pending yield that have been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
     ///      it returns 0.
-    /// @return pendingRewards The calculated pending rewards.
-    function _calculatePendingRewards()
+    /// @return pendingYield The calculated pending yield.
+    function _calculatePendingYield()
         internal
         view
-        returns (uint256 pendingRewards)
+        returns (uint256 pendingYield)
     {
         VaultData memory vaultData = _unpackedVaultData(_vaultData);
-        // Check whether there are pending rewards vesting.
+        // Check whether there are pending yield vesting.
         if (
             vaultData.rewardRate > 0 &&
             vaultData.lastVestClaim < vaultData.vestingPeriodEnd
         ) {
-            // When calculating pending rewards:
-            // pendingRewards =
+            // When calculating pending yield:
+            // pendingYield =
             // If the vesting period has not ended:
             // PR = rewardRate * (block.timestamp - lastTimeVestClaimed).
             // If the vesting period has ended:
             // PR = rewardRate * (vestingPeriodEnd - lastTimeVestClaimed)).
             // Then in either case:
-            // Divide the pending rewards by `WAD` (1e18) for precision.
-            pendingRewards =
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
                 (
                     block.timestamp < vaultData.vestingPeriodEnd
                         ? (vaultData.rewardRate *
@@ -338,11 +337,11 @@ abstract contract BaseMTokenWithYield is BasePToken {
         }
     }
 
-    /// @notice Vests pending rewards, and updates vault data.
+    /// @notice Vests pending yield, and updates vault data.
     /// @param currentAssets The current assets of the vault, this is called
     ///                      with the previous total amount plus pending yield
     ///                      to recognize from time based vesting.
-    function _vestRewards(uint256 currentAssets) internal {
+    function _vestYield(uint256 currentAssets) internal {
         // Update the lastVestClaim timestamp.
         _setlastVestClaim(uint40(block.timestamp));
 
