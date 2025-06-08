@@ -794,7 +794,7 @@ abstract contract BasePToken is
     function _deposit(
         uint256 assets,
         address receiver
-    ) internal returns (uint256 shares) {
+    ) internal virtual returns (uint256 shares) {
         _checkZeroAmount(assets);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
@@ -823,7 +823,7 @@ abstract contract BasePToken is
     function _mint(
         uint256 shares,
         address receiver
-    ) internal returns (uint256 assets) {
+    ) internal virtual returns (uint256 assets) {
         _checkZeroAmount(shares);
 
         // Fail if mint not allowed, this stands in for a maxMint
@@ -858,7 +858,7 @@ abstract contract BasePToken is
         address receiver,
         address owner,
         bool forceRedeemCollateral
-    ) internal returns (uint256) {
+    ) internal virtual returns (uint256) {
         (
             uint256 ta,
             uint256 pending,
@@ -957,7 +957,7 @@ abstract contract BasePToken is
         address owner,
         bool delegatedAction,
         bool forceRedeemCollateral
-    ) internal returns (uint256 assets) {
+    ) internal virtual returns (uint256 assets) {
         _checkZeroAmount(shares);
 
         // Validate caller is allowed to withdraw `shares` on behalf of
@@ -968,8 +968,8 @@ abstract contract BasePToken is
             _updateAllowance(owner, shares);
         }
 
-        // Check whether `shares` is above max allowed redemption.
-        if (shares > maxRedeem(owner)) {
+        // Check whether `shares` is above their allowed redemption limit.
+        if (shares > balanceOf(owner)) {
             _revert(_INSUFFICIENT_SHARES_SELECTOR);
         }
 
@@ -1471,7 +1471,7 @@ abstract contract BasePToken is
     /// @notice Updates asset values for a pending deposit request.
     /// @param assets The amount of the underlying asset to deposit.
     /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
+    ///           conversion logic.
     function _updateAssetsForDeposit(
         uint256 assets,
         uint256 ta,
@@ -1486,7 +1486,7 @@ abstract contract BasePToken is
     /// @notice Updates asset values for a pending withdrawal request.
     /// @param assets The amount of the underlying asset to withdraw.
     /// @param ta The current total number of assets for assets to shares
-    ///           conversion.
+    ///           conversion logic.
     function _updateAssetsForWithdrawal(
         uint256 assets,
         uint256 ta,

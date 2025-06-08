@@ -339,12 +339,15 @@ abstract contract BaseMTokenWithYield is BasePToken {
     }
 
     /// @notice Vests pending rewards, and updates vault data.
-    /// @param currentAssets The current assets of the vault.
+    /// @param currentAssets The current assets of the vault, this is called
+    ///                      with the previous total amount plus pending yield
+    ///                      to recognize from time based vesting.
     function _vestRewards(uint256 currentAssets) internal {
         // Update the lastVestClaim timestamp.
         _setlastVestClaim(uint40(block.timestamp));
 
-        // Set internal _totalAssets balance to `currentAssets`.
+        // Set internal _totalAssets balance to `currentAssets` which is the
+        // current _totalAssets values plus pending yield.
         _totalAssets = currentAssets;
     }
 
