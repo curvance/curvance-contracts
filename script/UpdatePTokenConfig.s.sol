@@ -48,12 +48,15 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
         require(pToken != address(0), "Set the pToken!");
 
         MarketManagerIsolated(marketManager).updatePositionToken(
-            pToken,
             _readConfigUint256(string.concat(pathName, ".collRatio")),
-            _readConfigUint256(string.concat(pathName, ".collReqA")),
-            _readConfigUint256(string.concat(pathName, ".collReqB")),
-            _readConfigUint256(string.concat(pathName, ".liqIncA")),
-            _readConfigUint256(string.concat(pathName, ".liqIncB")),
+            _readConfigUint256(string.concat(pathName, ".collReqSoft")),
+            _readConfigUint256(string.concat(pathName, ".collReqHard")),
+            _readConfigUint256(string.concat(pathName, ".liqIncBase")),
+            _readConfigUint256(string.concat(pathName, ".liqIncHard")),
+            _readConfigUint256(string.concat(pathName, ".liqIncMin")),
+            _readConfigUint256(string.concat(pathName, ".liqIncMax")),
+            _readConfigUint256(string.concat(pathName, ".minEffectiveCFactor"))
+            _readConfigUint256(string.concat(pathName, ".maxEffectiveCFactor"))
             _readConfigUint256(string.concat(pathName, ".baseCFactor"))
         );
         console.log("updatePositionToken");

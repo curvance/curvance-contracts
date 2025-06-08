@@ -359,14 +359,16 @@ contract StartContractsConfig is
         );
         market.listTokens(pTokenToList, eTokenToList);
         market.updatePositionToken(
-            // From FuzzMarketManager -> setup()
-            pTokenToList,
-            7000,
-            4000,
-            3000,
-            200,
-            400,
-            1000
+            9200, // collRatio 92%
+            830,  // collReqSoft 8.3%
+            650,  // collReqHard 6.5%
+            500,  // liqIncBase 5%
+            550,  // liqIncHard 5.5%
+            300,  // liqIncMin 3%
+            550,  // liqIncMax 5.5% 
+            2000, // minEffectiveCFactor 20%
+            5000, // maxEffectiveCFactor 50%
+            2000  // baseCFactor 20%
         );
 
         address[] memory mTokens = new address[](1);
@@ -606,7 +608,7 @@ contract StartContractsConfig is
         bytes memory redstonePayload = getRedstoneApiPayload(
             underlyingToken.symbol()
         );
-        adaptor.adaptorDataUSD(address(underlyingToken));
+        adaptor.adaptorData(address(underlyingToken), true);
         bytes memory encodedFunction = abi.encodeWithSignature(
             "writePrice(address,bool)",
             address(underlyingToken),
