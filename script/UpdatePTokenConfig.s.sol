@@ -55,8 +55,8 @@ contract UpdatePTokenConfig is Script, DeployConfiguration {
             _readConfigUint256(string.concat(pathName, ".liqIncHard")),
             _readConfigUint256(string.concat(pathName, ".liqIncMin")),
             _readConfigUint256(string.concat(pathName, ".liqIncMax")),
-            _readConfigUint256(string.concat(pathName, ".minEffectiveCFactor"))
-            _readConfigUint256(string.concat(pathName, ".maxEffectiveCFactor"))
+            _readConfigUint256(string.concat(pathName, ".minEffectiveCFactor")),
+            _readConfigUint256(string.concat(pathName, ".maxEffectiveCFactor")),
             _readConfigUint256(string.concat(pathName, ".baseCFactor"))
         );
         console.log("updatePositionToken");

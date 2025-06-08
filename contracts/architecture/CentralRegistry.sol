@@ -943,7 +943,8 @@ contract CentralRegistry is ERC165, ActionRegistry {
         }
     }
 
-    /// @notice Adds a new Market Manager and corresponding fee configurations.
+    /// @notice Adds a new Market Manager and corresponding fee
+    ///         configurations.
     /// @dev Only callable on a 5-day delay or by the Emergency Council,
     ///      can only have a maximum value of 50% interest fee.
     ///      Cannot be a supported Market Manager contract prior.
