@@ -20,8 +20,9 @@ contract RemoveMarketManagerTest is TestBaseMarketIsolated {
     address public newMarket;
 
     event PermissionsUpdated(
-        string indexed contractType,
-        address removedAddress
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
     );
 
     function setUp() public virtual override {

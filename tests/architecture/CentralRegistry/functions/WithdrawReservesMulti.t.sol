@@ -10,20 +10,13 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
     function setUp() public override {
         super.setUp();
 
-        eTokens.push(address(eUSDC));
         eTokens.push(address(eDAI));
 
-        _prepareUSDC(address(this), 1000e6);
         _prepareDAI(address(this), 1000e18);
 
-        usdc.approve(address(eUSDC), 1000e6);
         dai.approve(address(eDAI), 1000e18);
 
-        marketManagerIsolated.listToken(address(eUSDC));
-        marketManagerIsolated.listToken(address(eDAI));
-
-        eUSDC.depositReserves(100e6);
-        eDAI.depositReserves(100e18);
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
     }
 
     function test_withdrawReservesMulti_fail_whenCallerIsNotAuthorized()
@@ -38,7 +31,6 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
     }
 
     function test_withdrawReservesMulti_fail_whenETokensLengthIsZero() public {
-        eTokens.pop();
         eTokens.pop();
 
         vm.expectRevert(
@@ -58,12 +50,10 @@ contract WithdrawReservesMultiTest is TestBaseMarketIsolated {
     }
 
     function test_withdrawReservesMulti_success() public {
-        assertEq(usdc.balanceOf(address(eUSDC)), 100e6 + 42069);
         assertEq(dai.balanceOf(address(eDAI)), 100e18 + 42069);
 
         centralRegistry.withdrawReservesMulti(eTokens);
 
-        assertEq(usdc.balanceOf(address(eUSDC)), 42069);
         assertEq(dai.balanceOf(address(eDAI)), 42069);
     }
 }

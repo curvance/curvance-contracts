@@ -16,7 +16,11 @@ contract Market {
 contract AddMarketManagerTest is TestBaseMarketIsolated {
     address public newMarket;
 
-    event PermissionsUpdated(string indexed contractType, address newAddress);
+    event PermissionsUpdated(
+        string indexed permissionsType,
+        address addressUpdated,
+        bool isAdded
+    );
 
     function setUp() public virtual override {
         super.setUp();
