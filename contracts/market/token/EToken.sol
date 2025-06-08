@@ -56,11 +56,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @dev Data for a market. 
     /// @param lastTimestampUpdated Timestamp interest was last update.
     /// @param exchangeRate Borrow exchange rate at `lastTimestampUpdated`.
-    /// @param compoundRate Rate at which interest compounds, in seconds.
+    /// @param accrualPeriod Rate at which interest compounds, in seconds.
     struct MarketData {
         uint40 lastTimestampUpdated;
         uint216 exchangeRate;
-        uint256 compoundRate;
+        uint256 accrualPeriod;
     }
 
     /// CONSTANTS ///
@@ -127,7 +127,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     event NewMarketInterestRateModel(
         address oldInterestRateModel,
         address newInterestRateModel,
-        uint256 newInterestCompoundRate
+        uint256 newInterestAccrualPeriod
     );
     event NewInterestFactor(
         uint256 oldInterestFactor,
@@ -734,7 +734,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // If we are up to date there is no reason to continue.
         if (
-            cachedData.lastTimestampUpdated + cachedData.compoundRate >
+            cachedData.lastTimestampUpdated + cachedData.accrualPeriod >
             timestamp
         ) {
             return debtBalanceCached(account);
@@ -762,7 +762,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Calculate the interest compound cycles to update,
         // in `interestCompounds`. Rounds down natively.
         uint256 interestCompounds = (timestamp -
-            cachedData.lastTimestampUpdated) / cachedData.compoundRate;
+            cachedData.lastTimestampUpdated) / cachedData.accrualPeriod;
         // Calculate the interest and debt accumulated.
         uint256 interestAccumulated = borrowRate * interestCompounds;
         uint256 exchangeRateNew = ((interestAccumulated * exchangeRatePrior) /
@@ -908,7 +908,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @notice Applies pending interest to all holders, updating
     ///         `totalBorrows` and `totalReserves`.
     /// @dev This calculates interest accrued from the last checkpoint
-    ///      up to the latest available checkpoint, if `compoundRate`
+    ///      up to the latest available checkpoint, if `accrualPeriod`
     ///      seconds has passed.
     ///      Emits a {InterestAccrued} event.
     function accrueInterest() public {
@@ -917,7 +917,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // If we are up to date there is no reason to continue.
         if (
-            cachedData.lastTimestampUpdated + cachedData.compoundRate >
+            cachedData.lastTimestampUpdated + cachedData.accrualPeriod >
             block.timestamp
         ) {
             return;
@@ -938,7 +938,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // Calculate the interest compound cycles to update,
         // in `interestCompounds`. Rounds down natively.
         uint256 interestCompounds = (block.timestamp -
-            cachedData.lastTimestampUpdated) / cachedData.compoundRate;
+            cachedData.lastTimestampUpdated) / cachedData.accrualPeriod;
         // Calculate the interest and debt accumulated.
         uint256 interestAccumulated = borrowRate * interestCompounds;
         uint256 debtAccumulated = (interestAccumulated * borrowsPrior) / WAD;
@@ -951,7 +951,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         // borrows.
         marketData.lastTimestampUpdated = uint40(
             cachedData.lastTimestampUpdated +
-                (interestCompounds * cachedData.compoundRate)
+                (interestCompounds * cachedData.accrualPeriod)
         );
         marketData.exchangeRate = uint216(exchangeRateNew);
 
@@ -997,12 +997,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         // Set new interest rate model and compound rate.
         interestRateModel = newInterestRateModel;
-        marketData.compoundRate = newInterestRateModel.compoundRate();
+        marketData.accrualPeriod = newInterestRateModel.accrualPeriod();
 
         emit NewMarketInterestRateModel(
             oldInterestRateModel,
             address(newInterestRateModel),
-            marketData.compoundRate
+            marketData.accrualPeriod
         );
     }
 

@@ -400,7 +400,7 @@ abstract contract BasePToken is
     /// @return The snapshot of the pToken and `account` data.
     function getSnapshot(
         address account
-    ) external view returns (AccountSnapshot memory) {
+    ) external view virtual returns (AccountSnapshot memory) {
         return (
             AccountSnapshot({
                 asset: address(this),

@@ -132,7 +132,7 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// @notice Rate at which interest is compounded, in seconds.
     /// @dev 10 minutes = 600 seconds.
-    uint256 public constant INTEREST_COMPOUND_RATE = 10 minutes;
+    uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     /// @notice Maximum Rate at which the vertex multiplier will
     ///         decay per adjustment, in `WAD`.
     /// @dev .05e18 = 5%.
@@ -434,7 +434,7 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getPredictedBorrowRate(underlyingHeld, borrows, reserves) /
-                INTEREST_COMPOUND_RATE);
+                INTEREST_ACCRUAL_PERIOD);
     }
 
     /// @notice Calculates the current borrow rate per year.
@@ -451,7 +451,7 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getBorrowRate(underlyingHeld, borrows, reserves) /
-                INTEREST_COMPOUND_RATE);
+                INTEREST_ACCRUAL_PERIOD);
     }
 
     /// @notice Calculates the current supply rate per year.
@@ -471,13 +471,13 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getSupplyRate(underlyingHeld, borrows, reserves, interestFee) /
-                INTEREST_COMPOUND_RATE);
+                INTEREST_ACCRUAL_PERIOD);
     }
 
-    /// @notice Returns the rate at which interest compounds, in seconds.
-    /// @return The rate at which interest compounds, in seconds.
-    function compoundRate() external pure returns (uint256) {
-        return INTEREST_COMPOUND_RATE;
+    /// @notice Returns the rate at which interest accrues, in seconds.
+    /// @return The rate at which interest accrues, in seconds.
+    function accrualPeriod() external pure returns (uint256) {
+        return INTEREST_ACCRUAL_PERIOD;
     }
 
     /// @notice Returns the unpacked values from `_currentRates`.
@@ -738,10 +738,10 @@ contract DynamicInterestRateModel is ERC165 {
         RatesConfiguration storage config = ratesConfig;
 
         config.baseInterestRate =
-            (INTEREST_COMPOUND_RATE * baseRatePerYear * WAD) /
+            (INTEREST_ACCRUAL_PERIOD * baseRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * vertexUtilStart);
         config.vertexInterestRate =
-            (INTEREST_COMPOUND_RATE * vertexRatePerYear * WAD) /
+            (INTEREST_ACCRUAL_PERIOD * vertexRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * (WAD - vertexUtilStart));
 
         config.vertexStartingPoint = vertexUtilStart;
