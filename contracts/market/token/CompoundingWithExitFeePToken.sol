@@ -42,8 +42,14 @@ abstract contract CompoundingWithExitFeePToken is CompoundingPToken {
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        uint256 exitFee_
-    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        uint256 exitFee_,
+        uint256 vestPeriod_
+    ) CompoundingPToken(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestPeriod_
+    ) {
         _setExitFee(exitFee_);
     }
 

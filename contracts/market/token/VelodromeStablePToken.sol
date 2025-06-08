@@ -50,15 +50,6 @@ contract VelodromeStablePToken is CompoundingPToken {
     /// @notice StrategyData packed configuration data.
     StrategyData public strategyData;
 
-    /// @notice Whether a particular token address is an underlying token
-    ///         of this sAMM LP.
-    /// @dev Token => Is underlying token.
-    mapping(address => bool) public isUnderlyingToken;
-
-    /// EVENTS ///
-
-    event Harvest(uint256 yield);
-
     /// ERRORS ///
 
     error VelodromeStablePToken__InvalidAssetType();
@@ -72,8 +63,14 @@ contract VelodromeStablePToken is CompoundingPToken {
         address marketManager_,
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
-        IVeloRouter router
-    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        IVeloRouter router,
+        vestPeriod_
+    ) CompoundingPToken(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestPeriod_
+    ) {
         _validateChainDeployment();
 
         address chainRewardToken;
@@ -148,7 +145,7 @@ contract VelodromeStablePToken is CompoundingPToken {
         _canCompound();
 
         // Vest pending rewards if there are any.
-        _vestIfNeeded();
+        _vestRewards(_totalAssetsWithPendingRewards());
 
         // Can only harvest once previous reward period is done.
         if (_checkVestStatus(_vaultData)) {

@@ -377,26 +377,6 @@ abstract contract BasePToken is
         _removeCollateral(msg.sender, shares);
     }
 
-    /// @notice Returns the underlying balance of the `account`, safely.
-    /// @dev Has added re-entry lock for protocols building ontop of Curvance
-    ///      Protocol to have confidence in data quality.
-    /// @param account The address of the account to query.
-    /// @return The amount of underlying owned by `account`.
-    function balanceOfUnderlyingSafe(
-        address account
-    ) external view returns (uint256) {
-        return (convertToAssetsSafe(balanceOf(account)) / WAD);
-    }
-
-    /// @notice Returns the underlying balance of the `account`.
-    /// @param account The address of the account to query.
-    /// @return The amount of underlying owned by `account`.
-    function balanceOfUnderlying(
-        address account
-    ) external view returns (uint256) {
-        return (convertToAssets(balanceOf(account)) / WAD);
-    }
-
     /// @notice Returns share -> asset exchange rate, in `WAD`, safely.
     /// @dev Has added re-entry lock for protocols building ontop of Curvance
     ///      Protocol to have confidence in data quality.
@@ -662,6 +642,13 @@ abstract contract BasePToken is
     /// @dev true = Position token; false = Debt token.
     /// @return Whether this token is a pToken or not.
     function isPToken() public pure returns (bool) {
+        return true;
+    }
+
+    /// @notice Returns whether the underlying token can be collateralized.
+    /// @dev true = Collateralizable; false = Not Collateralizable.
+    /// @return Whether this token is collateralizable or not.
+    function isCollateralizable() public pure virtual returns (bool) {
         return true;
     }
 

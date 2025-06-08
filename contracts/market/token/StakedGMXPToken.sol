@@ -24,10 +24,6 @@ contract StakedGMXPToken is CompoundingPToken {
     ///         yield to staked GMX positions.
     IRewardRouter public rewardRouter;
 
-    /// EVENTS ///
-
-    event Harvest(uint256 yield);
-
     /// ERRORS ///
 
     error StakedGMXPToken__SlippageError();
@@ -42,8 +38,14 @@ contract StakedGMXPToken is CompoundingPToken {
         IERC20 asset_, // GMX
         address marketManager_,
         address rewardRouter_,
-        address weth_
-    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        address weth_,
+        vestPeriod_
+    ) CompoundingPToken(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestPeriod_
+    ) {
         if (block.chainid != _ARBITRUM_CHAIN_ID) {
             revert StakedGMXPToken__ChainIsNotSupported();
         }
@@ -74,7 +76,7 @@ contract StakedGMXPToken is CompoundingPToken {
         _canCompound();
 
         // Vest pending rewards if there are any.
-        _vestIfNeeded();
+        _vestRewards(_totalAssetsWithPendingRewards());
 
         // Can only harvest once previous reward period is done.
         if (_checkVestStatus(_vaultData)) {

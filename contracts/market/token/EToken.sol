@@ -662,16 +662,6 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         return true;
     }
 
-    /// @notice Updates pending interest and returns the up-to-date balance
-    ///         of `account`, in underlying assets, safely.
-    /// @param account The account address to have their balance measured.
-    /// @return The amount of underlying owned by `account`.
-    function balanceOfUnderlyingSafe(
-        address account
-    ) external returns (uint256) {
-        return ((exchangeRateWithUpdateSafe() * balanceOf[account]) / WAD);
-    }
-
     /// @notice Get a snapshot of the eToken and `account` data.
     /// @dev Used by marketManager to more efficiently perform
     ///      liquidity checks.

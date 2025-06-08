@@ -224,6 +224,19 @@ contract CurvanceAuxiliaryData {
             : IEToken(token).debtBalanceCached(account);
     }
 
+    /// @notice Returns the `mToken` underlying balance of the `account`.
+    /// @param account The address of the account to query.
+    /// @param mToken The address of the token to query underlying balance of.
+    /// @return The amount of `mToken` underlying owned by `account`.
+    function getAccountBalanceOfUnderlying(
+        address account,
+        address mToken
+    ) public view returns (uint256) {
+        return (IMToken(mToken).convertToAssets(
+            IMToken(mToken).balanceOf(account)
+        ) / WAD);
+    }
+
     /// @notice Return the debt balance of `account` based on stored data.
     /// @param account The address whose debt balance should be calculated.
     /// @return `account`'s cached balance index for `token`.

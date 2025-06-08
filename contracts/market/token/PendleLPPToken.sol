@@ -40,23 +40,20 @@ contract PendleLPPToken is CompoundingPToken {
     /// @notice StrategyData packed configuration data.
     StrategyData public strategyData;
 
-    /// @notice Whether a particular token address is an underlying token
-    ///         of this Pendle LP token.
-    /// @dev Token => Is underlying token.
-    mapping(address => bool) public isUnderlyingToken;
-
-    /// EVENTS ///
-
-    event Harvest(uint256 yield);
-
     /// CONSTRUCTOR ///
 
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
         address marketManager_,
-        IPendleRouter router_
-    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        IPendleRouter router_,
+        vestPeriod_
+    ) CompoundingPToken(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestPeriod_
+    ) {
         strategyData.router = router_;
         strategyData.lp = IPMarket(address(asset_));
         // Query actual Pendle pool configuration data.
@@ -131,7 +128,7 @@ contract PendleLPPToken is CompoundingPToken {
         _canCompound();
 
         // Vest pending rewards if there are any.
-        _vestIfNeeded();
+        _vestRewards(_totalAssetsWithPendingRewards());
 
         // Can only harvest once previous reward period is done.
         if (_checkVestStatus(_vaultData)) {

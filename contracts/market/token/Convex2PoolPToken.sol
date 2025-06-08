@@ -46,15 +46,6 @@ contract Convex2PoolPToken is CompoundingPToken {
     /// @notice StrategyData packed configuration data.
     StrategyData public strategyData;
 
-    /// @notice Whether a particular token address is an underlying token
-    ///         of this Curve 2Pool LP.
-    /// @dev Token => Is underlying token.
-    mapping(address => bool) public isUnderlyingToken;
-
-    /// EVENTS ///
-
-    event Harvest(uint256 yield);
-
     /// ERRORS ///
 
     error Convex2PoolPToken__UnsafePool();
@@ -70,8 +61,14 @@ contract Convex2PoolPToken is CompoundingPToken {
         address marketManager_,
         uint256 pid_,
         address rewarder_,
-        address booster_
-    ) CompoundingPToken(centralRegistry_, asset_, marketManager_) {
+        address booster_,
+        vestPeriod_
+    ) CompoundingPToken(
+        centralRegistry_,
+        asset_,
+        marketManager_,
+        vestPeriod_
+    ) {
         if (block.chainid != 1) {
             revert Convex2PoolPToken__UnsafePool();
         }
@@ -162,7 +159,7 @@ contract Convex2PoolPToken is CompoundingPToken {
         _canCompound();
 
         // Vest pending rewards if there are any.
-        _vestIfNeeded();
+        _vestRewards(_totalAssetsWithPendingRewards());
 
         // Can only harvest once previous reward period is done.
         if (_checkVestStatus(_vaultData)) {
