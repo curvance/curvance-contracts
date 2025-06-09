@@ -1163,9 +1163,9 @@ contract MarketManagerIsolated is
     ///         before liquidations are tried to enforce that 
     ///         only a specific collateral can be liquidated.
     function unlockAuctionCollateral(address collateralToUnlock) external {
-        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         _checkAuctionPermissions();
 
+        uint256 collateralToUnlockUint = uint256(uint160(collateralToUnlock));
         /// @solidity memory-safe-assembly
         assembly {
             tstore(_TRANSIENT_COLLATERAL_UNLOCKED_KEY, collateralToUnlockUint)
