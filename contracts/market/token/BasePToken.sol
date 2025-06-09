@@ -114,8 +114,7 @@ abstract contract BasePToken is
 
     /// ERRORS ///
 
-    error BasePToken__EmptyAction();
-    error BasePToken__ZeroShares();
+    error BasePToken__ZeroAmount();
     error BasePToken__InsufficientShares();
     error BasePToken__InsufficientAssets();
     error BasePToken__InsufficientCollateral();
@@ -789,7 +788,7 @@ abstract contract BasePToken is
 
         // Check for rounding error, since we round down in previewDeposit.
         if ((shares = _previewDeposit(assets, ta)) == 0) {
-            revert BasePToken__ZeroShares();
+            revert BasePToken__ZeroAmount();
         }
 
         // Execute deposit.
@@ -1201,9 +1200,7 @@ abstract contract BasePToken is
     ) internal {
         _checkZeroAmount(shares);
 
-        uint256 balanceOfCached = balanceOf(owner);
         uint256 collateralPostedCached = collateralPosted[owner];
-
         if (collateralPostedCached < shares) {
             revert BasePToken__InsufficientCollateral();
         }
@@ -1211,7 +1208,7 @@ abstract contract BasePToken is
         marketManager.canRedeemWithCollateralRemoval(
             address(this),
             owner,
-            balanceOfCached,
+            balanceOf(owner),
             collateralPostedCached,
             shares,
             true
@@ -1230,6 +1227,7 @@ abstract contract BasePToken is
         uint256 shares
     ) internal {
         _checkZeroAmount(shares);
+        
         // Fails if transfer not allowed.
         uint256 collateralToRemove = marketManager.canTransferPToken(
             address(this),
@@ -1505,7 +1503,7 @@ abstract contract BasePToken is
     /// @notice Checks to make sure an action is not an empty action.
     function _checkZeroAmount(uint256 amount) internal pure {
         if (amount == 0) {
-            revert BasePToken__EmptyAction();
+            revert BasePToken__ZeroAmount();
         }
     }
 

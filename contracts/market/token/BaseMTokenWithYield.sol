@@ -28,8 +28,7 @@ abstract contract BaseMTokenWithYield is BasePToken {
     /// CONSTANTS ///
 
     /// @notice The maximum length of time between vesting periods.
-    uint256 public constant MAXIMUM_VEST_PERIOD = 3 days;
-
+    uint256 internal constant _MAXIMUM_VEST_PERIOD = 3 days;
     /// @dev Mask of reward rate entry in packed vault data.
     uint256 internal constant _BITMASK_REWARD_RATE = (1 << 176) - 1;
     /// @dev Mask of a timestamp entry in packed vault data.
@@ -70,7 +69,7 @@ abstract contract BaseMTokenWithYield is BasePToken {
         address marketManager_,
         uint256 vestPeriod_
     ) BasePToken(centralRegistry_, asset_, marketManager_) {
-        if (vestPeriod_ > MAXIMUM_VEST_PERIOD) {
+        if (vestPeriod_ > _MAXIMUM_VEST_PERIOD) {
             revert BaseMTokenWithYield__InvalidVestPeriod();
         }
         vestPeriod = vestPeriod_;
@@ -110,7 +109,7 @@ abstract contract BaseMTokenWithYield is BasePToken {
     function setVestingPeriod(uint256 newVestingPeriod) external {
         _checkDaoPermissions();
 
-        if (newVestingPeriod > MAXIMUM_VEST_PERIOD) {
+        if (newVestingPeriod > _MAXIMUM_VEST_PERIOD) {
             revert BaseMTokenWithYield__InvalidVestPeriod();
         }
 

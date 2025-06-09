@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { BaseMTokenWithYield, FixedPointMathLib, SafeTransferLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseMTokenWithYield.sol";
+import { BaseMTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseMTokenWithYield.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
 
 /// @notice Vault Positions must have all assets ready for withdraw,
 ///         IE assets can NOT be locked.
@@ -16,11 +17,17 @@ abstract contract CompoundingPToken is BaseMTokenWithYield {
     /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
     uint256 public compoundingPaused = 2;
 
-    /// @dev Approved assets for swap input.
-    mapping(address => bool) public isApprovedAsset;
+    /// @notice Whether a particular token is an approved asset for swapping.
+    /// @dev Token => Is approved swap token.
+    mapping(address => bool) internal _isApprovedAsset;
+    /// @notice Whether a particular token is an underlying token
+    ///         of this strategy.
+    /// @dev Token => Is underlying token.
+    mapping(address => bool) internal _isUnderlyingToken;
 
     /// EVENTS ///
 
+    event Harvest(uint256 yield);
     event CompoundingPaused(bool pauseState);
 
     /// ERRORS ///

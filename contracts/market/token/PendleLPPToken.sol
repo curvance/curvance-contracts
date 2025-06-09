@@ -47,7 +47,7 @@ contract PendleLPPToken is CompoundingPToken {
         IERC20 asset_,
         address marketManager_,
         IPendleRouter router_,
-        vestPeriod_
+        uint256 vestPeriod_
     ) CompoundingPToken(
         centralRegistry_,
         asset_,
@@ -82,7 +82,7 @@ contract PendleLPPToken is CompoundingPToken {
 
         // Remove approved tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            isApprovedAsset[currentTokens[i++]] = false;
+            _isApprovedAsset[currentTokens[i++]] = false;
         }
 
         delete strategyData.rewardTokens;
@@ -96,7 +96,7 @@ contract PendleLPPToken is CompoundingPToken {
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[currentTokens[i++]] = false;
+            _isUnderlyingToken[currentTokens[i++]] = false;
         }
 
         _queryTokens();
@@ -186,8 +186,8 @@ contract PendleLPPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (
-                        !isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !_isUnderlyingToken[swapDataArray[i].outputToken]
                     ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
@@ -278,7 +278,7 @@ contract PendleLPPToken is CompoundingPToken {
         for (uint256 i; i < numTokens; ) {
             address rewardToken = currentTokens[i++];
             if (rewardToken != asset()) {
-                isApprovedAsset[rewardToken] = true;
+                _isApprovedAsset[rewardToken] = true;
             }
         }
 
@@ -290,7 +290,7 @@ contract PendleLPPToken is CompoundingPToken {
         numTokens = currentTokens.length;
 
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[currentTokens[i++]] = true;
+            _isUnderlyingToken[currentTokens[i++]] = true;
         }
     }
 }

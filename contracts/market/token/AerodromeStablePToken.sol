@@ -18,7 +18,8 @@ contract AerodromeStablePToken is VelodromeStablePToken {
         address marketManager_,
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
-        IVeloRouter router
+        IVeloRouter router,
+        uint256 vestPeriod_
     )
         VelodromeStablePToken(
             centralRegistry_,
@@ -26,7 +27,8 @@ contract AerodromeStablePToken is VelodromeStablePToken {
             marketManager_,
             gauge,
             pairFactory,
-            router
+            router,
+            vestPeriod_
         )
     {}
 

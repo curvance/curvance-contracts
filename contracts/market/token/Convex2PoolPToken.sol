@@ -62,7 +62,7 @@ contract Convex2PoolPToken is CompoundingPToken {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        vestPeriod_
+        uint256 vestPeriod_
     ) CompoundingPToken(
         centralRegistry_,
         asset_,
@@ -119,7 +119,7 @@ contract Convex2PoolPToken is CompoundingPToken {
 
         // Remove approved tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            isApprovedAsset[rewardTokens[i++]] = false;
+            _isApprovedAsset[rewardTokens[i++]] = false;
         }
 
         // Wipe current reward tokens data.
@@ -134,7 +134,7 @@ contract Convex2PoolPToken is CompoundingPToken {
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[currentTokens[i++]] = false;
+            _isUnderlyingToken[currentTokens[i++]] = false;
         }
 
         // Wipe current underlying tokens data.
@@ -210,8 +210,8 @@ contract Convex2PoolPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (
-                        !isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !_isUnderlyingToken[swapDataArray[i].outputToken]
                     ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
@@ -261,12 +261,12 @@ contract Convex2PoolPToken is CompoundingPToken {
         // Add CRV as a reward token, then let Convex tell you what rewards
         // the vault will receive.
         strategyData.rewardTokens.push() = _CRV;
-        isApprovedAsset[_CRV] = true;
+        _isApprovedAsset[_CRV] = true;
 
         // Add CVX as a reward token, since some vaults do not list CVX
         // as a reward token.
         strategyData.rewardTokens.push() = _CVX;
-        isApprovedAsset[_CVX] = true;
+        _isApprovedAsset[_CVX] = true;
 
         IBaseRewardPool rewarder = strategyData.rewarder;
         uint256 numTokens = rewarder.extraRewardsLength();
@@ -281,7 +281,7 @@ contract Convex2PoolPToken is CompoundingPToken {
             if (currentToken != _CRV && currentToken != _CVX) {
                 strategyData.rewardTokens.push() = currentToken;
                 if (address(currentToken) != asset()) {
-                    isApprovedAsset[currentToken] = true;
+                    _isApprovedAsset[currentToken] = true;
                 }
             }
         }
@@ -306,7 +306,7 @@ contract Convex2PoolPToken is CompoundingPToken {
         for (uint256 i; i < numTokens; ) {
             currentToken = vaultAsset.coins(i++);
             strategyData.underlyingTokens.push() = currentToken;
-            isUnderlyingToken[currentToken] = true;
+            _isUnderlyingToken[currentToken] = true;
         }
     }
 

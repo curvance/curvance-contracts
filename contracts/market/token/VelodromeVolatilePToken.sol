@@ -59,7 +59,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         IVeloGauge gauge,
         IVeloPairFactory pairFactory,
         IVeloRouter router,
-        vestPeriod_
+        uint256 vestPeriod_
     ) CompoundingPToken(
         centralRegistry_,
         asset_,
@@ -108,14 +108,14 @@ contract VelodromeVolatilePToken is CompoundingPToken {
         strategyData.router = router;
         strategyData.pairFactory = pairFactory;
 
-        isUnderlyingToken[strategyData.token0] = true;
-        isUnderlyingToken[strategyData.token1] = true;
+        _isUnderlyingToken[strategyData.token0] = true;
+        _isUnderlyingToken[strategyData.token1] = true;
 
         rewardTokenIsUnderlying = (rewardToken == strategyData.token0 ||
             rewardToken == strategyData.token1);
 
         if (rewardToken != asset()) {
-            isApprovedAsset[rewardToken] = true;
+            _isApprovedAsset[rewardToken] = true;
         }
     }
 
@@ -170,7 +170,7 @@ contract VelodromeVolatilePToken is CompoundingPToken {
                 // Swap from VELO to underlying tokens, if necessary.
                 if (!rewardTokenIsUnderlying) {
                     if (
-                        !isApprovedAsset[swapData.inputToken] ||
+                        !_isApprovedAsset[swapData.inputToken] ||
                         swapData.outputToken != sd.token0
                     ) {
                         // This also implicitly checks:

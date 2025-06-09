@@ -63,7 +63,7 @@ contract AuraPToken is CompoundingPToken {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        vestPeriod_
+        uint256 vestPeriod_
     ) CompoundingPToken(
         centralRegistry_,
         asset_,
@@ -112,7 +112,7 @@ contract AuraPToken is CompoundingPToken {
 
         // Remove approved tokens for harvester compounding.
         for (uint256 i; i < numTokens; ) {
-            isApprovedAsset[strategyRewardTokens[i++]] = false;
+            _isApprovedAsset[strategyRewardTokens[i++]] = false;
         }
 
         // Wipe current reward tokens data.
@@ -127,7 +127,7 @@ contract AuraPToken is CompoundingPToken {
         // Remove `isUnderlyingToken` mapping value from current
         // flagged underlying tokens.
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[currentTokens[i++]] = false;
+            _isUnderlyingToken[currentTokens[i++]] = false;
         }
 
         _queryTokens();
@@ -211,8 +211,8 @@ contract AuraPToken is CompoundingPToken {
                 uint256 numSwapData = swapDataArray.length;
                 for (uint256 i; i < numSwapData; ++i) {
                     if (
-                        !isApprovedAsset[swapDataArray[i].inputToken] ||
-                        !isUnderlyingToken[swapDataArray[i].outputToken]
+                        !_isApprovedAsset[swapDataArray[i].inputToken] ||
+                        !_isUnderlyingToken[swapDataArray[i].outputToken]
                     ) {
                         revert CompoundingPToken__UnapprovedAssetSwap();
                     }
@@ -303,12 +303,12 @@ contract AuraPToken is CompoundingPToken {
         // Add BAL as a reward token, then let Aura tell you what rewards
         // the vault will receive.
         strategyData.rewardTokens.push() = _BAL;
-        isApprovedAsset[_BAL] = true;
+        _isApprovedAsset[_BAL] = true;
 
         // Add AURA as a reward token, since some vaults do not list AURA
         // as a reward token.
         strategyData.rewardTokens.push() = _AURA;
-        isApprovedAsset[_AURA] = true;
+        _isApprovedAsset[_AURA] = true;
 
         IBaseRewardPool rewarder = strategyData.rewarder;
         uint256 numTokens = rewarder.extraRewardsLength();
@@ -324,7 +324,7 @@ contract AuraPToken is CompoundingPToken {
             if (rewardToken != _BAL && rewardToken != _AURA) {
                 strategyData.rewardTokens.push() = rewardToken;
                 if (address(rewardToken) != asset()) {
-                    isApprovedAsset[rewardToken] = true;
+                    _isApprovedAsset[rewardToken] = true;
                 }
             }
         }
@@ -340,7 +340,7 @@ contract AuraPToken is CompoundingPToken {
         // Add `isUnderlyingToken` mapping value to new
         // flagged underlying tokens.
         for (uint256 i; i < numTokens; ) {
-            isUnderlyingToken[poolTokens[i++]] = true;
+            _isUnderlyingToken[poolTokens[i++]] = true;
         }
     }
 

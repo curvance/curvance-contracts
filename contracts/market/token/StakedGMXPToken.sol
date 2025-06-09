@@ -39,7 +39,7 @@ contract StakedGMXPToken is CompoundingPToken {
         address marketManager_,
         address rewardRouter_,
         address weth_,
-        vestPeriod_
+        uint256 vestPeriod_
     ) CompoundingPToken(
         centralRegistry_,
         asset_,
@@ -57,7 +57,7 @@ contract StakedGMXPToken is CompoundingPToken {
 
         WETH = IERC20(weth_);
 
-        isApprovedAsset[weth_] = true;
+        _isApprovedAsset[weth_] = true;
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -109,7 +109,7 @@ contract StakedGMXPToken is CompoundingPToken {
                     (SwapperLib.Swap)
                 );
 
-                if (!isApprovedAsset[swapData.inputToken]) {
+                if (!_isApprovedAsset[swapData.inputToken]) {
                     // this will be the same check: `swapData.inputToken != address(WETH)`
                     revert CompoundingPToken__UnapprovedAssetSwap();
                 }
