@@ -13,6 +13,7 @@ import { OdosCalldataChecker } from "contracts/calldata-checker/swap-checker/Odo
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
@@ -119,7 +120,7 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
+
         }
 
         // setup pUSDCDAI
@@ -137,25 +138,31 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
 
             deal(_VELODROME_DAI_USDC, owner, 1 ether);
             IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-            marketManagerIsolated.listToken(address(pUSDCDAI));
 
-            marketManagerIsolated.updatePositionToken(
-                address(pUSDCDAI),
-                7000,
-                4000,
-                3000,
-                200,
-                400,
-                1000
-            );
 
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pUSDCDAI);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
-
-            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
+
+        marketManagerIsolated.listTokens(address(pUSDCDAI),address(eDAI));
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
+        );
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pUSDCDAI);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         positionManagement = new PositionManagementVelodrome(
             ICentralRegistry(address(centralRegistry)),
@@ -243,13 +250,13 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
         leverageData.auxData = abi.encode(0);
         positionManagement.leverage(leverageData, 0.05e18);
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
-        assertEq(pUSDCDAIBorrowed, 0 ether);
+        assertEq(pUSDCDAISnapshot.collateralPosted, 0 ether);
 
         uint256 protocolBalanceAfterLeverage = dai.balanceOf(
             centralRegistry.daoAddress()
@@ -272,8 +279,8 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
 
         PositionManagementVelodrome.DeleverageStruct memory deleverageData;
 
-        (,,,, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
-        (uint256 pUSDCDAIBalanceBefore, , ) = pUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
+        uint256 pUSDCDAIBalanceBefore = pUSDCDAI.balanceOf(user);
 
         uint256 collateralAmount = 0.00003 ether;
         uint256 leverageFee = FixedPointMathLib.mulDivUp(
@@ -323,19 +330,19 @@ contract TestPositionManagementFeeEnabled is TestBaseMarketIsolated {
         pUSDCDAI.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 0.05e18);
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
         assertEq(
-            eDAIBorrowed,
-            eDAIBorrowedBefore - deleverageData.repayAmount
+            eDAISnapshot.debtBalance,
+            eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 pUSDCDAIBorrowed, ) = pUSDCDAI.getSnapshot(user);
+        AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertEq(
             pUSDCDAI.balanceOf(user),
             pUSDCDAIBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pUSDCDAIBorrowed, 0);
+        assertEq(pUSDCDAISnapshot.collateralPosted, 0);
 
         uint256 protocolBalanceAfterDeLeverage = IERC20(_VELODROME_DAI_USDC)
             .balanceOf(centralRegistry.daoAddress());

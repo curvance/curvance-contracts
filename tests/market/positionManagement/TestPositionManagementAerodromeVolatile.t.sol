@@ -11,6 +11,7 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { PositionManagementAerodrome } from "contracts/market/position-management/PositionManagementAerodrome.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
@@ -120,7 +121,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
+
         }
 
         // setup pWETHUSDC
@@ -138,17 +139,23 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
             deal(_AERODROME_WETH_USDC, owner, 1 ether);
             IERC20(_AERODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
-            marketManagerIsolated.listToken(address(pWETHUSDC));
 
-            marketManagerIsolated.updatePositionToken(
-                address(pWETHUSDC),
-                7000,
-                4000,
-                3000,
-                200,
-                400,
-                1000
-            );
+        }
+
+        marketManagerIsolated.listTokens(address(pWETHUSDC),address(eDAI));
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
+        );
 
             address[] memory tokens = new address[](1);
             tokens[0] = address(pWETHUSDC);
@@ -156,8 +163,6 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             caps[0] = 100_000e18;
 
             marketManagerIsolated.setCollateralCaps(tokens, caps);
-        }
-
         positionManagement = new PositionManagementAerodrome(
             ICentralRegistry(address(centralRegistry)),
             address(marketManagerIsolated),
@@ -245,13 +250,13 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
         positionManagement.leverage(leverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertGt(pWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(pWETHUSDCBorrowed, 0 ether);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
 
         vm.stopPrank();
     }
@@ -305,13 +310,13 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             0.05e18
         ); // 5% slippage
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, amountForLeverage);
+        assertEq(eDAISnapshot.debtBalance, amountForLeverage);
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertGt(pWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(pWETHUSDCBorrowed, 0 ether);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
 
         vm.stopPrank();
     }
@@ -379,13 +384,13 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             0.05e18 // 5% slippage
         );
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, amountForLeverage + 100 ether);
+        assertEq(eDAISnapshot.debtBalance, amountForLeverage + 100 ether);
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertGt(pWETHUSDC.balanceOf(user), 0.00042 ether);
-        assertEq(pWETHUSDCBorrowed, 0 ether);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
 
         vm.stopPrank();
     }
@@ -453,13 +458,13 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
             0.05e18 // 5% slippage
         );
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, amountForLeverage + 100 ether);
+        assertEq(eDAISnapshot.debtBalance, amountForLeverage + 100 ether);
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertGt(pWETHUSDC.balanceOf(user), 0.00031 ether);
-        assertEq(pWETHUSDCBorrowed, 0 ether);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
 
         vm.stopPrank();
     }
@@ -474,7 +479,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
         PositionManagementAerodrome.DeleverageStruct memory deleverageData;
 
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pWETHUSDCBalanceBefore = pWETHUSDC.balanceOf(user);
 
         deleverageData.positionToken = IPToken(address(pWETHUSDC));
@@ -523,19 +528,19 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         pWETHUSDC.approve(address(positionManagement), type(uint256).max);
         positionManagement.deleverage(deleverageData, 0.05e18); // 5% slippage
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
         assertEq(
-            eDAIBorrowed,
-            eDAIBorrowedBefore - deleverageData.repayAmount
+            eDAISnapshot.debtBalance,
+            eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertEq(
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pWETHUSDCBorrowed, 0);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
 
         vm.stopPrank();
     }
@@ -596,13 +601,13 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.leverageFor(leverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAIBorrowed, 100 ether + amountForLeverage);
+        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertGt(pWETHUSDC.balanceOf(user), 0.00013 ether);
-        assertEq(pWETHUSDCBorrowed, 0 ether);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0 ether);
     }
 
     function testDeLeverageFor() public {
@@ -615,7 +620,7 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
 
         PositionManagementAerodrome.DeleverageStruct memory deleverageData;
 
-        (, uint256 eDAIBorrowedBefore, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshotBefore = eDAI.getSnapshot(user);
         uint256 pWETHUSDCBalanceBefore = pWETHUSDC.balanceOf(user);
 
         deleverageData.positionToken = IPToken(address(pWETHUSDC));
@@ -668,19 +673,19 @@ contract TestPositionManagementAerodromeVolatile is TestBaseMarketIsolated {
         vm.prank(user2);
         positionManagement.deleverageFor(deleverageData, user, 0.05e18); // 5% slippage
 
-        (,,,, uint256 eDAIBorrowed, ) = eDAI.getSnapshot(user);
+        AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
         assertEq(
-            eDAIBorrowed,
-            eDAIBorrowedBefore - deleverageData.repayAmount
+            eDAISnapshot.debtBalance,
+            eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 
-        (,,,, uint256 pWETHUSDCBorrowed, ) = pWETHUSDC.getSnapshot(user);
+        AccountSnapshot memory pWETHUSDCSnapshot = pWETHUSDC.getSnapshot(user);
         assertEq(
             pWETHUSDC.balanceOf(user),
             pWETHUSDCBalanceBefore - deleverageData.collateralAmount
         );
-        assertEq(pWETHUSDCBorrowed, 0);
+        assertEq(pWETHUSDCSnapshot.collateralPosted, 0);
 
         vm.stopPrank();
     }
