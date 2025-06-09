@@ -2,6 +2,11 @@
 pragma solidity ^0.8.26;
 
 interface IInterestRateModel {
+    /// @notice Returns the interval at which interest accrues to
+    ///         outstanding debt.
+    /// @return The interval at which interest accrues.
+    function accrualPeriod() external view returns (uint256);
+
     /// @notice The earn token linked to this interest rate model contract.
     function linkedEToken() external view returns (address);
     /// @notice Calculates the current borrow rate, per compound.
@@ -63,9 +68,6 @@ interface IInterestRateModel {
         uint256 reserves,
         uint256 interestFee
     ) external view returns (uint256);
-
-    /// @notice Returns the rate at which interest compounds, in seconds.
-    function compoundRate() external view returns (uint256);
 
     /// @notice Calculates the utilization rate of the market:
     ///         `borrows / (cash + borrows - reserves)`.

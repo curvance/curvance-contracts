@@ -86,7 +86,7 @@ import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol"
 ///            later. Or lending a bunch to "suppress" interest rates, with
 ///            shorter adjustment rates this risk becomes virtually zero. 
 ///            
-contract DynamicInterestRateModel is ERC165 {
+contract DynamicInterestRateModel is IInterestRateModel, ERC165 {
     /// TYPES ///
 
     /// @title Rates Configuration
@@ -130,9 +130,6 @@ contract DynamicInterestRateModel is ERC165 {
 
     /// CONSTANTS ///
 
-    /// @notice Rate at which interest is compounded, in seconds.
-    /// @dev 10 minutes = 600 seconds.
-    uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     /// @notice Maximum Rate at which the vertex multiplier will
     ///         decay per adjustment, in `WAD`.
     /// @dev .05e18 = 5%.
@@ -161,6 +158,9 @@ contract DynamicInterestRateModel is ERC165 {
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
 
+    /// @notice Rate at which interest is compounded, in seconds.
+    /// @dev 10 minutes = 600 seconds.
+    uint256 internal constant _INTEREST_ACCRUAL_PERIOD = 10 minutes;
     /// @notice Unix time has 31,536,000 seconds per year.
     ///         All my homies hate leap seconds and leap years.
     uint256 internal constant _SECONDS_PER_YEAR = 31_536_000;
@@ -434,7 +434,7 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getPredictedBorrowRate(underlyingHeld, borrows, reserves) /
-                INTEREST_ACCRUAL_PERIOD);
+                _INTEREST_ACCRUAL_PERIOD);
     }
 
     /// @notice Calculates the current borrow rate per year.
@@ -451,7 +451,7 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getBorrowRate(underlyingHeld, borrows, reserves) /
-                INTEREST_ACCRUAL_PERIOD);
+                _INTEREST_ACCRUAL_PERIOD);
     }
 
     /// @notice Calculates the current supply rate per year.
@@ -471,13 +471,14 @@ contract DynamicInterestRateModel is ERC165 {
         return
             _SECONDS_PER_YEAR *
             (getSupplyRate(underlyingHeld, borrows, reserves, interestFee) /
-                INTEREST_ACCRUAL_PERIOD);
+                _INTEREST_ACCRUAL_PERIOD);
     }
 
-    /// @notice Returns the rate at which interest accrues, in seconds.
-    /// @return The rate at which interest accrues, in seconds.
+    /// @notice Returns the interval at which interest accrues to
+    ///         outstanding debt.
+    /// @return The interval at which interest accrues.
     function accrualPeriod() external pure returns (uint256) {
-        return INTEREST_ACCRUAL_PERIOD;
+        return _INTEREST_ACCRUAL_PERIOD;
     }
 
     /// @notice Returns the unpacked values from `_currentRates`.
@@ -738,10 +739,10 @@ contract DynamicInterestRateModel is ERC165 {
         RatesConfiguration storage config = ratesConfig;
 
         config.baseInterestRate =
-            (INTEREST_ACCRUAL_PERIOD * baseRatePerYear * WAD) /
+            (_INTEREST_ACCRUAL_PERIOD * baseRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * vertexUtilStart);
         config.vertexInterestRate =
-            (INTEREST_ACCRUAL_PERIOD * vertexRatePerYear * WAD) /
+            (_INTEREST_ACCRUAL_PERIOD * vertexRatePerYear * WAD) /
             (_SECONDS_PER_YEAR * (WAD - vertexUtilStart));
 
         config.vertexStartingPoint = vertexUtilStart;
