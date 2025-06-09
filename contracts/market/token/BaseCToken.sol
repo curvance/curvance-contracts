@@ -365,42 +365,14 @@ abstract contract BaseCToken is
         _removeCollateral(msg.sender, shares);
     }
 
-    /// @notice Returns share -> asset exchange rate, in `WAD`.
-    /// @dev Oracle Manager calculates cToken value from this exchange rate.
-    /// @return The share -> asset exchange rate, in `WAD`.
-    function exchangeRateCached() external view returns (uint256) {
-        return convertToAssets(WAD);
-    }
-
-    /// @notice Returns a snapshot of the cToken and `account` data.
-    /// @dev Used by MarketManager to efficiently perform liquidity checks.
-    /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
-    ///       since it is unused.
-    /// @return The snapshot of the cToken and `account` data.
-    function getSnapshot(
-        address account
-    ) external view virtual returns (AccountSnapshot memory) {
-        return (
-            AccountSnapshot({
-                asset: address(this),
-                isPToken: true,
-                decimals: decimals(),
-                collateralPosted: collateralPosted[account],
-                debtBalance: 0, // Defaults to zero, only overridden in BorrowableCToken
-                exchangeRate: _convertToAssets(WAD, _getTotalAssets())
-            })
-        );
-    }
-
-    /// @notice Transfers token shares from `account`
-    ///         to `liquidator`.
-    /// @dev Will fail unless called by a different listed cToken
-    ///      during the process of liquidation.
-    /// @param liquidator The account receiving seized collateral.
+    /// @notice Transfers tokens from `account` to `liquidator`.
+    /// @dev Will fail unless called by a cToken during the process
+    ///      of liquidation.
+    /// @param liquidator The account receiving seized cTokens.
     /// @param accounts An array containing the accounts having
     ///                 collateral seized.
-    /// @param shares An array containing the number of cTokens
-    ///               shares to seize.
+    /// @param shares An array containing the number of cToken shares
+    ///               to seize.
     function seize(
         address liquidator,
         address[] calldata accounts,
@@ -437,6 +409,34 @@ abstract contract BaseCToken is
             _transferFromWithoutAllowance(account, liquidator, amount);
             emit Liquidated(liquidator, account, amount);
         }
+    }
+
+    /// @notice Returns share -> asset exchange rate, in `WAD`.
+    /// @dev Oracle Manager calculates cToken value from this exchange rate.
+    /// @return result The share -> asset exchange rate, in `WAD`.
+    function exchangeRate() external view nonReadReentrant returns (
+        uint256 result
+    ) {
+        result = _convertToAssets(WAD, _getTotalAssets());
+    }
+
+    /// @notice Returns a snapshot of the cToken and `account` data.
+    /// @dev Used by MarketManager to efficiently perform liquidity checks.
+    /// NOTE: debtBalance always return 0 to runtime gas in MarketManager
+    ///       since it is unused.
+    /// @return The snapshot of the cToken and `account` data.
+    function getSnapshot(
+        address account
+    ) external view virtual returns (AccountSnapshot memory) {
+        return (
+            AccountSnapshot({
+                asset: address(this),
+                decimals: decimals(),
+                collateralPosted: collateralPosted[account],
+                debtOutstanding: 0, // Defaults to zero, only overridden in BorrowableCToken
+                exchangeRate: _convertToAssets(WAD, _getTotalAssets())
+            })
+        );
     }
 
     /// PUBLIC FUNCTIONS ///
@@ -718,6 +718,7 @@ abstract contract BaseCToken is
         // Check for rounding error by converting assets to shares,
         // since we round down in previewDeposit.
         _checkZeroAmount(shares = _previewDeposit(assets, _getTotalAssets()));
+        _checkDeposit(receiver);
 
         // Fails if deposit not allowed, this stands in for a maxDeposit
         // check reviewing isListed and mintPaused != 2.
@@ -739,6 +740,7 @@ abstract contract BaseCToken is
     ) internal virtual returns (uint256 assets) {
         _vestIfNeeded();
         _checkZeroAmount(shares);
+        _checkDeposit(receiver);
 
         // Fail if mint not allowed, this stands in for a maxMint
         // check reviewing isListed and mintPaused != 2.
@@ -1365,6 +1367,10 @@ abstract contract BaseCToken is
         _beforeTransferAction(from, to, shares);
     }
 
+    /// @notice An optional set of instructions to check before processing
+    ///         a deposit of assets.
+    function _checkDeposit(address /* owner */) internal view virtual {}
+
     /// @notice Returns the total assets invariant, any pending rewards for
     ///         depositors and other values to process a withdrawal.
     /// @param assets The amount of the underlying asset to withdraw.
@@ -1395,7 +1401,7 @@ abstract contract BaseCToken is
     }
 
     /// @notice An optional set of instructions to check before processing
-    ///         a withdrawal of assets.
+    ///         a redemption of assets.
     function _checkAssetsHeld(uint256 /* assets */) internal view virtual {}
 
     /// @dev Checks whether the caller has sufficient permissioning.
