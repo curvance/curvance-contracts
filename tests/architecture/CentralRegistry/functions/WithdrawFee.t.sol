@@ -25,4 +25,16 @@ contract WithdrawFeeTest is TestBaseMarketIsolated {
         assertEq(usdc.balanceOf(centralRegistry.daoAddress()), 100e6);
         assertEq(usdc.balanceOf(address(centralRegistry)), 0);
     }
+
+    function test_withdrawFee_success_UsingBalanceAssertions() public {
+        _prepareUSDC(address(centralRegistry), 100e6);
+
+        uint256 initialDaoBalance = usdc.balanceOf(centralRegistry.daoAddress());
+        uint256 initialRegistryBalance = usdc.balanceOf(address(centralRegistry));
+
+        centralRegistry.withdrawFee();
+
+        assertEq(usdc.balanceOf(centralRegistry.daoAddress()), initialDaoBalance + 100e6);
+        assertEq(usdc.balanceOf(address(centralRegistry)), initialRegistryBalance - 100e6);
+    }
 }
