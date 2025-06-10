@@ -210,6 +210,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrow(
             address(eUSDC),
             user1,
+            borrowInUSDC + 1e6,
             borrowInUSDC + 1e6
         );
     }
@@ -303,56 +304,56 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         assertEq(address(accountAssets[1]), address(eUSDC));
     }
 
-    // function test_canBorrow_fail_whenExceedsBorrowCap() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
+    function test_canBorrow_fail_whenExceedsBorrowCap() external {
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1e18,
+            block.timestamp,
+            block.timestamp
+        );
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6 - 1;
+        address[] memory mTokens = new address[](1);
+        uint256[] memory borrowCaps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        borrowCaps[0] = 100e6 - 1;
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.setCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.expectRevert();
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, 100e6, 100e6);
-    // }
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
+        vm.prank(address(pBALRETH));
+        marketManagerIsolated.canBorrow(address(pBALRETH), user1, 100e6, 100e6);
+    }
 
-    // function test_canBorrow_success_whenCapNotExceeded() external {
-    //     chainlinkUsdcUsd.updateRoundData(
-    //         0,
-    //         1e8,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
-    //     chainlinkUsdcEth.updateRoundData(
-    //         0,
-    //         1e18,
-    //         block.timestamp,
-    //         block.timestamp
-    //     );
+    function test_canBorrow_success_whenCapNotExceeded() external {
+        chainlinkUsdcUsd.updateRoundData(
+            0,
+            1e8,
+            block.timestamp,
+            block.timestamp
+        );
+        chainlinkUsdcEth.updateRoundData(
+            0,
+            1e18,
+            block.timestamp,
+            block.timestamp
+        );
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6;
+        address[] memory mTokens = new address[](1);
+        uint256[] memory borrowCaps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        borrowCaps[0] = 100e6;
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.setCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrow(address(pBALRETH), user1, borrowCaps[0] - 1, borrowCaps[0] - 1);
-    // }
+        vm.prank(address(pBALRETH));
+        marketManagerIsolated.canBorrow(address(pBALRETH), user1, borrowCaps[0] - 1, borrowCaps[0] - 1);
+    }
 }

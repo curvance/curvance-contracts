@@ -105,7 +105,6 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             // support market
             _prepareUSDC(owner, 200000e6);
             usdc.approve(address(eUSDC), 200000e6);
-            marketManagerIsolated.listToken(address(eUSDC));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eUSDC));
             address[] memory markets = new address[](1);
@@ -128,25 +127,10 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             // support market
             _preparePT(owner, 1 ether);
             pendlePT.approve(address(cPendlePT), 1 ether);
-            marketManagerIsolated.listToken(address(cPendlePT));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(cPendlePT));
-            // set position token configuration
-            marketManagerIsolated.updatePositionToken(
-                address(cPendlePT),
-                7000,
-                4000, // liquidate at 71%
-                3000,
-                200, // 2% liq incentive
-                400,
-                1000
-            );
+            
 
-            address[] memory mTokens = new address[](1);
-            mTokens[0] = address(cPendlePT);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100 ether;
-            marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
             // address[] memory markets = new address[](1);
             // markets[0] = address(cPendlePT);
@@ -155,6 +139,28 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
             // vm.prank(user2);
             // marketManager.enterMarkets(markets);
         }
+
+        marketManagerIsolated.listTokens(address(cPendlePT), address(eUSDC));
+
+        // set collateral factor
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 10%
+        );
+
+        address[] memory mTokens = new address[](1);
+        mTokens[0] = address(cPendlePT);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100 ether;
+        marketManagerIsolated.setCollateralCaps(mTokens, caps);
 
         // provide enough liquidity
         provideEnoughLiquidityForLeverage();
@@ -334,7 +340,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
 
         // fail to redeem before minimum hold time pass
         vm.expectRevert(
-            marketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
+            MarketManagerIsolated.MarketManager__MinimumHoldPeriod.selector
         );
         eUSDC.redeem(1000e6, address(this));
 

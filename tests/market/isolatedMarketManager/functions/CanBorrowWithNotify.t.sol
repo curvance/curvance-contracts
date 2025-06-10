@@ -57,56 +57,56 @@ contract CanBorrowWithNotifyTest is TestBaseMarketManagerIsolated {
         marketManagerIsolated.canBorrowWithNotify(address(eDAI), user1, 100e6, 100e6);
     }
 
-    // function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
-    //     skip(gaugeManager.gaugeStartTime() - block.timestamp);
-    //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
-    //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
+    function test_canBorrowWithNotify_fail_whenExceedsBorrowCap() external {
+        skip(gaugeManager.gaugeStartTime() - block.timestamp);
+        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
+        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6 - 1;
+        address[] memory mTokens = new address[](1);
+        uint256[] memory borrowCaps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        borrowCaps[0] = 100e6 - 1;
 
-    //     marketManager.updatePositionToken(
-    //         7000,    // collRatio 70%
-    //         4000,    // collReqSoft 40%
-    //         3000,    // collReqHard 25%
-    //         1000,    // liqIncBase 10%
-    //         1500,    // liqIncHard 15%
-    //         500,     // liqIncMin 5%
-    //         2000,    // liqIncMax 20%
-    //         2000,    // minEffectiveCFactor 20%
-    //         5000,    // maxEffectiveCFactor 50%
-    //         2000     // baseCFactor 20%
-    //     );
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            2000     // baseCFactor 20%
+        );
 
-    //     marketManager.setCollateralCaps(mTokens, borrowCaps);
+        marketManagerIsolated.setCollateralCaps(mTokens, borrowCaps);
 
-    //     vm.expectRevert();
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrowWithNotify(address(pBALRETH), user1, 100e6, 100e6);
-    // }
+        vm.expectRevert(MarketManagerIsolated.MarketManager__CapReached.selector);
+        vm.prank(address(pBALRETH));
+        marketManagerIsolated.canBorrowWithNotify(address(pBALRETH), user1, 100e6, 100e6);
+    }
 
-    // function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
-    //     skip(gaugeManager.gaugeStartTime() - block.timestamp);
-    //     chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
-    //     chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
+    function test_canBorrowWithNotify_success_whenCapNotExceeded() external {
+        skip(gaugeManager.gaugeStartTime() - block.timestamp);
+        chainlinkUsdcUsd.updateRoundData(0, 1e8, block.timestamp, block.timestamp);
+        chainlinkUsdcEth.updateRoundData(0, 1e18, block.timestamp, block.timestamp);
 
-    //     address[] memory mTokens = new address[](1);
-    //     uint256[] memory borrowCaps = new uint256[](1);
-    //     mTokens[0] = address(pBALRETH);
-    //     borrowCaps[0] = 100e6;
+        address[] memory mTokens = new address[](1);
+        uint256[] memory borrowCaps = new uint256[](1);
+        mTokens[0] = address(pBALRETH);
+        borrowCaps[0] = 100e6;
 
-    //     marketManager.listTokens(address(pBALRETH), address(eUSDC));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
-    //     marketManager.setCollateralCaps(
-    //         mTokens,
-    //         borrowCaps
-    //     );
+        marketManagerIsolated.setCollateralCaps(
+            mTokens,
+            borrowCaps
+        );
 
-    //     vm.prank(address(pBALRETH));
-    //     marketManager.canBorrowWithNotify(address(pBALRETH), user1, borrowCaps[0] - 1, borrowCaps[0] - 1);
-    // }
+        vm.prank(address(pBALRETH));
+        marketManagerIsolated.canBorrowWithNotify(address(pBALRETH), user1, borrowCaps[0] - 1, borrowCaps[0] - 1);
+    }
 
     function test_canBorrowWithNotify_fail_whenInsufficientLiquidity() public {
         vm.warp(gaugeManager.gaugeStartTime());
