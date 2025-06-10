@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { IMToken } from "./IMToken.sol";
-import { IPositionManagement } from "./IPositionManagement.sol";
+import { IPositionManager } from "./IPositionManager.sol";
 
 interface IPToken is IMToken {
     /// @notice Caller deposits assets into the market and receives shares.
@@ -74,10 +74,10 @@ interface IPToken is IMToken {
     /// @param owner The owner address of assets to redeem.
     /// @param assets The amount of the underlying assets to redeem.
     /// @param deleverageData The data for the deleverage operation.
-    function withdrawByPositionManagement(
+    function withdrawByPositionManager(
         address owner,
         uint256 assets,
-        IPositionManagement.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageStruct memory deleverageData
     ) external;
 
     /// @notice Amount of pToken that has been posted as collateral,

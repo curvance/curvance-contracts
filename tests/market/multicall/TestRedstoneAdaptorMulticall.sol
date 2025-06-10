@@ -15,7 +15,7 @@ import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
 import { MockRedstoneCoreAdaptor } from "contracts/mocks/MockRedstoneCoreAdaptor.sol";
 import { BaseMulticallChecker } from "contracts/calldata-checker/multicall-checker/BaseMulticallChecker.sol";
 import { RedstoneAdaptorMulticallChecker } from "contracts/calldata-checker/multicall-checker/RedstoneAdaptorMulticallChecker.sol";
-import { PositionManagementSimple } from "contracts/market/position-management/PositionManagementSimple.sol";
+import { SimplePositionManager } from "contracts/market/position-management/SimplePositionManager.sol";
 
 import "tests/market/TestBaseMarketIsolated.sol";
 
@@ -35,7 +35,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
 
     SimplePToken public pWBTC;
-    PositionManagementSimple public positionManagement;
+    SimplePositionManager public positionManagement;
 
     receive() external payable {}
 
@@ -193,7 +193,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
 
         // setup position management
         {
-            positionManagement = new PositionManagementSimple(
+            positionManagement = new SimplePositionManager(
                 ICentralRegistry(address(centralRegistry)),
                 address(marketManagerIsolated),
                 _WETH_ADDRESS
@@ -333,7 +333,7 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
             address(eUSDC)
         ) * 50) / 100;
 
-        PositionManagementSimple.LeverageStruct memory leverageData;
+        SimplePositionManager.LeverageStruct memory leverageData;
         leverageData.borrowToken = IEToken(address(eUSDC));
         leverageData.borrowAmount = amountForLeverage;
         leverageData.positionToken = IPToken(address(pWBTC));

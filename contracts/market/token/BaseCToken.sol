@@ -13,7 +13,7 @@ import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
-import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 
 /// @notice Curvance's cTokens (Curvance Tokens) are ERC4626 compliant. However,
 ///         they follow their
@@ -154,9 +154,7 @@ abstract contract BaseCToken is
     ///            ADDRESS FROM THE MARKET MANAGER.
     /// @param by The account initializing the token market.
     /// @return Returns with true when successful.
-    function startMarket(
-        address by
-    ) external virtual nonReentrant returns (bool) {
+    function startMarket(address by) external nonReentrant returns (bool) {
         _startMarket(by);
         return true;
     }
@@ -181,13 +179,13 @@ abstract contract BaseCToken is
     ///                          repaid to the token lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
-    function withdrawByPositionManagement(
+    function withdrawByPositionManager(
         uint256 assets,
         address owner,
-        IPositionManagement.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageStruct memory deleverageData
     ) external nonReentrant {
         // Validate that a position manager is calling.
-        if (!marketManager.positionManagers(msg.sender)) {
+        if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -213,7 +211,7 @@ abstract contract BaseCToken is
         );
 
         // Process the position management redemption leg.
-        _processPositionManagementRedemption(
+        _processPositionManagerRedemption(
             owner,
             assets,
             shares,
@@ -235,7 +233,7 @@ abstract contract BaseCToken is
     ) external nonReentrant returns (uint256 shares) {
         if (
             msg.sender != receiver &&
-            !marketManager.positionManagers(msg.sender)
+            !marketManager.isPositionManager(msg.sender)
         ) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
@@ -365,14 +363,15 @@ abstract contract BaseCToken is
         _removeCollateral(msg.sender, shares);
     }
 
-    /// @notice Transfers tokens from `account` to `liquidator`.
-    /// @dev Will fail unless called by a cToken during the process
-    ///      of liquidation.
-    /// @param liquidator The account receiving seized cTokens.
+    /// @notice Transfers collateralized cToken shares from `account`
+    ///         to `liquidator` due to a liquidation.
+    /// @dev Will fail unless called by a different listed cToken
+    ///      during the process of liquidation.
+    /// @param liquidator The account receiving seized collateralized cTokens.
     /// @param accounts An array containing the accounts having
     ///                 collateral seized.
-    /// @param shares An array containing the number of cToken shares
-    ///               to seize.
+    /// @param shares An array containing the number of collateralized cTokens
+    ///               shares to seize.
     function seize(
         address liquidator,
         address[] calldata accounts,
@@ -1023,15 +1022,15 @@ abstract contract BaseCToken is
     ///                          repaid to the token lenders.
     ///                       6. Optional auxiliary data for execution of a
     ///                          deleverage action.
-    function _processPositionManagementRedemption(
+    function _processPositionManagerRedemption(
         address owner,
         uint256 assets,
         uint256 shares,
         uint256 balancePrior,
-        IPositionManagement.DeleverageStruct memory deleverageData
+        IPositionManager.DeleverageStruct memory deleverageData
     ) internal virtual {
         // Callback to position manager that executes cToken specific logic.
-        IPositionManagement(msg.sender).onRedeem(
+        IPositionManager(msg.sender).onRedeem(
             address(this),
             owner,
             assets,

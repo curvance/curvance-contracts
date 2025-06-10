@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
 import { IMToken } from "./IMToken.sol";
-import { IPositionManagement } from "./IPositionManagement.sol";
+import { IPositionManager } from "./IPositionManager.sol";
 
 interface IEToken is IMToken {
     /// @notice Address of the current Interest Rate Model.
@@ -101,10 +101,10 @@ interface IEToken is IMToken {
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying assets to borrow.
     /// @param leverageData The data for the leverage operation.
-    function borrowForPositionManagement(
+    function borrowForPositionManager(
         address account,
         uint256 amount,
-        IPositionManagement.LeverageStruct memory leverageData
+        IPositionManager.LeverageStruct memory leverageData
     ) external;
 
     /// @notice Repays underlying tokens to lenders, on behalf of `account`,

@@ -14,7 +14,7 @@
 // import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 // import { IMToken } from "contracts/interfaces/IMToken.sol";
 // import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
-// import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+// import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 // import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 // import { IERC20 } from "contracts/interfaces/IERC20.sol";
 // import { IEToken } from "contracts/interfaces/IEToken.sol";
@@ -133,7 +133,7 @@
 //     /// @notice Whether an address is an authorized position management
 //     ///         operator or not.
 //     /// @dev Address => Is an approved position management operator.
-//     mapping(address => bool) public positionManagement;
+//     mapping(address => bool) public isPositionManager;
 
 //     /// MARKET STATE
 //     /// @notice Whether liquidations are paused.
@@ -1065,14 +1065,14 @@
 //         if (
 //             !ERC165Checker.supportsInterface(
 //                 newPositionManagement,
-//                 type(IPositionManagement).interfaceId
+//                 type(IPositionManager).interfaceId
 //             )
 //         ) {
 //             _revert(_INVALID_PARAMETER_SELECTOR);
 //         }
 
 //         // Assign new position folding contract.
-//         positionManagement[newPositionManagement] = true;
+//         isPositionManager[newPositionManagement] = true;
 
 //         emit NewPositionManagementContract(newPositionManagement);
 //     }

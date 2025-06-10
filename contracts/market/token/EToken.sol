@@ -15,7 +15,7 @@ import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IInterestRateModel } from "contracts/interfaces/IInterestRateModel.sol";
-import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 /// @title Curvance's Earn Token Contract.
@@ -355,12 +355,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account address to borrow on behalf of.
     /// @param amount The amount of the underlying asset to borrow.
     /// @param leverageData Callback calldata to execute after borrow.
-    function borrowForPositionManagement(
+    function borrowForPositionManager(
         address account,
         uint256 amount,
-        IPositionManagement.LeverageStruct memory leverageData
+        IPositionManager.LeverageStruct memory leverageData
     ) external nonReentrant {
-        if (!marketManager.positionManagers(msg.sender)) {
+        if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -379,7 +379,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
         _borrow(account, amount, msg.sender);
 
         // Callback to position folding to execute additional action.
-        IPositionManagement(msg.sender).onBorrow(
+        IPositionManager(msg.sender).onBorrow(
             address(this),
             account,
             amount,
@@ -525,12 +525,12 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
     /// @param account The account address to redeem eTokens on behalf of.
     /// @param amount The amount of the underlying asset to redeem.
     /// @param params Callback calldata to execute after redemption.
-    function redeemUnderlyingForPositionManagement(
+    function redeemUnderlyingForPositionManager(
         address account,
         uint256 amount,
-        IPositionManagement.DeleverageStruct memory params
+        IPositionManager.DeleverageStruct memory params
     ) external nonReentrant {
-        if (!marketManager.positionManagers(msg.sender)) {
+        if (!marketManager.isPositionManager(msg.sender)) {
             _revert(_UNAUTHORIZED_SELECTOR);
         }
 
@@ -539,7 +539,7 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
 
         _redeem(account, msg.sender, convertToShares(amount), amount);
 
-        IPositionManagement(msg.sender).onRedeem(
+        IPositionManager(msg.sender).onRedeem(
             address(this),
             account,
             amount,

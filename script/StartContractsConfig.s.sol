@@ -26,14 +26,14 @@ import { Faucet } from "contracts/testnet/Faucet.sol";
 import { RedstoneCoreAdaptor } from "contracts/oracles/adaptors/redstone/RedstoneCoreAdaptor.sol";
 import { SimpleZapperDeployer } from "./deployers/SimpleZapperDeployer.s.sol";
 import { OogaBoogaDeployer } from "./deployers/OogaBoogaDeployer.s.sol";
-import { PositionManagementSimpleDeployer } from "./deployers/PositionManagementSimpleDeployer.s.sol";
+import { SimplePositionManagerDeployer } from "./deployers/SimplePositionManagerDeployer.s.sol";
 
 contract StartContractsConfig is
     Script,
     DeployConfiguration,
     SimpleZapperDeployer,
     OogaBoogaDeployer,
-    PositionManagementSimpleDeployer
+    SimplePositionManagerDeployer
 {
     struct ETokenInterestRateParam {
         uint256 adjustmentRate;
@@ -321,7 +321,7 @@ contract StartContractsConfig is
         );
 
         // Deploy Addons
-        _deployPositionManagementSimple(
+        _deploySimplePositionManager(
             address(market),
             marketName,
             _readConfigAddress(".zapper.weth")

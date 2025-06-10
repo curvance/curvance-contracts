@@ -10,7 +10,7 @@ import { ERC165Checker } from "contracts/libraries/external/ERC165Checker.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
-import { IPositionManagement } from "contracts/interfaces/IPositionManagement.sol";
+import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IActionRegistry } from "contracts/interfaces/IActionRegistry.sol";
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
@@ -178,7 +178,7 @@ contract MarketManagerIsolated is
     /// @notice Whether an address is an authorized position management
     ///         operator or not.
     /// @dev Address => Is an approved position management operator.
-    mapping(address => bool) public positionManagers;
+    mapping(address => bool) public isPositionManager;
 
     /// EVENTS ///
 
@@ -1110,19 +1110,19 @@ contract MarketManagerIsolated is
         if (
             !ERC165Checker.supportsInterface(
                 newAddress,
-                type(IPositionManagement).interfaceId
+                type(IPositionManager).interfaceId
             )
         ) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Validate `newAddress` does not have permissions.
-        if (positionManagers[newAddress]) {
+        if (isPositionManager[newAddress]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Add position management permissions.
-        positionManagers[newAddress] = true;
+        isPositionManager[newAddress] = true;
 
         emit PositionManagerUpdated(newAddress, true);
     }
@@ -1137,12 +1137,12 @@ contract MarketManagerIsolated is
         _checkElevatedPermissions();
 
         // Validate `addressApproved` already has permissions.
-        if (!positionManagers[addressApproved]) {
+        if (!isPositionManager[addressApproved]) {
             _revert(_INVALID_PARAMETER_SELECTOR);
         }
 
         // Remove position management permissions.
-        delete positionManagers[addressApproved];
+        delete isPositionManager[addressApproved];
 
         emit PositionManagerUpdated(addressApproved, false);
     }

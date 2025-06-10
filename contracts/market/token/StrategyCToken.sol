@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import { BaseCTokenWithYield, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCTokenWithYield.sol";
+import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
+
+/// @notice Vault Positions must have all assets ready for withdraw,
+///         IE assets can NOT be locked.
+///         This way assets can be easily liquidated when loans default.
+/// @dev Each Curvance token vault run must be a LOSSLESS position, since
+///      totalAssets is not actually using the balances stored in the
+///      contract, rather it only uses an internal balance.
+abstract contract StrategyCToken is BaseCTokenWithYield {
+    /// TYPES ///
+
+    /// @notice Struct form of `_vestingData`, a bitshifted packed variable.
+    /// @param vestingRate The rate that the vault vests fresh yield.
+    /// @param vestingPeriodEnd When the current vesting period ends.
+    /// @param lastVestingClaim Last time vesting yield was claimed.
+    struct VestingData {
+        uint176 vestingRate;
+        uint40 vestingPeriodEnd;
+        uint40 lastVestingClaim;
+    }
+
+    /// CONSTANTS ///
+
+    /// @dev Mask of vesting rate entry in packed vault data.
+    uint256 internal constant _BITMASK_VESTING_RATE = (1 << 176) - 1;
+    /// @dev Mask of a timestamp entry in packed vault data.
+    uint256 internal constant _BITMASK_TIMESTAMP = (1 << 40) - 1;
+    /// @dev Mask of all bits in packed vault data except the 40 bits
+    ///      for `lastVestingClaim`.
+    uint256 internal constant _BITMASK_LAST_CLAIM_COMPLEMENT = (1 << 216) - 1;
+    /// @dev The bit position of `vestingPeriodEnd` in packed vault data.
+    uint256 internal constant _BITPOS_VEST_END = 176;
+    /// @dev The bit position of `lastVestingClaim` in packed vault data.
+    uint256 internal constant _BITPOS_LAST_VEST = 216;
+
+    /// STORAGE ///
+
+    /// @notice Whether compounding is currently paused.
+    /// @dev Starts paused until market started, 1 = unpaused; 2 = paused.
+    uint256 public compoundingPaused = 2;
+
+    /// @dev Internal packed vault accounting data.
+    ///      Bits Layout:
+    ///      - [0..127]   `vestingRate`.
+    ///      - [128..191] `vestingPeriodEnd`.
+    ///      - [192..255] `lastVestingClaim`.
+    uint256 internal _vestingData;
+
+    /// @notice Whether a particular token is an approved asset for swapping.
+    /// @dev Token => Is approved swap token.
+    mapping(address => bool) internal _isApprovedAsset;
+    /// @notice Whether a particular token is an underlying token
+    ///         of this strategy.
+    /// @dev Token => Is underlying token.
+    mapping(address => bool) internal _isUnderlyingToken;
+
+    /// EVENTS ///
+
+    event Harvest(uint256 yield);
+    event CompoundingPaused(bool pauseState);
+
+    /// ERRORS ///
+
+    error StrategyCToken__CompoundingPaused();
+    error StrategyCToken__UnapprovedAssetSwap();
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        ICentralRegistry centralRegistry_,
+        IERC20 asset_,
+        address marketManager_,
+        uint256 vestPeriod_
+    ) BaseCTokenWithYield(centralRegistry_, asset_, marketManager_, vestPeriod_) {}
+
+    /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Virtual function to harvest yield from the vault.
+    /// @return yield The yield harvested from the vault.
+    function harvest(bytes calldata) external virtual returns (uint256 yield);
+
+    
+    /// @notice Returns the current cToken yield status information.
+    /// @return result A VestingData struct containing:
+    ///         vestingRate: Yield per second in `asset()`.
+    ///         vestingPeriodEnd: When the current vesting period ends and
+    ///                           a new harvest can execute.
+    ///         lastVestingClaim: Last time pending vested yield was claimed.
+    function getVestingYieldData() external view nonReadReentrant returns (
+        VestingData memory result
+    ) {
+        result =  _unpackedVestingData(_vestingData);
+    }
+
+    /// @notice Permissioned function to set compounding paused.
+    /// @dev Requires elevated authority if unpausing.
+    /// @param state Whether compounded should be paused or unpaused.
+    function setCompoundingPaused(bool state) external {
+        // If the market has not been started,
+        // do not allow compounding changes.
+        if ((_vestingData >> _BITPOS_LAST_VEST) == 0) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (state) {
+            _checkDaoPermissions();
+        } else {
+            _checkElevatedPermissions();
+        }
+
+        // Pause state is stored as a uint256 to minimize gas overhead.
+        compoundingPaused = state ? 2 : 1;
+        emit CompoundingPaused(state);
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
+    ///         and `periodToVest` parameters together with the current
+    ///         block timestamp.
+    /// @param yieldToVest The yield to vest over `periodToVest`.
+    /// @param periodToVest The period in which `yieldToVest` is vested
+    ///                     over to users.
+    function _setNewVestingData(
+        uint256 yieldToVest,
+        uint256 periodToVest
+    ) internal override {
+        // Set vestingRate equal to prorated `yieldToVest` over `periodToVest`,
+        // in `WAD` (1e18).
+        _vestingData = _packVestingData(
+            FixedPointMathLib.mulDiv(yieldToVest, WAD, periodToVest),
+            block.timestamp + periodToVest
+        );
+    }
+
+    /// @notice Sets the last vest claim data for the vault.
+    /// @param newVestClaim The new timestamp to record as
+    ///                     the last vesting claim.
+    function _setlastVestingClaim(uint40 newVestClaim) internal {
+        // Cache vault data.
+        uint256 packedVestingData = _vestingData;
+        uint256 lastVestingClaimCasted;
+        // Cast `newVestClaim` with assembly to avoid redundant masking.
+        assembly {
+            lastVestingClaimCasted := newVestClaim
+        }
+        // Calculate new packed vault data.
+        packedVestingData =
+            (packedVestingData & _BITMASK_LAST_CLAIM_COMPLEMENT) |
+            (lastVestingClaimCasted << _BITPOS_LAST_VEST);
+
+        // Update `_vestingData` invariant.
+        _vestingData = packedVestingData;
+    }
+
+    /// @notice Packs parameters together with current block timestamp to
+    ///         calculate the new packed vault data value.
+    /// @param newVestingRate The new rate, per second, that the vault vests
+    ///                      fresh rewards.
+    /// @param newVestingPeriod The timestamp of when the new vesting period
+    ///                      ends, which is block.timestamp + `vestingPeriod`.
+    /// @return result The new packed vault data value.
+    function _packVestingData(
+        uint256 newVestingRate,
+        uint256 newVestingPeriod
+    ) internal view override returns (uint256 result) {
+        assembly {
+            // Mask `newVestingRate` to the lower 176 bits,
+            // in case the upper bits somehow aren't clean.
+            newVestingRate := and(newVestingRate, _BITMASK_VESTING_RATE)
+            // Equals `newVestingRate | (newVestingPeriod << _BITPOS_VEST_END) |
+            //          block.timestamp`.
+            result := or(
+                newVestingRate,
+                or(
+                    shl(_BITPOS_VEST_END, newVestingPeriod),
+                    shl(_BITPOS_LAST_VEST, timestamp())
+                )
+            )
+        }
+    }
+
+    /// @notice Returns the unpacked `VestingData` struct
+    ///         from `packedVestingData`.
+    /// @param vestingData The current packed vesting data value.
+    /// @return result The current vesting data, but unpacked into
+    ///                a VestingData struct.
+    function _unpackedVestingData(
+        uint256 vestingData
+    ) internal pure returns (VestingData memory result) {
+        result.vestingRate = uint176(vestingData);
+        result.vestingPeriodEnd = uint40(vestingData >> _BITPOS_VEST_END);
+        result.lastVestingClaim = uint40(vestingData >> _BITPOS_LAST_VEST);
+    }
+
+    /// @notice Returns whether the current vesting period has ended,
+    ///         based on the last vest timestamp.
+    /// @param vestingData Current packed vault data value.
+    /// @return result Boolean value indicating whether the current
+    ///                vesting period has ended or not.
+    function _checkVestStatus(
+        uint256 vestingData
+    ) internal pure override returns (bool result) {
+        result = 
+            uint40(vestingData >> _BITPOS_LAST_VEST) >=
+            uint40(vestingData >> _BITPOS_VEST_END);
+    }
+
+    /// @notice Calculates pending yield that have been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield.
+    function _calculatePendingYield()
+        internal
+        view
+        override
+        returns (uint256 pendingYield)
+    {
+        VestingData memory vestingData = _unpackedVestingData(_vestingData);
+        // Check whether there are pending yield vesting.
+        if (
+            vestingData.vestingRate > 0 &&
+            vestingData.lastVestingClaim < vestingData.vestingPeriodEnd
+        ) {
+            // When calculating pending yield:
+            // pendingYield =
+            // If the vesting period has not ended:
+            // PY = vestingRate * (block.timestamp - lastTimeVestClaimed).
+            // If the vesting period has ended:
+            // PY = vestingRate * (vestingPeriodEnd - lastTimeVestClaimed)).
+            // Then in either case:
+            // Divide the pending yield by `WAD` (1e18) for precision.
+            pendingYield =
+                (
+                    block.timestamp < vestingData.vestingPeriodEnd
+                        ? (vestingData.vestingRate *
+                            (block.timestamp - vestingData.lastVestingClaim))
+                        : (vestingData.vestingRate *
+                            (vestingData.vestingPeriodEnd -
+                                vestingData.lastVestingClaim))
+                ) /
+                WAD;
+        }
+    }
+
+    /// @notice Vests pending yield, and updates last vest timestamp.
+    /// @param newTotalAssets The current assets of the vault, this is called
+    ///                       with the previous total amount plus pending
+    ///                       yield to recognize from time based vesting.
+    function _vestYield(uint256 newTotalAssets) internal override {
+        // Update the lastVestingClaim timestamp.
+        _setlastVestingClaim(uint40(block.timestamp));
+
+        // Set internal _totalAssets balance to `currentAssets` which is the
+        // current _totalAssets values plus pending yield.
+        _totalAssets = newTotalAssets;
+    }
+
+    /// @notice Vests pending rewards, and updates vault data.
+    function _vestIfNeeded() internal override {
+        // Vest pending rewards.
+        uint256 pendingYieldToVest = _calculatePendingYield();
+        if (pendingYieldToVest > 0) {
+            _vestYield(pendingYieldToVest);
+        }
+    }
+
+    /// @notice Updates asset values for a pending deposit.
+    /// @param assets The amount of `asset()` to deposit.
+    function _updateAssetsForDeposit(uint256 assets) internal override {
+        super._updateAssetsForDeposit(assets);
+
+        // Deposit into strategy, shares parameter is unused so we can just
+        // pass 0.
+        _afterDeposit(assets, 0);
+    }
+
+    /// @notice Updates asset values for a pending withdrawal.
+    /// @param assets The amount of `asset()` to withdraw.
+    function _updateAssetsForWithdrawal(uint256 assets) internal override {
+        super._updateAssetsForWithdrawal(assets);
+
+        // Prepare underlying assets, shares parameter is unused so we can
+        // just pass 0.
+        _beforeWithdraw(assets, 0);
+    }
+
+    /// @notice Starts a cToken market, executed via marketManager.
+    /// @dev This initial mint is a failsafe against rounding exploits,
+    ///      although, we protect against them in many ways,
+    ///      better safe than sorry.
+    /// @dev Emits a {Deposit} event.
+    /// @param by The account initializing the cToken market.
+    function _startMarket(address by) internal override {
+        super._startMarket(by);
+
+        // Deposit into strategy, shares parameter is unused so we can just
+        // pass 0.
+        _afterDeposit(_BASE_UNDERLYING_RESERVE, 0);
+
+        _setlastVestingClaim(uint40(block.timestamp));
+        compoundingPaused = 1;
+
+    }
+
+    /// @notice Checks if the caller can compound pending vaults rewards.
+    function _canCompound() internal view {
+        if (!centralRegistry.hasHarvestPermissions(msg.sender)) {
+            _revert(_UNAUTHORIZED_SELECTOR);
+        }
+
+        if (compoundingPaused == 2) {
+            revert StrategyCToken__CompoundingPaused();
+        }
+    }
+
+    /// @notice Applies a fee in `rewardToken` based on `strategyFee` applied
+    ///         to pending `reward`, and sending the fee to `feeManager`.
+    /// @param reward The pending reward in `rewardToken` to take strategy
+    ///               fee from.
+    /// @param rewardToken The token that the pending reward is in and that
+    ///                    fee will be taken in.
+    /// @param strategyFee The percent fee to take from `reward`.
+    /// @param feeManager The fee manager address that will receive the fee
+    ///                   collected.
+    /// @return The remaining reward after the fee was taken.
+    function _applyFee(
+        uint256 reward,
+        address rewardToken,
+        uint256 strategyFee,
+        address feeManager
+    ) internal returns (uint256) {
+        // Calculate protocol fee for token lockers and strategy bot.
+        uint256 fee = FixedPointMathLib.mulDivUp(reward, strategyFee, WAD);
+        // Take fee.
+        SafeTransferLib.safeTransfer(rewardToken, feeManager, fee);
+        // Return remaining reward after fee was taken.
+        return (reward - fee);
+    }
+}
