@@ -47,6 +47,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     uint256 cFactorCurve;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
+    event Repay(address liquidator, address borrower, uint256 amount);
 
     function setUp() public override {
         super.setUp();
@@ -161,7 +162,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             marketManagerIsolated.liquidationStatusOf(borrowers[0], address(eUSDC), address(pBALRETH));
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAtlas(
+            _getLiquidationValuesWithHigherPrecision_NonAuction(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation
             );
 
@@ -190,6 +191,9 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
         emit BadDebtRecognized(address(this), expectedTotalBadDebt);
+        emit Repay(address(this), borrowers[2], maxAmount[2] + badDebt[2]);
+        emit Repay(address(this), borrowers[3], maxAmount[3] + badDebt[3]);
+        emit Repay(address(this), borrowers[4], maxAmount[4] + badDebt[4]);
 
         eUSDC.liquidate(
             borrowers,
@@ -319,7 +323,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         return debtBalances;
     }
 
-    function _getLiquidationValuesWithHigherPrecision_NonAtlas(
+    function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
         uint256 pTokenPrice,
         uint256[] memory lFactors

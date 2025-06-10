@@ -3,6 +3,8 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
+import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract Market {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
@@ -82,4 +84,21 @@ contract AddMarketManagerTest is TestBaseMarketIsolated {
             5000 * 1e14
         );
     }
+
+    function testMarketManagerIntegration() public {
+        // Deploy an actual MarketManager
+        MarketManagerIsolated marketManager = new MarketManagerIsolated(ICentralRegistry(address(centralRegistry)));
+        
+        // Add market manager with actual implementation
+        vm.prank(centralRegistry.emergencyCouncil());
+        centralRegistry.addMarketManager(address(marketManager), 1000); // 10% interest fee
+        
+        // Verify market is registered correctly
+        assertTrue(centralRegistry.isMarketManager(address(marketManager)));
+        assertEq(centralRegistry.protocolInterestFee(address(marketManager)), 1000 * 1e14);
+        
+        // Verify market manager's central registry reference
+        assertEq(address(marketManager.centralRegistry()), address(centralRegistry));
+    }
+    
 }

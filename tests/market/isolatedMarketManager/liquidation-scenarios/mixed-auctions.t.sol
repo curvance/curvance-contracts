@@ -12,24 +12,24 @@ import { FixedPointMathLib } from "contracts/libraries/external/FixedPointMathLi
 
 import "forge-std/console2.sol";
 
-// ## Scenario 4: Mixed Atlas and Regular Liquidations
+// ## Scenario 4: Mixed Auction and Regular Liquidations
 // - Setup: 4 users with varying positions
-// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Atlas)
-// - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Atlas)
+// - User 1: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
+// - User 2: 1.9 pBALRETH ($2,850), 2500 USDC debt (for Auction)
 // - User 3: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
 // - User 4: 1.9 pBALRETH ($2,850), 2500 USDC debt (for regular)
-// - Action 1: Price drop by to ~$1,300, Atlas transaction with custom parameters for User 1 and User 2
+// - Action 1: Price drop by to ~$1,300, Auction transaction with custom parameters for User 1 and User 2
 // - Action 2: Regular liquidation attempt for User 3 and User 4
-// - Expected: Users 1 and 2 liquidated via Atlas with custom parameters, Users 3 and 4 via regular liquidation
+// - Expected: Users 1 and 2 liquidated via Auction with custom parameters, Users 3 and 4 via regular liquidation
 //          All users have the same underwater position, so each accrue bad debt at the moment.
-//          Users who are liquidated via Atlas accrue less bad debt because their positions are not completely closed
+//          Users who are liquidated via Auction accrue less bad debt because their positions are not completely closed
 //                  because they use a lower close factor than using liquiding the maximum amount.
-//          Users who are liquidated without Atlas are fully liquidated and accrue the full bad debt amount.
+//          Users who are liquidated without Auction are fully liquidated and accrue the full bad debt amount.
 
 // TODO: Use different loan/collateral ratios for each user. Currently each have the same collateral amount and loan.
 
 
-contract MixedAtlas is TestBaseMarketManagerIsolated {
+contract MixedAuction is TestBaseMarketManagerIsolated {
 
     address borrower1 = makeAddr("borrower1");
     address borrower2 = makeAddr("borrower2");
@@ -37,7 +37,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
     address borrower4 = makeAddr("borrower4");
 
     uint256 borrowAmount = 2500e6;
-    address[] atlasBorrowers = [borrower1, borrower2];
+    address[] auctionBorrowers = [borrower1, borrower2];
     address[] regularBorrowers = [borrower3, borrower4];
     uint256[] collateralAmounts = [1.9e18, 1.9e18, 1.9e18, 1.9e18];
 
@@ -50,11 +50,13 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
     address dappControlUser = makeAddr("dappControlUser");
 
-    // Atlas parameters
+    // Auction parameters
     uint256 validPenalty = 1.04e18;
     uint256 closeFactor = 0.50e18;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
+    event Repay(address liquidator, address account, uint256 amount);
+
 
     function setUp() public override {
         super.setUp();
@@ -114,7 +116,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         tokens[0] = address(pBALRETH);
         uint256[] memory caps = new uint256[](1);
         caps[0] = 100_000e18;
-        marketManagerIsolated.setPTokenCollateralCaps(tokens, caps);
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         address liquidityProvider = makeAddr("liquidityProvider");
         _prepareUSDC(liquidityProvider, 200000e6);
@@ -142,30 +144,32 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         // Create a dapp control user
         vm.startPrank(centralRegistry.daoAddress());
-        centralRegistry.addAuthorizedAtlasDAppControl(dappControlUser);
+        centralRegistry.addAuctionPermissions(dappControlUser);
         vm.stopPrank();
 
         console2.log("SETUP COMPLETE");
     }
 
-    uint256[] debtBalancesPreLiquidation_atlas;
+    uint256[] debtBalancesPreLiquidation_auction;
     uint256[] debtBalancesPreLiquidation_regular;
-    uint256[] lFactorsPreLiquidation_atlas;
+    uint256[] lFactorsPreLiquidation_auction;
     uint256[] lFactorsPreLiquidation_regular;
     uint256 eTokenPrice;
     uint256 pTokenPrice;
-    uint256[] maxAmount_atlas;
-    uint256[] liquidatedPTokens_atlas;
-    uint256[] collateralRequired_atlas;
+    uint256[] maxAmount_auction;
+    uint256[] liquidatedPTokens_auction;
+    uint256[] collateralRequired_auction;
     uint256[] maxAmount_regular;
     uint256[] liquidatedPTokens_regular;
     uint256[] collateralRequired_regular;
-    uint256[] badDebt_atlas = new uint256[](2);
+    uint256[] badDebt_auction = new uint256[](2);
     uint256[] badDebt_regular = new uint256[](2);
+    uint256 totalBadDebtRegular;
+    uint256 totalBadDebtAuction;
     uint256 totalBorrowsBefore;
     uint256 totalDebtRepaid;
 
-    function test_mixedAtlas() public {
+    function test_mixedAuction() public {
 
         _prepareUSDC(dappControlUser, 100000e6);
         _prepareUSDC(address(this), 100000e6);
@@ -176,39 +180,40 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         totalBorrowsBefore = eUSDC.totalBorrows();
 
-        debtBalancesPreLiquidation_atlas = _getDebtBalancePreLiquidation(atlasBorrowers);
+        debtBalancesPreLiquidation_auction = _getDebtBalancePreLiquidation(auctionBorrowers);
         debtBalancesPreLiquidation_regular = _getDebtBalancePreLiquidation(regularBorrowers);
 
-        lFactorsPreLiquidation_atlas = _getLFactorsPreLiquidation(atlasBorrowers);
+        lFactorsPreLiquidation_auction = _getLFactorsPreLiquidation(auctionBorrowers);
         lFactorsPreLiquidation_regular = _getLFactorsPreLiquidation(regularBorrowers);
 
         (,eTokenPrice, pTokenPrice) = 
-            marketManagerIsolated.liquidationStatusOf(atlasBorrowers[0], address(eUSDC), address(pBALRETH));
+            marketManagerIsolated.liquidationStatusOf(auctionBorrowers[0], address(eUSDC), address(pBALRETH));
 
-        (maxAmount_atlas, liquidatedPTokens_atlas, collateralRequired_atlas) = 
-            _getLiquidationValuesWithHigherPrecision_Atlas(
-                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_atlas, closeFactor, validPenalty
+        (maxAmount_auction, liquidatedPTokens_auction, collateralRequired_auction) = 
+            _getLiquidationValuesWithHigherPrecision_Auction(
+                eTokenPrice, pTokenPrice, lFactorsPreLiquidation_auction, closeFactor, validPenalty
             );
 
         (maxAmount_regular, liquidatedPTokens_regular, collateralRequired_regular) = 
-            _getLiquidationValuesWithHigherPrecision_NonAtlas(
+            _getLiquidationValuesWithHigherPrecision_NonAuction(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation_regular
             );
 
         console2.log("CHECKPOINT 1");
 
         for(uint i; i < 2; i++) {
-            badDebt_atlas[i] = _calculateBadDebt(
-                debtBalancesPreLiquidation_atlas[i],
-                maxAmount_atlas[i],
+            badDebt_auction[i] = _calculateBadDebt(
+                debtBalancesPreLiquidation_auction[i],
+                maxAmount_auction[i],
                 collateralAmounts[i],
-                collateralRequired_atlas[i],
-                liquidatedPTokens_atlas[i],
+                collateralRequired_auction[i],
+                liquidatedPTokens_auction[i],
                 pTokenPrice,
                 eTokenPrice,
                 pTokenExchangeRate
             );
-            console2.log("badDebt_atlas", badDebt_atlas[i]);
+            totalBadDebtAuction += badDebt_auction[i];
+            console2.log("badDebt_auction", badDebt_auction[i]);
         }
 
         for(uint i; i < 2; i++) {
@@ -222,6 +227,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
                 eTokenPrice,
                 pTokenExchangeRate
             );
+            totalBadDebtRegular += badDebt_regular[i];
             console2.log("badDebt_regular", badDebt_regular[i]);
         }
 
@@ -230,17 +236,31 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         vm.startPrank(dappControlUser);
         usdc.approve(address(eUSDC), 100000e6);
 
-        marketManagerIsolated.setAtlasParameters(validPenalty, closeFactor);
-        marketManagerIsolated.unlockAtlasCollateral(address(eUSDC));
+        marketManagerIsolated.setAuctionParameters(validPenalty, closeFactor);
+        marketManagerIsolated.unlockAuctionCollateral(address(eUSDC));
+
+        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit();
+        emit BadDebtRecognized(dappControlUser, totalBadDebtAuction);
+        emit Repay(dappControlUser, auctionBorrowers[0], maxAmount_auction[0] + badDebt_auction[0]);
+        emit Repay(dappControlUser, auctionBorrowers[1], maxAmount_auction[1] + badDebt_auction[1]);
+
         eUSDC.liquidate(
-            atlasBorrowers,
+            auctionBorrowers,
             address(pBALRETH)
         );
-        marketManagerIsolated.lockAtlasCollateral();
-        marketManagerIsolated.resetAtlasParameters();
+        marketManagerIsolated.lockAuctionCollateral();
+        marketManagerIsolated.resetAuctionParameters();
         vm.stopPrank();
 
         usdc.approve(address(eUSDC), 100000e6);
+
+        // Assert BadDebtRecognized event is emitted with expected total bad debt
+        vm.expectEmit();
+        emit BadDebtRecognized(address(this), totalBadDebtRegular);
+        emit Repay(address(this), regularBorrowers[0], maxAmount_regular[0] + badDebt_regular[0]);
+        emit Repay(address(this), regularBorrowers[1], maxAmount_regular[1] + badDebt_regular[1]);
+
         eUSDC.liquidate(
             regularBorrowers,
             address(pBALRETH)
@@ -249,22 +269,22 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         // ===== Validate =====
 
         // Verify debt balances
-        assertEq(eUSDC.debtBalanceCached(atlasBorrowers[0]), debtBalancesPreLiquidation_atlas[0] - (maxAmount_atlas[0] + badDebt_atlas[0]), "Atlas borrower 1 debt balance mismatch");
-        assertEq(eUSDC.debtBalanceCached(atlasBorrowers[1]), debtBalancesPreLiquidation_atlas[1] - (maxAmount_atlas[1] + badDebt_atlas[1]), "Atlas borrower 2 debt balance mismatch");
+        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[0]), debtBalancesPreLiquidation_auction[0] - (maxAmount_auction[0] + badDebt_auction[0]), "Auction borrower 1 debt balance mismatch");
+        assertEq(eUSDC.debtBalanceCached(auctionBorrowers[1]), debtBalancesPreLiquidation_auction[1] - (maxAmount_auction[1] + badDebt_auction[1]), "Auction borrower 2 debt balance mismatch");
         assertEq(eUSDC.debtBalanceCached(regularBorrowers[0]), debtBalancesPreLiquidation_regular[0] - (maxAmount_regular[0] + badDebt_regular[0]), "Regular borrower 1 debt balance mismatch");
         assertEq(eUSDC.debtBalanceCached(regularBorrowers[1]), debtBalancesPreLiquidation_regular[1] - (maxAmount_regular[1] + badDebt_regular[1]), "Regular borrower 2 debt balance mismatch");
 
         // Verify collateral is reduced by liquidatedPTokens
         assertApproxEqAbs(
-            pBALRETH.balanceOf(atlasBorrowers[0]),
-            collateralAmounts[0] - (liquidatedPTokens_atlas[0]),
+            pBALRETH.balanceOf(auctionBorrowers[0]),
+            collateralAmounts[0] - (liquidatedPTokens_auction[0]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
 
         assertApproxEqAbs(
-            pBALRETH.balanceOf(atlasBorrowers[1]),
-            collateralAmounts[1] - (liquidatedPTokens_atlas[1]),
+            pBALRETH.balanceOf(auctionBorrowers[1]),
+            collateralAmounts[1] - (liquidatedPTokens_auction[1]),
             1000, // Tolerance of 1000 wei 
             "Collateral post liquidation mismatch"
         );
@@ -285,12 +305,12 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         // Assert Total borrows is reduced by the amount of debt repaid
 
-        totalDebtRepaid = maxAmount_atlas[0] + 
-        maxAmount_atlas[1] + 
+        totalDebtRepaid = maxAmount_auction[0] + 
+        maxAmount_auction[1] + 
         maxAmount_regular[0] + 
         maxAmount_regular[1] + 
-        badDebt_atlas[0] + 
-        badDebt_atlas[1] + 
+        badDebt_auction[0] + 
+        badDebt_auction[1] + 
         badDebt_regular[0] + 
         badDebt_regular[1];
 
@@ -303,16 +323,16 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
 
         // Verify liquidator received the expected collateral
         uint256 expectedDappControlUserLiquidatorBalance = 
-        (liquidatedPTokens_atlas[0]) + 
-        (liquidatedPTokens_atlas[1]);
+        (liquidatedPTokens_auction[0]) + 
+        (liquidatedPTokens_auction[1]);
 
         uint256 expectedNormalUserLiquidatorBalance = 
         (liquidatedPTokens_regular[0]) + 
         (liquidatedPTokens_regular[1]);
 
         console2.log("expectedDappControlUserLiquidatorBalance", expectedDappControlUserLiquidatorBalance);
-        console2.log("liquidatedPTokens_atlas[0]", liquidatedPTokens_atlas[0]);
-        console2.log("liquidatedPTokens_atlas[1]", liquidatedPTokens_atlas[1]);
+        console2.log("liquidatedPTokens_auction[0]", liquidatedPTokens_auction[0]);
+        console2.log("liquidatedPTokens_auction[1]", liquidatedPTokens_auction[1]);
         console2.log("liquidatedPTokens_regular[0]", liquidatedPTokens_regular[0]);
         console2.log("liquidatedPTokens_regular[1]", liquidatedPTokens_regular[1]);
 
@@ -331,17 +351,17 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         );
 
         // Verify lFactors
-        // Atlas borrowers should still have lFactor > 0
+        // Auction borrowers should still have lFactor > 0
         // Regular borrowers should have lFactor since fully liquidated
 
         for(uint i = 0; i < 2; i++) {
             (uint256 lFactorAfter,,) = marketManagerIsolated.liquidationStatusOf(
-                atlasBorrowers[i],
+                auctionBorrowers[i],
                 address(eUSDC),
                 address(pBALRETH)
             );
 
-            assertGt(lFactorAfter, 0, "Atlas borrower should still have lFactor > 0");
+            assertGt(lFactorAfter, 0, "Auction borrower should still have lFactor > 0");
         }
 
         for(uint i = 0; i < 2; i++) {
@@ -413,7 +433,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         return debtBalances;
     }
 
-    function _getLiquidationValuesWithHigherPrecision_NonAtlas(
+    function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
         uint256 pTokenPrice,
         uint256[] memory lFactors
@@ -464,7 +484,7 @@ contract MixedAtlas is TestBaseMarketManagerIsolated {
         return (maxAmount, liquidatedPTokens, collateralRequired);
     }
 
-    function _getLiquidationValuesWithHigherPrecision_Atlas(
+    function _getLiquidationValuesWithHigherPrecision_Auction(
         uint256 eTokenPrice,
         uint256 pTokenPrice,
         uint256[] memory lFactors,

@@ -48,15 +48,29 @@ contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {
         );
         assertTrue(centralRegistry.hasElevatedPermissions(address(this)));
 
+        // Get initial dao address for comparison
+        address initialDaoAddress = centralRegistry.daoAddress();
+
+        // Transfer dao permissions
         vm.prank(address(newTimelock1));
         centralRegistry.transferDaoPermissions(address(1));
 
-        assertTrue(
-            newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1))
-        );
-        assertTrue(
-            newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1))
-        );
+        // Before calling updateDaoAddress, check if old dao still has roles
+        // and new dao doesn't have roles yet
+        assertTrue(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), initialDaoAddress));
+        assertTrue(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), initialDaoAddress));
+        assertFalse(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1)));
+        assertFalse(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1)));
+
+        // Call updateDAOAddress explicitly
+        newTimelock1.updateDaoAddress();
+        
+        // After updateDaoAddress, check if old dao no longer has roles
+        // and new dao now has roles
+        assertFalse(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), initialDaoAddress));
+        assertFalse(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), initialDaoAddress));
+        assertTrue(newTimelock1.hasRole(newTimelock1.PROPOSER_ROLE(), address(1)));
+        assertTrue(newTimelock1.hasRole(newTimelock1.EXECUTOR_ROLE(), address(1)));
 
         Timelock newTimelock2 = new Timelock(
             ICentralRegistry(address(centralRegistry))
