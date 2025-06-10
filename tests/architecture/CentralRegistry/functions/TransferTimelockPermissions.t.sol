@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseMarketIsolated } from "tests/market/TestBaseMarketIsolated.sol";
 import { CentralRegistry } from "contracts/architecture/CentralRegistry.sol";
-import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";
+import { Timelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TransferTimelockPermissionsTest is TestBaseMarketIsolated {

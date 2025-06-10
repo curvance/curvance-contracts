@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TestBaseTimelock } from "../TestBaseTimelock.sol";
-import { Timelock } from "contracts/architecture/CurvanceDAOTimelock.sol";
+import { Timelock } from "contracts/architecture/DAOTimelock.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 
 contract TimelockDeploymentTest is TestBaseTimelock {

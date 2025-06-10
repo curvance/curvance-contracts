@@ -22,7 +22,7 @@
 //         _deployVeCVE();
 //         _deployGaugeManager();
 //         _deployMarketManager();
-//         _deployCurvanceAuxiliaryData();
+//         _deployAuxiliaryData();
 //         // eth/usd is needed in oracle manager constructor
 //         chainlinkEthUsd = chainlinkEthUsds[
 //             block.chainid
@@ -293,7 +293,7 @@
 
 //         _prepareLiquidationMultiple(liquidator, eTokens);
 //         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
-//             if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
+//             if (!auxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[0]), address(pTokens[0]))) {
 //                 continue;
 //             }
 //             // _liquidateAccount(users[i], liquidator);

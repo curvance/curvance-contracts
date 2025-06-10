@@ -8,7 +8,7 @@ import { IEToken } from "contracts/interfaces/IEToken.sol";
 import { IPToken } from "contracts/interfaces/IPToken.sol";
 
 import { EToken } from "contracts/market/token/EToken.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
+import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 import { Multicall } from "contracts/libraries/Multicall.sol";
 import { MockDataFeed } from "contracts/mocks/MockDataFeed.sol";
 import { SimplePToken } from "contracts/market/token/SimplePToken.sol";
@@ -36,7 +36,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     MockDataFeed public mockStethFeed;
 
     SimplePToken public pWBTC;
-    UniversalBalanceNative public universalBalanceNative;
+    NativeUniversalBalance public nativeUniversalBalance;
 
     address internal _PYTH_ADDRESS =
         0x4305FB66699C3B2702D4d05CF36551390A4c69C6;
@@ -84,7 +84,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         eWETH = _deployEToken(_WETH_ADDRESS);
 
-        universalBalanceNative = new UniversalBalanceNative(
+        nativeUniversalBalance = new NativeUniversalBalance(
             ICentralRegistry(address(centralRegistry)),
             address(eWETH),
             _WETH_ADDRESS
@@ -92,7 +92,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
 
         adapter = new MockPythAdaptor(
             ICentralRegistry(address(centralRegistry)),
-            address(universalBalanceNative),
+            address(nativeUniversalBalance),
             _PYTH_ADDRESS,
             _WETH_ADDRESS
         );
@@ -255,7 +255,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalanceNative.depositNative{ value: 1 ether }(false);
+        nativeUniversalBalance.depositNative{ value: 1 ether }(false);
 
         _prepareWBTC(user1, 2 ether);
 
@@ -295,7 +295,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalanceNative.depositNative{ value: 1 ether }(false);
+        nativeUniversalBalance.depositNative{ value: 1 ether }(false);
 
         _prepareUSDC(user1, 2e6);
 
@@ -333,7 +333,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
         // provide fee to universal balance
         vm.deal(user1, 1 ether);
         vm.prank(user1);
-        universalBalanceNative.depositNative{ value: 1 ether }(false);
+        nativeUniversalBalance.depositNative{ value: 1 ether }(false);
 
         _prepareWBTC(user1, 0.1e8);
         vm.prank(user1);
