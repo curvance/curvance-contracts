@@ -27,17 +27,29 @@ contract BasicSettersTest is TestBaseMarketIsolated {
             "setCVE(address)",
             "setVeCVE(address)",
             "setRewardManager(address)",
+            "setGaugeManager(address)",
+            "setVotingHub(address)",
             "setMessagingHub(address)",
             "setOracleManager(address)",
-            "setFeeManager(address)"
+            "setFeeManager(address)",
+            "setCrosschainCore(address)",
+            "setCrosschainRelayer(address)",
+            "setTokenMessager(address)",
+            "setMessageTransmitter(address)"
         ];
         getters = [
             "cve()",
             "veCVE()",
             "rewardManager()",
+            "gaugeManager()",
+            "votingHub()",
             "messagingHub()",
             "oracleManager()",
-            "feeManager()"
+            "feeManager()",
+            "crosschainCore()",
+            "crosschainRelayer()",
+            "tokenMessager()",
+            "messageTransmitter()"
         ];
         expectedLogs = [
             "CVE",
@@ -45,7 +57,11 @@ contract BasicSettersTest is TestBaseMarketIsolated {
             "Reward Manager",
             "Messaging Hub",
             "Oracle Manager",
-            "Fee Manager"
+            "Fee Manager",
+            "Crosschain Core",
+            "Crosschain Relayer",
+            "Token Messager",
+            "Message Transmitter"
         ];
     }
 

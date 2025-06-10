@@ -6,11 +6,11 @@ import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIs
 
 contract CanMintTest is TestBaseMarketManagerIsolated {
     function test_canMint_fail_whenMintPaused() public {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
@@ -25,11 +25,11 @@ contract CanMintTest is TestBaseMarketManagerIsolated {
     }
 
     function test_canMint_success() public {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.canMint(address(eUSDC));

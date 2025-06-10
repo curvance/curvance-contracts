@@ -8,6 +8,7 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
     event CoreContractUpdated(string indexed contractType, address newAddress);
 
     address public newGaugeManager = makeAddr("Gauge Manager");
+    address public anotherGaugeManager = makeAddr("Another Gauge Manager");
 
     function setUp() public override {
         super.setUp();
@@ -31,14 +32,27 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
         centralRegistry.setGaugeManager(newGaugeManager);
     }
 
-    function test_setGaugeManager_fail_whenGaugeManagerIsAlreadySet() public {
-        centralRegistry.setGaugeManager(newGaugeManager);
+    function test_setGaugeManager_fail_whenGenesisEpochHasStarted() public {
+        // Set genesis epoch to the past
+        vm.warp(block.timestamp + 2);
 
         vm.expectRevert(
-            CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+            CentralRegistry.CentralRegistry__EpochHasStarted.selector
         );
         centralRegistry.setGaugeManager(newGaugeManager);
     }
+
+
+    // No more check to see if the gauge manager is already set
+    
+    // function test_setGaugeManager_fail_whenGaugeManagerIsAlreadySet() public {
+    //     centralRegistry.setGaugeManager(newGaugeManager);
+
+    //     vm.expectRevert(
+    //         CentralRegistry.CentralRegistry__ParametersMisconfigured.selector
+    //     );
+    //     centralRegistry.setGaugeManager(newGaugeManager);
+    // }
 
     function test_setGaugeManager_success() public {
         assertEq(centralRegistry.gaugeManager(), _ZERO_ADDRESS);
@@ -47,5 +61,20 @@ contract SetGaugeManagerTest is TestBaseMarketIsolated {
         emit CoreContractUpdated("Gauge Manager", newGaugeManager);
 
         centralRegistry.setGaugeManager(newGaugeManager);
+
+        assertEq(centralRegistry.gaugeManager(), newGaugeManager);
+    }
+
+    // First set the gauge manager, then update it before genesis epoch
+    function test_setGaugeManager_success_whenUpdatedBeforeGenesisEpoch() public {
+
+        centralRegistry.setGaugeManager(newGaugeManager);
+         
+        vm.expectEmit(true, true, true, true);
+        emit CoreContractUpdated("Gauge Manager", anotherGaugeManager);
+        
+        centralRegistry.setGaugeManager(anotherGaugeManager);
+        
+        assertEq(centralRegistry.gaugeManager(), anotherGaugeManager);
     }
 }

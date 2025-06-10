@@ -45,6 +45,6 @@ contract ListTokenTest is TestBaseMarketManager {
         assertTrue(isListed);
         assertEq(collRatio, 0);
 
-        assertEq(eUSDC.totalSupply(), 42069);
+        assertEq(eUSDC.totalSupply(), 77777);
     }
 }

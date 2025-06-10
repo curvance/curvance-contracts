@@ -91,7 +91,7 @@ contract ETokenRepayTest is TestBaseEToken {
     }
 
     function test_borrowers_repayAllDebts() public {
-        uint256 _BASE_UNDERLYING_RESERVE = 42069;
+        uint256 _BASE_UNDERLYING_RESERVE = 77777;
         uint256 initialUsdcReserves = 1000e6;
         _setPBALRETHCollateralCaps(100_000e18);
 

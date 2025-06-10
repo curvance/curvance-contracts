@@ -268,11 +268,11 @@ interface IMarketManager {
         address pToken
     ) external view returns (uint256, uint256, uint256);
 
-    /// @notice Returns whether `positionContract` is an approved position
-    ///         management operator or not.
+    /// @notice Returns whether `addressToCheck` is an approved position
+    ///         manager or not.
     /// @param addressToCheck Address to check for position management
     ///                       authority.
-    function positionManagers(
+    function isPositionManager(
         address addressToCheck
     ) external view returns (bool);
 }

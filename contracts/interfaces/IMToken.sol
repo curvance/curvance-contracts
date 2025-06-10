@@ -59,6 +59,16 @@ interface IMToken {
     /// @notice Address of the Market Manager linked to this contract.
     function marketManager() external view returns (IMarketManager);
 
+    /// @notice Returns the amount of assets that would be exchanged
+    ///         by the vault for `shares` provided.
+    /// @param shares The number of shares to theoretically use
+    ///               for conversion to assets.
+    /// @return The number of assets a user would receive for converting
+    ///         `shares`.
+    function convertToAssets(
+        uint256 shares
+    ) external view returns (uint256);
+
     /// @notice Returns share -> asset exchange rate, in `WAD`.
     /// @dev Oracle Manager calculates mToken value from this exchange rate.
     function exchangeRateCached() external view returns (uint256);

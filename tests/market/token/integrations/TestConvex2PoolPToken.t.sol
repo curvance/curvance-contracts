@@ -131,7 +131,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
 
         assertEq(
             cSTETH.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit."
         );
 
@@ -189,7 +189,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
 
         assertEq(
             cSTETH.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit."
         );
 
@@ -206,7 +206,7 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
 
         assertGt(
             totalAssets,
-            assets + 42069,
+            assets + 77777,
             "Total Assets should greater than original deposit."
         );
 

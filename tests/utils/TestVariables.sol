@@ -27,7 +27,7 @@ import { MockAuraPTokenWithExitFee } from "contracts/mocks/MockAuraPTokenWithExi
 import { IERC20 } from "contracts/interfaces/IERC20.sol";
 import { IWormhole } from "contracts/interfaces/external/wormhole/IWormhole.sol";
 
-import { CurvanceAuxiliaryData } from "contracts/indexing/CurvanceAuxiliaryData.sol";
+import { AuxiliaryData } from "contracts/indexing/AuxiliaryData.sol";
 
 contract TestVariables {
     uint256 internal constant _ONE = 1e18;
@@ -103,7 +103,7 @@ contract TestVariables {
     ChainlinkAdaptor public dualChainlinkAdaptor;
     MarketManagerIsolated public marketManagerIsolated;
     OracleManager public oracleManager;
-    CurvanceAuxiliaryData public curvanceAuxiliaryData;
+    AuxiliaryData public auxiliaryData;
     EToken public eUSDC;
     EToken public eDAI;
 
@@ -145,7 +145,7 @@ contract TestVariables {
     mapping(uint256 => ChainlinkAdaptor) public chainlinkAdaptors;
     mapping(uint256 => ChainlinkAdaptor) public dualChainlinkAdaptors;
     mapping(uint256 => MarketManagerIsolated) public marketManagersIsolated;
-    mapping(uint256 => CurvanceAuxiliaryData) public curvanceAuxiliaryDatas;
+    mapping(uint256 => AuxiliaryData) public auxiliaryDatas;
     mapping(uint256 => OracleManager) public oracleManagers;
     mapping(uint256 => EToken) public eUSDCs;
     mapping(uint256 => EToken) public eDAIs;
@@ -379,7 +379,7 @@ contract TestVariables {
         dualChainlinkAdaptor = dualChainlinkAdaptors[chainId];
         marketManagerIsolated = marketManagersIsolated[chainId];
         oracleManager = oracleManagers[chainId];
-        curvanceAuxiliaryData = curvanceAuxiliaryDatas[chainId];
+        auxiliaryData = auxiliaryDatas[chainId];
         eUSDC = eUSDCs[chainId];
         eDAI = eDAIs[chainId];
 

@@ -13,11 +13,11 @@ contract AccountFunctionsIsolatedMarketManager is TestBaseMarketManagerIsolated 
         super.setUp();
         
         // // Setup market with tokens
-        // deal(address(balRETH), address(this), 42069);
-        // balRETH.approve(address(pBALRETH), 42069);
+        // deal(address(balRETH), address(this), 77777);
+        // balRETH.approve(address(pBALRETH), 77777);
 
-        // deal(address(_USDC_ADDRESS), address(this), 42069);
-        // usdc.approve(address(eUSDC), 42069);
+        // deal(address(_USDC_ADDRESS), address(this), 77777);
+        // usdc.approve(address(eUSDC), 77777);
         
         // // List tokens in the market
         // marketManager.listTokens(address(pBALRETH), address(eUSDC));

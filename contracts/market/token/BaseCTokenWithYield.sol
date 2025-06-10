@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import { BaseCToken, FixedPointMathLib, WAD, IERC20, ICentralRegistry } from "contracts/market/token/BaseCToken.sol";
+
+abstract contract BaseCTokenWithYield is BaseCToken {
+    /// TYPES ///
+
+    /// @notice Storage configuration for pending vesting update.
+    /// @param updateNeeded Whether there is a pending update to vault
+    ///                     vesting schedule.
+    /// @param newVestingPeriod The pending new compounding vesting schedule.
+    struct NewVestingData {
+        bool updateNeeded;
+        uint248 newVestingPeriod;
+    }
+
+    /// CONSTANTS ///
+
+    /// @notice The maximum length of time between vesting periods.
+    uint256 internal constant _MAXIMUM_VEST_PERIOD = 3 days;
+
+    /// STORAGE ///
+
+    /// @notice The period of time harvested rewards are vested over,
+    ///         in seconds.
+    uint256 public vestingPeriod;
+    /// @notice Whether there is a pending update to vesting period,
+    ///         after this vesting period ends.
+    NewVestingData public pendingVestingPeriodUpdate;
+
+    /// ERRORS ///
+
+    error BaseCTokenWithYield__InvalidVestingPeriod();
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        ICentralRegistry centralRegistry_,
+        IERC20 asset_,
+        address marketManager_,
+        uint256 vestingPeriod_
+    ) BaseCToken(centralRegistry_, asset_, marketManager_) {
+        if (
+            vestingPeriod_ > _MAXIMUM_VEST_PERIOD &&
+            vestingPeriod_ != 0
+            ) {
+            revert BaseCTokenWithYield__InvalidVestingPeriod();
+        }
+        
+        vestingPeriod = vestingPeriod_;
+    }
+
+    /// EXTERNAL FUNCTIONS ///
+
+    /// @notice Permissioned function to set a new compounding vesting period.
+    /// @dev Requires dao authority, `newVestingPeriod` cannot be longer
+    ///      than a week (7 days).
+    /// @param newVestingPeriod New vesting period, in seconds.
+    function setVestingPeriod(uint256 newVestingPeriod) external {
+        _checkDaoPermissions();
+
+        if (
+            newVestingPeriod > _MAXIMUM_VEST_PERIOD &&
+            newVestingPeriod != 0
+            ) {
+            revert BaseCTokenWithYield__InvalidVestingPeriod();
+        }
+
+        pendingVestingPeriodUpdate.updateNeeded = true;
+        pendingVestingPeriodUpdate.newVestingPeriod = uint248(
+            newVestingPeriod
+        );
+    }
+
+    /// INTERNAL FUNCTIONS ///
+
+    /// @notice Returns the total amount of the underlying asset in the vault,
+    ///         including pending rewards that are vested.
+    /// @return result The total number of underlying assets.
+    function _getTotalAssets() internal view override returns (
+        uint256 result
+    ) {
+        result = _totalAssets + _calculatePendingYield();
+    }
+
+    /// @notice Sets a new `_vestingData` invariant based on `yieldToVest`,
+    ///         and `periodToVest` parameters together with the current
+    ///         block timestamp.
+    /// @param yieldToVest The yield to vest over `periodToVest`.
+    /// @param periodToVest The period in which `yieldToVest` is vested
+    ///                     over to users.
+    function _setNewVestingData(
+        uint256 yieldToVest,
+        uint256 periodToVest
+    ) internal virtual {}
+
+    /// @notice Packs parameters together with current block timestamp to
+    ///         calculate the new packed vault data value.
+    /// @param newVestingRate The new rate, per second, that the vault vests
+    ///                      fresh rewards.
+    /// @param newVestingPeriod The timestamp of when the new vesting period
+    ///                      ends, which is block.timestamp + `vestingPeriod`.
+    /// @return result The new packed vault data value.
+    function _packVestingData(
+        uint256 newVestingRate,
+        uint256 newVestingPeriod
+    ) internal view virtual returns (uint256 result) {}
+
+    /// @notice Returns whether the current vesting period has ended,
+    ///         based on the last vest timestamp.
+    /// @param packedVestingData Current packed vault data value.
+    /// @return result Boolean value indicating whether the current
+    ///                vesting period has ended or not.
+    function _checkVestStatus(
+        uint256 packedVestingData
+    ) internal pure virtual returns (bool result) {}
+
+    /// @notice Calculates pending yield that have been vested.
+    /// @dev If there are no pending yield or the vesting period has ended,
+    ///      it returns 0.
+    /// @return pendingYield The calculated pending yield.
+    function _calculatePendingYield()
+        internal
+        view
+        virtual
+        returns (uint256 pendingYield) {}
+
+    /// @notice Vests pending yield, and updates vesting data.
+    function _vestYield(uint256 /* newTotalAssets */) internal virtual {}
+
+    /// @notice Updates the vesting period, if needed.
+    /// @dev If there a pending vesting update,
+    ///      and prior vest is done then `vestingPeriod` is updated.
+    function _updateVestingPeriodIfNeeded() internal {
+        // Check whether there is a pending update to reward vesting schedule.
+        if (pendingVestingPeriodUpdate.updateNeeded) {
+            // Update vesting period.
+            vestingPeriod = pendingVestingPeriodUpdate.newVestingPeriod;
+            // Remove pending vesting update flag.
+            delete pendingVestingPeriodUpdate.updateNeeded;
+        }
+    }
+}

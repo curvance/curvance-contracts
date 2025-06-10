@@ -101,9 +101,9 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
     function testWethUsdcVolatilePool() public {
         uint256 assets = 0.0001e18;
         deal(_WETH_USDC, user1, assets);
-        deal(_WETH_USDC, address(this), 42069);
+        deal(_WETH_USDC, address(this), 77777);
 
-        IERC20(_WETH_USDC).approve(address(pWETHUSDC), 42069);
+        IERC20(_WETH_USDC).approve(address(pWETHUSDC), 77777);
         marketManagerIsolated.listToken(address(pWETHUSDC));
 
         vm.prank(user1);
@@ -114,7 +114,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
 
         assertEq(
             pWETHUSDC.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -155,7 +155,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
 
         assertEq(
             pWETHUSDC.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -183,7 +183,7 @@ contract TestVelodromeVolatilePToken is TestBaseMarketIsolated {
 
         assertGt(
             pWETHUSDC.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 

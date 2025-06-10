@@ -37,13 +37,13 @@ contracts/
 
 **Contents**:
 - 📄 `CentralRegistry.sol`: Manages permissions and protocol contract registration within the Curvance Protocol.
-- 📄 `CurvanceDAOTimelock.sol`: A timelock controller for the Curvance DAO that enforces a delay period before administrative operations can be executed.
+- 📄 `DAOTimelock.sol`: A timelock controller for the Curvance DAO that enforces a delay period before administrative operations can be executed.
 - 📄 `FeeManager.sol`: A system for managing fee collected through Curvance DAO operations within Curvance Protocol.
 - 📄 `GaugeManager.sol`: A market specific system for distributing rewards to Curvance market users inside the Curvance Protocol.
 - 📄 `MessagingHub.sol`: A comprehensive system for cross-chain communication within the Curvance Protocol ecosystem
 - 📄 `RewardManager.sol`: A system for managing rewards within the Curvance Protocol.
 - 📄 `UniversalBalance.sol`: A user-facing system for flexible token management within the Curvance Protocol.
-- 📄 `UniversalBalanceNative.sol`: A specialized system for managing native gas tokens within the Curvance Protocol.
+- 📄 `NativeUniversalBalance.sol`: A specialized system for managing native gas tokens within the Curvance Protocol.
 - 📄 `VotingHub.sol`: Coordinates protocol-wide token emission allocation based on governance decisions
 
 <br/>

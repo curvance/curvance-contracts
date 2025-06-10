@@ -77,7 +77,7 @@ pragma solidity ^0.8.19;
 
 //         assertEq(
 //             pToken.totalAssets(),
-//             assets + 42069,
+//             assets + 77777,
 //             "Total Assets should equal user deposit."
 //         );
 
@@ -93,7 +93,7 @@ pragma solidity ^0.8.19;
 
 //         assertEq(
 //             pToken.totalAssets(),
-//             assets + 42069,
+//             assets + 77777,
 //             "Total Assets should equal user deposit."
 //         );
 
@@ -110,7 +110,7 @@ pragma solidity ^0.8.19;
 
 //         assertGt(
 //             totalAssets,
-//             assets + 42069,
+//             assets + 77777,
 //             "Total Assets should greater than original deposit."
 //         );
 

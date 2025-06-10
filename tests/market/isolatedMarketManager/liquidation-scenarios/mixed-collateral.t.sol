@@ -42,6 +42,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
     uint256 cFactorCurve;
 
     event BadDebtRecognized(address liquidator, uint256 amount);
+    event Repay(address liquidator, address account, uint256 amount);
 
     function setUp() public override {
         super.setUp();
@@ -72,11 +73,11 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         _prepareUSDC(user1, _ONE);
         _prepareUSDC(address(this), _ONE);
 
-        _prepareBALRETH(user1, _ONE + 42069);
+        _prepareBALRETH(user1, _ONE + 77777);
 
         vm.prank(user1);
         usdc.approve(address(eUSDC), _ONE);
-        balRETH.approve(address(pBALRETH), _ONE + 42069);
+        balRETH.approve(address(pBALRETH), _ONE + 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
@@ -163,7 +164,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         console2.log("pTokenPrice", pTokenPrice);
 
         (uint256[] memory maxAmount, uint256[] memory liquidatedPTokens, uint256[] memory collateralRequired) = 
-            _getLiquidationValuesWithHigherPrecision_NonAtlas(
+            _getLiquidationValuesWithHigherPrecision_NonAuction(
                 eTokenPrice, pTokenPrice, lFactorsPreLiquidation
             );
 
@@ -192,7 +193,9 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         // Assert BadDebtRecognized event is emitted with expected total bad debt
         vm.expectEmit();
         emit BadDebtRecognized(address(this), expectedTotalBadDebt);
-
+        emit Repay(address(this), borrowers[2], maxAmount[2] + badDebt[2]);
+        emit Repay(address(this), borrowers[3], maxAmount[3] + badDebt[3]);
+        
         eUSDC.liquidate(
             borrowers,
             address(pBALRETH)
@@ -315,7 +318,7 @@ contract MixedCollateral is TestBaseMarketManagerIsolated {
         return debtBalances;
     }
 
-    function _getLiquidationValuesWithHigherPrecision_NonAtlas(
+    function _getLiquidationValuesWithHigherPrecision_NonAuction(
         uint256 eTokenPrice,
         uint256 pTokenPrice,
         uint256[] memory lFactors

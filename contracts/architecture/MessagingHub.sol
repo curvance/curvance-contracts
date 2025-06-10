@@ -65,8 +65,9 @@ contract MessagingHub is QueryResponse {
 
     /// @notice Curvance DAO hub.
     ICentralRegistry public immutable centralRegistry;
+
     /// @notice Address of the Gauge Manager.
-    IGaugeManager public immutable gaugeManager;
+    IGaugeManager internal immutable _gaugeManager;
 
     /// STORAGE ///
 
@@ -76,9 +77,10 @@ contract MessagingHub is QueryResponse {
     ///      2 = Messages cannot be created, but can be executed.
     ///      3 = Messages can be neither created nor executed.
     uint256 public messagingStatus = 1;
+    
     /// @notice Status of message hash whether it's delivered or not.
     /// @dev False = undelivered; True = delivered.
-    mapping(bytes32 => bool) public isDeliveredMessageHash;
+    mapping(bytes32 => bool) internal _isDeliveredMessageHash;
 
     /// ERRORS ///
 
@@ -107,7 +109,7 @@ contract MessagingHub is QueryResponse {
 
         // Query gauge and token configuration directly to minimize potential
         // human error.
-        gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
+        _gaugeManager = IGaugeManager(centralRegistry.gaugeManager());
     }
 
     /// EXTERNAL FUNCTIONS ///
@@ -284,12 +286,12 @@ contract MessagingHub is QueryResponse {
         _checkMessagingStatus(2);
 
         // Validate that this is not a replay attack.
-        if (isDeliveredMessageHash[deliveryHash]) {
+        if (_isDeliveredMessageHash[deliveryHash]) {
             revert MessagingHub__MessageHashIsAlreadyDelivered(deliveryHash);
         }
 
         // Document messageHash as delivered to prevent replays.
-        isDeliveredMessageHash[deliveryHash] = true;
+        _isDeliveredMessageHash[deliveryHash] = true;
 
         // Validate that the Wormhole Relayer is the caller.
         if (msg.sender != address(_getWormholeRelayer())) {
@@ -335,7 +337,7 @@ contract MessagingHub is QueryResponse {
                 (uint8, uint256, EmissionData)
             );
 
-            IGaugeManager cachedGaugeManager = gaugeManager;
+            IGaugeManager cachedGaugeManager = _gaugeManager;
 
             // Mint appropriate gauge emissions to Gauge Manager.
             cve.mintGaugeEmissions(

@@ -61,11 +61,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     }
 
     function test_canLiquidate_fail_whenCollRatioZero() public {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
 
@@ -91,11 +91,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     }
 
     function test_canLiquidate_fail_whenUserHasNotEnteredAnyMarket() public {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
@@ -135,11 +135,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     function test_canLiquidate_fail_whenAccountHasNoBorrowsAndCollateralPosted()
         public
     {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
@@ -199,11 +199,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
             block.timestamp,
             block.timestamp
         );
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
@@ -255,11 +255,11 @@ contract CanLiquidateTestIsolated is TestBaseMarketManagerIsolated {
     event DebugUint256(string message, uint256 value);
 
     function test_canLiquidate_success() public {
-        deal(address(balRETH), address(this), 42069);
-        balRETH.approve(address(pBALRETH), 42069);
+        deal(address(balRETH), address(this), 77777);
+        balRETH.approve(address(pBALRETH), 77777);
 
-        deal(address(_USDC_ADDRESS), address(this), 42069);
-        usdc.approve(address(eUSDC), 42069);
+        deal(address(_USDC_ADDRESS), address(this), 77777);
+        usdc.approve(address(eUSDC), 77777);
 
         marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(

@@ -188,9 +188,9 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
         );
         assertApproxEqRel(updatedPrice, price, 0.0001e18);
 
-        deal(_AERODROME_DAI_USDC, address(this), 42069);
+        deal(_AERODROME_DAI_USDC, address(this), 77777);
 
-        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 42069);
+        IERC20(_AERODROME_DAI_USDC).approve(address(pUSDCDAI), 77777);
         marketManagerIsolated.listToken(address(pUSDCDAI));
 
         vm.prank(user1);
@@ -201,7 +201,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
 
         assertEq(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -243,7 +243,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
 
         assertEq(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit plus initial mint."
         );
 
@@ -271,7 +271,7 @@ contract TestAerodromeStablePToken is TestBaseMarketIsolated {
 
         assertGt(
             pUSDCDAI.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should greater than original deposit plus initial mint."
         );
 

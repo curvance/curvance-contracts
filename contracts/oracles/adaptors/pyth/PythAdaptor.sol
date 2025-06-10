@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { BaseOracleAdaptor } from "contracts/oracles/adaptors/BaseOracleAdaptor.sol";
-import { UniversalBalanceNative } from "contracts/architecture/UniversalBalanceNative.sol";
+import { NativeUniversalBalance } from "contracts/architecture/NativeUniversalBalance.sol";
 
 import { WAD } from "contracts/libraries/Constants.sol";
 import { SafeTransferLib } from "contracts/libraries/external/SafeTransferLib.sol";
@@ -45,7 +45,7 @@ contract PythAdaptor is BaseOracleAdaptor {
 
     /// STORAGE ///
 
-    address public universalBalanceNative;
+    address public nativeUniversalBalance;
     address public pyth;
     address public wrappedNative;
 
@@ -78,11 +78,11 @@ contract PythAdaptor is BaseOracleAdaptor {
     /// @param centralRegistry_ The address of central registry.
     constructor(
         ICentralRegistry centralRegistry_,
-        address universalBalanceNative_,
+        address nativeUniversalBalance_,
         address pyth_,
         address wrappedNative_
     ) BaseOracleAdaptor(centralRegistry_) {
-        universalBalanceNative = universalBalanceNative_;
+        nativeUniversalBalance = nativeUniversalBalance_;
         pyth = pyth_;
         wrappedNative = wrappedNative_;
     }
@@ -220,7 +220,7 @@ contract PythAdaptor is BaseOracleAdaptor {
         uint fee = IPyth(pyth).getUpdateFee(priceUpdateData);
 
         // Receive oracle update fee from universal balance contract.
-        UniversalBalanceNative(payable(universalBalanceNative)).useBalanceForOracleUpdate(
+        NativeUniversalBalance(payable(nativeUniversalBalance)).useBalanceForOracleUpdate(
             user,
             fee
         );

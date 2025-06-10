@@ -144,7 +144,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
 
         assertEq(
             pBALRETH.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit."
         );
 
@@ -200,7 +200,7 @@ contract TestAuraPToken is TestBaseMarketIsolated {
 
         assertGt(
             pBALRETH.totalAssets(),
-            assets + 42069,
+            assets + 77777,
             "Total Assets should equal user deposit."
         );
 

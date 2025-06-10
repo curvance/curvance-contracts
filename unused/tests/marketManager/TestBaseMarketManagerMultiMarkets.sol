@@ -63,7 +63,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.label(address(SimplePToken), "pToken");
 
         // start market for pToken
-        uint256 startAmount = 42069;
+        uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(SimplePToken), startAmount);
         marketManager.listToken(address(SimplePToken));
@@ -77,7 +77,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         vm.label(address(mockUnderlying), "tokenDebt");
         EToken earnToken = _deployEToken(address(mockUnderlying));
         vm.label(address(earnToken), "eToken");
-        uint256 startAmount = 42069;
+        uint256 startAmount = 77777;
         mockUnderlying.mint(address(this), startAmount);
         mockUnderlying.approve(address(earnToken), startAmount);
         marketManager.listToken(address(earnToken));
@@ -323,7 +323,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         console2.log("_liquidateExact");
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
+                if (!auxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
                     console2.log(
                         "user %s not flagged for liquidation",
                         users[i]
@@ -360,7 +360,7 @@ contract TestBaseMarketManagerMultiMarkets is TestBaseMarketIsolated {
         for (uint256 i = 0; i < noOfUsersCollateral; i++) {
             console2.log("user %s", users[i]);
             for (uint256 j = 0; j < noOfPositionTokens; j++) {
-                if (!curvanceAuxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
+                if (!auxiliaryData.flaggedForLiquidation(address(marketManager), users[i], address(eTokens[j]), address(pTokens[j]))) {
                     console2.log(
                         "user %s not flagged for liquidation",
                         users[i]

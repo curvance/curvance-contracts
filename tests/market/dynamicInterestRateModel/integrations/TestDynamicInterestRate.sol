@@ -33,7 +33,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
     uint256 constant BORROW_AMOUNT_BELOW_VERTEX = 40000e18; // 20% utilization
     uint256 constant BORROW_AMOUNT_ABOVE_VERTEX = 160000e18; // 80% utilization
     uint256 internal constant SECONDS_PER_YEAR = 31_536_000;
-    uint256 public constant INTEREST_COMPOUND_RATE = 10 minutes;
+    uint256 public constant INTEREST_ACCRUAL_PERIOD = 10 minutes;
     
     function setUp() public virtual override {
         super.setUp();
@@ -170,7 +170,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
         uint256 expectedRate = (SECONDS_PER_YEAR *
             (newUtilization * baseInterestRate)) /
             WAD /
-            INTEREST_COMPOUND_RATE;
+            INTEREST_ACCRUAL_PERIOD;
         assertApproxEqRel(
             newBorrowRate,
             expectedRate,
@@ -261,7 +261,7 @@ contract TestDynamicInterestRateWithEToken is TestBaseMarketIsolated {
             vertexInterestRate *
             vertexMultiplier) / (WAD * WAD);
         uint256 expectedRate = (SECONDS_PER_YEAR *
-            (baseComponent + vertexComponent)) / INTEREST_COMPOUND_RATE;
+            (baseComponent + vertexComponent)) / INTEREST_ACCRUAL_PERIOD;
 
         assertApproxEqRel(
             newBorrowRate,
