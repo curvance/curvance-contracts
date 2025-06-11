@@ -132,7 +132,8 @@ contract AerodromeVolatilePositionManager is TestBaseMarketIsolated {
                 address(marketManagerIsolated),
                 gauge,
                 aeroPairFactory,
-                aeroRouter
+                aeroRouter,
+                1 days
             );
             // add MToken support on price router
             oracleManager.addMTokenSupport(address(pWETHUSDC));

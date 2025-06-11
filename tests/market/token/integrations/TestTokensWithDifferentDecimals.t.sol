@@ -127,8 +127,8 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertTrue(pBALRETH.isPToken());
-        assertFalse(eUSDC.isPToken());
+        assertTrue(pBALRETH.isCollateralizable());
+        assertTrue(eUSDC.isBorrowable());
     }
 
     function testPTokenMintRedeem() public {
@@ -187,7 +187,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         pBALRETH.postCollateral(1 ether);
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         // try borrow()
         eUSDC.borrow(500e6);
@@ -260,7 +260,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 0.8 ether);
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
     }
 
     function testETokenRedeemOnBorrow() public {
@@ -293,7 +293,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), 500e6);
@@ -327,7 +327,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
 
         assertEq(pBALRETH.balanceOf(user1), 0.8 ether);
         assertEq(pBALRETH.balanceOf(user2), 0.2 ether);
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
     }
 
     function testETokenTransferOnBorrow() public {
@@ -354,7 +354,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 1 ether);
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 500e6);
@@ -410,7 +410,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             1 ether - (500 ether * 1 ether) / balRETHPrice,
             0.02e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);
@@ -459,7 +459,7 @@ contract TestTokensWithDifferentDecimals is TestBaseMarketIsolated {
             1 ether - (1550 ether * 1e18) / balRETHPrice,
             0.06e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), 1 ether);
+        assertEq(pBALRETH.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 0);

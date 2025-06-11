@@ -57,7 +57,8 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
             address(marketManagerIsolated),
             gauge,
             veloPairFactory,
-            veloRouter
+            veloRouter,
+            1 days
         );
 
         vm.warp(veCVE.nextEpochStartTime());
@@ -102,7 +103,7 @@ contract TestVelodromeStablePToken is TestBaseMarketIsolated {
         deal(_USDC_DAI, address(this), 77777);
 
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), 77777);
-        marketManagerIsolated.listToken(address(pUSDCDAI));
+        marketManagerIsolated.listTokens(address(pUSDCDAI), address(eDAI));
 
         vm.prank(user1);
         IERC20(_USDC_DAI).approve(address(pUSDCDAI), assets);

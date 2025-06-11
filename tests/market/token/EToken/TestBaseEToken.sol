@@ -68,21 +68,23 @@ contract TestBaseEToken is TestBaseMarketIsolated {
         usdc.approve(address(eUSDC), _ONE);
 
         usdc.approve(address(eUSDC), _ONE);
-        marketManagerIsolated.listToken(address(eUSDC));
 
         eUSDC.depositReserves(1000e6);
         _prepareBALRETH(address(this), 10e18);
         balRETH.approve(address(pBALRETH), 10e18);
 
-        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
         marketManagerIsolated.updatePositionToken(
-            address(pBALRETH),
-            7000,
-            4000, // liquidate at 71%
-            3000,
-            200, // 2% liq incentive
-            400,
-            1000
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
         );
 
         address[] memory tokens = new address[](1);

@@ -33,8 +33,9 @@ abstract contract CompoundingCTokenWithGauge is StrategyCToken {
     constructor(
         ICentralRegistry centralRegistry_,
         IERC20 asset_,
-        address marketManager_
-    ) StrategyCToken(centralRegistry_, asset_, marketManager_) {
+        address marketManager_,
+        uint256 vestPeriod_
+    ) StrategyCToken(centralRegistry_, asset_, marketManager_, vestPeriod_) {
         address gaugeManagerAddress = centralRegistry.gaugeManager();
 
         // Validate Gauge Manager has been set.

@@ -176,7 +176,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
 
         // ===== Cache liquidation values =====
 
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
         totalBorrowsBefore = eUSDC.totalBorrows();
 
@@ -442,7 +442,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor
@@ -495,7 +495,7 @@ contract MixedAuction is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor

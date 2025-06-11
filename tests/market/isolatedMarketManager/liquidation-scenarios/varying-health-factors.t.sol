@@ -46,6 +46,8 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
     uint256 baseCFactor;
     uint256 cFactorCurve;
 
+    uint256[] badDebt = [0,0,0,0,0];
+
     event BadDebtRecognized(address liquidator, uint256 amount);
     event Repay(address liquidator, address borrower, uint256 amount);
 
@@ -167,10 +169,10 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
             );
 
         uint256 expectedTotalBadDebt;
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
 
         for(uint i; i < 5; i++) {
-            expectedTotalBadDebt += _calculateBadDebt(
+            badDebt[i] = _calculateBadDebt(
                 debtBalancesPreLiquidation[i],
                 maxAmount[i],
                 collateralAvailable,
@@ -180,6 +182,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
                 eTokenPrice,
                 cTokenExchangeRate
             );
+            expectedTotalBadDebt += badDebt[i];
         }
 
         uint256 totalBorrowsBefore = eUSDC.totalBorrows();
@@ -332,7 +335,7 @@ contract VaryingHealthFactors is TestBaseMarketManagerIsolated {
         uint256[] memory liquidatedPTokens,
         uint256[] memory collateralRequired
     ) {
-        uint256 cTokenExchangeRate = pBALRETH.exchangeRateCached();
+        uint256 cTokenExchangeRate = pBALRETH.exchangeRate();
         
         // Keep original values but use higher precision for calculations
         uint256 PRECISION_FACTOR = 1e18; // Extra precision factor

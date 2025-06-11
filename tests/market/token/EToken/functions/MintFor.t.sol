@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract ETokenMintForTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -16,7 +16,7 @@ contract ETokenMintForTest is TestBaseEToken {
     function test_eTokenMintFor_fail_whenMintIsNotAllowed() public {
         marketManagerIsolated.setMintPaused(address(eUSDC), true);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         eUSDC.mintFor(100e6, user1);
     }
 

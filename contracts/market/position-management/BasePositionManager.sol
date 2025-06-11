@@ -19,7 +19,7 @@ import { IOracleManager } from "contracts/interfaces/IOracleManager.sol";
 import { IMarketManager } from "contracts/interfaces/IMarketManager.sol";
 import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { IPToken } from "contracts/interfaces/IPToken.sol";
+import { ICToken } from "contracts/interfaces/ICToken.sol";
 import { IPositionManager } from "contracts/interfaces/IPositionManager.sol";
 import { IWETH } from "contracts/interfaces/IWETH.sol";
 
@@ -164,8 +164,8 @@ abstract contract BasePositionManager is
         LeverageStruct calldata leverageData,
         uint256 slippage
     ) external checkSlippage(msg.sender, slippage) nonReentrant {
-        IPToken pToken = leverageData.positionToken;
-        address pTokenUnderlying = pToken.underlying();
+        ICToken pToken = leverageData.positionToken;
+        address pTokenUnderlying = pToken.asset();
         // Transfer the underlying tokens to deposit.
         SafeTransferLib.safeTransferFrom(
             pTokenUnderlying,
@@ -359,10 +359,10 @@ abstract contract BasePositionManager is
         // or not as even if they found a way to input a malicious
         // token here the post conditional solvency check will revert
         // the whole operation.
-        IPToken positionToken = leverageData.positionToken;
+        ICToken positionToken = leverageData.positionToken;
 
         // Unwrap leverage instructions for collateral deposit.
-        address collateralUnderlying = positionToken.underlying();
+        address collateralUnderlying = positionToken.asset();
 
         _swapBorrowUnderlyingToCollateral(leverageData, borrower);
 
@@ -428,7 +428,7 @@ abstract contract BasePositionManager is
         DeleverageStruct memory deleverageData
     ) external override {
         // Take protocol fee, if any.
-        address collateralUnderlying = IPToken(positionToken).underlying();
+        address collateralUnderlying = ICToken(positionToken).asset();
         uint256 fee = _getFee(
             positionToken,
             collateralAmount,
@@ -560,9 +560,9 @@ abstract contract BasePositionManager is
         ) = marketManager.statusOf(account);
 
         uint256 newCollateral = FixedPointMathLib.mulDiv(
-            IPToken(positionToken).previewDeposit(collateralAmount),
+            ICToken(positionToken).previewDeposit(collateralAmount),
             price,
-            10 ** IPToken(positionToken).decimals()
+            10 ** ICToken(positionToken).decimals()
         );
 
         uint256 collRatio = marketManager.collateralizationRatio(

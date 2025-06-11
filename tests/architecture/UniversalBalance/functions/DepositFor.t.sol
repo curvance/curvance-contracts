@@ -6,6 +6,7 @@ import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
     event Deposit(
@@ -31,7 +32,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
 
         usdc.approve(address(universalBalance), 1e6);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
 
         universalBalance.depositFor(1e6, true, address(1));
 
@@ -101,7 +102,7 @@ contract UniversalBalanceDepositForTest is TestBaseUniversalBalance {
         vm.prank(user1);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
         universalBalance.depositFor(0, false, user2);
     }
 

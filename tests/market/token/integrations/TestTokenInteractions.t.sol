@@ -124,8 +124,8 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertTrue(pBALRETH.isPToken());
-        assertFalse(eDAI.isPToken());
+        assertTrue(pBALRETH.isCollateralizable());
+        assertTrue(eDAI.isBorrowable());
     }
 
     function testPTokenMintRedeem() public {
@@ -180,7 +180,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         pBALRETH.postCollateral(_ONE);
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         uint256 priceDecimals = mockDaiFeed.decimals();
         (, int256 daiPrice, , , ) = mockDaiFeed.latestRoundData();
@@ -265,7 +265,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 0.8e18);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
     }
 
     function testETokenRedeemOnBorrow() public {
@@ -298,7 +298,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertGt(eDAI.debtBalanceCached(user1), 500e18);
@@ -332,7 +332,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
 
         assertEq(pBALRETH.balanceOf(user1), 0.8e18);
         assertEq(pBALRETH.balanceOf(user2), 0.2e18);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
     }
 
     function testETokenTransferOnBorrow() public {
@@ -359,7 +359,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), _ONE);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertEq(eDAI.debtBalanceCached(user1), 500e18);
@@ -412,7 +412,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _ONE - (500e18 * _ONE) / balRETHPrice,
             0.02e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 750e18, 0.01e18);
@@ -461,7 +461,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _ONE - (1550e18 * _ONE) / balRETHPrice,
             0.06e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertEq(eDAI.debtBalanceCached(user1), 0);
@@ -498,7 +498,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(pBALRETH.balanceOf(user1), 0);
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 830e18, 0.01e18);
@@ -553,7 +553,7 @@ contract TestTokenInteractions is TestBaseMarketIsolated {
             _ONE - (daiPrice * 1e10 * _ONE) / balRETHPrice,
             0.08e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eDAI.balanceOf(user1), 0);
         assertApproxEqRel(eDAI.debtBalanceCached(user1), 900e18, 0.01e18);

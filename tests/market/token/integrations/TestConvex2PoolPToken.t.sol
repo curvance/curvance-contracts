@@ -55,13 +55,14 @@ contract TestConvex2PoolPToken is TestBaseMarketIsolated {
             address(marketManagerIsolated),
             CONVEX_STETH_ETH_POOL_ID,
             CONVEX_STETH_ETH_REWARD,
-            CONVEX_BOOSTER
+            CONVEX_BOOSTER,
+            1 days
         );
 
         address owner = address(this);
         deal(address(CONVEX_STETH_ETH_POOL), owner, 1 ether);
         CONVEX_STETH_ETH_POOL.approve(address(cSTETH), 1 ether);
-        marketManagerIsolated.listToken(address(cSTETH));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eUSDC));
 
         centralRegistry.setExternalCalldataChecker(
             _UNISWAP_V2_ROUTER,

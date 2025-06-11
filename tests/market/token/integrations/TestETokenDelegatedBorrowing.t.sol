@@ -77,7 +77,6 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             // support market
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
             // add MToken support on oracle manager
             oracleManager.addMTokenSupport(address(eDAI));
         }
@@ -87,23 +86,29 @@ contract TestETokenDelegatedBorrowing is TestBaseMarketIsolated {
             // support market
             _prepareBALRETH(owner, 1 ether);
             balRETH.approve(address(pBALRETH), 1 ether);
-            marketManagerIsolated.listToken(address(pBALRETH));
-            // set collateral factor
-            marketManagerIsolated.updatePositionToken(
-                address(pBALRETH),
-                5000,
-                1500,
-                1200,
-                200,
-                400,
-                1000
-            );
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pBALRETH);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
-            marketManagerIsolated.setCollateralCaps(tokens, caps);
+
         }
+
+            // set collateral factor
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            5000,    // maxEffectiveCFactor 50%
+            1000     // baseCFactor 20%
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pBALRETH);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eDAI));
     }
 
     function testInitialize() public {

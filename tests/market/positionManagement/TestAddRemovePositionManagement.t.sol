@@ -112,9 +112,9 @@ contract TestAddRemovePositionManagement is TestBaseMarketIsolated {
 
     function testAddAndRemovePositionManager_Success() public {
         marketManagerIsolated.addPositionManager(address(positionManagement));
-        assertEq(marketManagerIsolated.positionManagers(address(positionManagement)), true);
+        assertEq(marketManagerIsolated.isPositionManager(address(positionManagement)), true);
         marketManagerIsolated.removePositionManager(address(positionManagement));
-        assertEq(marketManagerIsolated.positionManagers(address(positionManagement)), false);
+        assertEq(marketManagerIsolated.isPositionManager(address(positionManagement)), false);
     }
 
 

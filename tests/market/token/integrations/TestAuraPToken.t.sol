@@ -129,7 +129,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
             address(pBALRETH),
             _ONE
         );
-        marketManagerIsolated.listToken(address(pBALRETH));
+        marketManagerIsolated.listTokens(address(pBALRETH), address(eUSDC));
     }
 
     function testHarvestAuraCToken() public {
@@ -188,10 +188,10 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         // check vault data without modification to vesting period
 
-        StrategyCToken.VaultData memory vaultData = pBALRETH.getVaultYieldStatus();
-        uint256 rewardRate = vaultData.rewardRate;
+        StrategyCToken.VestingData memory vaultData = pBALRETH.getVestingYieldData();
+        uint256 rewardRate = vaultData.vestingRate;
         uint256 vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        uint256 lastVestClaim = vaultData.lastVestClaim;
+        uint256 lastVestClaim = vaultData.lastVestingClaim;
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 1 days);
@@ -212,7 +212,7 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         // increase vesting period to 2 days
 
-        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestUpdate();
+        (bool updateNeeded, uint256 newVestPeriod) = pBALRETH.pendingVestingPeriodUpdate();
         assert(updateNeeded == true);
         assert(newVestPeriod == 2 days);
 
@@ -249,10 +249,10 @@ contract TestAuraCToken is TestBaseMarketIsolated {
 
         pBALRETH.harvest(abi.encode(swaps, 1e8));
 
-        vaultData = pBALRETH.getVaultYieldStatus();
-        rewardRate = vaultData.rewardRate;
+        vaultData = pBALRETH.getVestingYieldData();
+        rewardRate = vaultData.vestingRate;
         vestingPeriodEnd = vaultData.vestingPeriodEnd;
-        lastVestClaim = vaultData.lastVestClaim;
+        lastVestClaim = vaultData.lastVestingClaim;
 
         assert(lastVestClaim == block.timestamp);
         assert(vestingPeriodEnd == block.timestamp + 2 days);

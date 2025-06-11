@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { TestBaseEToken } from "../TestBaseEToken.sol";
 import { EToken } from "contracts/market/token/EToken.sol";
-
+import { MarketManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
 contract ETokenTransferTest is TestBaseEToken {
     event Transfer(address indexed from, address indexed to, uint256 amount);
@@ -22,7 +22,7 @@ contract ETokenTransferTest is TestBaseEToken {
         deal(address(eUSDC), address(this), 100e6);
         marketManagerIsolated.setTransferPaused(true);
 
-        vm.expectRevert(marketManagerIsolated.MarketManager__Paused.selector);
+        vm.expectRevert(MarketManagerIsolated.MarketManager__Paused.selector);
         eUSDC.transfer(user1, 10e6);
     }
 

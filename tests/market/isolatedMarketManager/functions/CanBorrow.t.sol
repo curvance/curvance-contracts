@@ -4,7 +4,8 @@ pragma solidity ^0.8.19;
 import { TestBaseMarketManagerIsolated } from "../TestBaseMarketManagerIsolated.sol";
 import { MarketManagerIsolated, LiquidityManagerIsolated } from "contracts/market/isolated/MarketManagerIsolated.sol";
 
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
+import { AccountSnapshot } from "contracts/interfaces/ICToken.sol";
 
 contract CanBorrowTest is TestBaseMarketManagerIsolated {
     function setUp() public override {
@@ -285,7 +286,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
         IMToken[] memory accountAssets = marketManagerIsolated.assetsOf(user1);
@@ -294,7 +295,7 @@ contract CanBorrowTest is TestBaseMarketManagerIsolated {
         vm.prank(address(eUSDC));
         marketManagerIsolated.canBorrow(address(eUSDC), user1, 1_000e6, 1_000e6);
 
-        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertTrue(hasPosition);
 

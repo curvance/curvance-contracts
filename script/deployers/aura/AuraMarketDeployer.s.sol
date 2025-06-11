@@ -200,7 +200,8 @@ contract AuraMarketDeployer is DeployConfiguration {
                     marketManager,
                     param.pid,
                     param.rewarder,
-                    param.booster
+                    param.booster,
+                    1 days
                 )
             );
 

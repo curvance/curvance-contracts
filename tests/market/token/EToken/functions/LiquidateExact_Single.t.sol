@@ -41,7 +41,7 @@ contract LiquidateExactSingleTest is TestBaseETokenIsolated {
             _ONE - (500e18 * _ONE) / balRETHPrice,
             0.02e18
         );
-        assertEq(pBALRETH.exchangeRateCached(), _ONE);
+        assertEq(pBALRETH.exchangeRate(), _ONE);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertApproxEqRel(eUSDC.debtBalanceCached(user1), 750e6, 0.01e18);

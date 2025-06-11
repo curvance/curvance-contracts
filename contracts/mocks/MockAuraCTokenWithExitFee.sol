@@ -58,13 +58,15 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         uint256 pid_,
         address rewarder_,
         address booster_,
-        uint256 exitFee_
+        uint256 exitFee_,
+        uint256 vestPeriod_
     )
         StrategyCTokenWithExitFee(
             centralRegistry_,
             asset_,
             marketManager_,
-            exitFee_
+            exitFee_,
+            vestPeriod_
         )
     {
         strategyData.pid = pid_;
@@ -191,7 +193,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
         _vestIfNeeded();
 
         // can only harvest once previous reward period is done
-        if (_checkVestStatus(_vaultData)) {
+        if (_checkVestStatus(_vestingData)) {
             _updateVestingPeriodIfNeeded();
 
             // cache strategy data
@@ -295,7 +297,7 @@ contract MockAuraCTokenWithExitFee is StrategyCTokenWithExitFee {
             _afterDeposit(yield, 0);
 
             // Update vesting info, query `vestPeriod` here to cache it.
-            _setNewVaultData(yield, vestPeriod);
+            _setNewVestingData(yield, vestingPeriod);
 
             emit Harvest(yield);
         }

@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
 import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
+import { PluginDelegable } from "contracts/libraries/PluginDelegable.sol";
 
 contract NativeUniversalBalanceMultiWithdrawForTest is
     TestBaseNativeUniversalBalance
@@ -83,7 +84,7 @@ contract NativeUniversalBalanceMultiWithdrawForTest is
 
         vm.prank(user1);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(PluginDelegable.PluginDelegable__Unauthorized.selector);
         nativeUniversalBalance.multiWithdrawFor(
             withdrawAmounts,
             forceLentRedemption,

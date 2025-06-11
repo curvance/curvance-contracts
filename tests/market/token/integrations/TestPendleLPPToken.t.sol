@@ -61,7 +61,8 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
             ICentralRegistry(address(centralRegistry)),
             IERC20(_LP_STETH),
             address(marketManagerIsolated),
-            _ROUTER
+            _ROUTER,
+            1 days
         );
 
         centralRegistry.setExternalCalldataChecker(
@@ -78,7 +79,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listToken(address(cSTETH));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);
@@ -156,7 +157,7 @@ contract TestPendleLPPToken is TestBaseMarketIsolated {
         deal(_LP_STETH, address(this), 77777);
 
         IERC20(_LP_STETH).approve(address(cSTETH), 77777);
-        marketManagerIsolated.listToken(address(cSTETH));
+        marketManagerIsolated.listTokens(address(cSTETH), address(eDAI));
 
         vm.prank(user1);
         IERC20(_LP_STETH).approve(address(cSTETH), assets);

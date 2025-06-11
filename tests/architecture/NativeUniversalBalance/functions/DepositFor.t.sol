@@ -34,7 +34,7 @@ contract NativeUniversalBalanceDepositForTest is
 
         weth.approve(address(nativeUniversalBalance), _ONE);
         // reverts with PluginDelegable__Unauthorized.selector
-        vm.expectRevert(0xcfdc5602);
+        vm.expectRevert(bytes4(0xcfdc5602));
         
         nativeUniversalBalance.depositFor(_ONE, true, address(1));
 

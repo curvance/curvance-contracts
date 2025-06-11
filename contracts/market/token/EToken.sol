@@ -1295,11 +1295,11 @@ contract EToken is PluginDelegable, ERC165, ReentrancyGuard, Multicall {
             amounts,
             IMarketManager.LiqInstructions({
                 eToken: address(this),
-                pToken: pToken,
+                cToken: pToken,
                 numAccounts: numAccounts,
                 liquidateExact: exactAmount,
                 eTokenRepaid: 0,
-                pTokenLiquidated: 0,
+                cTokenLiquidated: 0,
                 badDebt: 0
             })
         );

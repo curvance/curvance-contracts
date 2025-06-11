@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { TestBaseNativeUniversalBalance } from "../TestBaseNativeUniversalBalance.sol";
+import { UniversalBalance } from "contracts/architecture/UniversalBalance.sol";
 
 contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
     event Withdraw(
@@ -50,7 +51,7 @@ contract WithdrawNativeTest is TestBaseNativeUniversalBalance {
         vm.prank(user1);
 
         // `bytes4(keccak256(bytes("UniversalBalance__InvalidParameter()")))`.
-        vm.expectRevert(0xc75f2a32);
+        vm.expectRevert(UniversalBalance.UniversalBalance__InvalidParameter.selector);
         nativeUniversalBalance.withdrawNative(0, false, user2);
     }
 

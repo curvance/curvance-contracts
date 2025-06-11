@@ -96,7 +96,6 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // setup pUSDCDAI
@@ -107,31 +106,14 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
                 address(marketManagerIsolated),
                 gauge,
                 veloPairFactory,
-                veloRouter
+                veloRouter,
+                1 days
             );
             // add MToken support on price router
             oracleManager.addMTokenSupport(address(pUSDCDAI));
 
             deal(_VELODROME_DAI_USDC, owner, 1 ether);
             IERC20(_VELODROME_DAI_USDC).approve(address(pUSDCDAI), 1 ether);
-            marketManagerIsolated.listToken(address(pUSDCDAI));
-
-            marketManagerIsolated.updatePositionToken(
-                address(pUSDCDAI),
-                7000,
-                4000,
-                3000,
-                200,
-                400,
-                1000
-            );
-
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pUSDCDAI);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
-
-            marketManagerIsolated.setCollateralCaps(tokens, caps);
         }
 
         positionManagement = new VelodromePositionManager(
@@ -141,7 +123,34 @@ contract TestVelodromeStablePositionManager is TestBaseMarketIsolated {
             address(veloRouter),
             address(veloPairFactory)
         );
+
+        marketManagerIsolated.listTokens(address(pUSDCDAI), address(eDAI));
+
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
+        );
+
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pUSDCDAI);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
+
+
         marketManagerIsolated.addPositionManager(address(positionManagement));
+
+
 
         _provideEnoughLiquidityForLeverage();
 

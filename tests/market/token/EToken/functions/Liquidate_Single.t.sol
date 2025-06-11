@@ -32,11 +32,11 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
 
         IMarketManager.LiqInstructions memory instructions = IMarketManager.LiqInstructions({
             eToken: address(eUSDC),
-            pToken: address(pBALRETH),
+            cToken: address(pBALRETH),
             numAccounts: 1,
             liquidateExact: false,
             eTokenRepaid: 0,
-            pTokenLiquidated: 0,
+            cTokenLiquidated: 0,
             badDebt: 0
         });
 
@@ -73,7 +73,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         assertEq(expectedRepayAmount, results.debtRepaid, "Debt repaid mismatch");
 
         assertEq(eUSDC.debtBalanceCached(user1), 0, "eUSDC debt balance mismatch");
-        assertEq(pBALRETH.exchangeRateCached(), _ONE, "pBALRETH exchange rate mismatch");
+        assertEq(pBALRETH.exchangeRate(), _ONE, "pBALRETH exchange rate mismatch");
         assertLt(eUSDC.exchangeRateCached(), _ONE, "eUSDC exchange rate mismatch, there should be bad debt");
         assertEq(pBALRETH.balanceOf(user2), _ONE - 1, "Liquidator pBALRETH balance mismatch");
         assertEq(usdc.balanceOf(user2), 1000e6 - results.debtRepaid, "Liquidator USDC balance mismatch");
@@ -118,7 +118,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 earnTokenPrice,
         uint256 positionTokenPrice
     ) internal view returns (uint256) {
-        uint256 exchangeRate = pBALRETH.exchangeRateCached();
+        uint256 exchangeRate = pBALRETH.exchangeRate();
         return (((auctionLiqIncentive * earnTokenPrice * WAD) / (positionTokenPrice * exchangeRate)) * 10 ** 18) / 10 ** 6;
     }
 
@@ -128,7 +128,7 @@ contract LiquidateSingleTest is TestBaseETokenIsolated {
         uint256 maxAmount,
         uint256 debtToCollateralMultiplier
     ) internal view returns (uint256) {
-        (, , uint256 collateralAvailable) = curvanceAuxiliaryData.tokenDataOf(user, address(pBALRETH));
+        (, , uint256 collateralAvailable) = auxiliaryData.tokenDataOf(user, address(pBALRETH));
         uint256 debtAmount = maxAmount;
         uint256 liquidatedPTokens = (debtAmount * debtToCollateralMultiplier) / WAD;
         if (liquidatedPTokens > collateralAvailable) {

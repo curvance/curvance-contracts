@@ -227,8 +227,8 @@ contract TestRedstoneAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertTrue(pWBTC.isPToken());
-        assertFalse(eUSDC.isPToken());
+        assertTrue(pWBTC.isCollateralizable());
+        assertTrue(eUSDC.isBorrowable());
     }
 
     function testPTokenMintMulticall() public {

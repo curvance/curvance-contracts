@@ -469,7 +469,8 @@ contract TestBaseMarketIsolated is TestBase {
             address(marketManagerIsolated),
             109,
             _REWARDER,
-            _AURA_BOOSTER
+            _AURA_BOOSTER,
+            1 days
         );
         return pBALRETH;
     }
@@ -488,7 +489,8 @@ contract TestBaseMarketIsolated is TestBase {
             109,
             _REWARDER,
             _AURA_BOOSTER,
-            200
+            200,
+            1 days
         );
         return pBALRETHWithExitFee;
     }

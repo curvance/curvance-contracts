@@ -577,7 +577,7 @@ contract MarketManagerIsolated is
         (
             CachedLiqData memory cachedData,
             AuctionLiqData memory auctionData
-        ) =_getLiquidationConfig(instructions.eToken, instructions.pToken);
+        ) =_getLiquidationConfig(instructions.eToken, instructions.cToken);
 
         address cachedAccount;
         // Amounts array is empty since the max amount possible
@@ -591,7 +591,7 @@ contract MarketManagerIsolated is
 
             (
                 instructions.eTokenRepaid,
-                instructions.pTokenLiquidated,
+                instructions.cTokenLiquidated,
                 instructions.badDebt
                 ) = _canLiquidate(
                 cachedAccount,
@@ -602,9 +602,9 @@ contract MarketManagerIsolated is
             );
 
             // If the user is being liquidated update relevant values.
-            if (instructions.pTokenLiquidated > 0) {
+            if (instructions.cTokenLiquidated > 0) {
                 results.debtRepaid += instructions.eTokenRepaid;
-                results.liquidatedAmounts[i] = instructions.pTokenLiquidated;
+                results.liquidatedAmounts[i] = instructions.cTokenLiquidated;
 
                 if (instructions.badDebt > 0) {
                     results.badDebtRealized += instructions.badDebt;
@@ -631,20 +631,20 @@ contract MarketManagerIsolated is
 
     /// @notice Checks if the seizing of `collateral` by repayment of
     ///         `earnToken` should be allowed.
-    /// @param pToken pToken which was used as collateral
+    /// @param cToken cToken which was used as collateral
     ///               and will be seized.
     /// @param eToken eToken which was borrowed by the account
     ///               and will repaid.
-    function canSeize(address pToken, address eToken) external view {
+    function canSeize(address cToken, address eToken) external view {
         if (seizePaused == 2) {
             _revert(_PAUSED_SELECTOR);
         }
 
-        _checkIsListedToken(pToken);
+        _checkIsListedToken(cToken);
         _checkIsListedToken(eToken);
 
         if (
-            IMToken(pToken).marketManager() != IMToken(eToken).marketManager()
+            IMToken(cToken).marketManager() != IMToken(eToken).marketManager()
         ) {
             revert MarketManager__MarketManagerMismatch();
         }
@@ -654,12 +654,12 @@ contract MarketManagerIsolated is
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which will transfer the tokens.
-    /// @param balanceOf The current balance that `from` has of `pToken`
+    /// @param balanceOf The current balance that `from` has of `cToken`
     ///                  shares.
     /// @param collateralPosted The amount of `mToken` shares posted as
     ///                         collateral by `from`.
     /// @param amount The amount of `mToken` to transfer.
-    function canTransferPToken(
+    function canTransferCToken(
         address mToken,
         address from,
         uint256 balanceOf,

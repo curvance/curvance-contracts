@@ -121,7 +121,6 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
 
             _prepareDAI(owner, 200000e18);
             dai.approve(address(eDAI), 200000e18);
-            marketManagerIsolated.listToken(address(eDAI));
         }
 
         // setup pWETHUSDC
@@ -132,32 +131,39 @@ contract TestVelodromeVolatilePositionManager is TestBaseMarketIsolated {
                 address(marketManagerIsolated),
                 gauge,
                 veloPairFactory,
-                veloRouter
+                veloRouter,
+                1 days
             );
             // add MToken support on price router
             oracleManager.addMTokenSupport(address(pWETHUSDC));
 
             deal(_VELODROME_WETH_USDC, owner, 1 ether);
             IERC20(_VELODROME_WETH_USDC).approve(address(pWETHUSDC), 1 ether);
-            marketManagerIsolated.listToken(address(pWETHUSDC));
 
-            marketManagerIsolated.updatePositionToken(
-                address(pWETHUSDC),
-                7000,
-                4000,
-                3000,
-                200,
-                400,
-                1000
-            );
 
-            address[] memory tokens = new address[](1);
-            tokens[0] = address(pWETHUSDC);
-            uint256[] memory caps = new uint256[](1);
-            caps[0] = 100_000e18;
 
-            marketManagerIsolated.setCollateralCaps(tokens, caps);
+
         }
+        marketManagerIsolated.listTokens(address(pWETHUSDC), address(eDAI));
+        marketManagerIsolated.updatePositionToken(
+            7000,    // collRatio 70%
+            4000,    // collReqSoft 40%
+            3000,    // collReqHard 25%
+            1000,    // liqIncBase 10%
+            1500,    // liqIncHard 15%
+            500,     // liqIncMin 5%
+            2000,    // liqIncMax 20%
+            2000,    // minEffectiveCFactor 20%
+            3000,    // maxEffectiveCFactor 30%
+            1000     // baseCFactor 10%
+        );
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(pWETHUSDC);
+        uint256[] memory caps = new uint256[](1);
+        caps[0] = 100_000e18;
+
+        marketManagerIsolated.setCollateralCaps(tokens, caps);
 
         positionManagement = new VelodromePositionManager(
             ICentralRegistry(address(centralRegistry)),

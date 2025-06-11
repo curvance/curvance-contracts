@@ -131,7 +131,8 @@ contract TestPositionManagerFeeEnabled is TestBaseMarketIsolated {
                 address(marketManagerIsolated),
                 gauge,
                 veloPairFactory,
-                veloRouter
+                veloRouter,
+                1 days
             );
             // add MToken support on price router
             oracleManager.addMTokenSupport(address(pUSDCDAI));

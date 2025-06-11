@@ -185,8 +185,8 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertTrue(cPendlePT.isPToken());
-        assertFalse(eUSDC.isPToken());
+        assertTrue(cPendlePT.isCollateralizable());
+        assertTrue(eUSDC.isBorrowable());
     }
 
     function testPTokenMintRedeem() public {
@@ -318,7 +318,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
         cPendlePT.redeem(0.2 ether, user1, user1);
         vm.stopPrank();
         assertEq(cPendlePT.balanceOf(user1), 0.8 ether);
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+        assertEq(cPendlePT.exchangeRate(), 1 ether);
     }
 
     function testETokenRedeemOnBorrow() public {
@@ -352,7 +352,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(cPendlePT.balanceOf(user1), 1 ether);
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+        assertEq(cPendlePT.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertGt(eUSDC.debtBalanceCached(user1), 500e6);
@@ -387,7 +387,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
 
         assertEq(cPendlePT.balanceOf(user1), 0.8 ether);
         assertEq(cPendlePT.balanceOf(user2), 0.2 ether);
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+        assertEq(cPendlePT.exchangeRate(), 1 ether);
     }
 
     function testETokenTransferOnBorrow() public {
@@ -415,7 +415,7 @@ contract TestPTokenForPendlePT is TestBaseMarketIsolated {
         vm.stopPrank();
 
         assertEq(cPendlePT.balanceOf(user1), 1 ether);
-        assertEq(cPendlePT.exchangeRateCached(), 1 ether);
+        assertEq(cPendlePT.exchangeRate(), 1 ether);
 
         assertEq(eUSDC.balanceOf(user1), 0);
         assertEq(eUSDC.debtBalanceCached(user1), 500e6);

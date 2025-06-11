@@ -1351,7 +1351,7 @@ abstract contract BaseCToken is
         _checkZeroAmount(shares);
         
         // Fails if transfer not allowed.
-        uint256 collateralToRemove = marketManager.canTransferPToken(
+        uint256 collateralToRemove = marketManager.canTransferCToken(
             address(this),
             msg.sender,
             balanceOf(from),

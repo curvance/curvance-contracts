@@ -10,8 +10,8 @@ import { ChainlinkAdaptor } from "contracts/oracles/adaptors/chainlink/Chainlink
 import { AerodromePositionManager } from "contracts/market/position-management/AerodromePositionManager.sol";
 import { ICentralRegistry } from "contracts/interfaces/ICentralRegistry.sol";
 import { IEToken } from "contracts/interfaces/IEToken.sol";
-import { ICToken } from "contracts/interfaces/ICToken.sol";
-import { IMToken, AccountSnapshot } from "contracts/interfaces/IMToken.sol";
+import { ICToken, AccountSnapshot } from "contracts/interfaces/ICToken.sol";
+import { IMToken } from "contracts/interfaces/IMToken.sol";
 import { IVeloGauge } from "contracts/interfaces/external/velodrome/IVeloGauge.sol";
 import { IVeloRouter } from "contracts/interfaces/external/velodrome/IVeloRouter.sol";
 import { IVeloPairFactory } from "contracts/interfaces/external/velodrome/IVeloPairFactory.sol";
@@ -109,7 +109,8 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
                 address(marketManagerIsolated),
                 gauge,
                 aeroPairFactory,
-                aeroRouter
+                aeroRouter,
+                1 days
             );
             // add MToken support on price router
             oracleManager.addMTokenSupport(address(pUSDCDAI));
@@ -217,7 +218,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+        assertEq(eDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -261,7 +262,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, amountForLeverage);
+        assertEq(eDAISnapshot.debtOutstanding, amountForLeverage);
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -319,7 +320,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, amountForLeverage + 500 ether);
+        assertEq(eDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.0034 ether);
@@ -377,7 +378,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, amountForLeverage + 500 ether);
+        assertEq(eDAISnapshot.debtOutstanding, amountForLeverage + 500 ether);
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.0027 ether);
@@ -431,8 +432,8 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
         assertEq(
-            eDAISnapshot.debtBalance,
-            eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
+            eDAISnapshot.debtOutstanding,
+            eDAISnapshotBefore.debtOutstanding - deleverageData.repayAmount
         );
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
@@ -486,7 +487,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
 
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
-        assertEq(eDAISnapshot.debtBalance, 100 ether + amountForLeverage);
+        assertEq(eDAISnapshot.debtOutstanding, 100 ether + amountForLeverage);
 
         AccountSnapshot memory pUSDCDAISnapshot = pUSDCDAI.getSnapshot(user);
         assertGt(pUSDCDAI.balanceOf(user), 0.00013 ether);
@@ -544,7 +545,7 @@ contract TestAerodromeStablePositionManager is TestBaseMarketIsolated {
         AccountSnapshot memory eDAISnapshot = eDAI.getSnapshot(user);
         assertEq(eDAI.balanceOf(user), 0);
         assertEq(
-            eDAISnapshot.debtBalance,
+            eDAISnapshot.debtOutstanding,
             eDAISnapshotBefore.debtBalance - deleverageData.repayAmount
         );
 

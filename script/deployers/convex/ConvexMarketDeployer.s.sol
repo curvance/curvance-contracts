@@ -171,7 +171,8 @@ contract ConvexMarketDeployer is DeployConfiguration {
                         marketManager,
                         param.pid,
                         param.rewarder,
-                        param.booster
+                        param.booster,
+                        1 days
                     )
                 );
             } else if (param.underlyings.length == 3) {
@@ -182,7 +183,8 @@ contract ConvexMarketDeployer is DeployConfiguration {
                         marketManager,
                         param.pid,
                         param.rewarder,
-                        param.booster
+                        param.booster,
+                        1 days
                     )
                 );
             } else if (param.underlyings.length == 4) {
@@ -193,7 +195,8 @@ contract ConvexMarketDeployer is DeployConfiguration {
                         marketManager,
                         param.pid,
                         param.rewarder,
-                        param.booster
+                        param.booster,
+                        1 days
                     )
                 );
             }

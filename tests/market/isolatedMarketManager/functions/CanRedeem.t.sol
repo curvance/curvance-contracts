@@ -78,7 +78,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         // marketManager.listToken(address(pBALRETH));
         _setPBALRETHCollateralCaps(100_000e18);
 
-        assertTrue(pBALRETH.isPToken());
+        assertTrue(pBALRETH.isCollateralizable());
         _prepareBALRETH(user1, 10_000e18);
         vm.startPrank(user1);
         balRETH.approve(address(pBALRETH), 1_000e18);
@@ -87,7 +87,7 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
         vm.stopPrank();
 
         bool hasPosition;
-        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(
             user1,
             address(pBALRETH)
         );
@@ -111,14 +111,14 @@ contract CanRedeemTest is TestBaseMarketManagerIsolated {
 
     function test_canRedeem_success_whenRedeemerNotInMarket() public {
         bool hasPosition;
-        (hasPosition, , ) = curvanceAuxiliaryData.tokenDataOf(user1, address(eUSDC));
+        (hasPosition, , ) = auxiliaryData.tokenDataOf(user1, address(eUSDC));
 
         assertFalse(hasPosition);
         marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 
     function test_canRedeem_success_ETokenCanAlwaysBeRedeemed() public {
-        assertFalse(eUSDC.isPToken());
+        assertTrue(eUSDC.isBorrowable());
         marketManagerIsolated.canRedeem(address(eUSDC), user1, 100e6);
     }
 }

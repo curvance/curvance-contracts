@@ -179,7 +179,8 @@ contract PendleLPDeployer is DeployConfiguration {
                     ICentralRegistry(address(centralRegistry)),
                     IERC20(param.asset),
                     marketManager,
-                    IPendleRouter(param.router)
+                    IPendleRouter(param.router),
+                    1 days
                 )
             );
 

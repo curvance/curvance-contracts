@@ -53,7 +53,8 @@ contract TestStakedGMXPToken is TestBaseMarketIsolated {
             gmx,
             address(marketManagerIsolated),
             _GMX_REWARD_ROUTER,
-            _WETH_ADDRESS
+            _WETH_ADDRESS,
+            1 days
         );
 
         _deployOracleManager();

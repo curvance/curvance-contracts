@@ -244,7 +244,7 @@ contract TestPythAdaptorMulticall is TestBaseMarketIsolated {
     }
 
     function testInitialize() public {
-        assertTrue(pWBTC.isPToken());
+        assertTrue(pWBTC.isCollateralizable());
         // assertFalse(eUSDC.isPToken());
     }
 

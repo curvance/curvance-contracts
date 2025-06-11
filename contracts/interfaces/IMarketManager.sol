@@ -10,7 +10,7 @@ interface IMarketManager {
     ///         scenario to review based on current liquidity levels.
     /// @param eToken Token to potentially repay which is borrowed by
     ///               `account`.
-    /// @param pToken Token which was used as collateral by `account` and may
+    /// @param cToken Token which was used as collateral by `account` and may
     ///               be seized.
     /// @param numAccounts The number of accounts to be, potentially,
     ///                    liquidated.
@@ -19,19 +19,19 @@ interface IMarketManager {
     /// @param eTokenRepaid Empty variable slot to store how much `eToken`
     ///                     will be repaid as part of a particular
     ///                     liquidation.
-    /// @param pTokenLiquidated Empty variable slot to store how much
-    ///                         `pToken` will be seized as part of a
+    /// @param cTokenLiquidated Empty variable slot to store how much
+    ///                         `cToken` will be seized as part of a
     ///                         particular liquidation.
     /// @param badDebt Empty variable slot to store how much bad debt will
     ///                be realized by lenders as part of a particular
     ///                liquidation.
     struct LiqInstructions {
         address eToken;
-        address pToken;
+        address cToken;
         uint256 numAccounts;
         bool liquidateExact;
         uint256 eTokenRepaid;
-        uint256 pTokenLiquidated;
+        uint256 cTokenLiquidated;
         uint256 badDebt;
     }
 
@@ -157,7 +157,7 @@ interface IMarketManager {
     /// @param instructions A LiqInstructions struct containing:
     ///               eToken Debt token to repay which is borrowed by
     ///                      `account`.
-    ///               pToken Position token which was used as collateral
+    ///               cToken Position token which was used as collateral
     ///                      and will be seized.
     ///               numAccounts The number of accounts to be potentially
     ///                           liquidated.
@@ -171,20 +171,20 @@ interface IMarketManager {
     ) external view returns (LiqResults memory, uint256[] memory);
 
     /// @notice Checks if the seizing of assets should be allowed to occur.
-    /// @param pToken Asset which was used as collateral and will be seized.
+    /// @param cToken Asset which was used as collateral and will be seized.
     /// @param earnToken Asset which was borrowed by the account.
-    function canSeize(address pToken, address earnToken) external;
+    function canSeize(address cToken, address earnToken) external;
 
     /// @notice Checks if the account should be allowed to transfer collateral
     ///         tokens in the given market.
     /// @param mToken The market token to verify the transfer of.
     /// @param from The account which will transfer the tokens.
-    /// @param balanceOf The current balance that `from` has of `pToken`
+    /// @param balanceOf The current balance that `from` has of `cToken`
     ///                  shares.
     /// @param collateralPosted The amount of `mToken` shares posted as
     ///                         collateral by `from`.
     /// @param amount The amount of `mToken` to transfer.
-    function canTransferPToken(
+    function canTransferCToken(
         address mToken,
         address from,
         uint256 balanceOf,
@@ -255,17 +255,17 @@ interface IMarketManager {
     ///         collateral versus outstanding debt.
     /// @param account The account to check liquidation status for.
     /// @param eToken The eToken to be repaid during potential liquidation.
-    /// @param pToken The pToken to be seized during potential
+    /// @param cToken The cToken to be seized during potential
     ///                        liquidation.
     /// @return lfactor `account`'s current lFactor, an lFactor at or above 1
     ///                 indicates a soft liquidation, with a value of
     ///                 1e18 (WAD) indicating a hard liquidation.
     /// @return earnTokenPrice Current price for `earnToken`.
-    /// @return positionTokenPrice Current price for `positionToken`.
+    /// @return positionTokenPrice Current price for `cToken`.
     function liquidationStatusOf(
         address account,
         address eToken,
-        address pToken
+        address cToken
     ) external view returns (uint256, uint256, uint256);
 
     /// @notice Returns whether `addressToCheck` is an approved position

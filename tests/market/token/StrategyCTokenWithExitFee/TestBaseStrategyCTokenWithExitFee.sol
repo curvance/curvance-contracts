@@ -79,6 +79,6 @@ contract TestBaseStrategyCTokenWithExitFee is TestBaseMarketIsolated {
             address(pBALRETHWithExitFee),
             _ONE
         );
-        marketManagerIsolated.listToken(address(pBALRETHWithExitFee));
+        marketManagerIsolated.listTokens(address(pBALRETHWithExitFee), address(eDAI));
     }
 }
